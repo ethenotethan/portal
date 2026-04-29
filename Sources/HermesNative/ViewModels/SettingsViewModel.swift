@@ -1,7 +1,8 @@
 import Foundation
 import Combine
 
-/// Manages connection settings: gateway URL, API key, and CF Access service token.
+/// Manages connection settings: gateway URL, API key, and CF Access auth state.
+@MainActor
 final class SettingsViewModel: ObservableObject {
     @Published var gatewayURL: String {
         didSet { KeychainStore.shared.saveGatewayURL(gatewayURL) }
@@ -9,19 +10,27 @@ final class SettingsViewModel: ObservableObject {
     @Published var apiKey: String {
         didSet { KeychainStore.shared.saveAPIKey(apiKey) }
     }
-    @Published var cfAccessClientId: String {
-        didSet { KeychainStore.shared.saveCFAccessClientId(cfAccessClientId) }
-    }
-    @Published var cfAccessClientSecret: String {
-        didSet { KeychainStore.shared.saveCFAccessClientSecret(cfAccessClientSecret) }
-    }
     @Published var isConfigured: Bool = false
+
+    /// Whether the gateway domain likely requires CF Access auth.
+    var needsCFAuth: Bool {
+        guard let host = buildWebSocketURL()?.host else { return false }
+        // Local addresses don't need CF Access
+        return !host.hasPrefix("127.0.0.1") &&
+               !host.hasPrefix("localhost") &&
+               !host.hasPrefix("192.168.") &&
+               !host.hasPrefix("10.")
+    }
+
+    /// The captured CF_Authorization cookie (not persisted — re-auth on app launch).
+    var cfAuthCookie: HTTPCookie?
+
+    /// Email extracted from CF Access JWT (for display purposes).
+    var cfAuthEmail: String?
 
     init() {
         self.gatewayURL = KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
         self.apiKey = KeychainStore.shared.loadAPIKey() ?? ""
-        self.cfAccessClientId = KeychainStore.shared.loadCFAccessClientId() ?? ""
-        self.cfAccessClientSecret = KeychainStore.shared.loadCFAccessClientSecret() ?? ""
         self.isConfigured = !gatewayURL.isEmpty
     }
 
@@ -43,7 +52,6 @@ final class SettingsViewModel: ObservableObject {
 
         // Append /v1/ws path if not already present
         if !urlString.hasSuffix("/v1/ws") && !urlString.hasSuffix("/api/ws") {
-            // Strip trailing slash
             urlString = urlString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             urlString += "/v1/ws"
         }
@@ -52,14 +60,26 @@ final class SettingsViewModel: ObservableObject {
     }
 
     /// Build a GatewayClient from current settings.
-    @MainActor
     func makeGatewayClient() -> GatewayClient? {
         guard let wsURL = buildWebSocketURL() else { return nil }
-        return GatewayClient(
-            gatewayURL: wsURL,
-            apiKey: apiKey,
-            cfAccessClientId: cfAccessClientId,
-            cfAccessClientSecret: cfAccessClientSecret
-        )
+        let client = GatewayClient(gatewayURL: wsURL, apiKey: apiKey)
+        client.cfAuthCookie = cfAuthCookie
+        return client
+    }
+
+    /// Extract email from CF_Authorization JWT payload (for display).
+    func parseCFAuthEmail(from cookie: HTTPCookie) {
+        // JWT format: header.payload.signature
+        let parts = cookie.value.split(separator: ".")
+        guard parts.count == 3 else { return }
+        // Decode payload (base64url)
+        let payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = payload.padding(toLength: ((payload.count + 3) / 4) * 4, withPad: "=", startingAt: 0)
+        guard let data = Data(base64Encoded: padded),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let email = json["email"] as? String else { return }
+        self.cfAuthEmail = email
     }
 }

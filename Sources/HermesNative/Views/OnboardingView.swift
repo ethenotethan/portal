@@ -6,6 +6,7 @@ struct OnboardingView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @State private var testing = false
     @State private var testResult: String?
+    @State private var showCFAuth = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -35,11 +36,33 @@ struct OnboardingView: View {
                         .textFieldStyle(.roundedBorder)
                 }
 
-                Section("Cloudflare Access (optional)") {
-                    SecureField("Client ID", text: $settings.cfAccessClientId)
-                        .textFieldStyle(.roundedBorder)
-                    SecureField("Client Secret", text: $settings.cfAccessClientSecret)
-                        .textFieldStyle(.roundedBorder)
+                if settings.needsCFAuth {
+                    Section("Cloudflare Access") {
+                        HStack {
+                            if let email = settings.cfAuthEmail {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text(email)
+                                    .lineLimit(1)
+                            } else if settings.cfAuthCookie != nil {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Authenticated")
+                            } else {
+                                Image(systemName: "lock.shield")
+                                    .foregroundStyle(.secondary)
+                                Text("Not authenticated")
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                                showCFAuth = true
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -63,7 +86,7 @@ struct OnboardingView: View {
                     settings.validate()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(settings.gatewayURL.isEmpty)
+                .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
             }
 
             if let result = testResult {
@@ -74,6 +97,17 @@ struct OnboardingView: View {
         }
         .padding(40)
         .frame(minWidth: 500, minHeight: 450)
+        .sheet(isPresented: $showCFAuth) {
+            if let host = settings.buildWebSocketURL()?.host {
+                CFAuthView(gatewayHost: host) { cookie in
+                    settings.cfAuthCookie = cookie
+                    settings.parseCFAuthEmail(from: cookie)
+                    showCFAuth = false
+                } onDismiss: {
+                    showCFAuth = false
+                }
+            }
+        }
     }
 
     private func testConnection() {
@@ -95,11 +129,8 @@ struct OnboardingView: View {
         if !settings.apiKey.isEmpty {
             request.setValue("Bearer \(settings.apiKey)", forHTTPHeaderField: "Authorization")
         }
-        if !settings.cfAccessClientId.isEmpty {
-            request.setValue(settings.cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
-        }
-        if !settings.cfAccessClientSecret.isEmpty {
-            request.setValue(settings.cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+        if let cookie = settings.cfAuthCookie {
+            HTTPCookieStorage.shared.setCookie(cookie)
         }
 
         URLSession.shared.dataTask(with: request) { _, response, error in
@@ -112,7 +143,7 @@ struct OnboardingView: View {
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 401 {
                     testResult = "✗ Invalid API key"
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 302 {
-                    testResult = "✗ Cloudflare Access — add service token"
+                    testResult = "✗ Cloudflare Access — sign in required"
                 } else {
                     testResult = "✗ Unexpected response"
                 }

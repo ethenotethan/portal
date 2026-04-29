@@ -4,7 +4,7 @@ import Combine
 /// WebSocket client for the Hermes gateway JSON-RPC protocol.
 ///
 /// Connects to `wss://<host>/v1/ws` (or `ws://localhost:8642/v1/ws` for local).
-/// Authenticates via Bearer token in the WS upgrade request.
+/// Authenticates via Bearer token + optional CF_Authorization cookie on WS upgrade.
 /// All messages are newline-delimited JSON-RPC 2.0.
 @MainActor
 final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
@@ -40,24 +40,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private let pendingRequestsLock = NSLock()
     private var gatewayURL: URL
     private var apiKey: String
-    private var cfAccessClientId: String
-    private var cfAccessClientSecret: String
+
+    /// CF_Authorization cookie from browser-based CF Access login.
+    var cfAuthCookie: HTTPCookie?
 
     // MARK: - Init
 
     override init() {
         self.gatewayURL = URL(string: Constants.defaultGatewayURL)!
         self.apiKey = ""
-        self.cfAccessClientId = ""
-        self.cfAccessClientSecret = ""
         super.init()
     }
 
-    init(gatewayURL: URL, apiKey: String, cfAccessClientId: String = "", cfAccessClientSecret: String = "") {
+    init(gatewayURL: URL, apiKey: String) {
         self.gatewayURL = gatewayURL
         self.apiKey = apiKey
-        self.cfAccessClientId = cfAccessClientId
-        self.cfAccessClientSecret = cfAccessClientSecret
         super.init()
     }
 
@@ -75,49 +72,50 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         connectionState = .connecting
 
-        // If behind CF Access, exchange service token for auth cookie first
-        if !cfAccessClientId.isEmpty && !cfAccessClientSecret.isEmpty {
+        // If we have a CF_Authorization cookie, verify it's still valid first
+        if cfAuthCookie != nil {
             Task {
-                await exchangeCFAccessTokenThenConnect()
+                await verifyCFCookieThenConnect()
             }
         } else {
             openWebSocket()
         }
     }
 
-    /// With CF Access service tokens, no cookie exchange is needed —
-    /// the service token headers are sent with every request including WS.
-    /// We just do a quick HTTP check to verify the tokens work before opening WS.
-    private func exchangeCFAccessTokenThenConnect() async {
+    /// Verify the CF_Authorization cookie is still valid via a quick HTTP check.
+    private func verifyCFCookieThenConnect() async {
         guard let host = gatewayURL.host,
               let scheme = gatewayURL.scheme,
-              let rootURL = URL(string: "\(scheme)://\(host)/health") else {
-            connectionState = .error("Invalid gateway URL")
+              let healthURL = URL(string: "\(scheme)://\(host)/health") else {
+            openWebSocket()
             return
         }
 
-        var request = URLRequest(url: rootURL)
-        request.setValue(cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
-        request.setValue(cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+        var request = URLRequest(url: healthURL)
+        request.timeoutInterval = 5
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
+        // Attach CF cookie
+        if let cookie = cfAuthCookie {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
 
-        onLog?("Verifying CF Access tokens…", false)
+        onLog?("Verifying CF Access session…", false)
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
 
             if statusCode == 200 {
-                onLog?("✓ CF Access tokens valid (HTTP 200), opening WS", false)
+                onLog?("✓ CF Access session valid", false)
                 openWebSocket()
-            } else if statusCode == 403 {
-                onLog?("✗ CF Access denied (HTTP 403) — check service token", true)
-                connectionState = .error("CF Access denied — invalid service token")
+            } else if statusCode == 302 || statusCode == 401 || statusCode == 403 {
+                onLog?("⚠ CF Access session expired (HTTP \(statusCode)), re-auth needed", true)
+                cfAuthCookie = nil
+                connectionState = .error("CF Access session expired — please re-authenticate")
             } else {
-                onLog?("✗ Unexpected HTTP \(statusCode)", true)
-                // Try opening WS anyway — might still work
+                onLog?("⚠ Unexpected HTTP \(statusCode), trying WS anyway", false)
                 openWebSocket()
             }
         } catch {
@@ -126,32 +124,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
-    private var cfAuthCookie: HTTPCookie?
-
     private func openWebSocket() {
-        NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cf=\(!cfAccessClientId.isEmpty) cookie=\(cfAuthCookie != nil)")
+        NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cookie=\(cfAuthCookie != nil)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
 
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
 
-        // CF Access service token headers MUST go in httpAdditionalHeaders
-        // because URLSessionWebSocketTask silently drops custom headers from URLRequest.
+        // Auth headers via httpAdditionalHeaders (URLSessionWebSocketTask
+        // silently drops custom headers from URLRequest).
         var additionalHeaders: [String: String] = [:]
         if !apiKey.isEmpty {
             additionalHeaders["Authorization"] = "Bearer \(apiKey)"
-        }
-        if !cfAccessClientId.isEmpty {
-            additionalHeaders["CF-Access-Client-Id"] = cfAccessClientId
-        }
-        if !cfAccessClientSecret.isEmpty {
-            additionalHeaders["CF-Access-Client-Secret"] = cfAccessClientSecret
         }
         if !additionalHeaders.isEmpty {
             sessionConfig.httpAdditionalHeaders = additionalHeaders
         }
 
-        // Carry CF_Authorization cookie if we got one
+        // Carry CF_Authorization cookie
         if let cookie = cfAuthCookie {
             sessionConfig.httpCookieStorage?.setCookie(cookie)
         }
@@ -210,6 +200,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     // MARK: - Convenience Methods
+
     /// Create a new agent session.
     func createSession(cols: Int = 120) async throws -> String {
         let response = try await call("session.create", params: ["cols": AnyCodable(cols)])
@@ -411,7 +402,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             let reasonStr = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             if case .connecting = connectionState {
                 onLog?("✗ WebSocket closed during handshake: \(code) \(reasonStr)", true)
-                connectionState = .error("Connection closed during handshake")
+                connectionState = .error("Connection closed during handshake (code \(code.rawValue))")
             } else {
                 onLog?("WebSocket closed: \(code) \(reasonStr)", code != .normalClosure)
                 connectionState = .disconnected

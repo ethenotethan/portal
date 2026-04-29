@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// macOS Keychain wrapper for storing the gateway API key.
+/// macOS Keychain wrapper for storing the gateway API key and URL.
 /// Uses kSecClassGenericPassword with a fixed service identifier.
 /// All operations are synchronous C API calls — safe to call from any thread.
 final class KeychainStore: Sendable {
@@ -14,8 +14,6 @@ final class KeychainStore: Sendable {
 
     // MARK: - API Key
 
-    /// Store the gateway API key in the Keychain.
-    /// - Returns: true on success, false on failure.
     @discardableResult
     func saveAPIKey(_ key: String) -> Bool {
         deleteAPIKey()
@@ -32,8 +30,6 @@ final class KeychainStore: Sendable {
         return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
     }
 
-    /// Retrieve the stored API key.
-    /// - Returns: The key string, or nil if not found.
     func loadAPIKey() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -50,8 +46,6 @@ final class KeychainStore: Sendable {
         return String(data: data, encoding: .utf8)
     }
 
-    /// Delete the stored API key.
-    /// - Returns: true on success or if not found.
     @discardableResult
     func deleteAPIKey() -> Bool {
         let query: [String: Any] = [
@@ -106,86 +100,6 @@ final class KeychainStore: Sendable {
             kSecAttrAccount as String: "gateway-url",
         ]
 
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
-
-    // MARK: - CF Access Service Token
-
-    @discardableResult
-    func saveCFAccessClientId(_ id: String) -> Bool {
-        deleteCFAccessClientId()
-        guard let data = id.data(using: .utf8) else { return false }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-id",
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
-    }
-
-    func loadCFAccessClientId() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-id",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    @discardableResult
-    func deleteCFAccessClientId() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-id",
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
-
-    @discardableResult
-    func saveCFAccessClientSecret(_ secret: String) -> Bool {
-        deleteCFAccessClientSecret()
-        guard let data = secret.data(using: .utf8) else { return false }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-secret",
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-        ]
-        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
-    }
-
-    func loadCFAccessClientSecret() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-secret",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    @discardableResult
-    func deleteCFAccessClientSecret() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "cf-access-client-secret",
-        ]
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }

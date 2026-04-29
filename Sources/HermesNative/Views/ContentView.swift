@@ -120,7 +120,7 @@ final class GatewayClientWrapper: ObservableObject {
 
         appendLog("URL: \(settings.buildWebSocketURL()?.absoluteString ?? "nil")")
         appendLog("API key: \(settings.apiKey.isEmpty ? "none" : "set (\(settings.apiKey.prefix(8))…)")")
-        appendLog("CF Access: \(settings.cfAccessClientId.isEmpty ? "none" : "set")")
+        appendLog("CF Access: \(settings.cfAuthCookie != nil ? "authenticated" : "not set")")
 
         client = newClient
         client.$connectionState
