@@ -192,6 +192,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         NSLog("[HermesNative] call: sending \(method) id=\(id)")
+        onLog?("→ \(method) (id=\(id))", false)
         try await webSocketTask.send(.data(data))
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -351,18 +352,22 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func handleMessage(_ data: Data) {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             NSLog("[HermesNative] handleMessage: failed to parse JSON")
+            onLog?("⚠ Failed to parse WS message", true)
             return
         }
 
         // Response (has numeric "id" > 0)
         if let id = json["id"] as? Int, id > 0 {
             NSLog("[HermesNative] handleMessage: response id=\(id)")
+            onLog?("← response id=\(id)", false)
             if let responseData = try? JSONSerialization.data(withJSONObject: json),
                let response = try? JSONDecoder().decode(JSONRPCResponse.self, from: responseData) {
                 fulfillRequest(id: id, response: response)
                 return
             }
-            NSLog("[HermesNative] handleMessage: failed to decode response for id=\(id), raw: \(String(data: data, encoding: .utf8)?.prefix(300) ?? "nil")")
+            let raw = String(data: data, encoding: .utf8)?.prefix(300) ?? "nil"
+            NSLog("[HermesNative] handleMessage: failed to decode response for id=\(id), raw: \(raw)")
+            onLog?("⚠ Decode failed for id=\(id): \(raw)", true)
             return
         }
 
@@ -370,6 +375,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if json["method"] as? String == "event",
            let params = json["params"] as? [String: Any],
            let type = params["type"] as? String {
+
+            NSLog("[HermesNative] handleMessage: event type=\(type)")
+            onLog?("← event: \(type)", false)
 
             let payloadData = try? JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
             let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }

@@ -4,6 +4,7 @@ import SwiftUI
 struct ChatView: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var settings: SettingsViewModel
+    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @State private var scrollViewProxy: ScrollViewProxy?
 
     var body: some View {
@@ -43,6 +44,11 @@ struct ChatView: View {
             // Input bar
             ChatInputBar()
                 .environmentObject(chatViewModel)
+
+            // Debug log (always visible while not session-ready)
+            if !chatViewModel.isSessionReady {
+                DebugLogPanel(wrapper: gatewayClientWrapper)
+            }
         }
         .frame(minWidth: 600, minHeight: 400)
         .onAppear {
@@ -142,6 +148,38 @@ struct ChatInputBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(.bar)
+    }
+}
+
+// MARK: - Debug Log Panel
+
+struct DebugLogPanel: View {
+    @ObservedObject var wrapper: GatewayClientWrapper
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(wrapper.log) { entry in
+                        Text(entry.text)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(entry.isError ? .red : .secondary)
+                            .id(entry.id)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 150)
+            .padding(8)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+            .onChange(of: wrapper.log.count) { _, _ in
+                if let last = wrapper.log.last {
+                    proxy.scrollTo(last.id)
+                }
+            }
+        }
     }
 }
 
