@@ -72,6 +72,62 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         connectionState = .connecting
 
+        // If behind CF Access, exchange service token for auth cookie first
+        if !cfAccessClientId.isEmpty && !cfAccessClientSecret.isEmpty {
+            Task {
+                await exchangeCFAccessTokenThenConnect()
+            }
+        } else {
+            openWebSocket()
+        }
+    }
+
+    /// Exchange CF Access service token for a CF_Authorization cookie,
+    /// then open the WebSocket with that cookie.
+    private func exchangeCFAccessTokenThenConnect() async {
+        // Hit the base URL (not /v1/ws) to get the CF_Authorization cookie
+        let baseURL = gatewayURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("health")
+
+        var request = URLRequest(url: baseURL)
+        request.setValue(cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
+        request.setValue(cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+
+        NSLog("[HermesNative] Exchanging CF Access token at \(baseURL)")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+
+            // Extract CF_Authorization cookie
+            let cookies = HTTPCookieStorage.shared.cookies(for: gatewayURL) ?? []
+            let cfCookie = cookies.first { $0.name == "CF_Authorization" }
+
+            if let cfCookie {
+                NSLog("[HermesNative] Got CF_Authorization cookie, opening WS")
+                cfAuthCookie = cfCookie
+                openWebSocket()
+            } else if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                // No cookie needed — path might be exempted
+                NSLog("[HermesNative] No CF cookie needed (200), opening WS directly")
+                openWebSocket()
+            } else {
+                NSLog("[HermesNative] CF Access auth failed: status \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                connectionState = .error("Cloudflare Access authentication failed")
+            }
+        } catch {
+            NSLog("[HermesNative] CF Access exchange error: \(error)")
+            connectionState = .error("CF Access error: \(error.localizedDescription)")
+        }
+    }
+
+    private var cfAuthCookie: HTTPCookie?
+
+    private func openWebSocket() {
         var request = URLRequest(url: gatewayURL)
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -83,8 +139,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             request.setValue(cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
         }
 
+        NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cf=\(!cfAccessClientId.isEmpty) cookie=\(cfAuthCookie != nil)")
+
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
+        // Carry CF_Authorization cookie if we got one
+        if let cookie = cfAuthCookie {
+            sessionConfig.httpCookieStorage?.setCookie(cookie)
+        }
         let newSession = URLSession(configuration: sessionConfig, delegate: self, delegateQueue: nil)
         self.urlSession = newSession
 
