@@ -7,16 +7,20 @@ struct ContentView: View {
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
 
     var body: some View {
-        Group {
-            if settings.isConfigured && gatewayClientWrapper.isConnected {
-                ChatView()
-                    .environmentObject(chatViewModel)
-            } else {
-                OnboardingView()
-                    .environmentObject(gatewayClientWrapper)
+        VStack(spacing: 0) {
+            // Main content
+            Group {
+                if settings.isConfigured && gatewayClientWrapper.isConnected {
+                    ChatView()
+                        .environmentObject(chatViewModel)
+                } else {
+                    OnboardingView()
+                        .environmentObject(gatewayClientWrapper)
+                }
             }
-        }
-        .overlay(alignment: .bottom) {
+            .frame(maxHeight: .infinity)
+
+            // Connection log bar — pinned below, not overlaying
             if settings.isConfigured && !gatewayClientWrapper.isConnected {
                 connectionStatusBar
             }
