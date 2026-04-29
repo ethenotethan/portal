@@ -6,6 +6,7 @@ import Combine
 /// Connects to `wss://<host>/v1/ws` (or `ws://localhost:8642/v1/ws` for local).
 /// Authenticates via Bearer token in the WS upgrade request.
 /// All messages are newline-delimited JSON-RPC 2.0.
+@MainActor
 final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
 
     // MARK: - Published State
@@ -19,7 +20,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - Types
 
-    enum ConnectionState: Equatable {
+    enum ConnectionState: Sendable {
         case disconnected
         case connecting
         case connected
@@ -30,16 +31,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
+    private var receiveTask: Task<Void, Never>?
     private var requestIDCounter = 0
     private var pendingRequests: [Int: CheckedContinuation<JSONRPCResponse, Error>] = [:]
     private let pendingRequestsLock = NSLock()
-    private var receiveTask: Task<Void, Never>?
-
-    // Auth
     private var gatewayURL: URL
     private var apiKey: String
 
     // MARK: - Init
+
+    override init() {
+        self.gatewayURL = URL(string: Constants.defaultGatewayURL)!
+        self.apiKey = ""
+        super.init()
+    }
 
     init(gatewayURL: URL, apiKey: String) {
         self.gatewayURL = gatewayURL
@@ -301,21 +306,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - URLSessionWebSocketDelegate
 
-    func urlSession(
+    nonisolated func urlSession(
         _ session: URLSession,
         webSocketTask: URLSessionWebSocketTask,
         didOpenWithProtocol protocol: String?
     ) {
-        connectionState = .connected
+        Task { @MainActor in
+            connectionState = .connected
+        }
     }
 
-    func urlSession(
+    nonisolated func urlSession(
         _ session: URLSession,
         webSocketTask: URLSessionWebSocketTask,
         didCloseWith code: URLSessionWebSocketTask.CloseCode,
         reason: Data?
     ) {
-        connectionState = .disconnected
+        Task { @MainActor in
+            if case .connecting = connectionState {
+                connectionState = .error("Connection closed during handshake")
+            } else {
+                connectionState = .disconnected
+            }
+        }
     }
 }
 
