@@ -222,7 +222,20 @@ final class ChatViewModel: ObservableObject {
                 messages[idx].reasoning = (messages[idx].reasoning ?? "") + text
             }
 
-        case .reasoningAvailable, .thinkingDelta:
+        case .thinkingDelta(let text):
+            // Append to last assistant message's reasoning (thinking IS reasoning
+            // from the model's perspective — e.g. GLM-5.1 fires thinking.delta
+            // not reasoning.delta).  Show it live so the user sees progress.
+            if let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                let existing = messages[idx].reasoning ?? ""
+                // Add newline between chunks if we already have content and this
+                // isn't a continuation (thinking deltas from the gateway spinner
+                // are discrete status messages like "🤔 pondering...")
+                let separator = existing.isEmpty ? "" : "\n"
+                messages[idx].reasoning = existing + separator + text
+            }
+
+        case .reasoningAvailable:
             break
 
         case .approvalRequest(payload: let payload):

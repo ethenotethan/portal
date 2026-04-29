@@ -25,14 +25,14 @@ struct MessageBubbleView: View {
                     }
                 }
 
-                // Reasoning (collapsible)
+                // Reasoning (collapsible) — show both during streaming and after completion
                 if let reasoning = message.reasoning, !reasoning.isEmpty {
-                    ReasoningView(text: reasoning)
+                    ReasoningView(text: reasoning, isStreaming: message.isStreaming)
                 }
 
                 // Main text content
                 if !message.content.isEmpty {
-                    Text(message.content)
+                    MarkdownContentView(text: message.content, isStreaming: message.isStreaming)
                         .textSelection(.enabled)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -50,8 +50,11 @@ struct MessageBubbleView: View {
                         )
                 }
 
-                // Streaming indicator
-                if message.isStreaming && message.content.isEmpty {
+                // Streaming indicator — show spinner only when no reasoning
+                // AND no content yet (reasoning appears in the collapsible
+                // ReasoningView above, which is more informative than a bare
+                // "Thinking" label).
+                if message.isStreaming && message.content.isEmpty && (message.reasoning ?? "").isEmpty {
                     HStack(spacing: 4) {
                         Text("Thinking")
                             .font(.caption)
@@ -104,20 +107,37 @@ struct StatusBadge: View {
 
 struct ReasoningView: View {
     let text: String
+    var isStreaming: Bool = false
     @State private var isExpanded = false
 
     var body: some View {
-        DisclosureGroup("Reasoning", isExpanded: $isExpanded) {
+        DisclosureGroup(isExpanded: $isExpanded) {
             Text(text)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .lineLimit(isExpanded ? nil : 3)
+        } label: {
+            HStack(spacing: 4) {
+                if isStreaming {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
+                Text(isStreaming ? "Thinking…" : "Reasoning")
+            }
         }
         .font(.caption)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+        .onChange(of: isStreaming) { _, streaming in
+            // Auto-expand when thinking starts, collapse when done
+            if streaming { isExpanded = true }
+        }
+        .onAppear {
+            // If already streaming when view appears, expand immediately
+            if isStreaming { isExpanded = true }
+        }
     }
 }
