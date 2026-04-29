@@ -16,9 +16,5 @@ let package = Package(
             name: "HermesNative",
             dependencies: []
         ),
-        .testTarget(
-            name: "HermesNativeTests",
-            dependencies: ["HermesNative"]
-        ),
     ]
 )
