@@ -191,10 +191,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.notConnected
         }
 
+        NSLog("[HermesNative] call: sending \(method) id=\(id)")
         try await webSocketTask.send(.data(data))
+
         return try await withCheckedThrowingContinuation { continuation in
             pendingRequestsLock.lock()
             pendingRequests[id] = continuation
+            NSLog("[HermesNative] call: registered continuation for id=\(id), pending count=\(pendingRequests.count)")
             pendingRequestsLock.unlock()
         }
     }
@@ -319,9 +322,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
                 switch message {
                 case .data(let data):
+                    NSLog("[HermesNative] WS recv data: \(data.count) bytes")
                     handleMessage(data)
 
                 case .string(let text):
+                    NSLog("[HermesNative] WS recv string: \(text.prefix(200))")
                     if let data = text.data(using: .utf8) {
                         handleMessage(data)
                     }
@@ -331,6 +336,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 }
             }
         } catch {
+            NSLog("[HermesNative] receiveLoop error: \(error)")
             switch connectionState {
             case .connecting:
                 connectionState = .error(error.localizedDescription)
@@ -343,15 +349,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     private func handleMessage(_ data: Data) {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            NSLog("[HermesNative] handleMessage: failed to parse JSON")
+            return
+        }
 
         // Response (has numeric "id" > 0)
         if let id = json["id"] as? Int, id > 0 {
+            NSLog("[HermesNative] handleMessage: response id=\(id)")
             if let responseData = try? JSONSerialization.data(withJSONObject: json),
                let response = try? JSONDecoder().decode(JSONRPCResponse.self, from: responseData) {
                 fulfillRequest(id: id, response: response)
                 return
             }
+            NSLog("[HermesNative] handleMessage: failed to decode response for id=\(id), raw: \(String(data: data, encoding: .utf8)?.prefix(300) ?? "nil")")
+            return
         }
 
         // Event (method == "event")
@@ -374,6 +386,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func fulfillRequest(id: Int, response: JSONRPCResponse) {
         pendingRequestsLock.lock()
         let continuation = pendingRequests.removeValue(forKey: id)
+        NSLog("[HermesNative] fulfillRequest: id=\(id), found=\(continuation != nil), remaining=\(pendingRequests.count)")
         pendingRequestsLock.unlock()
 
         continuation?.resume(returning: response)
