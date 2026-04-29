@@ -14,7 +14,11 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "HermesNative",
-            dependencies: []
+            dependencies: [],
+            linkerSettings: [
+                .linkedFramework("SceneKit"),
+                .linkedFramework("SpriteKit"),
+            ]
         ),
     ]
 )

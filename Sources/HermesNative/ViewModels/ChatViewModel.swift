@@ -12,6 +12,7 @@ final class ChatViewModel: ObservableObject {
     @Published var pendingApproval: ApprovalPayload?
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
     @Published var error: String?
+    @Published var avatarState: AvatarState = .idle
 
     private var gatewayClient: GatewayClient?
     private var sessionID: String?
@@ -169,8 +170,8 @@ final class ChatViewModel: ObservableObject {
             isSessionReady = true
 
         case .messageStart:
-            // Streaming begins — assistant message already created in submitPrompt
-            break
+            // Streaming begins — avatar is speaking
+            avatarState = .speaking
 
         case .messageDelta(let text, _):
             // Append streaming text to the current assistant message
@@ -194,8 +195,10 @@ final class ChatViewModel: ObservableObject {
             activeToolCalls = [:]
             isStreaming = false
             streamingMessageID = nil
+            avatarState = .idle
 
         case .toolStart(payload: let payload):
+            avatarState = .toolUse
             activeToolCalls[payload.toolID] = ToolCallRecord(
                 id: payload.toolID,
                 name: payload.name,
@@ -222,12 +225,16 @@ final class ChatViewModel: ObservableObject {
             break
 
         case .reasoningDelta(let text):
+            // Thinking/reasoning — avatar thinks
+            if avatarState != .toolUse { avatarState = .thinking }
             // Append to last assistant message's reasoning
             if let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
                 messages[idx].reasoning = (messages[idx].reasoning ?? "") + text
             }
 
         case .thinkingDelta(let text):
+            // Thinking — avatar thinks (unless tool is running)
+            if avatarState != .toolUse { avatarState = .thinking }
             // Append to last assistant message's reasoning (thinking IS reasoning
             // from the model's perspective — e.g. GLM-5.1 fires thinking.delta
             // not reasoning.delta).  Show it live so the user sees progress.
@@ -252,6 +259,7 @@ final class ChatViewModel: ObservableObject {
         case .error(let message):
             self.error = message
             isStreaming = false
+            avatarState = .error
 
         case .skinChanged:
             break

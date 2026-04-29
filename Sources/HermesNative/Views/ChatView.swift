@@ -16,23 +16,39 @@ struct ChatView: View {
 
             Divider()
 
-            // Message list
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(chatViewModel.messages) { message in
-                            MessageBubbleView(message: message)
-                                .id(message.id)
+            ZStack(alignment: .bottomLeading) {
+                // Message list
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            ForEach(chatViewModel.messages) { message in
+                                MessageBubbleView(message: message)
+                                    .id(message.id)
+                            }
                         }
+                        .padding()
+                        .padding(.bottom, 80) // space for avatar
                     }
-                    .padding()
+                    .onChange(of: chatViewModel.messages.count) { _, _ in
+                        scrollToBottom(proxy: proxy)
+                    }
+                    .onChange(of: chatViewModel.messages.last?.content) { _, _ in
+                        scrollToBottom(proxy: proxy)
+                    }
                 }
-                .onChange(of: chatViewModel.messages.count) { _, _ in
-                    scrollToBottom(proxy: proxy)
+
+                // 3D Avatar companion (bottom-left)
+                VStack(alignment: .leading, spacing: 2) {
+                    Avatar3DView(
+                        state: chatViewModel.avatarState,
+                        accentColorHex: personaManager.activePersona.accentColorHex,
+                        size: 80
+                    )
+                    .shadow(color: (Color(hex: personaManager.activePersona.accentColorHex) ?? .purple).opacity(0.3), radius: 8)
+                    AvatarStateLabel(state: chatViewModel.avatarState)
                 }
-                .onChange(of: chatViewModel.messages.last?.content) { _, _ in
-                    scrollToBottom(proxy: proxy)
-                }
+                .padding(.leading, 12)
+                .padding(.bottom, 8)
             }
 
             Divider()
