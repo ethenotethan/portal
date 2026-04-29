@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-/// Manages connection settings: gateway URL and API key.
+/// Manages connection settings: gateway URL, API key, and CF Access service token.
 final class SettingsViewModel: ObservableObject {
     @Published var gatewayURL: String {
         didSet { KeychainStore.shared.saveGatewayURL(gatewayURL) }
@@ -9,17 +9,25 @@ final class SettingsViewModel: ObservableObject {
     @Published var apiKey: String {
         didSet { KeychainStore.shared.saveAPIKey(apiKey) }
     }
+    @Published var cfAccessClientId: String {
+        didSet { KeychainStore.shared.saveCFAccessClientId(cfAccessClientId) }
+    }
+    @Published var cfAccessClientSecret: String {
+        didSet { KeychainStore.shared.saveCFAccessClientSecret(cfAccessClientSecret) }
+    }
     @Published var isConfigured: Bool = false
 
     init() {
         self.gatewayURL = KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
         self.apiKey = KeychainStore.shared.loadAPIKey() ?? ""
-        self.isConfigured = !apiKey.isEmpty && !gatewayURL.isEmpty
+        self.cfAccessClientId = KeychainStore.shared.loadCFAccessClientId() ?? ""
+        self.cfAccessClientSecret = KeychainStore.shared.loadCFAccessClientSecret() ?? ""
+        self.isConfigured = !gatewayURL.isEmpty
     }
 
     /// Validate and update the configured state.
     func validate() {
-        isConfigured = !apiKey.isEmpty && !gatewayURL.isEmpty
+        isConfigured = !gatewayURL.isEmpty
     }
 
     /// Build the WebSocket URL from the configured gateway URL.
@@ -41,5 +49,17 @@ final class SettingsViewModel: ObservableObject {
         }
 
         return URL(string: urlString)
+    }
+
+    /// Build a GatewayClient from current settings.
+    @MainActor
+    func makeGatewayClient() -> GatewayClient? {
+        guard let wsURL = buildWebSocketURL() else { return nil }
+        return GatewayClient(
+            gatewayURL: wsURL,
+            apiKey: apiKey,
+            cfAccessClientId: cfAccessClientId,
+            cfAccessClientSecret: cfAccessClientSecret
+        )
     }
 }

@@ -37,18 +37,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private let pendingRequestsLock = NSLock()
     private var gatewayURL: URL
     private var apiKey: String
+    private var cfAccessClientId: String
+    private var cfAccessClientSecret: String
 
     // MARK: - Init
 
     override init() {
         self.gatewayURL = URL(string: Constants.defaultGatewayURL)!
         self.apiKey = ""
+        self.cfAccessClientId = ""
+        self.cfAccessClientSecret = ""
         super.init()
     }
 
-    init(gatewayURL: URL, apiKey: String) {
+    init(gatewayURL: URL, apiKey: String, cfAccessClientId: String = "", cfAccessClientSecret: String = "") {
         self.gatewayURL = gatewayURL
         self.apiKey = apiKey
+        self.cfAccessClientId = cfAccessClientId
+        self.cfAccessClientSecret = cfAccessClientSecret
         super.init()
     }
 
@@ -69,6 +75,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         var request = URLRequest(url: gatewayURL)
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        if !cfAccessClientId.isEmpty {
+            request.setValue(cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
+        }
+        if !cfAccessClientSecret.isEmpty {
+            request.setValue(cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
         }
 
         let sessionConfig = URLSessionConfiguration.default

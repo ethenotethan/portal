@@ -18,22 +18,14 @@ struct ContentView: View {
         }
         .task {
             if settings.isConfigured {
-                await gatewayClientWrapper.connect(
-                    gatewayURL: settings.gatewayURL,
-                    apiKey: settings.apiKey,
-                    settings: settings
-                )
+                await gatewayClientWrapper.connect(using: settings)
                 chatViewModel.setGatewayClient(gatewayClientWrapper.client)
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
             if configured {
                 Task {
-                    await gatewayClientWrapper.connect(
-                        gatewayURL: settings.gatewayURL,
-                        apiKey: settings.apiKey,
-                        settings: settings
-                    )
+                    await gatewayClientWrapper.connect(using: settings)
                     chatViewModel.setGatewayClient(gatewayClientWrapper.client)
                 }
             }
@@ -48,18 +40,18 @@ final class GatewayClientWrapper: ObservableObject {
     private(set) var client: GatewayClient
 
     init() {
-        self.client = GatewayClient(gatewayURL: URL(string: Constants.defaultGatewayURL)!, apiKey: "")
+        self.client = GatewayClient()
     }
 
-    func connect(gatewayURL: String, apiKey: String, settings: SettingsViewModel) async {
+    func connect(using settings: SettingsViewModel) async {
         client.disconnect()
 
-        guard let url = settings.buildWebSocketURL() else {
+        guard let newClient = settings.makeGatewayClient() else {
             isConnected = false
             return
         }
 
-        client = GatewayClient(gatewayURL: url, apiKey: apiKey)
+        client = newClient
         client.$connectionState
             .map { state -> Bool in
                 if case .connected = state { return true }

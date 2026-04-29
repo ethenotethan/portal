@@ -26,12 +26,19 @@ struct OnboardingView: View {
                     TextField("URL", text: $settings.gatewayURL)
                         .textFieldStyle(.roundedBorder)
                         .placeholder(when: settings.gatewayURL.isEmpty) {
-                            Text(Constants.defaultGatewayURL).foregroundStyle(.tertiary)
+                            Text("https://GATEWAY_HOST").foregroundStyle(.tertiary)
                         }
                 }
 
                 Section("Authentication") {
                     SecureField("API Key", text: $settings.apiKey)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                Section("Cloudflare Access (optional)") {
+                    SecureField("Client ID", text: $settings.cfAccessClientId)
+                        .textFieldStyle(.roundedBorder)
+                    SecureField("Client Secret", text: $settings.cfAccessClientSecret)
                         .textFieldStyle(.roundedBorder)
                 }
             }
@@ -49,14 +56,14 @@ struct OnboardingView: View {
                         Text("Test Connection")
                     }
                 }
-                .disabled(testing || settings.apiKey.isEmpty)
+                .disabled(testing)
                 .buttonStyle(.bordered)
 
                 Button("Connect") {
                     settings.validate()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(settings.apiKey.isEmpty)
+                .disabled(settings.gatewayURL.isEmpty)
             }
 
             if let result = testResult {
@@ -66,7 +73,7 @@ struct OnboardingView: View {
             }
         }
         .padding(40)
-        .frame(minWidth: 500, minHeight: 400)
+        .frame(minWidth: 500, minHeight: 450)
     }
 
     private func testConnection() {
@@ -88,6 +95,12 @@ struct OnboardingView: View {
         if !settings.apiKey.isEmpty {
             request.setValue("Bearer \(settings.apiKey)", forHTTPHeaderField: "Authorization")
         }
+        if !settings.cfAccessClientId.isEmpty {
+            request.setValue(settings.cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
+        }
+        if !settings.cfAccessClientSecret.isEmpty {
+            request.setValue(settings.cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+        }
 
         URLSession.shared.dataTask(with: request) { _, response, error in
             DispatchQueue.main.async {
@@ -98,6 +111,8 @@ struct OnboardingView: View {
                     testResult = "✓ Gateway reachable"
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 401 {
                     testResult = "✗ Invalid API key"
+                } else if let http = response as? HTTPURLResponse, http.statusCode == 302 {
+                    testResult = "✗ Cloudflare Access — add service token"
                 } else {
                     testResult = "✗ Unexpected response"
                 }
