@@ -18,6 +18,7 @@ final class ChatViewModel: ObservableObject {
     private var streamingMessageID: UUID?
     private var cancellables = Set<AnyCancellable>()
     private var isCreatingSession = false  // Guard against double-trigger
+    weak var personaManager: PersonaManager?
 
     // MARK: - Setup
 
@@ -39,9 +40,13 @@ final class ChatViewModel: ObservableObject {
                 switch state {
                 case .connected:
                     self?.error = nil
-                    // Auto-create session once connected
-                    if self?.sessionID == nil {
-                        Task {
+                    // Sync persona from gateway, then create session
+                    Task {
+                        if let pm = self?.personaManager, let client = self?.gatewayClient {
+                            await pm.syncFromGateway(client)
+                        }
+                        // Auto-create session once connected
+                        if self?.sessionID == nil {
                             await self?.createSession()
                         }
                     }

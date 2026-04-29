@@ -321,6 +321,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - Private
 
+    /// Get a config value from the gateway.
+    func getConfig(key: String) async throws -> [String: AnyCodable]? {
+        let response = try await call("config.get", params: ["key": AnyCodable(key)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue
+    }
+
     private func nextRequestID() -> Int {
         requestIDCounter += 1
         return requestIDCounter

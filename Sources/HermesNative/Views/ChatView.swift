@@ -54,6 +54,7 @@ struct ChatView: View {
         }
         .frame(minWidth: 600, minHeight: 400)
         .onAppear {
+            chatViewModel.personaManager = personaManager
             if !chatViewModel.isSessionReady {
                 Task {
                     await chatViewModel.createSession()
