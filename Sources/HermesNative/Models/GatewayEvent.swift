@@ -2,6 +2,8 @@ import Foundation
 
 /// Typed representation of all gateway event types the server can emit.
 /// Each case carries a strongly-typed payload where possible.
+///
+/// Source: tui_gateway/server.py _emit() calls
 enum GatewayEvent {
     // Connection lifecycle
     case gatewayReady(skin: String)
@@ -25,8 +27,19 @@ enum GatewayEvent {
     case reasoningAvailable(text: String)
     case thinkingDelta(text: String)
 
-    // Approvals
+    // Subagent delegation
+    case subagentStart(payload: SubagentPayload)
+    case subagentComplete(payload: SubagentCompletePayload)
+    case subagentTool(payload: SubagentToolPayload)
+
+    // Background tasks
+    case backgroundComplete(taskID: String, text: String)
+
+    // Approvals / blocking requests
     case approvalRequest(payload: ApprovalPayload)
+    case clarifyRequest(question: String, choices: [String])
+    case sudoRequest
+    case secretRequest(prompt: String, envVar: String)
 
     // Status
     case statusUpdate(kind: String, text: String)
@@ -36,7 +49,7 @@ enum GatewayEvent {
     case skinChanged(skin: String?)
 
     // Voice
-    case voiceTranscript(text: String)
+    case voiceTranscript(text: String, noSpeechLimit: Bool)
     case voiceStatus(state: String)
 
     /// Parse from raw JSON-RPC event params.
@@ -87,8 +100,39 @@ enum GatewayEvent {
         case "thinking.delta":
             return .thinkingDelta(text: p["text"]?.stringValue ?? "")
 
+        case "subagent.start":
+            return .subagentStart(payload: SubagentPayload.from(p))
+
+        case "subagent.complete":
+            return .subagentComplete(payload: SubagentCompletePayload.from(p))
+
+        case "subagent.tool":
+            return .subagentTool(payload: SubagentToolPayload.from(p))
+
+        case "background.complete":
+            return .backgroundComplete(
+                taskID: p["task_id"]?.stringValue ?? "",
+                text: p["text"]?.stringValue ?? ""
+            )
+
         case "approval.request":
             return .approvalRequest(payload: ApprovalPayload.from(p))
+
+        case "clarify.request":
+            let choices = p["choices"]?.arrayValue?.map { $0.stringValue ?? "" } ?? []
+            return .clarifyRequest(
+                question: p["question"]?.stringValue ?? "",
+                choices: choices
+            )
+
+        case "sudo.request":
+            return .sudoRequest
+
+        case "secret.request":
+            return .secretRequest(
+                prompt: p["prompt"]?.stringValue ?? "",
+                envVar: p["env_var"]?.stringValue ?? ""
+            )
 
         case "status.update":
             return .statusUpdate(
@@ -103,7 +147,10 @@ enum GatewayEvent {
             return .skinChanged(skin: p["skin"]?.stringValue)
 
         case "voice.transcript":
-            return .voiceTranscript(text: p["text"]?.stringValue ?? "")
+            return .voiceTranscript(
+                text: p["text"]?.stringValue ?? "",
+                noSpeechLimit: p["no_speech_limit"]?.boolValue ?? false
+            )
 
         case "voice.status":
             return .voiceStatus(state: p["state"]?.stringValue ?? "")
@@ -235,7 +282,7 @@ struct ToolCompletePayload {
             toolID: p["tool_id"]?.stringValue ?? "",
             name: p["name"]?.stringValue ?? "",
             summary: p["summary"]?.stringValue,
-            durationSeconds: p["duration_s"]?.doubleValue,
+            durationSeconds: p["duration_seconds"]?.doubleValue,
             inlineDiff: p["inline_diff"]?.stringValue,
             todos: todos
         )
@@ -260,6 +307,80 @@ struct ApprovalPayload {
             sessionKey: p["session_key"]?.stringValue ?? "",
             toolName: p["tool_name"]?.stringValue,
             rawArgs: p["raw_args"]?.stringValue
+        )
+    }
+}
+
+struct SubagentPayload {
+    let goal: String
+    let taskCount: Int
+    let taskIndex: Int
+    let subagentID: String?
+    let parentID: String?
+    let depth: Int?
+    let model: String?
+
+    static func from(_ p: [String: AnyCodable]) -> SubagentPayload {
+        SubagentPayload(
+            goal: p["goal"]?.stringValue ?? "",
+            taskCount: p["task_count"]?.intValue ?? 1,
+            taskIndex: p["task_index"]?.intValue ?? 0,
+            subagentID: p["subagent_id"]?.stringValue,
+            parentID: p["parent_id"]?.stringValue,
+            depth: p["depth"]?.intValue,
+            model: p["model"]?.stringValue
+        )
+    }
+}
+
+struct SubagentCompletePayload {
+    let goal: String
+    let taskCount: Int
+    let taskIndex: Int
+    let subagentID: String?
+    let parentID: String?
+    let depth: Int?
+    let inputTokens: Int?
+    let outputTokens: Int?
+    let apiCalls: Int?
+    let costUSD: Double?
+    let filesRead: [String]?
+    let filesWritten: [String]?
+
+    static func from(_ p: [String: AnyCodable]) -> SubagentCompletePayload {
+        SubagentCompletePayload(
+            goal: p["goal"]?.stringValue ?? "",
+            taskCount: p["task_count"]?.intValue ?? 1,
+            taskIndex: p["task_index"]?.intValue ?? 0,
+            subagentID: p["subagent_id"]?.stringValue,
+            parentID: p["parent_id"]?.stringValue,
+            depth: p["depth"]?.intValue,
+            inputTokens: p["input_tokens"]?.intValue,
+            outputTokens: p["output_tokens"]?.intValue,
+            apiCalls: p["api_calls"]?.intValue,
+            costUSD: p["cost_usd"]?.doubleValue,
+            filesRead: p["files_read"]?.arrayValue?.map { $0.stringValue ?? "" },
+            filesWritten: p["files_written"]?.arrayValue?.map { $0.stringValue ?? "" }
+        )
+    }
+}
+
+struct SubagentToolPayload {
+    let goal: String
+    let taskCount: Int
+    let taskIndex: Int
+    let toolName: String?
+    let toolPreview: String?
+    let text: String?
+
+    static func from(_ p: [String: AnyCodable]) -> SubagentToolPayload {
+        SubagentToolPayload(
+            goal: p["goal"]?.stringValue ?? "",
+            taskCount: p["task_count"]?.intValue ?? 1,
+            taskIndex: p["task_index"]?.intValue ?? 0,
+            toolName: p["tool_name"]?.stringValue,
+            toolPreview: p["tool_preview"]?.stringValue,
+            text: p["text"]?.stringValue
         )
     }
 }

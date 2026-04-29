@@ -224,6 +224,26 @@ final class ChatViewModel: ObservableObject {
         case .skinChanged:
             break
 
+        case .subagentStart, .subagentComplete, .subagentTool:
+            // Subagent delegation events — display in tool call area
+            break
+
+        case .backgroundComplete:
+            // Background task completion — not displayed inline
+            break
+
+        case .clarifyRequest:
+            // TODO: Present clarification dialog to user
+            break
+
+        case .sudoRequest:
+            // TODO: Present sudo password dialog
+            break
+
+        case .secretRequest:
+            // TODO: Present secret input dialog
+            break
+
         case .voiceTranscript, .voiceStatus:
             break
         }

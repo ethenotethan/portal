@@ -6,7 +6,7 @@ import Security
 /// All operations are synchronous C API calls — safe to call from any thread.
 final class KeychainStore: Sendable {
 
-    nonisolated(unsafe) static let shared = KeychainStore()
+    static let shared = KeychainStore()
 
     private let service = "com.hermes.native"
 

@@ -10,8 +10,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - Published State
 
-    @Published nonisolated(unsafe) var connectionState: ConnectionState = .disconnected
-    @Published nonisolated(unsafe) var sessionInfo: SessionInfo?
+    @Published var connectionState: ConnectionState = .disconnected
+    @Published var sessionInfo: SessionInfo?
 
     // MARK: - Event Stream
 
