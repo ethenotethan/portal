@@ -6,8 +6,16 @@ struct ChatView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
-    @State private var scrollViewProxy: ScrollViewProxy?
     @State private var showPersonaPicker = false
+
+    /// The message ID the avatar is currently trailing (last assistant or streaming)
+    private var avatarTrailingMessageID: UUID? {
+        // Find the last assistant message (streaming first, then last completed)
+        if let streaming = chatViewModel.messages.last(where: { $0.isStreaming && $0.role == .assistant }) {
+            return streaming.id
+        }
+        return chatViewModel.messages.last(where: { $0.role == .assistant })?.id
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,40 +24,41 @@ struct ChatView: View {
 
             Divider()
 
-            ZStack(alignment: .bottomLeading) {
-                // Message list
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(chatViewModel.messages) { message in
-                                MessageBubbleView(message: message)
-                                    .id(message.id)
+            // Message list — avatar flows inline
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        ForEach(chatViewModel.messages) { message in
+                            MessageBubbleView(message: message)
+                                .id(message.id)
+
+                            // Inline avatar — trails the last/streaming assistant message
+                            if message.id == avatarTrailingMessageID {
+                                InlineAvatarView(
+                                    state: chatViewModel.avatarState,
+                                    persona: personaManager.activePersona,
+                                    isStreaming: chatViewModel.isStreaming
+                                )
+                                .id("avatar-trailing")
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
                         }
-                        .padding()
-                        .padding(.bottom, 80) // space for avatar
                     }
-                    .onChange(of: chatViewModel.messages.count) { _, _ in
-                        scrollToBottom(proxy: proxy)
-                    }
-                    .onChange(of: chatViewModel.messages.last?.content) { _, _ in
-                        scrollToBottom(proxy: proxy)
+                    .padding()
+                    .padding(.bottom, 16)
+                }
+                .onChange(of: chatViewModel.messages.count) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: chatViewModel.messages.last?.content) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: chatViewModel.avatarState) { _, _ in
+                    // Keep avatar visible when state changes
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("avatar-trailing", anchor: .bottom)
                     }
                 }
-
-                // 3D Avatar companion (bottom-left)
-                VStack(alignment: .leading, spacing: 2) {
-                    Avatar3DView(
-                        state: chatViewModel.avatarState,
-                        accentColorHex: personaManager.activePersona.accentColorHex,
-                        accessories: personaManager.activePersona.accessories,
-                        size: 100
-                    )
-                    .shadow(color: (Color(hex: personaManager.activePersona.accentColorHex) ?? .purple).opacity(0.3), radius: 8)
-                    AvatarStateLabel(state: chatViewModel.avatarState)
-                }
-                .padding(.leading, 12)
-                .padding(.bottom, 8)
             }
 
             Divider()
@@ -151,9 +160,54 @@ struct ChatView: View {
     private func scrollToBottom(proxy: ScrollViewProxy) {
         if let lastMsg = chatViewModel.messages.last {
             withAnimation(.easeOut(duration: 0.15)) {
-                proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                proxy.scrollTo("avatar-trailing", anchor: .bottom)
             }
         }
+    }
+}
+
+// MARK: - Inline Avatar
+
+/// Avatar that flows inline with the conversation, trailing the last assistant message.
+/// Shows the 3D character + state label, sized to feel like part of the chat.
+struct InlineAvatarView: View {
+    let state: AvatarState
+    let persona: Persona
+    let isStreaming: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            // 3D Avatar
+            Avatar3DView(
+                state: state,
+                accentColorHex: persona.accentColorHex,
+                accessories: persona.accessories,
+                size: 64
+            )
+            .shadow(color: persona.accentColor.opacity(0.25), radius: 6)
+
+            // State + persona info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(persona.name)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(persona.accentColor)
+
+                    AvatarStateLabel(state: state)
+                }
+
+                if isStreaming {
+                    Text(state == .thinking ? "Processing…" : state == .toolUse ? "Running tools…" : "Responding…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.leading, 4)
+        .animation(.easeInOut(duration: 0.25), value: state)
     }
 }
 
