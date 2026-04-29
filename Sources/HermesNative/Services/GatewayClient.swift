@@ -88,43 +88,42 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// Exchange CF Access service token for a CF_Authorization cookie,
     /// then open the WebSocket with that cookie.
     private func exchangeCFAccessTokenThenConnect() async {
-        // Hit the base URL (not /v1/ws) to get the CF_Authorization cookie
-        let baseURL = gatewayURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("health")
+        // Hit the root of the gateway domain (protected by CF Access)
+        // NOT /health which may be exempt and won't trigger cookie exchange.
+        guard let host = gatewayURL.host,
+              let scheme = gatewayURL.scheme,
+              let rootURL = URL(string: "\(scheme)://\(host)/") else {
+            connectionState = .error("Invalid gateway URL")
+            return
+        }
 
-        var request = URLRequest(url: baseURL)
+        var request = URLRequest(url: rootURL)
         request.setValue(cfAccessClientId, forHTTPHeaderField: "CF-Access-Client-Id")
         request.setValue(cfAccessClientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
 
-        NSLog("[HermesNative] Exchanging CF Access token at \(baseURL)")
-        onLog?("Exchanging CF Access token…", false)
+        NSLog("[HermesNative] Exchanging CF Access token at \(rootURL)")
+        onLog?("Exchanging CF Access token at \(rootURL.host ?? "?")…", false)
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
 
             // Extract CF_Authorization cookie
-            let cookies = HTTPCookieStorage.shared.cookies(for: gatewayURL) ?? []
+            let cookies = HTTPCookieStorage.shared.cookies(for: rootURL) ?? []
             let cfCookie = cookies.first { $0.name == "CF_Authorization" }
 
             if let cfCookie {
                 NSLog("[HermesNative] Got CF_Authorization cookie, opening WS")
-                onLog?("✓ CF_Authorization cookie obtained", false)
+                onLog?("✓ CF_Authorization cookie obtained (HTTP \(statusCode))", false)
                 cfAuthCookie = cfCookie
                 openWebSocket()
-            } else if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                // No cookie needed — path might be exempted
-                NSLog("[HermesNative] No CF cookie needed (200), opening WS directly")
-                onLog?("✓ No CF cookie needed (200), opening WS", false)
-                openWebSocket()
             } else {
-                NSLog("[HermesNative] CF Access auth failed: status \((response as? HTTPURLResponse)?.statusCode ?? -1)")
-                onLog?("✗ CF Access auth failed (HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1))", true)
-                connectionState = .error("Cloudflare Access authentication failed")
+                NSLog("[HermesNative] No CF cookie — status \(statusCode)")
+                onLog?("✗ No CF_Authorization cookie received (HTTP \(statusCode))", true)
+                connectionState = .error("Cloudflare Access did not return auth cookie (HTTP \(statusCode))")
             }
         } catch {
             NSLog("[HermesNative] CF Access exchange error: \(error)")
