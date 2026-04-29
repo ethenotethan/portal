@@ -5,7 +5,9 @@ struct ChatView: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var personaManager: PersonaManager
     @State private var scrollViewProxy: ScrollViewProxy?
+    @State private var showPersonaPicker = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,20 +64,38 @@ struct ChatView: View {
 
     private var chatToolbar: some View {
         HStack {
-            // Model badge
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
-                    .frame(width: 8, height: 8)
+            // Persona badge — tap to switch persona
+            Button {
+                showPersonaPicker = true
+            } label: {
+                HStack(spacing: 6) {
+                    personaManager.activePersona.bubbleAvatar(size: 22)
+                    Text(personaManager.activePersona.name)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
 
-                Text(chatViewModel.currentModel.isEmpty ? "No model" : chatViewModel.currentModel)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+                    Circle()
+                        .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
+                        .frame(width: 6, height: 6)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.quaternary, in: Capsule())
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.quaternary, in: Capsule())
+            .buttonStyle(.plain)
+            .popover(isPresented: $showPersonaPicker) {
+                PersonaPickerView()
+                    .environmentObject(personaManager)
+            }
+
+            // Model badge
+            Text(chatViewModel.currentModel.isEmpty ? "No model" : chatViewModel.currentModel)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.quaternary.opacity(0.6), in: Capsule())
 
             Spacer()
 
@@ -123,11 +143,12 @@ struct ChatView: View {
 
 struct ChatInputBar: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
+    @EnvironmentObject var personaManager: PersonaManager
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("Message Hermes…", text: $chatViewModel.inputText, axis: .vertical)
+            TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
                 .focused($isInputFocused)

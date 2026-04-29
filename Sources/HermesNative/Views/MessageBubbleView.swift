@@ -3,16 +3,13 @@ import SwiftUI
 /// Renders a single chat message (user or assistant).
 struct MessageBubbleView: View {
     let message: ChatMessage
+    @EnvironmentObject var personaManager: PersonaManager
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             if message.role == .assistant {
-                // Assistant avatar
-                Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundStyle(.white)
-                    .padding(6)
-                    .background(Color.accentColor, in: Circle())
+                // Assistant avatar — uses active persona
+                personaManager.activePersona.bubbleAvatar()
             }
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {

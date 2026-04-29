@@ -4,6 +4,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var personaManager: PersonaManager
     @State private var testing = false
     @State private var testResult: String?
     @State private var showCFAuth = false
@@ -12,9 +13,9 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             Image(systemName: "bubble.left.and.bubble.right.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(personaManager.activePersona.accentColor)
 
-            Text("Hermes Native")
+            Text(personaManager.activePersona.name)
                 .font(.largeTitle)
                 .fontWeight(.bold)
 
