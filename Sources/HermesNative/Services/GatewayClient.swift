@@ -18,6 +18,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     let eventStream = PassthroughSubject<GatewayEvent, Never>()
 
+    /// Callback for connection log messages (shown in UI).
+    var onLog: ((String, Bool) -> Void)?
+
     // MARK: - Types
 
     enum ConnectionState: Sendable {
@@ -99,6 +102,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         NSLog("[HermesNative] Exchanging CF Access token at \(baseURL)")
+        onLog?("Exchanging CF Access token…", false)
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -109,18 +113,22 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
             if let cfCookie {
                 NSLog("[HermesNative] Got CF_Authorization cookie, opening WS")
+                onLog?("✓ CF_Authorization cookie obtained", false)
                 cfAuthCookie = cfCookie
                 openWebSocket()
             } else if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 // No cookie needed — path might be exempted
                 NSLog("[HermesNative] No CF cookie needed (200), opening WS directly")
+                onLog?("✓ No CF cookie needed (200), opening WS", false)
                 openWebSocket()
             } else {
                 NSLog("[HermesNative] CF Access auth failed: status \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                onLog?("✗ CF Access auth failed (HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1))", true)
                 connectionState = .error("Cloudflare Access authentication failed")
             }
         } catch {
             NSLog("[HermesNative] CF Access exchange error: \(error)")
+            onLog?("✗ CF Access error: \(error.localizedDescription)", true)
             connectionState = .error("CF Access error: \(error.localizedDescription)")
         }
     }
@@ -140,6 +148,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cf=\(!cfAccessClientId.isEmpty) cookie=\(cfAuthCookie != nil)")
+        onLog?("Opening WebSocket to \(gatewayURL)…", false)
 
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
@@ -386,6 +395,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         didOpenWithProtocol protocol: String?
     ) {
         Task { @MainActor in
+            onLog?("✓ WebSocket connected", false)
             connectionState = .connected
         }
     }
@@ -397,9 +407,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         reason: Data?
     ) {
         Task { @MainActor in
+            let reasonStr = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             if case .connecting = connectionState {
+                onLog?("✗ WebSocket closed during handshake: \(code) \(reasonStr)", true)
                 connectionState = .error("Connection closed during handshake")
             } else {
+                onLog?("WebSocket closed: \(code) \(reasonStr)", code != .normalClosure)
                 connectionState = .disconnected
             }
         }
