@@ -13,6 +13,7 @@ struct ContentView: View {
                 if settings.isConfigured && gatewayClientWrapper.isConnected {
                     ChatView()
                         .environmentObject(chatViewModel)
+                        .environmentObject(gatewayClientWrapper)
                 } else {
                     OnboardingView()
                         .environmentObject(gatewayClientWrapper)
