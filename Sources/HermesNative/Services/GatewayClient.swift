@@ -205,7 +205,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             onLog?("→ \(method) (id=\(id))", false)
             Task { @MainActor in
                 do {
-                    try await webSocketTask.send(.data(data))
+                    try await webSocketTask.send(.string(String(data: data, encoding: .utf8)!))
                 } catch {
                     // Send failed — remove continuation and propagate error
                     self.pendingRequests[id] = nil
