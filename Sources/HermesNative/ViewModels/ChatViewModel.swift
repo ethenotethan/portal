@@ -165,16 +165,12 @@ final class ChatViewModel: ObservableObject {
                 messages[idx].usage = payload.usage
                 messages[idx].status = payload.status
                 messages[idx].reasoning = payload.reasoning
-            }
-            isStreaming = false
-            streamingMessageID = nil
-
-            // Merge any accumulated tool calls into the message
-            if let msgID = streamingMessageID ?? messages.last(where: { $0.role == .assistant })?.id,
-               let idx = messages.firstIndex(where: { $0.id == msgID }) {
+                // Merge any accumulated tool calls into the message
                 messages[idx].toolCalls = Array(activeToolCalls.values)
             }
             activeToolCalls = [:]
+            isStreaming = false
+            streamingMessageID = nil
 
         case .toolStart(payload: let payload):
             activeToolCalls[payload.toolID] = ToolCallRecord(

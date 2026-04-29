@@ -121,7 +121,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     // MARK: - Convenience Methods
-
+    /// Create a new agent session.
     func createSession(cols: Int = 120) async throws -> String {
         let response = try await call("session.create", params: ["cols": AnyCodable(cols)])
         if let error = response.error {
@@ -132,6 +132,27 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.invalidResponse("missing session_id in session.create response")
         }
         return sessionID
+    }
+
+    /// List active sessions.
+    func listSessions() async throws -> [Session] {
+        let response = try await call("session.list")
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let sessionsArray = result["sessions"]?.arrayValue else {
+            return []
+        }
+        return sessionsArray.compactMap { item -> Session? in
+            guard let d = item.dictionaryValue else { return nil }
+            return Session(
+                id: d["session_id"]?.stringValue ?? "",
+                key: d["session_key"]?.stringValue ?? "",
+                model: d["model"]?.stringValue,
+                isRunning: d["is_running"]?.boolValue ?? false
+            )
+        }
     }
 
     func submitPrompt(sessionID: String, text: String) async throws {
@@ -171,6 +192,21 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
+    }
+
+    /// Resume an existing session by key.
+    func resumeSession(key: String) async throws -> String {
+        let response = try await call("session.resume", params: [
+            "session_key": AnyCodable(key),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let sessionID = result["session_id"]?.stringValue else {
+            throw GatewayError.invalidResponse("missing session_id in session.resume response")
+        }
+        return sessionID
     }
 
     func setConfig(key: String, value: String, sessionID: String? = nil) async throws {

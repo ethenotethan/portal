@@ -13,6 +13,17 @@ final class SessionListViewModel: ObservableObject {
         gatewayClient = client
     }
 
+    /// Refresh the session list from the gateway.
+    @MainActor
+    func refreshSessions() async {
+        guard let client = gatewayClient else { return }
+        do {
+            sessions = try await client.listSessions()
+        } catch {
+            // Silently fail — session list is non-critical
+        }
+    }
+
     /// Create a new session and set it as active.
     @MainActor
     func createSession() async throws -> String {
