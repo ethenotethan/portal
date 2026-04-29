@@ -39,23 +39,28 @@ final class PersonaManager: ObservableObject {
     /// Derive persona from gateway config + PERSONA.md, then merge with local files.
     /// Call this after the WS connection is established.
     func syncFromGateway(_ client: GatewayClient) async {
+        // 1. Fetch persona info from gateway via config.get("persona")
         var personalityName = "default"
+        var gatewayName: String? = nil
         var personaMDContent: String? = nil
 
-        // 1. Fetch active personality from gateway config
-        if let result = try? await client.getConfig(key: "personality"),
-           let value = result["value"]?.stringValue {
-            personalityName = value
+        if let result = try? await client.getConfig(key: "persona") {
+            personalityName = result["personality"]?.stringValue ?? "default"
+            gatewayName = result["name"]?.stringValue
+            personaMDContent = result["persona_md"]?.stringValue
         }
 
-        // 2. Read PERSONA.md from ~/.hermes/
-        let personaMDPath = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".hermes/PERSONA.md")
-        personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
+        // 2. Fallback: read PERSONA.md directly if gateway didn't return it
+        if personaMDContent == nil || personaMDContent!.isEmpty {
+            let personaMDPath = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".hermes/PERSONA.md")
+            personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
+        }
 
         // 3. Build the gateway-derived persona
         let gatewayPersona = derivePersona(
             personalityName: personalityName,
+            gatewayName: gatewayName,
             personaMD: personaMDContent
         )
 
@@ -82,7 +87,6 @@ final class PersonaManager: ObservableObject {
 
         // Built-in personality presets (for switching without PERSONA.md)
         loaded.append(contentsOf: PersonalityPresets.all.filter { preset in
-            // Don't duplicate if gateway already provided this personality
             gatewayPersona?.id != preset.id
         })
 
@@ -107,7 +111,6 @@ final class PersonaManager: ObservableObject {
             }
         }
 
-        // Fallback default if nothing else
         if loaded.isEmpty {
             loaded.append(Persona.defaultPersona)
         }
@@ -115,33 +118,21 @@ final class PersonaManager: ObservableObject {
         personas = loaded
     }
 
-    /// Switch to a different persona
-    func select(_ persona: Persona) {
-        activePersona = persona
-    }
+    func select(_ persona: Persona) { activePersona = persona }
 
-    /// Delete a custom (non-built-in) persona
     func delete(_ persona: Persona) {
         guard !persona.isBuiltIn else { return }
         let file = Self.personasDirectory.appendingPathComponent("\(persona.id).json")
         try? FileManager.default.removeItem(at: file)
         personas.removeAll { $0.id == persona.id }
-        if activePersona.id == persona.id {
-            activePersona = Persona.defaultPersona
-        }
+        if activePersona.id == persona.id { activePersona = Persona.defaultPersona }
     }
 
-    /// Export a persona template to the personas directory
     func exportTemplate() -> URL? {
         let template = Persona(
-            id: "my-persona",
-            name: "My Persona",
-            tagline: "A custom AI assistant",
-            symbolName: "person.fill",
-            accentColorHex: "#5856D6",
-            imagePath: nil,
-            systemPromptSuffix: "You are a helpful AI assistant.",
-            isBuiltIn: false
+            id: "my-persona", name: "My Persona", tagline: "A custom AI assistant",
+            symbolName: "person.fill", accentColorHex: "#5856D6",
+            imagePath: nil, systemPromptSuffix: "You are a helpful AI assistant.", isBuiltIn: false
         )
         let url = Self.personasDirectory.appendingPathComponent("my-persona.json")
         guard let data = try? JSONEncoder().encode(template) else { return nil }
@@ -151,11 +142,12 @@ final class PersonaManager: ObservableObject {
 
     // MARK: - Persona Derivation
 
-    /// Derive a Persona struct from gateway personality name + PERSONA.md content.
-    private func derivePersona(personalityName: String, personaMD: String?) -> Persona {
+    private func derivePersona(personalityName: String, gatewayName: String?, personaMD: String?) -> Persona {
+        let md = personaMD?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
         // If we have PERSONA.md content, extract identity from it
-        if let md = personaMD, !md.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return personaFromMD(md, personalityName: personalityName)
+        if !md.isEmpty {
+            return personaFromMD(md, personalityName: personalityName, gatewayName: gatewayName)
         }
 
         // Fallback: use personality name mapping
@@ -163,10 +155,9 @@ final class PersonaManager: ObservableObject {
             return preset
         }
 
-        // Final fallback: generic
         return Persona(
             id: personalityName,
-            name: personalityName.capitalized,
+            name: gatewayName ?? personalityName.capitalized,
             tagline: "AI Assistant",
             symbolName: "sparkles",
             accentColorHex: "#5856D6",
@@ -177,24 +168,20 @@ final class PersonaManager: ObservableObject {
     }
 
     /// Parse PERSONA.md into a Persona struct.
-    /// First non-empty line → name, rest → tagline (first sentence) + systemPromptSuffix
-    private func personaFromMD(_ md: String, personalityName: String) -> Persona {
+    private func personaFromMD(_ md: String, personalityName: String, gatewayName: String?) -> Persona {
         let lines = md.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
 
-        // Extract name from first meaningful line
-        var name = personalityName.capitalized
-        if let first = lines.first {
+        // Use gateway-provided name first, then try first line
+        var name = gatewayName ?? personalityName.capitalized
+        if gatewayName == nil, let first = lines.first {
             let cleaned = first
                 .replacingOccurrences(of: "^#+\\s*", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespaces)
-            if !cleaned.isEmpty && cleaned.count < 60 {
-                name = cleaned
-            }
+            if !cleaned.isEmpty && cleaned.count < 60 { name = cleaned }
         }
 
-        // Tagline = first sentence of the content (up to first period or 100 chars)
-        let body = lines.dropFirst().joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+        // Tagline = first sentence
+        let body = lines.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)
         let tagline: String
         if let dotRange = body.range(of: ".") {
             tagline = String(body[body.startIndex..<dotRange.lowerBound])
@@ -204,8 +191,7 @@ final class PersonaManager: ObservableObject {
             tagline = body.isEmpty ? "AI Assistant" : body
         }
 
-        // Pick visual identity based on personality keywords
-        let (symbol, color) = visualIdentity(for: personalityName, personaText: md)
+        let (symbol, color, accessories) = visualIdentity(for: personalityName, name: name, personaText: md)
 
         return Persona(
             id: personalityName.isEmpty ? "gateway-persona" : personalityName,
@@ -215,65 +201,75 @@ final class PersonaManager: ObservableObject {
             accentColorHex: color,
             imagePath: nil,
             systemPromptSuffix: md,
-            isBuiltIn: true
+            isBuiltIn: true,
+            accessories: accessories
         )
     }
 
-    /// Heuristic: pick SF Symbol + accent color based on personality keywords.
-    private func visualIdentity(for personality: String, personaText: String) -> (String, String) {
+    /// Pick SF Symbol + accent color + 3D accessories based on personality + text.
+    private func visualIdentity(for personality: String, name: String, personaText: String) -> (String, String, [PersonaAccessory]) {
         let p = personality.lowercased()
+        let n = name.lowercased()
         let t = personaText.lowercased()
 
+        // Name-based matches first (highest priority)
+        if n.contains("hank") || n.contains("bob") || n.contains("hill") {
+            return ("hat.cowboy.fill", "#FF6B35", [.cowboyHat, .boots])
+        }
+        if n.contains("noir") || n.contains("detective") {
+            return ("magnifyingglass", "#2F4F4F", [.fedora])
+        }
+        if n.contains("neko") || n.contains("cat") {
+            return ("cat.fill", "#FF69B4", [.catEars])
+        }
+        if n.contains("pirate") || n.contains("captain") {
+            return ("skull.crossbones.fill", "#8B4513", [.pirateHat, .eyepatch])
+        }
+        if n.contains("athena") {
+            return ("owl.fill", "#6B4C9A", [.helmet])
+        }
+
+        // Personality config matches
         switch p {
-        case "kawaii", "uwu", "catgirl":
-            return ("heart.fill", "#FF69B4")
+        case "kawaii", "uwu":
+            return ("heart.fill", "#FF69B4", [.bow])
         case "pirate":
-            return ("skull.crossbones.fill", "#8B4513")
+            return ("skull.crossbones.fill", "#8B4513", [.pirateHat, .eyepatch])
         case "shakespeare":
-            return ("theatermasks.fill", "#8B008B")
+            return ("theatermasks.fill", "#8B008B", [.crown])
         case "surfer":
-            return ("water.waves", "#00CED1")
+            return ("water.waves", "#00CED1", [.sunglasses])
         case "noir":
-            return ("magnifyingglass", "#2F4F4F")
+            return ("magnifyingglass", "#2F4F4F", [.fedora])
         case "philosopher":
-            return ("lightbulb.fill", "#DAA520")
+            return ("lightbulb.fill", "#DAA520", [.helmet])
         case "hype":
-            return ("flame.fill", "#FF4500")
+            return ("flame.fill", "#FF4500", [.sunglasses])
         case "teacher":
-            return ("book.fill", "#228B22")
+            return ("book.fill", "#228B22", [.glasses])
         case "creative":
-            return ("paintpalette.fill", "#9B59B6")
+            return ("paintpalette.fill", "#9B59B6", [.bow])
         case "concise":
-            return ("bolt.fill", "#3498DB")
+            return ("bolt.fill", "#3498DB", [])
         case "technical":
-            return ("gearshape.fill", "#607D8B")
+            return ("gearshape.fill", "#607D8B", [.glasses])
         case "helpful":
-            return ("sparkles", "#5856D6")
+            return ("sparkles", "#5856D6", [])
         default:
-            // Heuristic from text content
-            if t.contains("southern") || t.contains("y'all") || t.contains("partner") {
-                return ("hat.cowboy.fill", "#FF6B35")
+            // Heuristic from text
+            if t.contains("southern") || t.contains("y'all") || t.contains("partner") || t.contains("drawl") {
+                return ("hat.cowboy.fill", "#FF6B35", [.cowboyHat, .boots])
             }
-            if t.contains("cute") || t.contains("kawaii") || t.contains("♥") {
-                return ("heart.fill", "#FF69B4")
+            if t.contains("cute") || t.contains("kawaii") {
+                return ("heart.fill", "#FF69B4", [.bow])
             }
-            if t.contains("pirate") || t.contains("arr") {
-                return ("skull.crossbones.fill", "#8B4513")
-            }
-            if t.contains("detective") || t.contains("noir") {
-                return ("magnifyingglass", "#2F4F4F")
-            }
-            if t.contains("research") || t.contains("paper") {
-                return ("atom", "#5856D6")
-            }
-            return ("sparkles", "#5856D6")
+            return ("sparkles", "#5856D6", [])
         }
     }
 }
 
 // MARK: - Personality Presets
 
-/// Built-in personality presets matching the gateway's config.yaml personalities.
 enum PersonalityPresets {
     static let all: [Persona] = [
         Persona(id: "helpful", name: "Helpful", tagline: "Friendly and helpful AI assistant",
@@ -281,28 +277,28 @@ enum PersonalityPresets {
         Persona(id: "concise", name: "Concise", tagline: "Brief and to the point",
                 symbolName: "bolt.fill", accentColorHex: "#3498DB", isBuiltIn: true),
         Persona(id: "technical", name: "Technical", tagline: "Detailed technical expert",
-                symbolName: "gearshape.fill", accentColorHex: "#607D8B", isBuiltIn: true),
+                symbolName: "gearshape.fill", accentColorHex: "#607D8B", isBuiltIn: true, accessories: [.glasses]),
         Persona(id: "creative", name: "Creative", tagline: "Thinks outside the box",
                 symbolName: "paintpalette.fill", accentColorHex: "#9B59B6", isBuiltIn: true),
         Persona(id: "kawaii", name: "Kawaii", tagline: "Super enthusiastic and adorable! ★",
-                symbolName: "heart.fill", accentColorHex: "#FF69B4", isBuiltIn: true),
+                symbolName: "heart.fill", accentColorHex: "#FF69B4", isBuiltIn: true, accessories: [.bow]),
         Persona(id: "pirate", name: "Captain Hermes", tagline: "Tech-savvy buccaneer of the digital seas",
-                symbolName: "skull.crossbones.fill", accentColorHex: "#8B4513", isBuiltIn: true),
+                symbolName: "skull.crossbones.fill", accentColorHex: "#8B4513", isBuiltIn: true, accessories: [.pirateHat, .eyepatch]),
         Persona(id: "noir", name: "Noir", tagline: "Solving problems in the shadows of silicon",
-                symbolName: "magnifyingglass", accentColorHex: "#2F4F4F", isBuiltIn: true),
+                symbolName: "magnifyingglass", accentColorHex: "#2F4F4F", isBuiltIn: true, accessories: [.fedora]),
         Persona(id: "shakespeare", name: "Shakespeare", tagline: "Eloquent bardic prose and dramatic flair",
-                symbolName: "theatermasks.fill", accentColorHex: "#8B008B", isBuiltIn: true),
+                symbolName: "theatermasks.fill", accentColorHex: "#8B008B", isBuiltIn: true, accessories: [.crown]),
         Persona(id: "surfer", name: "Surfer", tagline: "Totally rad, super chill",
-                symbolName: "water.waves", accentColorHex: "#00CED1", isBuiltIn: true),
+                symbolName: "water.waves", accentColorHex: "#00CED1", isBuiltIn: true, accessories: [.sunglasses]),
         Persona(id: "uwu", name: "UwU", tagline: "Fwiendwy assistant uwu~",
-                symbolName: "face.smiling.fill", accentColorHex: "#FFB6C1", isBuiltIn: true),
+                symbolName: "face.smiling.fill", accentColorHex: "#FFB6C1", isBuiltIn: true, accessories: [.catEars]),
         Persona(id: "philosopher", name: "Philosopher", tagline: "Contemplates the deeper meaning",
-                symbolName: "lightbulb.fill", accentColorHex: "#DAA520", isBuiltIn: true),
+                symbolName: "lightbulb.fill", accentColorHex: "#DAA520", isBuiltIn: true, accessories: [.helmet]),
         Persona(id: "hype", name: "Hype", tagline: "SO PUMPED to help! 🔥",
-                symbolName: "flame.fill", accentColorHex: "#FF4500", isBuiltIn: true),
+                symbolName: "flame.fill", accentColorHex: "#FF4500", isBuiltIn: true, accessories: [.sunglasses]),
         Persona(id: "catgirl", name: "Neko-chan", tagline: "Playful and curious nya~",
-                symbolName: "cat.fill", accentColorHex: "#FF69B4", isBuiltIn: true),
+                symbolName: "cat.fill", accentColorHex: "#FF69B4", isBuiltIn: true, accessories: [.catEars]),
         Persona(id: "teacher", name: "Teacher", tagline: "Patient explanations with examples",
-                symbolName: "book.fill", accentColorHex: "#228B22", isBuiltIn: true),
+                symbolName: "book.fill", accentColorHex: "#228B22", isBuiltIn: true, accessories: [.glasses]),
     ]
 }

@@ -6,25 +6,25 @@ import SceneKit
 struct Avatar3DView: View {
     let state: AvatarState
     let accentColorHex: String
+    let accessories: [PersonaAccessory]
     let size: CGFloat
 
     @State private var scene: AvatarScene?
 
-    init(state: AvatarState, accentColorHex: String = "#5856D6", size: CGFloat = 120) {
+    init(state: AvatarState, accentColorHex: String = "#5856D6",
+         accessories: [PersonaAccessory] = [], size: CGFloat = 120) {
         self.state = state
         self.accentColorHex = accentColorHex
+        self.accessories = accessories
         self.size = size
     }
 
     var body: some View {
         Group {
             if let scene {
-                SceneView(
-                    scene: scene,
-                    options: [.allowsCameraControl, .autoenablesDefaultLighting]
-                )
+                SceneView(scene: scene)
                 .frame(width: size, height: size)
-                .clipShape(Circle())
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
             } else {
                 ProgressView()
                     .frame(width: size, height: size)
@@ -32,21 +32,23 @@ struct Avatar3DView: View {
         }
         .onAppear {
             let s = AvatarScene()
-            s.accentColor = NSColor(hex: accentColorHex) ?? .systemPurple
+            s.accentColor = nsColor(fromHex: accentColorHex)
+            s.accessories = accessories
             scene = s
         }
         .onChange(of: state) { _, newState in
             scene?.transition(to: newState)
         }
         .onChange(of: accentColorHex) { _, newHex in
-            scene?.accentColor = NSColor(hex: newHex) ?? .systemPurple
+            scene?.accentColor = nsColor(fromHex: newHex)
+        }
+        .onChange(of: accessories) { _, newAccessories in
+            scene?.accessories = newAccessories
         }
     }
 }
 
-// MARK: - State Label
-
-/// Small label showing the current avatar state (for debugging / overlay)
+/// Small label showing the current avatar state
 struct AvatarStateLabel: View {
     let state: AvatarState
 
@@ -83,4 +85,17 @@ struct AvatarStateLabel: View {
         case .error: "Error"
         }
     }
+}
+
+// MARK: - NSColor Hex Helper
+
+private func nsColor(fromHex hex: String) -> NSColor {
+    var h = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+    guard h.count == 6, var rgb: UInt64 = UInt64(h, radix: 16) else { return .systemPurple }
+    return NSColor(
+        red: CGFloat((rgb & 0xFF0000) >> 16) / 255.0,
+        green: CGFloat((rgb & 0x00FF00) >> 8) / 255.0,
+        blue: CGFloat(rgb & 0x0000FF) / 255.0,
+        alpha: 1.0
+    )
 }

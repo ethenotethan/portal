@@ -1,35 +1,39 @@
 import SwiftUI
 import Foundation
 
+/// 3D accessory that can be attached to the avatar — persona-specific.
+enum PersonaAccessory: String, Codable, CaseIterable {
+    case cowboyHat
+    case fedora
+    case pirateHat
+    case crown
+    case helmet       // Greek/Athena
+    case catEars
+    case glasses
+    case sunglasses
+    case eyepatch
+    case bow          // kawaii hair bow
+    case boots
+}
+
 /// A composable persona asset that gives the AI assistant a visual identity.
-/// Personas are loaded from JSON files in ~/HermesNative/Personas/ or bundled defaults.
-/// Anyone can create a persona by dropping a .json file in the personas directory.
+/// Auto-derived from gateway PERSONA.md + config, or from local JSON overrides.
 struct Persona: Codable, Identifiable, Equatable {
-    /// Unique identifier (filename without extension)
     var id: String
-    /// Display name shown in message bubbles, toolbar, input placeholder
     var name: String
-    /// Short tagline shown in persona picker
     var tagline: String
-    /// SF Symbol name for the avatar (used if imagePath is nil)
     var symbolName: String
-    /// Accent color as hex string (e.g. "#FF6B35")
     var accentColorHex: String
-    /// Optional path to a custom avatar image (relative to persona file or absolute)
     var imagePath: String?
-    /// Optional system prompt snippet injected on session creation
     var systemPromptSuffix: String?
-    /// Whether this is a built-in persona (can't be deleted)
     var isBuiltIn: Bool
+    /// 3D accessories rendered on the avatar — persona-specific identity
+    var accessories: [PersonaAccessory] = []
 
     // MARK: - Computed
 
-    /// The resolved accent color
-    var accentColor: Color {
-        Color(hex: accentColorHex) ?? .accentColor
-    }
+    var accentColor: Color { Color(hex: accentColorHex) ?? .accentColor }
 
-    /// The avatar view — uses custom image if available, otherwise SF Symbol
     @ViewBuilder
     var avatar: some View {
         if let imagePath, let nsImage = loadImage(at: imagePath) {
@@ -41,7 +45,6 @@ struct Persona: Codable, Identifiable, Equatable {
         }
     }
 
-    /// Circular avatar suitable for message bubbles
     @ViewBuilder
     func bubbleAvatar(size: CGFloat = 28) -> some View {
         avatar
@@ -54,11 +57,7 @@ struct Persona: Codable, Identifiable, Equatable {
     // MARK: - Image Loading
 
     private func loadImage(at path: String) -> NSImage? {
-        // Try absolute path first
-        if path.hasPrefix("/") {
-            return NSImage(contentsOfFile: path)
-        }
-        // Try relative to personas directory
+        if path.hasPrefix("/") { return NSImage(contentsOfFile: path) }
         let personasDir = PersonaManager.personasDirectory
         let absolute = personasDir.appendingPathComponent(path).path
         return NSImage(contentsOfFile: absolute)
@@ -67,12 +66,9 @@ struct Persona: Codable, Identifiable, Equatable {
     // MARK: - Defaults
 
     static let defaultPersona = Persona(
-        id: "hermes",
-        name: "Hermes",
-        tagline: "Your AI agent",
-        symbolName: "sparkles",
-        accentColorHex: "#007AFF",
-        isBuiltIn: true
+        id: "hermes", name: "Hermes", tagline: "Your AI agent",
+        symbolName: "sparkles", accentColorHex: "#007AFF",
+        isBuiltIn: true, accessories: []
     )
 }
 
@@ -82,12 +78,9 @@ extension Color {
     init?(hex: String) {
         var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-
         guard hexSanitized.count == 6 else { return nil }
-
         var rgb: UInt64 = 0
         Scanner(string: hexSanitized).scanHexInt64(&rgb)
-
         self.init(
             red: Double((rgb & 0xFF0000) >> 16) / 255.0,
             green: Double((rgb & 0x00FF00) >> 8) / 255.0,

@@ -42,7 +42,8 @@ struct ChatView: View {
                     Avatar3DView(
                         state: chatViewModel.avatarState,
                         accentColorHex: personaManager.activePersona.accentColorHex,
-                        size: 80
+                        accessories: personaManager.activePersona.accessories,
+                        size: 100
                     )
                     .shadow(color: (Color(hex: personaManager.activePersona.accentColorHex) ?? .purple).opacity(0.3), radius: 8)
                     AvatarStateLabel(state: chatViewModel.avatarState)
