@@ -17,6 +17,7 @@ final class ChatViewModel: ObservableObject {
     private var sessionID: String?
     private var streamingMessageID: UUID?
     private var cancellables = Set<AnyCancellable>()
+    private var isCreatingSession = false  // Guard against double-trigger
 
     // MARK: - Setup
 
@@ -74,6 +75,8 @@ final class ChatViewModel: ObservableObject {
             self.error = "Not connected to gateway (state: \(client.connectionState))"
             return
         }
+        guard !isCreatingSession else { return }  // Prevent double-trigger
+        isCreatingSession = true
         do {
             let sid = try await client.createSession()
             self.sessionID = sid
@@ -84,6 +87,7 @@ final class ChatViewModel: ObservableObject {
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
+        isCreatingSession = false
     }
 
     // MARK: - User Input

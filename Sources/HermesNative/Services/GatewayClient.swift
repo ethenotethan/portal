@@ -191,15 +191,27 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.notConnected
         }
 
-        NSLog("[HermesNative] call: sending \(method) id=\(id)")
-        onLog?("→ \(method) (id=\(id))", false)
-        try await webSocketTask.send(.data(data))
-
+        // Register continuation BEFORE sending so the response can't arrive
+        // before we're ready to fulfill it (was the root cause of infinite hang).
         return try await withCheckedThrowingContinuation { continuation in
             pendingRequestsLock.lock()
             pendingRequests[id] = continuation
             NSLog("[HermesNative] call: registered continuation for id=\(id), pending count=\(pendingRequests.count)")
             pendingRequestsLock.unlock()
+
+            // Send AFTER registration — continuation is now safe to fulfill.
+            // Dispatch send to avoid NSLock in async context for error path.
+            NSLog("[HermesNative] call: sending \(method) id=\(id)")
+            onLog?("→ \(method) (id=\(id))", false)
+            Task { @MainActor in
+                do {
+                    try await webSocketTask.send(.data(data))
+                } catch {
+                    // Send failed — remove continuation and propagate error
+                    self.pendingRequests[id] = nil
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 
