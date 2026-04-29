@@ -26,13 +26,23 @@ struct ContentView: View {
             }
         }
         .task {
-            if settings.isConfigured {
+            // Only auto-connect if CF Access is not needed or already authenticated
+            if settings.isConfigured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
                 await gatewayClientWrapper.connect(using: settings)
                 chatViewModel.setGatewayClient(gatewayClientWrapper.client)
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
-            if configured {
+            if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
+                Task {
+                    await gatewayClientWrapper.connect(using: settings)
+                    chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+                }
+            }
+        }
+        .onChange(of: settings.cfAuthCookie) { _, cookie in
+            // Auto-reconnect when CF Access cookie becomes available
+            if cookie != nil && settings.isConfigured {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
                     chatViewModel.setGatewayClient(gatewayClientWrapper.client)

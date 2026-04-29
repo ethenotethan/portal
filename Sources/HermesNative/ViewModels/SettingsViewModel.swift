@@ -23,10 +23,10 @@ final class SettingsViewModel: ObservableObject {
     }
 
     /// The captured CF_Authorization cookie (not persisted — re-auth on app launch).
-    var cfAuthCookie: HTTPCookie?
+    @Published var cfAuthCookie: HTTPCookie?
 
     /// Email extracted from CF Access JWT (for display purposes).
-    var cfAuthEmail: String?
+    @Published var cfAuthEmail: String?
 
     init() {
         self.gatewayURL = KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
