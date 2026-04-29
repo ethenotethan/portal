@@ -36,35 +36,42 @@ final class PersonaManager: ObservableObject {
         }
     }
 
-    /// Derive persona from gateway config + PERSONA.md, then merge with local files.
-    /// Call this after the WS connection is established.
+    /// Derive persona from gateway RPCs + PERSONA.md, then merge with local files.
+    /// Uses existing config.get("personality") and config.get("full") RPCs — no new gateway code needed.
     func syncFromGateway(_ client: GatewayClient) async {
-        // 1. Fetch persona info from gateway via config.get("persona")
         var personalityName = "default"
         var gatewayName: String? = nil
         var personaMDContent: String? = nil
 
-        if let result = try? await client.getConfig(key: "persona") {
-            personalityName = result["personality"]?.stringValue ?? "default"
-            gatewayName = result["name"]?.stringValue
-            personaMDContent = result["persona_md"]?.stringValue
+        // 1. Fetch personality name via config.get("personality")
+        if let result = try? await client.getConfig(key: "personality"),
+           let value = result["value"]?.stringValue {
+            personalityName = value
         }
 
-        // 2. Fallback: read PERSONA.md directly if gateway didn't return it
-        if personaMDContent == nil || personaMDContent!.isEmpty {
-            let personaMDPath = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent(".hermes/PERSONA.md")
-            personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
+        // 2. Fetch full config via config.get("full") to get display.agent_name
+        if let result = try? await client.getConfig(key: "full"),
+           let config = result["config"]?.dictionaryValue {
+            let display = config["display"]?.dictionaryValue
+            if let name = display?["agent_name"]?.stringValue, !name.isEmpty {
+                gatewayName = name
+            }
         }
 
-        // 3. Build the gateway-derived persona
+        // 3. Read PERSONA.md via the prompt RPC or fall back to filesystem
+        // The gateway doesn't have a direct PERSONA.md RPC yet, so read from disk
+        let hermesDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".hermes")
+        let personaMDPath = hermesDir.appendingPathComponent("PERSONA.md")
+        personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
+
+        // 4. Build the gateway-derived persona
         let gatewayPersona = derivePersona(
             personalityName: personalityName,
             gatewayName: gatewayName,
             personaMD: personaMDContent
         )
 
-        // 4. Reload all personas, putting gateway-derived first
+        // 5. Reload all personas, putting gateway-derived first
         loadPersonas(gatewayPersona: gatewayPersona)
 
         // Auto-select gateway persona if no saved preference
