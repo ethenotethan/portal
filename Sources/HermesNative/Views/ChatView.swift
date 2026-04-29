@@ -84,6 +84,15 @@ struct ChatView: View {
                 .tint(.red)
             }
 
+            if !chatViewModel.isSessionReady && chatViewModel.error == nil {
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.small)
+                    Text("Creating session…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if let error = chatViewModel.error {
                 Text(error)
                     .font(.caption)

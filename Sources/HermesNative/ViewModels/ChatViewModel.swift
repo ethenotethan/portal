@@ -38,6 +38,12 @@ final class ChatViewModel: ObservableObject {
                 switch state {
                 case .connected:
                     self?.error = nil
+                    // Auto-create session once connected
+                    if self?.sessionID == nil {
+                        Task {
+                            await self?.createSession()
+                        }
+                    }
                 case .error(let msg):
                     self?.error = msg
                     self?.isSessionReady = false
@@ -60,15 +66,23 @@ final class ChatViewModel: ObservableObject {
 
     /// Create a new session on the gateway.
     func createSession() async {
-        guard let client = gatewayClient else { return }
+        guard let client = gatewayClient else {
+            self.error = "No gateway client"
+            return
+        }
+        guard case .connected = client.connectionState else {
+            self.error = "Not connected to gateway (state: \(client.connectionState))"
+            return
+        }
         do {
             let sid = try await client.createSession()
             self.sessionID = sid
             self.isSessionReady = true
             self.messages = []
             self.activeToolCalls = [:]
+            self.error = nil
         } catch {
-            self.error = error.localizedDescription
+            self.error = "Session create failed: \(error.localizedDescription)"
         }
     }
 
