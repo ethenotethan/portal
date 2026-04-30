@@ -3,7 +3,20 @@ import WebKit
 
 /// Renders a Mermaid diagram inside a WKWebView using mermaid.js from CDN.
 /// Falls back to raw code display if rendering fails.
-struct MermaidDiagramView: NSViewRepresentable {
+struct MermaidDiagramView: View {
+    let mermaidCode: String
+
+    var body: some View {
+        #if os(macOS)
+        MermaidDiagramNSView(mermaidCode: mermaidCode)
+        #else
+        MermaidDiagramUIView(mermaidCode: mermaidCode)
+        #endif
+    }
+}
+
+#if os(macOS)
+struct MermaidDiagramNSView: NSViewRepresentable {
     let mermaidCode: String
 
     func makeNSView(context: Context) -> MermaidWebView {
@@ -14,6 +27,19 @@ struct MermaidDiagramView: NSViewRepresentable {
         webView.render(mermaidCode: mermaidCode)
     }
 }
+#else
+struct MermaidDiagramUIView: UIViewRepresentable {
+    let mermaidCode: String
+
+    func makeUIView(context: Context) -> MermaidWebView {
+        MermaidWebView()
+    }
+
+    func updateUIView(_ webView: MermaidWebView, context: Context) {
+        webView.render(mermaidCode: mermaidCode)
+    }
+}
+#endif
 
 /// WKWebView subclass that loads mermaid.js from CDN and renders diagrams.
 /// Detects system appearance for dark/light theme.
@@ -22,7 +48,12 @@ class MermaidWebView: WKWebView {
 
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
+        #if os(macOS)
         setValue(false, forKey: "drawsBackground")
+        #else
+        isOpaque = false
+        backgroundColor = .clear
+        #endif
         navigationDelegate = self
     }
 

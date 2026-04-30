@@ -16,7 +16,12 @@ final class PersonaManager: ObservableObject {
     }
 
     nonisolated static let personasDirectory: URL = {
-        let dir = FileManager.default.homeDirectoryForCurrentUser
+        #if os(macOS)
+        let base = FileManager.default.homeDirectoryForCurrentUser
+        #else
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        #endif
+        let dir = base
             .appendingPathComponent("HermesNative", isDirectory: true)
             .appendingPathComponent("Personas", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -60,7 +65,12 @@ final class PersonaManager: ObservableObject {
 
         // 3. Read PERSONA.md via the prompt RPC or fall back to filesystem
         // The gateway doesn't have a direct PERSONA.md RPC yet, so read from disk
+        #if os(macOS)
         let hermesDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".hermes")
+        #else
+        let hermesDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent(".hermes")
+        #endif
         let personaMDPath = hermesDir.appendingPathComponent("PERSONA.md")
         personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
 

@@ -87,12 +87,12 @@ struct AvatarStateLabel: View {
     }
 }
 
-// MARK: - NSColor Hex Helper
+// MARK: - Platform Color Hex Helper
 
-private func nsColor(fromHex hex: String) -> NSColor {
+private func nsColor(fromHex hex: String) -> PlatformColor {
     let h = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-    guard h.count == 6, let rgb = UInt64(h, radix: 16) else { return .systemPurple }
-    return NSColor(
+    guard h.count == 6, let rgb = UInt64(h, radix: 16) else { return PlatformColor(red: 0.5, green: 0, blue: 0.5, alpha: 1) }
+    return PlatformColor(
         red: CGFloat((rgb & 0xFF0000) >> 16) / 255.0,
         green: CGFloat((rgb & 0x00FF00) >> 8) / 255.0,
         blue: CGFloat(rgb & 0x0000FF) / 255.0,

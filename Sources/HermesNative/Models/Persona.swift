@@ -36,10 +36,16 @@ struct Persona: Codable, Identifiable, Equatable {
 
     @ViewBuilder
     var avatar: some View {
-        if let imagePath, let nsImage = loadImage(at: imagePath) {
-            Image(nsImage: nsImage)
+        if let imagePath, let platformImage = loadImage(at: imagePath) {
+            #if os(macOS)
+            Image(nsImage: platformImage)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+            #else
+            Image(uiImage: platformImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+            #endif
         } else {
             Image(systemName: symbolName)
         }
@@ -56,12 +62,21 @@ struct Persona: Codable, Identifiable, Equatable {
 
     // MARK: - Image Loading
 
-    private func loadImage(at path: String) -> NSImage? {
-        if path.hasPrefix("/") { return NSImage(contentsOfFile: path) }
+    #if os(macOS)
+    private func loadImage(at path: String) -> PlatformImage? {
+        if path.hasPrefix("/") { return PlatformImage(contentsOfFile: path) }
         let personasDir = PersonaManager.personasDirectory
         let absolute = personasDir.appendingPathComponent(path).path
-        return NSImage(contentsOfFile: absolute)
+        return PlatformImage(contentsOfFile: absolute)
     }
+    #else
+    private func loadImage(at path: String) -> PlatformImage? {
+        if path.hasPrefix("/") { return PlatformImage(contentsOfFile: path) }
+        let personasDir = PersonaManager.personasDirectory
+        let absolute = personasDir.appendingPathComponent(path).path
+        return PlatformImage(contentsOfFile: absolute)
+    }
+    #endif
 
     // MARK: - Defaults
 

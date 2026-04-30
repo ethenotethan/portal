@@ -15,7 +15,9 @@ struct PersonaPickerView: View {
                 Spacer()
                 Button {
                     if let url = personaManager.exportTemplate() {
+                        #if os(macOS)
                         NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+                        #endif
                         showTemplateExported = true
                     }
                 } label: {
@@ -51,7 +53,11 @@ struct PersonaPickerView: View {
                                     }
                                 }
                                 Button("Open Personas Folder") {
+                                    #if os(macOS)
                                     NSWorkspace.shared.open(PersonaManager.personasDirectory)
+                                    #else
+                                    UIApplication.shared.open(PersonaManager.personasDirectory)
+                                    #endif
                                 }
                             }
                     }
@@ -69,7 +75,11 @@ struct PersonaPickerView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Open Folder") {
+                    #if os(macOS)
                     NSWorkspace.shared.open(PersonaManager.personasDirectory)
+                    #else
+                    UIApplication.shared.open(PersonaManager.personasDirectory)
+                    #endif
                 }
                 .font(.caption2)
                 .buttonStyle(.plain)

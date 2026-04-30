@@ -75,11 +75,19 @@ struct SettingsView: View {
                     }
                     HStack {
                         Button("Open Folder") {
+                            #if os(macOS)
                             NSWorkspace.shared.open(PersonaManager.personasDirectory)
+                            #else
+                            // On iOS, share the directory URL
+                            let url = PersonaManager.personasDirectory
+                            UIApplication.shared.open(url)
+                            #endif
                         }
                         Button("Create Template") {
                             if let url = personaManager.exportTemplate() {
+                                #if os(macOS)
                                 NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+                                #endif
                             }
                         }
                     }

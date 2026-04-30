@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 /// Tappable chip for a file attachment extracted from a MEDIA: tag.
 /// Shows icon + filename, opens FilePreviewView on tap.
@@ -53,7 +54,7 @@ struct AttachmentChipView: View {
 
 /// Full-sheet preview for file attachments.
 /// Uses WKWebView for HTML and PDF (both render natively),
-/// Quick Look for images, and NSWorkspace.open for everything else.
+/// native image view for images, and share/open for everything else.
 struct FilePreviewView: View {
     let attachment: FileAttachment
     @Environment(\.dismiss) private var dismiss
@@ -98,7 +99,7 @@ struct FilePreviewView: View {
             Group {
                 switch attachment.category {
                 case .html, .pdf:
-                    WebViewSheet(filePath: attachment.path)
+                    FileWebView(filePath: attachment.path)
                 case .image:
                     ImagePreview(filePath: attachment.path)
                 default:
@@ -112,15 +113,30 @@ struct FilePreviewView: View {
 
     private func openInDefaultApp() {
         let url = URL(fileURLWithPath: attachment.path)
+        #if os(macOS)
         NSWorkspace.shared.open(url)
+        #else
+        UIApplication.shared.open(url)
+        #endif
     }
 }
 
-// MARK: - WKWebView Sheet (HTML + PDF)
+// MARK: - WKWebView (HTML + PDF)
 
-import WebKit
+struct FileWebView: View {
+    let filePath: String
 
-struct WebViewSheet: NSViewRepresentable {
+    var body: some View {
+        #if os(macOS)
+        FileWebViewNSView(filePath: filePath)
+        #else
+        FileWebViewUIView(filePath: filePath)
+        #endif
+    }
+}
+
+#if os(macOS)
+struct FileWebViewNSView: NSViewRepresentable {
     let filePath: String
 
     func makeNSView(context: Context) -> WKWebView {
@@ -136,6 +152,25 @@ struct WebViewSheet: NSViewRepresentable {
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
     }
 }
+#else
+struct FileWebViewUIView: UIViewRepresentable {
+    let filePath: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let url = URL(fileURLWithPath: filePath)
+        webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+    }
+}
+#endif
 
 // MARK: - Image Preview
 
@@ -144,6 +179,7 @@ struct ImagePreview: View {
 
     var body: some View {
         ScrollView([.horizontal, .vertical]) {
+            #if os(macOS)
             if let nsImage = NSImage(contentsOfFile: filePath) {
                 Image(nsImage: nsImage)
                     .resizable()
@@ -152,6 +188,16 @@ struct ImagePreview: View {
             } else {
                 FallbackLabel(text: "Could not load image")
             }
+            #else
+            if let uiImage = UIImage(contentsOfFile: filePath) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .padding()
+            } else {
+                FallbackLabel(text: "Could not load image")
+            }
+            #endif
         }
     }
 }
@@ -176,7 +222,12 @@ struct FallbackPreview: View {
                 .foregroundStyle(Theme.tertiary)
 
             Button("Open in Default App") {
-                NSWorkspace.shared.open(URL(fileURLWithPath: attachment.path))
+                let url = URL(fileURLWithPath: attachment.path)
+                #if os(macOS)
+                NSWorkspace.shared.open(url)
+                #else
+                UIApplication.shared.open(url)
+                #endif
             }
             .buttonStyle(.borderedProminent)
         }

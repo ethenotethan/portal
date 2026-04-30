@@ -26,7 +26,7 @@ final class AvatarScene: SCNScene {
     private var accessoryNodes: [SCNNode] = []
 
     // Accent color
-    var accentColor: NSColor = NSColor(red: 0.34, green: 0.34, blue: 0.84, alpha: 1) {
+    var accentColor: PlatformColor = PlatformColor(red: 0.34, green: 0.34, blue: 0.84, alpha: 1) {
         didSet { applyAccentColor() }
     }
 
@@ -68,10 +68,10 @@ final class AvatarScene: SCNScene {
         // ── Main orb (body) ──
         let orbGeo = SCNSphere(radius: 0.4)
         let orbMat = SCNMaterial()
-        orbMat.diffuse.contents = NSColor(white: 0.95, alpha: 1)
-        orbMat.specular.contents = NSColor.white
+        orbMat.diffuse.contents = PlatformColor(white: 0.95, alpha: 1)
+        orbMat.specular.contents = PlatformColor.white
         orbMat.shininess = 80
-        orbMat.emission.contents = NSColor(white: 0.04, alpha: 1)
+        orbMat.emission.contents = PlatformColor(white: 0.04, alpha: 1)
         orbGeo.materials = [orbMat]
         orbNode = SCNNode(geometry: orbGeo)
         orbNode.position = SCNVector3(0, 0, 0)
@@ -80,10 +80,10 @@ final class AvatarScene: SCNScene {
         // ── Head dome (sits on top of orb) ──
         let headGeo = SCNSphere(radius: 0.3)
         let headMat = SCNMaterial()
-        headMat.diffuse.contents = NSColor(white: 0.97, alpha: 1)
-        headMat.specular.contents = NSColor.white
+        headMat.diffuse.contents = PlatformColor(white: 0.97, alpha: 1)
+        headMat.specular.contents = PlatformColor.white
         headMat.shininess = 100
-        headMat.emission.contents = NSColor(white: 0.03, alpha: 1)
+        headMat.emission.contents = PlatformColor(white: 0.03, alpha: 1)
         headGeo.materials = [headMat]
         headNode = SCNNode(geometry: headGeo)
         headNode.position = SCNVector3(0, 0.5, 0)
@@ -92,10 +92,10 @@ final class AvatarScene: SCNScene {
         // ── Visor (dark band across face) ──
         let visorGeo = SCNBox(width: 0.5, height: 0.12, length: 0.15, chamferRadius: 0.04)
         let visorMat = SCNMaterial()
-        visorMat.diffuse.contents = NSColor(white: 0.08, alpha: 1)
-        visorMat.specular.contents = NSColor(white: 0.3, alpha: 1)
+        visorMat.diffuse.contents = PlatformColor(white: 0.08, alpha: 1)
+        visorMat.specular.contents = PlatformColor(white: 0.3, alpha: 1)
         visorMat.shininess = 40
-        visorMat.emission.contents = NSColor(white: 0.02, alpha: 1)
+        visorMat.emission.contents = PlatformColor(white: 0.02, alpha: 1)
         visorGeo.materials = [visorMat]
         visorNode = SCNNode(geometry: visorGeo)
         visorNode.position = SCNVector3(0, 0.52, 0.22)
@@ -104,9 +104,9 @@ final class AvatarScene: SCNScene {
         // ── Eyes (glowing on the visor) ──
         let eyeGeo = SCNSphere(radius: 0.04)
         let eyeMat = SCNMaterial()
-        eyeMat.diffuse.contents = NSColor.cyan
-        eyeMat.emission.contents = NSColor.cyan.withAlphaComponent(0.8)
-        eyeMat.specular.contents = NSColor.white
+        eyeMat.diffuse.contents = PlatformColor.cyan
+        eyeMat.emission.contents = PlatformColor.cyan.withAlphaComponent(0.8)
+        eyeMat.specular.contents = PlatformColor.white
         eyeGeo.materials = [eyeMat]
 
         leftEyeNode = SCNNode(geometry: eyeGeo)
@@ -120,9 +120,9 @@ final class AvatarScene: SCNScene {
         // Eye glow halos
         let haloGeo = SCNSphere(radius: 0.06)
         let haloMat = SCNMaterial()
-        haloMat.diffuse.contents = NSColor.cyan.withAlphaComponent(0.15)
-        haloMat.emission.contents = NSColor.cyan.withAlphaComponent(0.1)
-        haloMat.transparent.contents = NSColor(white: 1, alpha: 0.3)
+        haloMat.diffuse.contents = PlatformColor.cyan.withAlphaComponent(0.15)
+        haloMat.emission.contents = PlatformColor.cyan.withAlphaComponent(0.1)
+        haloMat.transparent.contents = PlatformColor(white: 1, alpha: 0.3)
         haloMat.transparencyMode = .dualLayer
         haloGeo.materials = [haloMat]
 
@@ -144,8 +144,8 @@ final class AvatarScene: SCNScene {
         // ── Glow ring (orbital) ──
         let ringGeo = SCNTorus(ringRadius: 0.44, pipeRadius: 0.015)
         let ringMat = SCNMaterial()
-        ringMat.diffuse.contents = NSColor.systemPurple.withAlphaComponent(0.7)
-        ringMat.emission.contents = NSColor.systemPurple.withAlphaComponent(0.5)
+        ringMat.diffuse.contents = PlatformColor.systemPurple.withAlphaComponent(0.7)
+        ringMat.emission.contents = PlatformColor.systemPurple.withAlphaComponent(0.5)
         ringGeo.materials = [ringMat]
         ringNode = SCNNode(geometry: ringGeo)
         ringNode.eulerAngles = SCNVector3(Float.pi / 2, 0, 0)
@@ -154,8 +154,8 @@ final class AvatarScene: SCNScene {
         // ── Inner ring (counter-rotating) ──
         let innerRingGeo = SCNTorus(ringRadius: 0.38, pipeRadius: 0.008)
         let innerRingMat = SCNMaterial()
-        innerRingMat.diffuse.contents = NSColor.systemPurple.withAlphaComponent(0.4)
-        innerRingMat.emission.contents = NSColor.systemPurple.withAlphaComponent(0.25)
+        innerRingMat.diffuse.contents = PlatformColor.systemPurple.withAlphaComponent(0.4)
+        innerRingMat.emission.contents = PlatformColor.systemPurple.withAlphaComponent(0.25)
         innerRingGeo.materials = [innerRingMat]
         innerRingNode = SCNNode(geometry: innerRingGeo)
         innerRingNode.eulerAngles = SCNVector3(Float.pi / 2, 0.3, 0)
@@ -200,8 +200,8 @@ final class AvatarScene: SCNScene {
             // Wide brim (flat cylinder) + dome on top
             let brimGeo = SCNCylinder(radius: 0.38, height: 0.03)
             let hatMat = SCNMaterial()
-            hatMat.diffuse.contents = NSColor(red: 0.55, green: 0.35, blue: 0.15, alpha: 1)
-            hatMat.specular.contents = NSColor(white: 0.2, alpha: 1)
+            hatMat.diffuse.contents = PlatformColor(red: 0.55, green: 0.35, blue: 0.15, alpha: 1)
+            hatMat.specular.contents = PlatformColor(white: 0.2, alpha: 1)
             brimGeo.materials = [hatMat]
 
             let brim = SCNNode(geometry: brimGeo)
@@ -217,8 +217,8 @@ final class AvatarScene: SCNScene {
             // Hat band
             let bandGeo = SCNCylinder(radius: 0.165, height: 0.03)
             let bandMat = SCNMaterial()
-            bandMat.diffuse.contents = NSColor.systemOrange.withAlphaComponent(0.8)
-            bandMat.emission.contents = NSColor.systemOrange.withAlphaComponent(0.2)
+            bandMat.diffuse.contents = PlatformColor.systemOrange.withAlphaComponent(0.8)
+            bandMat.emission.contents = PlatformColor.systemOrange.withAlphaComponent(0.2)
             bandGeo.materials = [bandMat]
             let band = SCNNode(geometry: bandGeo)
             band.position = SCNVector3(0, 0.82, 0)
@@ -227,8 +227,8 @@ final class AvatarScene: SCNScene {
         case .fedora:
             let brimGeo = SCNCylinder(radius: 0.35, height: 0.025)
             let hatMat = SCNMaterial()
-            hatMat.diffuse.contents = NSColor(white: 0.15, alpha: 1)
-            hatMat.specular.contents = NSColor(white: 0.3, alpha: 1)
+            hatMat.diffuse.contents = PlatformColor(white: 0.15, alpha: 1)
+            hatMat.specular.contents = PlatformColor(white: 0.3, alpha: 1)
             brimGeo.materials = [hatMat]
 
             let brim = SCNNode(geometry: brimGeo)
@@ -244,7 +244,7 @@ final class AvatarScene: SCNScene {
             // Red band
             let bandGeo = SCNCylinder(radius: 0.145, height: 0.025)
             let bandMat = SCNMaterial()
-            bandMat.diffuse.contents = NSColor.systemRed.withAlphaComponent(0.7)
+            bandMat.diffuse.contents = PlatformColor.systemRed.withAlphaComponent(0.7)
             bandGeo.materials = [bandMat]
             let band = SCNNode(geometry: bandGeo)
             band.position = SCNVector3(0, 0.81, 0)
@@ -253,8 +253,8 @@ final class AvatarScene: SCNScene {
         case .pirateHat:
             // Tricorn-style: 3 tilted brim segments
             let hatMat = SCNMaterial()
-            hatMat.diffuse.contents = NSColor(white: 0.1, alpha: 1)
-            hatMat.specular.contents = NSColor(white: 0.15, alpha: 1)
+            hatMat.diffuse.contents = PlatformColor(white: 0.1, alpha: 1)
+            hatMat.specular.contents = PlatformColor(white: 0.15, alpha: 1)
 
             let crownGeo = SCNCylinder(radius: 0.18, height: 0.15)
             crownGeo.materials = [hatMat]
@@ -275,8 +275,8 @@ final class AvatarScene: SCNScene {
             // Skull emblem
             let skullGeo = SCNSphere(radius: 0.03)
             let skullMat = SCNMaterial()
-            skullMat.diffuse.contents = NSColor.white
-            skullMat.emission.contents = NSColor.white.withAlphaComponent(0.3)
+            skullMat.diffuse.contents = PlatformColor.white
+            skullMat.emission.contents = PlatformColor.white.withAlphaComponent(0.3)
             skullGeo.materials = [skullMat]
             let skull = SCNNode(geometry: skullGeo)
             skull.position = SCNVector3(0, 0.85, 0.17)
@@ -285,10 +285,10 @@ final class AvatarScene: SCNScene {
         case .crown:
             let crownGeo = SCNCylinder(radius: 0.2, height: 0.06)
             let crownMat = SCNMaterial()
-            crownMat.diffuse.contents = NSColor.systemYellow
-            crownMat.specular.contents = NSColor.white
+            crownMat.diffuse.contents = PlatformColor.systemYellow
+            crownMat.specular.contents = PlatformColor.white
             crownMat.shininess = 60
-            crownMat.emission.contents = NSColor.systemYellow.withAlphaComponent(0.2)
+            crownMat.emission.contents = PlatformColor.systemYellow.withAlphaComponent(0.2)
             crownGeo.materials = [crownMat]
             let base = SCNNode(geometry: crownGeo)
             base.position = SCNVector3(0, 0.8, 0)
@@ -306,8 +306,8 @@ final class AvatarScene: SCNScene {
                 // Gem on top
                 let gemGeo = SCNSphere(radius: 0.015)
                 let gemMat = SCNMaterial()
-                gemMat.diffuse.contents = NSColor.red
-                gemMat.emission.contents = NSColor.red.withAlphaComponent(0.5)
+                gemMat.diffuse.contents = PlatformColor.red
+                gemMat.emission.contents = PlatformColor.red.withAlphaComponent(0.5)
                 gemGeo.materials = [gemMat]
                 let gem = SCNNode(geometry: gemGeo)
                 gem.position = SCNVector3(0, 0.06, 0)
@@ -318,8 +318,8 @@ final class AvatarScene: SCNScene {
             // Greek-style plumed helmet
             let helmGeo = SCNSphere(radius: 0.28)
             let helmMat = SCNMaterial()
-            helmMat.diffuse.contents = NSColor(red: 0.75, green: 0.65, blue: 0.45, alpha: 1)
-            helmMat.specular.contents = NSColor.white
+            helmMat.diffuse.contents = PlatformColor(red: 0.75, green: 0.65, blue: 0.45, alpha: 1)
+            helmMat.specular.contents = PlatformColor.white
             helmMat.shininess = 50
             helmGeo.materials = [helmMat]
             let helm = SCNNode(geometry: helmGeo)
@@ -330,8 +330,8 @@ final class AvatarScene: SCNScene {
             // Plume
             let plumeGeo = SCNCylinder(radius: 0.025, height: 0.25)
             let plumeMat = SCNMaterial()
-            plumeMat.diffuse.contents = NSColor.systemRed.withAlphaComponent(0.9)
-            plumeMat.emission.contents = NSColor.systemRed.withAlphaComponent(0.15)
+            plumeMat.diffuse.contents = PlatformColor.systemRed.withAlphaComponent(0.9)
+            plumeMat.emission.contents = PlatformColor.systemRed.withAlphaComponent(0.15)
             plumeGeo.materials = [plumeMat]
             let plume = SCNNode(geometry: plumeGeo)
             plume.position = SCNVector3(0, 0.85, 0)
@@ -340,13 +340,13 @@ final class AvatarScene: SCNScene {
         case .catEars:
             // Two triangular ears
             let earMat = SCNMaterial()
-            earMat.diffuse.contents = NSColor(white: 0.95, alpha: 1)
-            earMat.specular.contents = NSColor.white
+            earMat.diffuse.contents = PlatformColor(white: 0.95, alpha: 1)
+            earMat.specular.contents = PlatformColor.white
             earMat.shininess = 80
 
             let innerMat = SCNMaterial()
-            innerMat.diffuse.contents = NSColor.systemPink.withAlphaComponent(0.6)
-            innerMat.emission.contents = NSColor.systemPink.withAlphaComponent(0.15)
+            innerMat.diffuse.contents = PlatformColor.systemPink.withAlphaComponent(0.6)
+            innerMat.emission.contents = PlatformColor.systemPink.withAlphaComponent(0.15)
 
             for side in [-1, 1] {
                 let earGeo = SCNCone(topRadius: 0, bottomRadius: 0.1, height: 0.18)
@@ -367,8 +367,8 @@ final class AvatarScene: SCNScene {
         case .glasses:
             // Two circles + bridge
             let glassMat = SCNMaterial()
-            glassMat.diffuse.contents = NSColor(white: 0.2, alpha: 1)
-            glassMat.specular.contents = NSColor.white
+            glassMat.diffuse.contents = PlatformColor(white: 0.2, alpha: 1)
+            glassMat.specular.contents = PlatformColor.white
             glassMat.shininess = 80
 
             for side in [-1, 1] {
@@ -389,10 +389,10 @@ final class AvatarScene: SCNScene {
 
         case .sunglasses:
             let glassMat = SCNMaterial()
-            glassMat.diffuse.contents = NSColor(white: 0.05, alpha: 1)
-            glassMat.specular.contents = NSColor.white
+            glassMat.diffuse.contents = PlatformColor(white: 0.05, alpha: 1)
+            glassMat.specular.contents = PlatformColor.white
             glassMat.shininess = 100
-            glassMat.emission.contents = NSColor(white: 0.02, alpha: 1)
+            glassMat.emission.contents = PlatformColor(white: 0.02, alpha: 1)
 
             for side in [-1, 1] {
                 let lensGeo = SCNCylinder(radius: 0.08, height: 0.01)
@@ -412,7 +412,7 @@ final class AvatarScene: SCNScene {
         case .eyepatch:
             let patchGeo = SCNCylinder(radius: 0.07, height: 0.01)
             let patchMat = SCNMaterial()
-            patchMat.diffuse.contents = NSColor(white: 0.1, alpha: 1)
+            patchMat.diffuse.contents = PlatformColor(white: 0.1, alpha: 1)
             patchGeo.materials = [patchMat]
             let patch = SCNNode(geometry: patchGeo)
             patch.position = SCNVector3(-0.09, 0.52, 0.28)
@@ -429,9 +429,9 @@ final class AvatarScene: SCNScene {
         case .bow:
             // Kawaii hair bow on top-right
             let bowMat = SCNMaterial()
-            bowMat.diffuse.contents = NSColor.systemPink
-            bowMat.emission.contents = NSColor.systemPink.withAlphaComponent(0.2)
-            bowMat.specular.contents = NSColor.white
+            bowMat.diffuse.contents = PlatformColor.systemPink
+            bowMat.emission.contents = PlatformColor.systemPink.withAlphaComponent(0.2)
+            bowMat.specular.contents = PlatformColor.white
             bowMat.shininess = 60
 
             for side in [-1, 1] {
@@ -452,8 +452,8 @@ final class AvatarScene: SCNScene {
         case .boots:
             // Small boots at the bottom of the orb (decorative)
             let bootMat = SCNMaterial()
-            bootMat.diffuse.contents = NSColor(red: 0.55, green: 0.35, blue: 0.15, alpha: 1)
-            bootMat.specular.contents = NSColor(white: 0.2, alpha: 1)
+            bootMat.diffuse.contents = PlatformColor(red: 0.55, green: 0.35, blue: 0.15, alpha: 1)
+            bootMat.specular.contents = PlatformColor(white: 0.2, alpha: 1)
 
             for side in [-1, 1] {
                 let bootGeo = SCNCylinder(radius: 0.06, height: 0.08)
@@ -465,7 +465,7 @@ final class AvatarScene: SCNScene {
                 // Sole
                 let soleGeo = SCNCylinder(radius: 0.07, height: 0.02)
                 let soleMat = SCNMaterial()
-                soleMat.diffuse.contents = NSColor(white: 0.15, alpha: 1)
+                soleMat.diffuse.contents = PlatformColor(white: 0.15, alpha: 1)
                 soleGeo.materials = [soleMat]
                 let sole = SCNNode(geometry: soleGeo)
                 sole.position = SCNVector3(0, -0.05, 0.01)
@@ -482,14 +482,14 @@ final class AvatarScene: SCNScene {
         let ambient = SCNNode()
         ambient.light = SCNLight()
         ambient.light?.type = .ambient
-        ambient.light?.color = NSColor(white: 0.45, alpha: 1)
+        ambient.light?.color = PlatformColor(white: 0.45, alpha: 1)
         ambient.light?.castsShadow = false
         rootNode.addChildNode(ambient)
 
         let key = SCNNode()
         key.light = SCNLight()
         key.light?.type = .omni
-        key.light?.color = NSColor.white
+        key.light?.color = PlatformColor.white
         key.light?.intensity = 1400
         key.position = SCNVector3(2, 3, 2.5)
         rootNode.addChildNode(key)
@@ -497,7 +497,7 @@ final class AvatarScene: SCNScene {
         let fill = SCNNode()
         fill.light = SCNLight()
         fill.light?.type = .omni
-        fill.light?.color = NSColor(white: 0.5, alpha: 1)
+        fill.light?.color = PlatformColor(white: 0.5, alpha: 1)
         fill.light?.intensity = 500
         fill.position = SCNVector3(-2, 1, 2)
         rootNode.addChildNode(fill)
@@ -505,7 +505,7 @@ final class AvatarScene: SCNScene {
         let rim = SCNNode()
         rim.light = SCNLight()
         rim.light?.type = .omni
-        rim.light?.color = NSColor.systemPurple.withAlphaComponent(0.4)
+        rim.light?.color = PlatformColor.systemPurple.withAlphaComponent(0.4)
         rim.light?.intensity = 400
         rim.position = SCNVector3(0, 0, -3)
         rim.name = "rimLight"
@@ -626,7 +626,7 @@ final class AvatarScene: SCNScene {
             let brighten = SCNAction.customAction(duration: 1.5) { node, elapsed in
                 let t = elapsed / 1.5
                 let alpha = 0.02 + 0.06 * sin(Float(t) * Float.pi)
-                node.geometry?.firstMaterial?.emission.contents = NSColor(white: 0, alpha: CGFloat(alpha))
+                node.geometry?.firstMaterial?.emission.contents = PlatformColor(white: 0, alpha: CGFloat(alpha))
             }
             visorNode.runAction(SCNAction.repeatForever(brighten), forKey: "think_pulse")
 
@@ -672,8 +672,8 @@ final class AvatarScene: SCNScene {
 
             // Flash mouth red
             if let mat = mouthNode.geometry?.firstMaterial {
-                mat.diffuse.contents = NSColor.systemRed
-                mat.emission.contents = NSColor.systemRed.withAlphaComponent(0.8)
+                mat.diffuse.contents = PlatformColor.systemRed
+                mat.emission.contents = PlatformColor.systemRed.withAlphaComponent(0.8)
             }
         }
     }

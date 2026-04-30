@@ -140,8 +140,21 @@ final class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
     }
 }
 
-/// NSViewRepresentable wrapping WKWebView for macOS.
-struct CFWebViewRepresentable: NSViewRepresentable {
+/// Cross-platform WKWebView representable for CF Access authentication.
+struct CFWebViewRepresentable: View {
+    @ObservedObject var viewModel: CFAuthViewModel
+
+    var body: some View {
+        #if os(macOS)
+        CFWebViewNSView(viewModel: viewModel)
+        #else
+        CFWebViewUIView(viewModel: viewModel)
+        #endif
+    }
+}
+
+#if os(macOS)
+struct CFWebViewNSView: NSViewRepresentable {
     @ObservedObject var viewModel: CFAuthViewModel
 
     func makeNSView(context: Context) -> WKWebView {
@@ -158,3 +171,22 @@ struct CFWebViewRepresentable: NSViewRepresentable {
         // Cleanup handled in viewModel.detachWebView
     }
 }
+#else
+struct CFWebViewUIView: UIViewRepresentable {
+    @ObservedObject var viewModel: CFAuthViewModel
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        viewModel.attachWebView(webView)
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: ()) {
+        // Cleanup handled in viewModel.detachWebView
+    }
+}
+#endif
