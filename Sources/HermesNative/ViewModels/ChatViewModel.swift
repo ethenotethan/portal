@@ -13,6 +13,7 @@ final class ChatViewModel: ObservableObject {
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
     @Published var error: String?
     @Published var avatarState: AvatarState = .idle
+    @Published var sessionTitle: String = "New Chat"
 
     private var gatewayClient: GatewayClient?
     private var sessionID: String?
@@ -86,6 +87,9 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    /// The session ID currently active in this chat view.
+    var currentSessionID: String? { sessionID }
+
     /// Create a new session on the gateway.
     func createSession() async {
         guard let client = gatewayClient else {
@@ -111,6 +115,30 @@ final class ChatViewModel: ObservableObject {
         isCreatingSession = false
     }
 
+    /// Resume an existing session by key, replacing the current chat state.
+    func resumeSession(key: String) async {
+        guard let client = gatewayClient else {
+            self.error = "No gateway client"
+            return
+        }
+        guard case .connected = client.connectionState else {
+            self.error = "Not connected to gateway"
+            return
+        }
+        do {
+            let sid = try await client.resumeSession(key: key)
+            self.sessionID = sid
+            self.isSessionReady = true
+            self.messages = []
+            self.activeToolCalls = [:]
+            self.isStreaming = false
+            self.avatarState = .idle
+            self.error = nil
+        } catch {
+            self.error = "Session resume failed: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - User Input
 
     /// Send the current input text as a prompt.
@@ -124,6 +152,11 @@ final class ChatViewModel: ObservableObject {
         // Add user message to conversation
         let userMessage = ChatMessage(role: .user, content: text)
         messages.append(userMessage)
+
+        // Auto-title from first user message
+        if messages.filter({ $0.role == .user }).count == 1 {
+            sessionTitle = String(text.prefix(60))
+        }
 
         // Prepare streaming assistant message
         let assistantMessage = ChatMessage(

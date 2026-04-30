@@ -188,6 +188,10 @@ struct ChatView: View {
                 }
             }
         }
+        .navigationTitle(chatViewModel.sessionTitle)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 
     private var chatToolbar: some View {

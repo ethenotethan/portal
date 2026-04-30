@@ -24,6 +24,7 @@
 		2C2418F5793DA0B4A3E57690 /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFB378412449B68B78A4511 /* PlatformCompat.swift */; };
 		2C3618331E3F2AA253AC1699 /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
 		388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
+		3B0862F9F8DB3ED209EC7505 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */; };
 		3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
 		3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
 		41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
@@ -79,6 +80,7 @@
 		D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */; };
 		D4BB9EEC5648965C25C00461 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */; };
 		D6EE450F22FCCA49D913416F /* CharacterIllustration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC439892BF9CAC7D0F92064 /* CharacterIllustration.swift */; };
+		D8FEC77B5819FD7C58DBEB82 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */; };
 		DB7EB95BF30CB12EAF516CEF /* TUISkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFAC2BEE7A7000345BFEE4B /* TUISkin.swift */; };
 		DC83AA4EBCD584E9E3A42199 /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8510CDBA7652A23723C1FA1 /* Persona.swift */; };
 		DDD226CE5C94AFD3B59A59C2 /* AvatarScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC9F2DB5B4DCB516D19677C /* AvatarScene.swift */; };
@@ -117,6 +119,7 @@
 		4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		4B2F649BE0F12B966FAF6C47 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		4C3A77924140DBAD0D735072 /* Avatar3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Avatar3DView.swift; sourceTree = "<group>"; };
+		4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
 		55AE31FDF73C19D9F3762143 /* ToolCallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallView.swift; sourceTree = "<group>"; };
 		57621A872836514CD5BC0F5B /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		581833B777AC84A1607DBD1F /* DarkMangaSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkMangaSkin.swift; sourceTree = "<group>"; };
@@ -183,6 +186,7 @@
 				A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */,
 				CC871CF4533AE44104E0C11A /* OnboardingView.swift */,
 				17B94CA72B9A0301FB510B2D /* PersonaPickerView.swift */,
+				4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */,
 				04413B7162C8D0EAA432920E /* SettingsView.swift */,
 				6294FDA258010F40BDDF42C3 /* StreamingStatusBar.swift */,
 				8F3D7AE79773431722873482 /* Theme.swift */,
@@ -467,6 +471,7 @@
 				5BF9491236DB40D6C90ABA2E /* PersonaPickerView.swift in Sources */,
 				EEC145FE1D23E050DA758B61 /* PlatformCompat.swift in Sources */,
 				5F74549973CC40C2FD192577 /* Session.swift in Sources */,
+				D8FEC77B5819FD7C58DBEB82 /* SessionListView.swift in Sources */,
 				54ECBD8CA7F3F009351C063C /* SessionListViewModel.swift in Sources */,
 				75C11FF675CE3ECE889E401B /* SettingsView.swift in Sources */,
 				71D6DCD896DD343FFA4BE0C7 /* SettingsViewModel.swift in Sources */,
@@ -513,6 +518,7 @@
 				2707C14A335C6D29A9A83EDC /* PersonaPickerView.swift in Sources */,
 				2C2418F5793DA0B4A3E57690 /* PlatformCompat.swift in Sources */,
 				FF074D7A7E2E409BECFDA744 /* Session.swift in Sources */,
+				3B0862F9F8DB3ED209EC7505 /* SessionListView.swift in Sources */,
 				46F14365DAA565AEC59D5F99 /* SessionListViewModel.swift in Sources */,
 				B1C72D03E5C09B3FF0D5095D /* SettingsView.swift in Sources */,
 				9050E9BF45207715254D5340 /* SettingsViewModel.swift in Sources */,

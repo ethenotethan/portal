@@ -1,110 +1,110 @@
 import SwiftUI
 
-/// Root content view — switches between onboarding and chat.
+/// Root content view — NavigationSplitView with session sidebar + chat detail.
+/// On macOS: real sidebar. On iPad: sidebar. On iPhone: compact push/pop.
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
+    @EnvironmentObject var sessionList: SessionListViewModel
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
 
-    var body: some View {
-        VStack(spacing: 0) {
-            // Main content
-            Group {
-                if settings.isConfigured && gatewayClientWrapper.isConnected {
-                    ChatView()
-                        .environmentObject(chatViewModel)
-                        .environmentObject(gatewayClientWrapper)
-                } else {
-                    OnboardingView()
-                        .environmentObject(gatewayClientWrapper)
-                }
-            }
-            .frame(maxHeight: .infinity)
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
-            // Connection log bar — pinned below, not overlaying
-            if settings.isConfigured && !gatewayClientWrapper.isConnected {
-                connectionStatusBar
+    var body: some View {
+        Group {
+            if settings.isConfigured && gatewayClientWrapper.isConnected {
+                sessionChatLayout
+            } else {
+                OnboardingView()
+                    .environmentObject(gatewayClientWrapper)
             }
         }
         .task {
-            // Only auto-connect if CF Access is not needed or already authenticated
             if settings.isConfigured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
                 await gatewayClientWrapper.connect(using: settings)
-                chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+                wireUpClient()
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
             if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
-                    chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+                    wireUpClient()
                 }
             }
         }
         .onChange(of: settings.cfAuthCookie) { _, cookie in
-            // Auto-reconnect when CF Access cookie becomes available
             if cookie != nil && settings.isConfigured {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
-                    chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+                    wireUpClient()
                 }
             }
         }
     }
 
-    private var connectionStatusBar: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                switch gatewayClientWrapper.client.connectionState {
-                case .connecting:
-                    ProgressView().controlSize(.small)
-                    Text("Connecting…")
-                case .connected:
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text("Connected")
-                case .error(let msg):
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
-                    Text("Error: \(msg)")
-                case .disconnected:
-                    Image(systemName: "circle").foregroundStyle(.secondary)
-                    Text("Disconnected")
-                case .reconnecting(let attempt):
-                    ProgressView().controlSize(.small)
-                    Text("Reconnecting (attempt \(attempt))…")
-                        .foregroundStyle(.orange)
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+    // MARK: - Session + Chat Layout
 
-            // Connection log
-            if !gatewayClientWrapper.log.isEmpty {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(gatewayClientWrapper.log) { entry in
-                                Text(entry.text)
-                                    .font(.system(.caption2, design: .monospaced))
-                                    .foregroundStyle(entry.isError ? .red : .secondary)
-                                    .id(entry.id)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 120)
-                    .padding(8)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
-                    .onChange(of: gatewayClientWrapper.log.count) { _, _ in
-                        if let last = gatewayClientWrapper.log.last {
-                            proxy.scrollTo(last.id)
-                        }
+    private var sessionChatLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SessionListView()
+                .environmentObject(sessionList)
+                .environmentObject(chatViewModel)
+                .environmentObject(gatewayClientWrapper)
+                .navigationTitle("Sessions")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+        } detail: {
+            ChatView()
+                .environmentObject(chatViewModel)
+                .environmentObject(gatewayClientWrapper)
+                .id(chatViewModel.currentSessionID) // Re-create on session switch
+        }
+        #if os(macOS)
+        .navigationSplitViewStyle(.balanced)
+        #endif
+        .onChange(of: sessionList.activeSessionID) { _, newID in
+            guard let newID else { return }
+            // If switching to a different session, resume it
+            if newID != chatViewModel.currentSessionID,
+               let session = sessionList.sessions.first(where: { $0.id == newID }) {
+                Task {
+                    do {
+                        let sid = try await sessionList.resumeSession(session)
+                        await chatViewModel.resumeSession(key: session.key)
+                    } catch {
+                        chatViewModel.error = error.localizedDescription
                     }
                 }
             }
         }
-        .padding()
+    }
+
+    // MARK: - Wiring
+
+    private func wireUpClient() {
+        chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+        sessionList.setGatewayClient(gatewayClientWrapper.client)
+
+        // Auto-create first session if none exists, then refresh list
+        Task {
+            await sessionList.refreshSessions()
+            if sessionList.sessions.isEmpty {
+                await chatViewModel.createSession()
+                if let sid = chatViewModel.currentSessionID {
+                    sessionList.selectSession(id: sid)
+                    await sessionList.refreshSessions()
+                }
+            } else if let first = sessionList.sessions.first {
+                // Resume first existing session
+                sessionList.selectSession(id: first.id)
+            }
+        }
     }
 }
+
+// MARK: - Gateway Client Wrapper
 
 /// Observable wrapper for the GatewayClient lifecycle.
 @MainActor

@@ -27,5 +27,9 @@ let package = Package(
                 .linkedFramework("SpriteKit"),
             ]
         ),
+        .testTarget(
+            name: "HermesNativeTests",
+            dependencies: ["HermesNative"]
+        ),
     ]
 )
