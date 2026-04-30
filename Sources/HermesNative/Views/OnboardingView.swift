@@ -130,61 +130,85 @@ struct OnboardingView: View {
     #if os(iOS)
     private var iosBody: some View {
         NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "bubble.left.and.bubble.right.fill")
-                                .font(.system(size: 36))
-                                .foregroundStyle(personaManager.activePersona.accentColor)
-                            Text(personaManager.activePersona.name)
-                                .font(.headline)
-                            Text("Connect to your gateway")
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 8) {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(personaManager.activePersona.accentColor)
+                        Text(personaManager.activePersona.name)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                        Text("Connect to your gateway")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 20)
+
+                    // Gateway URL
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Gateway URL")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        TextField("ws://192.168.1.x:8642/v1/ws", text: $settings.gatewayURL)
+                            .textFieldStyle(.roundedBorder)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                            .font(.body)
+                    }
+
+                    // API Key
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("API Key")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        SecureField("Optional", text: $settings.apiKey)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                    }
+
+                    // CF Access
+                    if settings.needsCFAuth {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Cloudflare Access")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                Section("Gateway") {
-                    TextField("URL", text: $settings.gatewayURL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                    SecureField("API Key (optional)", text: $settings.apiKey)
-                }
-
-                if settings.needsCFAuth {
-                    Section("Cloudflare Access") {
-                        HStack {
-                            if let email = settings.cfAuthEmail {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text(email)
-                                    .lineLimit(1)
-                            } else if settings.cfAuthCookie != nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text("Authenticated")
-                            } else {
-                                Image(systemName: "lock.shield")
-                                    .foregroundStyle(.secondary)
-                                Text("Not authenticated")
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
-                                showCFAuth = true
+                                .textCase(.uppercase)
+                            HStack {
+                                if let email = settings.cfAuthEmail {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text(email)
+                                        .lineLimit(1)
+                                        .font(.subheadline)
+                                } else if settings.cfAuthCookie != nil {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text("Authenticated")
+                                        .font(.subheadline)
+                                } else {
+                                    Image(systemName: "lock.shield")
+                                        .foregroundStyle(.secondary)
+                                    Text("Not authenticated")
+                                        .foregroundStyle(.secondary)
+                                        .font(.subheadline)
+                                }
+                                Spacer()
+                                Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                                    showCFAuth = true
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
                     }
-                }
 
-                Section {
-                    HStack(spacing: 12) {
+                    // Buttons
+                    HStack(spacing: 16) {
                         Button {
                             testConnection()
                         } label: {
@@ -192,9 +216,10 @@ struct OnboardingView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             } else {
-                                Text("Test")
+                                Text("Test Connection")
                             }
                         }
+                        .buttonStyle(.bordered)
                         .disabled(testing)
 
                         Spacer()
@@ -205,6 +230,7 @@ struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
                     }
+                    .padding(.top, 8)
 
                     if let result = testResult {
                         Text(result)
@@ -212,7 +238,10 @@ struct OnboardingView: View {
                             .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .sheet(isPresented: $showCFAuth) {
             if let host = settings.buildWebSocketURL()?.host {
