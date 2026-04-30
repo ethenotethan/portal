@@ -32,13 +32,14 @@ struct AgentPanel: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
-            // Left: Lottie animated character
+        HStack(alignment: .top, spacing: 12) {
+            // Left: Lottie animated character (compact, matches bubble avatar)
             LottieCharacterView(
                 expression: characterExpression,
-                size: CGSize(width: 160, height: 160)
+                size: CGSize(width: 44, height: 44)
             )
-            .frame(width: 160)
+            .frame(width: 44, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
 
             // Right: Tool pills + status
             VStack(alignment: .leading, spacing: Theme.pillSpacing) {

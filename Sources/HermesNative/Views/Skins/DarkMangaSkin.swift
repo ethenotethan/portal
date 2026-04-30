@@ -1,8 +1,8 @@
 import SwiftUI
+import Lottie
 
-/// Dark Manga skin — near-black background, dark gray bubbles, line-art character,
-/// pill-shaped tool cards. Matches the design spec with the confused mascot
-/// reacting to the tool cascade.
+/// Dark Manga skin — near-black background, dark gray bubbles, Lottie animated character
+/// replacing the static circle avatar, pill-shaped tool cards.
 struct DarkMangaSkin: ChatSkinProviding {
     let skin: ChatSkin = .darkManga
 
@@ -28,20 +28,37 @@ struct DarkMangaSkin: ChatSkinProviding {
 
 // MARK: - Dark Manga Message Bubble
 
-/// Dark gray bubble with avatar, white text, and timestamp.
-/// Matches the design spec: #2a2a2a surface, 16px corners, generous padding.
+/// Dark gray bubble with Lottie character avatar on the left, white text, and timestamp.
+/// The animated character is always visible — not just during streaming.
 private struct DarkMangaMessageBubble: View {
     let message: ChatMessage
     let persona: Persona
 
+    /// Character expression based on message content/state
+    private var expression: CharacterExpression {
+        if message.isStreaming {
+            return .thinking
+        }
+        // First message or greeting → happy
+        if message.role == .assistant {
+            return .idle
+        }
+        return .idle
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Avatar (assistant only)
+        HStack(alignment: .top, spacing: 10) {
+            // Left column: Lottie character (assistant messages only)
             if message.role == .assistant {
-                persona.bubbleAvatar(size: Theme.avatarSize)
-                    .clipShape(Circle())
+                LottieCharacterView(
+                    expression: expression,
+                    size: CGSize(width: 44, height: 44)
+                )
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
 
+            // Right column: message content
             VStack(alignment: .leading, spacing: 4) {
                 // Bubble
                 VStack(alignment: .leading, spacing: 8) {
