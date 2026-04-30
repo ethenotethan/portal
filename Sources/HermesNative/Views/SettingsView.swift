@@ -7,94 +7,112 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            Form {
-                Section("Gateway Connection") {
-                    TextField("Gateway URL", text: $settings.gatewayURL)
-                        .textFieldStyle(.roundedBorder)
-                    SecureField("API Key", text: $settings.apiKey)
-                        .textFieldStyle(.roundedBorder)
+            connectionTab
+                .tabItem {
+                    Label("Connection", systemImage: "network")
                 }
 
-                Section {
-                    Text("The API key is stored in your macOS Keychain.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            personaTab
+                .tabItem {
+                    Label("Persona", systemImage: "person.crop.circle")
                 }
+        }
+        #if os(macOS)
+        .frame(width: 500, height: 450)
+        #endif
+    }
+
+    // MARK: - Connection Tab
+
+    private var connectionTab: some View {
+        Form {
+            Section("Gateway Connection") {
+                TextField("Gateway URL", text: $settings.gatewayURL)
+                    .textFieldStyle(.roundedBorder)
+                SecureField("API Key", text: $settings.apiKey)
+                    .textFieldStyle(.roundedBorder)
             }
-            .formStyle(.grouped)
-            .tabItem {
-                Label("Connection", systemImage: "network")
+
+            Section {
+                #if os(macOS)
+                Text("The API key is stored in your macOS Keychain.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                #else
+                Text("The API key is stored securely on this device.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                #endif
             }
+        }
+        .formStyle(.grouped)
+    }
 
-            Form {
-                Section("Active Persona") {
-                    HStack(spacing: 12) {
-                        personaManager.activePersona.bubbleAvatar(size: 40)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(personaManager.activePersona.name)
-                                .font(.headline)
-                            Text(personaManager.activePersona.tagline)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+    // MARK: - Persona Tab
 
-                Section("Available Personas") {
-                    ForEach(personaManager.personas) { persona in
-                        HStack(spacing: 10) {
-                            persona.bubbleAvatar(size: 28)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(persona.name)
-                                    .font(.subheadline)
-                                Text(persona.tagline)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if persona.id == personaManager.activePersona.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(persona.accentColor)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            personaManager.select(persona)
-                        }
-                    }
-                }
-
-                Section("Custom Personas") {
-                    HStack {
-                        Text("Drop .json files in:")
-                            .font(.caption)
-                        Text(PersonaManager.personasDirectory.path)
+    private var personaTab: some View {
+        Form {
+            Section("Active Persona") {
+                HStack(spacing: 12) {
+                    personaManager.activePersona.bubbleAvatar(size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(personaManager.activePersona.name)
+                            .font(.headline)
+                        Text(personaManager.activePersona.tagline)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
                     }
-                    HStack {
-                        Button("Open Folder") {
-                            #if os(macOS)
-                            NSWorkspace.shared.open(PersonaManager.personasDirectory)
-                            #else
-                            // On iOS, share the directory URL
-                            let url = PersonaManager.personasDirectory
-                            UIApplication.shared.open(url)
-                            #endif
+                }
+            }
+
+            Section("Available Personas") {
+                ForEach(personaManager.personas) { persona in
+                    HStack(spacing: 10) {
+                        persona.bubbleAvatar(size: 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(persona.name)
+                                .font(.subheadline)
+                            Text(persona.tagline)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
-                        Button("Create Template") {
-                            if let url = personaManager.exportTemplate() {
-                                #if os(macOS)
-                                NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
-                                #endif
-                            }
+                        Spacer()
+                        if persona.id == personaManager.activePersona.id {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(persona.accentColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        personaManager.select(persona)
+                    }
+                }
+            }
+
+            #if os(macOS)
+            Section("Custom Personas") {
+                HStack {
+                    Text("Drop .json files in:")
+                        .font(.caption)
+                    Text(PersonaManager.personasDirectory.path)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                HStack {
+                    Button("Open Folder") {
+                        NSWorkspace.shared.open(PersonaManager.personasDirectory)
+                    }
+                    Button("Create Template") {
+                        if let url = personaManager.exportTemplate() {
+                            NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
                         }
                     }
                 }
+            }
 
-                Section("Persona JSON Format") {
-                    Text("""
+            Section("Persona JSON Format") {
+                Text("""
                     {
                       "id": "my-persona",
                       "name": "My Persona",
@@ -105,18 +123,12 @@ struct SettingsView: View {
                       "systemPromptSuffix": "You are…"
                     }
                     """)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                }
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
             }
-            .formStyle(.grouped)
-            .tabItem {
-                Label("Persona", systemImage: "person.crop.circle")
-            }
+            #endif
         }
-        #if os(macOS)
-        .frame(width: 500, height: 450)
-        #endif
+        .formStyle(.grouped)
     }
 }

@@ -10,94 +10,102 @@ struct OnboardingView: View {
     @State private var showCFAuth = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(personaManager.activePersona.accentColor)
+        ScrollView {
+            VStack(spacing: 20) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(personaManager.activePersona.accentColor)
 
-            Text(personaManager.activePersona.name)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                Text(personaManager.activePersona.name)
+                    .font(.title)
+                    .fontWeight(.bold)
 
-            Text("Connect to your Hermes Agent gateway")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                Text("Connect to your Hermes Agent gateway")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-            Form {
-                Section("Gateway") {
-                    TextField("URL", text: $settings.gatewayURL)
-                        .textFieldStyle(.roundedBorder)
-                        .placeholder(when: settings.gatewayURL.isEmpty) {
-                            Text("https://GATEWAY_HOST").foregroundStyle(.tertiary)
-                        }
-                }
-
-                Section("Authentication") {
-                    SecureField("API Key", text: $settings.apiKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                if settings.needsCFAuth {
-                    Section("Cloudflare Access") {
-                        HStack {
-                            if let email = settings.cfAuthEmail {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text(email)
-                                    .lineLimit(1)
-                            } else if settings.cfAuthCookie != nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text("Authenticated")
-                            } else {
-                                Image(systemName: "lock.shield")
-                                    .foregroundStyle(.secondary)
-                                Text("Not authenticated")
-                                    .foregroundStyle(.secondary)
+                Form {
+                    Section("Gateway") {
+                        TextField("URL", text: $settings.gatewayURL)
+                            .textFieldStyle(.roundedBorder)
+                            .placeholder(when: settings.gatewayURL.isEmpty) {
+                                Text("https://GATEWAY_HOST").foregroundStyle(.tertiary)
                             }
+                    }
 
-                            Spacer()
+                    Section("Authentication") {
+                        SecureField("API Key", text: $settings.apiKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
 
-                            Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
-                                showCFAuth = true
+                    if settings.needsCFAuth {
+                        Section("Cloudflare Access") {
+                            HStack {
+                                if let email = settings.cfAuthEmail {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text(email)
+                                        .lineLimit(1)
+                                } else if settings.cfAuthCookie != nil {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text("Authenticated")
+                                } else {
+                                    Image(systemName: "lock.shield")
+                                        .foregroundStyle(.secondary)
+                                    Text("Not authenticated")
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                                    showCFAuth = true
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.bordered)
                         }
                     }
                 }
-            }
-            .formStyle(.grouped)
-            .frame(maxWidth: 450)
+                .formStyle(.grouped)
+                #if os(macOS)
+                .frame(maxWidth: 450)
+                #else
+                .frame(maxHeight: 300)
+                #endif
 
-            HStack(spacing: 16) {
-                Button {
-                    testConnection()
-                } label: {
-                    if testing {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Test Connection")
+                HStack(spacing: 16) {
+                    Button {
+                        testConnection()
+                    } label: {
+                        if testing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Test Connection")
+                        }
                     }
-                }
-                .disabled(testing)
-                .buttonStyle(.bordered)
+                    .disabled(testing)
+                    .buttonStyle(.bordered)
 
-                Button("Connect") {
-                    settings.validate()
+                    Button("Connect") {
+                        settings.validate()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
-            }
 
-            if let result = testResult {
-                Text(result)
-                    .font(.caption)
-                    .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+                if let result = testResult {
+                    Text(result)
+                        .font(.caption)
+                        .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+                }
             }
+            .padding(20)
         }
-        .padding(40)
+        #if os(macOS)
         .frame(minWidth: 500, minHeight: 450)
+        #endif
         .sheet(isPresented: $showCFAuth) {
             if let host = settings.buildWebSocketURL()?.host {
                 CFAuthView(gatewayHost: host) { cookie in

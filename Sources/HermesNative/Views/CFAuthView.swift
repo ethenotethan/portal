@@ -45,7 +45,9 @@ struct CFAuthView: View {
             // WebView
             CFWebViewRepresentable(viewModel: viewModel)
         }
+        #if os(macOS)
         .frame(minWidth: 600, minHeight: 500)
+        #endif
         .onReceive(viewModel.$cfAuthCookie) { cookie in
             if let cookie {
                 onCookie(cookie)
