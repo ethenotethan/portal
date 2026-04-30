@@ -18,16 +18,27 @@ struct MessageBubbleView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Message bubble
                 VStack(alignment: .leading, spacing: 8) {
-                    // Text content
-                    if !message.content.isEmpty {
+                    // Text content (MEDIA: tags stripped)
+                    let displayContent = message.contentWithoutAttachments
+                    if !displayContent.isEmpty {
                         if message.isStreaming && message.content.hasSuffix("…") == false {
                             // Streaming — show content as it arrives
-                            MarkdownContentView(text: message.content)
-                        } else if message.content.isEmpty && message.isStreaming {
+                            MarkdownContentView(text: displayContent)
+                        } else if displayContent.isEmpty && message.isStreaming {
                             // Streaming but no content yet — show nothing (agent panel handles it)
                             EmptyView()
                         } else {
-                            MarkdownContentView(text: message.content)
+                            MarkdownContentView(text: displayContent)
+                        }
+                    }
+
+                    // File attachments from MEDIA: tags
+                    let attachments = MediaParser.extractAttachments(from: message.content)
+                    if !attachments.isEmpty {
+                        VStack(spacing: 4) {
+                            ForEach(attachments) { attachment in
+                                AttachmentChipView(attachment: attachment)
+                            }
                         }
                     }
 

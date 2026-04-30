@@ -77,6 +77,16 @@ private struct DarkMangaMessageBubble: View {
         .padding(.bottom, Layout.turnSpacing)
     }
 
+    /// Attachments parsed from MEDIA: tags in this message.
+    private var attachments: [FileAttachment] {
+        MediaParser.extractAttachments(from: message.content)
+    }
+
+    /// Content with MEDIA: lines stripped for display.
+    private var displayContent: String {
+        message.contentWithoutAttachments
+    }
+
     // ── Assistant: left-aligned, no avatar (handled by ChatView overlay) ──
     private var assistantBubble: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -85,9 +95,17 @@ private struct DarkMangaMessageBubble: View {
                     DarkMangaThinkingBlock(reasoning: reasoning)
                 }
 
-                if !message.content.isEmpty {
-                    MarkdownContentView(text: message.content)
+                if !displayContent.isEmpty {
+                    MarkdownContentView(text: displayContent)
                         .foregroundStyle(Theme.primary)
+                }
+
+                if !attachments.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(attachments) { attachment in
+                            AttachmentChipView(attachment: attachment)
+                        }
+                    }
                 }
 
                 if !message.toolCalls.isEmpty && !message.isStreaming {
