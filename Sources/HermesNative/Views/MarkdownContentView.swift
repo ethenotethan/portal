@@ -303,7 +303,11 @@ struct CodeBlockView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+            #if os(macOS)
             .background(Color(nsColor: .windowBackgroundColor))
+            #else
+            .background(Color(uiColor: .systemGroupedBackground))
+            #endif
 
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
@@ -313,11 +317,19 @@ struct CodeBlockView: View {
                     .padding(10)
             }
         }
+        #if os(macOS)
         .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+        #else
+        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5))
+        #endif
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
+                #if os(macOS)
                 .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+                #else
+                .stroke(Color(uiColor: .separator).opacity(0.5), lineWidth: 0.5)
+                #endif
         )
     }
 }

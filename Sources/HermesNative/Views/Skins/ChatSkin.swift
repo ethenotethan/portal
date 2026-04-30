@@ -26,7 +26,12 @@ enum ChatSkin: String, CaseIterable, Identifiable, Sendable {
     /// Background color for the chat area
     var background: Color {
         switch self {
-        case .tui: return Color(nsColor: .windowBackgroundColor)
+        case .tui:
+            #if os(macOS)
+            return Color(nsColor: .windowBackgroundColor)
+            #else
+            return Color(uiColor: .systemGroupedBackground)
+            #endif
         case .darkManga: return Theme.background
         }
     }
