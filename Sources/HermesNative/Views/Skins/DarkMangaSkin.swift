@@ -29,13 +29,15 @@ struct DarkMangaSkin: ChatSkinProviding {
 // MARK: - Layout
 
 private enum Layout {
-    static let avatarSize: CGFloat = 36
-    static let avatarColumnWidth: CGFloat = 44   // avatar + right padding
-    static let gap: CGFloat = 8                   // between avatar col and content
-    static let bubbleRadius: CGFloat = 12
-    static let bubblePaddingH: CGFloat = 12
+    static let avatarSize: CGFloat = 40
+    static let avatarColumnWidth: CGFloat = 52   // avatar + right padding + left inset
+    static let avatarLeftInset: CGFloat = 6      // prevents left-edge clipping
+    static let gap: CGFloat = 6                   // between avatar col and content
+    static let bubbleRadius: CGFloat = 14
+    static let bubblePaddingH: CGFloat = 14
     static let bubblePaddingV: CGFloat = 10
     static let avatarBorderWidth: CGFloat = 1
+    static let maxBubbleWidth: CGFloat = 680      // ~65% of 1080p, hugs content
 }
 
 // MARK: - Message Bubble
@@ -49,11 +51,44 @@ private struct DarkMangaMessageBubble: View {
     }
 
     var body: some View {
+        if message.role == .user {
+            userBubble
+        } else {
+            assistantBubble
+        }
+    }
+
+    // ── User: right-aligned, accent-tinted, no avatar ──
+    private var userBubble: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(message.content)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Layout.bubblePaddingH)
+                    .padding(.vertical, Layout.bubblePaddingV)
+                    .background(
+                        Theme.accent.opacity(0.85),
+                        in: RoundedRectangle(cornerRadius: Layout.bubbleRadius)
+                    )
+                    .frame(maxWidth: Layout.maxBubbleWidth, alignment: .trailing)
+
+                Text(message.timestamp, style: .time)
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary.opacity(0.6))
+                    .padding(.trailing, 4)
+            }
+        }
+    }
+
+    // ── Assistant: left-aligned, avatar side-rail ──
+    private var assistantBubble: some View {
         HStack(alignment: .top, spacing: Layout.gap) {
             // ── Avatar side-rail ──
-            if message.role == .assistant {
-                Group {
-                    if message.showAvatar {
+            Group {
+                if message.showAvatar {
+                    VStack(spacing: 2) {
                         LottieCharacterView(
                             expression: expression,
                             size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
@@ -62,15 +97,23 @@ private struct DarkMangaMessageBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Theme.accent.opacity(0.5), lineWidth: Layout.avatarBorderWidth)
+                                .stroke(Theme.accent.opacity(0.4), lineWidth: Layout.avatarBorderWidth)
                         )
+
+                        Text("Creative")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(Theme.accent.opacity(0.7))
                     }
+                } else {
+                    Color.clear
+                        .frame(width: Layout.avatarSize, height: 1)
                 }
-                .frame(width: Layout.avatarSize, height: Layout.avatarSize, alignment: .top)
             }
+            .padding(.leading, Layout.avatarLeftInset)
+            .frame(width: Layout.avatarSize, alignment: .top)
 
             // ── Content bubble ──
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 VStack(alignment: .leading, spacing: 8) {
                     if let reasoning = message.reasoning, !reasoning.isEmpty {
                         DarkMangaThinkingBlock(
@@ -93,15 +136,11 @@ private struct DarkMangaMessageBubble: View {
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
 
                 Text(message.timestamp, style: .time)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiary)
-                    .padding(.leading, 2)
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary.opacity(0.6))
+                    .padding(.leading, 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if message.role == .user {
-                Spacer(minLength: 0)
-            }
+            .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
         }
     }
 }
@@ -245,16 +284,24 @@ private struct DarkMangaStreamingIndicator: View {
     var body: some View {
         HStack(alignment: .top, spacing: Layout.gap) {
             // Avatar travels down with streaming content
-            LottieCharacterView(
-                expression: expression,
-                size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
-            )
-            .frame(width: Layout.avatarSize, height: Layout.avatarSize)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Theme.accent.opacity(0.5), lineWidth: Layout.avatarBorderWidth)
-            )
+            VStack(spacing: 2) {
+                LottieCharacterView(
+                    expression: expression,
+                    size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
+                )
+                .frame(width: Layout.avatarSize, height: Layout.avatarSize)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.accent.opacity(0.4), lineWidth: Layout.avatarBorderWidth)
+                )
+
+                Text("Creative")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(Theme.accent.opacity(0.7))
+            }
+            .padding(.leading, Layout.avatarLeftInset)
+            .frame(width: Layout.avatarSize, alignment: .top)
 
             // Content: state + tool list
             VStack(alignment: .leading, spacing: 8) {
@@ -303,7 +350,7 @@ private struct DarkMangaStreamingIndicator: View {
             }
             .padding(.horizontal, Layout.bubblePaddingH)
             .padding(.vertical, Layout.bubblePaddingV)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Layout.bubbleRadius)
