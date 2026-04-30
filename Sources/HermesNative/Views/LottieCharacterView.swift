@@ -50,12 +50,56 @@ struct LottieAnimationViewRepresentable: NSViewRepresentable {
     let speed: CGFloat
     let loopMode: LottieLoopMode
 
-    /// SPM resource bundle — Lottie JSONs live here, not in Bundle.main
-    private var resourceBundle: Bundle { .module }
+    /// Resolves the Lottie animation with fallback loading.
+    /// Tries: 1) Bundle.module (SPM resource bundle)
+    ///        2) Bundle.main (Xcode build)
+    ///        3) Source tree relative to executable (fresh swift run)
+    ///        4) CWD-relative path
+    private func loadAnimation() -> LottieAnimation? {
+        // 1. SPM resource bundle (works on most builds)
+        if let url = Bundle.module.resourceURL?.appendingPathComponent("Lottie/\(fileName).json"),
+           let animation = LottieAnimation.filepath(url.path) {
+            return animation
+        }
+
+        // 2. Direct Bundle.module named lookup
+        if let animation = LottieAnimation.named(fileName, bundle: .module) {
+            return animation
+        }
+
+        // 3. Bundle.main (Xcode builds)
+        if let animation = LottieAnimation.named(fileName, bundle: .main) {
+            return animation
+        }
+
+        // 4. Source tree: look relative to the executable for Sources/.../Resources/Lottie/
+        let exeURL = URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
+        let buildDir = exeURL.deletingLastPathComponent()
+        let possiblePaths = [
+            buildDir.appendingPathComponent("../Sources/HermesNative/Resources/Lottie/\(fileName).json"),
+            buildDir.appendingPathComponent("../../Sources/HermesNative/Resources/Lottie/\(fileName).json"),
+            // Also try the SPM resource bundle sitting next to the exe
+            buildDir.appendingPathComponent("HermesNative_HermesNative.bundle/Lottie/\(fileName).json"),
+        ]
+        for path in possiblePaths {
+            if let animation = LottieAnimation.filepath(path.path) {
+                return animation
+            }
+        }
+
+        // 5. CWD-relative
+        let cwd = FileManager.default.currentDirectoryPath
+        let cwdPath = "\(cwd)/Sources/HermesNative/Resources/Lottie/\(fileName).json"
+        if let animation = LottieAnimation.filepath(cwdPath) {
+            return animation
+        }
+
+        return nil
+    }
 
     func makeNSView(context: Context) -> LottieAnimationView {
         let view = LottieAnimationView()
-        view.animation = LottieAnimation.named(fileName, bundle: resourceBundle)
+        view.animation = loadAnimation()
         view.animationSpeed = speed
         view.loopMode = loopMode
         view.contentMode = .scaleAspectFit
@@ -65,7 +109,11 @@ struct LottieAnimationViewRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: LottieAnimationView, context: Context) {
-        nsView.animation = LottieAnimation.named(fileName, bundle: resourceBundle)
+        let newAnim = loadAnimation()
+        // Only swap animation if the file changed (different expression)
+        if nsView.animation == nil || newAnim != nil {
+            nsView.animation = newAnim
+        }
         nsView.animationSpeed = speed
         nsView.loopMode = loopMode
         nsView.play()
