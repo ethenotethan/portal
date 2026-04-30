@@ -284,8 +284,12 @@ struct CodeBlockView: View {
                 }
                 Spacer()
                 Button {
+                    #if os(macOS)
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(code, forType: .string)
+                    #else
+                    UIPasteboard.general.string = code
+                    #endif
                     isCopied = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         isCopied = false
