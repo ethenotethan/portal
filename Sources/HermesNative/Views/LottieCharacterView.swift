@@ -58,8 +58,9 @@ struct LottieAnimationViewRepresentable: NSViewRepresentable {
         view.animation = LottieAnimation.named(fileName, bundle: resourceBundle)
         view.animationSpeed = speed
         view.loopMode = loopMode
-        view.contentMode = .scaleAspectFit
+        view.contentMode = .scaleAspectFill
         view.backgroundBehavior = .pauseAndRestore
+        view.clipsToBounds = true
         view.play()
         return view
     }
