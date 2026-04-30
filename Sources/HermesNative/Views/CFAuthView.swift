@@ -49,6 +49,25 @@ struct CFAuthView: View {
                 .overlay {
                     if viewModel.isLoading {
                         ProgressView("Loading…")
+                    } else if let error = viewModel.errorMessage {
+                        VStack(spacing: 12) {
+                            Image(systemName: "wifi.exclamationmark")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text(error)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                            Button("Retry") {
+                                viewModel.errorMessage = nil
+                                viewModel.isLoading = true
+                                if let url = URL(string: "https://\(viewModel.gatewayHost)/") {
+                                    viewModel.webView?.load(URLRequest(url: url))
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
                 }
                 #endif
@@ -71,12 +90,13 @@ struct CFAuthView: View {
 final class CFAuthViewModel: ObservableObject {
     let gatewayHost: String
     @Published var cfAuthCookie: HTTPCookie?
-    @Published var isLoading = true
+    @Published var isLoading = false
     @Published var errorMessage: String?
 
-    private var webView: WKWebView?
+    private(set) var webView: WKWebView?
     private var navigationDelegate: WebViewNavigationDelegate?
     private var cookieObserver: NSObjectProtocol?
+    private(set) var timeoutTask: Task<Void, Never>?
 
     init(gatewayHost: String) {
         self.gatewayHost = gatewayHost
@@ -102,7 +122,19 @@ final class CFAuthViewModel: ObservableObject {
 
         // Load the gateway root — CF Access will intercept and show login
         guard let url = URL(string: "https://\(gatewayHost)/") else { return }
-        webView.load(URLRequest(url: url))
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        webView.load(request)
+
+        // Timeout fallback — if nothing happens in 20s, show error
+        timeoutTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(20))
+            guard !Task.isCancelled else { return }
+            if isLoading {
+                isLoading = false
+                errorMessage = "Connection timed out — check that the gateway is reachable and uses HTTPS"
+            }
+        }
     }
 
     func checkForCFAuthCookie() async {
@@ -119,6 +151,7 @@ final class CFAuthViewModel: ObservableObject {
     }
 
     func detachWebView() {
+        timeoutTask?.cancel()
         webView = nil
         if let observer = cookieObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -141,6 +174,7 @@ final class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         viewModel.isLoading = false
+        viewModel.timeoutTask?.cancel()
         Task { @MainActor in
             await viewModel.checkForCFAuthCookie()
         }
@@ -148,7 +182,31 @@ final class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         viewModel.isLoading = false
+        viewModel.timeoutTask?.cancel()
         viewModel.errorMessage = error.localizedDescription
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        viewModel.isLoading = false
+        viewModel.timeoutTask?.cancel()
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet:
+                viewModel.errorMessage = "No internet connection"
+            case .timedOut:
+                viewModel.errorMessage = "Connection timed out"
+            case .secureConnectionFailed:
+                viewModel.errorMessage = "Secure connection failed — check the gateway URL uses HTTPS"
+            case .cannotConnectToHost:
+                viewModel.errorMessage = "Cannot connect to host"
+            case .appTransportSecurityRequiresSecureConnection:
+                viewModel.errorMessage = "HTTP not allowed — gateway must use HTTPS"
+            default:
+                viewModel.errorMessage = urlError.localizedDescription
+            }
+        } else {
+            viewModel.errorMessage = error.localizedDescription
+        }
     }
 }
 
