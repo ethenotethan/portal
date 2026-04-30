@@ -41,19 +41,15 @@ final class ChatViewModel: ObservableObject {
                 switch state {
                 case .connected:
                     self?.error = nil
-                    // Sync persona from gateway, then create session
-                    Task {
-                        if let pm = self?.personaManager, let client = self?.gatewayClient {
-                            await pm.syncFromGateway(client)
-                        }
-                        // Auto-create session once connected
-                        if self?.sessionID == nil {
-                            await self?.createSession()
-                        }
-                    }
+                case .reconnecting(let attempt):
+                    self?.error = nil  // Clear errors — reconnect in progress
+                    self?.isStreaming = false
+                    self?.avatarState = .thinking
                 case .error(let msg):
                     self?.error = msg
                     self?.isSessionReady = false
+                    self?.isStreaming = false
+                    self?.avatarState = .error
                 default:
                     break
                 }
@@ -69,6 +65,25 @@ final class ChatViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // Handle reconnection — resume or create session
+        client.onReconnected = { [weak self] in
+            guard let self else { return }
+            // Sync persona
+            if let pm = self.personaManager, let client = self.gatewayClient {
+                await pm.syncFromGateway(client)
+            }
+            // If GatewayClient already resumed the session, use that session ID
+            if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
+                self.sessionID = resumedID
+                self.isSessionReady = true
+                self.error = nil
+            }
+            // Otherwise create a new session
+            if self.sessionID == nil {
+                await self.createSession()
+            }
+        }
     }
 
     /// Create a new session on the gateway.

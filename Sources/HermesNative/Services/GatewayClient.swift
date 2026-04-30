@@ -3,9 +3,11 @@ import Combine
 
 /// WebSocket client for the Hermes gateway JSON-RPC protocol.
 ///
-/// Connects to `wss://<host>/v1/ws` (or `ws://localhost:8642/v1/ws` for local).
-/// Authenticates via Bearer token + optional CF_Authorization cookie on WS upgrade.
-/// All messages are newline-delimited JSON-RPC 2.0.
+/// Features:
+/// - Ping/pong keepalive every 15s to prevent idle disconnects during long thinking
+/// - Auto-reconnect with exponential backoff (1s → 2s → 4s → max 30s)
+/// - Session resume on reconnect (preserves conversation context)
+/// - Authenticates via Bearer token + optional CF_Authorization cookie on WS upgrade.
 @MainActor
 final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelegate {
 
@@ -27,6 +29,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         case disconnected
         case connecting
         case connected
+        case reconnecting(attempt: Int)  // auto-reconnect in progress
         case error(String)
     }
 
@@ -43,6 +46,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// CF_Authorization cookie from browser-based CF Access login.
     var cfAuthCookie: HTTPCookie?
+
+    // MARK: - Keepalive
+
+    private var pingTimer: Task<Void, Never>?
+    private static let pingInterval: TimeInterval = 15  // seconds
+
+    // MARK: - Reconnect
+
+    private var reconnectTask: Task<Void, Never>?
+    private var reconnectAttempt: Int = 0
+    private static let maxReconnectDelay: TimeInterval = 30
+    private static let maxReconnectAttempts: Int = 10
+    private var isIntentionalDisconnect = false
+
+    // MARK: - Session Resume
+
+    /// The session key from the last session.create — used to resume on reconnect.
+    private var lastSessionKey: String?
+    /// The session ID currently in use.
+    private(set) var activeSessionID: String?
+
+    /// Callback for ChatViewModel to handle reconnection (resume vs create).
+    var onReconnected: (() async -> Void)?
 
     // MARK: - Init
 
@@ -70,6 +96,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
         guard canConnect else { return }
 
+        isIntentionalDisconnect = false
+        reconnectAttempt = 0
         connectionState = .connecting
 
         // If we have a CF_Authorization cookie, verify it's still valid first
@@ -128,6 +156,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cookie=\(cfAuthCookie != nil)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
 
+        // Clean up previous connection
+        stopPingTimer()
+        receiveTask?.cancel()
+        receiveTask = nil
+
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
 
@@ -160,6 +193,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     func disconnect() {
+        isIntentionalDisconnect = true
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        stopPingTimer()
+        stopConnection()
+    }
+
+    private func stopConnection() {
         receiveTask?.cancel()
         receiveTask = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
@@ -177,6 +218,63 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
 
         connectionState = .disconnected
+    }
+
+    // MARK: - Ping/Pong Keepalive
+
+    private func startPingTimer() {
+        stopPingTimer()
+        pingTimer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(Self.pingInterval * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                await self?.sendPing()
+            }
+        }
+    }
+
+    private func stopPingTimer() {
+        pingTimer?.cancel()
+        pingTimer = nil
+    }
+
+    private func sendPing() async {
+        guard let task = webSocketTask else { return }
+        task.sendPing { [weak self] error in
+            if let error = error {
+                NSLog("[HermesNative] Ping failed: \(error)")
+                Task { @MainActor in
+                    self?.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // MARK: - Auto-Reconnect
+
+    private func handleDisconnect(reason: String) {
+        NSLog("[HermesNative] Disconnected: \(reason)")
+        stopPingTimer()
+
+        guard !isIntentionalDisconnect else { return }
+
+        if reconnectAttempt >= Self.maxReconnectAttempts {
+            onLog?("✗ Max reconnect attempts reached", true)
+            connectionState = .error("Connection lost: \(reason). Max retries exceeded.")
+            return
+        }
+
+        reconnectAttempt += 1
+        let delay = min(pow(2.0, Double(reconnectAttempt - 1)), Self.maxReconnectDelay)
+        connectionState = .reconnecting(attempt: reconnectAttempt)
+        onLog?("Reconnecting (attempt \(reconnectAttempt), \(String(format: "%.0f", delay))s)…", true)
+
+        reconnectTask?.cancel()
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.openWebSocket()
+        }
     }
 
     // MARK: - JSON-RPC Calls
@@ -200,7 +298,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             pendingRequestsLock.unlock()
 
             // Send AFTER registration — continuation is now safe to fulfill.
-            // Dispatch send to avoid NSLock in async context for error path.
             NSLog("[HermesNative] call: sending \(method) id=\(id)")
             onLog?("→ \(method) (id=\(id))", false)
             Task { @MainActor in
@@ -208,7 +305,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     try await webSocketTask.send(.string(String(data: data, encoding: .utf8)!))
                 } catch {
                     // Send failed — remove continuation and propagate error
-                    self.pendingRequests[id] = nil
+                    self.removePendingRequest(id: id)
                     continuation.resume(throwing: error)
                 }
             }
@@ -227,6 +324,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
               let sessionID = result["session_id"]?.stringValue else {
             throw GatewayError.invalidResponse("missing session_id in session.create response")
         }
+        // Save session key for resume on reconnect
+        if let key = result["session_key"]?.stringValue {
+            lastSessionKey = key
+        }
+        activeSessionID = sessionID
         return sessionID
     }
 
@@ -302,6 +404,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
               let sessionID = result["session_id"]?.stringValue else {
             throw GatewayError.invalidResponse("missing session_id in session.resume response")
         }
+        activeSessionID = sessionID
         return sessionID
     }
 
@@ -362,8 +465,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             switch connectionState {
             case .connecting:
                 connectionState = .error(error.localizedDescription)
-            case .connected:
-                connectionState = .disconnected
+            case .connected, .reconnecting:
+                handleDisconnect(reason: error.localizedDescription)
             default:
                 break
             }
@@ -399,7 +502,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
             NSLog("[HermesNative] handleMessage: event type=\(type)")
             onLog?("← event: \(type)", false)
-
             let payloadData = try? JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
             let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }
             let event = GatewayEvent.from(type: type, payload: payload)
@@ -421,6 +523,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         continuation?.resume(returning: response)
     }
 
+    /// Thread-safe removal of a pending request continuation (safe from async contexts).
+    private nonisolated func removePendingRequest(id: Int) {
+        MainActor.assumeIsolated {
+            pendingRequests[id] = nil
+        }
+    }
+
     // MARK: - URLSessionWebSocketDelegate
 
     nonisolated func urlSession(
@@ -431,6 +540,27 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         Task { @MainActor in
             onLog?("✓ WebSocket connected", false)
             connectionState = .connected
+            reconnectAttempt = 0
+
+            // Start keepalive pings
+            startPingTimer()
+
+            // Handle reconnection — try to resume previous session
+            if let key = lastSessionKey {
+                onLog?("Resuming session…", false)
+                do {
+                    let sid = try await resumeSession(key: key)
+                    activeSessionID = sid
+                    onLog?("✓ Session resumed", false)
+                    await onReconnected?()
+                } catch {
+                    onLog?("Resume failed, creating new session: \(error.localizedDescription)", true)
+                    lastSessionKey = nil
+                    await onReconnected?()
+                }
+            } else {
+                await onReconnected?()
+            }
         }
     }
 
@@ -441,13 +571,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         reason: Data?
     ) {
         Task { @MainActor in
+            stopPingTimer()
             let reasonStr = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             if case .connecting = connectionState {
                 onLog?("✗ WebSocket closed during handshake: \(code) \(reasonStr)", true)
                 connectionState = .error("Connection closed during handshake (code \(code.rawValue))")
-            } else {
-                onLog?("WebSocket closed: \(code) \(reasonStr)", code != .normalClosure)
+            } else if isIntentionalDisconnect {
                 connectionState = .disconnected
+            } else {
+                handleDisconnect(reason: "WebSocket closed (\(code.rawValue)) \(reasonStr)")
             }
         }
     }

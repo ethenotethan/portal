@@ -68,6 +68,10 @@ struct ContentView: View {
                 case .disconnected:
                     Image(systemName: "circle").foregroundStyle(.secondary)
                     Text("Disconnected")
+                case .reconnecting(let attempt):
+                    ProgressView().controlSize(.small)
+                    Text("Reconnecting (attempt \(attempt))…")
+                        .foregroundStyle(.orange)
                 }
             }
             .font(.caption)
