@@ -46,12 +46,13 @@ struct LottieCharacterView: View {
 // MARK: - Cross-platform Lottie representable
 
 /// Resolves the Lottie animation with fallback loading.
-/// Tries: 1) Bundle.module (SPM resource bundle)
-///        2) Bundle.main (Xcode build)
+/// Tries: 1) SPM resource bundle (if available)
+///        2) Bundle.main (Xcode builds)
 ///        3) Source tree relative to executable (fresh swift run)
 ///        4) CWD-relative path
 private func loadLottieAnimation(fileName: String) -> LottieAnimation? {
-    // 1. SPM resource bundle (works on most builds)
+    // 1. SPM resource bundle (works when built via swift build)
+    #if SWIFT_PACKAGE
     if let url = Bundle.module.resourceURL?.appendingPathComponent("Lottie/\(fileName).json"),
        let animation = LottieAnimation.filepath(url.path) {
         return animation
@@ -61,6 +62,7 @@ private func loadLottieAnimation(fileName: String) -> LottieAnimation? {
     if let animation = LottieAnimation.named(fileName, bundle: .module) {
         return animation
     }
+    #endif
 
     // 3. Bundle.main (Xcode builds)
     if let animation = LottieAnimation.named(fileName, bundle: .main) {

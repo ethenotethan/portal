@@ -1,6 +1,8 @@
 import SwiftUI
 
-@main
+/// Shared app definition — used by the Xcode app targets' @main entry points.
+/// macOS: HermesNativeAppMac (@main) → this as body
+/// iOS:   HermesNativeAppIOS (@main) → this as body
 struct HermesNativeApp: App {
     @StateObject private var settings = SettingsViewModel()
     @StateObject private var sessionList = SessionListViewModel()

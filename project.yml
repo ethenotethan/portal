@@ -1,0 +1,52 @@
+name: HermesNative
+options:
+  bundleIdPrefix: com.researchoors
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+packages:
+  Lottie:
+    url: https://github.com/airbnb/lottie-spm
+    from: "4.6.0"
+
+targets:
+  HermesNative-macOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/HermesNative
+      - path: App/MacApp.swift
+    dependencies:
+      - package: Lottie
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.developer-tools"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+
+  HermesNative-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/HermesNative
+      - path: App/IOSApp.swift
+    dependencies:
+      - package: Lottie
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.iOS
+        SUPPORTED_PLATFORMS: iphoneos
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIStatusBarStyle: ""
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
