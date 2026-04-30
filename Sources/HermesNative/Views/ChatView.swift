@@ -129,6 +129,9 @@ struct ChatView: View {
                     .coordinateSpace(name: "chatContent")
                 }
                 .background(activeSkin.background)
+                #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+                #endif
                 .onPreferenceChange(LatestBotTurnYKey.self) { y in
                     if let y = y {
                         withAnimation(.easeInOut(duration: 0.4)) {
@@ -172,6 +175,9 @@ struct ChatView: View {
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
             settingsSheet
+        }
+        .onTapGesture {
+            dismissKeyboard()
         }
         #endif
         .onAppear {
@@ -487,3 +493,11 @@ struct ApprovalBanner: View {
         }
     }
 }
+
+// MARK: - Keyboard Dismissal (iOS)
+
+#if os(iOS)
+private func dismissKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+#endif
