@@ -204,7 +204,7 @@ struct ChevronRow: View {
 
 // MARK: - Color extension for amber
 
-private extension Color {
+extension Color {
     static var amber: Color { Color(red: 0.85, green: 0.65, blue: 0.13) }
 }
 

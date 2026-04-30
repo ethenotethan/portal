@@ -24,10 +24,11 @@ struct ChatView: View {
                                 .id(message.id)
                         }
 
-                        // Streaming status bar (replaces 3D avatar)
+                        // Streaming status bar + live tool calls (replaces 3D avatar)
                         if chatViewModel.isStreaming {
                             StreamingStatusBar(
                                 state: chatViewModel.avatarState,
+                                activeToolCalls: chatViewModel.activeToolCalls,
                                 personaName: personaManager.activePersona.name,
                                 accentColor: personaManager.activePersona.accentColor
                             )
@@ -163,10 +164,11 @@ struct ChatView: View {
 // MARK: - Streaming Status Bar (replaces 3D avatar)
 
 /// A TUI-aligned status bar that shows at the bottom of the message list
-/// during streaming. Uses braille spinners and state labels, matching
-/// the Ink TUI's visual language.
+/// during streaming. Shows braille spinner + state label, then live tool
+/// call names/progress below when tools are running.
 struct StreamingStatusBar: View {
     let state: AvatarState
+    let activeToolCalls: [String: ToolCallRecord]
     let personaName: String
     let accentColor: Color
 
@@ -193,29 +195,112 @@ struct StreamingStatusBar: View {
         }
     }
 
+    /// Sorted list of active (incomplete) tool calls for display
+    private var runningTools: [ToolCallRecord] {
+        activeToolCalls.values
+            .filter { !$0.isComplete }
+            .sorted { $0.id < $1.id }
+    }
+
+    /// Sorted list of completed tool calls for display
+    private var completedTools: [ToolCallRecord] {
+        activeToolCalls.values
+            .filter { $0.isComplete }
+            .sorted { $0.id < $1.id }
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            // Braille spinner
-            Text(currentFrames[spinnerFrame % currentFrames.count])
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(accentColor)
-                .onReceive(timer) { _ in
-                    spinnerFrame = (spinnerFrame + 1) % currentFrames.count
+        VStack(alignment: .leading, spacing: 4) {
+            // Top line: spinner + state + persona
+            HStack(spacing: 6) {
+                // Braille spinner
+                Text(currentFrames[spinnerFrame % currentFrames.count])
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(accentColor)
+                    .onReceive(timer) { _ in
+                        spinnerFrame = (spinnerFrame + 1) % currentFrames.count
+                    }
+
+                // State label
+                Text(stateLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("·")
+                    .foregroundStyle(.tertiary)
+
+                // Persona name
+                Text(personaName)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(accentColor)
+            }
+
+            // Live tool call list
+            if !activeToolCalls.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    // Running tools
+                    ForEach(runningTools) { tool in
+                        HStack(spacing: 4) {
+                            Text("├─")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.quaternary)
+
+                            // Mini spinner for each running tool
+                            Text(toolFrames[spinnerFrame % toolFrames.count])
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(Color.amber)
+
+                            Text(tool.name)
+                                .font(.system(.caption, design: .monospaced))
+                                .fontWeight(.medium)
+                                .foregroundStyle(accentColor)
+
+                            if let context = tool.context, !context.isEmpty {
+                                Text("·")
+                                    .foregroundStyle(.tertiary)
+                                Text(context)
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+
+                    // Completed tools (collapsed summary)
+                    ForEach(completedTools) { tool in
+                        HStack(spacing: 4) {
+                            Text("├─")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.quaternary)
+
+                            Text("✓")
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.green)
+
+                            Text(tool.name)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+
+                            if let duration = tool.durationSeconds {
+                                Text(String(format: "%.1fs", duration))
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            if let summary = tool.summary, !summary.isEmpty {
+                                Text("·")
+                                    .foregroundStyle(.tertiary)
+                                Text(summary)
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
                 }
-
-            // State label
-            Text(stateLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text("·")
-                .foregroundStyle(.tertiary)
-
-            // Persona name
-            Text(personaName)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(accentColor)
+                .padding(.leading, 20)
+            }
         }
         .padding(.leading, 20) // Align with message content (past glyph)
         .padding(.vertical, 4)
