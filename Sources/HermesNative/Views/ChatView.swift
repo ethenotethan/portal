@@ -1,21 +1,12 @@
 import SwiftUI
 
-/// Main chat interface — message list + input bar + tool calls sidebar.
+/// Main chat interface — TUI-aligned layout with status bar instead of 3D avatar.
 struct ChatView: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
     @State private var showPersonaPicker = false
-
-    /// The message ID the avatar is currently trailing (last assistant or streaming)
-    private var avatarTrailingMessageID: UUID? {
-        // Find the last assistant message (streaming first, then last completed)
-        if let streaming = chatViewModel.messages.last(where: { $0.isStreaming && $0.role == .assistant }) {
-            return streaming.id
-        }
-        return chatViewModel.messages.last(where: { $0.role == .assistant })?.id
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,28 +15,28 @@ struct ChatView: View {
 
             Divider()
 
-            // Message list — avatar flows inline
+            // Message list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(chatViewModel.messages) { message in
                             MessageBubbleView(message: message)
                                 .id(message.id)
+                        }
 
-                            // Inline avatar — trails the last/streaming assistant message
-                            if message.id == avatarTrailingMessageID {
-                                InlineAvatarView(
-                                    state: chatViewModel.avatarState,
-                                    persona: personaManager.activePersona,
-                                    isStreaming: chatViewModel.isStreaming
-                                )
-                                .id("avatar-trailing")
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                            }
+                        // Streaming status bar (replaces 3D avatar)
+                        if chatViewModel.isStreaming {
+                            StreamingStatusBar(
+                                state: chatViewModel.avatarState,
+                                personaName: personaManager.activePersona.name,
+                                accentColor: personaManager.activePersona.accentColor
+                            )
+                            .id("streaming-status")
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
-                    .padding()
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
                 }
                 .onChange(of: chatViewModel.messages.count) { _, _ in
                     scrollToBottom(proxy: proxy)
@@ -54,9 +45,8 @@ struct ChatView: View {
                     scrollToBottom(proxy: proxy)
                 }
                 .onChange(of: chatViewModel.avatarState) { _, _ in
-                    // Keep avatar visible when state changes
                     withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("avatar-trailing", anchor: .bottom)
+                        proxy.scrollTo("streaming-status", anchor: .bottom)
                     }
                 }
             }
@@ -160,54 +150,75 @@ struct ChatView: View {
     private func scrollToBottom(proxy: ScrollViewProxy) {
         if let lastMsg = chatViewModel.messages.last {
             withAnimation(.easeOut(duration: 0.15)) {
-                proxy.scrollTo("avatar-trailing", anchor: .bottom)
+                if chatViewModel.isStreaming {
+                    proxy.scrollTo("streaming-status", anchor: .bottom)
+                } else {
+                    proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                }
             }
         }
     }
 }
 
-// MARK: - Inline Avatar
+// MARK: - Streaming Status Bar (replaces 3D avatar)
 
-/// Avatar that flows inline with the conversation, trailing the last assistant message.
-/// Shows the 3D character + state label, sized to feel like part of the chat.
-struct InlineAvatarView: View {
+/// A TUI-aligned status bar that shows at the bottom of the message list
+/// during streaming. Uses braille spinners and state labels, matching
+/// the Ink TUI's visual language.
+struct StreamingStatusBar: View {
     let state: AvatarState
-    let persona: Persona
-    let isStreaming: Bool
+    let personaName: String
+    let accentColor: Color
+
+    @State private var spinnerFrame = 0
+    private let thinkFrames = ["⠋","⠙","⠹","⸦","⠴","⠦","⠇"]
+    private let toolFrames = ["⡇","⣆","⣄","⣰","⢸","⢰","⢠"]
+    private let timer = Timer.publish(every: 0.08, on: .main, in: .common).autoconnect()
+
+    private var currentFrames: [String] {
+        switch state {
+        case .thinking: return thinkFrames
+        case .toolUse: return toolFrames
+        default: return thinkFrames
+        }
+    }
+
+    private var stateLabel: String {
+        switch state {
+        case .idle: return "idle"
+        case .thinking: return "Thinking"
+        case .speaking: return "Responding"
+        case .toolUse: return "Running tools"
+        case .error: return "Error"
+        }
+    }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            // 3D Avatar
-            Avatar3DView(
-                state: state,
-                accentColorHex: persona.accentColorHex,
-                accessories: persona.accessories,
-                size: 64
-            )
-            .shadow(color: persona.accentColor.opacity(0.25), radius: 6)
-
-            // State + persona info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text(persona.name)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(persona.accentColor)
-
-                    AvatarStateLabel(state: state)
+        HStack(spacing: 6) {
+            // Braille spinner
+            Text(currentFrames[spinnerFrame % currentFrames.count])
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(accentColor)
+                .onReceive(timer) { _ in
+                    spinnerFrame = (spinnerFrame + 1) % currentFrames.count
                 }
 
-                if isStreaming {
-                    Text(state == .thinking ? "Processing…" : state == .toolUse ? "Running tools…" : "Responding…")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            // State label
+            Text(stateLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            Spacer()
+            Text("·")
+                .foregroundStyle(.tertiary)
+
+            // Persona name
+            Text(personaName)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(accentColor)
         }
-        .padding(.leading, 4)
-        .animation(.easeInOut(duration: 0.25), value: state)
+        .padding(.leading, 20) // Align with message content (past glyph)
+        .padding(.vertical, 4)
     }
 }
 
