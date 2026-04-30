@@ -1,14 +1,22 @@
 import Foundation
 
 /// A Hermes agent session.
+/// Fields match the gateway's `session.list` response schema.
 struct Session: Identifiable, Equatable {
-    let id: String          // Short ID used in JSON-RPC (e.g. "a1b2c3d4")
-    let key: String         // Full session key (for session.resume)
-    var title: String?
-    var model: String?
-    var source: String?
-    var createdAt: Date?
-    var isRunning: Bool
+    let id: String              // Gateway field: "id" (short hex like "a1b2c3d4")
+    var title: String?          // Gateway field: "title" (auto-generated or user-set)
+    var preview: String?        // Gateway field: "preview" (last message preview)
+    var source: String?         // Gateway field: "source" (telegram, cli, tui, etc.)
+    var messageCount: Int       // Gateway field: "message_count"
+    var startedAt: Date?        // Gateway field: "started_at" (epoch seconds)
+
+    /// Local-only: session key for resume (not returned by session.list)
+    var localKey: String?
+
+    /// Local-only: stored in UserDefaults, overrides gateway title
+    var localTitle: String?
+
+    var isRunning: Bool = false // Derived from source context, not from gateway
 
     static func == (lhs: Session, rhs: Session) -> Bool {
         lhs.id == rhs.id

@@ -333,6 +333,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     /// List active sessions.
+    /// Gateway returns: id, title, preview, started_at, message_count, source
     func listSessions() async throws -> [Session] {
         let response = try await call("session.list")
         if let error = response.error {
@@ -344,11 +345,23 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
         return sessionsArray.compactMap { item -> Session? in
             guard let d = item.dictionaryValue else { return nil }
+            let id = d["id"]?.stringValue ?? ""
+            guard !id.isEmpty else { return nil }
+
+            let startedAt: Date? = {
+                if let ts = d["started_at"]?.doubleValue, ts > 0 {
+                    return Date(timeIntervalSince1970: ts)
+                }
+                return nil
+            }()
+
             return Session(
-                id: d["session_id"]?.stringValue ?? "",
-                key: d["session_key"]?.stringValue ?? "",
-                model: d["model"]?.stringValue,
-                isRunning: d["is_running"]?.boolValue ?? false
+                id: id,
+                title: d["title"]?.stringValue,
+                preview: d["preview"]?.stringValue,
+                source: d["source"]?.stringValue,
+                messageCount: d["message_count"]?.intValue ?? 0,
+                startedAt: startedAt
             )
         }
     }

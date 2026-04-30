@@ -11,8 +11,9 @@ struct SessionListView: View {
             ForEach(sessionList.sessions) { session in
                 SessionRowView(
                     title: sessionList.titleForSession(session),
-                    subtitle: session.model,
-                    isRunning: session.isRunning,
+                    subtitle: sessionList.subtitleForSession(session),
+                    source: session.source,
+                    hasKey: sessionList.keyForSession(id: session.id) != nil,
                     isActive: session.id == chatViewModel.currentSessionID
                 )
                 .tag(session.id)
@@ -86,15 +87,17 @@ struct SessionListView: View {
 struct SessionRowView: View {
     let title: String
     let subtitle: String?
-    let isRunning: Bool
+    let source: String?
+    let hasKey: Bool      // Whether we can resume this session
     let isActive: Bool
 
     var body: some View {
         HStack(spacing: 10) {
-            // Status dot
-            Circle()
-                .fill(isRunning ? Theme.accent : Color.secondary.opacity(0.4))
-                .frame(width: 8, height: 8)
+            // Source/platform icon
+            sourceIcon
+                .font(.body)
+                .foregroundStyle(hasKey ? Theme.accent : .secondary)
+                .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -116,9 +119,29 @@ struct SessionRowView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption)
                     .foregroundStyle(Theme.accent)
+            } else if !hasKey {
+                // No key = can't resume, show lock
+                Image(systemName: "lock.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
             }
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var sourceIcon: some View {
+        switch source?.lowercased() {
+        case "telegram": Image(systemName: "paperplane.fill")
+        case "discord":  Image(systemName: "headphones")
+        case "cli":      Image(systemName: "terminal.fill")
+        case "tui":      Image(systemName: "terminal.fill")
+        case "slack":    Image(systemName: "number.square.fill")
+        case "matrix":   Image(systemName: "rectangle.3.group.fill")
+        case "whatsapp": Image(systemName: "phone.fill")
+        case "webhook":  Image(systemName: "arrow.triangle.branch")
+        default:         Image(systemName: "bubble.left.fill")
+        }
     }
 }
 

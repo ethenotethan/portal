@@ -19,6 +19,7 @@ final class SessionListViewModel: ObservableObject {
     private static let keysStoreKey = "hermes.sessionKeys"
 
     /// Client-side titles keyed by session ID. Persisted to UserDefaults.
+    /// Overrides gateway title when present (user has chatted in-app).
     private var localTitles: [String: String] {
         get { (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.titlesKey) }
@@ -31,15 +32,42 @@ final class SessionListViewModel: ObservableObject {
         set { UserDefaults.standard.set(newValue, forKey: Self.keysStoreKey) }
     }
 
-    /// Get the display title for a session: local title > model > short ID.
+    /// Get the display title for a session.
+    /// Priority: local title (from first user message) > gateway title > preview (truncated) > source > short ID.
     func titleForSession(_ session: Session) -> String {
-        if let local = localTitles[session.id] {
+        // 1. Local title from first user message (highest priority)
+        if let local = localTitles[session.id], !local.isEmpty {
             return local
         }
-        if let model = session.model, !model.isEmpty {
-            return model
+        // 2. Gateway-provided title
+        if let title = session.title, !title.isEmpty {
+            return title
         }
+        // 3. Preview (truncated to 50 chars)
+        if let preview = session.preview, !preview.isEmpty {
+            return String(preview.prefix(50)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // 4. Source-based fallback
+        if let source = session.source, !source.isEmpty {
+            return "\(source) session"
+        }
+        // 5. Short ID
         return "Session \(session.id.prefix(8))"
+    }
+
+    /// Get the subtitle for a session (second line info).
+    func subtitleForSession(_ session: Session) -> String? {
+        var parts: [String] = []
+        if let source = session.source, !source.isEmpty {
+            parts.append(source)
+        }
+        if session.messageCount > 0 {
+            parts.append("\(session.messageCount) msgs")
+        }
+        if let date = session.startedAt {
+            parts.append(date.relativeString)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// Get the stored key for a session, if we have one.
@@ -54,7 +82,7 @@ final class SessionListViewModel: ObservableObject {
         localTitles = titles
 
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
-            sessions[idx].title = title
+            sessions[idx].localTitle = title
         }
     }
 
@@ -71,16 +99,22 @@ final class SessionListViewModel: ObservableObject {
         gatewayClient = client
     }
 
-    /// Refresh the session list from the gateway, merging local titles.
+    /// Refresh the session list from the gateway, merging local data.
     func refreshSessions() async {
         guard let client = gatewayClient else { return }
         isLoading = true
         do {
             var fetched = try await client.listSessions()
             let titles = localTitles
+            let keys = localKeys
             for i in fetched.indices {
-                if let title = titles[fetched[i].id] {
-                    fetched[i].title = title
+                // Merge local title (overrides gateway title)
+                if let local = titles[fetched[i].id], !local.isEmpty {
+                    fetched[i].localTitle = local
+                }
+                // Merge local key
+                if let key = keys[fetched[i].id] {
+                    fetched[i].localKey = key
                 }
             }
             sessions = fetched
@@ -105,11 +139,11 @@ final class SessionListViewModel: ObservableObject {
 
         var session = Session(
             id: sessionID,
-            key: localKeys[sessionID] ?? sessionID,
-            isRunning: false
+            messageCount: 0
         )
+        session.localKey = localKeys[sessionID]
         if let title = localTitles[sessionID] {
-            session.title = title
+            session.localTitle = title
         }
         sessions.append(session)
         activeSessionID = sessionID
@@ -163,5 +197,16 @@ final class SessionListViewModel: ObservableObject {
         withAnimation {
             activeSessionID = id
         }
+    }
+}
+
+// MARK: - Date Extension
+
+extension Date {
+    /// Human-readable relative time string (e.g. "2h ago", "Just now").
+    var relativeString: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: self, relativeTo: Date())
     }
 }
