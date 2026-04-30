@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 
 /// Manages the list of sessions and session creation/resumption/killing.
-/// Tracks session titles locally in UserDefaults (gateway doesn't store them).
+/// Tracks session titles and keys locally (gateway list doesn't include keys).
 @MainActor
 final class SessionListViewModel: ObservableObject {
     @Published var sessions: [Session] = []
@@ -13,18 +13,22 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Local Title Storage
+    // MARK: - Local Storage
 
     private static let titlesKey = "hermes.sessionTitles"
+    private static let keysStoreKey = "hermes.sessionKeys"
 
     /// Client-side titles keyed by session ID. Persisted to UserDefaults.
     private var localTitles: [String: String] {
-        get {
-            (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: Self.titlesKey)
-        }
+        get { (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.titlesKey) }
+    }
+
+    /// Client-side session keys (from session.create responses). Persisted.
+    /// session.list doesn't return keys, so we must save them ourselves.
+    private var localKeys: [String: String] {
+        get { (UserDefaults.standard.dictionary(forKey: Self.keysStoreKey) as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.keysStoreKey) }
     }
 
     /// Get the display title for a session: local title > model > short ID.
@@ -38,16 +42,27 @@ final class SessionListViewModel: ObservableObject {
         return "Session \(session.id.prefix(8))"
     }
 
+    /// Get the stored key for a session, if we have one.
+    func keyForSession(id: String) -> String? {
+        localKeys[id]
+    }
+
     /// Store a title for a session (called when first user message is sent).
     func updateSessionTitle(id: String, title: String) {
         var titles = localTitles
         titles[id] = title
         localTitles = titles
 
-        // Update the in-memory session too
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
             sessions[idx].title = title
         }
+    }
+
+    /// Store a session key (from session.create response).
+    func storeSessionKey(id: String, key: String) {
+        var keys = localKeys
+        keys[id] = key
+        localKeys = keys
     }
 
     // MARK: - Gateway
@@ -62,7 +77,6 @@ final class SessionListViewModel: ObservableObject {
         isLoading = true
         do {
             var fetched = try await client.listSessions()
-            // Merge local titles into fetched sessions
             let titles = localTitles
             for i in fetched.indices {
                 if let title = titles[fetched[i].id] {
@@ -84,12 +98,16 @@ final class SessionListViewModel: ObservableObject {
 
         let sessionID = try await client.createSession()
 
+        // Save the key locally (gateway returns it only on create)
+        if let key = client.lastSessionKey {
+            storeSessionKey(id: sessionID, key: key)
+        }
+
         var session = Session(
             id: sessionID,
-            key: sessionID, // server generates key internally
+            key: localKeys[sessionID] ?? sessionID,
             isRunning: false
         )
-        // Restore local title if we've seen this session before
         if let title = localTitles[sessionID] {
             session.title = title
         }
@@ -99,14 +117,19 @@ final class SessionListViewModel: ObservableObject {
     }
 
     /// Resume an existing session by key and set it as active.
-    func resumeSession(_ session: Session) async throws -> String {
+    /// Returns nil if we don't have a stored key for this session.
+    @discardableResult
+    func resumeSession(_ session: Session) async throws -> String? {
         guard let client = gatewayClient else {
             throw GatewayError.notConnected
         }
-        let sessionID = try await client.resumeSession(key: session.key)
+        guard let key = localKeys[session.id], !key.isEmpty else {
+            // No key stored — can't resume. Caller should create a new session instead.
+            return nil
+        }
+        let sessionID = try await client.resumeSession(key: key)
         activeSessionID = sessionID
 
-        // Update isRunning in local list
         if let idx = sessions.firstIndex(where: { $0.id == session.id }) {
             sessions[idx].isRunning = true
         }
@@ -119,10 +142,13 @@ final class SessionListViewModel: ObservableObject {
             throw GatewayError.notConnected
         }
         try await client.closeSession(sessionID: id)
-        // Clean up local title
+        // Clean up local data
         var titles = localTitles
         titles.removeValue(forKey: id)
         localTitles = titles
+        var keys = localKeys
+        keys.removeValue(forKey: id)
+        localKeys = keys
 
         withAnimation {
             sessions.removeAll { $0.id == id }

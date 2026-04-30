@@ -66,15 +66,28 @@ struct ContentView: View {
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
             guard let newID else { return }
-            // If switching to a different session, resume it
-            if newID != chatViewModel.currentSessionID,
-               let session = sessionList.sessions.first(where: { $0.id == newID }) {
+            // Skip if already viewing this session
+            guard newID != chatViewModel.currentSessionID else { return }
+
+            if let session = sessionList.sessions.first(where: { $0.id == newID }),
+               sessionList.keyForSession(id: newID) != nil {
+                // We have a key — resume the session
                 Task {
                     do {
                         _ = try await sessionList.resumeSession(session)
-                        await chatViewModel.resumeSession(key: session.key)
+                        if let key = sessionList.keyForSession(id: newID) {
+                            await chatViewModel.resumeSession(key: key)
+                        }
                     } catch {
                         chatViewModel.error = error.localizedDescription
+                    }
+                }
+            } else {
+                // No key stored — create a fresh session for this selection
+                Task {
+                    await chatViewModel.createSession()
+                    if let sid = chatViewModel.currentSessionID {
+                        sessionList.selectSession(id: sid)
                     }
                 }
             }

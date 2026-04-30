@@ -63,7 +63,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Session Resume
 
     /// The session key from the last session.create — used to resume on reconnect.
-    private var lastSessionKey: String?
+    private(set) var lastSessionKey: String?
     /// The session ID currently in use.
     private(set) var activeSessionID: String?
 
