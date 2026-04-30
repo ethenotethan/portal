@@ -71,13 +71,19 @@ struct ContentView: View {
                let session = sessionList.sessions.first(where: { $0.id == newID }) {
                 Task {
                     do {
-                        let sid = try await sessionList.resumeSession(session)
+                        _ = try await sessionList.resumeSession(session)
                         await chatViewModel.resumeSession(key: session.key)
                     } catch {
                         chatViewModel.error = error.localizedDescription
                     }
                 }
             }
+        }
+        .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
+            // Sync session title to the sidebar when it changes
+            guard let sid = chatViewModel.currentSessionID,
+                  newTitle != oldTitle else { return }
+            sessionList.updateSessionTitle(id: sid, title: newTitle)
         }
     }
 

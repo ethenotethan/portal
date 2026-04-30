@@ -9,8 +9,13 @@ struct SessionListView: View {
     var body: some View {
         List(selection: $sessionList.activeSessionID) {
             ForEach(sessionList.sessions) { session in
-                SessionRowView(session: session, isActive: session.id == chatViewModel.currentSessionID)
-                    .tag(session.id)
+                SessionRowView(
+                    title: sessionList.titleForSession(session),
+                    subtitle: session.model,
+                    isRunning: session.isRunning,
+                    isActive: session.id == chatViewModel.currentSessionID
+                )
+                .tag(session.id)
             }
             .onDelete { indexSet in
                 for index in indexSet {
@@ -79,35 +84,29 @@ struct SessionListView: View {
 // MARK: - Session Row
 
 struct SessionRowView: View {
-    let session: Session
+    let title: String
+    let subtitle: String?
+    let isRunning: Bool
     let isActive: Bool
 
     var body: some View {
         HStack(spacing: 10) {
             // Status dot
             Circle()
-                .fill(session.isRunning ? Theme.accent : Color.secondary.opacity(0.4))
+                .fill(isRunning ? Theme.accent : Color.secondary.opacity(0.4))
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.title ?? "Session \(session.id.prefix(8))")
+                Text(title)
                     .font(.subheadline)
                     .fontWeight(isActive ? .semibold : .regular)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    if let model = session.model {
-                        Text(model)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                    }
-                    if let source = session.source {
-                        Text(source)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                    }
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
 

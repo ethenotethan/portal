@@ -3,6 +3,7 @@ import Combine
 import SwiftUI
 
 /// Manages the list of sessions and session creation/resumption/killing.
+/// Tracks session titles locally in UserDefaults (gateway doesn't store them).
 @MainActor
 final class SessionListViewModel: ObservableObject {
     @Published var sessions: [Session] = []
@@ -12,16 +13,63 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Local Title Storage
+
+    private static let titlesKey = "hermes.sessionTitles"
+
+    /// Client-side titles keyed by session ID. Persisted to UserDefaults.
+    private var localTitles: [String: String] {
+        get {
+            (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Self.titlesKey)
+        }
+    }
+
+    /// Get the display title for a session: local title > model > short ID.
+    func titleForSession(_ session: Session) -> String {
+        if let local = localTitles[session.id] {
+            return local
+        }
+        if let model = session.model, !model.isEmpty {
+            return model
+        }
+        return "Session \(session.id.prefix(8))"
+    }
+
+    /// Store a title for a session (called when first user message is sent).
+    func updateSessionTitle(id: String, title: String) {
+        var titles = localTitles
+        titles[id] = title
+        localTitles = titles
+
+        // Update the in-memory session too
+        if let idx = sessions.firstIndex(where: { $0.id == id }) {
+            sessions[idx].title = title
+        }
+    }
+
+    // MARK: - Gateway
+
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
     }
 
-    /// Refresh the session list from the gateway.
+    /// Refresh the session list from the gateway, merging local titles.
     func refreshSessions() async {
         guard let client = gatewayClient else { return }
         isLoading = true
         do {
-            sessions = try await client.listSessions()
+            var fetched = try await client.listSessions()
+            // Merge local titles into fetched sessions
+            let titles = localTitles
+            for i in fetched.indices {
+                if let title = titles[fetched[i].id] {
+                    fetched[i].title = title
+                }
+            }
+            sessions = fetched
         } catch {
             // Silently fail — session list is non-critical
         }
@@ -36,11 +84,15 @@ final class SessionListViewModel: ObservableObject {
 
         let sessionID = try await client.createSession()
 
-        let session = Session(
+        var session = Session(
             id: sessionID,
             key: sessionID, // server generates key internally
             isRunning: false
         )
+        // Restore local title if we've seen this session before
+        if let title = localTitles[sessionID] {
+            session.title = title
+        }
         sessions.append(session)
         activeSessionID = sessionID
         return sessionID
@@ -67,6 +119,11 @@ final class SessionListViewModel: ObservableObject {
             throw GatewayError.notConnected
         }
         try await client.closeSession(sessionID: id)
+        // Clean up local title
+        var titles = localTitles
+        titles.removeValue(forKey: id)
+        localTitles = titles
+
         withAnimation {
             sessions.removeAll { $0.id == id }
         }
