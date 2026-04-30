@@ -73,9 +73,18 @@ struct SessionListView: View {
     private func createAndSwitchSession() async {
         guard case .connected = gatewayClientWrapper.client.connectionState else { return }
         do {
-            let sid = try await sessionList.createSession()
+            // Only create via chatViewModel — it syncs with sessionList via
+            // the title onChange handler. Avoids double session.create RPC.
             await chatViewModel.createSession()
-            sessionList.selectSession(id: sid)
+            if let sid = chatViewModel.currentSessionID {
+                // Store the key locally for future resume
+                if let key = gatewayClientWrapper.client.lastSessionKey {
+                    sessionList.storeSessionKey(id: sid, key: key)
+                }
+                sessionList.selectSession(id: sid)
+                // Refresh to pick up the new session in the list
+                await sessionList.refreshSessions()
+            }
         } catch {
             chatViewModel.error = error.localizedDescription
         }

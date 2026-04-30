@@ -70,27 +70,20 @@ struct ContentView: View {
             guard newID != chatViewModel.currentSessionID else { return }
 
             if let session = sessionList.sessions.first(where: { $0.id == newID }),
-               sessionList.keyForSession(id: newID) != nil {
+               let key = sessionList.keyForSession(id: newID) {
                 // We have a key — resume the session
                 Task {
                     do {
                         _ = try await sessionList.resumeSession(session)
-                        if let key = sessionList.keyForSession(id: newID) {
-                            await chatViewModel.resumeSession(key: key)
-                        }
+                        await chatViewModel.resumeSession(key: key)
                     } catch {
                         chatViewModel.error = error.localizedDescription
                     }
                 }
-            } else {
-                // No key stored — create a fresh session for this selection
-                Task {
-                    await chatViewModel.createSession()
-                    if let sid = chatViewModel.currentSessionID {
-                        sessionList.selectSession(id: sid)
-                    }
-                }
             }
+            // No key stored — can't resume. Show the session as-is.
+            // Do NOT create a new session here — that was causing session sprawl.
+            // The user can create a fresh session with the + button.
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
             // Sync session title to the sidebar when it changes
@@ -112,18 +105,38 @@ struct ContentView: View {
         chatViewModel.setGatewayClient(gatewayClientWrapper.client)
         sessionList.setGatewayClient(gatewayClientWrapper.client)
 
-        // Auto-create first session if none exists, then refresh list
+        // Auto-create first session only if none exist AND we don't already have one
         Task {
             await sessionList.refreshSessions()
-            if sessionList.sessions.isEmpty {
+            if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
+                // No sessions at all — create a fresh one
                 await chatViewModel.createSession()
                 if let sid = chatViewModel.currentSessionID {
+                    if let key = gatewayClientWrapper.client.lastSessionKey {
+                        sessionList.storeSessionKey(id: sid, key: key)
+                    }
                     sessionList.selectSession(id: sid)
                     await sessionList.refreshSessions()
                 }
+            } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
+                // Already have a session — just select it in the sidebar
+                sessionList.selectSession(id: sid)
             } else if let first = sessionList.sessions.first {
-                // Resume first existing session
-                sessionList.selectSession(id: first.id)
+                // Existing sessions but no active chat — try to resume first one with a key
+                if let key = sessionList.keyForSession(id: first.id) {
+                    await chatViewModel.resumeSession(key: key)
+                    sessionList.selectSession(id: first.id)
+                } else {
+                    // No key for any session — create a fresh one
+                    await chatViewModel.createSession()
+                    if let sid = chatViewModel.currentSessionID {
+                        if let key = gatewayClientWrapper.client.lastSessionKey {
+                            sessionList.storeSessionKey(id: sid, key: key)
+                        }
+                        sessionList.selectSession(id: sid)
+                        await sessionList.refreshSessions()
+                    }
+                }
             }
         }
     }

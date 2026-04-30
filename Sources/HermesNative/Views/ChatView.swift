@@ -182,11 +182,9 @@ struct ChatView: View {
         #endif
         .onAppear {
             chatViewModel.personaManager = personaManager
-            if !chatViewModel.isSessionReady {
-                Task {
-                    await chatViewModel.createSession()
-                }
-            }
+            // Do NOT auto-create session here — ContentView owns session lifecycle.
+            // This .onAppear fires every time the view is recreated (session switch),
+            // which was causing duplicate session creation.
         }
         .navigationTitle(chatViewModel.sessionTitle)
         #if os(iOS)
