@@ -44,6 +44,14 @@ struct CFAuthView: View {
 
             // WebView
             CFWebViewRepresentable(viewModel: viewModel)
+                #if os(iOS)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay {
+                    if viewModel.isLoading {
+                        ProgressView("Loading…")
+                    }
+                }
+                #endif
         }
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 500)
@@ -183,6 +191,8 @@ struct CFWebViewUIView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.scrollView.isScrollEnabled = true
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         viewModel.attachWebView(webView)
         return webView
     }
