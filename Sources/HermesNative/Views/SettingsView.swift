@@ -4,8 +4,20 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var personaManager: PersonaManager
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        iosBody
+        #endif
+    }
+
+    // MARK: - macOS
+
+    #if os(macOS)
+    private var macBody: some View {
         TabView {
             connectionTab
                 .tabItem {
@@ -17,13 +29,87 @@ struct SettingsView: View {
                     Label("Persona", systemImage: "person.crop.circle")
                 }
         }
-        #if os(macOS)
         .frame(width: 500, height: 450)
-        #endif
+    }
+    #endif
+
+    // MARK: - iOS
+
+    #if os(iOS)
+    private var iosBody: some View {
+        NavigationStack {
+            Form {
+                connectionSection
+                personaSection
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 
-    // MARK: - Connection Tab
+    private var connectionSection: some View {
+        Section("Gateway") {
+            TextField("URL", text: $settings.gatewayURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+            SecureField("API Key (optional)", text: $settings.apiKey)
+        }
+    }
 
+    private var personaSection: some View {
+        Section("Persona") {
+            // Active persona
+            HStack(spacing: 12) {
+                personaManager.activePersona.bubbleAvatar(size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(personaManager.activePersona.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(personaManager.activePersona.tagline)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Picker
+            ForEach(personaManager.personas) { persona in
+                HStack(spacing: 10) {
+                    persona.bubbleAvatar(size: 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(persona.name)
+                            .font(.subheadline)
+                        Text(persona.tagline)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if persona.id == personaManager.activePersona.id {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(persona.accentColor)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    personaManager.select(persona)
+                }
+            }
+
+            Text("The API key is stored securely on this device.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    #endif
+
+    // MARK: - Shared Tab Content (macOS)
+
+    #if os(macOS)
     private var connectionTab: some View {
         Form {
             Section("Gateway Connection") {
@@ -34,21 +120,13 @@ struct SettingsView: View {
             }
 
             Section {
-                #if os(macOS)
                 Text("The API key is stored in your macOS Keychain.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                #else
-                Text("The API key is stored securely on this device.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                #endif
             }
         }
         .formStyle(.grouped)
     }
-
-    // MARK: - Persona Tab
 
     private var personaTab: some View {
         Form {
@@ -89,7 +167,6 @@ struct SettingsView: View {
                 }
             }
 
-            #if os(macOS)
             Section("Custom Personas") {
                 HStack {
                     Text("Drop .json files in:")
@@ -127,8 +204,8 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
             }
-            #endif
         }
         .formStyle(.grouped)
     }
+    #endif
 }

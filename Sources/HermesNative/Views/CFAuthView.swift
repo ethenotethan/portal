@@ -47,6 +47,8 @@ struct CFAuthView: View {
         }
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 500)
+        #else
+        .presentationDetents([.large])
         #endif
         .onReceive(viewModel.$cfAuthCookie) { cookie in
             if let cookie {

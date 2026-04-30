@@ -52,13 +52,11 @@ struct PersonaPickerView: View {
                                         personaManager.delete(persona)
                                     }
                                 }
+                                #if os(macOS)
                                 Button("Open Personas Folder") {
-                                    #if os(macOS)
                                     NSWorkspace.shared.open(PersonaManager.personasDirectory)
-                                    #else
-                                    UIApplication.shared.open(PersonaManager.personasDirectory)
-                                    #endif
                                 }
+                                #endif
                             }
                     }
                 }
@@ -69,17 +67,14 @@ struct PersonaPickerView: View {
             Divider()
 
             // Footer
+            #if os(macOS)
             HStack {
                 Text("Drop .json files in ~/HermesNative/Personas/")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Open Folder") {
-                    #if os(macOS)
                     NSWorkspace.shared.open(PersonaManager.personasDirectory)
-                    #else
-                    UIApplication.shared.open(PersonaManager.personasDirectory)
-                    #endif
                 }
                 .font(.caption2)
                 .buttonStyle(.plain)
@@ -87,10 +82,12 @@ struct PersonaPickerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+            #endif
         }
+        #if os(macOS)
         .frame(width: 280, height: 360)
-        #if os(iOS)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #else
+        .presentationDetents([.medium])
         #endif
         .alert("Template Created", isPresented: $showTemplateExported) {
             Button("OK") {}

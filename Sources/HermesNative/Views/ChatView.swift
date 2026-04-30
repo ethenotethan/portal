@@ -10,6 +10,9 @@ struct ChatView: View {
     @EnvironmentObject var personaManager: PersonaManager
     @State private var showPersonaPicker = false
     @State private var showSkinPicker = false
+    #if os(iOS)
+    @State private var showSettings = false
+    #endif
     @State private var avatarY: CGFloat = 0
 
     /// The active skin — change this to swap the entire visual personality
@@ -163,7 +166,14 @@ struct ChatView: View {
                 DebugLogPanel(wrapper: gatewayClientWrapper)
             }
         }
+        #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
+        #endif
+        #if os(iOS)
+        .sheet(isPresented: $showSettings) {
+            settingsSheet
+        }
+        #endif
         .onAppear {
             chatViewModel.personaManager = personaManager
             if !chatViewModel.isSessionReady {
@@ -231,6 +241,16 @@ struct ChatView: View {
 
             Spacer()
 
+            #if os(iOS)
+            Button {
+                showSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            #endif
+
             if chatViewModel.isStreaming {
                 Button {
                     Task { await chatViewModel.interrupt() }
@@ -261,6 +281,14 @@ struct ChatView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
     }
+
+    #if os(iOS)
+    private var settingsSheet: some View {
+        SettingsView()
+            .environmentObject(settings)
+            .environmentObject(personaManager)
+    }
+    #endif
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
         if let lastMsg = chatViewModel.messages.last {
