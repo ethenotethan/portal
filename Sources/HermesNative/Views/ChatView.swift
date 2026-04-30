@@ -29,14 +29,30 @@ struct ChatView: View {
             // Message list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                    LazyVStack(alignment: .leading, spacing: 2) {
                         ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
-                            let grouped = chatViewModel.messages
-                            let showAvatar = message.role != .user &&
-                                (index == 0 || grouped[index - 1].role != message.role)
+                            let msgs = chatViewModel.messages
+                            // Next message in same role group?
+                            let nextIsSameRole = index < msgs.count - 1 &&
+                                msgs[index + 1].role == message.role
+                            let isLastInGroup = !nextIsSameRole
+
+                            // Traveling avatar: only the LAST assistant message shows the avatar
+                            // when NOT streaming. During streaming, the streaming panel owns it.
+                            let showAvatar = message.role == .assistant &&
+                                isLastInGroup &&
+                                !chatViewModel.isStreaming
+
+                            // Timestamp: only on the last message in a consecutive group
+                            let showTimestamp = isLastInGroup
 
                             skinProvider.messageBubble(
-                                message: { var m = message; m.showAvatar = showAvatar; return m }(),
+                                message: {
+                                    var m = message
+                                    m.showAvatar = showAvatar
+                                    m.showTimestamp = showTimestamp
+                                    return m
+                                }(),
                                 persona: personaManager.activePersona
                             )
                             .id(message.id)
@@ -54,7 +70,8 @@ struct ChatView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
-                    .padding(.horizontal, 8)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 8)
                     .padding(.vertical, 8)
                 }
                 .background(activeSkin.background)

@@ -11,8 +11,12 @@ struct ChatMessage: Identifiable {
     var usage: UsageInfo?
     var status: String? // "complete", "interrupted", "error"
     /// Whether this message should display the avatar. Set by ChatView based on
-    /// grouping logic — only the first message in a consecutive assistant run shows it.
-    var showAvatar: Bool = true
+    /// grouping logic — only the last assistant message in a turn (when not streaming)
+    /// shows it, creating a "traveling avatar" that follows the latest bot activity.
+    var showAvatar: Bool = false
+    /// Whether this message should display its timestamp. Set by ChatView —
+    /// only the last message in a consecutive same-role group shows it.
+    var showTimestamp: Bool = false
 
     enum Role: String, Equatable {
         case user

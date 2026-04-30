@@ -3,6 +3,11 @@ import Lottie
 
 /// Dark Manga skin — near-black background, dark gray bubbles, compact Lottie avatar
 /// in side-rail position (Slack/Discord style), inline thinking/tool calls.
+///
+/// Avatar behavior ("traveling avatar"):
+/// - During streaming: the streaming panel owns the avatar — no completed message shows one
+/// - After streaming: the last assistant message in a turn shows the avatar
+/// - This creates a single avatar that visually "travels" to follow the latest bot activity
 struct DarkMangaSkin: ChatSkinProviding {
     let skin: ChatSkin = .darkManga
 
@@ -30,14 +35,15 @@ struct DarkMangaSkin: ChatSkinProviding {
 
 private enum Layout {
     static let avatarSize: CGFloat = 40
-    static let avatarColumnWidth: CGFloat = 52   // avatar + right padding + left inset
-    static let avatarLeftInset: CGFloat = 6      // prevents left-edge clipping
-    static let gap: CGFloat = 6                   // between avatar col and content
+    static let avatarColumnWidth: CGFloat = 56   // avatar + left inset + right gap
+    static let avatarLeftInset: CGFloat = 4      // breathing room from viewport edge
+    static let gap: CGFloat = 8                   // between avatar col and content
     static let bubbleRadius: CGFloat = 14
     static let bubblePaddingH: CGFloat = 14
     static let bubblePaddingV: CGFloat = 10
     static let avatarBorderWidth: CGFloat = 1
     static let maxBubbleWidth: CGFloat = 680      // ~65% of 1080p, hugs content
+    static let turnSpacing: CGFloat = 12          // vertical gap between turn groups
 }
 
 // MARK: - Message Bubble
@@ -74,18 +80,22 @@ private struct DarkMangaMessageBubble: View {
                     )
                     .frame(maxWidth: Layout.maxBubbleWidth, alignment: .trailing)
 
-                Text(message.timestamp, style: .time)
-                    .font(.system(size: 9))
-                    .foregroundStyle(Theme.tertiary.opacity(0.6))
-                    .padding(.trailing, 4)
+                if message.showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiary.opacity(0.5))
+                        .padding(.trailing, 4)
+                }
             }
         }
+        .padding(.bottom, Layout.turnSpacing)
     }
 
     // ── Assistant: left-aligned, avatar side-rail ──
     private var assistantBubble: some View {
         HStack(alignment: .top, spacing: Layout.gap) {
             // ── Avatar side-rail ──
+            // Always reserve the column for alignment; only render avatar when showAvatar
             Group {
                 if message.showAvatar {
                     VStack(spacing: 2) {
@@ -105,6 +115,7 @@ private struct DarkMangaMessageBubble: View {
                             .foregroundStyle(Theme.accent.opacity(0.7))
                     }
                 } else {
+                    // Invisible spacer to keep content aligned
                     Color.clear
                         .frame(width: Layout.avatarSize, height: 1)
                 }
@@ -115,10 +126,12 @@ private struct DarkMangaMessageBubble: View {
             // ── Content bubble ──
             VStack(alignment: .leading, spacing: 3) {
                 VStack(alignment: .leading, spacing: 8) {
-                    if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    // Only show reasoning block on COMPLETED messages.
+                    // During streaming, the streaming panel owns the "thinking" visual.
+                    if let reasoning = message.reasoning, !reasoning.isEmpty, !message.isStreaming {
                         DarkMangaThinkingBlock(
                             reasoning: reasoning,
-                            isStreaming: message.isStreaming
+                            isStreaming: false
                         )
                     }
 
@@ -135,13 +148,16 @@ private struct DarkMangaMessageBubble: View {
                 .padding(.vertical, Layout.bubblePaddingV)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
 
-                Text(message.timestamp, style: .time)
-                    .font(.system(size: 9))
-                    .foregroundStyle(Theme.tertiary.opacity(0.6))
-                    .padding(.leading, 4)
+                if message.showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiary.opacity(0.5))
+                        .padding(.leading, 4)
+                }
             }
             .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
         }
+        .padding(.bottom, Layout.turnSpacing)
     }
 }
 
@@ -161,14 +177,10 @@ private struct DarkMangaThinkingBlock: View {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10))
                         .foregroundStyle(Theme.accent)
-                    Text(isStreaming ? "Thinking…" : "Reasoning")
+                    Text("Reasoning")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.accent)
                     Spacer()
-                    if isStreaming {
-                        ProgressView()
-                            .controlSize(.mini)
-                    }
                 }
             }
             .buttonStyle(.plain)
@@ -196,7 +208,6 @@ private struct DarkMangaThinkingBlock: View {
                 .frame(height: 1),
             alignment: .bottom
         )
-        .onAppear { if isStreaming { isExpanded = true } }
     }
 }
 
@@ -259,6 +270,8 @@ private struct DarkMangaInlineToolCalls: View {
 }
 
 // MARK: - Streaming Indicator
+// This is the ONLY component that shows the avatar during streaming.
+// When streaming ends, the avatar "travels" to the last assistant message.
 
 private struct DarkMangaStreamingIndicator: View {
     let avatarState: AvatarState
@@ -283,7 +296,7 @@ private struct DarkMangaStreamingIndicator: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Layout.gap) {
-            // Avatar travels down with streaming content
+            // Avatar — this is the single active avatar during streaming
             VStack(spacing: 2) {
                 LottieCharacterView(
                     expression: expression,
@@ -303,7 +316,7 @@ private struct DarkMangaStreamingIndicator: View {
             .padding(.leading, Layout.avatarLeftInset)
             .frame(width: Layout.avatarSize, alignment: .top)
 
-            // Content: state + tool list
+            // Content: state label + tool list
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     StreamingBrailleSpinner(state: avatarState)
