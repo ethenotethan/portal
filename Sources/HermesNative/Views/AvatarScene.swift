@@ -113,7 +113,7 @@ final class AvatarScene: SCNScene {
         leftEyeNode.position = SCNVector3(-0.09, 0.52, 0.27)
         root.addChildNode(leftEyeNode)
 
-        rightEyeNode = SCNNode(geometry: eyeGeo.copy() as! SCNGeometry)
+        rightEyeNode = SCNNode(geometry: (eyeGeo.copy() as! SCNGeometry))
         rightEyeNode.position = SCNVector3(0.09, 0.52, 0.27)
         root.addChildNode(rightEyeNode)
 
@@ -130,12 +130,12 @@ final class AvatarScene: SCNScene {
         leftHalo.position = SCNVector3(0, 0, -0.01)
         leftEyeNode.addChildNode(leftHalo)
 
-        let rightHalo = SCNNode(geometry: haloGeo.copy() as! SCNGeometry)
+        let rightHalo = SCNNode(geometry: (haloGeo.copy() as! SCNGeometry))
         rightHalo.addChildNode(rightHalo)
 
         // ── Mouth (LED strip under visor) ──
         let mouthGeo = SCNCylinder(radius: 0.03, height: 0.008)
-        mouthGeo.materials = [eyeMat.copy() as! SCNMaterial]
+        mouthGeo.materials = [(eyeMat.copy() as! SCNMaterial)]
         mouthNode = SCNNode(geometry: mouthGeo)
         mouthNode.position = SCNVector3(0, 0.44, 0.27)
         mouthNode.eulerAngles = SCNVector3(0, Float.pi / 2, 0)
@@ -209,7 +209,7 @@ final class AvatarScene: SCNScene {
             container.addChildNode(brim)
 
             let crownGeo = SCNCylinder(radius: 0.16, height: 0.18)
-            crownGeo.materials = [hatMat.copy() as! SCNMaterial]
+            crownGeo.materials = [(hatMat.copy() as! SCNMaterial)]
             let crown = SCNNode(geometry: crownGeo)
             crown.position = SCNVector3(0, 0.89, 0)
             container.addChildNode(crown)
@@ -236,7 +236,7 @@ final class AvatarScene: SCNScene {
             container.addChildNode(brim)
 
             let crownGeo = SCNCylinder(radius: 0.14, height: 0.2)
-            crownGeo.materials = [hatMat.copy() as! SCNMaterial]
+            crownGeo.materials = [(hatMat.copy() as! SCNMaterial)]
             let crown = SCNNode(geometry: crownGeo)
             crown.position = SCNVector3(0, 0.88, 0)
             container.addChildNode(crown)
@@ -265,7 +265,7 @@ final class AvatarScene: SCNScene {
             // Brim flaps (3 rotated cylinders)
             for i in 0..<3 {
                 let flapGeo = SCNCylinder(radius: 0.22, height: 0.02)
-                flapGeo.materials = [hatMat.copy() as! SCNMaterial]
+                flapGeo.materials = [(hatMat.copy() as! SCNMaterial)]
                 let flap = SCNNode(geometry: flapGeo)
                 flap.position = SCNVector3(0, 0.78, 0)
                 flap.eulerAngles = SCNVector3(Float(i) * Float.pi / 6, Float(i) * Float.pi * 2 / 3, 0)
@@ -297,7 +297,7 @@ final class AvatarScene: SCNScene {
             // Crown points
             for i in 0..<5 {
                 let pointGeo = SCNCone(topRadius: 0, bottomRadius: 0.03, height: 0.1)
-                pointGeo.materials = [crownMat.copy() as! SCNMaterial]
+                pointGeo.materials = [(crownMat.copy() as! SCNMaterial)]
                 let angle = Float(i) * Float.pi * 2 / 5
                 let point = SCNNode(geometry: pointGeo)
                 point.position = SCNVector3(0.12 * cos(angle), 0.88, 0.12 * sin(angle))

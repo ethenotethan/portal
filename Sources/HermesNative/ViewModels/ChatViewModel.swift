@@ -41,7 +41,7 @@ final class ChatViewModel: ObservableObject {
                 switch state {
                 case .connected:
                     self?.error = nil
-                case .reconnecting(let attempt):
+                case .reconnecting:
                     self?.error = nil  // Clear errors — reconnect in progress
                     self?.isStreaming = false
                     self?.avatarState = .thinking

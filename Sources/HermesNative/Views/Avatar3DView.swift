@@ -90,8 +90,8 @@ struct AvatarStateLabel: View {
 // MARK: - NSColor Hex Helper
 
 private func nsColor(fromHex hex: String) -> NSColor {
-    var h = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
-    guard h.count == 6, var rgb: UInt64 = UInt64(h, radix: 16) else { return .systemPurple }
+    let h = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+    guard h.count == 6, let rgb = UInt64(h, radix: 16) else { return .systemPurple }
     return NSColor(
         red: CGFloat((rgb & 0xFF0000) >> 16) / 255.0,
         green: CGFloat((rgb & 0x00FF00) >> 8) / 255.0,
