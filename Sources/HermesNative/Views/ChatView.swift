@@ -10,6 +10,7 @@ struct ChatView: View {
     @EnvironmentObject var personaManager: PersonaManager
     @State private var showPersonaPicker = false
     @State private var showSkinPicker = false
+    @State private var avatarY: CGFloat = 0
 
     /// The active skin — change this to swap the entire visual personality
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
@@ -17,6 +18,26 @@ struct ChatView: View {
     /// Current skin provider (recomputed when skin changes)
     private var skinProvider: ChatSkinProviding {
         activeSkin.makeProvider()
+    }
+
+    /// Whether any bot content exists (for floating avatar visibility)
+    private var hasBotContent: Bool {
+        chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
+    }
+
+    /// Current avatar expression based on streaming state
+    private var currentAvatarExpression: CharacterExpression {
+        if chatViewModel.isStreaming {
+            switch chatViewModel.avatarState {
+            case .thinking: .thinking
+            case .speaking: .happy
+            case .toolUse:  .thinking
+            case .error:    .confused
+            default:        .idle
+            }
+        } else {
+            .idle
+        }
     }
 
     var body: some View {
@@ -29,52 +50,89 @@ struct ChatView: View {
             // Message list
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
-                            let msgs = chatViewModel.messages
-                            // Next message in same role group?
-                            let nextIsSameRole = index < msgs.count - 1 &&
-                                msgs[index + 1].role == message.role
-                            let isLastInGroup = !nextIsSameRole
+                    ZStack(alignment: .topLeading) {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
+                                let msgs = chatViewModel.messages
+                                // Next message in same role group?
+                                let nextIsSameRole = index < msgs.count - 1 &&
+                                    msgs[index + 1].role == message.role
+                                let isLastInGroup = !nextIsSameRole
 
-                            // Traveling avatar: only the LAST assistant message shows the avatar
-                            // when NOT streaming. During streaming, the streaming panel owns it.
-                            let showAvatar = message.role == .assistant &&
-                                isLastInGroup &&
-                                !chatViewModel.isStreaming
+                                // Dark Manga: avatar is a singleton overlay, not per-bubble
+                                let showAvatar = activeSkin == .darkManga ? false :
+                                    (message.role == .assistant && isLastInGroup && !chatViewModel.isStreaming)
 
-                            // Timestamp: only on the last message in a consecutive group
-                            let showTimestamp = isLastInGroup
+                                // Timestamp: only on the last message in a consecutive group
+                                let showTimestamp = isLastInGroup
 
-                            skinProvider.messageBubble(
-                                message: {
-                                    var m = message
-                                    m.showAvatar = showAvatar
-                                    m.showTimestamp = showTimestamp
-                                    return m
-                                }(),
-                                persona: personaManager.activePersona
-                            )
-                            .id(message.id)
+                                skinProvider.messageBubble(
+                                    message: {
+                                        var m = message
+                                        m.showAvatar = showAvatar
+                                        m.showTimestamp = showTimestamp
+                                        return m
+                                    }(),
+                                    persona: personaManager.activePersona
+                                )
+                                .id(message.id)
+                                // Report Y position for floating avatar (Dark Manga only)
+                                .background {
+                                    if activeSkin == .darkManga && message.role == .assistant {
+                                        GeometryReader { geo in
+                                            Color.clear.preference(
+                                                key: LatestBotTurnYKey.self,
+                                                value: geo.frame(in: .named("chatContent")).minY
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Streaming panel — skin-provided
+                            if chatViewModel.isStreaming {
+                                skinProvider.streamingPanel(
+                                    state: chatViewModel.avatarState,
+                                    activeToolCalls: chatViewModel.activeToolCalls,
+                                    personaName: personaManager.activePersona.name,
+                                    accentColor: personaManager.activePersona.accentColor
+                                )
+                                .id("streaming-status")
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .background {
+                                    if activeSkin == .darkManga {
+                                        GeometryReader { geo in
+                                            Color.clear.preference(
+                                                key: LatestBotTurnYKey.self,
+                                                value: geo.frame(in: .named("chatContent")).minY
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        .padding(.leading, activeSkin == .darkManga ? 80 : 12)
+                        .padding(.trailing, 8)
+                        .padding(.vertical, 8)
 
-                        // Streaming panel — skin-provided
-                        if chatViewModel.isStreaming {
-                            skinProvider.streamingPanel(
-                                state: chatViewModel.avatarState,
-                                activeToolCalls: chatViewModel.activeToolCalls,
-                                personaName: personaManager.activePersona.name,
-                                accentColor: personaManager.activePersona.accentColor
-                            )
-                            .id("streaming-status")
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        // ── Singleton floating avatar (Dark Manga only) ──
+                        // Exactly one avatar element. Animated Y tracks latest bot turn.
+                        if activeSkin == .darkManga && hasBotContent {
+                            FloatingAvatarView(expression: currentAvatarExpression)
+                                .offset(y: avatarY)
+                                .padding(.leading, 16)
                         }
                     }
-                    .padding(.leading, 12)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 8)
+                    .coordinateSpace(name: "chatContent")
                 }
                 .background(activeSkin.background)
+                .onPreferenceChange(LatestBotTurnYKey.self) { y in
+                    if let y = y {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            avatarY = y
+                        }
+                    }
+                }
                 .onChange(of: chatViewModel.messages.count) { _, _ in
                     scrollToBottom(proxy: proxy)
                 }
@@ -214,6 +272,44 @@ struct ChatView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Floating Avatar (Singleton)
+// Exactly one instance. Y position driven by LatestBotTurnYKey preference.
+// Animated with easeInOut 400ms.
+
+private struct FloatingAvatarView: View {
+    let expression: CharacterExpression
+
+    var body: some View {
+        VStack(spacing: 4) {
+            LottieCharacterView(
+                expression: expression,
+                size: CGSize(width: 48, height: 48)
+            )
+            .frame(width: 48, height: 48)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Theme.accent.opacity(0.4), lineWidth: 1)
+            )
+
+            Text("Creative")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(Theme.accent.opacity(0.6))
+        }
+    }
+}
+
+// MARK: - Preference Key
+// Tracks Y position of the latest bot turn within the scroll content coordinate space.
+// Multiple assistant messages and the streaming panel report their Y;
+// reduce takes the last non-nil value (bottom-most in view tree = latest turn).
+
+private struct LatestBotTurnYKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat? = nil
+    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
+        if let next = nextValue() { value = next }
     }
 }
 

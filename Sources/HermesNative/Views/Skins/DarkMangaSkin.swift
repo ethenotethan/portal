@@ -1,13 +1,8 @@
 import SwiftUI
 import Lottie
 
-/// Dark Manga skin — near-black background, dark gray bubbles, compact Lottie avatar
-/// in side-rail position (Slack/Discord style), inline thinking/tool calls.
-///
-/// Avatar behavior ("traveling avatar"):
-/// - During streaming: the streaming panel owns the avatar — no completed message shows one
-/// - After streaming: the last assistant message in a turn shows the avatar
-/// - This creates a single avatar that visually "travels" to follow the latest bot activity
+/// Dark Manga skin — near-black background, dark gray bubbles, inline thinking/tool calls.
+/// Avatar is rendered as a singleton floating overlay by ChatView, not by the skin.
 struct DarkMangaSkin: ChatSkinProviding {
     let skin: ChatSkin = .darkManga
 
@@ -34,9 +29,6 @@ struct DarkMangaSkin: ChatSkinProviding {
 // MARK: - Layout
 
 private enum Layout {
-    static let avatarSize: CGFloat = 48
-    static let avatarColumnWidth: CGFloat = 68   // avatar + padding + label room
-    static let gap: CGFloat = 10                  // between avatar col and content
     static let bubbleRadius: CGFloat = 14
     static let bubblePaddingH: CGFloat = 14
     static let bubblePaddingV: CGFloat = 10
@@ -44,41 +36,11 @@ private enum Layout {
     static let turnSpacing: CGFloat = 16
 }
 
-// MARK: - Avatar Rail View
-// Shared avatar rendering for both message bubble and streaming panel
-
-private struct AvatarRailView: View {
-    let expression: CharacterExpression
-
-    var body: some View {
-        VStack(spacing: 4) {
-            LottieCharacterView(
-                expression: expression,
-                size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
-            )
-            .frame(width: Layout.avatarSize, height: Layout.avatarSize)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Theme.accent.opacity(0.4), lineWidth: 1)
-            )
-
-            Text("Creative")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Theme.accent.opacity(0.6))
-        }
-        .frame(width: Layout.avatarColumnWidth, alignment: .center)
-    }
-}
-
 // MARK: - Message Bubble
 
 private struct DarkMangaMessageBubble: View {
     let message: ChatMessage
     let persona: Persona
-
-    private var expression: CharacterExpression {
-        message.isStreaming ? .thinking : .idle
-    }
 
     var body: some View {
         if message.role == .user {
@@ -88,7 +50,7 @@ private struct DarkMangaMessageBubble: View {
         }
     }
 
-    // ── User: right-aligned, accent-tinted, no avatar ──
+    // ── User: right-aligned, accent-tinted ──
     private var userBubble: some View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
@@ -115,47 +77,35 @@ private struct DarkMangaMessageBubble: View {
         .padding(.bottom, Layout.turnSpacing)
     }
 
-    // ── Assistant: left-aligned, avatar side-rail ──
+    // ── Assistant: left-aligned, no avatar (handled by ChatView overlay) ──
     private var assistantBubble: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // ── Avatar side-rail ──
-            if message.showAvatar {
-                AvatarRailView(expression: expression)
-            } else {
-                // Reserve the same width so content doesn't jump
-                Color.clear
-                    .frame(width: Layout.avatarColumnWidth)
-            }
-
-            // ── Content bubble ──
-            VStack(alignment: .leading, spacing: 3) {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let reasoning = message.reasoning, !reasoning.isEmpty, !message.isStreaming {
-                        DarkMangaThinkingBlock(reasoning: reasoning)
-                    }
-
-                    if !message.content.isEmpty {
-                        MarkdownContentView(text: message.content)
-                            .foregroundStyle(Theme.primary)
-                    }
-
-                    if !message.toolCalls.isEmpty && !message.isStreaming {
-                        DarkMangaInlineToolCalls(tools: message.toolCalls)
-                    }
+        VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let reasoning = message.reasoning, !reasoning.isEmpty, !message.isStreaming {
+                    DarkMangaThinkingBlock(reasoning: reasoning)
                 }
-                .padding(.horizontal, Layout.bubblePaddingH)
-                .padding(.vertical, Layout.bubblePaddingV)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
 
-                if message.showTimestamp {
-                    Text(message.timestamp, style: .time)
-                        .font(.system(size: 9))
-                        .foregroundStyle(Theme.tertiary.opacity(0.5))
-                        .padding(.leading, 4)
+                if !message.content.isEmpty {
+                    MarkdownContentView(text: message.content)
+                        .foregroundStyle(Theme.primary)
+                }
+
+                if !message.toolCalls.isEmpty && !message.isStreaming {
+                    DarkMangaInlineToolCalls(tools: message.toolCalls)
                 }
             }
-            .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
+            .padding(.horizontal, Layout.bubblePaddingH)
+            .padding(.vertical, Layout.bubblePaddingV)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
+
+            if message.showTimestamp {
+                Text(message.timestamp, style: .time)
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiary.opacity(0.5))
+                    .padding(.leading, 4)
+            }
         }
+        .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
         .padding(.bottom, Layout.turnSpacing)
     }
 }
@@ -268,21 +218,12 @@ private struct DarkMangaInlineToolCalls: View {
 }
 
 // MARK: - Streaming Indicator
+// No avatar — rendered by ChatView as singleton floating overlay.
 
 private struct DarkMangaStreamingIndicator: View {
     let avatarState: AvatarState
     let activeToolCalls: [String: ToolCallRecord]
     let personaName: String
-
-    private var expression: CharacterExpression {
-        switch avatarState {
-        case .idle:     .idle
-        case .thinking: .thinking
-        case .speaking: .happy
-        case .toolUse:  .thinking
-        case .error:    .confused
-        }
-    }
 
     private var orderedTools: [ToolCallRecord] {
         let running = activeToolCalls.values.filter { !$0.isComplete }.sorted { $0.id < $1.id }
@@ -291,64 +232,58 @@ private struct DarkMangaStreamingIndicator: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Avatar — single instance during streaming
-            AvatarRailView(expression: expression)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                StreamingBrailleSpinner(state: avatarState)
+                Text(stateLabel)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                Text("·")
+                    .foregroundStyle(Theme.tertiary)
+                Text(personaName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+            }
 
-            // Content: state label + tool list
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    StreamingBrailleSpinner(state: avatarState)
-                    Text(stateLabel)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Theme.secondary)
-                    Text("·")
-                        .foregroundStyle(Theme.tertiary)
-                    Text(personaName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-                }
-
-                if !orderedTools.isEmpty {
-                    VStack(spacing: 4) {
-                        ForEach(orderedTools) { tool in
-                            HStack(spacing: 8) {
-                                Image(systemName: "wrench.fill")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(Theme.accent)
-                                Text(tool.name)
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(Theme.primary)
-                                Text(tool.context ?? tool.name)
+            if !orderedTools.isEmpty {
+                VStack(spacing: 4) {
+                    ForEach(orderedTools) { tool in
+                        HStack(spacing: 8) {
+                            Image(systemName: "wrench.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.accent)
+                            Text(tool.name)
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(Theme.primary)
+                            Text(tool.context ?? tool.name)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiary)
+                                .lineLimit(1)
+                            Spacer()
+                            if tool.isComplete {
+                                Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 11))
-                                    .foregroundStyle(Theme.tertiary)
-                                    .lineLimit(1)
-                                Spacer()
-                                if tool.isComplete {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.green)
-                                } else {
-                                    ProgressView()
-                                        .controlSize(.mini)
-                                }
+                                    .foregroundStyle(.green)
+                            } else {
+                                ProgressView()
+                                    .controlSize(.mini)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Theme.background, in: RoundedRectangle(cornerRadius: 6))
                         }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 6))
                     }
                 }
             }
-            .padding(.horizontal, Layout.bubblePaddingH)
-            .padding(.vertical, Layout.bubblePaddingV)
-            .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: Layout.bubbleRadius)
-                    .stroke(Theme.accent.opacity(0.15), lineWidth: 1)
-            )
         }
+        .padding(.horizontal, Layout.bubblePaddingH)
+        .padding(.vertical, Layout.bubblePaddingV)
+        .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Layout.bubbleRadius)
+                .stroke(Theme.accent.opacity(0.15), lineWidth: 1)
+        )
     }
 
     private var stateLabel: String {
