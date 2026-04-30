@@ -1,7 +1,8 @@
 import SwiftUI
+import Lottie
 
 /// Two-column agent panel shown during streaming.
-/// Left column: character illustration reacting to tool cascade.
+/// Left column: Lottie animated character reacting to tool cascade.
 /// Right column: stacked tool call pills.
 /// Matches the design spec's "Running tools" panel layout.
 struct AgentPanel: View {
@@ -20,21 +21,24 @@ struct AgentPanel: View {
         return running + completed
     }
 
-    private var characterMood: CharacterIllustration.Mood {
+    private var characterExpression: CharacterExpression {
         switch avatarState {
+        case .idle:     return .idle
         case .thinking: return .thinking
-        case .speaking: return .speaking
-        case .toolUse: return .thinking
-        case .error: return .thinking
-        case .idle: return .idle
+        case .speaking: return .happy
+        case .toolUse:  return .thinking
+        case .error:    return .confused
         }
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            // Left: Character illustration
-            CharacterIllustration(mood: characterMood)
-                .frame(width: 140)
+            // Left: Lottie animated character
+            LottieCharacterView(
+                expression: characterExpression,
+                size: CGSize(width: 160, height: 160)
+            )
+            .frame(width: 160)
 
             // Right: Tool pills + status
             VStack(alignment: .leading, spacing: Theme.pillSpacing) {

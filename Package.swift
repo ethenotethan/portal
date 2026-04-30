@@ -10,11 +10,18 @@ let package = Package(
             targets: ["HermesNative"]
         ),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/airbnb/lottie-spm", from: "4.6.0"),
+    ],
     targets: [
         .executableTarget(
             name: "HermesNative",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Lottie", package: "lottie-spm"),
+            ],
+            resources: [
+                .process("Resources/Lottie"),
+            ],
             linkerSettings: [
                 .linkedFramework("SceneKit"),
                 .linkedFramework("SpriteKit"),
