@@ -1,8 +1,8 @@
 import SwiftUI
 import Lottie
 
-/// Dark Manga skin — near-black background, dark gray bubbles, Lottie animated character
-/// avatar shown once per assistant turn group, inline thinking/tool calls.
+/// Dark Manga skin — near-black background, dark gray bubbles, compact Lottie avatar
+/// in side-rail position (Slack/Discord style), inline thinking/tool calls.
 struct DarkMangaSkin: ChatSkinProviding {
     let skin: ChatSkin = .darkManga
 
@@ -26,17 +26,16 @@ struct DarkMangaSkin: ChatSkinProviding {
     }
 }
 
-// MARK: - Layout constants
+// MARK: - Layout
 
 private enum Layout {
-    static let avatarSize: CGFloat = 52
-    static let avatarColumnWidth: CGFloat = 68    // avatar + padding
-    static let avatarCornerRadius: CGFloat = 10
-    static let avatarBorderWidth: CGFloat = 1.5
-    static let contentSpacing: CGFloat = 14       // gap between avatar and content
+    static let avatarSize: CGFloat = 36
+    static let avatarColumnWidth: CGFloat = 44   // avatar + right padding
+    static let gap: CGFloat = 8                   // between avatar col and content
     static let bubbleRadius: CGFloat = 12
-    static let bubblePaddingH: CGFloat = 14
-    static let bubblePaddingV: CGFloat = 12
+    static let bubblePaddingH: CGFloat = 12
+    static let bubblePaddingV: CGFloat = 10
+    static let avatarBorderWidth: CGFloat = 1
 }
 
 // MARK: - Message Bubble
@@ -50,36 +49,27 @@ private struct DarkMangaMessageBubble: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // ── Left: Avatar column (fixed width) ──
+        HStack(alignment: .top, spacing: Layout.gap) {
+            // ── Avatar side-rail ──
             if message.role == .assistant {
-                VStack(alignment: .center, spacing: 4) {
+                Group {
                     if message.showAvatar {
                         LottieCharacterView(
                             expression: expression,
                             size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
                         )
                         .frame(width: Layout.avatarSize, height: Layout.avatarSize)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(
-                            RoundedRectangle(cornerRadius: Layout.avatarCornerRadius)
-                                .stroke(Theme.accent.opacity(0.6), lineWidth: Layout.avatarBorderWidth)
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Theme.accent.opacity(0.5), lineWidth: Layout.avatarBorderWidth)
                         )
-
-                        Text(persona.name)
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Theme.tertiary)
-                            .lineLimit(1)
                     }
                 }
-                .frame(width: Layout.avatarColumnWidth, alignment: .top)
-                .padding(.top, 2)
-
-                // Separator gap
-                Spacer()
-                    .frame(width: Layout.contentSpacing)
+                .frame(width: Layout.avatarSize, height: Layout.avatarSize, alignment: .top)
             }
 
-            // ── Right: Content column (fills remaining space) ──
+            // ── Content bubble ──
             VStack(alignment: .leading, spacing: 4) {
                 VStack(alignment: .leading, spacing: 8) {
                     if let reasoning = message.reasoning, !reasoning.isEmpty {
@@ -231,11 +221,20 @@ private struct DarkMangaInlineToolCalls: View {
 
 // MARK: - Streaming Indicator
 
-/// Compact status bar aligned under the content column (no duplicate avatar).
 private struct DarkMangaStreamingIndicator: View {
     let avatarState: AvatarState
     let activeToolCalls: [String: ToolCallRecord]
     let personaName: String
+
+    private var expression: CharacterExpression {
+        switch avatarState {
+        case .idle:     .idle
+        case .thinking: .thinking
+        case .speaking: .happy
+        case .toolUse:  .thinking
+        case .error:    .confused
+        }
+    }
 
     private var orderedTools: [ToolCallRecord] {
         let running = activeToolCalls.values.filter { !$0.isComplete }.sorted { $0.id < $1.id }
@@ -244,12 +243,18 @@ private struct DarkMangaStreamingIndicator: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Reserve avatar column width so streaming aligns with content
-            Color.clear.frame(width: Layout.avatarColumnWidth)
-
-            Spacer()
-                .frame(width: Layout.contentSpacing)
+        HStack(alignment: .top, spacing: Layout.gap) {
+            // Avatar travels down with streaming content
+            LottieCharacterView(
+                expression: expression,
+                size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
+            )
+            .frame(width: Layout.avatarSize, height: Layout.avatarSize)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Theme.accent.opacity(0.5), lineWidth: Layout.avatarBorderWidth)
+            )
 
             // Content: state + tool list
             VStack(alignment: .leading, spacing: 8) {
