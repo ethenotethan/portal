@@ -10,6 +10,9 @@ struct ChatMessage: Identifiable {
     var reasoning: String?
     var usage: UsageInfo?
     var status: String? // "complete", "interrupted", "error"
+    /// Whether this message should display the avatar. Set by ChatView based on
+    /// grouping logic — only the first message in a consecutive assistant run shows it.
+    var showAvatar: Bool = true
 
     enum Role: String, Equatable {
         case user

@@ -30,9 +30,13 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(chatViewModel.messages) { message in
+                        ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
+                            let grouped = chatViewModel.messages
+                            let showAvatar = message.role != .user &&
+                                (index == 0 || grouped[index - 1].role != message.role)
+
                             skinProvider.messageBubble(
-                                message: message,
+                                message: { var m = message; m.showAvatar = showAvatar; return m }(),
                                 persona: personaManager.activePersona
                             )
                             .id(message.id)
