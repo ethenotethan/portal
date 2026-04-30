@@ -89,6 +89,9 @@ struct PersonaPickerView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 280, height: 360)
+        #if os(iOS)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .alert("Template Created", isPresented: $showTemplateExported) {
             Button("OK") {}
         } message: {

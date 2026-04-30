@@ -115,6 +115,8 @@ struct SettingsView: View {
                 Label("Persona", systemImage: "person.crop.circle")
             }
         }
+        #if os(macOS)
         .frame(width: 500, height: 450)
+        #endif
     }
 }
