@@ -50,9 +50,12 @@ struct LottieAnimationViewRepresentable: NSViewRepresentable {
     let speed: CGFloat
     let loopMode: LottieLoopMode
 
+    /// SPM resource bundle — Lottie JSONs live here, not in Bundle.main
+    private var resourceBundle: Bundle { .module }
+
     func makeNSView(context: Context) -> LottieAnimationView {
         let view = LottieAnimationView()
-        view.animation = LottieAnimation.named(fileName)
+        view.animation = LottieAnimation.named(fileName, bundle: resourceBundle)
         view.animationSpeed = speed
         view.loopMode = loopMode
         view.contentMode = .scaleAspectFit
@@ -62,9 +65,7 @@ struct LottieAnimationViewRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: LottieAnimationView, context: Context) {
-        // Always reload — LottieAnimation doesn't expose a name property,
-        // and expression changes are infrequent enough that re-loading is fine.
-        nsView.animation = LottieAnimation.named(fileName)
+        nsView.animation = LottieAnimation.named(fileName, bundle: resourceBundle)
         nsView.animationSpeed = speed
         nsView.loopMode = loopMode
         nsView.play()
