@@ -18,6 +18,7 @@
 		19D14A47BB043496A58D17F5 /* PersonaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C83FB177D450056599E65 /* PersonaManager.swift */; };
 		1B9CFABF8EA2A0E659C80D9A /* ChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742C42FB4508D2508FF94A82 /* ChatSkin.swift */; };
 		216EE5D31DBCF0FE68E54F21 /* DarkMangaSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581833B777AC84A1607DBD1F /* DarkMangaSkin.swift */; };
+		226DE9A575F85078B7D49421 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
 		24CA7775DE2F52CF366C5485 /* ToolCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AE31FDF73C19D9F3762143 /* ToolCallView.swift */; };
 		2707C14A335C6D29A9A83EDC /* PersonaPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B94CA72B9A0301FB510B2D /* PersonaPickerView.swift */; };
 		280980593A775D9E5BAC9139 /* StreamingStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294FDA258010F40BDDF42C3 /* StreamingStatusBar.swift */; };
@@ -76,6 +77,7 @@
 		B6A29D66D4C44BC31B0E4EF6 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
 		B7A2ACFD1E4703732703EE24 /* MacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41979884D456FA9522F47D6 /* MacApp.swift */; };
 		BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
+		C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
 		CEEF97E31350F2523D53C4ED /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */; };
 		D4BB9EEC5648965C25C00461 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */; };
@@ -142,6 +144,7 @@
 		DBDB000F6D0C975615D7F80F /* LottieCharacterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieCharacterView.swift; sourceTree = "<group>"; };
 		E1110949F66962E0E6B6DF6E /* thinking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = thinking.json; sourceTree = "<group>"; };
 		E1CB9DFBFC6F7CC67D8359F5 /* happy.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = happy.json; sourceTree = "<group>"; };
+		E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		E75C11A7DC7195F4353C93DA /* idle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idle.json; sourceTree = "<group>"; };
 		E996AFDAC3ACF6290E04567F /* HermesNative-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "HermesNative-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HermesNative-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -314,6 +317,7 @@
 			children = (
 				3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */,
 				2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */,
+				E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -465,6 +469,7 @@
 				D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */,
 				388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */,
 				E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */,
+				C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */,
 				5010A2C2C363186736053DD8 /* OnboardingView.swift in Sources */,
 				EEAD4FC2619E6186D3509AC6 /* Persona.swift in Sources */,
 				499EF1DCD0A4F6C104F366BF /* PersonaManager.swift in Sources */,
@@ -512,6 +517,7 @@
 				6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */,
 				E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */,
 				7E1BCCCADCFDD000491A7271 /* MessageBubbleView.swift in Sources */,
+				226DE9A575F85078B7D49421 /* NotificationService.swift in Sources */,
 				0AF3C057F785086D624F6286 /* OnboardingView.swift in Sources */,
 				DC83AA4EBCD584E9E3A42199 /* Persona.swift in Sources */,
 				19D14A47BB043496A58D17F5 /* PersonaManager.swift in Sources */,

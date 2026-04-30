@@ -245,6 +245,16 @@ final class ChatViewModel: ObservableObject {
             streamingMessageID = nil
             avatarState = .idle
 
+            // Notify if app is backgrounded or this isn't the active session
+            let preview = payload.text.truncated(to: 80)
+            if let sid = sessionID {
+                NotificationService.shared.notifyResponseComplete(
+                    sessionTitle: sessionTitle,
+                    preview: preview,
+                    sessionID: sid
+                )
+            }
+
         case .toolStart(payload: let payload):
             avatarState = .toolUse
             activeToolCalls[payload.toolID] = ToolCallRecord(
@@ -300,6 +310,14 @@ final class ChatViewModel: ObservableObject {
 
         case .approvalRequest(payload: let payload):
             pendingApproval = payload
+            // Push notification so user sees it even if backgrounded/on another session
+            if let sid = sessionID {
+                NotificationService.shared.notifyApproval(
+                    sessionTitle: sessionTitle,
+                    command: payload.command,
+                    sessionID: sid
+                )
+            }
 
         case .statusUpdate:
             break
@@ -316,13 +334,17 @@ final class ChatViewModel: ObservableObject {
             // Subagent delegation events — display in tool call area
             break
 
-        case .backgroundComplete:
-            // Background task completion — not displayed inline
-            break
+        case .backgroundComplete(let taskID, let text):
+            NotificationService.shared.notifyBackgroundComplete(taskID: taskID, text: text)
 
-        case .clarifyRequest:
-            // TODO: Present clarification dialog to user
-            break
+        case .clarifyRequest(let question, _):
+            if let sid = sessionID {
+                NotificationService.shared.notifyClarify(
+                    sessionTitle: sessionTitle,
+                    question: question,
+                    sessionID: sid
+                )
+            }
 
         case .sudoRequest:
             // TODO: Present sudo password dialog

@@ -12,6 +12,15 @@ struct HermesNativeApp: App {
     init() {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate()
+        Task {
+            _ = await NotificationService.shared.requestAuthorization()
+        }
+    }
+    #else
+    init() {
+        Task {
+            _ = await NotificationService.shared.requestAuthorization()
+        }
     }
     #endif
 

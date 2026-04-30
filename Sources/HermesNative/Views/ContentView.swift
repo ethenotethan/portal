@@ -98,6 +98,12 @@ struct ContentView: View {
                   newTitle != oldTitle else { return }
             sessionList.updateSessionTitle(id: sid, title: newTitle)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
+            // Notification tap — switch to the relevant session
+            if let sessionID = notification.userInfo?["session_id"] as? String {
+                sessionList.selectSession(id: sessionID)
+            }
+        }
     }
 
     // MARK: - Wiring
