@@ -1,0 +1,34 @@
+import SwiftUI
+
+/// Dark-mode color palette for the HermesNative chat interface.
+/// Matches the design spec: near-black background, dark gray cards, off-white text.
+/// Note: Color.init?(hex:) is defined in Persona.swift (failable).
+/// We use force-unwrap here since all hex values are hardcoded and valid.
+enum Theme {
+    // MARK: - Backgrounds
+    static let background = Color(hex: "1a1a1a")!
+    static let surface = Color(hex: "2a2a2a")!       // cards, bubbles
+    static let surfaceHover = Color(hex: "333333")!
+
+    // MARK: - Text
+    static let primary = Color(hex: "f0f0f0")!       // off-white
+    static let secondary = Color(hex: "9a9a9a")!     // muted gray
+    static let tertiary = Color(hex: "666666")!       // dimmed
+
+    // MARK: - Accents
+    static let accent = Color(hex: "7c7cff")!         // soft purple-blue
+    static let success = Color(hex: "5cb85c")!        // green for ✓
+    static let warning = Color(hex: "e8a838")!        // amber
+
+    // MARK: - Borders
+    static let border = Color(hex: "3a3a3a")!
+
+    // MARK: - Dimensions
+    static let bubbleRadius: CGFloat = 16
+    static let bubblePaddingH: CGFloat = 20
+    static let bubblePaddingV: CGFloat = 14
+    static let pillRadius: CGFloat = 12
+    static let pillSpacing: CGFloat = 10
+    static let avatarSize: CGFloat = 48
+    static let illustrationHeight: CGFloat = 260
+}

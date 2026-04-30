@@ -1,44 +1,63 @@
 import SwiftUI
 
-/// Dark-mode message bubble — avatar + dark gray card + white text + timestamp.
-/// Matches the design spec: #2a2a2a bubble, 16px corners, generous padding.
-struct MessageBubbleView: View {
+/// Dark Manga skin — near-black background, dark gray bubbles, line-art character,
+/// pill-shaped tool cards. Matches the design spec with the confused mascot
+/// reacting to the tool cascade.
+struct DarkMangaSkin: ChatSkinProviding {
+    let skin: ChatSkin = .darkManga
+
+    func messageBubble(message: ChatMessage, persona: Persona) -> AnyView {
+        DarkMangaMessageBubble(message: message, persona: persona)
+            .eraseToAnyView()
+    }
+
+    func streamingPanel(
+        state: AvatarState,
+        activeToolCalls: [String: ToolCallRecord],
+        personaName: String,
+        accentColor: Color
+    ) -> AnyView {
+        AgentPanel(
+            avatarState: state,
+            activeToolCalls: activeToolCalls,
+            personaName: personaName
+        )
+        .eraseToAnyView()
+    }
+}
+
+// MARK: - Dark Manga Message Bubble
+
+/// Dark gray bubble with avatar, white text, and timestamp.
+/// Matches the design spec: #2a2a2a surface, 16px corners, generous padding.
+private struct DarkMangaMessageBubble: View {
     let message: ChatMessage
-    @EnvironmentObject var personaManager: PersonaManager
+    let persona: Persona
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar (48px circle)
+            // Avatar (assistant only)
             if message.role == .assistant {
-                personaManager.activePersona.bubbleAvatar(size: Theme.avatarSize)
+                persona.bubbleAvatar(size: Theme.avatarSize)
                     .clipShape(Circle())
             }
 
-            // Bubble + timestamp
             VStack(alignment: .leading, spacing: 4) {
-                // Message bubble
+                // Bubble
                 VStack(alignment: .leading, spacing: 8) {
-                    // Text content
                     if !message.content.isEmpty {
-                        if message.isStreaming && message.content.hasSuffix("…") == false {
-                            // Streaming — show content as it arrives
-                            MarkdownContentView(text: message.content)
-                        } else if message.content.isEmpty && message.isStreaming {
-                            // Streaming but no content yet — show nothing (agent panel handles it)
-                            EmptyView()
-                        } else {
-                            MarkdownContentView(text: message.content)
-                        }
+                        MarkdownContentView(text: message.content)
+                            .foregroundStyle(Theme.primary)
                     }
 
                     // Reasoning (collapsible)
                     if let reasoning = message.reasoning, !reasoning.isEmpty {
-                        ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
+                        DarkMangaReasoning(reasoning: reasoning, isStreaming: message.isStreaming)
                     }
 
-                    // Completed tool calls (collapsed in bubble)
+                    // Tool calls (completed, collapsed)
                     if !message.toolCalls.isEmpty && !message.isStreaming {
-                        CompletedToolsSection(tools: message.toolCalls)
+                        DarkMangaCompletedTools(tools: message.toolCalls)
                     }
                 }
                 .padding(.horizontal, Theme.bubblePaddingH)
@@ -52,7 +71,6 @@ struct MessageBubbleView: View {
                     .padding(.leading, 4)
             }
 
-            // Spacer for user messages (right-align them)
             if message.role == .user {
                 Spacer(minLength: 0)
             }
@@ -60,9 +78,9 @@ struct MessageBubbleView: View {
     }
 }
 
-// MARK: - Reasoning Section
+// MARK: - Reasoning
 
-private struct ReasoningSection: View {
+private struct DarkMangaReasoning: View {
     let reasoning: String
     let isStreaming: Bool
     @State private var isExpanded = false
@@ -70,22 +88,16 @@ private struct ReasoningSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isExpanded.toggle()
-                }
+                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.caption2)
-                        .foregroundStyle(Theme.accent)
                     Text(isStreaming ? "Thinking…" : "Reasoning")
                         .font(.system(.caption, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                    if isStreaming {
-                        ProgressView()
-                            .controlSize(.mini)
-                    }
+                    if isStreaming { ProgressView().controlSize(.mini) }
                 }
+                .foregroundStyle(Theme.accent)
             }
             .buttonStyle(.plain)
 
@@ -96,50 +108,40 @@ private struct ReasoningSection: View {
                     .textSelection(.enabled)
             }
         }
-        .onAppear {
-            if isStreaming { isExpanded = true }
-        }
+        .onAppear { if isStreaming { isExpanded = true } }
     }
 }
 
-// MARK: - Completed Tools Section
+// MARK: - Completed Tools
 
-private struct CompletedToolsSection: View {
+private struct DarkMangaCompletedTools: View {
     let tools: [ToolCallRecord]
     @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isExpanded.toggle()
-                }
+                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                         .font(.caption2)
-                        .foregroundStyle(Theme.secondary)
                     Text("Tool calls")
                         .font(.system(.caption, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
                     Text("(\(tools.count))")
                         .font(.system(.caption))
-                        .foregroundStyle(Theme.tertiary)
                 }
+                .foregroundStyle(Theme.secondary)
             }
             .buttonStyle(.plain)
 
             if isExpanded {
-                ForEach(tools) { tool in
-                    ToolPillView(tool: tool, isRunning: false)
+                VStack(spacing: 6) {
+                    ForEach(tools) { tool in
+                        ToolPillView(tool: tool, isRunning: false)
+                    }
                 }
             }
         }
     }
-}
-
-// MARK: - ChatMessage timestamp
-
-extension ChatMessage {
-    var timestamp: Date { Date() }
 }
