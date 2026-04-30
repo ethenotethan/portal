@@ -34,16 +34,40 @@ struct DarkMangaSkin: ChatSkinProviding {
 // MARK: - Layout
 
 private enum Layout {
-    static let avatarSize: CGFloat = 40
-    static let avatarColumnWidth: CGFloat = 56   // avatar + left inset + right gap
-    static let avatarLeftInset: CGFloat = 4      // breathing room from viewport edge
-    static let gap: CGFloat = 8                   // between avatar col and content
+    static let avatarSize: CGFloat = 48
+    static let avatarColumnWidth: CGFloat = 68   // avatar + padding + label room
+    static let gap: CGFloat = 10                  // between avatar col and content
     static let bubbleRadius: CGFloat = 14
     static let bubblePaddingH: CGFloat = 14
     static let bubblePaddingV: CGFloat = 10
-    static let avatarBorderWidth: CGFloat = 1
-    static let maxBubbleWidth: CGFloat = 680      // ~65% of 1080p, hugs content
-    static let turnSpacing: CGFloat = 12          // vertical gap between turn groups
+    static let maxBubbleWidth: CGFloat = 680
+    static let turnSpacing: CGFloat = 16
+}
+
+// MARK: - Avatar Rail View
+// Shared avatar rendering for both message bubble and streaming panel
+
+private struct AvatarRailView: View {
+    let expression: CharacterExpression
+
+    var body: some View {
+        VStack(spacing: 4) {
+            LottieCharacterView(
+                expression: expression,
+                size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
+            )
+            .frame(width: Layout.avatarSize, height: Layout.avatarSize)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Theme.accent.opacity(0.4), lineWidth: 1)
+            )
+
+            Text("Creative")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(Theme.accent.opacity(0.6))
+        }
+        .frame(width: Layout.avatarColumnWidth, alignment: .center)
+    }
 }
 
 // MARK: - Message Bubble
@@ -93,46 +117,21 @@ private struct DarkMangaMessageBubble: View {
 
     // ── Assistant: left-aligned, avatar side-rail ──
     private var assistantBubble: some View {
-        HStack(alignment: .top, spacing: Layout.gap) {
+        HStack(alignment: .top, spacing: 0) {
             // ── Avatar side-rail ──
-            // Always reserve the column for alignment; only render avatar when showAvatar
-            Group {
-                if message.showAvatar {
-                    VStack(spacing: 2) {
-                        LottieCharacterView(
-                            expression: expression,
-                            size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
-                        )
-                        .frame(width: Layout.avatarSize, height: Layout.avatarSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Theme.accent.opacity(0.4), lineWidth: Layout.avatarBorderWidth)
-                        )
-
-                        Text("Creative")
-                            .font(.system(size: 8, weight: .medium))
-                            .foregroundStyle(Theme.accent.opacity(0.7))
-                    }
-                } else {
-                    // Invisible spacer to keep content aligned
-                    Color.clear
-                        .frame(width: Layout.avatarSize, height: 1)
-                }
+            if message.showAvatar {
+                AvatarRailView(expression: expression)
+            } else {
+                // Reserve the same width so content doesn't jump
+                Color.clear
+                    .frame(width: Layout.avatarColumnWidth)
             }
-            .padding(.leading, Layout.avatarLeftInset)
-            .frame(width: Layout.avatarSize, alignment: .top)
 
             // ── Content bubble ──
             VStack(alignment: .leading, spacing: 3) {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Only show reasoning block on COMPLETED messages.
-                    // During streaming, the streaming panel owns the "thinking" visual.
                     if let reasoning = message.reasoning, !reasoning.isEmpty, !message.isStreaming {
-                        DarkMangaThinkingBlock(
-                            reasoning: reasoning,
-                            isStreaming: false
-                        )
+                        DarkMangaThinkingBlock(reasoning: reasoning)
                     }
 
                     if !message.content.isEmpty {
@@ -165,7 +164,6 @@ private struct DarkMangaMessageBubble: View {
 
 private struct DarkMangaThinkingBlock: View {
     let reasoning: String
-    let isStreaming: Bool
     @State private var isExpanded = false
 
     var body: some View {
@@ -270,8 +268,6 @@ private struct DarkMangaInlineToolCalls: View {
 }
 
 // MARK: - Streaming Indicator
-// This is the ONLY component that shows the avatar during streaming.
-// When streaming ends, the avatar "travels" to the last assistant message.
 
 private struct DarkMangaStreamingIndicator: View {
     let avatarState: AvatarState
@@ -295,26 +291,9 @@ private struct DarkMangaStreamingIndicator: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: Layout.gap) {
-            // Avatar — this is the single active avatar during streaming
-            VStack(spacing: 2) {
-                LottieCharacterView(
-                    expression: expression,
-                    size: CGSize(width: Layout.avatarSize, height: Layout.avatarSize)
-                )
-                .frame(width: Layout.avatarSize, height: Layout.avatarSize)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Theme.accent.opacity(0.4), lineWidth: Layout.avatarBorderWidth)
-                )
-
-                Text("Creative")
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(Theme.accent.opacity(0.7))
-            }
-            .padding(.leading, Layout.avatarLeftInset)
-            .frame(width: Layout.avatarSize, alignment: .top)
+        HStack(alignment: .top, spacing: 0) {
+            // Avatar — single instance during streaming
+            AvatarRailView(expression: expression)
 
             // Content: state label + tool list
             VStack(alignment: .leading, spacing: 8) {
