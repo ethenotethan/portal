@@ -17,7 +17,17 @@ struct MarkdownContentView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .codeBlock(let language, let code):
-                    CodeBlockView(language: language, code: code)
+                    if language == "mermaid" {
+                        MermaidDiagramView(mermaidCode: code)
+                            .frame(minHeight: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.accentColor.opacity(0.2), lineWidth: 0.5)
+                            )
+                    } else {
+                        CodeBlockView(language: language, code: code)
+                    }
                 case .heading(let level, let content):
                     HeadingView(level: level, content: content)
                 case .listItem(let index, let content, let isOrdered):
