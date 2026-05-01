@@ -539,28 +539,33 @@ struct OpenableBlockChip: View {
         Button {
             isOpen = true
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Image(systemName: language == "mermaid" ? "diagram" : "globe")
-                    .font(.caption2)
+                    .font(.system(size: 11, weight: .semibold))
                 Text(label)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                Image(systemName: "arrow.up.right.square")
-                    .font(.caption2)
+                    .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(Theme.accent.opacity(0.12))
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Theme.border, lineWidth: 0.5)
+                Capsule().stroke(Theme.accent.opacity(0.3), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $isOpen) {
+        #if os(iOS)
+        .fullScreenCover(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: content)
         }
+        #else
+        .sheet(isPresented: $isOpen) {
+            OpenableBlockSheet(language: language, content: content)
+                .frame(minWidth: 700, minHeight: 550)
+        }
+        #endif
     }
 }
 
@@ -572,39 +577,55 @@ struct OpenableBlockSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Title bar
-            HStack {
-                Text(language == "mermaid" ? "Diagram" : "Page")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.primary)
+        ZStack {
+            Theme.background.ignoresSafeArea()
 
-                Spacer()
+            VStack(spacing: 0) {
+                // Title bar
+                HStack(spacing: 12) {
+                    Image(systemName: language == "mermaid" ? "diagram" : "globe")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Theme.accent)
 
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.tertiary)
+                    Text(language == "mermaid" ? "Diagram" : "Page")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Theme.primary)
+
+                    Spacer()
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Theme.tertiary)
+                            .frame(width: 28, height: 28)
+                            .background(Theme.surface, in: Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Theme.surface)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(Theme.surface)
 
-            Divider()
+                Divider().overlay(Theme.border)
 
-            // Content
-            if language == "mermaid" {
-                MermaidDiagramView(mermaidCode: content)
-            } else {
-                InlineHTMLView(html: content)
+                // Content
+                ScrollView([.horizontal, .vertical]) {
+                    if language == "mermaid" {
+                        MermaidDiagramView(mermaidCode: content)
+                            .padding(16)
+                    } else {
+                        InlineHTMLView(html: content)
+                            .padding(16)
+                    }
+                }
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
-        .background(Theme.background)
+        #if os(iOS)
+        .navigationBarHidden(true)
+        .statusBarHidden(false)
+        #endif
     }
 }
 
