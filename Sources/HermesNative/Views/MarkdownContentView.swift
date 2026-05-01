@@ -14,17 +14,17 @@ struct MarkdownContentView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .codeBlock(let language, let code):
                     if language == "mermaid" {
                         MermaidDiagramView(mermaidCode: code)
                             .frame(minHeight: 120)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.accentColor.opacity(0.2), lineWidth: 0.5)
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Theme.border, lineWidth: 0.5)
                             )
                         OpenableBlockChip(label: "Open Diagram", language: "mermaid", content: code)
                     } else if language == "html" {
@@ -40,11 +40,18 @@ struct MarkdownContentView: View {
                 case .blockquote(let content):
                     BlockQuoteView(content: content)
                 case .horizontalRule:
-                    Divider().padding(.vertical, 2)
+                    HStack {
+                        Rectangle()
+                            .fill(Theme.border)
+                            .frame(height: 0.5)
+                    }
+                    .padding(.vertical, 4)
                 case .table(let headers, let rows):
                     TableView(headers: headers, rows: rows)
                 case .paragraph(let content):
                     MarkdownText(text: content)
+                        .foregroundStyle(Theme.primary)
+                        .lineSpacing(3)
                 }
             }
         }
@@ -277,11 +284,9 @@ struct MarkdownParser {
     }
 }
 
-// MARK: - Inline Markdown Text (uses Apple's built-in parser)
+// MARK: - Inline Markdown Text
 
 /// Renders inline markdown using AttributedString(markdown:).
-/// Apple's parser handles: **bold**, *italic*, `code`, [links](url),
-/// ~~strikethrough~~ (via extensions), headers, lists.
 /// Falls back to plain text if parsing fails.
 struct MarkdownText: View {
     let text: String
@@ -301,8 +306,6 @@ struct MarkdownText: View {
     }
 
     private func parseMarkdown(_ input: String) -> AttributedString? {
-        // Apple's AttributedString supports CommonMark subset:
-        // bold, italic, inline code, links, strikethrough (with interpretationOptions)
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
         options.failurePolicy = .returnPartiallyParsedIfPossible
@@ -313,6 +316,8 @@ struct MarkdownText: View {
 
 // MARK: - Block Views
 
+// MARK: Code Block
+
 struct CodeBlockView: View {
     let language: String
     let code: String
@@ -320,13 +325,17 @@ struct CodeBlockView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header with language label + copy button
-            HStack {
+            // Header bar
+            HStack(spacing: 8) {
                 if !language.isEmpty {
-                    Text(language)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.tertiary)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(languageColor)
+                            .frame(width: 6, height: 6)
+                        Text(language)
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.secondary)
+                    }
                 }
                 Spacer()
                 Button {
@@ -341,68 +350,95 @@ struct CodeBlockView: View {
                         isCopied = false
                     }
                 } label: {
-                    HStack(spacing: 2) {
+                    HStack(spacing: 3) {
                         Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                            .font(.caption2)
+                            .font(.system(size: 10))
                         Text(isCopied ? "Copied" : "Copy")
-                            .font(.caption2)
+                            .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(isCopied ? Theme.success : Theme.tertiary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 4))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            #if os(macOS)
-            .background(Color(nsColor: .windowBackgroundColor))
-            #else
-            .background(Color(uiColor: .systemGroupedBackground))
-            #endif
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Theme.surface)
 
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
-                    .font(.system(.caption, design: .monospaced))
+                    .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
-                    .padding(10)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
             }
         }
-        #if os(macOS)
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
-        #else
-        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.5))
-        #endif
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(Theme.background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-                #else
-                .stroke(Color(uiColor: .separator).opacity(0.5), lineWidth: 0.5)
-                #endif
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.border, lineWidth: 0.5)
         )
     }
+
+    private var languageColor: Color {
+        switch language {
+        case "swift": return .orange
+        case "python", "py": return .yellow
+        case "rust": return Theme.accent
+        case "go": return .cyan
+        case "bash", "sh", "zsh": return .green
+        case "json": return Theme.warning
+        case "yaml", "yml": return .pink
+        case "html": return .red
+        case "css": return .purple
+        case "javascript", "js", "typescript", "ts": return .yellow
+        default: return Theme.accent
+        }
+    }
 }
+
+// MARK: Heading
 
 struct HeadingView: View {
     let level: Int
     let content: String
 
     var body: some View {
-        MarkdownText(text: content)
-            .font(font)
-            .padding(.top, level >= 3 ? 4 : 8)
+        VStack(alignment: .leading, spacing: 0) {
+            if level == 1 {
+                MarkdownText(text: content)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.primary)
+                Rectangle()
+                    .fill(Theme.accent.opacity(0.4))
+                    .frame(height: 2)
+                    .padding(.top, 4)
+            } else {
+                MarkdownText(text: content)
+                    .font(font)
+                    .foregroundStyle(Theme.primary)
+            }
+        }
+        .padding(.top, level == 1 ? 12 : level == 2 ? 10 : 6)
     }
 
     private var font: Font {
         switch level {
-        case 1: return Font.title.bold()
-        case 2: return Font.title2.bold()
-        case 3: return Font.title3.bold()
-        default: return Font.headline
+        case 1: return Font.system(size: 22, weight: .bold)
+        case 2: return Font.system(size: 18, weight: .bold)
+        case 3: return Font.system(size: 15, weight: .semibold)
+        case 4: return Font.system(size: 14, weight: .semibold)
+        default: return Font.system(size: 13, weight: .semibold)
         }
     }
 }
+
+// MARK: List Item
 
 struct ListItemView: View {
     let index: Int
@@ -410,29 +446,50 @@ struct ListItemView: View {
     let isOrdered: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text(isOrdered ? "\(index)." : "•")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .frame(width: isOrdered ? 24 : 12, alignment: .trailing)
+        HStack(alignment: .top, spacing: 8) {
+            if isOrdered {
+                Text("\(index).")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 22, alignment: .trailing)
+            } else {
+                Circle()
+                    .fill(Theme.accent)
+                    .frame(width: 4, height: 4)
+                    .frame(width: 22, alignment: .center)
+                    .padding(.top, 7)
+            }
             MarkdownText(text: content)
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.primary)
         }
     }
 }
+
+// MARK: Block Quote
 
 struct BlockQuoteView: View {
     let content: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            RoundedRectangle(cornerRadius: 1.5)
-                .fill(Color.accentColor.opacity(0.4))
+            RoundedRectangle(cornerRadius: 2)
+                .fill(
+                    LinearGradient(
+                        colors: [Theme.accent, Theme.accent.opacity(0.4)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
                 .frame(width: 3)
-                .padding(.trailing, 8)
+                .padding(.trailing, 10)
             MarkdownText(text: content)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.secondary)
+                .italic()
         }
         .padding(.leading, 4)
+        .padding(.vertical, 2)
     }
 }
 
@@ -450,11 +507,11 @@ struct TableView: View {
             content
         } else {
             content
-                .frame(maxHeight: 220)
+                .frame(maxHeight: 240)
                 .clipped()
                 .mask(
                     VStack(spacing: 0) {
-                        Rectangle().frame(height: 200)
+                        Rectangle().frame(height: 220)
                         LinearGradient(
                             colors: [Theme.surface, Theme.surface.opacity(0)],
                             startPoint: .top,
@@ -472,57 +529,59 @@ struct TableView: View {
                 // Header row
                 HStack(spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
-                        MarkdownText(text: header)
-                            .font(.caption.bold())
-                            .foregroundStyle(Theme.secondary)
-                            .frame(minWidth: 60, alignment: .center)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
+                        Text(header)
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Theme.accent)
+                            .textSelection(.enabled)
+                            .frame(minWidth: 64, alignment: .center)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                     }
                 }
-                .background(Theme.surface)
+                .background(Theme.accent.opacity(0.08))
 
                 // Data rows
                 ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            MarkdownText(text: cell)
-                                .font(.caption)
+                            Text(cell)
+                                .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(Theme.primary)
-                                .frame(minWidth: 60, alignment: .center)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+                                .textSelection(.enabled)
+                                .frame(minWidth: 64, alignment: .center)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
                         }
                     }
-                    .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.4))
+                    .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.3))
                 }
 
-                // Expand / collapse button
-                if rows.count > 4 {
+                // Expand / collapse
+                if rows.count > 5 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             isExpanded.toggle()
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(isExpanded ? "Show less" : "Show all \(rows.count) rows")
-                                .font(.caption2)
+                            Text(isExpanded ? "Collapse" : "\(rows.count) rows")
+                                .font(.system(size: 11, weight: .semibold))
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption2)
+                                .font(.system(size: 9, weight: .bold))
                         }
                         .foregroundStyle(Theme.accent)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 7)
                     }
                     .buttonStyle(.plain)
-                    .background(Theme.surface)
+                    .background(Theme.accent.opacity(0.05))
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 10)
                     .stroke(Theme.border, lineWidth: 0.5)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 }
@@ -539,20 +598,20 @@ struct OpenableBlockChip: View {
         Button {
             isOpen = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: language == "mermaid" ? "diagram" : "globe")
-                    .font(.system(size: 11, weight: .semibold))
+            HStack(spacing: 5) {
+                Image(systemName: language == "mermaid" ? "arrow.up.left.and.arrow.down.right" : "safari")
+                    .font(.system(size: 9, weight: .bold))
                 Text(label)
                     .font(.system(size: 11, weight: .semibold))
             }
             .foregroundStyle(Theme.accent)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(
-                Capsule().fill(Theme.accent.opacity(0.12))
+                Capsule().fill(Theme.accent.opacity(0.1))
             )
             .overlay(
-                Capsule().stroke(Theme.accent.opacity(0.3), lineWidth: 0.5)
+                Capsule().stroke(Theme.accent.opacity(0.25), lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -582,13 +641,13 @@ struct OpenableBlockSheet: View {
 
             VStack(spacing: 0) {
                 // Title bar
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Image(systemName: language == "mermaid" ? "diagram" : "globe")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Theme.accent)
 
                     Text(language == "mermaid" ? "Diagram" : "Page")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(Theme.primary)
 
                     Spacer()
@@ -597,27 +656,28 @@ struct OpenableBlockSheet: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(Theme.tertiary)
-                            .frame(width: 28, height: 28)
-                            .background(Theme.surface, in: Circle())
+                            .frame(width: 26, height: 26)
+                            .background(Theme.surfaceHover, in: Circle())
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 14)
+                .padding(.vertical, 12)
                 .background(Theme.surface)
 
                 Divider().overlay(Theme.border)
 
                 // Content — WKWebView handles its own scrolling
-                if language == "mermaid" {
-                    MermaidDiagramView(mermaidCode: content)
-                        .padding(16)
-                } else {
-                    InlineHTMLView(html: content)
-                        .padding(16)
+                Group {
+                    if language == "mermaid" {
+                        MermaidDiagramView(mermaidCode: content)
+                    } else {
+                        InlineHTMLView(html: content)
+                    }
                 }
+                .padding(12)
             }
         }
         #if os(iOS)
