@@ -43,7 +43,7 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | \
             base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision
-          # Extract UUID for ExportOptions.plist
+          # Extract UUID for xcodebuild and ExportOptions.plist
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
             <<< "$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision)")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
@@ -51,6 +51,7 @@ jobs:
       # ── Archive ──────────────────────────────────────────────────────
       - name: Archive iOS App
         run: |
+          mkdir -p build
           xcodebuild archive \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-iOS \
@@ -58,7 +59,7 @@ jobs:
             -archivePath build/HermesNative.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_UUID }}" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
             2>&1 | tee build/archive.log | xcpretty; exit ${PIPESTATUS[0]}
 
@@ -152,6 +153,7 @@ jobs:
 
       - name: Archive macOS App
         run: |
+          mkdir -p build
           xcodebuild archive \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-macOS \
