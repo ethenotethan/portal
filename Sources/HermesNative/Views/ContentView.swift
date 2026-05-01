@@ -13,7 +13,7 @@ struct ContentView: View {
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var missionControlSessionID: String?
-    @State private var observerSessionID: String?
+    @State private var observerSession: Session?
 
     var body: some View {
         Group {
@@ -31,7 +31,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
-            if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
+            if configured && (!settings.needsCFAuth || settings.cfAuthCookie == nil) {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
                     wireUpClient()
@@ -57,7 +57,8 @@ struct ContentView: View {
                     openMissionControl(sessionID: sessionID)
                 },
                 onObserve: { sessionID in
-                    observerSessionID = sessionID
+                    // Find the session object for the observer
+                    observerSession = sessionList.sessions.first(where: { $0.id == sessionID })
                 }
             )
                 .environmentObject(sessionList)
@@ -78,14 +79,16 @@ struct ContentView: View {
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
             guard let newID else { return }
-            guard newID != chatViewModel.currentSessionID else { return }
+            // Find the session and use its database ID for resume
+            guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
+            let rpcID = session.rpcID
+            guard rpcID != chatViewModel.currentSessionID else { return }
             chatViewModel.loadLocalHistory(sessionID: newID)
-            if let session = sessionList.sessions.first(where: { $0.id == newID }),
-               let key = sessionList.keyForSession(id: newID) {
+            if session.isOwned {
                 Task {
                     do {
-                        _ = try await sessionList.resumeSession(session)
-                        await chatViewModel.resumeSession(key: key)
+                        // session.resume expects the database-format ID
+                        _ = try await chatViewModel.resumeSession(key: newID)
                     } catch {}
                 }
             }
@@ -115,7 +118,9 @@ struct ContentView: View {
             set: { if !$0 { missionControlSessionID = nil } }
         )) {
             if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid)
+                // Use the gatewayID (short hex) for Mission Control if available
+                let rpcID = sessionList.sessions.first(where: { $0.id == sid })?.rpcID ?? sid
+                SessionExplorerView(sessionID: rpcID)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
                     #if os(iOS)
@@ -124,25 +129,21 @@ struct ContentView: View {
             }
         }
         // Observer sheet (for non-owned sessions)
-        .sheet(isPresented: Binding(
-            get: { observerSessionID != nil },
-            set: { if !$0 { observerSessionID = nil } }
-        )) {
-            if let sid = observerSessionID {
-                SessionObserverView(sessionID: sid)
-                    .environmentObject(gatewayClientWrapper)
-                    #if os(iOS)
-                    .presentationDetents([.large])
-                    #endif
-            }
+        .sheet(item: $observerSession) { session in
+            SessionObserverView(session: session)
+                .environmentObject(gatewayClientWrapper)
+                #if os(iOS)
+                .presentationDetents([.large])
+                #endif
         }
     }
 
     // MARK: - Mission Control
 
     private func openMissionControl(sessionID: String) {
-        spawnTreeStore.createTree(sessionID: sessionID)
-        spawnTreeStore.setActive(sessionID: sessionID)
+        let rpcID = sessionList.sessions.first(where: { $0.id == sessionID })?.rpcID ?? sessionID
+        spawnTreeStore.createTree(sessionID: rpcID)
+        spawnTreeStore.setActive(sessionID: rpcID)
         missionControlSessionID = sessionID
     }
 
@@ -158,9 +159,7 @@ struct ContentView: View {
             if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
                 await chatViewModel.createSession()
                 if let sid = chatViewModel.currentSessionID {
-                    if let key = gatewayClientWrapper.client.lastSessionKey {
-                        sessionList.storeSessionKey(id: sid, key: key)
-                    }
+                    // sid is the short hex ID from session.create
                     sessionList.selectSession(id: sid)
                     spawnTreeStore.createTree(sessionID: sid)
                     await sessionList.refreshSessions()
@@ -174,9 +173,9 @@ struct ContentView: View {
             } else if let first = sessionList.sessions.first(where: { $0.isOwned }) ?? sessionList.sessions.first {
                 chatViewModel.loadLocalHistory(sessionID: first.id)
                 sessionList.selectSession(id: first.id)
-                spawnTreeStore.createTree(sessionID: first.id)
-                if let key = sessionList.keyForSession(id: first.id) {
-                    await chatViewModel.resumeSession(key: key)
+                spawnTreeStore.createTree(sessionID: first.rpcID)
+                if first.isOwned {
+                    await chatViewModel.resumeSession(key: first.id)
                 }
             }
         }

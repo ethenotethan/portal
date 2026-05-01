@@ -3,7 +3,8 @@ import Combine
 import SwiftUI
 
 /// Manages the list of sessions and session creation/resumption/killing.
-/// Tracks session titles and keys locally (gateway list doesn't include keys).
+/// Tracks the mapping between database IDs (from session.list) and
+/// gateway in-memory IDs (short hex, from session.create) so RPCs work.
 @MainActor
 final class SessionListViewModel: ObservableObject {
     @Published var sessions: [Session] = []
@@ -16,20 +17,22 @@ final class SessionListViewModel: ObservableObject {
     // MARK: - Local Storage
 
     private static let titlesKey = "hermes.sessionTitles"
-    private static let keysStoreKey = "hermes.sessionKeys"
 
-    /// Client-side titles keyed by session ID. Persisted to UserDefaults.
+    /// Mapping: database-format ID → short hex gateway ID.
+    /// Stored in UserDefaults so it persists across app launches.
+    /// For "My Sessions", this lets us find the correct RPC session_id.
+    private static let gatewayIDMapKey = "hermes.gatewayIDMap"
+
+    private var gatewayIDMap: [String: String] {
+        get { (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.gatewayIDMapKey) }
+    }
+
+    /// Client-side titles keyed by database ID. Persisted to UserDefaults.
     /// Overrides gateway title when present (user has chatted in-app).
     private var localTitles: [String: String] {
         get { (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.titlesKey) }
-    }
-
-    /// Client-side session keys (from session.create responses). Persisted.
-    /// session.list doesn't return keys, so we must save them ourselves.
-    private var localKeys: [String: String] {
-        get { (UserDefaults.standard.dictionary(forKey: Self.keysStoreKey) as? [String: String]) ?? [:] }
-        set { UserDefaults.standard.set(newValue, forKey: Self.keysStoreKey) }
     }
 
     /// Get the display title for a session.
@@ -70,9 +73,21 @@ final class SessionListViewModel: ObservableObject {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// Get the stored key for a session, if we have one.
-    func keyForSession(id: String) -> String? {
-        localKeys[id]
+    /// Store the mapping from database ID to gateway short hex ID.
+    func storeGatewayIDMapping(databaseID: String, gatewayID: String) {
+        var map = gatewayIDMap
+        map[databaseID] = gatewayID
+        gatewayIDMap = map
+
+        // Also update the session in the list if it exists
+        if let idx = sessions.firstIndex(where: { $0.id == databaseID }) {
+            sessions[idx].gatewayID = gatewayID
+        }
+    }
+
+    /// Get the gateway short hex ID for a database ID, if we have one.
+    func gatewayIDForSession(databaseID: String) -> String? {
+        gatewayIDMap[databaseID]
     }
 
     /// Store a title for a session (called when first user message is sent).
@@ -84,13 +99,6 @@ final class SessionListViewModel: ObservableObject {
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
             sessions[idx].localTitle = title
         }
-    }
-
-    /// Store a session key (from session.create response).
-    func storeSessionKey(id: String, key: String) {
-        var keys = localKeys
-        keys[id] = key
-        localKeys = keys
     }
 
     // MARK: - Gateway
@@ -106,15 +114,15 @@ final class SessionListViewModel: ObservableObject {
         do {
             var fetched = try await client.listSessions()
             let titles = localTitles
-            let keys = localKeys
+            let idMap = gatewayIDMap
             for i in fetched.indices {
                 // Merge local title (overrides gateway title)
                 if let local = titles[fetched[i].id], !local.isEmpty {
                     fetched[i].localTitle = local
                 }
-                // Merge local key
-                if let key = keys[fetched[i].id] {
-                    fetched[i].localKey = key
+                // Merge gateway ID mapping (for RPCs)
+                if let gwID = idMap[fetched[i].id] {
+                    fetched[i].gatewayID = gwID
                 }
             }
             sessions = fetched
@@ -130,39 +138,66 @@ final class SessionListViewModel: ObservableObject {
             throw GatewayError.notConnected
         }
 
-        let sessionID = try await client.createSession()
-
-        // Save the key locally (gateway returns it only on create)
-        if let key = client.lastSessionKey {
-            storeSessionKey(id: sessionID, key: key)
-        }
+        let shortHexID = try await client.createSession()
+        activeSessionID = shortHexID
 
         var session = Session(
-            id: sessionID,
+            id: shortHexID,  // Temporarily use short hex; will be updated on refresh
             messageCount: 0
         )
-        session.localKey = localKeys[sessionID]
-        if let title = localTitles[sessionID] {
+        session.gatewayID = shortHexID
+        if let title = localTitles[shortHexID] {
             session.localTitle = title
         }
         sessions.append(session)
-        activeSessionID = sessionID
-        return sessionID
+
+        // Async: discover the database ID via session.title and store the mapping
+        Task { [weak self] in
+            guard let self, let client = self.gatewayClient else { return }
+            do {
+                let result = try await client.sessionTitle(sessionID: shortHexID)
+                if let dbID = result.sessionKey, !dbID.isEmpty {
+                    // Update the session's primary ID to the database format
+                    if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
+                        let oldID = self.sessions[idx].id
+                        self.sessions[idx].id = dbID
+                        // Move local title if needed
+                        if let title = self.localTitles[oldID] {
+                            var titles = self.localTitles
+                            titles[dbID] = title
+                            titles.removeValue(forKey: oldID)
+                            self.localTitles = titles
+                            self.sessions[idx].localTitle = title
+                        }
+                    }
+                    self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
+                    if self.activeSessionID == shortHexID {
+                        self.activeSessionID = dbID
+                    }
+                }
+            } catch {
+                // session.title may fail if agent isn't ready yet; non-critical
+                NSLog("[HermesNative] session.title lookup failed: \(error)")
+            }
+        }
+
+        return shortHexID
     }
 
-    /// Resume an existing session by key and set it as active.
-    /// Returns nil if we don't have a stored key for this session.
+    /// Resume an existing session by its database ID + gateway ID.
+    /// Returns the gateway short hex ID on success.
     @discardableResult
     func resumeSession(_ session: Session) async throws -> String? {
         guard let client = gatewayClient else {
             throw GatewayError.notConnected
         }
-        guard let key = localKeys[session.id], !key.isEmpty else {
-            // No key stored — can't resume. Caller should create a new session instead.
+        guard session.isOwned else {
+            // Not our session — can't resume
             return nil
         }
-        let result = try await client.resumeSession(key: key)
-        activeSessionID = result.sessionID
+        // resumeSession expects the database-format ID as session_id
+        let result = try await client.resumeSession(key: session.id)
+        activeSessionID = session.id
 
         if let idx = sessions.firstIndex(where: { $0.id == session.id }) {
             sessions[idx].isRunning = true
@@ -170,21 +205,23 @@ final class SessionListViewModel: ObservableObject {
         return result.sessionID
     }
 
-    /// Close (kill) a session by ID.
+    /// Close (kill) a session by its database ID.
     func closeSession(id: String) async throws {
         guard let client = gatewayClient else {
             throw GatewayError.notConnected
         }
-        try await client.closeSession(sessionID: id)
+        // Use the gateway ID (short hex) for the close RPC
+        let rpcID = sessions.first(where: { $0.id == id })?.rpcID ?? id
+        try await client.closeSession(sessionID: rpcID)
         // Clean up local history file
         ChatHistoryStore.shared.deleteMessages(forSession: id)
         // Clean up local data
         var titles = localTitles
         titles.removeValue(forKey: id)
         localTitles = titles
-        var keys = localKeys
-        keys.removeValue(forKey: id)
-        localKeys = keys
+        var idMap = gatewayIDMap
+        idMap.removeValue(forKey: id)
+        gatewayIDMap = idMap
 
         withAnimation {
             sessions.removeAll { $0.id == id }

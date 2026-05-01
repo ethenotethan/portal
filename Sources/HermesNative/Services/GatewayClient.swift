@@ -481,11 +481,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
-    /// Resume an existing session by key.
-    /// Returns the new session ID and any history messages from the gateway.
+    /// Resume an existing session by database-format ID.
+    /// Returns the new short hex session ID and any history messages from the gateway.
+    /// The `sessionID` param should be the database-format ID (e.g., "20260501_112429_d91274").
     func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {
         let response = try await call("session.resume", params: [
-            "session_key": AnyCodable(key),
+            "session_id": AnyCodable(key),
         ])
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
@@ -513,6 +514,71 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             return []
         }
         return result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+    }
+
+    /// Get session title + session_key (database ID) from the gateway.
+    /// `session_id` param must be the short hex ID (gatewayID).
+    /// Returns (title, sessionKey) where sessionKey is the database-format ID.
+    func sessionTitle(sessionID: String) async throws -> (title: String, sessionKey: String?) {
+        let response = try await call("session.title", params: [
+            "session_id": AnyCodable(sessionID),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            return (title: "", sessionKey: nil)
+        }
+        let title = result["title"]?.stringValue ?? ""
+        let sessionKey = result["session_key"]?.stringValue
+        return (title: title, sessionKey: sessionKey)
+    }
+
+    /// Peek at a session owned by another transport.
+    /// Uses `session.resume` to temporarily load the session, captures history
+    /// and usage, then closes the peek session to clean up.
+    /// IMPORTANT: This is expensive (creates a full agent) and overwrites the
+    /// approval callback for the session_key. Use sparingly.
+    func peekSession(sessionKey: String) async throws -> PeekResult {
+        // 1. Resume with the database-format ID
+        let response = try await call("session.resume", params: [
+            "session_id": AnyCodable(sessionKey),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let shortID = result["session_id"]?.stringValue else {
+            throw GatewayError.invalidResponse("missing session_id in peek resume")
+        }
+
+        // 2. Parse messages from the resume response
+        let messages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+
+        // 3. Get usage via the new short ID
+        var usage: SessionUsage? = nil
+        if let usageResult = try? await sessionUsage(sessionID: shortID) {
+            usage = usageResult
+        }
+
+        // 4. Close the peek session immediately
+        _ = try? await call("session.close", params: [
+            "session_id": AnyCodable(shortID),
+        ])
+
+        return PeekResult(
+            sessionKey: sessionKey,
+            gatewayID: shortID,
+            messages: messages,
+            usage: usage
+        )
+    }
+
+    struct PeekResult {
+        let sessionKey: String
+        let gatewayID: String
+        let messages: [[String: AnyCodable]]
+        let usage: SessionUsage?
     }
 
     func setConfig(key: String, value: String, sessionID: String? = nil) async throws {

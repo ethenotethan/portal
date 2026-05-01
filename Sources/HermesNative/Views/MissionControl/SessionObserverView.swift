@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// Read-only observer view for sessions created by other transports (Telegram, TUI, etc.).
-/// Shows conversation history, usage stats, spawn tree snapshots, and rollback checkpoints.
+/// Shows conversation history, usage stats, spawn tree snapshots.
 /// No chat input, no interrupt — just observation and introspection.
+///
+/// For sessions the app owns (gatewayID available), uses session.history/session.usage directly.
+/// For other sessions, uses peekSession (resume→get data→close) which is expensive.
 struct SessionObserverView: View {
-    let sessionID: String
+    let session: Session
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
 
@@ -15,6 +18,7 @@ struct SessionObserverView: View {
     @State private var selectedSnapshot: SpawnTreeSnapshot?
     @State private var historyMessages: [ObserverMessage] = []
     @State private var isLoading = true
+    @State private var loadError: String?
     @State private var selectedTab: ObserverTab = .history
 
     enum ObserverTab: String, CaseIterable {
@@ -22,6 +26,9 @@ struct SessionObserverView: View {
         case usage = "Usage"
         case agents = "Agents"
     }
+
+    /// Whether this session is owned by the app (has gatewayID).
+    private var isOwned: Bool { session.isOwned }
 
     var body: some View {
         NavigationStack {
@@ -71,8 +78,13 @@ struct SessionObserverView: View {
         Group {
             if isLoading {
                 ProgressView("Loading history…")
+            } else if let error = loadError {
+                // Show error for Other Sessions that can't be loaded
+                emptyState(icon: "exclamationmark.triangle", title: "Cannot Load History",
+                           subtitle: error)
             } else if historyMessages.isEmpty {
-                emptyState(icon: "text.bubble", title: "No History", subtitle: "This session has no messages.")
+                emptyState(icon: "text.bubble", title: "No History",
+                           subtitle: "This session has no messages.")
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -125,6 +137,9 @@ struct SessionObserverView: View {
         Group {
             if isLoading {
                 ProgressView("Loading usage…")
+            } else if let error = loadError {
+                emptyState(icon: "exclamationmark.triangle", title: "Cannot Load Usage",
+                           subtitle: error)
             } else if let usage {
                 ScrollView {
                     VStack(spacing: 16) {
@@ -290,18 +305,59 @@ struct SessionObserverView: View {
     private func loadSessionData() async {
         guard case .connected = gatewayClientWrapper.client.connectionState else { return }
         isLoading = true
+        loadError = nil
 
-        async let historyTask = loadHistory()
-        async let usageTask = loadUsage()
-        async let treesTask = loadSpawnTrees()
+        if isOwned {
+            // We have the gatewayID (short hex) — use direct RPCs
+            await loadOwnedSessionData()
+        } else {
+            // Other session — use peekSession (expensive but works)
+            await loadOtherSessionData()
+        }
 
-        _ = await (historyTask, usageTask, treesTask)
+        // Spawn trees work for all sessions (uses database ID, reads from disk)
+        await loadSpawnTrees()
+
         isLoading = false
     }
 
-    private func loadHistory() async {
+    /// Load data for a session we own (we have the gateway short hex ID).
+    private func loadOwnedSessionData() async {
+        let rpcID = session.rpcID  // gatewayID (short hex)
+        async let historyTask = loadHistory(rpcID: rpcID)
+        async let usageTask = loadUsage(rpcID: rpcID)
+        _ = await (historyTask, usageTask)
+    }
+
+    /// Load data for a session from another transport using peekSession.
+    /// This is expensive (creates a full agent) so use sparingly.
+    private func loadOtherSessionData() async {
         do {
-            let response = try await gatewayClientWrapper.client.sessionHistory(sessionID: sessionID)
+            let result = try await gatewayClientWrapper.client.peekSession(sessionKey: session.id)
+            // Parse messages from the peek result
+            historyMessages = result.messages.compactMap { d -> ObserverMessage? in
+                guard let role = d["role"]?.stringValue, let content = d["content"]?.stringValue else { return nil }
+                return ObserverMessage(
+                    role: role,
+                    content: String(content.prefix(2000)),
+                    toolName: d["tool_name"]?.stringValue ?? d["name"]?.stringValue
+                )
+            }
+            usage = result.usage
+            // Use first user message as title
+            if let firstUser = historyMessages.first(where: { $0.role == "user" }) {
+                sessionTitle = String(firstUser.content.prefix(80))
+            }
+        } catch let error as GatewayError {
+            loadError = "Session not accessible: \(error.localizedDescription)"
+        } catch {
+            loadError = "Could not load session: \(error.localizedDescription)"
+        }
+    }
+
+    private func loadHistory(rpcID: String) async {
+        do {
+            let response = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcID)
             historyMessages = response.compactMap { d -> ObserverMessage? in
                 guard let role = d["role"]?.stringValue, let content = d["content"]?.stringValue else { return nil }
                 return ObserverMessage(
@@ -315,13 +371,13 @@ struct SessionObserverView: View {
                 sessionTitle = String(firstUser.content.prefix(80))
             }
         } catch {
-            // History may fail if session not active
+            loadError = "History unavailable: \(error.localizedDescription)"
         }
     }
 
-    private func loadUsage() async {
+    private func loadUsage(rpcID: String) async {
         do {
-            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID)
+            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: rpcID)
         } catch {
             // Usage may fail if session not active
         }
@@ -330,7 +386,7 @@ struct SessionObserverView: View {
     private func loadSpawnTrees() async {
         do {
             spawnTreeEntries = try await gatewayClientWrapper.client.spawnTreeList(
-                sessionID: sessionID, crossSession: false
+                sessionID: session.id, crossSession: false
             )
         } catch {
             // Spawn trees may not exist
@@ -501,59 +557,28 @@ struct SubagentRecordView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
-                        if let dur = record.durationSeconds {
-                            Text(String(format: "%.1fs", dur))
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-
-                    // Tool call stats
-                    if record.apiCalls ?? 0 > 0 {
-                        Text("\(record.apiCalls!) API calls")
-                            .font(.caption2)
-                            .foregroundStyle(.quaternary)
-                    }
-
-                    // Files touched
-                    if !record.filesWritten.isEmpty {
-                        Text("Wrote \(record.filesWritten.count) file\(record.filesWritten.count == 1 ? "" : "s")")
-                            .font(.caption2)
-                            .foregroundStyle(.quaternary)
                     }
                 }
-
-                Spacer()
-            }
-            .padding(10)
-            .background(Theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Children
-            ForEach(record.children) { child in
-                SubagentRecordView(record: child, depth: depth + 1)
-                    .padding(.leading, 20)
             }
         }
+        .padding(.leading, CGFloat(depth) * 16)
     }
 
     private var statusIcon: String {
         switch record.status {
-        case "completed": "checkmark.circle.fill"
-        case "failed": "xmark.circle.fill"
-        case "interrupted": "pause.circle.fill"
-        case "running": "circle.fill"
-        default: "circle.dashed"
+        case "completed": return "checkmark.circle.fill"
+        case "failed": return "xmark.circle.fill"
+        case "running": return "arrow.triangle.2.circlepath"
+        default: return "circle"
         }
     }
 
     private var statusColor: Color {
         switch record.status {
-        case "completed": Theme.success
-        case "failed": .red
-        case "interrupted": .orange
-        case "running": .blue
-        default: .secondary
+        case "completed": return .green
+        case "failed": return .red
+        case "running": return Theme.accent
+        default: return .secondary
         }
     }
 

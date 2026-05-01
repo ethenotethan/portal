@@ -150,9 +150,6 @@ struct SessionListView: View {
         do {
             await chatViewModel.createSession()
             if let sid = chatViewModel.currentSessionID {
-                if let key = gatewayClientWrapper.client.lastSessionKey {
-                    sessionList.storeSessionKey(id: sid, key: key)
-                }
                 sessionList.selectSession(id: sid)
                 await sessionList.refreshSessions()
             }
