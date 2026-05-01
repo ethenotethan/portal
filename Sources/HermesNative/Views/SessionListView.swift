@@ -16,7 +16,11 @@ struct SessionListView: View {
     @State private var otherSessionsCollapsed = false
 
     private var mySessions: [Session] {
-        sessionList.sessions.filter { $0.isOwned }
+        sessionList.sessions.filter { $0.isOwned && !$0.isArchived }
+    }
+
+    private var archivedSessions: [Session] {
+        sessionList.sessions.filter { $0.isOwned && $0.isArchived }
     }
 
     private var otherSessions: [Session] {
@@ -38,7 +42,7 @@ struct SessionListView: View {
                         SessionRowView(
                             title: sessionList.titleForSession(session),
                             subtitle: sessionList.subtitleForSession(session),
-                            source: nil,  // Don't show source for own sessions
+                            source: nil,
                             isActive: session.id == chatViewModel.currentSessionID,
                             isOwned: true
                         )
@@ -49,7 +53,30 @@ struct SessionListView: View {
                             } label: {
                                 Label("Mission Control", systemImage: "network")
                             }
+                            Divider()
+                            Button(role: .destructive) {
+                                sessionList.archiveSession(id: session.id)
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
                         }
+                        #if os(iOS)
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                onMissionControl?(session.id)
+                            } label: {
+                                Label("Mission Control", systemImage: "network")
+                            }
+                            .tint(Theme.accent)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                sessionList.archiveSession(id: session.id)
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+                        }
+                        #endif
                     }
                     .onDelete { indexSet in
                         for index in indexSet {
@@ -62,6 +89,67 @@ struct SessionListView: View {
                 }
             } header: {
                 sectionHeader(title: "My Sessions", icon: "bubble.left.fill")
+            }
+
+            // Archived
+            if !archivedSessions.isEmpty {
+                Section {
+                    if sessionList.showArchived {
+                        ForEach(archivedSessions) { session in
+                            SessionRowView(
+                                title: sessionList.titleForSession(session),
+                                subtitle: sessionList.subtitleForSession(session),
+                                source: nil,
+                                isActive: false,
+                                isOwned: true,
+                                isArchived: true
+                            )
+                            .contextMenu {
+                                Button {
+                                    sessionList.unarchiveSession(id: session.id)
+                                } label: {
+                                    Label("Unarchive", systemImage: "arrow.up.archive")
+                                }
+                                Divider()
+                                Button(role: .destructive) {
+                                    Task { try? await sessionList.deleteArchivedSession(id: session.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            #if os(iOS)
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    sessionList.unarchiveSession(id: session.id)
+                                } label: {
+                                    Label("Unarchive", systemImage: "arrow.up.archive")
+                                }
+                                .tint(.green)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    Task { try? await sessionList.deleteArchivedSession(id: session.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            #endif
+                        }
+                    }
+                } header: {
+                    collapsibleHeader(
+                        title: "Archived",
+                        icon: "archivebox",
+                        count: archivedSessions.count,
+                        isCollapsed: !sessionList.showArchived
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            sessionList.showArchived.toggle()
+                        }
+                    }
+                }
             }
 
             // Other Sessions (read-only, collapsible)
@@ -205,13 +293,14 @@ struct SessionRowView: View {
     let source: String?     // nil for owned sessions (don't show source badge)
     let isActive: Bool
     let isOwned: Bool
+    var isArchived: Bool = false
 
     var body: some View {
         HStack(spacing: 10) {
             // Source/platform icon or ownership indicator
             iconView
                 .font(.body)
-                .foregroundStyle(isOwned ? Theme.accent : .secondary)
+                .foregroundStyle(iconColor)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -219,6 +308,7 @@ struct SessionRowView: View {
                     .font(.subheadline)
                     .fontWeight(isActive ? .semibold : .regular)
                     .lineLimit(1)
+                    .foregroundStyle(isArchived ? .secondary : .primary)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
@@ -234,6 +324,10 @@ struct SessionRowView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption)
                     .foregroundStyle(Theme.accent)
+            } else if isArchived {
+                Image(systemName: "archivebox")
+                    .font(.caption2)
+                    .foregroundStyle(.quaternary)
             } else if !isOwned {
                 // Observer badge for non-owned sessions
                 Image(systemName: "eye")
@@ -242,6 +336,11 @@ struct SessionRowView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var iconColor: Color {
+        if isArchived { return .secondary }
+        return isOwned ? Theme.accent : .secondary
     }
 
     @ViewBuilder

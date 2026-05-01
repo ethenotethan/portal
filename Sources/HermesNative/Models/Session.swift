@@ -25,6 +25,9 @@ struct Session: Identifiable, Equatable {
 
     var isRunning: Bool = false // Derived from source context, not from gateway
 
+    /// Local-only: archived sessions are hidden from "My Sessions" by default.
+    var isArchived: Bool = false
+
     /// Whether this session was created by this app (we have the gateway short hex ID).
     var isOwned: Bool {
         gatewayID != nil && !gatewayID!.isEmpty

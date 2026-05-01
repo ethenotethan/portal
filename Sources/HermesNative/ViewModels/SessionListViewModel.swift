@@ -23,6 +23,9 @@ final class SessionListViewModel: ObservableObject {
     /// For "My Sessions", this lets us find the correct RPC session_id.
     private static let gatewayIDMapKey = "hermes.gatewayIDMap"
 
+    /// Set of database-format IDs that are archived.
+    private static let archivedIDsKey = "hermes.archivedSessions"
+
     private var gatewayIDMap: [String: String] {
         get { (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.gatewayIDMapKey) }
@@ -34,6 +37,15 @@ final class SessionListViewModel: ObservableObject {
         get { (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.titlesKey) }
     }
+
+    /// Archived session IDs — persisted to UserDefaults.
+    private var archivedIDs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Self.archivedIDsKey) }
+    }
+
+    /// Whether the "Archived" section is expanded.
+    @Published var showArchived: Bool = false
 
     /// Get the display title for a session.
     /// Priority: local title (from first user message) > gateway title > preview (truncated) > source > short ID.
@@ -118,6 +130,7 @@ final class SessionListViewModel: ObservableObject {
             var fetched = try await client.listSessions()
             let titles = localTitles
             let idMap = gatewayIDMap
+            let archived = archivedIDs
             for i in fetched.indices {
                 // Merge local title (overrides gateway title)
                 if let local = titles[fetched[i].id], !local.isEmpty {
@@ -127,6 +140,8 @@ final class SessionListViewModel: ObservableObject {
                 if let gwID = idMap[fetched[i].id] {
                     fetched[i].gatewayID = gwID
                 }
+                // Merge archive state
+                fetched[i].isArchived = archived.contains(fetched[i].id)
             }
 
             // Preserve sessions that are owned (have gatewayID) but whose
@@ -244,12 +259,63 @@ final class SessionListViewModel: ObservableObject {
         var idMap = gatewayIDMap
         idMap.removeValue(forKey: id)
         gatewayIDMap = idMap
+        // Remove from archived set too
+        var archived = archivedIDs
+        archived.remove(id)
+        archivedIDs = archived
 
         withAnimation {
             sessions.removeAll { $0.id == id }
         }
         if activeSessionID == id {
             activeSessionID = sessions.first?.id
+        }
+    }
+
+    /// Archive a session — hides it from "My Sessions", shows in "Archived".
+    func archiveSession(id: String) {
+        var archived = archivedIDs
+        archived.insert(id)
+        archivedIDs = archived
+
+        withAnimation {
+            if let idx = sessions.firstIndex(where: { $0.id == id }) {
+                sessions[idx].isArchived = true
+            }
+        }
+    }
+
+    /// Unarchive a session — moves it back to "My Sessions".
+    func unarchiveSession(id: String) {
+        var archived = archivedIDs
+        archived.remove(id)
+        archivedIDs = archived
+
+        withAnimation {
+            if let idx = sessions.firstIndex(where: { $0.id == id }) {
+                sessions[idx].isArchived = false
+            }
+        }
+    }
+
+    /// Permanently delete an archived session (kills gateway + removes local data).
+    func deleteArchivedSession(id: String) async throws {
+        // If the session is still alive on the gateway, kill it
+        if let session = sessions.first(where: { $0.id == id }), session.isOwned {
+            try await closeSession(id: id)
+        } else {
+            // Not owned — just clean local data
+            ChatHistoryStore.shared.deleteMessages(forSession: id)
+            var archived = archivedIDs
+            archived.remove(id)
+            archivedIDs = archived
+            var titles = localTitles
+            titles.removeValue(forKey: id)
+            localTitles = titles
+
+            withAnimation {
+                sessions.removeAll { $0.id == id }
+            }
         }
     }
 
