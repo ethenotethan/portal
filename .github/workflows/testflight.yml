@@ -17,7 +17,7 @@ concurrency:
 jobs:
   testflight:
     name: Archive & Upload to TestFlight
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
   # ── macOS Notarized Build (needs Developer ID cert, disabled for now) ──
   notarize-macos:
     name: Notarize macOS App
-    runs-on: macos-15
+    runs-on: macos-26
     if: false
 
     steps:
