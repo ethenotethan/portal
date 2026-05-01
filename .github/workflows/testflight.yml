@@ -1,0 +1,213 @@
+name: TestFlight
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to TestFlight?"
+        required: false
+        default: "true"
+
+concurrency:
+  group: testflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    name: Archive & Upload to TestFlight
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # ── Signing ──────────────────────────────────────────────────────
+      - name: Import Apple Distribution Certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
+          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
+
+      - name: Install Provisioning Profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | \
+            base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision
+          # Print UUID for ExportOptions.plist
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
+            <<< "$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision)")
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+
+      # ── Archive ──────────────────────────────────────────────────────
+      - name: Archive iOS App
+        run: |
+          xcodebuild archive \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination "generic/platform=iOS" \
+            -archivePath build/HermesNative.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            | xcpretty || exit 1
+
+      # ── Export ────────────────────────────────────────────────────────
+      - name: Create ExportOptions.plist
+        run: |
+          cat > build/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.researchoors.HermesNative.iOS</key>
+              <string>${{ env.PROFILE_UUID }}</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/HermesNative.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/ExportOptions.plist \
+            | xcpretty || exit 1
+
+      # ── Upload ────────────────────────────────────────────────────────
+      - name: Upload to TestFlight
+        if: ${{ github.event.inputs.upload != 'false' }}
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          # Write the API key to disk (xcrun altool / notarytool expects a file)
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > \
+            ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+
+          xcrun altool --upload-app \
+            -t ios \
+            -f build/export/HermesNative.ipa \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+      # ── Artifact (always, even if upload skipped) ─────────────────────
+      - name: Upload IPA as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HermesNative.ipa
+          path: build/export/HermesNative.ipa
+          retention-days: 30
+
+  # ── macOS Notarized Build ────────────────────────────────────────────
+  notarize-macos:
+    name: Notarize macOS App
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Import Developer ID Certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          p12-password: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+
+      - name: Archive macOS App
+        run: |
+          xcodebuild archive \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-macOS \
+            -destination "generic/platform=macOS" \
+            -archivePath build/HermesNative-macOS.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            | xcpretty || exit 1
+
+      - name: Export macOS App
+        run: |
+          cat > build/ExportOptions-macOS.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath build/HermesNative-macOS.xcarchive \
+            -exportPath build/export-macos \
+            -exportOptionsPlist build/ExportOptions-macOS.plist \
+            | xcpretty || exit 1
+
+      - name: Notarize
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          # Zip for notarization
+          ditto -c -k --keepParent \
+            build/export-macos/HermesNative-macOS.app \
+            build/HermesNative-macOS.zip
+
+          # Write API key
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > \
+            ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+
+          # Submit for notarization
+          xcrun notarytool submit build/HermesNative-macOS.zip \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --wait
+
+          # Staple the ticket
+          xcrun stapler staple build/export-macOS/HermesNative-macOS.app
+
+      - name: Upload macOS App as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HermesNative-macOS.app
+          path: build/export-macOS/HermesNative-macOS.app
+          retention-days: 30

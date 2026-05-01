@@ -11,7 +11,23 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: swift build 2>&1 | tee build.log
-      - name: Verify build succeeded
-        run: grep -q "Build complete" build.log
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build macOS
+        run: |
+          xcodebuild build \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-macOS \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="-" \
+            | xcpretty || exit 1
+      - name: Build iOS
+        run: |
+          xcodebuild build \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGN_IDENTITY="-" \
+            | xcpretty || exit 1
