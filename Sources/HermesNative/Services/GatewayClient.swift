@@ -408,6 +408,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return sessionID
     }
 
+    /// Set an ephemeral system prompt on the live agent for a session.
+    /// The prompt is appended to the agent's system prompt on every API call
+    /// but is NOT persisted to trajectories. Setting empty string clears it.
+    func setEphemeralPrompt(sessionID: String, prompt: String) async throws {
+        let response = try await call("session.set_prompt", params: [
+            "session_id": AnyCodable(sessionID),
+            "prompt": AnyCodable(prompt),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     /// List active sessions.
     /// Gateway returns: id, title, preview, started_at, message_count, source
     func listSessions() async throws -> [Session] {

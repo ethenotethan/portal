@@ -4,6 +4,25 @@ import Combine
 /// Core chat ViewModel — manages conversation state and interacts with the gateway.
 @MainActor
 final class ChatViewModel: ObservableObject {
+
+    // MARK: - App Formatting Prompt
+    // Injected as ephemeral system prompt so the model uses mermaid diagrams
+    // and rich markdown — matching the app's native rendering capabilities.
+
+    static let appFormattingPrompt = """
+    ## Response Formatting (HermesNative App)
+
+    You are running inside a native app that renders rich markdown and Mermaid diagrams. Use these capabilities:
+
+    - **Mermaid diagrams** for architecture, data flows, protocol sequences, call chains, state machines, component relationships, or any "how does X connect to Y" question. Use the appropriate type: flowchart, sequenceDiagram, graph, stateDiagram-v2, classDiagram. Wrap in ```mermaid blocks. One concept per diagram.
+    - **Markdown headings** (##, ###) to structure longer responses
+    - **Bold** for key terms, *italic* for emphasis
+    - **Code blocks** with language tags (```python, ```swift, ```bash)
+    - **Ordered/unordered lists** for steps and enumerations
+    - **Blockquotes** for important callouts
+
+    Prefer diagram-first: when a visual explanation is possible, lead with the Mermaid diagram, then explain in prose.
+    """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
     @Published var isStreaming: Bool = false
@@ -109,6 +128,16 @@ final class ChatViewModel: ObservableObject {
             self.messages = []
             self.activeToolCalls = [:]
             self.error = nil
+
+            // Inject the app's formatting prompt so the model uses mermaid + rich markdown
+            if let personaSuffix = personaManager?.activePersona.systemPromptSuffix,
+               !personaSuffix.isEmpty {
+                // Merge persona suffix with app formatting prompt
+                let combined = Self.appFormattingPrompt + "\n\n" + personaSuffix
+                try? await client.setEphemeralPrompt(sessionID: sid, prompt: combined)
+            } else {
+                try? await client.setEphemeralPrompt(sessionID: sid, prompt: Self.appFormattingPrompt)
+            }
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
@@ -136,6 +165,9 @@ final class ChatViewModel: ObservableObject {
 
             // Parse history messages from the gateway
             self.messages = Self.parseHistoryMessages(result.messages)
+
+            // Re-inject the app's formatting prompt on resume
+            try? await client.setEphemeralPrompt(sessionID: result.sessionID, prompt: Self.appFormattingPrompt)
         } catch {
             self.error = "Session resume failed: \(error.localizedDescription)"
         }
