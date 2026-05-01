@@ -25,9 +25,6 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
-      - name: Install xcpretty
-        run: gem install xcpretty
-
       - name: Generate Xcode project
         run: xcodegen generate
 
@@ -61,7 +58,7 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_UUID }}" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            2>&1 | tee build/archive.log | xcpretty; exit ${PIPESTATUS[0]}
+            CODE_SIGN_ALLOW_PROVISIONING_UPDATES=NO
 
       # ── Export ────────────────────────────────────────────────────────
       - name: Create ExportOptions.plist
@@ -98,8 +95,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/HermesNative.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist build/ExportOptions.plist \
-            2>&1 | tee build/export.log | xcpretty; exit ${PIPESTATUS[0]}
+            -exportOptionsPlist build/ExportOptions.plist
 
       # ── Upload ────────────────────────────────────────────────────────
       - name: Upload to TestFlight
@@ -139,9 +135,6 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
-      - name: Install xcpretty
-        run: gem install xcpretty
-
       - name: Generate Xcode project
         run: xcodegen generate
 
@@ -161,8 +154,7 @@ jobs:
             -archivePath build/HermesNative-macOS.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            2>&1 | tee build/archive-macos.log | xcpretty; exit ${PIPESTATUS[0]}
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}"
 
       - name: Export macOS App
         run: |
@@ -185,8 +177,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/HermesNative-macOS.xcarchive \
             -exportPath build/export-macos \
-            -exportOptionsPlist build/ExportOptions-macOS.plist \
-            2>&1 | tee build/export-macos.log | xcpretty; exit ${PIPESTATUS[0]}
+            -exportOptionsPlist build/ExportOptions-macOS.plist
 
       - name: Notarize
         env:
