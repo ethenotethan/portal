@@ -53,6 +53,14 @@ struct ChatView: View {
             // Message list
             ScrollViewReader { proxy in
                 ScrollView {
+                    GeometryReader { viewport in
+                        Color.clear.preference(
+                            key: ChatViewportHeightKey.self,
+                            value: viewport.size.height
+                        )
+                    }
+                    .frame(height: 0)
+
                     ZStack(alignment: .topLeading) {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
@@ -62,30 +70,27 @@ struct ChatView: View {
                                     msgs[index + 1].role == message.role
                                 let isLastInGroup = !nextIsSameRole
 
-                                // Dark Manga: avatar is a singleton overlay, not per-bubble
-                                let showAvatar = activeSkin == .darkManga ? false :
-                                    (message.role == .assistant && isLastInGroup && !chatViewModel.isStreaming)
-
-                                // Timestamp: only on the last message in a consecutive group
+                                // Timestamp: only on the last message in a consecutive same-role group
                                 let showTimestamp = isLastInGroup
 
                                 skinProvider.messageBubble(
                                     message: {
                                         var m = message
-                                        m.showAvatar = showAvatar
+                                        m.showAvatar = false
                                         m.showTimestamp = showTimestamp
                                         return m
                                     }(),
                                     persona: personaManager.activePersona
                                 )
                                 .id(message.id)
-                                // Report Y position for floating avatar (Dark Manga only)
+                                // Report the latest assistant turn's bottom edge so the
+                                // singleton avatar can travel through the conversation.
                                 .background {
-                                    if activeSkin == .darkManga && message.role == .assistant {
+                                    if message.role == .assistant {
                                         GeometryReader { geo in
                                             Color.clear.preference(
                                                 key: LatestBotTurnYKey.self,
-                                                value: geo.frame(in: .named("chatContent")).minY
+                                                value: max(0, geo.frame(in: .named("chatContent")).maxY - 52)
                                             )
                                         }
                                     }
@@ -103,30 +108,34 @@ struct ChatView: View {
                                 .id("streaming-status")
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                                 .background {
-                                    if activeSkin == .darkManga {
-                                        GeometryReader { geo in
-                                            Color.clear.preference(
-                                                key: LatestBotTurnYKey.self,
-                                                value: geo.frame(in: .named("chatContent")).minY
-                                            )
-                                        }
+                                    GeometryReader { geo in
+                                        Color.clear.preference(
+                                            key: LatestBotTurnYKey.self,
+                                            value: max(0, geo.frame(in: .named("chatContent")).maxY - 52)
+                                        )
                                     }
                                 }
                             }
                         }
-                        .padding(.leading, activeSkin == .darkManga ? 80 : 12)
-                        .padding(.trailing, 8)
+                        .padding(.leading, 72)
+                        .padding(.trailing, 16)
                         .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        // ── Singleton floating avatar (Dark Manga only) ──
-                        // Exactly one avatar element. Animated Y tracks latest bot turn.
-                        if activeSkin == .darkManga && hasBotContent {
-                            FloatingAvatarView(expression: currentAvatarExpression)
-                                .offset(y: avatarY)
-                                .padding(.leading, 16)
+                        // ── Singleton traveling avatar ──
+                        // Exactly one avatar element. Animated Y tracks the latest bot turn,
+                        // matching Claude Code's bottom-left traveling assistant marker.
+                        if hasBotContent {
+                            FloatingAvatarView(
+                                expression: currentAvatarExpression,
+                                persona: personaManager.activePersona
+                            )
+                            .offset(y: avatarY)
+                            .padding(.leading, 16)
                         }
                     }
                     .coordinateSpace(name: "chatContent")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .background(activeSkin.background)
                 #if os(iOS)
@@ -137,6 +146,11 @@ struct ChatView: View {
                         withAnimation(.easeInOut(duration: 0.4)) {
                             avatarY = y
                         }
+                    }
+                }
+                .onPreferenceChange(ChatViewportHeightKey.self) { height in
+                    if !hasBotContent {
+                        avatarY = max(0, height - 72)
                     }
                 }
                 .onChange(of: chatViewModel.messages.count) { _, _ in
@@ -317,23 +331,35 @@ struct ChatView: View {
 
 private struct FloatingAvatarView: View {
     let expression: CharacterExpression
+    let persona: Persona
 
     var body: some View {
         VStack(spacing: 4) {
-            LottieCharacterView(
-                expression: expression,
-                size: CGSize(width: 48, height: 48)
-            )
-            .frame(width: 48, height: 48)
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Theme.surface.opacity(0.96))
+                    .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
+
+                LottieCharacterView(
+                    expression: expression,
+                    size: CGSize(width: 48, height: 48)
+                )
+                .frame(width: 48, height: 48)
+            }
+            .frame(width: 52, height: 52)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Theme.accent.opacity(0.4), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(persona.accentColor.opacity(0.55), lineWidth: 1)
             )
 
-            Text("Creative")
+            Text(persona.name)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Theme.accent.opacity(0.6))
+                .lineLimit(1)
+                .frame(width: 58)
+                .foregroundStyle(persona.accentColor.opacity(0.75))
         }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -346,6 +372,13 @@ private struct LatestBotTurnYKey: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: CGFloat? = nil
     static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
         if let next = nextValue() { value = next }
+    }
+}
+
+private struct ChatViewportHeightKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

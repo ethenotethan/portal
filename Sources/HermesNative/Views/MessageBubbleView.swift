@@ -62,69 +62,24 @@ struct MessageBubbleView: View {
     }
 
     private var iosAssistantBubble: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Avatar
-            personaManager.activePersona.bubbleAvatar(size: Theme.avatarSize)
-                .clipShape(Circle())
-
-            // Bubble + timestamp
-            VStack(alignment: .leading, spacing: 4) {
-                VStack(alignment: .leading, spacing: 8) {
-                    let displayContent = message.contentWithoutAttachments
-                    if !displayContent.isEmpty {
-                        if message.isStreaming && message.content.hasSuffix("…") == false {
-                            MarkdownContentView(text: displayContent)
-                        } else if displayContent.isEmpty && message.isStreaming {
-                            EmptyView()
-                        } else {
-                            MarkdownContentView(text: displayContent)
-                        }
-                    }
-
-                    let attachments = MediaParser.extractAttachments(from: message.content)
-                    if !attachments.isEmpty {
-                        VStack(spacing: 4) {
-                            ForEach(attachments) { attachment in
-                                AttachmentChipView(attachment: attachment)
-                            }
-                        }
-                    }
-
-                    if let reasoning = message.reasoning, !reasoning.isEmpty {
-                        ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
-                    }
-
-                    if !message.toolCalls.isEmpty && !message.isStreaming {
-                        CompletedToolsSection(tools: message.toolCalls)
-                    }
-                }
-                .padding(.horizontal, Theme.bubblePaddingH)
-                .padding(.vertical, Theme.bubblePaddingV)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
-
-                Text(message.timestamp, style: .time)
-                    .font(.system(.caption2))
-                    .foregroundStyle(Theme.tertiary)
-                    .padding(.leading, 4)
-            }
-
-            Spacer(minLength: 0)
-        }
+        assistantFullWidthBubble
     }
     #endif
 
     // MARK: - macOS Bubble (original left-aligned layout)
 
     #if os(macOS)
+    @ViewBuilder
     private var macOSBubble: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Avatar (48px circle)
-            if message.role == .assistant {
-                personaManager.activePersona.bubbleAvatar(size: Theme.avatarSize)
-                    .clipShape(Circle())
-            }
+        if message.role == .assistant {
+            assistantFullWidthBubble
+        } else {
+            macOSUserBubble
+        }
+    }
 
-            // Bubble + timestamp
+    private var macOSUserBubble: some View {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 // Message bubble
                 VStack(alignment: .leading, spacing: 8) {
@@ -173,13 +128,59 @@ struct MessageBubbleView: View {
                     .padding(.leading, 4)
             }
 
-            // Spacer for user messages (right-align them)
-            if message.role == .user {
-                Spacer(minLength: 0)
-            }
+            Spacer(minLength: 0)
         }
     }
     #endif
+
+    // MARK: - Assistant Bubble (full-width transcript lane)
+
+    private var assistantFullWidthBubble: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
+                let displayContent = message.contentWithoutAttachments
+                if !displayContent.isEmpty {
+                    if message.isStreaming && message.content.hasSuffix("…") == false {
+                        MarkdownContentView(text: displayContent)
+                    } else if displayContent.isEmpty && message.isStreaming {
+                        EmptyView()
+                    } else {
+                        MarkdownContentView(text: displayContent)
+                    }
+                }
+
+                let attachments = MediaParser.extractAttachments(from: message.content)
+                if !attachments.isEmpty {
+                    VStack(spacing: 4) {
+                        ForEach(attachments) { attachment in
+                            AttachmentChipView(attachment: attachment)
+                        }
+                    }
+                }
+
+                if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
+                }
+
+                if !message.toolCalls.isEmpty && !message.isStreaming {
+                    CompletedToolsSection(tools: message.toolCalls)
+                }
+            }
+            .padding(.horizontal, Theme.bubblePaddingH)
+            .padding(.vertical, Theme.bubblePaddingV)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+
+            if message.showTimestamp {
+                Text(message.timestamp, style: .time)
+                    .font(.system(.caption2))
+                    .foregroundStyle(Theme.tertiary)
+                    .padding(.leading, 4)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
 }
 
 // MARK: - Reasoning Section
@@ -265,3 +266,4 @@ private struct CompletedToolsSection: View {
 extension ChatMessage {
     var timestamp: Date { Date() }
 }
+

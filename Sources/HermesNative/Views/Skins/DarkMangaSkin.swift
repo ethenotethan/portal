@@ -32,7 +32,6 @@ private enum Layout {
     static let bubbleRadius: CGFloat = 14
     static let bubblePaddingH: CGFloat = 14
     static let bubblePaddingV: CGFloat = 10
-    static let maxBubbleWidth: CGFloat = 680
     static let turnSpacing: CGFloat = 16
 }
 
@@ -64,7 +63,7 @@ private struct DarkMangaMessageBubble: View {
                         Theme.accent.opacity(0.85),
                         in: RoundedRectangle(cornerRadius: Layout.bubbleRadius)
                     )
-                    .frame(maxWidth: Layout.maxBubbleWidth, alignment: .trailing)
+                    .frame(maxWidth: 680, alignment: .trailing)
 
                 if message.showTimestamp {
                     Text(message.timestamp, style: .time)
@@ -114,6 +113,7 @@ private struct DarkMangaMessageBubble: View {
             }
             .padding(.horizontal, Layout.bubblePaddingH)
             .padding(.vertical, Layout.bubblePaddingV)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
 
             if message.showTimestamp {
@@ -123,7 +123,7 @@ private struct DarkMangaMessageBubble: View {
                     .padding(.leading, 4)
             }
         }
-        .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, Layout.turnSpacing)
     }
 }
@@ -296,7 +296,7 @@ private struct DarkMangaStreamingIndicator: View {
         }
         .padding(.horizontal, Layout.bubblePaddingH)
         .padding(.vertical, Layout.bubblePaddingV)
-        .frame(maxWidth: Layout.maxBubbleWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: Layout.bubbleRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Layout.bubbleRadius)

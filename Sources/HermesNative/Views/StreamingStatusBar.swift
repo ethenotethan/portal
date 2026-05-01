@@ -123,7 +123,9 @@ struct StreamingStatusBar: View {
                 .padding(.leading, 20)
             }
         }
-        .padding(.leading, 20)
-        .padding(.vertical, 4)
+        .padding(.horizontal, Theme.bubblePaddingH)
+        .padding(.vertical, Theme.bubblePaddingV)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
     }
 }
