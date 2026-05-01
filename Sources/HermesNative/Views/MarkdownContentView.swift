@@ -36,6 +36,8 @@ struct MarkdownContentView: View {
                     BlockQuoteView(content: content)
                 case .horizontalRule:
                     Divider().padding(.vertical, 2)
+                case .table(let headers, let rows):
+                    TableView(headers: headers, rows: rows)
                 case .paragraph(let content):
                     MarkdownText(text: content)
                 }
@@ -57,6 +59,7 @@ enum MarkdownBlock: Equatable {
     case listItem(index: Int, content: String, isOrdered: Bool)
     case blockquote(content: String)
     case horizontalRule
+    case table(headers: [String], rows: [[String]])
 }
 
 // MARK: - Parser
@@ -160,6 +163,21 @@ struct MarkdownParser {
                 continue
             }
 
+            // GFM table
+            if isTableRow(trimmed) && i + 1 < lines.count && isTableDelimiter(lines[i + 1].trimmingCharacters(in: .whitespaces)) {
+                let headers = parseTableRowCells(trimmed)
+                i += 1
+                // skip delimiter row
+                i += 1
+                var rows: [[String]] = []
+                while i < lines.count && isTableRow(lines[i].trimmingCharacters(in: .whitespaces)) {
+                    rows.append(parseTableRowCells(lines[i].trimmingCharacters(in: .whitespaces)))
+                    i += 1
+                }
+                blocks.append(.table(headers: headers, rows: rows))
+                continue
+            }
+
             // Empty line — skip
             if trimmed.isEmpty {
                 i += 1
@@ -228,6 +246,29 @@ struct MarkdownParser {
         let contentStart = trimmed[afterDot...].firstIndex(where: { !$0.isWhitespace })
             ?? trimmed.endIndex
         return (num, String(trimmed[contentStart...]))
+    }
+
+    private static func isTableRow(_ s: String) -> Bool {
+        s.hasPrefix("|") && s.hasSuffix("|")
+    }
+
+    private static func isTableDelimiter(_ s: String) -> Bool {
+        guard isTableRow(s) else { return false }
+        let cells = parseTableRowCells(s)
+        return cells.allSatisfy { cell in
+            let trimmed = cell.trimmingCharacters(in: .whitespaces)
+            guard trimmed.count >= 3 else { return false }
+            return trimmed.allSatisfy { $0 == "-" || $0 == ":" || $0 == " " }
+        }
+    }
+
+    private static func parseTableRowCells(_ line: String) -> [String] {
+        var stripped = line
+        if stripped.hasPrefix("|") { stripped = String(stripped.dropFirst()) }
+        if stripped.hasSuffix("|") { stripped = String(stripped.dropLast()) }
+        return stripped.components(separatedBy: "|").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
     }
 }
 
@@ -387,5 +428,57 @@ struct BlockQuoteView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.leading, 4)
+    }
+}
+
+// MARK: - Table View
+
+struct TableView: View {
+    let headers: [String]
+    let rows: [[String]]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header row
+                HStack(spacing: 0) {
+                    ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
+                        MarkdownText(text: header)
+                            .font(.subheadline.bold())
+                            .frame(minWidth: 60, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                    }
+                }
+                #if os(macOS)
+                .background(Color(nsColor: .windowBackgroundColor))
+                #else
+                .background(Color(uiColor: .systemGroupedBackground))
+                #endif
+
+                // Data rows
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 0) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                            MarkdownText(text: cell)
+                                .font(.subheadline)
+                                .frame(minWidth: 60, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                        }
+                    }
+                    Divider()
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    #if os(macOS)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+                    #else
+                    .stroke(Color(uiColor: .separator).opacity(0.5), lineWidth: 0.5)
+                    #endif
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
     }
 }
