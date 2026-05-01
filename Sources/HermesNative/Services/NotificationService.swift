@@ -3,9 +3,20 @@ import UserNotifications
 
 /// Posts local notifications for gateway events that require user action.
 /// Fires when the app is backgrounded or the event is for a non-active session.
+/// Suppresses notifications for the session the user is currently viewing.
 @MainActor
 final class NotificationService: NSObject, ObservableObject {
     static let shared = NotificationService()
+
+    /// Set by ChatViewModel — the session the user is currently viewing.
+    var activeSessionID: String? {
+        didSet { UserDefaults.standard.set(activeSessionID, forKey: "hermes.notificationActiveSessionID") }
+    }
+
+    /// Whether the app is in the foreground.
+    var isForegrounded: Bool = true {
+        didSet { UserDefaults.standard.set(isForegrounded, forKey: "hermes.notificationIsForegrounded") }
+    }
 
     private override init() {
         super.init()
@@ -88,6 +99,11 @@ final class NotificationService: NSObject, ObservableObject {
         category: NotificationCategory,
         sessionID: String?
     ) {
+        // Suppress if user is foregrounded AND viewing this session
+        if isForegrounded, let sessionID, sessionID == activeSessionID {
+            return
+        }
+
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -113,13 +129,20 @@ final class NotificationService: NSObject, ObservableObject {
 // MARK: - UNUserNotificationCenterDelegate
 
 extension NotificationService: UNUserNotificationCenterDelegate {
-    /// Show notifications even when app is in foreground.
+    /// Show notifications even when app is in foreground — but suppress for active session.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        let sessionID = notification.request.content.userInfo["session_id"] as? String
+        let isFG = UserDefaults.standard.bool(forKey: "hermes.notificationIsForegrounded")
+        let activeID = UserDefaults.standard.string(forKey: "hermes.notificationActiveSessionID")
+        if isFG, let sessionID, sessionID == activeID {
+            completionHandler([]) // Deliver silently, no banner/sound
+        } else {
+            completionHandler([.banner, .sound])
+        }
     }
 
     /// Handle notification tap — switch to the relevant session.

@@ -105,6 +105,12 @@ struct ContentView: View {
             if newPhase != .active {
                 chatViewModel.saveHistory()
             }
+            // Update notification service foreground state
+            NotificationService.shared.isForegrounded = (newPhase == .active)
+        }
+        .onChange(of: chatViewModel.currentSessionID) { _, newID in
+            // Update notification service so it suppresses notifications for active session
+            NotificationService.shared.activeSessionID = newID
         }
     }
 

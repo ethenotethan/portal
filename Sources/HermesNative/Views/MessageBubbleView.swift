@@ -2,11 +2,121 @@ import SwiftUI
 
 /// Dark-mode message bubble — avatar + dark gray card + white text + timestamp.
 /// Matches the design spec: #2a2a2a bubble, 16px corners, generous padding.
+/// On iOS: user messages are right-aligned with accent-tinted background (Claude-style).
 struct MessageBubbleView: View {
     let message: ChatMessage
     @EnvironmentObject var personaManager: PersonaManager
 
     var body: some View {
+        #if os(iOS)
+        if message.role == .user {
+            iosUserBubble
+        } else {
+            iosAssistantBubble
+        }
+        #else
+        macOSBubble
+        #endif
+    }
+
+    // MARK: - iOS User Bubble (right-aligned, accent-tinted)
+
+    #if os(iOS)
+    private var iosUserBubble: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 60)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 8) {
+                    let displayContent = message.contentWithoutAttachments
+                    if !displayContent.isEmpty {
+                        Text(displayContent)
+                            .foregroundStyle(.white)
+                            .textSelection(.enabled)
+                    }
+
+                    let attachments = MediaParser.extractAttachments(from: message.content)
+                    if !attachments.isEmpty {
+                        VStack(spacing: 4) {
+                            ForEach(attachments) { attachment in
+                                AttachmentChipView(attachment: attachment)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, Theme.bubblePaddingH)
+                .padding(.vertical, Theme.bubblePaddingV)
+                .background(
+                    Color.accentColor.opacity(0.85),
+                    in: RoundedRectangle(cornerRadius: Theme.bubbleRadius)
+                )
+
+                if message.showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiary.opacity(0.5))
+                        .padding(.trailing, 4)
+                }
+            }
+        }
+    }
+
+    private var iosAssistantBubble: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Avatar
+            personaManager.activePersona.bubbleAvatar(size: Theme.avatarSize)
+                .clipShape(Circle())
+
+            // Bubble + timestamp
+            VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
+                    let displayContent = message.contentWithoutAttachments
+                    if !displayContent.isEmpty {
+                        if message.isStreaming && message.content.hasSuffix("…") == false {
+                            MarkdownContentView(text: displayContent)
+                        } else if displayContent.isEmpty && message.isStreaming {
+                            EmptyView()
+                        } else {
+                            MarkdownContentView(text: displayContent)
+                        }
+                    }
+
+                    let attachments = MediaParser.extractAttachments(from: message.content)
+                    if !attachments.isEmpty {
+                        VStack(spacing: 4) {
+                            ForEach(attachments) { attachment in
+                                AttachmentChipView(attachment: attachment)
+                            }
+                        }
+                    }
+
+                    if let reasoning = message.reasoning, !reasoning.isEmpty {
+                        ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
+                    }
+
+                    if !message.toolCalls.isEmpty && !message.isStreaming {
+                        CompletedToolsSection(tools: message.toolCalls)
+                    }
+                }
+                .padding(.horizontal, Theme.bubblePaddingH)
+                .padding(.vertical, Theme.bubblePaddingV)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
+
+                Text(message.timestamp, style: .time)
+                    .font(.system(.caption2))
+                    .foregroundStyle(Theme.tertiary)
+                    .padding(.leading, 4)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+    #endif
+
+    // MARK: - macOS Bubble (original left-aligned layout)
+
+    #if os(macOS)
+    private var macOSBubble: some View {
         HStack(alignment: .top, spacing: 12) {
             // Avatar (48px circle)
             if message.role == .assistant {
@@ -69,6 +179,7 @@ struct MessageBubbleView: View {
             }
         }
     }
+    #endif
 }
 
 // MARK: - Reasoning Section
