@@ -107,6 +107,7 @@ jobs:
       # ── Upload ────────────────────────────────────────────────────────
       - name: Upload to TestFlight
         if: ${{ github.event.inputs.upload != 'false' }}
+        continue-on-error: true
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -118,7 +119,7 @@ jobs:
 
           xcrun altool --upload-app \
             -t ios \
-            -f build/export/HermesNative.ipa \
+            -f build/export/HermesNative-iOS.ipa \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
@@ -126,14 +127,15 @@ jobs:
       - name: Upload IPA as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HermesNative.ipa
-          path: build/export/HermesNative.ipa
+          name: HermesNative-iOS.ipa
+          path: build/export/HermesNative-iOS.ipa
           retention-days: 30
 
-  # ── macOS Notarized Build ────────────────────────────────────────────
+  # ── macOS Notarized Build (needs Developer ID cert, disabled for now) ──
   notarize-macos:
     name: Notarize macOS App
     runs-on: macos-15
+    if: false
 
     steps:
       - uses: actions/checkout@v4
