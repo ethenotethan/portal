@@ -29,11 +29,32 @@ jobs:
         run: xcodegen generate
 
       # ── Signing ──────────────────────────────────────────────────────
-      - name: Import Apple Distribution Certificate
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
-          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
+      - name: Install Apple Distribution Certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
+        run: |
+          # Create a dedicated keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p actions "$KEYCHAIN_PATH"
+
+          # Import the P12
+          P12_PATH="$RUNNER_TEMP/cert.p12"
+          echo "$P12_BASE64" | base64 -d > "$P12_PATH"
+          security import "$P12_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k actions "$KEYCHAIN_PATH"
+
+          # Add to search list AND set as default
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+
+          # Verify
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          rm -f "$P12_PATH"
 
       - name: Install Provisioning Profile
         run: |
@@ -43,12 +64,6 @@ jobs:
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
             <<< "$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision)")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-
-      - name: Fix keychain search list
-        run: |
-          # Add the import-codesign-certs temp keychain to the search list
-          KEYCHAIN_PATH="$HOME/Library/Keychains/signing_temp.keychain-db"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
       # ── Archive ──────────────────────────────────────────────────────
       - name: Archive iOS App
@@ -142,16 +157,28 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Import Certificate
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
-          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
-
-      - name: Fix keychain search list
+      - name: Install Apple Distribution Certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
         run: |
-          KEYCHAIN_PATH="$HOME/Library/Keychains/signing_temp.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p actions "$KEYCHAIN_PATH"
+
+          P12_PATH="$RUNNER_TEMP/cert.p12"
+          echo "$P12_BASE64" | base64 -d > "$P12_PATH"
+          security import "$P12_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -k actions "$KEYCHAIN_PATH"
+
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
+
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          rm -f "$P12_PATH"
 
       - name: Archive macOS App
         run: |
