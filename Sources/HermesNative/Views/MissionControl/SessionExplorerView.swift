@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Drill-in view for a single session — shows the spawn tree as a node graph.
+/// Drill-in view for a single session — shows spawn tree + usage tabs.
 /// Presented as a sheet on long-press of a session row.
 struct SessionExplorerView: View {
     let sessionID: String
@@ -10,6 +10,17 @@ struct SessionExplorerView: View {
     @State private var selectedNodeID: String?
     @State private var showTranscriptFor: SpawnNode?
     @State private var expandDepth: Int = 3
+    @State private var selectedTab: ExplorerTab = .tree
+
+    // Usage data
+    @State private var usage: SessionUsage?
+    @State private var isLoadingUsage = false
+    @State private var usageError: String?
+
+    enum ExplorerTab: String, CaseIterable {
+        case tree = "Agents"
+        case usage = "Usage"
+    }
 
     private var tree: SessionTree? {
         spawnTreeStore.sessions.first { $0.sessionID == sessionID }
@@ -17,22 +28,39 @@ struct SessionExplorerView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let tree {
-                    treeContent(tree: tree)
-                } else {
-                    emptyState
+            VStack(spacing: 0) {
+                // Tab picker
+                Picker("", selection: $selectedTab) {
+                    ForEach(ExplorerTab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                // Content
+                Group {
+                    switch selectedTab {
+                    case .tree:
+                        treeOrEmpty
+                    case .usage:
+                        usageContent
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Stepper("Depth: \(expandDepth)", value: $expandDepth, in: 0...10)
-                        .font(.caption)
-                    if let tree {
-                        interruptButton(tree: tree)
+                if selectedTab == .tree {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Stepper("Depth: \(expandDepth)", value: $expandDepth, in: 0...10)
+                            .font(.caption)
+                        if let tree {
+                            interruptButton(tree: tree)
+                        }
                     }
                 }
             }
@@ -45,7 +73,17 @@ struct SessionExplorerView: View {
         }
     }
 
-    // MARK: - Tree Content
+    // MARK: - Tree Tab
+
+    private var treeOrEmpty: some View {
+        Group {
+            if let tree {
+                treeContent(tree: tree)
+            } else {
+                emptyTreeState
+            }
+        }
+    }
 
     private func treeContent(tree: SessionTree) -> some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -72,9 +110,7 @@ struct SessionExplorerView: View {
         .navigationTitle(tree.root.goal.isEmpty ? "Mission Control" : String(tree.root.goal.prefix(50)))
     }
 
-    // MARK: - Empty State
-
-    private var emptyState: some View {
+    private var emptyTreeState: some View {
         VStack(spacing: 16) {
             Spacer()
             Image(systemName: "arrow.triangle.branch")
@@ -164,6 +200,159 @@ struct SessionExplorerView: View {
             .replacingOccurrences(of: "openai/", with: "")
             .replacingOccurrences(of: "openrouter/", with: "")
         return String(trimmed.prefix(20))
+    }
+
+    // MARK: - Usage Tab
+
+    private var usageContent: some View {
+        Group {
+            if isLoadingUsage {
+                ProgressView("Loading usage…")
+            } else if let error = usageError {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    Text("Cannot Load Usage")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+            } else if let usage {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        explorerUsageDashboard(usage: usage)
+                    }
+                    .padding()
+                }
+            } else {
+                VStack(spacing: 16) {
+                    Image(systemName: "chart.bar")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    Text("No Usage Data")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("This session may not be active in the gateway.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .task { await loadUsage() }
+    }
+
+    private func explorerUsageDashboard(usage: SessionUsage) -> some View {
+        VStack(spacing: 16) {
+            // Model
+            usageCard(icon: "cpu", title: "Model", value: shortModel(usage.model))
+
+            // Cost
+            if let cost = usage.costUSD, cost > 0 {
+                usageCard(icon: "dollarsign.circle", title: "Cost",
+                          value: String(format: "$%.4f", cost))
+            }
+
+            // Tokens
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                usageCard(icon: "arrow.down.circle", title: "Input",
+                          value: formatNumber(usage.inputTokens))
+                usageCard(icon: "arrow.up.circle", title: "Output",
+                          value: formatNumber(usage.outputTokens))
+                usageCard(icon: "number.circle", title: "Total",
+                          value: formatNumber(usage.totalTokens))
+                usageCard(icon: "phone.connection", title: "API Calls",
+                          value: formatNumber(usage.apiCalls))
+            }
+
+            // Cache stats
+            if let cacheRead = usage.cacheReadTokens, cacheRead > 0 {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    usageCard(icon: "arrow.triangle.2.circlepath", title: "Cache Read",
+                              value: formatNumber(cacheRead))
+                    if let cacheWrite = usage.cacheWriteTokens, cacheWrite > 0 {
+                        usageCard(icon: "arrow.triangle.circlepath", title: "Cache Write",
+                                  value: formatNumber(cacheWrite))
+                    }
+                }
+            }
+
+            // Context window
+            if let ctxPct = usage.contextPercent, let ctxUsed = usage.contextUsed, let ctxMax = usage.contextMax {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "text.append")
+                            .foregroundStyle(Theme.accent)
+                        Text("Context Window")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(formatNumber(ctxUsed)) / \(formatNumber(ctxMax))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    ProgressView(value: Double(ctxPct) / 100.0)
+                        .tint(ctxPct > 80 ? Theme.warning : Theme.accent)
+                    Text("\(ctxPct)% used")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Compressions
+            if let compressions = usage.compressions, compressions > 0 {
+                usageCard(icon: "arrow.3.trianglepath", title: "Compressions",
+                          value: "\(compressions)")
+            }
+        }
+    }
+
+    private func usageCard(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(Theme.accent)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func formatNumber(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
+    private func loadUsage() async {
+        guard case .connected = gatewayClientWrapper.client.connectionState else {
+            usageError = "Not connected to gateway"
+            return
+        }
+        isLoadingUsage = true
+        usageError = nil
+        do {
+            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID)
+        } catch {
+            usageError = error.localizedDescription
+        }
+        isLoadingUsage = false
     }
 }
 

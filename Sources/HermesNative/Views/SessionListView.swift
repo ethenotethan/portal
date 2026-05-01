@@ -13,6 +13,8 @@ struct SessionListView: View {
     /// Called when tapping a non-owned session to open observer view.
     var onObserve: ((String) -> Void)?
 
+    @State private var otherSessionsCollapsed = false
+
     private var mySessions: [Session] {
         sessionList.sessions.filter { $0.isOwned }
     }
@@ -62,30 +64,43 @@ struct SessionListView: View {
                 sectionHeader(title: "My Sessions", icon: "bubble.left.fill")
             }
 
-            // Other Sessions (read-only)
+            // Other Sessions (read-only, collapsible)
             Section {
-                if otherSessions.isEmpty {
-                    Text("No other sessions")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowBackground(Color.clear)
-                } else {
-                    ForEach(otherSessions) { session in
-                        SessionRowView(
-                            title: sessionList.titleForSession(session),
-                            subtitle: sessionList.subtitleForSession(session),
-                            source: session.source,
-                            isActive: false,  // Can't "activate" other sessions
-                            isOwned: false
-                        )
-                        .onTapGesture {
-                            onObserve?(session.id)
+                if !otherSessionsCollapsed {
+                    if otherSessions.isEmpty {
+                        Text("No other sessions")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(otherSessions) { session in
+                            SessionRowView(
+                                title: sessionList.titleForSession(session),
+                                subtitle: sessionList.subtitleForSession(session),
+                                source: session.source,
+                                isActive: false,  // Can't "activate" other sessions
+                                isOwned: false
+                            )
+                            .onTapGesture {
+                                onObserve?(session.id)
+                            }
                         }
                     }
                 }
             } header: {
-                sectionHeader(title: "Other Sessions", icon: "eye")
+                collapsibleHeader(
+                    title: "Other Sessions",
+                    icon: "eye",
+                    count: otherSessions.count,
+                    isCollapsed: otherSessionsCollapsed
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        otherSessionsCollapsed.toggle()
+                    }
+                }
             }
         }
         #if os(macOS)
@@ -131,6 +146,25 @@ struct SessionListView: View {
                 .font(.caption)
                 .fontWeight(.semibold)
                 .textCase(.uppercase)
+        }
+    }
+
+    private func collapsibleHeader(title: String, icon: String, count: Int, isCollapsed: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(Theme.accent)
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .textCase(.uppercase)
+            Text("(\(count))")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 
