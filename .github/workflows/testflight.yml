@@ -40,14 +40,13 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | \
             base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision
-          # Extract UUID for xcodebuild and ExportOptions.plist
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
             <<< "$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision)")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
 
       - name: Fix keychain search list
         run: |
-          # Make the temporary keychain searchable by xcodebuild
+          # Add the import-codesign-certs temp keychain to the search list
           KEYCHAIN_PATH="$HOME/Library/Keychains/signing_temp.keychain-db"
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
@@ -64,8 +63,7 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_UUID }}" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            CODE_SIGN_ALLOW_PROVISIONING_UPDATES=NO \
-            -keychain "$HOME/Library/Keychains/signing_temp.keychain-db"
+            CODE_SIGN_ALLOW_PROVISIONING_UPDATES=NO
 
       # ── Export ────────────────────────────────────────────────────────
       - name: Create ExportOptions.plist
@@ -112,7 +110,6 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
-          # Write the API key to disk (xcrun altool / notarytool expects a file)
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > \
             ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
@@ -123,7 +120,7 @@ jobs:
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
-      # ── Artifact (always, even if upload skipped) ─────────────────────
+      # ── Artifact ─────────────────────────────────────────────────────
       - name: Upload IPA as Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -159,7 +156,6 @@ jobs:
       - name: Archive macOS App
         run: |
           mkdir -p build
-          # Use "Apple Distribution" identity — same cert, works for macOS archive
           xcodebuild archive \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-macOS \
@@ -167,8 +163,7 @@ jobs:
             -archivePath build/HermesNative-macOS.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            -keychain "$HOME/Library/Keychains/signing_temp.keychain-db"
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}"
 
       - name: Export macOS App
         run: |
@@ -199,23 +194,19 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
-          # Zip for notarization
           ditto -c -k --keepParent \
             build/export-macos/HermesNative-macOS.app \
             build/HermesNative-macOS.zip
 
-          # Write API key
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > \
             ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
 
-          # Submit for notarization
           xcrun notarytool submit build/HermesNative-macOS.zip \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --wait
 
-          # Staple the ticket
           xcrun stapler staple build/export-macOS/HermesNative-macOS.app
 
       - name: Upload macOS App as Artifact
