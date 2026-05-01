@@ -610,15 +610,13 @@ struct OpenableBlockSheet: View {
 
                 Divider().overlay(Theme.border)
 
-                // Content
-                ScrollView([.horizontal, .vertical]) {
-                    if language == "mermaid" {
-                        MermaidDiagramView(mermaidCode: content)
-                            .padding(16)
-                    } else {
-                        InlineHTMLView(html: content)
-                            .padding(16)
-                    }
+                // Content — WKWebView handles its own scrolling
+                if language == "mermaid" {
+                    MermaidDiagramView(mermaidCode: content)
+                        .padding(16)
+                } else {
+                    InlineHTMLView(html: content)
+                        .padding(16)
                 }
             }
         }
