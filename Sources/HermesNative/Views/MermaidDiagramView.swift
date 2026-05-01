@@ -114,7 +114,7 @@ class MermaidWebView: WKWebView {
                     document.getElementById('container').innerHTML = svg;
                     // Notify native side of rendered height
                     const h = document.getElementById('container').scrollHeight;
-                    window.webkit.messageHandlers.resize?.postMessage({ height: h });
+                    try { window.webkit.messageHandlers.resize.postMessage({ height: h }); } catch(e) {}
                 } catch (err) {
                     document.getElementById('container').innerHTML =
                         '<div class="error">Mermaid: ' + err.message.replace(/</g, '&lt;') + '</div>';
