@@ -40,7 +40,7 @@ struct OnboardingView: View {
                         TextField("URL", text: $settings.gatewayURL)
                             .textFieldStyle(.roundedBorder)
                             .placeholder(when: settings.gatewayURL.isEmpty) {
-                                Text("https://GATEWAY_HOST").foregroundStyle(.tertiary)
+                                Text("wss://your-gateway.example.com/v1/ws").foregroundStyle(.tertiary)
                             }
                     }
 
