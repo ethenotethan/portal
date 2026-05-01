@@ -1,5 +1,15 @@
 import Foundation
 
+/// Activity status for a session, derived from `lastActive` and `endedAt`.
+enum SessionStatus: Equatable {
+    /// Agent was active within the last 60 seconds.
+    case active
+    /// Session is live (no `endedAt`) but agent has been idle > 60s.
+    case idle
+    /// Session has ended (`endedAt` is set).
+    case ended
+}
+
 /// A Hermes agent session.
 /// Fields match the gateway's `session.list` response schema.
 struct Session: Identifiable, Equatable {
@@ -13,6 +23,8 @@ struct Session: Identifiable, Equatable {
     var source: String?         // Gateway field: "source" (telegram, cli, tui, etc.)
     var messageCount: Int       // Gateway field: "message_count"
     var startedAt: Date?        // Gateway field: "started_at" (epoch seconds)
+    var endedAt: Date?          // Gateway field: "ended_at" (epoch seconds)
+    var lastActive: Date?       // Gateway field: "last_active" (epoch seconds)
 
     /// The short hex ID used by the gateway's in-memory `_sessions` dict.
     /// Only set for sessions this app created (we got it from `session.create`).
@@ -37,6 +49,16 @@ struct Session: Identifiable, Equatable {
     /// database ID as fallback — will fail for _sess-based RPCs on other sessions).
     var rpcID: String {
         gatewayID ?? id
+    }
+
+    /// Computed activity status based on `lastActive` and `endedAt`.
+    var status: SessionStatus {
+        if endedAt != nil { return .ended }
+        if let last = lastActive {
+            return Date().timeIntervalSince(last) <= 60 ? .active : .idle
+        }
+        // No lastActive info — treat as idle if still running, ended otherwise
+        return isRunning ? .idle : .ended
     }
 
     static func == (lhs: Session, rhs: Session) -> Bool {

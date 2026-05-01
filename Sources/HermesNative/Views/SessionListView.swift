@@ -10,8 +10,6 @@ struct SessionListView: View {
 
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
-    /// Called when tapping a non-owned session to open observer view.
-    var onObserve: ((String) -> Void)?
 
     @State private var otherSessionsCollapsed = false
 
@@ -23,8 +21,12 @@ struct SessionListView: View {
         sessionList.sessions.filter { $0.isOwned && $0.isArchived }
     }
 
+    private var cronSessions: [Session] {
+        sessionList.sessions.filter { $0.source?.lowercased() == "cron" }
+    }
+
     private var otherSessions: [Session] {
-        sessionList.sessions.filter { !$0.isOwned }
+        sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" }
     }
 
     var body: some View {
@@ -152,6 +154,25 @@ struct SessionListView: View {
                 }
             }
 
+            // Cron Sessions
+            if !cronSessions.isEmpty {
+                Section {
+                    ForEach(cronSessions) { session in
+                        SessionRowView(
+                            title: sessionList.titleForSession(session),
+                            subtitle: sessionList.subtitleForSession(session),
+                            source: session.source,
+                            isActive: session.id == chatViewModel.currentSessionID,
+                            isOwned: false,
+                            sessionStatus: session.status
+                        )
+                        .tag(session.id)
+                    }
+                } header: {
+                    sectionHeader(title: "Cron Sessions", icon: "clock.fill")
+                }
+            }
+
             // Other Sessions (read-only, collapsible)
             Section {
                 if !otherSessionsCollapsed {
@@ -167,12 +188,10 @@ struct SessionListView: View {
                                 title: sessionList.titleForSession(session),
                                 subtitle: sessionList.subtitleForSession(session),
                                 source: session.source,
-                                isActive: false,  // Can't "activate" other sessions
+                                isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: false
                             )
-                            .onTapGesture {
-                                onObserve?(session.id)
-                            }
+                            .tag(session.id)
                         }
                     }
                 }
@@ -294,6 +313,7 @@ struct SessionRowView: View {
     let isActive: Bool
     let isOwned: Bool
     var isArchived: Bool = false
+    var sessionStatus: SessionStatus? = nil
 
     var body: some View {
         HStack(spacing: 10) {
@@ -304,11 +324,18 @@ struct SessionRowView: View {
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(isActive ? .semibold : .regular)
-                    .lineLimit(1)
-                    .foregroundStyle(isArchived ? .secondary : .primary)
+                HStack(spacing: 4) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(isActive ? .semibold : .regular)
+                        .lineLimit(1)
+                        .foregroundStyle(isArchived ? .secondary : .primary)
+
+                    // Pulsing green dot for active sessions
+                    if sessionStatus == .active {
+                        PulsingDot(color: Theme.success)
+                    }
+                }
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
@@ -357,9 +384,30 @@ struct SessionRowView: View {
             case "matrix":   Image(systemName: "rectangle.3.group.fill")
             case "whatsapp": Image(systemName: "phone.fill")
             case "webhook":  Image(systemName: "arrow.triangle.branch")
+            case "cron":     Image(systemName: "clock.fill")
             default:         Image(systemName: "bubble.left.fill")
             }
         }
+    }
+}
+
+// MARK: - Pulsing Activity Dot
+
+struct PulsingDot: View {
+    let color: Color
+    @State private var isPulsing = false
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .scaleEffect(isPulsing ? 1.3 : 1.0)
+            .opacity(isPulsing ? 0.6 : 1.0)
+            .animation(
+                .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear { isPulsing = true }
     }
 }
 

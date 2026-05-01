@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Root content view — NavigationSplitView with session sidebar + chat detail.
-/// My Sessions: tap to chat, long-press for Mission Control.
-/// Other Sessions: tap to open read-only observer view.
+/// Root content view — TabView on iOS with "Sessions" + "Cron" tabs,
+/// NavigationSplitView on macOS with a toolbar button for Cron sheet.
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
@@ -14,11 +13,17 @@ struct ContentView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var missionControlSessionID: String?
     @State private var observerSession: Session?
+    @State private var showCronSheet = false
+    @State private var selectedTab = 0
 
     var body: some View {
         Group {
             if settings.isConfigured && gatewayClientWrapper.isConnected {
-                sessionChatLayout
+                #if os(iOS)
+                iosLayout
+                #else
+                macLayout
+                #endif
             } else {
                 OnboardingView()
                     .environmentObject(gatewayClientWrapper)
@@ -48,6 +53,56 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - iOS Layout (TabView)
+
+    #if os(iOS)
+    private var iosLayout: some View {
+        TabView(selection: $selectedTab) {
+            NavigationStack {
+                sessionChatLayout
+            }
+            .tabItem {
+                Label("Sessions", systemImage: "bubble.left.and.bubble.right")
+            }
+            .tag(0)
+
+            NavigationStack {
+                CronListView()
+                    .environmentObject(gatewayClientWrapper)
+            }
+            .tabItem {
+                Label("Cron", systemImage: "clock.badge.checkmark")
+            }
+            .tag(1)
+        }
+    }
+    #endif
+
+    // MARK: - macOS Layout (NavigationSplitView + Cron sheet)
+
+    private var macLayout: some View {
+        sessionChatLayout
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showCronSheet = true
+                    } label: {
+                        Image(systemName: "clock.badge.checkmark")
+                    }
+                }
+            }
+            .sheet(isPresented: $showCronSheet) {
+                NavigationStack {
+                    CronListView()
+                        .environmentObject(gatewayClientWrapper)
+                        #if os(iOS)
+                        .presentationDetents([.large])
+                        #endif
+                }
+                .frame(minWidth: 500, minHeight: 400)
+            }
+    }
+
     // MARK: - Session + Chat Layout
 
     private var sessionChatLayout: some View {
@@ -55,10 +110,6 @@ struct ContentView: View {
             SessionListView(
                 onMissionControl: { sessionID in
                     openMissionControl(sessionID: sessionID)
-                },
-                onObserve: { sessionID in
-                    // Find the session object for the observer
-                    observerSession = sessionList.sessions.first(where: { $0.id == sessionID })
                 }
             )
                 .environmentObject(sessionList)
@@ -91,6 +142,9 @@ struct ContentView: View {
                         _ = try await chatViewModel.resumeSession(key: newID)
                     } catch {}
                 }
+            } else {
+                // Non-owned session — open observer view
+                observerSession = session
             }
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in

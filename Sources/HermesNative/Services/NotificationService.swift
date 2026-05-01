@@ -82,6 +82,18 @@ final class NotificationService: NSObject, ObservableObject {
         )
     }
 
+    /// Post notification when a cron job completes.
+    func notifyCronComplete(jobName: String, status: String, jobID: String) {
+        let statusLabel = status == "ok" ? "✓" : "✗"
+        post(
+            id: "cron-\(jobID)-\(UUID().uuidString.prefix(8))",
+            title: "Cron: \(jobName)",
+            body: "\(statusLabel) \(status)",
+            category: .cronComplete,
+            sessionID: nil
+        )
+    }
+
     // MARK: - Private
 
     private enum NotificationCategory: String {
@@ -89,6 +101,7 @@ final class NotificationService: NSObject, ObservableObject {
         case clarify
         case responseComplete
         case backgroundComplete
+        case cronComplete
     }
 
     private func post(

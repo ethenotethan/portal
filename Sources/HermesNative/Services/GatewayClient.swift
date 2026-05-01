@@ -444,13 +444,81 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 return nil
             }()
 
+            let endedAt: Date? = {
+                if let ts = d["ended_at"]?.doubleValue, ts > 0 {
+                    return Date(timeIntervalSince1970: ts)
+                }
+                return nil
+            }()
+
+            let lastActive: Date? = {
+                if let ts = d["last_active"]?.doubleValue, ts > 0 {
+                    return Date(timeIntervalSince1970: ts)
+                }
+                return nil
+            }()
+
             return Session(
                 id: id,
                 title: d["title"]?.stringValue,
                 preview: d["preview"]?.stringValue,
                 source: d["source"]?.stringValue,
                 messageCount: d["message_count"]?.intValue ?? 0,
-                startedAt: startedAt
+                startedAt: startedAt,
+                endedAt: endedAt,
+                lastActive: lastActive
+            )
+        }
+    }
+
+    /// List cron jobs via `cron.manage` with action "list".
+    /// Gateway returns: {"success": true, "count": N, "jobs": [...]}
+    /// Each job has: job_id, name, schedule, next_run_at (ISO8601), last_run_at (ISO8601),
+    /// last_status, enabled, state, deliver, prompt_preview.
+    func listCronJobs() async throws -> [CronJob] {
+        let response = try await call("cron.manage", params: [
+            "action": AnyCodable("list")
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let jobsArray = result["jobs"]?.arrayValue else {
+            return []
+        }
+
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        return jobsArray.compactMap { item -> CronJob? in
+            guard let d = item.dictionaryValue,
+                  let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
+
+            let nextRunAt: Date? = {
+                if let str = d["next_run_at"]?.stringValue {
+                    return iso8601Formatter.date(from: str)
+                }
+                return nil
+            }()
+
+            let lastRunAt: Date? = {
+                if let str = d["last_run_at"]?.stringValue {
+                    return iso8601Formatter.date(from: str)
+                }
+                return nil
+            }()
+
+            return CronJob(
+                id: jobID,
+                name: d["name"]?.stringValue ?? jobID,
+                schedule: d["schedule"]?.stringValue ?? "",
+                nextRunAt: nextRunAt,
+                lastRunAt: lastRunAt,
+                lastStatus: d["last_status"]?.stringValue,
+                enabled: d["enabled"]?.boolValue ?? true,
+                state: d["state"]?.stringValue ?? "scheduled",
+                deliver: d["deliver"]?.stringValue ?? "local",
+                promptPreview: d["prompt_preview"]?.stringValue
             )
         }
     }

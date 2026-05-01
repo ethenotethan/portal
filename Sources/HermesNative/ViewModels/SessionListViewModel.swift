@@ -14,6 +14,9 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
+    /// Wired up by ContentView — refreshes cron jobs alongside sessions.
+    var cronViewModel: CronListViewModel?
+
     // MARK: - Local Storage
 
     private static let titlesKey = "hermes.sessionTitles"
@@ -157,6 +160,11 @@ final class SessionListViewModel: ObservableObject {
             // Silently fail — session list is non-critical
         }
         isLoading = false
+
+        // Refresh cron jobs if a cron view model is wired up
+        if let cronVM = cronViewModel {
+            await cronVM.refreshJobs()
+        }
     }
 
     /// Register a session created by this app (short hex ID from session.create).
