@@ -30,8 +30,8 @@ final class ChatViewModel: ObservableObject {
         // Subscribe to gateway events
         client.eventStream
             .receive(on: RunLoop.main)
-            .sink { [weak self] event in
-                self?.handleEvent(event)
+            .sink { [weak self] tuple in
+                self?.handleEvent(tuple.0)
             }
             .store(in: &cancellables)
 

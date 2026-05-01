@@ -18,7 +18,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - Event Stream
 
-    let eventStream = PassthroughSubject<GatewayEvent, Never>()
+    let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
 
     /// Callback for connection log messages (shown in UI).
     var onLog: ((String, Bool) -> Void)?
@@ -569,12 +569,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             let payloadData = try? JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
             let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }
             let event = GatewayEvent.from(type: type, payload: payload)
+            let sessionID = params["session_id"] as? String
 
             if case .sessionInfo(let info) = event {
                 sessionInfo = info
             }
 
-            eventStream.send(event)
+            eventStream.send((event, sessionID))
         }
     }
 

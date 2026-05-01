@@ -11,6 +11,10 @@ final class SpawnTreeStore: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
+    /// Buffer for events that arrive before a tree is created for their session.
+    /// Keyed by sessionID; flushed when createTree() is called.
+    private var eventBuffer: [String: [(GatewayEvent)]] = [:]
+
     /// The active session tree (if any).
     var activeTree: SessionTree? {
         sessions.first { $0.sessionID == activeSessionID }
@@ -22,21 +26,33 @@ final class SpawnTreeStore: ObservableObject {
     func subscribe(to client: GatewayClient) {
         client.eventStream
             .receive(on: RunLoop.main)
-            .sink { [weak self] event in
-                self?.handleEvent(event)
+            .sink { [weak self] event, sessionID in
+                self?.handleEvent(event, sessionID: sessionID)
             }
             .store(in: &cancellables)
     }
 
     // MARK: - Event Handling
 
-    private func handleEvent(_ event: GatewayEvent) {
+    private func handleEvent(_ event: GatewayEvent, sessionID: String?) {
+        let sid = sessionID ?? activeSessionID ?? ""
+
+        // Find tree for this session
+        let tree = sessions.first { $0.sessionID == sid }
+
+        // If no tree exists yet, buffer the event
+        if tree == nil && !sid.isEmpty {
+            eventBuffer[sid, default: []].append(event)
+        }
+
+        // Process the event against the tree (if it exists)
+        processEvent(event, tree: tree)
+    }
+
+    private func processEvent(_ event: GatewayEvent, tree: SessionTree?) {
         switch event {
         case .messageStart:
-            // New root-level message begins — mark root as running
-            if let tree = activeTree {
-                tree.root.status = .running
-            }
+            tree?.root.status = .running
 
         case .subagentSpawnRequested(let payload):
             upsertNode(
@@ -47,7 +63,8 @@ final class SpawnTreeStore: ObservableObject {
                 parentID: payload.parentID,
                 depth: payload.depth ?? 0,
                 model: payload.model,
-                status: .queued
+                status: .queued,
+                tree: tree
             )
 
         case .subagentStart(let payload):
@@ -59,12 +76,13 @@ final class SpawnTreeStore: ObservableObject {
                 parentID: payload.parentID,
                 depth: payload.depth ?? 0,
                 model: payload.model,
-                status: .running
+                status: .running,
+                tree: tree
             )
 
         case .subagentComplete(let payload):
             let nodeID = payload.subagentID ?? ""
-            updateNode(id: nodeID) { node in
+            updateNode(id: nodeID, tree: tree) { node in
                 node.status = .completed
                 node.costUSD = payload.costUSD
                 node.inputTokens = payload.inputTokens
@@ -76,9 +94,8 @@ final class SpawnTreeStore: ObservableObject {
             }
 
         case .subagentTool(let payload):
-            // Attach tool call to the subagent node
             let nodeID = payload.subagentID ?? ""
-            updateNode(id: nodeID) { node in
+            updateNode(id: nodeID, tree: tree) { node in
                 let toolCall = NodeToolCall(
                     name: payload.toolName ?? "tool",
                     preview: payload.toolPreview ?? payload.text,
@@ -87,66 +104,48 @@ final class SpawnTreeStore: ObservableObject {
                 node.toolCalls.append(toolCall)
             }
 
-        case .subagentProgress(let text):
-            // Progress text for a running subagent
+        case .subagentProgress:
             break
 
-        case .subagentThinking(let text):
-            // Thinking text for a subagent
+        case .subagentThinking:
             break
 
         case .messageComplete(let payload):
-            // Root message completed — mark root node
-            if let tree = activeTree {
-                tree.root.status = payload.status == "complete" ? .completed
-                    : payload.status == "interrupted" ? .interrupted
-                    : payload.status == "error" ? .failed
-                    : .completed
-                tree.root.completedAt = Date()
-            }
+            tree?.root.status = payload.status == "complete" ? .completed
+                : payload.status == "interrupted" ? .interrupted
+                : payload.status == "error" ? .failed
+                : .completed
+            tree?.root.completedAt = Date()
 
         case .toolStart(let payload):
-            // Tool call at root level (not in a subagent)
-            if let tree = activeTree {
-                let toolCall = NodeToolCall(
-                    id: payload.toolID,
-                    name: payload.name,
-                    preview: payload.context
-                )
-                tree.root.toolCalls.append(toolCall)
-            }
+            let toolCall = NodeToolCall(
+                id: payload.toolID,
+                name: payload.name,
+                preview: payload.context
+            )
+            tree?.root.toolCalls.append(toolCall)
 
         case .toolComplete(let payload):
-            if let tree = activeTree {
-                if let idx = tree.root.toolCalls.firstIndex(where: { $0.id == payload.toolID }) {
-                    tree.root.toolCalls[idx].summary = payload.summary
-                    tree.root.toolCalls[idx].durationSeconds = payload.durationSeconds
-                    tree.root.toolCalls[idx].isComplete = true
-                }
+            if let tree, let idx = tree.root.toolCalls.firstIndex(where: { $0.id == payload.toolID }) {
+                tree.root.toolCalls[idx].summary = payload.summary
+                tree.root.toolCalls[idx].durationSeconds = payload.durationSeconds
+                tree.root.toolCalls[idx].isComplete = true
             }
 
         case .toolProgress(let name, let preview):
-            // Update matching root-level tool call
-            if let tree = activeTree {
-                if let idx = tree.root.toolCalls.firstIndex(where: { $0.name == name && !$0.isComplete }) {
-                    tree.root.toolCalls[idx].preview = preview
-                }
+            if let tree, let idx = tree.root.toolCalls.firstIndex(where: { $0.name == name && !$0.isComplete }) {
+                tree.root.toolCalls[idx].preview = preview
             }
 
         case .thinkingDelta(let text):
-            if let tree = activeTree {
-                if tree.root.status.isRunning {
-                    tree.root.thinkingText += text
-                }
+            if let tree, tree.root.status.isRunning {
+                tree.root.thinkingText += text
             }
 
         case .messageDelta(let text, _):
-            // Append transcript to root
-            if let tree = activeTree {
-                tree.root.transcript.append(
-                    NodeTranscriptEntry(role: .assistant, content: text)
-                )
-            }
+            tree?.root.transcript.append(
+                NodeTranscriptEntry(role: .assistant, content: text)
+            )
 
         default:
             break
@@ -155,8 +154,15 @@ final class SpawnTreeStore: ObservableObject {
 
     // MARK: - Tree Management
 
-    /// Create a new session tree (call on session.create).
+    /// Create a new session tree. If one already exists for this sessionID,
+    /// just activate it (don't wipe it).
     func createTree(sessionID: String, prompt: String = "") {
+        // Don't recreate if tree already exists
+        if sessions.contains(where: { $0.sessionID == sessionID }) {
+            activeSessionID = sessionID
+            return
+        }
+
         let root = SpawnNode(
             id: "root_\(sessionID)",
             goal: prompt,
@@ -165,6 +171,13 @@ final class SpawnTreeStore: ObservableObject {
         let tree = SessionTree(sessionID: sessionID, root: root)
         sessions.append(tree)
         activeSessionID = sessionID
+
+        // Flush any buffered events for this session
+        if let buffered = eventBuffer.removeValue(forKey: sessionID) {
+            for event in buffered {
+                processEvent(event, tree: tree)
+            }
+        }
     }
 
     /// Set the active session.
@@ -175,6 +188,7 @@ final class SpawnTreeStore: ObservableObject {
     /// Remove a session tree.
     func removeTree(sessionID: String) {
         sessions.removeAll { $0.sessionID == sessionID }
+        eventBuffer.removeValue(forKey: sessionID)
         if activeSessionID == sessionID {
             activeSessionID = sessions.first?.sessionID
         }
@@ -190,11 +204,12 @@ final class SpawnTreeStore: ObservableObject {
         parentID: String?,
         depth: Int = 0,
         model: String? = nil,
-        status: NodeStatus = .queued
+        status: NodeStatus = .queued,
+        tree: SessionTree?
     ) {
         // Find existing node across all trees
-        for tree in sessions {
-            if let existing = tree.findNode(id: id) {
+        for t in sessions {
+            if let existing = t.findNode(id: id) {
                 existing.status = status
                 return
             }
@@ -214,24 +229,29 @@ final class SpawnTreeStore: ObservableObject {
 
         // Find parent and attach
         if let parentID {
-            for tree in sessions {
-                if let parent = tree.findNode(id: parentID) {
+            for t in sessions {
+                if let parent = t.findNode(id: parentID) {
                     parent.children.append(node)
                     return
                 }
             }
         }
 
-        // No parent found — attach to active tree's root
-        if let tree = activeTree {
+        // No parent found — attach to the provided tree's root
+        if let tree {
             node.parentID = tree.root.id
             tree.root.children.append(node)
         }
     }
 
-    private func updateNode(id: String, update: (SpawnNode) -> Void) {
-        for tree in sessions {
-            if let node = tree.findNode(id: id) {
+    private func updateNode(id: String, tree: SessionTree?, update: (SpawnNode) -> Void) {
+        // Search provided tree first, then all trees
+        if let tree, let node = tree.findNode(id: id) {
+            update(node)
+            return
+        }
+        for t in sessions {
+            if let node = t.findNode(id: id) {
                 update(node)
                 return
             }
