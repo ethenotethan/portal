@@ -24,6 +24,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.developer-tools"
@@ -43,6 +45,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.iOS
         SUPPORTED_PLATFORMS: iphoneos
         SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
