@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Root content view — NavigationSplitView with session sidebar + chat detail.
-/// On macOS: real sidebar. On iPad: sidebar. On iPhone: compact push/pop.
 /// Long-press a session row to open Mission Control (spawn tree explorer).
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
@@ -12,9 +11,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
-
-    /// Navigation path for the detail column (supports Mission Control push).
-    @State private var detailPath = NavigationPath()
+    @State private var missionControlSessionID: String?
 
     var body: some View {
         Group {
@@ -64,80 +61,69 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
         } detail: {
-            NavigationStack(path: $detailPath) {
-                ChatView()
-                    .environmentObject(chatViewModel)
-                    .environmentObject(gatewayClientWrapper)
-                    .id(chatViewModel.currentSessionID)
-                    .navigationDestination(for: MissionControlDestination.self) { dest in
-                        SessionExplorerView(sessionID: dest.sessionID)
-                            .environmentObject(gatewayClientWrapper)
-                            .environmentObject(spawnTreeStore)
-                    }
-            }
+            ChatView()
+                .environmentObject(chatViewModel)
+                .environmentObject(gatewayClientWrapper)
+                .id(chatViewModel.currentSessionID)
         }
         #if os(macOS)
         .navigationSplitViewStyle(.balanced)
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
             guard let newID else { return }
-            // Skip if already viewing this session
             guard newID != chatViewModel.currentSessionID else { return }
-
-            // Pop back to chat when switching sessions
-            detailPath.removeLast(detailPath.count)
-
-            // Always load local history first (instant, no network needed)
             chatViewModel.loadLocalHistory(sessionID: newID)
-
-            // Then try gateway resume if we have a key
             if let session = sessionList.sessions.first(where: { $0.id == newID }),
                let key = sessionList.keyForSession(id: newID) {
                 Task {
                     do {
                         _ = try await sessionList.resumeSession(session)
                         await chatViewModel.resumeSession(key: key)
-                    } catch {
-                        // Gateway resume failed but local history is already loaded
-                        // User can still see and read their past conversation
-                    }
+                    } catch {}
                 }
             }
-            // No key — can't resume on gateway, but local history is shown.
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
-            // Sync session title to the sidebar when it changes
             guard let sid = chatViewModel.currentSessionID,
                   newTitle != oldTitle else { return }
             sessionList.updateSessionTitle(id: sid, title: newTitle)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
-            // Notification tap — switch to the relevant session
             if let sessionID = notification.userInfo?["session_id"] as? String {
                 sessionList.selectSession(id: sessionID)
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            // Save chat history when app goes to background
             if newPhase != .active {
                 chatViewModel.saveHistory()
             }
-            // Update notification service foreground state
             NotificationService.shared.isForegrounded = (newPhase == .active)
         }
         .onChange(of: chatViewModel.currentSessionID) { _, newID in
-            // Update notification service so it suppresses notifications for active session
             NotificationService.shared.activeSessionID = newID
+        }
+        // Mission Control — presented as sheet
+        .sheet(isPresented: Binding(
+            get: { missionControlSessionID != nil },
+            set: { if !$0 { missionControlSessionID = nil } }
+        )) {
+            if let sid = missionControlSessionID {
+                SessionExplorerView(sessionID: sid)
+                    .environmentObject(gatewayClientWrapper)
+                    .environmentObject(spawnTreeStore)
+                    #if os(iOS)
+                    .presentationDetents([.large])
+                    #endif
+            }
         }
     }
 
-    // MARK: - Mission Control Navigation
+    // MARK: - Mission Control
 
     private func openMissionControl(sessionID: String) {
-        // Ensure the tree exists
         spawnTreeStore.createTree(sessionID: sessionID)
-        // Push Mission Control onto the detail navigation stack
-        detailPath.append(MissionControlDestination(sessionID: sessionID))
+        spawnTreeStore.setActive(sessionID: sessionID)
+        missionControlSessionID = sessionID
     }
 
     // MARK: - Wiring
@@ -147,11 +133,9 @@ struct ContentView: View {
         sessionList.setGatewayClient(gatewayClientWrapper.client)
         spawnTreeStore.subscribe(to: gatewayClientWrapper.client)
 
-        // On startup: show local history immediately, then sync with gateway
         Task {
             await sessionList.refreshSessions()
             if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
-                // No sessions at all — create a fresh one
                 await chatViewModel.createSession()
                 if let sid = chatViewModel.currentSessionID {
                     if let key = gatewayClientWrapper.client.lastSessionKey {
@@ -162,27 +146,19 @@ struct ContentView: View {
                     await sessionList.refreshSessions()
                 }
             } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
-                // Already have a session — load local history if empty, then select
                 if chatViewModel.messages.isEmpty {
                     chatViewModel.loadLocalHistory(sessionID: sid)
                 }
                 sessionList.selectSession(id: sid)
                 spawnTreeStore.createTree(sessionID: sid)
             } else if let first = sessionList.sessions.first {
-                // Load local history instantly for first session
                 chatViewModel.loadLocalHistory(sessionID: first.id)
                 sessionList.selectSession(id: first.id)
                 spawnTreeStore.createTree(sessionID: first.id)
-                // Then try gateway resume for the live connection
                 if let key = sessionList.keyForSession(id: first.id) {
                     await chatViewModel.resumeSession(key: key)
                 }
             }
         }
     }
-}
-
-/// Navigation destination type for pushing Mission Control into the detail column.
-struct MissionControlDestination: Hashable {
-    let sessionID: String
 }

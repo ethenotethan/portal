@@ -1,26 +1,46 @@
 import SwiftUI
 
 /// Drill-in view for a single session — shows the spawn tree as a node graph.
-/// The root node is the user's prompt; children are subagents; grandchildren are their delegates.
+/// Presented as a sheet on long-press of a session row.
 struct SessionExplorerView: View {
     let sessionID: String
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedNodeID: String?
     @State private var showTranscriptFor: SpawnNode?
-    @State private var expandDepth: Int = 2
+    @State private var expandDepth: Int = 3
 
-    /// Look up the tree for this session.
     private var tree: SessionTree? {
         spawnTreeStore.sessions.first { $0.sessionID == sessionID }
     }
 
     var body: some View {
-        Group {
-            if let tree {
-                treeContent(tree: tree)
-            } else {
-                emptyState
+        NavigationStack {
+            Group {
+                if let tree {
+                    treeContent(tree: tree)
+                } else {
+                    emptyState
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Stepper("Depth: \(expandDepth)", value: $expandDepth, in: 0...10)
+                        .font(.caption)
+                    if let tree {
+                        interruptButton(tree: tree)
+                    }
+                }
+            }
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .sheet(item: $showTranscriptFor) { node in
+                NodeTranscriptSheet(node: node)
             }
         }
     }
@@ -28,136 +48,99 @@ struct SessionExplorerView: View {
     // MARK: - Tree Content
 
     private func treeContent(tree: SessionTree) -> some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 12) {
+                // HUD
+                sessionHUD(tree: tree)
 
-            ScrollView([.horizontal, .vertical]) {
-                VStack(alignment: .leading, spacing: 0) {
-                    // HUD bar
-                    sessionHUD(tree: tree)
-                        .padding()
-
-                    // Spawn tree
-                    TreeNodeView(
-                        node: tree.root,
-                        depth: 0,
-                        maxDepth: expandDepth,
-                        selectedNodeID: $selectedNodeID,
-                        onNodeTap: { node in
-                            selectedNodeID = node.id
-                        },
-                        onNodeLongPress: { node in
-                            showTranscriptFor = node
-                        }
-                    )
-                    .padding(24)
-                }
+                // Spawn tree
+                TreeNodeView(
+                    node: tree.root,
+                    depth: 0,
+                    maxDepth: expandDepth,
+                    selectedNodeID: $selectedNodeID,
+                    onNodeTap: { node in
+                        selectedNodeID = node.id
+                    },
+                    onNodeLongPress: { node in
+                        showTranscriptFor = node
+                    }
+                )
             }
+            .padding()
         }
-        .navigationTitle(tree.root.goal.isEmpty ? "Session" : String(tree.root.goal.prefix(60)))
-        #if os(macOS)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                depthControl
-                interruptButton(tree: tree)
-            }
-        }
-        #else
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                depthControl
-                interruptButton(tree: tree)
-            }
-        }
-        #endif
-        .sheet(item: $showTranscriptFor) { node in
-            NodeTranscriptSheet(node: node)
-        }
+        .navigationTitle(tree.root.goal.isEmpty ? "Mission Control" : String(tree.root.goal.prefix(50)))
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: 16) {
+            Spacer()
             Image(systemName: "arrow.triangle.branch")
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
-            Text("No Spawn Tree")
+            Text("No Spawn Tree Yet")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("This session hasn't spawned any subagents yet. Start a task that uses delegation to see the tree grow here.")
-                .font(.caption)
+            Text("This session hasn't spawned any subagents. Start a task that uses delegation to see the tree grow.")
+                .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+            Spacer()
         }
         .navigationTitle("Mission Control")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
     }
 
-    // MARK: - HUD
+    // MARK: - HUD (iOS-friendly: wrapping HStack → flow layout)
 
     private func sessionHUD(tree: SessionTree) -> some View {
-        HStack(spacing: 16) {
-            // Status
-            Label {
-                Text(tree.root.status.rawValue.capitalized)
-            } icon: {
-                Image(systemName: tree.root.status.iconName)
-                    .foregroundStyle(colorForStatus(tree.root.status))
-            }
-            .font(.caption)
+        VStack(alignment: .leading, spacing: 8) {
+            // Row 1: status + counts
+            HStack(spacing: 12) {
+                Label {
+                    Text(tree.root.status.rawValue.capitalized)
+                } icon: {
+                    Image(systemName: tree.root.status.iconName)
+                        .foregroundStyle(colorForStatus(tree.root.status))
+                }
+                .font(.subheadline)
 
-            Divider().frame(height: 16)
+                if tree.isRunning {
+                    Label("\(tree.root.runningDescendantCount) active", systemImage: "circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.accent)
+                }
 
-            // Node count
-            Label("\(tree.nodeCount) nodes", systemImage: "arrow.triangle.branch")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            // Running count
-            if tree.isRunning {
-                Label("\(tree.root.runningDescendantCount) active", systemImage: "circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Theme.accent)
-            }
-
-            Divider().frame(height: 16)
-
-            // Cost
-            if tree.totalCost > 0 {
-                Label(String(format: "$%.4f", tree.totalCost), systemImage: "dollarsign.circle")
-                    .font(.caption)
+                Label("\(tree.nodeCount) nodes", systemImage: "arrow.triangle.branch")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            // Duration
-            Label(tree.root.durationString, systemImage: "clock")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Row 2: cost + duration + model
+            HStack(spacing: 12) {
+                if tree.totalCost > 0 {
+                    Label(String(format: "$%.4f", tree.totalCost), systemImage: "dollarsign.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            Spacer()
+                Label(tree.root.durationString, systemImage: "clock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            // Model (if set on any node)
-            if let model = tree.root.model ?? tree.root.allDescendants.first?.model {
-                Text(model)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if let model = tree.root.model ?? tree.root.allDescendants.first?.model {
+                    Text(shortModel(model))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
-        .padding(10)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    // MARK: - Depth Control
-
-    private var depthControl: some View {
-        Stepper("Depth: \(expandDepth)", value: $expandDepth, in: 0...10)
-            .font(.caption)
     }
 
     // MARK: - Interrupt
@@ -173,6 +156,15 @@ struct SessionExplorerView: View {
         }
         .disabled(!tree.isRunning)
     }
+
+    private func shortModel(_ model: String) -> String {
+        let trimmed = model
+            .replacingOccurrences(of: "mlx-community/", with: "")
+            .replacingOccurrences(of: "anthropic/", with: "")
+            .replacingOccurrences(of: "openai/", with: "")
+            .replacingOccurrences(of: "openrouter/", with: "")
+        return String(trimmed.prefix(20))
+    }
 }
 
 // MARK: - Node Transcript Sheet
@@ -185,12 +177,10 @@ struct NodeTranscriptSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    // Node header
                     nodeHeader
 
                     Divider()
 
-                    // Thinking
                     if !node.thinkingText.isEmpty {
                         Section("Thinking") {
                             Text(node.thinkingText)
@@ -203,7 +193,6 @@ struct NodeTranscriptSheet: View {
                         }
                     }
 
-                    // Tool calls
                     if !node.toolCalls.isEmpty {
                         Section("Tool Calls") {
                             ForEach(node.toolCalls) { tool in
@@ -211,7 +200,6 @@ struct NodeTranscriptSheet: View {
                                     Image(systemName: tool.isComplete ? "checkmark.circle.fill" : "circle.dashed")
                                         .foregroundStyle(tool.isComplete ? Theme.success : .secondary)
                                         .font(.caption)
-
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(tool.name)
                                             .font(.caption)
@@ -222,12 +210,6 @@ struct NodeTranscriptSheet: View {
                                                 .foregroundStyle(.tertiary)
                                                 .lineLimit(2)
                                         }
-                                        if let summary = tool.summary {
-                                            Text(summary)
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(3)
-                                        }
                                     }
                                 }
                                 .padding(6)
@@ -237,7 +219,6 @@ struct NodeTranscriptSheet: View {
                         }
                     }
 
-                    // Transcript
                     if !node.transcript.isEmpty {
                         Section("Transcript") {
                             ForEach(node.transcript) { entry in
@@ -252,7 +233,6 @@ struct NodeTranscriptSheet: View {
                         }
                     }
 
-                    // Cost / tokens
                     if node.costUSD != nil || node.totalTokens != nil {
                         Divider()
                         HStack(spacing: 16) {
@@ -293,7 +273,6 @@ struct NodeTranscriptSheet: View {
                     .font(.headline)
                     .lineLimit(2)
             }
-
             HStack(spacing: 12) {
                 Label(node.status.rawValue, systemImage: node.status.iconName)
                     .font(.caption2)
