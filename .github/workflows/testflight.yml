@@ -25,6 +25,9 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      - name: Install xcpretty
+        run: gem install xcpretty
+
       - name: Generate Xcode project
         run: xcodegen generate
 
@@ -57,7 +60,7 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            | xcpretty || exit 1
+            2>&1 | tee build/archive.log | xcpretty; exit ${PIPESTATUS[0]}
 
       # ── Export ────────────────────────────────────────────────────────
       - name: Create ExportOptions.plist
@@ -95,7 +98,7 @@ jobs:
             -archivePath build/HermesNative.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist \
-            | xcpretty || exit 1
+            2>&1 | tee build/export.log | xcpretty; exit ${PIPESTATUS[0]}
 
       # ── Upload ────────────────────────────────────────────────────────
       - name: Upload to TestFlight
@@ -135,14 +138,17 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      - name: Install xcpretty
+        run: gem install xcpretty
+
       - name: Generate Xcode project
         run: xcodegen generate
 
       - name: Import Developer ID Certificate
         uses: apple-actions/import-codesign-certs@v2
         with:
-          p12-file-base64: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
-          p12-password: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
+          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
 
       - name: Archive macOS App
         run: |
@@ -154,7 +160,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
-            | xcpretty || exit 1
+            2>&1 | tee build/archive-macos.log | xcpretty; exit ${PIPESTATUS[0]}
 
       - name: Export macOS App
         run: |
@@ -178,7 +184,7 @@ jobs:
             -archivePath build/HermesNative-macOS.xcarchive \
             -exportPath build/export-macos \
             -exportOptionsPlist build/ExportOptions-macOS.plist \
-            | xcpretty || exit 1
+            2>&1 | tee build/export-macos.log | xcpretty; exit ${PIPESTATUS[0]}
 
       - name: Notarize
         env:
