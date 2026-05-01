@@ -7,6 +7,7 @@ struct HermesNativeApp: App {
     @StateObject private var settings = SettingsViewModel()
     @StateObject private var sessionList = SessionListViewModel()
     @StateObject private var personaManager = PersonaManager()
+    @StateObject private var spawnTreeStore = SpawnTreeStore()
 
     #if os(macOS)
     init() {
@@ -34,10 +35,11 @@ struct HermesNativeApp: App {
     #if os(macOS)
     private var mainWindow: some Scene {
         WindowGroup {
-            ContentView()
+            AppTabView()
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
+                .environmentObject(spawnTreeStore)
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 900, height: 700)
@@ -53,10 +55,11 @@ struct HermesNativeApp: App {
     #else
     private var mainWindow: some Scene {
         WindowGroup {
-            ContentView()
+            AppTabView()
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
+                .environmentObject(spawnTreeStore)
         }
     }
     #endif

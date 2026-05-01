@@ -429,8 +429,8 @@ final class ChatViewModel: ObservableObject {
         case .skinChanged:
             break
 
-        case .subagentStart, .subagentComplete, .subagentTool:
-            // Subagent delegation events — display in tool call area
+        case .subagentSpawnRequested, .subagentStart, .subagentComplete, .subagentTool, .subagentProgress, .subagentThinking:
+            // Subagent delegation events — handled by SpawnTreeStore
             break
 
         case .backgroundComplete(let taskID, let text):
