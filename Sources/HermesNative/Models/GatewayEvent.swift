@@ -28,9 +28,12 @@ enum GatewayEvent {
     case thinkingDelta(text: String)
 
     // Subagent delegation
+    case subagentSpawnRequested(payload: SubagentPayload)
     case subagentStart(payload: SubagentPayload)
     case subagentComplete(payload: SubagentCompletePayload)
     case subagentTool(payload: SubagentToolPayload)
+    case subagentProgress(text: String)
+    case subagentThinking(text: String)
 
     // Background tasks
     case backgroundComplete(taskID: String, text: String)
@@ -100,6 +103,9 @@ enum GatewayEvent {
         case "thinking.delta":
             return .thinkingDelta(text: p["text"]?.stringValue ?? "")
 
+        case "subagent.spawn_requested":
+            return .subagentSpawnRequested(payload: SubagentPayload.from(p))
+
         case "subagent.start":
             return .subagentStart(payload: SubagentPayload.from(p))
 
@@ -108,6 +114,12 @@ enum GatewayEvent {
 
         case "subagent.tool":
             return .subagentTool(payload: SubagentToolPayload.from(p))
+
+        case "subagent.progress":
+            return .subagentProgress(text: p["text"]?.stringValue ?? "")
+
+        case "subagent.thinking":
+            return .subagentThinking(text: p["text"]?.stringValue ?? "")
 
         case "background.complete":
             return .backgroundComplete(
@@ -369,6 +381,7 @@ struct SubagentToolPayload {
     let goal: String
     let taskCount: Int
     let taskIndex: Int
+    let subagentID: String?
     let toolName: String?
     let toolPreview: String?
     let text: String?
@@ -378,6 +391,7 @@ struct SubagentToolPayload {
             goal: p["goal"]?.stringValue ?? "",
             taskCount: p["task_count"]?.intValue ?? 1,
             taskIndex: p["task_index"]?.intValue ?? 0,
+            subagentID: p["subagent_id"]?.stringValue,
             toolName: p["tool_name"]?.stringValue,
             toolPreview: p["tool_preview"]?.stringValue,
             text: p["text"]?.stringValue

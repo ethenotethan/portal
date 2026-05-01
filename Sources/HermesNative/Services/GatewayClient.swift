@@ -439,6 +439,39 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
     }
 
+    // MARK: - Mission Control RPCs
+
+    /// Get delegation status (active subagent counts, depth/cap limits).
+    func delegationStatus() async throws -> [String: AnyCodable]? {
+        let response = try await call("delegation.status")
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue
+    }
+
+    /// List saved spawn trees.
+    func spawnTreeList() async throws -> [[String: AnyCodable]] {
+        let response = try await call("spawn_tree.list")
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else { return [] }
+        return result["trees"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+    }
+
+    /// Interrupt a subagent by ID.
+    func subagentInterrupt(subagentID: String, sessionID: String? = nil) async throws {
+        var params: [String: AnyCodable] = ["subagent_id": AnyCodable(subagentID)]
+        if let sid = sessionID {
+            params["session_id"] = AnyCodable(sid)
+        }
+        let response = try await call("subagent.interrupt", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     func setConfig(key: String, value: String, sessionID: String? = nil) async throws {
         var params: [String: AnyCodable] = [
             "key": AnyCodable(key),
