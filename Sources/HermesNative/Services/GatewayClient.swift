@@ -406,7 +406,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     /// Resume an existing session by key.
-    func resumeSession(key: String) async throws -> String {
+    /// Returns the new session ID and any history messages from the gateway.
+    func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {
         let response = try await call("session.resume", params: [
             "session_key": AnyCodable(key),
         ])
@@ -418,7 +419,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.invalidResponse("missing session_id in session.resume response")
         }
         activeSessionID = sessionID
-        return sessionID
+
+        // Parse history messages if present
+        let historyMessages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+        return (sessionID: sessionID, messages: historyMessages)
+    }
+
+    /// Fetch conversation history for a session.
+    func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] {
+        let response = try await call("session.history", params: [
+            "session_id": AnyCodable(sessionID),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            return []
+        }
+        return result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
     }
 
     func setConfig(key: String, value: String, sessionID: String? = nil) async throws {
@@ -562,9 +580,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             if let key = lastSessionKey {
                 onLog?("Resuming session…", false)
                 do {
-                    let sid = try await resumeSession(key: key)
-                    activeSessionID = sid
-                    onLog?("✓ Session resumed", false)
+                    let result = try await resumeSession(key: key)
+                    activeSessionID = result.sessionID
+                    onLog?("✓ Session resumed (\(result.messages.count) history messages)", false)
                     await onReconnected?()
                 } catch {
                     onLog?("Resume failed, creating new session: \(error.localizedDescription)", true)

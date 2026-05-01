@@ -126,17 +126,88 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
-            let sid = try await client.resumeSession(key: key)
-            self.sessionID = sid
+            let result = try await client.resumeSession(key: key)
+            self.sessionID = result.sessionID
             self.isSessionReady = true
-            self.messages = []
             self.activeToolCalls = [:]
             self.isStreaming = false
             self.avatarState = .idle
             self.error = nil
+
+            // Parse history messages from the gateway
+            self.messages = Self.parseHistoryMessages(result.messages)
         } catch {
             self.error = "Session resume failed: \(error.localizedDescription)"
         }
+    }
+
+    /// Load history for the current session (for reconnects where resume isn't used).
+    func loadSessionHistory() async {
+        guard let client = gatewayClient, let sid = sessionID else { return }
+        do {
+            let historyMessages = try await client.sessionHistory(sessionID: sid)
+            let parsed = Self.parseHistoryMessages(historyMessages)
+            if !parsed.isEmpty {
+                self.messages = parsed
+            }
+        } catch {
+            // Non-critical — show what we have
+        }
+    }
+
+    /// Parse gateway history messages into ChatMessage array.
+    /// Gateway format: {"role": "user"|"assistant"|"tool", "text": "...", "name": "...", "context": "..."}
+    private static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
+        var messages: [ChatMessage] = []
+        var currentToolCalls: [ToolCallRecord] = []
+
+        for raw in rawMessages {
+            guard let roleStr = raw["role"]?.stringValue else { continue }
+
+            switch roleStr {
+            case "user":
+                let text = raw["text"]?.stringValue ?? ""
+                guard !text.isEmpty else { continue }
+                messages.append(ChatMessage(role: .user, content: text))
+
+            case "assistant":
+                // Flush any pending tool calls before this assistant message
+                if !currentToolCalls.isEmpty {
+                    if let lastIdx = messages.lastIndex(where: { $0.role == .assistant }) {
+                        messages[lastIdx].toolCalls = currentToolCalls
+                    }
+                    currentToolCalls = []
+                }
+
+                let text = raw["text"]?.stringValue ?? ""
+                guard !text.isEmpty else { continue }
+                messages.append(ChatMessage(role: .assistant, content: text, status: "complete"))
+
+            case "tool":
+                let name = raw["name"]?.stringValue ?? "tool"
+                let context = raw["context"]?.stringValue
+                let toolID = "hist_\(messages.count)"
+                currentToolCalls.append(ToolCallRecord(
+                    id: toolID,
+                    name: name,
+                    context: context,
+                    summary: context,
+                    isComplete: true
+                ))
+
+            default:
+                break
+            }
+        }
+
+        // Flush remaining tool calls
+        if !currentToolCalls.isEmpty {
+            if let lastIdx = messages.lastIndex(where: { $0.role == .assistant }) {
+                messages[lastIdx].toolCalls = currentToolCalls
+            }
+        }
+
+        return messages
     }
 
     // MARK: - User Input

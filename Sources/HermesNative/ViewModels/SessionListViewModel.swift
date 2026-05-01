@@ -161,13 +161,13 @@ final class SessionListViewModel: ObservableObject {
             // No key stored — can't resume. Caller should create a new session instead.
             return nil
         }
-        let sessionID = try await client.resumeSession(key: key)
-        activeSessionID = sessionID
+        let result = try await client.resumeSession(key: key)
+        activeSessionID = result.sessionID
 
         if let idx = sessions.firstIndex(where: { $0.id == session.id }) {
             sessions[idx].isRunning = true
         }
-        return sessionID
+        return result.sessionID
     }
 
     /// Close (kill) a session by ID.
