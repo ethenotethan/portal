@@ -39,6 +39,7 @@ final class ChatViewModel: ObservableObject {
     private var streamingMessageID: UUID?
     private var cancellables = Set<AnyCancellable>()
     private var isCreatingSession = false  // Guard against double-trigger
+    private var isStopping = false
     weak var personaManager: PersonaManager?
 
     // MARK: - Setup
@@ -277,18 +278,48 @@ final class ChatViewModel: ObservableObject {
             try await client.submitPrompt(sessionID: sid, text: text)
         } catch {
             self.error = error.localizedDescription
-            isStreaming = false
+            finishStreaming(status: "error")
         }
     }
 
     /// Interrupt the current agent turn.
     func interrupt() async {
-        guard let client = gatewayClient, let sid = sessionID else { return }
+        guard !isStopping else { return }
+        guard let client = gatewayClient, let sid = sessionID else {
+            finishStreaming(status: "interrupted")
+            return
+        }
+
+        isStopping = true
+        defer { isStopping = false }
+
+        // Update the UI immediately. On iOS this avoids the Stop button looking
+        // dead while the gateway waits for the in-flight turn to unwind.
+        finishStreaming(status: "interrupted")
+
         do {
             try await client.interrupt(sessionID: sid)
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    private func finishStreaming(status: String? = nil) {
+        if let msgID = streamingMessageID,
+           let idx = messages.firstIndex(where: { $0.id == msgID }) {
+            messages[idx].isStreaming = false
+            if let status {
+                messages[idx].status = status
+            }
+            if messages[idx].content.isEmpty && status == "interrupted" {
+                messages[idx].content = "_Interrupted_"
+            }
+        }
+        activeToolCalls = [:]
+        isStreaming = false
+        streamingMessageID = nil
+        avatarState = .idle
+        saveHistory()
     }
 
     /// Respond to a pending approval.
@@ -350,24 +381,33 @@ final class ChatViewModel: ObservableObject {
             avatarState = .speaking
 
         case .messageDelta(let text, _):
-            // Append streaming text to the current assistant message
+            // Append streaming text to the current assistant message. Ignore
+            // late deltas after an interrupt; the gateway can still drain one
+            // in-flight turn after the UI has already stopped it locally.
+            guard isStreaming else { break }
             if let msgID = streamingMessageID,
                let idx = messages.firstIndex(where: { $0.id == msgID }) {
                 messages[idx].content += text
             }
 
         case .messageComplete(payload: let payload):
-            // Finalize the assistant message
-            if let msgID = streamingMessageID,
-               let idx = messages.firstIndex(where: { $0.id == msgID }) {
-                messages[idx].content = payload.text
-                messages[idx].isStreaming = false
-                messages[idx].usage = payload.usage
-                messages[idx].status = payload.status
-                messages[idx].reasoning = payload.reasoning
-                // Merge any accumulated tool calls into the message
-                messages[idx].toolCalls = Array(activeToolCalls.values)
+            // Finalize the assistant message. If the user already hit Stop,
+            // `streamingMessageID` is nil; ignore the late completion so it
+            // doesn't resurrect an interrupted turn in the UI.
+            guard let msgID = streamingMessageID,
+                  let idx = messages.firstIndex(where: { $0.id == msgID }) else {
+                activeToolCalls = [:]
+                return
             }
+
+            messages[idx].content = payload.text
+            messages[idx].isStreaming = false
+            messages[idx].usage = payload.usage
+            messages[idx].status = payload.status
+            messages[idx].reasoning = payload.reasoning
+            // Merge any accumulated tool calls into the message
+            messages[idx].toolCalls = Array(activeToolCalls.values)
+
             activeToolCalls = [:]
             isStreaming = false
             streamingMessageID = nil
