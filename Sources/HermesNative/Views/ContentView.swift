@@ -183,7 +183,11 @@ struct ContentView: View {
             }
         }
         // Observer sheet (for non-owned sessions)
-        .sheet(item: $observerSession) { session in
+        .sheet(item: $observerSession, onDismiss: {
+            // Reset selection so re-clicking the same "Other Session"
+            // fires onChange again. Re-select the active chat session.
+            sessionList.activeSessionID = chatViewModel.currentSessionID
+        }) { session in
             SessionObserverView(session: session)
                 .environmentObject(gatewayClientWrapper)
                 #if os(iOS)

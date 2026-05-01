@@ -102,10 +102,11 @@ struct SessionListView: View {
                                 title: sessionList.titleForSession(session),
                                 subtitle: sessionList.subtitleForSession(session),
                                 source: nil,
-                                isActive: false,
+                                isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: true,
                                 isArchived: true
                             )
+                            .tag(session.id)
                             .contextMenu {
                                 Button {
                                     sessionList.unarchiveSession(id: session.id)
