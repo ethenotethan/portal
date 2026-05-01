@@ -176,6 +176,8 @@ final class SessionListViewModel: ObservableObject {
             throw GatewayError.notConnected
         }
         try await client.closeSession(sessionID: id)
+        // Clean up local history file
+        ChatHistoryStore.shared.deleteMessages(forSession: id)
         // Clean up local data
         var titles = localTitles
         titles.removeValue(forKey: id)

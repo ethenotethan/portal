@@ -229,6 +229,9 @@ final class ChatViewModel: ObservableObject {
             sessionTitle = String(text.prefix(60))
         }
 
+        // Persist user message immediately
+        saveHistory()
+
         // Prepare streaming assistant message
         let assistantMessage = ChatMessage(
             role: .assistant,
@@ -277,6 +280,28 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Local Persistence
+
+    /// Save current messages to disk (debounced — only call at stable points).
+    func saveHistory() {
+        guard let sid = sessionID, !messages.isEmpty else { return }
+        ChatHistoryStore.shared.saveMessages(messages, forSession: sid)
+    }
+
+    /// Load messages from local disk for a session (instant, no network).
+    func loadLocalHistory(sessionID: String) {
+        if let cached = ChatHistoryStore.shared.loadMessages(forSession: sessionID) {
+            self.messages = cached
+            self.sessionID = sessionID
+            self.isSessionReady = true
+        }
+    }
+
+    /// Delete local history for a session.
+    func deleteLocalHistory(sessionID: String) {
+        ChatHistoryStore.shared.deleteMessages(forSession: sessionID)
+    }
+
     // MARK: - Event Handling
 
     private func handleEvent(_ event: GatewayEvent) {
@@ -315,6 +340,9 @@ final class ChatViewModel: ObservableObject {
             isStreaming = false
             streamingMessageID = nil
             avatarState = .idle
+
+            // Persist to local storage after each completed response
+            saveHistory()
 
             // Notify if app is backgrounded or this isn't the active session
             let preview = payload.text.truncated(to: 80)

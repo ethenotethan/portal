@@ -203,7 +203,7 @@ struct SessionInfo {
     }
 }
 
-struct UsageInfo {
+struct UsageInfo: Codable {
     let promptTokens: Int
     let completionTokens: Int
     let totalTokens: Int

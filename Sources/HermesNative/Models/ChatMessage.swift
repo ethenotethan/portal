@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single message in the chat conversation.
-struct ChatMessage: Identifiable {
+struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: Role
     var content: String
@@ -25,7 +25,7 @@ struct ChatMessage: Identifiable {
         MediaParser.stripMediaTags(from: content)
     }
 
-    enum Role: String, Equatable {
+    enum Role: String, Equatable, Codable {
         case user
         case assistant
     }
@@ -52,7 +52,7 @@ struct ChatMessage: Identifiable {
 }
 
 /// Record of a tool invocation within a conversation turn.
-struct ToolCallRecord: Identifiable {
+struct ToolCallRecord: Identifiable, Codable {
     let id: String         // tool_call_id from server
     var name: String
     var context: String?   // Preview text from tool.start
@@ -83,14 +83,14 @@ struct ToolCallRecord: Identifiable {
 // MARK: - File Attachment
 
 /// A file attachment extracted from a MEDIA: tag in agent output.
-struct FileAttachment: Identifiable {
+struct FileAttachment: Identifiable, Codable {
     let id = UUID()
     let path: String
     let fileName: String
     let fileExtension: String
     let category: Category
 
-    enum Category: String {
+    enum Category: String, Codable {
         case html
         case pdf
         case image

@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var sessionList: SessionListViewModel
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
@@ -69,21 +70,23 @@ struct ContentView: View {
             // Skip if already viewing this session
             guard newID != chatViewModel.currentSessionID else { return }
 
+            // Always load local history first (instant, no network needed)
+            chatViewModel.loadLocalHistory(sessionID: newID)
+
+            // Then try gateway resume if we have a key
             if let session = sessionList.sessions.first(where: { $0.id == newID }),
                let key = sessionList.keyForSession(id: newID) {
-                // We have a key — resume the session
                 Task {
                     do {
                         _ = try await sessionList.resumeSession(session)
                         await chatViewModel.resumeSession(key: key)
                     } catch {
-                        chatViewModel.error = error.localizedDescription
+                        // Gateway resume failed but local history is already loaded
+                        // User can still see and read their past conversation
                     }
                 }
             }
-            // No key stored — can't resume. Show the session as-is.
-            // Do NOT create a new session here — that was causing session sprawl.
-            // The user can create a fresh session with the + button.
+            // No key — can't resume on gateway, but local history is shown.
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
             // Sync session title to the sidebar when it changes
@@ -97,6 +100,12 @@ struct ContentView: View {
                 sessionList.selectSession(id: sessionID)
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Save chat history when app goes to background
+            if newPhase != .active {
+                chatViewModel.saveHistory()
+            }
+        }
     }
 
     // MARK: - Wiring
@@ -105,7 +114,7 @@ struct ContentView: View {
         chatViewModel.setGatewayClient(gatewayClientWrapper.client)
         sessionList.setGatewayClient(gatewayClientWrapper.client)
 
-        // Auto-create first session only if none exist AND we don't already have one
+        // On startup: show local history immediately, then sync with gateway
         Task {
             await sessionList.refreshSessions()
             if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
@@ -119,23 +128,18 @@ struct ContentView: View {
                     await sessionList.refreshSessions()
                 }
             } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
-                // Already have a session — just select it in the sidebar
+                // Already have a session — load local history if empty, then select
+                if chatViewModel.messages.isEmpty {
+                    chatViewModel.loadLocalHistory(sessionID: sid)
+                }
                 sessionList.selectSession(id: sid)
             } else if let first = sessionList.sessions.first {
-                // Existing sessions but no active chat — try to resume first one with a key
+                // Load local history instantly for first session
+                chatViewModel.loadLocalHistory(sessionID: first.id)
+                sessionList.selectSession(id: first.id)
+                // Then try gateway resume for the live connection
                 if let key = sessionList.keyForSession(id: first.id) {
                     await chatViewModel.resumeSession(key: key)
-                    sessionList.selectSession(id: first.id)
-                } else {
-                    // No key for any session — create a fresh one
-                    await chatViewModel.createSession()
-                    if let sid = chatViewModel.currentSessionID {
-                        if let key = gatewayClientWrapper.client.lastSessionKey {
-                            sessionList.storeSessionKey(id: sid, key: key)
-                        }
-                        sessionList.selectSession(id: sid)
-                        await sessionList.refreshSessions()
-                    }
                 }
             }
         }
