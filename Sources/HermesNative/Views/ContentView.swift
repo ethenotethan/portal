@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Root content view — NavigationSplitView with session sidebar + chat detail.
-/// Long-press a session row to open Mission Control (spawn tree explorer).
+/// My Sessions: tap to chat, long-press for Mission Control.
+/// Other Sessions: tap to open read-only observer view.
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
@@ -12,6 +13,7 @@ struct ContentView: View {
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var missionControlSessionID: String?
+    @State private var observerSessionID: String?
 
     var body: some View {
         Group {
@@ -50,9 +52,14 @@ struct ContentView: View {
 
     private var sessionChatLayout: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SessionListView(onMissionControl: { sessionID in
-                openMissionControl(sessionID: sessionID)
-            })
+            SessionListView(
+                onMissionControl: { sessionID in
+                    openMissionControl(sessionID: sessionID)
+                },
+                onObserve: { sessionID in
+                    observerSessionID = sessionID
+                }
+            )
                 .environmentObject(sessionList)
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
@@ -102,7 +109,7 @@ struct ContentView: View {
         .onChange(of: chatViewModel.currentSessionID) { _, newID in
             NotificationService.shared.activeSessionID = newID
         }
-        // Mission Control — presented as sheet
+        // Mission Control sheet (for owned sessions)
         .sheet(isPresented: Binding(
             get: { missionControlSessionID != nil },
             set: { if !$0 { missionControlSessionID = nil } }
@@ -111,6 +118,19 @@ struct ContentView: View {
                 SessionExplorerView(sessionID: sid)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
+                    #if os(iOS)
+                    .presentationDetents([.large])
+                    #endif
+            }
+        }
+        // Observer sheet (for non-owned sessions)
+        .sheet(isPresented: Binding(
+            get: { observerSessionID != nil },
+            set: { if !$0 { observerSessionID = nil } }
+        )) {
+            if let sid = observerSessionID {
+                SessionObserverView(sessionID: sid)
+                    .environmentObject(gatewayClientWrapper)
                     #if os(iOS)
                     .presentationDetents([.large])
                     #endif
@@ -151,7 +171,7 @@ struct ContentView: View {
                 }
                 sessionList.selectSession(id: sid)
                 spawnTreeStore.createTree(sessionID: sid)
-            } else if let first = sessionList.sessions.first {
+            } else if let first = sessionList.sessions.first(where: { $0.isOwned }) ?? sessionList.sessions.first {
                 chatViewModel.loadLocalHistory(sessionID: first.id)
                 sessionList.selectSession(id: first.id)
                 spawnTreeStore.createTree(sessionID: first.id)

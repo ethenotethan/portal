@@ -33,6 +33,82 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         case error(String)
     }
 
+
+    // MARK: - Delegation RPCs
+
+    /// Get delegation status (active subagent counts, depth/cap limits).
+    func delegationStatus() async throws -> [String: AnyCodable]? {
+        let response = try await call("delegation.status")
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue
+    }
+
+    /// Interrupt a subagent by ID.
+    func subagentInterrupt(subagentID: String, sessionID: String? = nil) async throws {
+        var params: [String: AnyCodable] = ["subagent_id": AnyCodable(subagentID)]
+        if let sid = sessionID {
+            params["session_id"] = AnyCodable(sid)
+        }
+        let response = try await call("subagent.interrupt", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
+        // MARK: - Spawn Tree RPCs
+
+    /// List saved spawn tree snapshots. Set crossSession=true to list across all sessions.
+    func spawnTreeList(sessionID: String? = nil, crossSession: Bool = false, limit: Int = 50) async throws -> [SpawnTreeEntry] {
+        var params: [String: AnyCodable] = [
+            "limit": AnyCodable(limit),
+            "cross_session": AnyCodable(crossSession),
+        ]
+        if let sid = sessionID {
+            params["session_id"] = AnyCodable(sid)
+        }
+        let response = try await call("spawn_tree.list", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let entries = result["entries"]?.arrayValue else {
+            return []
+        }
+        return entries.compactMap { item -> SpawnTreeEntry? in
+            guard let d = item.dictionaryValue else { return nil }
+            return SpawnTreeEntry(
+                path: d["path"]?.stringValue ?? "",
+                sessionID: d["session_id"]?.stringValue ?? "",
+                startedAt: d["started_at"]?.doubleValue,
+                finishedAt: d["finished_at"]?.doubleValue ?? 0,
+                label: d["label"]?.stringValue ?? "",
+                subagentCount: d["count"]?.intValue ?? 0
+            )
+        }
+    }
+
+    /// Load a specific spawn tree snapshot by path.
+    func spawnTreeLoad(path: String) async throws -> SpawnTreeSnapshot? {
+        let response = try await call("spawn_tree.load", params: ["path": AnyCodable(path)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else { return nil }
+        return SpawnTreeSnapshot.from(result)
+    }
+
+    /// Get usage stats for a session.
+    func sessionUsage(sessionID: String) async throws -> SessionUsage? {
+        let response = try await call("session.usage", params: ["session_id": AnyCodable(sessionID)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let d = response.result?.dictionaryValue else { return nil }
+        return SessionUsage.from(d)
+    }
+
     // MARK: - Private State
 
     private var webSocketTask: URLSessionWebSocketTask?
@@ -439,39 +515,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
     }
 
-    // MARK: - Mission Control RPCs
-
-    /// Get delegation status (active subagent counts, depth/cap limits).
-    func delegationStatus() async throws -> [String: AnyCodable]? {
-        let response = try await call("delegation.status")
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        return response.result?.dictionaryValue
-    }
-
-    /// List saved spawn trees.
-    func spawnTreeList() async throws -> [[String: AnyCodable]] {
-        let response = try await call("spawn_tree.list")
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        guard let result = response.result?.dictionaryValue else { return [] }
-        return result["trees"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
-    }
-
-    /// Interrupt a subagent by ID.
-    func subagentInterrupt(subagentID: String, sessionID: String? = nil) async throws {
-        var params: [String: AnyCodable] = ["subagent_id": AnyCodable(subagentID)]
-        if let sid = sessionID {
-            params["session_id"] = AnyCodable(sid)
-        }
-        let response = try await call("subagent.interrupt", params: params)
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-    }
-
     func setConfig(key: String, value: String, sessionID: String? = nil) async throws {
         var params: [String: AnyCodable] = [
             "key": AnyCodable(key),
@@ -485,6 +528,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
     }
+
 
     // MARK: - Private
 

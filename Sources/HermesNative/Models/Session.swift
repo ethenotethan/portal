@@ -18,6 +18,11 @@ struct Session: Identifiable, Equatable {
 
     var isRunning: Bool = false // Derived from source context, not from gateway
 
+    /// Whether this session was created by this app (we have the resume key).
+    var isOwned: Bool {
+        localKey != nil && !localKey!.isEmpty
+    }
+
     static func == (lhs: Session, rhs: Session) -> Bool {
         lhs.id == rhs.id
     }
