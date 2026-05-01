@@ -34,30 +34,36 @@ jobs:
           P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
         run: |
-          # Create a dedicated keychain
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           security create-keychain -p actions "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p actions "$KEYCHAIN_PATH"
 
-          # Import the P12 — don't use -t cert, let pkcs12 handle both key+cert
           P12_PATH="$RUNNER_TEMP/cert.p12"
           echo "$P12_BASE64" | base64 -d > "$P12_PATH"
+
+          # Import PKCS12 (key + cert)
           security import "$P12_PATH" -P "$P12_PASSWORD" -A -f pkcs12 \
             -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+
+          # Also extract and import the certificate separately
+          # (macOS 15 sometimes only imports the key from PKCS12)
+          CERT_PATH="$RUNNER_TEMP/cert.pem"
+          openssl pkcs12 -in "$P12_PATH" -clcerts -nokeys -passin pass:"$P12_PASSWORD" \
+            -out "$CERT_PATH" 2>/dev/null
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k actions "$KEYCHAIN_PATH"
 
-          # Add to search list and set as default
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -d user -s "$KEYCHAIN_PATH"
 
-          # Verify cert is visible
-          echo "=== Identities in keychain ==="
+          echo "=== Codesigning identities ==="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           echo "=== All identities ==="
           security find-identity -v "$KEYCHAIN_PATH"
 
-          rm -f "$P12_PATH"
+          rm -f "$P12_PATH" "$CERT_PATH"
 
       - name: Install Provisioning Profile
         run: |
@@ -171,19 +177,26 @@ jobs:
 
           P12_PATH="$RUNNER_TEMP/cert.p12"
           echo "$P12_BASE64" | base64 -d > "$P12_PATH"
+
           security import "$P12_PATH" -P "$P12_PASSWORD" -A -f pkcs12 \
             -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+
+          CERT_PATH="$RUNNER_TEMP/cert.pem"
+          openssl pkcs12 -in "$P12_PATH" -clcerts -nokeys -passin pass:"$P12_PASSWORD" \
+            -out "$CERT_PATH" 2>/dev/null
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k actions "$KEYCHAIN_PATH"
 
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -d user -s "$KEYCHAIN_PATH"
 
-          echo "=== Identities in keychain ==="
+          echo "=== Codesigning identities ==="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           echo "=== All identities ==="
           security find-identity -v "$KEYCHAIN_PATH"
 
-          rm -f "$P12_PATH"
+          rm -f "$P12_PATH" "$CERT_PATH"
 
       - name: Archive macOS App
         run: |
