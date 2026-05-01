@@ -3,7 +3,7 @@ import SwiftUI
 /// Root tab view — Mission Control (navigation) and Chat (conversation).
 struct AppTabView: View {
     @EnvironmentObject var settings: SettingsViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper  // owned by HermesNativeApp
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var sessionList: SessionListViewModel
     @StateObject private var chatViewModel = ChatViewModel()
