@@ -35,7 +35,7 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
           p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
 
-      - name: Install Provisioning Profile
+      - name: Install Provisioning Profile & Verify Signing
         run: |
           PP_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PP_DIR"
@@ -44,6 +44,13 @@ jobs:
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
             <<< "$(security cms -D -i "$PP_DIR/AppStore.mobileprovision")")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+
+          echo "=== Keychain search list ==="
+          security list-keychains -d user
+          echo "=== Codesigning identities (all keychains) ==="
+          security find-identity -v -p codesigning
+          echo "=== Codesigning identities (signing_temp only) ==="
+          security find-identity -v -p codesigning ~/Library/Keychains/signing_temp.keychain-db
 
       # ── Archive ──────────────────────────────────────────────────────
       - name: Archive iOS App
@@ -57,7 +64,8 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_UUID }}" \
-            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}"
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
+            OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
 
       # ── Export ────────────────────────────────────────────────────────
       - name: Create ExportOptions.plist
@@ -152,7 +160,8 @@ jobs:
             -archivePath build/HermesNative-macOS.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}"
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
+            OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
 
       - name: Export macOS App
         run: |
