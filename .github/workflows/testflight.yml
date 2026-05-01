@@ -28,50 +28,59 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      # ── Signing ──────────────────────────────────────────────────────
+      # ── Signing (mirrors Apple-Actions/import-codesign-certs@v2) ──
       - name: Install Apple Distribution Certificate
         env:
           P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
-          security create-keychain -p actions "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p actions "$KEYCHAIN_PATH"
+          KEYCHAIN=signing_temp
+          KEYCHAIN_PATH="$KEYCHAIN.keychain"
+          KEYCHAIN_PASSWORD="$(cat /dev/urandom | LC_ALL=C tr -dc A-Za-z0-9 | head -c 20)"
 
+          # Create a dedicated keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Decode P12
           P12_PATH="$RUNNER_TEMP/cert.p12"
           echo "$P12_BASE64" | base64 -d > "$P12_PATH"
 
-          # Import PKCS12 (key + cert)
-          security import "$P12_PATH" -P "$P12_PASSWORD" -A -f pkcs12 \
-            -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          # Import PKCS12 — exact flags from Apple-Actions/import-codesign-certs
+          security import "$P12_PATH" \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -A \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
 
-          # Also extract and import the certificate separately
-          # (macOS 15 sometimes only imports the key from PKCS12)
-          CERT_PATH="$RUNNER_TEMP/cert.pem"
-          openssl pkcs12 -in "$P12_PATH" -clcerts -nokeys -passin pass:"$P12_PASSWORD" \
-            -out "$CERT_PATH" 2>/dev/null
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          # Set partition list — exact flags from Apple-Actions source
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
 
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -k actions "$KEYCHAIN_PATH"
+          # Add to keychain search list (alongside login.keychain)
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
 
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-          security default-keychain -d user -s "$KEYCHAIN_PATH"
-
+          # Debug: verify identity
           echo "=== Codesigning identities ==="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          echo "=== All identities ==="
-          security find-identity -v "$KEYCHAIN_PATH"
+          echo "=== All keychains ==="
+          security list-keychains -d user
 
-          rm -f "$P12_PATH" "$CERT_PATH"
+          rm -f "$P12_PATH"
 
       - name: Install Provisioning Profile
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          PP_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PP_DIR"
           echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | \
-            base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision
+            base64 -d > "$PP_DIR/AppStore.mobileprovision"
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
-            <<< "$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/AppStore.mobileprovision)")
+            <<< "$(security cms -D -i "$PP_DIR/AppStore.mobileprovision")")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
 
       # ── Archive ──────────────────────────────────────────────────────
@@ -170,33 +179,36 @@ jobs:
           P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
           P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
-          security create-keychain -p actions "$KEYCHAIN_PATH"
+          KEYCHAIN=signing_temp
+          KEYCHAIN_PATH="$KEYCHAIN.keychain"
+          KEYCHAIN_PASSWORD="$(cat /dev/urandom | LC_ALL=C tr -dc A-Za-z0-9 | head -c 20)"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p actions "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           P12_PATH="$RUNNER_TEMP/cert.p12"
           echo "$P12_BASE64" | base64 -d > "$P12_PATH"
 
-          security import "$P12_PATH" -P "$P12_PASSWORD" -A -f pkcs12 \
-            -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          security import "$P12_PATH" \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -A \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
 
-          CERT_PATH="$RUNNER_TEMP/cert.pem"
-          openssl pkcs12 -in "$P12_PATH" -clcerts -nokeys -passin pass:"$P12_PASSWORD" \
-            -out "$CERT_PATH" 2>/dev/null
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
 
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -k actions "$KEYCHAIN_PATH"
-
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-          security default-keychain -d user -s "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
 
           echo "=== Codesigning identities ==="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-          echo "=== All identities ==="
-          security find-identity -v "$KEYCHAIN_PATH"
 
-          rm -f "$P12_PATH" "$CERT_PATH"
+          rm -f "$P12_PATH"
 
       - name: Archive macOS App
         run: |
