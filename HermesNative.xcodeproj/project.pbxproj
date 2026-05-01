@@ -87,7 +87,9 @@
 		B4C8AD263E87573995FC2518 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = FA354F81CE5E1F32F3D3FE79 /* Lottie */; };
 		B6A29D66D4C44BC31B0E4EF6 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
 		B7A2ACFD1E4703732703EE24 /* MacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41979884D456FA9522F47D6 /* MacApp.swift */; };
+		BAC17B3A35FCE50C20CC2BF4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */; };
 		BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
+		C14E532CB0CE45CBB4B3EEA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */; };
 		C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
 		C50238D57DB0F48A1064C65E /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7471C7C26357969AFAF4154 /* SpawnNode.swift */; };
 		C94DA73F98B98B31367A2487 /* SessionObserverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */; };
@@ -170,6 +172,7 @@
 		EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionObserverView.swift; sourceTree = "<group>"; };
 		EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HermesNative-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF6C83FB177D450056599E65 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
+		F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
 		F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExplorerView.swift; sourceTree = "<group>"; };
 		F7471C7C26357969AFAF4154 /* SpawnNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnNode.swift; sourceTree = "<group>"; };
@@ -278,6 +281,7 @@
 		83CDF5F49CE0642E665E1C80 /* HermesNative */ = {
 			isa = PBXGroup;
 			children = (
+				F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */,
 				F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */,
 				8CA557C395DF234FB29E7E59 /* Models */,
 				373E9FC75661CDE3FE56E27D /* Resources */,
@@ -424,10 +428,10 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					4C5636A071FF7F1F85058B29 = {
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 					};
 					50357E9A910E7A34C0E26F6C = {
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 					};
 				};
 			};
@@ -459,6 +463,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BAC17B3A35FCE50C20CC2BF4 /* Assets.xcassets in Resources */,
 				3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */,
 				01C0D3BFF2F128184740757C /* happy.json in Resources */,
 				4FD6073B1BDD9331CF5F0070 /* idle.json in Resources */,
@@ -470,6 +475,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C14E532CB0CE45CBB4B3EEA3 /* Assets.xcassets in Resources */,
 				FDB5583AC9395AAD7A316F62 /* confused.json in Resources */,
 				A53723E8CA76B5D576505DD9 /* happy.json in Resources */,
 				A3043705F5A86394FE492ED9 /* idle.json in Resources */,
@@ -599,8 +605,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_AllowsArbitraryLoads = YES;
@@ -627,8 +633,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_AllowsArbitraryLoads = YES;
@@ -655,8 +661,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -739,8 +745,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
