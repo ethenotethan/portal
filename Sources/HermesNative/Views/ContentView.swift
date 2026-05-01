@@ -2,14 +2,19 @@ import SwiftUI
 
 /// Root content view — NavigationSplitView with session sidebar + chat detail.
 /// On macOS: real sidebar. On iPad: sidebar. On iPhone: compact push/pop.
+/// Long-press a session row to open Mission Control (spawn tree explorer).
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
+    @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+
+    /// Navigation path for the detail column (supports Mission Control push).
+    @State private var detailPath = NavigationPath()
 
     var body: some View {
         Group {
@@ -48,7 +53,9 @@ struct ContentView: View {
 
     private var sessionChatLayout: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SessionListView()
+            SessionListView(onMissionControl: { sessionID in
+                openMissionControl(sessionID: sessionID)
+            })
                 .environmentObject(sessionList)
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
@@ -57,10 +64,17 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
         } detail: {
-            ChatView()
-                .environmentObject(chatViewModel)
-                .environmentObject(gatewayClientWrapper)
-                .id(chatViewModel.currentSessionID) // Re-create on session switch
+            NavigationStack(path: $detailPath) {
+                ChatView()
+                    .environmentObject(chatViewModel)
+                    .environmentObject(gatewayClientWrapper)
+                    .id(chatViewModel.currentSessionID)
+                    .navigationDestination(for: MissionControlDestination.self) { dest in
+                        SessionExplorerView(sessionID: dest.sessionID)
+                            .environmentObject(gatewayClientWrapper)
+                            .environmentObject(spawnTreeStore)
+                    }
+            }
         }
         #if os(macOS)
         .navigationSplitViewStyle(.balanced)
@@ -69,6 +83,9 @@ struct ContentView: View {
             guard let newID else { return }
             // Skip if already viewing this session
             guard newID != chatViewModel.currentSessionID else { return }
+
+            // Pop back to chat when switching sessions
+            detailPath.removeLast(detailPath.count)
 
             // Always load local history first (instant, no network needed)
             chatViewModel.loadLocalHistory(sessionID: newID)
@@ -114,11 +131,21 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Mission Control Navigation
+
+    private func openMissionControl(sessionID: String) {
+        // Ensure the tree exists
+        spawnTreeStore.createTree(sessionID: sessionID)
+        // Push Mission Control onto the detail navigation stack
+        detailPath.append(MissionControlDestination(sessionID: sessionID))
+    }
+
     // MARK: - Wiring
 
     private func wireUpClient() {
         chatViewModel.setGatewayClient(gatewayClientWrapper.client)
         sessionList.setGatewayClient(gatewayClientWrapper.client)
+        spawnTreeStore.subscribe(to: gatewayClientWrapper.client)
 
         // On startup: show local history immediately, then sync with gateway
         Task {
@@ -131,6 +158,7 @@ struct ContentView: View {
                         sessionList.storeSessionKey(id: sid, key: key)
                     }
                     sessionList.selectSession(id: sid)
+                    spawnTreeStore.createTree(sessionID: sid)
                     await sessionList.refreshSessions()
                 }
             } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
@@ -139,10 +167,12 @@ struct ContentView: View {
                     chatViewModel.loadLocalHistory(sessionID: sid)
                 }
                 sessionList.selectSession(id: sid)
+                spawnTreeStore.createTree(sessionID: sid)
             } else if let first = sessionList.sessions.first {
                 // Load local history instantly for first session
                 chatViewModel.loadLocalHistory(sessionID: first.id)
                 sessionList.selectSession(id: first.id)
+                spawnTreeStore.createTree(sessionID: first.id)
                 // Then try gateway resume for the live connection
                 if let key = sessionList.keyForSession(id: first.id) {
                     await chatViewModel.resumeSession(key: key)
@@ -152,57 +182,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Gateway Client Wrapper
-
-/// Observable wrapper for the GatewayClient lifecycle.
-@MainActor
-final class GatewayClientWrapper: ObservableObject {
-    @Published var isConnected: Bool = false
-    @Published var log: [LogEntry] = []
-    private(set) var client: GatewayClient
-
-    struct LogEntry: Identifiable {
-        let id = UUID()
-        let text: String
-        let isError: Bool
-    }
-
-    init() {
-        self.client = GatewayClient()
-    }
-
-    func connect(using settings: SettingsViewModel) async {
-        client.disconnect()
-        log.removeAll()
-
-        guard let newClient = settings.makeGatewayClient() else {
-            appendLog("✗ Invalid gateway URL", error: true)
-            isConnected = false
-            return
-        }
-
-        appendLog("URL: \(settings.buildWebSocketURL()?.absoluteString ?? "nil")")
-        appendLog("API key: \(settings.apiKey.isEmpty ? "none" : "set (\(settings.apiKey.prefix(8))…)")")
-        appendLog("CF Access: \(settings.cfAuthCookie != nil ? "authenticated" : "not set")")
-
-        client = newClient
-        client.$connectionState
-            .map { state -> Bool in
-                if case .connected = state { return true }
-                return false
-            }
-            .assign(to: &$isConnected)
-
-        client.onLog = { [weak self] message, isError in
-            Task { @MainActor in
-                self?.appendLog(message, error: isError)
-            }
-        }
-
-        client.connect()
-    }
-
-    private func appendLog(_ text: String, error: Bool = false) {
-        log.append(LogEntry(text: text, isError: error))
-    }
+/// Navigation destination type for pushing Mission Control into the detail column.
+struct MissionControlDestination: Hashable {
+    let sessionID: String
 }

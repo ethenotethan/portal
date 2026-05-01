@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// Sidebar list of sessions — tap to resume, swipe to kill, button to create.
+/// Sidebar list of sessions — tap to resume, long-press for Mission Control, swipe to kill.
 struct SessionListView: View {
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+
+    /// Called on long-press with the session ID to open Mission Control.
+    var onMissionControl: ((String) -> Void)? = nil
 
     var body: some View {
         List(selection: $sessionList.activeSessionID) {
@@ -17,6 +20,13 @@ struct SessionListView: View {
                     isActive: session.id == chatViewModel.currentSessionID
                 )
                 .tag(session.id)
+                .contextMenu {
+                    Button {
+                        onMissionControl?(session.id)
+                    } label: {
+                        Label("Mission Control", systemImage: "network")
+                    }
+                }
             }
             .onDelete { indexSet in
                 for index in indexSet {

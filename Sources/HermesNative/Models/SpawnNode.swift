@@ -1,4 +1,15 @@
-import Foundation
+import SwiftUI
+
+/// Status color shared by Mission Control views.
+func colorForStatus(_ status: NodeStatus) -> Color {
+    switch status {
+    case .queued:      .secondary
+    case .running:     .blue
+    case .completed:   .green
+    case .failed:      .red
+    case .interrupted: .orange
+    }
+}
 
 /// A node in the agent's spawn tree — represents a root prompt or a subagent.
 /// Recursive structure: root prompt → children (delegated subagents) → their children, etc.

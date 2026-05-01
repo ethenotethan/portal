@@ -127,12 +127,12 @@ struct TreeNodeView: View {
 
             Spacer(minLength: 0)
 
-            // Running pulse indicator
+            // Running indicator
             if node.status == .running {
                 Circle()
                     .fill(Theme.accent)
                     .frame(width: 6, height: 6)
-                    .modifier(PulseEffect())
+                    .opacity(0.7)
             }
         }
         .padding(.vertical, 6)

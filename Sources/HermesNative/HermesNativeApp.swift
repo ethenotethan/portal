@@ -36,7 +36,7 @@ struct HermesNativeApp: App {
     #if os(macOS)
     private var mainWindow: some Scene {
         WindowGroup {
-            AppTabView()
+            ContentView()
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
@@ -57,7 +57,7 @@ struct HermesNativeApp: App {
     #else
     private var mainWindow: some Scene {
         WindowGroup {
-            AppTabView()
+            ContentView()
                 .environmentObject(settings)
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)

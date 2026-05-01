@@ -3,66 +3,104 @@ import SwiftUI
 /// Drill-in view for a single session — shows the spawn tree as a node graph.
 /// The root node is the user's prompt; children are subagents; grandchildren are their delegates.
 struct SessionExplorerView: View {
-    @ObservedObject var tree: SessionTree
+    let sessionID: String
+    @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @State private var selectedNodeID: String?
     @State private var showTranscriptFor: SpawnNode?
     @State private var expandDepth: Int = 2
 
+    /// Look up the tree for this session.
+    private var tree: SessionTree? {
+        spawnTreeStore.sessions.first { $0.sessionID == sessionID }
+    }
+
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.background.ignoresSafeArea()
-
-                ScrollView([.horizontal, .vertical]) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // HUD bar
-                        sessionHUD
-                            .padding()
-
-                        // Spawn tree
-                        TreeNodeView(
-                            node: tree.root,
-                            depth: 0,
-                            maxDepth: expandDepth,
-                            selectedNodeID: $selectedNodeID,
-                            onNodeTap: { node in
-                                selectedNodeID = node.id
-                            },
-                            onNodeLongPress: { node in
-                                showTranscriptFor = node
-                            }
-                        )
-                        .padding(24)
-                    }
-                }
-            }
-            .navigationTitle(tree.root.goal.isEmpty ? "Session" : String(tree.root.goal.prefix(60)))
-            #if os(macOS)
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    depthControl
-                    interruptButton
-                }
-            }
-            #else
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    depthControl
-                    interruptButton
-                }
-            }
-            #endif
-            .sheet(item: $showTranscriptFor) { node in
-                NodeTranscriptSheet(node: node)
+        Group {
+            if let tree {
+                treeContent(tree: tree)
+            } else {
+                emptyState
             }
         }
     }
 
+    // MARK: - Tree Content
+
+    private func treeContent(tree: SessionTree) -> some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+
+            ScrollView([.horizontal, .vertical]) {
+                VStack(alignment: .leading, spacing: 0) {
+                    // HUD bar
+                    sessionHUD(tree: tree)
+                        .padding()
+
+                    // Spawn tree
+                    TreeNodeView(
+                        node: tree.root,
+                        depth: 0,
+                        maxDepth: expandDepth,
+                        selectedNodeID: $selectedNodeID,
+                        onNodeTap: { node in
+                            selectedNodeID = node.id
+                        },
+                        onNodeLongPress: { node in
+                            showTranscriptFor = node
+                        }
+                    )
+                    .padding(24)
+                }
+            }
+        }
+        .navigationTitle(tree.root.goal.isEmpty ? "Session" : String(tree.root.goal.prefix(60)))
+        #if os(macOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                depthControl
+                interruptButton(tree: tree)
+            }
+        }
+        #else
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                depthControl
+                interruptButton(tree: tree)
+            }
+        }
+        #endif
+        .sheet(item: $showTranscriptFor) { node in
+            NodeTranscriptSheet(node: node)
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+            Text("No Spawn Tree")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text("This session hasn't spawned any subagents yet. Start a task that uses delegation to see the tree grow here.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        .navigationTitle("Mission Control")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+
     // MARK: - HUD
 
-    private var sessionHUD: some View {
+    private func sessionHUD(tree: SessionTree) -> some View {
         HStack(spacing: 16) {
             // Status
             Label {
@@ -85,7 +123,6 @@ struct SessionExplorerView: View {
                 Label("\(tree.root.runningDescendantCount) active", systemImage: "circle.fill")
                     .font(.caption)
                     .foregroundStyle(Theme.accent)
-                    .modifier(PulseEffect())
             }
 
             Divider().frame(height: 16)
@@ -125,12 +162,11 @@ struct SessionExplorerView: View {
 
     // MARK: - Interrupt
 
-    private var interruptButton: some View {
+    private func interruptButton(tree: SessionTree) -> some View {
         Button {
             Task {
-                guard let client = gatewayClientWrapper.client as? GatewayClient,
-                      case .connected = client.connectionState else { return }
-                try? await client.interrupt(sessionID: tree.sessionID)
+                guard case .connected = gatewayClientWrapper.client.connectionState else { return }
+                try? await gatewayClientWrapper.client.interrupt(sessionID: tree.sessionID)
             }
         } label: {
             Label("Interrupt", systemImage: "stop.fill")
