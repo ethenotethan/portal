@@ -108,6 +108,9 @@ final class SessionListViewModel: ObservableObject {
     }
 
     /// Refresh the session list from the gateway, merging local data.
+    /// Preserves sessions that are owned (have gatewayID) but haven't been
+    /// discovered in the gateway's session.list yet (their short hex ID
+    /// hasn't been mapped to a database-format ID).
     func refreshSessions() async {
         guard let client = gatewayClient else { return }
         isLoading = true
@@ -125,11 +128,71 @@ final class SessionListViewModel: ObservableObject {
                     fetched[i].gatewayID = gwID
                 }
             }
-            sessions = fetched
+
+            // Preserve sessions that are owned (have gatewayID) but whose
+            // short hex ID hasn't been mapped to a database-format ID yet,
+            // so they wouldn't appear in the fetched list.
+            let fetchedIDs = Set(fetched.map { $0.id })
+            let ownedUnmapped = sessions.filter { session in
+                session.isOwned && !fetchedIDs.contains(session.id)
+            }
+
+            sessions = fetched + ownedUnmapped
         } catch {
             // Silently fail — session list is non-critical
         }
         isLoading = false
+    }
+
+    /// Register a session created by this app (short hex ID from session.create).
+    /// Adds it to the list immediately with `gatewayID` set so it appears in "My Sessions",
+    /// then fires an async task to discover the database-format ID via `session.title`.
+    func registerOwnedSession(shortHexID: String) {
+        // Don't add if already present
+        guard !sessions.contains(where: { $0.id == shortHexID || $0.gatewayID == shortHexID }) else {
+            activeSessionID = shortHexID
+            return
+        }
+        var session = Session(id: shortHexID, messageCount: 0)
+        session.gatewayID = shortHexID
+        sessions.append(session)
+        activeSessionID = shortHexID
+
+        // Async: discover the database-format ID via session.title and store the mapping.
+        // Retries up to 3 times because the agent may still be initializing.
+        Task { [weak self] in
+            guard let self, let client = self.gatewayClient else { return }
+            for attempt in 0..<3 {
+                do {
+                    let result = try await client.sessionTitle(sessionID: shortHexID)
+                    if let dbID = result.sessionKey, !dbID.isEmpty, dbID != shortHexID {
+                        // Update the session's primary ID to the database format
+                        if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
+                            let oldID = self.sessions[idx].id
+                            self.sessions[idx].id = dbID
+                            // Move local title if needed
+                            if let title = self.localTitles[oldID] {
+                                var titles = self.localTitles
+                                titles[dbID] = title
+                                titles.removeValue(forKey: oldID)
+                                self.localTitles = titles
+                                self.sessions[idx].localTitle = title
+                            }
+                        }
+                        self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
+                        if self.activeSessionID == shortHexID {
+                            self.activeSessionID = dbID
+                        }
+                        return  // Success — done
+                    }
+                } catch {
+                    NSLog("[HermesNative] session.title attempt \(attempt + 1) failed: \(error)")
+                }
+                // Wait before retry (agent may still be initializing)
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            }
+            NSLog("[HermesNative] session.title gave up after 3 attempts for \(shortHexID)")
+        }
     }
 
     /// Create a new session and set it as active.
@@ -139,48 +202,7 @@ final class SessionListViewModel: ObservableObject {
         }
 
         let shortHexID = try await client.createSession()
-        activeSessionID = shortHexID
-
-        var session = Session(
-            id: shortHexID,  // Temporarily use short hex; will be updated on refresh
-            messageCount: 0
-        )
-        session.gatewayID = shortHexID
-        if let title = localTitles[shortHexID] {
-            session.localTitle = title
-        }
-        sessions.append(session)
-
-        // Async: discover the database ID via session.title and store the mapping
-        Task { [weak self] in
-            guard let self, let client = self.gatewayClient else { return }
-            do {
-                let result = try await client.sessionTitle(sessionID: shortHexID)
-                if let dbID = result.sessionKey, !dbID.isEmpty {
-                    // Update the session's primary ID to the database format
-                    if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
-                        let oldID = self.sessions[idx].id
-                        self.sessions[idx].id = dbID
-                        // Move local title if needed
-                        if let title = self.localTitles[oldID] {
-                            var titles = self.localTitles
-                            titles[dbID] = title
-                            titles.removeValue(forKey: oldID)
-                            self.localTitles = titles
-                            self.sessions[idx].localTitle = title
-                        }
-                    }
-                    self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
-                    if self.activeSessionID == shortHexID {
-                        self.activeSessionID = dbID
-                    }
-                }
-            } catch {
-                // session.title may fail if agent isn't ready yet; non-critical
-                NSLog("[HermesNative] session.title lookup failed: \(error)")
-            }
-        }
-
+        registerOwnedSession(shortHexID: shortHexID)
         return shortHexID
     }
 

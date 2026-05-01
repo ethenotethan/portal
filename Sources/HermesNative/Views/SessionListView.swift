@@ -88,7 +88,11 @@ struct SessionListView: View {
                 sectionHeader(title: "Other Sessions", icon: "eye")
             }
         }
+        #if os(macOS)
         .listStyle(.sidebar)
+        #else
+        .listStyle(.insetGrouped)
+        #endif
         .overlay {
             if sessionList.sessions.isEmpty && !sessionList.isLoading {
                 emptyState
@@ -150,8 +154,8 @@ struct SessionListView: View {
         do {
             await chatViewModel.createSession()
             if let sid = chatViewModel.currentSessionID {
-                sessionList.selectSession(id: sid)
-                await sessionList.refreshSessions()
+                // Register the session as owned (appears in "My Sessions" immediately)
+                sessionList.registerOwnedSession(shortHexID: sid)
             }
         } catch {
             chatViewModel.error = error.localizedDescription

@@ -159,10 +159,8 @@ struct ContentView: View {
             if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
                 await chatViewModel.createSession()
                 if let sid = chatViewModel.currentSessionID {
-                    // sid is the short hex ID from session.create
-                    sessionList.selectSession(id: sid)
+                    sessionList.registerOwnedSession(shortHexID: sid)
                     spawnTreeStore.createTree(sessionID: sid)
-                    await sessionList.refreshSessions()
                 }
             } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
                 if chatViewModel.messages.isEmpty {

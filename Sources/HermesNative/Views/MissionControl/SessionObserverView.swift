@@ -108,11 +108,14 @@ struct SessionObserverView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(msg.role == "user" ? Theme.accent : .secondary)
 
-            // Content
-            Text(msg.content)
-                .font(.subheadline)
-                .foregroundStyle(Theme.primary)
-                .textSelection(.enabled)
+            // Content (for tool messages, show context if available)
+            let displayText = msg.role == "tool" ? (msg.toolContext ?? msg.content) : msg.content
+            if !displayText.isEmpty {
+                Text(displayText)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.primary)
+                    .textSelection(.enabled)
+            }
 
             // Tool name (if tool message)
             if let toolName = msg.toolName {
@@ -141,77 +144,89 @@ struct SessionObserverView: View {
                 emptyState(icon: "exclamationmark.triangle", title: "Cannot Load Usage",
                            subtitle: error)
             } else if let usage {
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // Model
-                        usageCard(icon: "cpu", title: "Model", value: shortModel(usage.model))
-
-                        // Cost
-                        if let cost = usage.costUSD, cost > 0 {
-                            usageCard(icon: "dollarsign.circle", title: "Cost",
-                                      value: String(format: "$%.4f", cost))
+                // For non-owned sessions with all-zero usage, show a note
+                if !isOwned && usage.totalTokens == 0 && usage.apiCalls == 0 {
+                    emptyState(icon: "chart.bar", title: "Usage Unavailable",
+                               subtitle: "Usage tracking requires an active session. Historical usage is not available for observed sessions.")
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            usageDashboard(usage: usage)
                         }
-
-                        // Tokens
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            usageCard(icon: "arrow.down.circle", title: "Input",
-                                      value: formatNumber(usage.inputTokens))
-                            usageCard(icon: "arrow.up.circle", title: "Output",
-                                      value: formatNumber(usage.outputTokens))
-                            usageCard(icon: "number.circle", title: "Total",
-                                      value: formatNumber(usage.totalTokens))
-                            usageCard(icon: "phone.connection", title: "API Calls",
-                                      value: formatNumber(usage.apiCalls))
-                        }
-
-                        // Cache stats
-                        if let cacheRead = usage.cacheReadTokens, cacheRead > 0 {
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                usageCard(icon: "arrow.triangle.2.circlepath", title: "Cache Read",
-                                          value: formatNumber(cacheRead))
-                                if let cacheWrite = usage.cacheWriteTokens, cacheWrite > 0 {
-                                    usageCard(icon: "arrow.triangle.circlepath", title: "Cache Write",
-                                              value: formatNumber(cacheWrite))
-                                }
-                            }
-                        }
-
-                        // Context window
-                        if let ctxPct = usage.contextPercent, let ctxUsed = usage.contextUsed, let ctxMax = usage.contextMax {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Image(systemName: "text.append")
-                                        .foregroundStyle(Theme.accent)
-                                    Text("Context Window")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    Text("\(formatNumber(ctxUsed)) / \(formatNumber(ctxMax))")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                ProgressView(value: Double(ctxPct) / 100.0)
-                                    .tint(ctxPct > 80 ? Theme.warning : Theme.accent)
-                                Text("\(ctxPct)% used")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(12)
-                            .background(Theme.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-
-                        // Compressions
-                        if let compressions = usage.compressions, compressions > 0 {
-                            usageCard(icon: "arrow.3.trianglepath", title: "Compressions",
-                                      value: "\(compressions)")
-                        }
+                        .padding()
                     }
-                    .padding()
                 }
             } else {
                 emptyState(icon: "chart.bar", title: "No Usage Data",
                            subtitle: "This session may not be active in the gateway.")
+            }
+        }
+    }
+
+    private func usageDashboard(usage: SessionUsage) -> some View {
+        VStack(spacing: 16) {
+            // Model
+            usageCard(icon: "cpu", title: "Model", value: shortModel(usage.model))
+
+            // Cost
+            if let cost = usage.costUSD, cost > 0 {
+                usageCard(icon: "dollarsign.circle", title: "Cost",
+                          value: String(format: "$%.4f", cost))
+            }
+
+            // Tokens
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                usageCard(icon: "arrow.down.circle", title: "Input",
+                          value: formatNumber(usage.inputTokens))
+                usageCard(icon: "arrow.up.circle", title: "Output",
+                          value: formatNumber(usage.outputTokens))
+                usageCard(icon: "number.circle", title: "Total",
+                          value: formatNumber(usage.totalTokens))
+                usageCard(icon: "phone.connection", title: "API Calls",
+                          value: formatNumber(usage.apiCalls))
+            }
+
+            // Cache stats
+            if let cacheRead = usage.cacheReadTokens, cacheRead > 0 {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    usageCard(icon: "arrow.triangle.2.circlepath", title: "Cache Read",
+                              value: formatNumber(cacheRead))
+                    if let cacheWrite = usage.cacheWriteTokens, cacheWrite > 0 {
+                        usageCard(icon: "arrow.triangle.circlepath", title: "Cache Write",
+                                  value: formatNumber(cacheWrite))
+                    }
+                }
+            }
+
+            // Context window
+            if let ctxPct = usage.contextPercent, let ctxUsed = usage.contextUsed, let ctxMax = usage.contextMax {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "text.append")
+                            .foregroundStyle(Theme.accent)
+                        Text("Context Window")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(formatNumber(ctxUsed)) / \(formatNumber(ctxMax))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    ProgressView(value: Double(ctxPct) / 100.0)
+                        .tint(ctxPct > 80 ? Theme.warning : Theme.accent)
+                    Text("\(ctxPct)% used")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Compressions
+            if let compressions = usage.compressions, compressions > 0 {
+                usageCard(icon: "arrow.3.trianglepath", title: "Compressions",
+                          value: "\(compressions)")
             }
         }
     }
@@ -335,12 +350,17 @@ struct SessionObserverView: View {
         do {
             let result = try await gatewayClientWrapper.client.peekSession(sessionKey: session.id)
             // Parse messages from the peek result
+            // Gateway format: {"role": "user"|"assistant"|"system", "text": "..."} or {"role": "tool", "name": "...", "context": "..."}
             historyMessages = result.messages.compactMap { d -> ObserverMessage? in
-                guard let role = d["role"]?.stringValue, let content = d["content"]?.stringValue else { return nil }
+                guard let role = d["role"]?.stringValue else { return nil }
+                // Gateway uses "text" key for user/assistant/system messages
+                let content = d["text"]?.stringValue ?? d["content"]?.stringValue ?? ""
+                guard !content.isEmpty || role == "tool" else { return nil }
                 return ObserverMessage(
                     role: role,
                     content: String(content.prefix(2000)),
-                    toolName: d["tool_name"]?.stringValue ?? d["name"]?.stringValue
+                    toolName: d["name"]?.stringValue ?? d["tool_name"]?.stringValue,
+                    toolContext: d["context"]?.stringValue.map { String($0.prefix(2000)) }
                 )
             }
             usage = result.usage
@@ -358,12 +378,16 @@ struct SessionObserverView: View {
     private func loadHistory(rpcID: String) async {
         do {
             let response = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcID)
+            // Gateway format: {"role": "user"|"assistant"|"system", "text": "..."} or {"role": "tool", "name": "...", "context": "..."}
             historyMessages = response.compactMap { d -> ObserverMessage? in
-                guard let role = d["role"]?.stringValue, let content = d["content"]?.stringValue else { return nil }
+                guard let role = d["role"]?.stringValue else { return nil }
+                let content = d["text"]?.stringValue ?? d["content"]?.stringValue ?? ""
+                guard !content.isEmpty || role == "tool" else { return nil }
                 return ObserverMessage(
                     role: role,
                     content: String(content.prefix(2000)),
-                    toolName: d["tool_name"]?.stringValue ?? d["name"]?.stringValue
+                    toolName: d["name"]?.stringValue ?? d["tool_name"]?.stringValue,
+                    toolContext: d["context"]?.stringValue.map { String($0.prefix(2000)) }
                 )
             }
             // Use first user message as title
@@ -443,6 +467,7 @@ struct ObserverMessage: Identifiable {
     let role: String
     let content: String
     let toolName: String?
+    let toolContext: String?  // Gateway sends "context" for tool messages
 }
 
 // MARK: - Spawn Tree Snapshot View (drill-in from Agents tab)
