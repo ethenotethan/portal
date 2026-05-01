@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 /// Parses and renders markdown content in a SwiftUI view.
 /// Uses Apple's built-in AttributedString(markdown:) for inline formatting
@@ -25,6 +26,10 @@ struct MarkdownContentView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color.accentColor.opacity(0.2), lineWidth: 0.5)
                             )
+                        OpenableBlockChip(label: "Open Diagram", language: "mermaid", content: code)
+                    } else if language == "html" {
+                        CodeBlockView(language: language, code: code)
+                        OpenableBlockChip(label: "Open Page", language: "html", content: code)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -436,49 +441,218 @@ struct BlockQuoteView: View {
 struct TableView: View {
     let headers: [String]
     let rows: [[String]]
+    @State private var isExpanded = false
 
     var body: some View {
+        let content = tableContent
+
+        if isExpanded {
+            content
+        } else {
+            content
+                .frame(maxHeight: 220)
+                .clipped()
+                .mask(
+                    VStack(spacing: 0) {
+                        Rectangle().frame(height: 200)
+                        LinearGradient(
+                            colors: [Theme.surface, Theme.surface.opacity(0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 20)
+                    }
+                )
+        }
+    }
+
+    private var tableContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 // Header row
                 HStack(spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
                         MarkdownText(text: header)
-                            .font(.subheadline.bold())
-                            .frame(minWidth: 60, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
+                            .font(.caption.bold())
+                            .foregroundStyle(Theme.secondary)
+                            .frame(minWidth: 60, alignment: .center)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
                     }
                 }
-                #if os(macOS)
-                .background(Color(nsColor: .windowBackgroundColor))
-                #else
-                .background(Color(uiColor: .systemGroupedBackground))
-                #endif
+                .background(Theme.surface)
 
                 // Data rows
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
                             MarkdownText(text: cell)
-                                .font(.subheadline)
-                                .frame(minWidth: 60, alignment: .leading)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
+                                .font(.caption)
+                                .foregroundStyle(Theme.primary)
+                                .frame(minWidth: 60, alignment: .center)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
                         }
                     }
-                    Divider()
+                    .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.4))
+                }
+
+                // Expand / collapse button
+                if rows.count > 4 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            isExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(isExpanded ? "Show less" : "Show all \(rows.count) rows")
+                                .font(.caption2)
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .background(Theme.surface)
                 }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    #if os(macOS)
-                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-                    #else
-                    .stroke(Color(uiColor: .separator).opacity(0.5), lineWidth: 0.5)
-                    #endif
+                    .stroke(Theme.border, lineWidth: 0.5)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 }
+
+// MARK: - Openable Block Chip (Mermaid / HTML)
+
+struct OpenableBlockChip: View {
+    let label: String
+    let language: String
+    let content: String
+    @State private var isOpen = false
+
+    var body: some View {
+        Button {
+            isOpen = true
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: language == "mermaid" ? "diagram" : "globe")
+                    .font(.caption2)
+                Text(label)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                Image(systemName: "arrow.up.right.square")
+                    .font(.caption2)
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Theme.border, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $isOpen) {
+            OpenableBlockSheet(language: language, content: content)
+        }
+    }
+}
+
+// MARK: - Openable Block Sheet
+
+struct OpenableBlockSheet: View {
+    let language: String
+    let content: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Title bar
+            HStack {
+                Text(language == "mermaid" ? "Diagram" : "Page")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+
+                Spacer()
+
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Theme.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Theme.surface)
+
+            Divider()
+
+            // Content
+            if language == "mermaid" {
+                MermaidDiagramView(mermaidCode: content)
+            } else {
+                InlineHTMLView(html: content)
+            }
+        }
+        .frame(minWidth: 600, minHeight: 500)
+        .background(Theme.background)
+    }
+}
+
+// MARK: - Inline HTML View
+
+struct InlineHTMLView: View {
+    let html: String
+
+    var body: some View {
+        #if os(macOS)
+        InlineHTMLNSView(html: html)
+        #else
+        InlineHTMLUIView(html: html)
+        #endif
+    }
+}
+
+#if os(macOS)
+struct InlineHTMLNSView: NSViewRepresentable {
+    let html: String
+
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.preferences.isElementFullscreenEnabled = true
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        webView.loadHTMLString(html, baseURL: nil)
+    }
+}
+#else
+struct InlineHTMLUIView: UIViewRepresentable {
+    let html: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        webView.loadHTMLString(html, baseURL: nil)
+    }
+}
+#endif
