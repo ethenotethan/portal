@@ -53,6 +53,9 @@ jobs:
           security find-identity -v -p codesigning ~/Library/Keychains/signing_temp.keychain-db
 
       # ── Archive ──────────────────────────────────────────────────────
+      - name: Clear SwiftPM Artifact Cache
+        run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+
       - name: Archive iOS App
         run: |
           mkdir -p build
