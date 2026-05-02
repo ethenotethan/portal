@@ -86,13 +86,12 @@ app_id = app.fetch("id")
 puts "Found app #{app_id} for #{BUNDLE_ID}"
 
 encoded_version = URI.encode_www_form_component(APP_VERSION)
-encoded_build = URI.encode_www_form_component(BUILD_NUMBER)
 build = nil
 started = Time.now
 loop do
-  path = "/v1/builds?filter[app]=#{app_id}&filter[version]=#{encoded_version}&filter[buildNumber]=#{encoded_build}&sort=-uploadedDate&limit=1"
+  path = "/v1/builds?filter[app]=#{app_id}&filter[version]=#{encoded_version}&sort=-uploadedDate&limit=20"
   builds = request(:get, path).fetch("data")
-  build = builds.first
+  build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
 
   if build
     state = build.fetch("attributes").fetch("processingState")
