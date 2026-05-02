@@ -13,6 +13,18 @@ packages:
     from: "4.6.0"
 
 targets:
+  HermesNativeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/HermesNativeUITests
+    dependencies:
+      - target: HermesNative-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.UITests
+        TEST_TARGET_NAME: HermesNative-iOS
+
   HermesNative-macOS:
     type: application
     platform: macOS

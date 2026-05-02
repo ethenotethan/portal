@@ -27,6 +27,7 @@ struct ContentView: View {
             } else {
                 OnboardingView()
                     .environmentObject(gatewayClientWrapper)
+                    .environmentObject(chatViewModel)
             }
         }
         .task {
@@ -102,7 +103,18 @@ struct ContentView: View {
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSessionSelection(newID)
         }
-        .commonSessionModifiers()
+        .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
+            updateSelectedSessionTitle(oldTitle: oldTitle, newTitle: newTitle)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
+            switchToSession(from: notification)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
+        .onChange(of: chatViewModel.currentSessionID) { _, newID in
+            NotificationService.shared.activeSessionID = newID
+        }
     }
 
     private var selectedOwnedSession: Session? {
@@ -166,7 +178,18 @@ struct ContentView: View {
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSessionSelection(newID)
         }
-        .commonSessionModifiers()
+        .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
+            updateSelectedSessionTitle(oldTitle: oldTitle, newTitle: newTitle)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
+            switchToSession(from: notification)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
+        .onChange(of: chatViewModel.currentSessionID) { _, newID in
+            NotificationService.shared.activeSessionID = newID
+        }
         // Mission Control sheet (for owned sessions)
         .sheet(isPresented: Binding(
             get: { missionControlSessionID != nil },
@@ -257,39 +280,22 @@ struct ContentView: View {
             }
         }
     }
-}
-
-private extension View {
-    func commonSessionModifiers() -> some View {
-        self.modifier(CommonSessionModifier())
+    private func updateSelectedSessionTitle(oldTitle: String, newTitle: String) {
+        guard let sid = chatViewModel.currentSessionID,
+              newTitle != oldTitle else { return }
+        sessionList.updateSessionTitle(id: sid, title: newTitle)
     }
-}
 
-private struct CommonSessionModifier: ViewModifier {
-    @EnvironmentObject var sessionList: SessionListViewModel
-    @EnvironmentObject var chatViewModel: ChatViewModel
-    @Environment(\.scenePhase) private var scenePhase
+    private func switchToSession(from notification: Notification) {
+        if let sessionID = notification.userInfo?["session_id"] as? String {
+            sessionList.selectSession(id: sessionID)
+        }
+    }
 
-    func body(content: Content) -> some View {
-        content
-            .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
-                guard let sid = chatViewModel.currentSessionID,
-                      newTitle != oldTitle else { return }
-                sessionList.updateSessionTitle(id: sid, title: newTitle)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
-                if let sessionID = notification.userInfo?["session_id"] as? String {
-                    sessionList.selectSession(id: sessionID)
-                }
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                if newPhase != .active {
-                    chatViewModel.saveHistory()
-                }
-                NotificationService.shared.isForegrounded = (newPhase == .active)
-            }
-            .onChange(of: chatViewModel.currentSessionID) { _, newID in
-                NotificationService.shared.activeSessionID = newID
-            }
+    private func handleScenePhaseChange(_ newPhase: ScenePhase) {
+        if newPhase != .active {
+            chatViewModel.saveHistory()
+        }
+        NotificationService.shared.isForegrounded = (newPhase == .active)
     }
 }

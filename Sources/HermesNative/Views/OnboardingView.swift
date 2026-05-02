@@ -227,6 +227,7 @@ struct OnboardingView: View {
                         Button("Connect") {
                             settings.validate()
                         }
+                        .accessibilityIdentifier("connectButton")
                         .buttonStyle(.borderedProminent)
                         .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
                     }

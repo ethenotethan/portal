@@ -228,6 +228,7 @@ struct SessionListView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                 }
+                .accessibilityIdentifier("newSessionButton")
             }
             #if os(iOS)
             ToolbarItem(placement: .cancellationAction) {

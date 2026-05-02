@@ -29,8 +29,14 @@ final class SettingsViewModel: ObservableObject {
     @Published var cfAuthEmail: String?
 
     init() {
-        self.gatewayURL = KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
-        self.apiKey = KeychainStore.shared.loadAPIKey() ?? ""
+        let env = ProcessInfo.processInfo.environment
+        let args = ProcessInfo.processInfo.arguments
+        let isUITest = args.contains("--uitest")
+        let uiTestGatewayURL = isUITest ? env["HERMES_NATIVE_GATEWAY_URL"] : nil
+        let uiTestAPIKey = isUITest ? env["HERMES_NATIVE_API_KEY"] : nil
+
+        self.gatewayURL = uiTestGatewayURL ?? KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
+        self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
         self.isConfigured = !gatewayURL.isEmpty
     }
 

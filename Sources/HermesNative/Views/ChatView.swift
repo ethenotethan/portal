@@ -431,6 +431,7 @@ struct ChatInputBar: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
+                .accessibilityIdentifier("chatInput")
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
                 .focused($isInputFocused)
@@ -445,6 +446,8 @@ struct ChatInputBar: View {
                     .font(.title2)
                     .foregroundStyle(chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming ? .gray : Color.accentColor)
             }
+            .accessibilityLabel("Send")
+            .accessibilityIdentifier("sendButton")
             .disabled(chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming)
             .buttonStyle(.plain)
         }
