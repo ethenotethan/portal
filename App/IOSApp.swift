@@ -6,6 +6,7 @@ struct HermesNativeAppIOS: App {
     @StateObject private var sessionList = SessionListViewModel()
     @StateObject private var personaManager = PersonaManager()
     @StateObject private var spawnTreeStore = SpawnTreeStore()
+    @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
 
     init() {
         requestHermesNativeNotificationAuthorization()
@@ -18,6 +19,7 @@ struct HermesNativeAppIOS: App {
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
                 .environmentObject(spawnTreeStore)
+                .environmentObject(gatewayClientWrapper)
         }
     }
 }

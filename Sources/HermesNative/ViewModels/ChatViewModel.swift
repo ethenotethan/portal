@@ -33,6 +33,7 @@ final class ChatViewModel: ObservableObject {
     @Published var error: String?
     @Published var avatarState: AvatarState = .idle
     @Published var sessionTitle: String = "New Chat"
+    @Published private(set) var createGeneration: Int = 0
 
     private var gatewayClient: GatewayClient?
     private var sessionID: String?
@@ -87,7 +88,9 @@ final class ChatViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Handle reconnection — resume or create session
+        // Handle reconnection. Session creation is explicit from the Sessions UI;
+        // reconnect should not implicitly create an invisible chat that races with
+        // the New Session button and leaves the list empty on compact iOS.
         client.onReconnected = { [weak self] in
             guard let self else { return }
             // Sync persona
@@ -97,12 +100,9 @@ final class ChatViewModel: ObservableObject {
             // If GatewayClient already resumed the session, use that session ID
             if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
                 self.sessionID = resumedID
+                self.createGeneration += 1
                 self.isSessionReady = true
                 self.error = nil
-            }
-            // Otherwise create a new session
-            if self.sessionID == nil {
-                await self.createSession()
             }
         }
     }
@@ -116,15 +116,17 @@ final class ChatViewModel: ObservableObject {
             self.error = "No gateway client"
             return
         }
-        guard case .connected = client.connectionState else {
-            self.error = "Not connected to gateway (state: \(client.connectionState))"
+        NSLog("[HermesNative] ChatViewModel createSession invoked state=\(client.connectionState)")
+        guard !isCreatingSession else {
+            NSLog("[HermesNative] ChatViewModel createSession ignored: already creating")
             return
         }
-        guard !isCreatingSession else { return }  // Prevent double-trigger
         isCreatingSession = true
         do {
             let sid = try await client.createSession()
+            NSLog("[HermesNative] ChatViewModel createSession succeeded sid=\(sid)")
             self.sessionID = sid
+            self.createGeneration += 1
             self.isSessionReady = true
             self.messages = []
             self.activeToolCalls = [:]

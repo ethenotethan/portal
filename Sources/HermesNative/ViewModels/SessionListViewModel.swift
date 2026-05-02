@@ -88,6 +88,21 @@ final class SessionListViewModel: ObservableObject {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// Owned sessions are rendered with the native app skin, even though the
+    /// gateway persists them with source="tui" because they run through the TUI
+    /// agent backend. Show the visible skin here so the Sessions list matches
+    /// the actual chat pane.
+    func subtitleForOwnedSession(_ session: Session, skin: ChatSkin) -> String? {
+        var parts: [String] = [skin.displayName]
+        if session.messageCount > 0 {
+            parts.append("\(session.messageCount) msgs")
+        }
+        if let date = session.startedAt {
+            parts.append(date.relativeString)
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// Store the mapping from database ID to gateway short hex ID.
     func storeGatewayIDMapping(databaseID: String, gatewayID: String) {
         var map = gatewayIDMap
@@ -203,7 +218,7 @@ final class SessionListViewModel: ObservableObject {
                             }
                         }
                         self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
-                        if self.activeSessionID == shortHexID {
+                        if self.activeSessionID == shortHexID, self.sessions.contains(where: { $0.id == dbID }) {
                             self.activeSessionID = dbID
                         }
                         return  // Success — done

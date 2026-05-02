@@ -33,11 +33,15 @@ final class SettingsViewModel: ObservableObject {
         let args = ProcessInfo.processInfo.arguments
         let isUITest = args.contains("--uitest")
         let uiTestGatewayURL = isUITest ? env["HERMES_NATIVE_GATEWAY_URL"] : nil
-        let uiTestAPIKey = isUITest ? env["HERMES_NATIVE_API_KEY"] : nil
+        let uiTestAPIKey = isUITest ? (env["HERMES_NATIVE_API_KEY"] ?? env["API_SERVER_KEY"]) : nil
 
         self.gatewayURL = uiTestGatewayURL ?? KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
-        self.isConfigured = !gatewayURL.isEmpty
+        self.isConfigured = !gatewayURL.isEmpty && (!isUITest || uiTestGatewayURL != nil)
+
+        if isUITest {
+            NSLog("[HermesNative] UITest settings gatewayURL=\(gatewayURL) apiKeySet=\(!apiKey.isEmpty)")
+        }
     }
 
     /// Validate and update the configured state.

@@ -233,6 +233,18 @@ struct OnboardingView: View {
                     }
                     .padding(.top, 8)
 
+                    if !gatewayClientWrapper.log.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(gatewayClientWrapper.log.suffix(5)) { entry in
+                                Text(entry.text)
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(entry.isError ? .red : .secondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     if let result = testResult {
                         Text(result)
                             .font(.caption)

@@ -240,25 +240,27 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
 
-        // Auth headers via httpAdditionalHeaders (URLSessionWebSocketTask
-        // silently drops custom headers from URLRequest).
-        var additionalHeaders: [String: String] = [:]
-        if !apiKey.isEmpty {
-            additionalHeaders["Authorization"] = "Bearer \(apiKey)"
-        }
-        if !additionalHeaders.isEmpty {
-            sessionConfig.httpAdditionalHeaders = additionalHeaders
-        }
-
         // Carry CF_Authorization cookie
         if let cookie = cfAuthCookie {
             sessionConfig.httpCookieStorage?.setCookie(cookie)
         }
 
+        var request = URLRequest(url: gatewayURL)
+        if !apiKey.isEmpty {
+            let authValue = "Bearer \(apiKey)"
+            request.setValue(authValue, forHTTPHeaderField: "Authorization")
+            // URLSessionWebSocketTask can drop URLRequest headers on some OS
+            // releases even though the same code works on others. Keep the
+            // header on both the upgrade request and the session config so the
+            // API server auth path is reliable in iOS simulator/TestFlight.
+            // This must be set before URLSession is created; configuration is
+            // copied at init time.
+            sessionConfig.httpAdditionalHeaders = ["Authorization": authValue]
+        }
+
         let newSession = URLSession(configuration: sessionConfig, delegate: self, delegateQueue: nil)
         self.urlSession = newSession
 
-        let request = URLRequest(url: gatewayURL)
         let task = newSession.webSocketTask(with: request)
         self.webSocketTask = task
         task.resume()
@@ -380,9 +382,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 do {
                     try await webSocketTask.send(.string(String(data: data, encoding: .utf8)!))
                 } catch {
-                    // Send failed — remove continuation and propagate error
-                    self.removePendingRequest(id: id)
-                    continuation.resume(throwing: error)
+                    // Send failed — remove continuation and propagate error.
+                    // Only resume if it is still pending; a fast disconnect may
+                    // already have resumed it via stopConnection().
+                    if self.removePendingRequest(id: id) != nil {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
         }
@@ -721,6 +726,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             case .connecting:
                 connectionState = .error(error.localizedDescription)
             case .connected, .reconnecting:
+                let nsError = error as NSError
+                if nsError.domain == NSPOSIXErrorDomain && nsError.code == 57 {
+                    NSLog("[HermesNative] receiveLoop ended after socket close; waiting for delegate close")
+                    return
+                }
                 handleDisconnect(reason: error.localizedDescription)
             default:
                 break
@@ -780,9 +790,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     /// Thread-safe removal of a pending request continuation (safe from async contexts).
-    private nonisolated func removePendingRequest(id: Int) {
+    private nonisolated func removePendingRequest(id: Int) -> CheckedContinuation<JSONRPCResponse, Error>? {
         MainActor.assumeIsolated {
-            pendingRequests[id] = nil
+            pendingRequestsLock.lock()
+            let continuation = pendingRequests.removeValue(forKey: id)
+            pendingRequestsLock.unlock()
+            return continuation
         }
     }
 
@@ -801,22 +814,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             // Start keepalive pings
             startPingTimer()
 
-            // Handle reconnection — try to resume previous session
-            if let key = lastSessionKey {
-                onLog?("Resuming session…", false)
-                do {
-                    let result = try await resumeSession(key: key)
-                    activeSessionID = result.sessionID
-                    onLog?("✓ Session resumed (\(result.messages.count) history messages)", false)
-                    await onReconnected?()
-                } catch {
-                    onLog?("Resume failed, creating new session: \(error.localizedDescription)", true)
-                    lastSessionKey = nil
-                    await onReconnected?()
-                }
-            } else {
-                await onReconnected?()
-            }
+            await onReconnected?()
         }
     }
 

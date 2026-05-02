@@ -10,8 +10,10 @@ struct SessionListView: View {
 
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
+    var onCreateSession: (() -> Void)?
 
     @State private var otherSessionsCollapsed = false
+    @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
     private var mySessions: [Session] {
         sessionList.sessions.filter { $0.isOwned && !$0.isArchived }
@@ -34,16 +36,24 @@ struct SessionListView: View {
             // My Sessions
             Section {
                 if mySessions.isEmpty {
-                    Text("No sessions yet")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowBackground(Color.clear)
+                    VStack(spacing: 8) {
+                        Text("No sessions yet")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        Button("Start New Chat") {
+                            onCreateSession?()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("startNewChatButton")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowBackground(Color.clear)
                 } else {
                     ForEach(mySessions) { session in
                         SessionRowView(
                             title: sessionList.titleForSession(session),
-                            subtitle: sessionList.subtitleForSession(session),
+                            subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
                             source: nil,
                             isActive: session.id == chatViewModel.currentSessionID,
                             isOwned: true
@@ -100,7 +110,7 @@ struct SessionListView: View {
                         ForEach(archivedSessions) { session in
                             SessionRowView(
                                 title: sessionList.titleForSession(session),
-                                subtitle: sessionList.subtitleForSession(session),
+                                subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
                                 source: nil,
                                 isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: true,
@@ -221,21 +231,6 @@ struct SessionListView: View {
                 emptyState
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    Task { await createAndSwitchSession() }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                }
-                .accessibilityIdentifier("newSessionButton")
-            }
-            #if os(iOS)
-            ToolbarItem(placement: .cancellationAction) {
-                EditButton()
-            }
-            #endif
-        }
         .refreshable {
             await sessionList.refreshSessions()
         }
@@ -292,18 +287,6 @@ struct SessionListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func createAndSwitchSession() async {
-        guard case .connected = gatewayClientWrapper.client.connectionState else { return }
-        do {
-            await chatViewModel.createSession()
-            if let sid = chatViewModel.currentSessionID {
-                // Register the session as owned (appears in "My Sessions" immediately)
-                sessionList.registerOwnedSession(shortHexID: sid)
-            }
-        } catch {
-            chatViewModel.error = error.localizedDescription
-        }
-    }
 }
 
 // MARK: - Session Row

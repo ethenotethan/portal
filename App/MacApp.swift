@@ -6,6 +6,7 @@ struct HermesNativeAppMac: App {
     @StateObject private var sessionList = SessionListViewModel()
     @StateObject private var personaManager = PersonaManager()
     @StateObject private var spawnTreeStore = SpawnTreeStore()
+    @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
 
     init() {
         configureHermesNativeMacApplication()
@@ -19,6 +20,7 @@ struct HermesNativeAppMac: App {
                 .environmentObject(sessionList)
                 .environmentObject(personaManager)
                 .environmentObject(spawnTreeStore)
+                .environmentObject(gatewayClientWrapper)
         }
         .windowStyle(.titleBar)
         .defaultSize(width: 900, height: 700)

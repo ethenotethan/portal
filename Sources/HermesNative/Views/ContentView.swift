@@ -7,7 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @StateObject private var chatViewModel = ChatViewModel()
-    @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
+    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
@@ -15,10 +15,16 @@ struct ContentView: View {
     @State private var observerSession: Session?
     @State private var showCronSheet = false
     @State private var selectedTab = 0
+    @State private var isCreatingSession = false
+    @State private var sessionCreationError: String?
+    @State private var wiredClient: GatewayClient?
+    #if os(iOS)
+    @State private var iOSNavigationPath: [String] = []
+    #endif
 
     var body: some View {
         Group {
-            if settings.isConfigured && gatewayClientWrapper.isConnected {
+            if settings.isConfigured {
                 #if os(iOS)
                 iosLayout
                 #else
@@ -32,7 +38,7 @@ struct ContentView: View {
         }
         .task {
             if settings.isConfigured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
-                await gatewayClientWrapper.connect(using: settings)
+                _ = await gatewayClientWrapper.connectIfNeeded(using: settings)
                 wireUpClient()
             }
         }
@@ -77,10 +83,13 @@ struct ContentView: View {
     }
 
     private var iOSSessionStack: some View {
-        NavigationStack {
+        NavigationStack(path: $iOSNavigationPath) {
             SessionListView(
                 onMissionControl: { sessionID in
                     openMissionControl(sessionID: sessionID)
+                },
+                onCreateSession: {
+                    Task { await createAndSwitchToNewSession() }
                 }
             )
             .environmentObject(sessionList)
@@ -88,16 +97,32 @@ struct ContentView: View {
             .environmentObject(gatewayClientWrapper)
             .navigationTitle("Sessions")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(item: Binding(
-                get: { selectedOwnedSession },
-                set: { newValue in
-                    if newValue == nil { sessionList.activeSessionID = nil }
+            .safeAreaInset(edge: .top) {
+                HStack {
+                    EditButton()
+                    Spacer()
+                    Button("New Session") {
+                        Task { await createAndSwitchToNewSession() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("newSessionButton")
                 }
-            )) { _ in
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(.bar)
+            }
+            .navigationDestination(for: String.self) { _ in
                 ChatView()
                     .environmentObject(chatViewModel)
                     .environmentObject(gatewayClientWrapper)
                     .id(chatViewModel.currentSessionID)
+            }
+            .safeAreaInset(edge: .bottom) {
+                sessionCreationStatusBar
+            }
+            .onOpenURL { url in
+                guard url.scheme == "hermesnative", url.host == "new-session" else { return }
+                Task { await createAndSwitchToNewSession() }
             }
         }
         .onChange(of: sessionList.activeSessionID) { _, newID in
@@ -115,14 +140,35 @@ struct ContentView: View {
         .onChange(of: chatViewModel.currentSessionID) { _, newID in
             NotificationService.shared.activeSessionID = newID
         }
+        .onChange(of: chatViewModel.createGeneration) { _, _ in
+            if let sid = chatViewModel.currentSessionID {
+                sessionList.registerOwnedSession(shortHexID: sid)
+                if !isCreatingSession {
+                    pushOwnedSessionOnIOS(sid)
+                }
+            }
+        }
+        // Mission Control sheet (for owned sessions)
+        .sheet(isPresented: Binding(
+            get: { missionControlSessionID != nil },
+            set: { if !$0 { missionControlSessionID = nil } }
+        )) {
+            if let sid = missionControlSessionID {
+                // Use the gatewayID (short hex) for Mission Control if available
+                let rpcID = sessionList.sessions.first(where: { $0.id == sid })?.rpcID ?? sid
+                SessionExplorerView(sessionID: rpcID)
+                    .environmentObject(gatewayClientWrapper)
+                    .environmentObject(spawnTreeStore)
+                    .presentationDetents([.large])
+            }
+        }
+        .onChange(of: iOSNavigationPath) { _, newPath in
+            if newPath.isEmpty {
+                sessionList.activeSessionID = nil
+            }
+        }
     }
 
-    private var selectedOwnedSession: Session? {
-        guard let activeID = sessionList.activeSessionID,
-              let session = sessionList.sessions.first(where: { $0.id == activeID }),
-              session.isOwned else { return nil }
-        return session
-    }
     #endif
 
     // MARK: - macOS Layout (NavigationSplitView + Cron sheet)
@@ -157,12 +203,23 @@ struct ContentView: View {
             SessionListView(
                 onMissionControl: { sessionID in
                     openMissionControl(sessionID: sessionID)
+                },
+                onCreateSession: {
+                    Task { await createAndSwitchToNewSession() }
                 }
             )
                 .environmentObject(sessionList)
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
                 .navigationTitle("Sessions")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("New Session") {
+                            Task { await createAndSwitchToNewSession() }
+                        }
+                        .accessibilityIdentifier("newSessionButton")
+                    }
+                }
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -189,6 +246,14 @@ struct ContentView: View {
         }
         .onChange(of: chatViewModel.currentSessionID) { _, newID in
             NotificationService.shared.activeSessionID = newID
+        }
+        .onChange(of: chatViewModel.createGeneration) { _, _ in
+            if let sid = chatViewModel.currentSessionID {
+                sessionList.registerOwnedSession(shortHexID: sid)
+                if !isCreatingSession {
+                    pushOwnedSessionOnIOS(sid)
+                }
+            }
         }
         // Mission Control sheet (for owned sessions)
         .sheet(isPresented: Binding(
@@ -222,14 +287,26 @@ struct ContentView: View {
 
     // MARK: - Session Selection
 
+    private func pushOwnedSessionOnIOS(_ sessionID: String) {
+        #if os(iOS)
+        if iOSNavigationPath.last != sessionID {
+            NSLog("[HermesNative] push iOS session \(sessionID)")
+            iOSNavigationPath.append(sessionID)
+        }
+        #endif
+    }
+
     private func handleSessionSelection(_ newID: String?) {
         guard let newID else { return }
         // Find the session and use its database ID for resume.
         guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
         let rpcID = session.rpcID
-        guard rpcID != chatViewModel.currentSessionID else { return }
-        chatViewModel.loadLocalHistory(sessionID: newID)
+
         if session.isOwned {
+            pushOwnedSessionOnIOS(newID)
+
+            if rpcID == chatViewModel.currentSessionID { return }
+            chatViewModel.loadLocalHistory(sessionID: newID)
             Task {
                 // session.resume expects the database-format ID.
                 await chatViewModel.resumeSession(key: newID)
@@ -238,6 +315,70 @@ struct ContentView: View {
             // Non-owned session — open observer view.
             observerSession = session
         }
+    }
+
+    @ViewBuilder
+    private var sessionCreationStatusBar: some View {
+        #if os(iOS)
+        if isCreatingSession || sessionCreationError != nil || chatViewModel.error != nil {
+            HStack(spacing: 8) {
+                if isCreatingSession {
+                    ProgressView().controlSize(.small)
+                    Text("Connecting…")
+                        .font(.caption)
+                } else if let error = sessionCreationError ?? chatViewModel.error {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text(error)
+                        .font(.caption)
+                        .lineLimit(2)
+                    Spacer(minLength: 0)
+                    Button("Retry") {
+                        Task { await createAndSwitchToNewSession() }
+                    }
+                    .font(.caption)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.surface)
+            .foregroundStyle(Theme.primary)
+            .accessibilityIdentifier("sessionCreationStatus")
+        }
+        #endif
+    }
+
+    @MainActor
+    private func createAndSwitchToNewSession() async {
+        guard !isCreatingSession else { return }
+        isCreatingSession = true
+        sessionCreationError = nil
+        defer { isCreatingSession = false }
+
+        guard let connectedClient = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) else {
+            NSLog("[HermesNative] createAndSwitchToNewSession failed: gateway not connected")
+            sessionCreationError = "Gateway is not connected"
+            return
+        }
+        wireUpClient(connectedClient)
+
+        NSLog("[HermesNative] createAndSwitchToNewSession starting session.create")
+        await chatViewModel.createSession()
+
+        if let error = chatViewModel.error {
+            sessionCreationError = error
+            return
+        }
+
+        guard let sid = chatViewModel.currentSessionID else {
+            sessionCreationError = "Session create returned no session ID"
+            return
+        }
+
+        sessionList.registerOwnedSession(shortHexID: sid)
+        sessionList.selectSession(id: sid)
+        spawnTreeStore.createTree(sessionID: sid)
+        pushOwnedSessionOnIOS(sid)
     }
 
     // MARK: - Mission Control
@@ -251,32 +392,20 @@ struct ContentView: View {
 
     // MARK: - Wiring
 
-    private func wireUpClient() {
-        chatViewModel.setGatewayClient(gatewayClientWrapper.client)
-        sessionList.setGatewayClient(gatewayClientWrapper.client)
-        spawnTreeStore.subscribe(to: gatewayClientWrapper.client)
+    private func wireUpClient(_ client: GatewayClient? = nil) {
+        let client = client ?? gatewayClientWrapper.client
+        chatViewModel.setGatewayClient(client)
+        sessionList.setGatewayClient(client)
+        spawnTreeStore.subscribe(to: client)
 
         Task {
             await sessionList.refreshSessions()
-            if sessionList.sessions.isEmpty && !chatViewModel.isSessionReady {
-                await chatViewModel.createSession()
-                if let sid = chatViewModel.currentSessionID {
-                    sessionList.registerOwnedSession(shortHexID: sid)
-                    spawnTreeStore.createTree(sessionID: sid)
-                }
-            } else if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
+            if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
                 if chatViewModel.messages.isEmpty {
                     chatViewModel.loadLocalHistory(sessionID: sid)
                 }
                 sessionList.selectSession(id: sid)
                 spawnTreeStore.createTree(sessionID: sid)
-            } else if let first = sessionList.sessions.first(where: { $0.isOwned }) ?? sessionList.sessions.first {
-                chatViewModel.loadLocalHistory(sessionID: first.id)
-                sessionList.selectSession(id: first.id)
-                spawnTreeStore.createTree(sessionID: first.rpcID)
-                if first.isOwned {
-                    await chatViewModel.resumeSession(key: first.id)
-                }
             }
         }
     }
