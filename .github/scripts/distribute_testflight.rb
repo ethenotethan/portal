@@ -20,6 +20,9 @@ WHAT_TO_TEST = ENV.fetch("WHAT_TO_TEST", "Latest HermesNative build.")
 MAX_WAIT_SECONDS = Integer(ENV.fetch("MAX_WAIT_SECONDS", "1800"))
 POLL_SECONDS = Integer(ENV.fetch("POLL_SECONDS", "30"))
 
+$stdout.sync = true
+$stderr.sync = true
+
 def b64url(data)
   Base64.urlsafe_encode64(data).delete("=")
 end
