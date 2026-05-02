@@ -70,7 +70,7 @@ def request(method, path, body: nil, allow_conflict: false)
 
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
   return nil if res.code == "204"
-  return nil if allow_conflict && res.code == "409"
+  return nil if allow_conflict && ["409", "422"].include?(res.code)
 
   unless res.is_a?(Net::HTTPSuccess)
     warn "#{method.to_s.upcase} #{path} failed: HTTP #{res.code}"
@@ -110,9 +110,9 @@ loop do
   puts "Visible recent build numbers: #{candidates.join(", ")}"
   if BUILD_NUMBER == "latest"
     previous = ENV["PREVIOUS_BUILD_NUMBER"]
-    build = builds.find do |candidate|
-      version = candidate.fetch("attributes").fetch("version")
-      previous.nil? || version != previous
+    build = builds.first
+    if build && previous && build.fetch("attributes").fetch("version") == previous
+      build = nil
     end
   else
     build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
