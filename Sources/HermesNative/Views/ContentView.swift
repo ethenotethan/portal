@@ -36,7 +36,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
-            if configured && (!settings.needsCFAuth || settings.cfAuthCookie == nil) {
+            if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
                     wireUpClient()
@@ -58,13 +58,11 @@ struct ContentView: View {
     #if os(iOS)
     private var iosLayout: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
-                sessionChatLayout
-            }
-            .tabItem {
-                Label("Sessions", systemImage: "bubble.left.and.bubble.right")
-            }
-            .tag(0)
+            iOSSessionStack
+                .tabItem {
+                    Label("Sessions", systemImage: "bubble.left.and.bubble.right")
+                }
+                .tag(0)
 
             NavigationStack {
                 CronListView()
@@ -75,6 +73,43 @@ struct ContentView: View {
             }
             .tag(1)
         }
+    }
+
+    private var iOSSessionStack: some View {
+        NavigationStack {
+            SessionListView(
+                onMissionControl: { sessionID in
+                    openMissionControl(sessionID: sessionID)
+                }
+            )
+            .environmentObject(sessionList)
+            .environmentObject(chatViewModel)
+            .environmentObject(gatewayClientWrapper)
+            .navigationTitle("Sessions")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(item: Binding(
+                get: { selectedOwnedSession },
+                set: { newValue in
+                    if newValue == nil { sessionList.activeSessionID = nil }
+                }
+            )) { _ in
+                ChatView()
+                    .environmentObject(chatViewModel)
+                    .environmentObject(gatewayClientWrapper)
+                    .id(chatViewModel.currentSessionID)
+            }
+        }
+        .onChange(of: sessionList.activeSessionID) { _, newID in
+            handleSessionSelection(newID)
+        }
+        .commonSessionModifiers()
+    }
+
+    private var selectedOwnedSession: Session? {
+        guard let activeID = sessionList.activeSessionID,
+              let session = sessionList.sessions.first(where: { $0.id == activeID }),
+              session.isOwned else { return nil }
+        return session
     }
     #endif
 
@@ -129,43 +164,9 @@ struct ContentView: View {
         .navigationSplitViewStyle(.balanced)
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
-            guard let newID else { return }
-            // Find the session and use its database ID for resume
-            guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
-            let rpcID = session.rpcID
-            guard rpcID != chatViewModel.currentSessionID else { return }
-            chatViewModel.loadLocalHistory(sessionID: newID)
-            if session.isOwned {
-                Task {
-                    do {
-                        // session.resume expects the database-format ID
-                        _ = try await chatViewModel.resumeSession(key: newID)
-                    } catch {}
-                }
-            } else {
-                // Non-owned session — open observer view
-                observerSession = session
-            }
+            handleSessionSelection(newID)
         }
-        .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
-            guard let sid = chatViewModel.currentSessionID,
-                  newTitle != oldTitle else { return }
-            sessionList.updateSessionTitle(id: sid, title: newTitle)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
-            if let sessionID = notification.userInfo?["session_id"] as? String {
-                sessionList.selectSession(id: sessionID)
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase != .active {
-                chatViewModel.saveHistory()
-            }
-            NotificationService.shared.isForegrounded = (newPhase == .active)
-        }
-        .onChange(of: chatViewModel.currentSessionID) { _, newID in
-            NotificationService.shared.activeSessionID = newID
-        }
+        .commonSessionModifiers()
         // Mission Control sheet (for owned sessions)
         .sheet(isPresented: Binding(
             get: { missionControlSessionID != nil },
@@ -193,6 +194,26 @@ struct ContentView: View {
                 #if os(iOS)
                 .presentationDetents([.large])
                 #endif
+        }
+    }
+
+    // MARK: - Session Selection
+
+    private func handleSessionSelection(_ newID: String?) {
+        guard let newID else { return }
+        // Find the session and use its database ID for resume.
+        guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
+        let rpcID = session.rpcID
+        guard rpcID != chatViewModel.currentSessionID else { return }
+        chatViewModel.loadLocalHistory(sessionID: newID)
+        if session.isOwned {
+            Task {
+                // session.resume expects the database-format ID.
+                await chatViewModel.resumeSession(key: newID)
+            }
+        } else {
+            // Non-owned session — open observer view.
+            observerSession = session
         }
     }
 
@@ -235,5 +256,40 @@ struct ContentView: View {
                 }
             }
         }
+    }
+}
+
+private extension View {
+    func commonSessionModifiers() -> some View {
+        self.modifier(CommonSessionModifier())
+    }
+}
+
+private struct CommonSessionModifier: ViewModifier {
+    @EnvironmentObject var sessionList: SessionListViewModel
+    @EnvironmentObject var chatViewModel: ChatViewModel
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
+                guard let sid = chatViewModel.currentSessionID,
+                      newTitle != oldTitle else { return }
+                sessionList.updateSessionTitle(id: sid, title: newTitle)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
+                if let sessionID = notification.userInfo?["session_id"] as? String {
+                    sessionList.selectSession(id: sessionID)
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase != .active {
+                    chatViewModel.saveHistory()
+                }
+                NotificationService.shared.isForegrounded = (newPhase == .active)
+            }
+            .onChange(of: chatViewModel.currentSessionID) { _, newID in
+                NotificationService.shared.activeSessionID = newID
+            }
     }
 }
