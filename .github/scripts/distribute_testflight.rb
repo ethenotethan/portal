@@ -91,30 +91,22 @@ started = Time.now
 loop do
   path = "/v1/builds?filter[app]=#{app_id}&filter[version]=#{encoded_version}&sort=-uploadedDate&limit=20"
   builds = request(:get, path).fetch("data")
+  candidates = builds.map { |candidate| candidate.fetch("attributes").fetch("version") }
+  puts "Visible build numbers for #{APP_VERSION}: #{candidates.join(", ")}"
   build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
 
-  if build
-    state = build.fetch("attributes").fetch("processingState")
-    puts "Build #{APP_VERSION} (#{BUILD_NUMBER}) processingState=#{state}"
-    case state
-    when "VALID"
-      break
-    when "FAILED", "INVALID"
-      warn "Build processing failed with state=#{state}"
-      exit 1
-    end
-  else
-    puts "Build #{APP_VERSION} (#{BUILD_NUMBER}) not visible in App Store Connect yet"
-  end
+  break if build
 
   if Time.now - started > MAX_WAIT_SECONDS
-    warn "Timed out waiting for build #{APP_VERSION} (#{BUILD_NUMBER}) to become VALID"
+    warn "Timed out waiting for build #{APP_VERSION} (#{BUILD_NUMBER}) to appear in App Store Connect"
     exit 1
   end
   sleep POLL_SECONDS
 end
 
 build_id = build.fetch("id")
+state = build.fetch("attributes").fetch("processingState")
+puts "Build #{APP_VERSION} (#{BUILD_NUMBER}) processingState=#{state}"
 
 localizations = request(:get, "/v1/builds/#{build_id}/betaBuildLocalizations?limit=10").fetch("data")
 if localizations.empty?
