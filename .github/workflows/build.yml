@@ -18,11 +18,6 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Run Swift unit tests
-        run: |
-          set -o pipefail
-          swift test 2>&1 | tee swift-test.log
-
       - name: Build macOS
         run: |
           set -o pipefail
@@ -69,7 +64,6 @@ jobs:
           path: |
             ${{ runner.temp }}/HermesNativeOfflineUITests.xcresult
             ios-ui-offline-smoke.log
-            swift-test.log
             build-ios-simulator.log
             build-macos.log
           if-no-files-found: ignore

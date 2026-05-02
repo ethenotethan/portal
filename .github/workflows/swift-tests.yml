@@ -1,0 +1,33 @@
+name: Swift Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: swift-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift-test:
+    name: Swift package tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Swift unit tests
+        run: |
+          set -o pipefail
+          swift test --disable-sandbox 2>&1 | tee swift-test.log
+
+      - name: Upload Swift test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-test-log
+          path: swift-test.log
+          if-no-files-found: ignore
+          retention-days: 14
