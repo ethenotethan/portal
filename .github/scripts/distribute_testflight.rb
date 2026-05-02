@@ -14,14 +14,21 @@ KEY_ID = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
 ISSUER_ID = ENV.fetch("APP_STORE_CONNECT_ISSUER_ID")
 PRIVATE_KEY = ENV.fetch("APP_STORE_CONNECT_PRIVATE_KEY").gsub("\\n", "\n")
 BUNDLE_ID = ENV.fetch("BUNDLE_ID")
-APP_VERSION = ENV.fetch("APP_VERSION")
-BUILD_NUMBER = ENV.fetch("BUILD_NUMBER")
+APP_VERSION = ENV.fetch("APP_VERSION", "1.0")
+BUILD_NUMBER = ENV.fetch("BUILD_NUMBER", "latest")
 WHAT_TO_TEST = ENV.fetch("WHAT_TO_TEST", "Latest HermesNative build.")
-MAX_WAIT_SECONDS = Integer(ENV.fetch("MAX_WAIT_SECONDS", "1800"))
+MAX_WAIT_SECONDS = Integer(ENV.fetch("MAX_WAIT_SECONDS", "900"))
 POLL_SECONDS = Integer(ENV.fetch("POLL_SECONDS", "30"))
 
 $stdout.sync = true
 $stderr.sync = true
+
+def latest_build_number(app_id)
+  builds = request(:get, "/v1/builds?filter[app]=#{app_id}&sort=-uploadedDate&limit=1").fetch("data")
+  return "" if builds.empty?
+
+  builds.first.fetch("attributes").fetch("version")
+end
 
 def b64url(data)
   Base64.urlsafe_encode64(data).delete("=")
@@ -86,6 +93,12 @@ end
 encoded_bundle_id = URI.encode_www_form_component(BUNDLE_ID)
 app = get_one("/v1/apps?filter[bundleId]=#{encoded_bundle_id}&limit=1", "app with bundle id #{BUNDLE_ID}")
 app_id = app.fetch("id")
+
+if ARGV.include?("--print-latest-build")
+  puts latest_build_number(app_id)
+  exit 0
+end
+
 puts "Found app #{app_id} for #{BUNDLE_ID}"
 
 build = nil
@@ -95,20 +108,30 @@ loop do
   builds = request(:get, path).fetch("data")
   candidates = builds.map { |candidate| candidate.fetch("attributes").fetch("version") }
   puts "Visible recent build numbers: #{candidates.join(", ")}"
-  build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
+  if BUILD_NUMBER == "latest"
+    previous = ENV["PREVIOUS_BUILD_NUMBER"]
+    build = builds.find do |candidate|
+      version = candidate.fetch("attributes").fetch("version")
+      previous.nil? || version != previous
+    end
+  else
+    build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
+  end
 
   break if build
 
   if Time.now - started > MAX_WAIT_SECONDS
-    warn "Timed out waiting for build #{APP_VERSION} (#{BUILD_NUMBER}) to appear in App Store Connect"
+    expected = BUILD_NUMBER == "latest" ? "a new latest build" : "build #{BUILD_NUMBER}"
+    warn "Timed out waiting for #{expected} to appear in App Store Connect"
     exit 1
   end
   sleep POLL_SECONDS
 end
 
 build_id = build.fetch("id")
+resolved_build_number = build.fetch("attributes").fetch("version")
 state = build.fetch("attributes").fetch("processingState")
-puts "Build #{APP_VERSION} (#{BUILD_NUMBER}) processingState=#{state}"
+puts "Selected build #{APP_VERSION} (#{resolved_build_number}) processingState=#{state}"
 
 localizations = request(:get, "/v1/builds/#{build_id}/betaBuildLocalizations?limit=10").fetch("data")
 if localizations.empty?
@@ -136,7 +159,7 @@ groups.each do |group|
   request(:post, "/v1/betaGroups/#{group_id}/relationships/builds", allow_conflict: true, body: {
     data: [{ type: "builds", id: build_id }]
   })
-  puts "Assigned build #{APP_VERSION} (#{BUILD_NUMBER}) to internal group: #{group_name}"
+  puts "Assigned build #{APP_VERSION} (#{resolved_build_number}) to beta group: #{group_name}"
 end
 
-puts "TestFlight distribution complete for #{APP_VERSION} (#{BUILD_NUMBER})"
+puts "TestFlight distribution complete for #{APP_VERSION} (#{resolved_build_number})"
