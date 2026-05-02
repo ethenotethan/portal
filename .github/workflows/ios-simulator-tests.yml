@@ -16,7 +16,6 @@ jobs:
     name: iOS simulator smoke tests
     runs-on: macos-15
     env:
-      HERMES_CI_HOME: ${{ runner.temp }}/hermes-ci-home
       HERMES_CI_API_KEY: hermes-native-ci-local-key
       HERMES_CI_PORT: "18642"
       HERMES_CI_URL: ws://127.0.0.1:18642/v1/ws
@@ -48,7 +47,7 @@ jobs:
       - name: Start local Hermes API server
         working-directory: hermes-agent
         env:
-          HERMES_HOME: ${{ env.HERMES_CI_HOME }}
+          HERMES_HOME: ${{ runner.temp }}/hermes-ci-home
           API_SERVER_ENABLED: "true"
           API_SERVER_HOST: 127.0.0.1
           API_SERVER_PORT: ${{ env.HERMES_CI_PORT }}
