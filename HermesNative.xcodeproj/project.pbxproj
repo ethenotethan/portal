@@ -99,6 +99,7 @@
 		C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
 		C50238D57DB0F48A1064C65E /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7471C7C26357969AFAF4154 /* SpawnNode.swift */; };
 		C94DA73F98B98B31367A2487 /* SessionObserverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */; };
+		CD36367200E4AC47BEF6E9D4 /* HermesNativeOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */; };
 		CE0F6E7790EA5F02E274C029 /* SessionObserverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */; };
 		CEEF97E31350F2523D53C4ED /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */; };
@@ -174,6 +175,7 @@
 		8DFAC2BEE7A7000345BFEE4B /* TUISkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUISkin.swift; sourceTree = "<group>"; };
 		8F3D7AE79773431722873482 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipView.swift; sourceTree = "<group>"; };
+		968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeOfflineSmokeUITests.swift; sourceTree = "<group>"; };
 		98AC0B5715E7BCBE84B1DD9D /* CronListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListViewModel.swift; sourceTree = "<group>"; };
 		A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
 		B41979884D456FA9522F47D6 /* MacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacApp.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 		D087157DF3D83C65A7057EC9 /* HermesNativeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */,
 				FE1B098714AA8CADED2118F6 /* HermesNativeSmokeUITests.swift */,
 				82587B61F3E0F931D857D35F /* HermesNativeVisionDemoUITests.swift */,
 			);
@@ -610,6 +613,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CD36367200E4AC47BEF6E9D4 /* HermesNativeOfflineSmokeUITests.swift in Sources */,
 				949710C0980DCAAF18C1BD89 /* HermesNativeSmokeUITests.swift in Sources */,
 				B5327CFB026788C047E6C4D7 /* HermesNativeVisionDemoUITests.swift in Sources */,
 			);

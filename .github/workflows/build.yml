@@ -11,23 +11,88 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
       - name: Install xcodegen
         run: brew install xcodegen
+
       - name: Generate Xcode project
         run: xcodegen generate
+
       - name: Build macOS
         run: |
+          set -o pipefail
           xcodebuild build \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-macOS \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="-" \
-            | xcpretty || exit 1
-      - name: Build iOS
+            2>&1 | tee build-macos.log | xcpretty
+
+      - name: Build iOS Simulator
         run: |
+          set -o pipefail
           xcodebuild build \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-iOS \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGN_IDENTITY="-" \
-            | xcpretty || exit 1
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build-ios-simulator.log | xcpretty
+
+      - name: Run offline iOS Simulator UI smoke test
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeOfflineUITests.xcresult"
+
+          xcrun simctl boot "iPhone 16" 2>/dev/null || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:HermesNativeUITests/HermesNativeOfflineSmokeUITests/testOnboardingRendersWithoutGatewaySecrets \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee ios-ui-offline-smoke.log | xcpretty
+
+      - name: Run gateway-backed iOS Simulator UI smoke test
+        env:
+          HERMES_NATIVE_GATEWAY_URL: ${{ secrets.HERMES_NATIVE_GATEWAY_URL }}
+          HERMES_NATIVE_API_KEY: ${{ secrets.HERMES_NATIVE_API_KEY }}
+          API_SERVER_KEY: ${{ secrets.API_SERVER_KEY }}
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeGatewayUITests.xcresult"
+
+          if [ -z "${HERMES_NATIVE_GATEWAY_URL:-}" ] || { [ -z "${HERMES_NATIVE_API_KEY:-}" ] && [ -z "${API_SERVER_KEY:-}" ]; }; then
+            echo "::notice::Skipping gateway-backed iOS UI smoke test because HERMES_NATIVE_GATEWAY_URL and API key secrets are not configured."
+            exit 0
+          fi
+
+          xcrun simctl boot "iPhone 16" 2>/dev/null || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:HermesNativeUITests/HermesNativeSmokeUITests/testConnectAndSendHello \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee ios-ui-gateway-smoke.log | xcpretty
+
+      - name: Upload iOS UI test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ui-smoke-artifacts
+          path: |
+            ${{ runner.temp }}/HermesNativeOfflineUITests.xcresult
+            ${{ runner.temp }}/HermesNativeGatewayUITests.xcresult
+            ios-ui-offline-smoke.log
+            ios-ui-gateway-smoke.log
+            build-ios-simulator.log
+            build-macos.log
+          if-no-files-found: ignore
+          retention-days: 14
