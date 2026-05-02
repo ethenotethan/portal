@@ -56,37 +56,6 @@ jobs:
             -resultBundlePath "$RESULT_BUNDLE" \
             2>&1 | tee ios-ui-offline-smoke.log | xcpretty
 
-      - name: Run gateway-backed iOS Simulator UI smoke test
-        # The required CI coverage is the hermetic offline simulator smoke test
-        # above. This live-gateway test is useful when secrets are configured,
-        # but it depends on remote gateway availability/latency and should not
-        # block ordinary build PRs.
-        continue-on-error: true
-        env:
-          HERMES_NATIVE_GATEWAY_URL: ${{ secrets.HERMES_NATIVE_GATEWAY_URL }}
-          HERMES_NATIVE_API_KEY: ${{ secrets.HERMES_NATIVE_API_KEY }}
-          API_SERVER_KEY: ${{ secrets.API_SERVER_KEY }}
-        run: |
-          set -o pipefail
-          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeGatewayUITests.xcresult"
-
-          if [ -z "${HERMES_NATIVE_GATEWAY_URL:-}" ] || { [ -z "${HERMES_NATIVE_API_KEY:-}" ] && [ -z "${API_SERVER_KEY:-}" ]; }; then
-            echo "::notice::Skipping gateway-backed iOS UI smoke test because HERMES_NATIVE_GATEWAY_URL and API key secrets are not configured."
-            exit 0
-          fi
-
-          xcrun simctl boot "iPhone 16" 2>/dev/null || true
-          xcrun simctl bootstatus "iPhone 16" -b
-
-          xcodebuild test \
-            -project HermesNative.xcodeproj \
-            -scheme HermesNative-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -only-testing:HermesNativeUITests/HermesNativeSmokeUITests/testConnectAndSendHello \
-            CODE_SIGNING_ALLOWED=NO \
-            -resultBundlePath "$RESULT_BUNDLE" \
-            2>&1 | tee ios-ui-gateway-smoke.log | xcpretty
-
       - name: Upload iOS UI test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,9 +63,7 @@ jobs:
           name: ios-ui-smoke-artifacts
           path: |
             ${{ runner.temp }}/HermesNativeOfflineUITests.xcresult
-            ${{ runner.temp }}/HermesNativeGatewayUITests.xcresult
             ios-ui-offline-smoke.log
-            ios-ui-gateway-smoke.log
             build-ios-simulator.log
             build-macos.log
           if-no-files-found: ignore

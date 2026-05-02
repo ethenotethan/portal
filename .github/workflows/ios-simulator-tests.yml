@@ -1,0 +1,178 @@
+name: iOS Simulator Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-simulator-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: iOS simulator smoke tests
+    runs-on: macos-15
+    env:
+      HERMES_CI_HOME: ${{ runner.temp }}/hermes-ci-home
+      HERMES_CI_API_KEY: hermes-native-ci-local-key
+      HERMES_CI_PORT: "18642"
+      HERMES_CI_URL: ws://127.0.0.1:18642/v1/ws
+
+    steps:
+      - name: Checkout HermesNative
+        uses: actions/checkout@v4
+        with:
+          path: hermes-native
+
+      - name: Checkout Hermes Agent
+        uses: actions/checkout@v4
+        with:
+          repository: NousResearch/hermes-agent
+          path: hermes-agent
+
+      - name: Install build tools
+        run: |
+          brew install xcodegen
+
+      - name: Set up Hermes Agent
+        working-directory: hermes-agent
+        run: |
+          python3.11 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[messaging,cron]'
+
+      - name: Start local Hermes API server
+        working-directory: hermes-agent
+        env:
+          HERMES_HOME: ${{ env.HERMES_CI_HOME }}
+          API_SERVER_ENABLED: "true"
+          API_SERVER_HOST: 127.0.0.1
+          API_SERVER_PORT: ${{ env.HERMES_CI_PORT }}
+          API_SERVER_KEY: ${{ env.HERMES_CI_API_KEY }}
+          HERMES_QUIET: "1"
+          HERMES_SKIP_MEMORY: "1"
+          HERMES_DISABLE_MEMORY: "1"
+          TERMINAL_CWD: ${{ github.workspace }}/hermes-native
+        run: |
+          set -euo pipefail
+          mkdir -p "$HERMES_HOME/logs"
+          cat > "$HERMES_HOME/config.yaml" <<'YAML'
+          model:
+            provider: openai
+            model: gpt-4o-mini
+          platforms:
+            api_server:
+              enabled: true
+              extra:
+                host: 127.0.0.1
+                port: 18642
+                key: hermes-native-ci-local-key
+          agent:
+            max_turns: 6
+          memory:
+            memory_enabled: false
+            user_profile_enabled: false
+          YAML
+
+          . .venv/bin/activate
+          python -m gateway.run > "$HERMES_HOME/logs/api-server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/hermes-api-server.pid"
+
+          for i in {1..60}; do
+            if curl -fsS -H "Authorization: Bearer $API_SERVER_KEY" "http://127.0.0.1:${API_SERVER_PORT}/health" >/dev/null; then
+              echo "Hermes API server is healthy"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/hermes-api-server.pid")" 2>/dev/null; then
+              echo "Hermes API server exited early"
+              cat "$HERMES_HOME/logs/api-server.log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "Timed out waiting for Hermes API server"
+          cat "$HERMES_HOME/logs/api-server.log"
+          exit 1
+
+      - name: Generate Xcode project
+        working-directory: hermes-native
+        run: xcodegen generate
+
+      - name: Build iOS Simulator app
+        working-directory: hermes-native
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/build-ios-simulator.log" | xcpretty
+
+      - name: Run offline onboarding smoke test
+        working-directory: hermes-native
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeOfflineUITests.xcresult"
+
+          xcrun simctl boot "iPhone 16" 2>/dev/null || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:HermesNativeUITests/HermesNativeOfflineSmokeUITests/testOnboardingRendersWithoutGatewaySecrets \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee "$RUNNER_TEMP/ios-ui-offline-smoke.log" | xcpretty
+
+      - name: Run local-Hermes gateway smoke test
+        working-directory: hermes-native
+        env:
+          HERMES_NATIVE_GATEWAY_URL: ${{ env.HERMES_CI_URL }}
+          HERMES_NATIVE_API_KEY: ${{ env.HERMES_CI_API_KEY }}
+          API_SERVER_KEY: ${{ env.HERMES_CI_API_KEY }}
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeLocalGatewayUITests.xcresult"
+
+          xcrun simctl boot "iPhone 16" 2>/dev/null || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:HermesNativeUITests/HermesNativeSmokeUITests/testConnectAndSendHello \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee "$RUNNER_TEMP/ios-ui-local-gateway-smoke.log" | xcpretty
+
+      - name: Upload iOS simulator test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-test-artifacts
+          path: |
+            ${{ runner.temp }}/HermesNativeOfflineUITests.xcresult
+            ${{ runner.temp }}/HermesNativeLocalGatewayUITests.xcresult
+            ${{ runner.temp }}/build-ios-simulator.log
+            ${{ runner.temp }}/ios-ui-offline-smoke.log
+            ${{ runner.temp }}/ios-ui-local-gateway-smoke.log
+            ${{ runner.temp }}/hermes-ci-home/logs/api-server.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop local Hermes API server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/hermes-api-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/hermes-api-server.pid")" 2>/dev/null || true
+          fi
