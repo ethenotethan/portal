@@ -57,6 +57,11 @@ jobs:
             2>&1 | tee ios-ui-offline-smoke.log | xcpretty
 
       - name: Run gateway-backed iOS Simulator UI smoke test
+        # The required CI coverage is the hermetic offline simulator smoke test
+        # above. This live-gateway test is useful when secrets are configured,
+        # but it depends on remote gateway availability/latency and should not
+        # block ordinary build PRs.
+        continue-on-error: true
         env:
           HERMES_NATIVE_GATEWAY_URL: ${{ secrets.HERMES_NATIVE_GATEWAY_URL }}
           HERMES_NATIVE_API_KEY: ${{ secrets.HERMES_NATIVE_API_KEY }}
