@@ -88,14 +88,13 @@ app = get_one("/v1/apps?filter[bundleId]=#{encoded_bundle_id}&limit=1", "app wit
 app_id = app.fetch("id")
 puts "Found app #{app_id} for #{BUNDLE_ID}"
 
-encoded_version = URI.encode_www_form_component(APP_VERSION)
 build = nil
 started = Time.now
 loop do
-  path = "/v1/builds?filter[app]=#{app_id}&filter[version]=#{encoded_version}&sort=-uploadedDate&limit=20"
+  path = "/v1/builds?filter[app]=#{app_id}&sort=-uploadedDate&limit=20"
   builds = request(:get, path).fetch("data")
   candidates = builds.map { |candidate| candidate.fetch("attributes").fetch("version") }
-  puts "Visible build numbers for #{APP_VERSION}: #{candidates.join(", ")}"
+  puts "Visible recent build numbers: #{candidates.join(", ")}"
   build = builds.find { |candidate| candidate.fetch("attributes").fetch("version") == BUILD_NUMBER }
 
   break if build
@@ -125,7 +124,7 @@ else
   puts "Build already has TestFlight localization"
 end
 
-groups = request(:get, "/v1/betaGroups?filter[app]=#{app_id}&filter[isInternalGroup]=true&limit=200").fetch("data")
+groups = request(:get, "/v1/betaGroups?filter[app]=#{app_id}&limit=200").fetch("data")
 if groups.empty?
   warn "No internal TestFlight beta groups found; uploaded build will not appear in testers' TestFlight apps until assigned manually."
   exit 1
