@@ -12,7 +12,7 @@ enum SessionStatus: Equatable {
 
 /// A Hermes agent session.
 /// Fields match the gateway's `session.list` response schema.
-struct Session: Identifiable, Equatable {
+struct Session: Identifiable, Equatable, Hashable {
     /// Primary ID — the database-format session key from `session.list`
     /// (e.g., "20260501_112429_d91274").
     /// For newly created sessions, this starts as the short hex ID and gets
