@@ -2,7 +2,31 @@ import SwiftUI
 
 @main
 struct HermesNativeAppMac: App {
+    @StateObject private var settings = SettingsViewModel()
+    @StateObject private var sessionList = SessionListViewModel()
+    @StateObject private var personaManager = PersonaManager()
+    @StateObject private var spawnTreeStore = SpawnTreeStore()
+
+    init() {
+        configureHermesNativeMacApplication()
+        requestHermesNativeNotificationAuthorization()
+    }
+
     var body: some Scene {
-        HermesNativeApp().body
+        WindowGroup {
+            ContentView()
+                .environmentObject(settings)
+                .environmentObject(sessionList)
+                .environmentObject(personaManager)
+                .environmentObject(spawnTreeStore)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 900, height: 700)
+
+        Settings {
+            SettingsView()
+                .environmentObject(settings)
+                .environmentObject(personaManager)
+        }
     }
 }
