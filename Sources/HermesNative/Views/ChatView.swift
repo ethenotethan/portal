@@ -100,16 +100,6 @@ struct ChatView: View {
                                 .id(message.id)
                                 // Report the latest assistant turn's bottom edge so the
                                 // singleton avatar can travel through the conversation.
-                                .background {
-                                    if message.role == .assistant {
-                                        GeometryReader { geo in
-                                            Color.clear.preference(
-                                                key: LatestBotTurnYKey.self,
-                                                value: max(0, geo.frame(in: .named("chatContent")).maxY - 52)
-                                            )
-                                        }
-                                    }
-                                }
                             }
 
                             // Streaming panel — skin-provided
@@ -122,14 +112,6 @@ struct ChatView: View {
                                 )
                                 .id("streaming-status")
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                                .background {
-                                    GeometryReader { geo in
-                                        Color.clear.preference(
-                                            key: LatestBotTurnYKey.self,
-                                            value: max(0, geo.frame(in: .named("chatContent")).maxY - 52)
-                                        )
-                                    }
-                                }
                             }
                         }
                         .padding(.leading, messageLeadingPadding)
@@ -137,6 +119,12 @@ struct ChatView: View {
                         .padding(.top, 8)
                         .padding(.bottom, chatBottomContentPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // Track the latest assistant turn once at the stack level.
+                        // Per-row preferences can emit multiple values in the same frame
+                        // while streaming/interrupting and trigger SwiftUI preference
+                        // warnings/crashes.
+                        latestAssistantTurnProbe
 
                         // ── Singleton traveling avatar ──
                         // Exactly one avatar element. Animated Y tracks the latest bot turn,
@@ -244,6 +232,19 @@ struct ChatView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+    }
+
+    @ViewBuilder
+    private var latestAssistantTurnProbe: some View {
+        if hasBotContent {
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: LatestBotTurnYKey.self,
+                    value: max(0, geo.frame(in: .named("chatContent")).maxY - 60)
+                )
+            }
+            .frame(height: 0)
+        }
     }
 
     private var chatToolbar: some View {
