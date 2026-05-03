@@ -48,9 +48,13 @@ struct MarkdownContentView: View {
                 case .table(let headers, let rows):
                     TableView(headers: headers, rows: rows)
                 case .paragraph(let content):
-                    MarkdownText(text: content)
-                        .foregroundStyle(Theme.primary)
-                        .lineSpacing(3)
+                    if let githubLink = GitHubLinkCard.extractStandalone(from: content) {
+                        GitHubLinkCard(link: githubLink)
+                    } else {
+                        MarkdownText(text: content)
+                            .foregroundStyle(Theme.primary)
+                            .lineSpacing(3)
+                    }
                 }
             }
         }
