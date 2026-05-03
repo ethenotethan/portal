@@ -12,6 +12,7 @@ struct SessionListView: View {
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
     var onOpenPanel: (() -> Void)?
+    var onToggleSidebar: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
     @State private var cronSessionsCollapsed = false
@@ -20,10 +21,9 @@ struct SessionListView: View {
 
     private var sidebarTopPadding: CGFloat {
         #if os(macOS)
-        // The window/split shell owns the full-bleed chrome. Keep the rounded
-        // action buttons comfortably inside the sidebar instead of trapping
-        // them under the macOS traffic-light/titlebar region.
-        34
+        // The app-owned toolbar row clears the hidden-titlebar traffic lights,
+        // so only a small gap is needed before the section label/actions.
+        8
         #else
         6
         #endif
@@ -51,6 +51,11 @@ struct SessionListView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
+                #if os(macOS)
+                sidebarToolbarRow
+                    .frame(height: 40)
+                #endif
+
                 sidebarHeader
 
                 Rectangle()
@@ -84,6 +89,7 @@ struct SessionListView: View {
                                 isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: true
                             )
+                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                             .contextMenu {
                                 Button {
@@ -154,6 +160,7 @@ struct SessionListView: View {
                                 isOwned: true,
                                 isArchived: true
                             )
+                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                             .contextMenu {
                                 Button {
@@ -216,6 +223,7 @@ struct SessionListView: View {
                                 isOwned: false,
                                 sessionStatus: session.status
                             )
+                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                         }
                     }
@@ -253,6 +261,7 @@ struct SessionListView: View {
                                 isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: false
                             )
+                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                         }
                     }
@@ -291,12 +300,41 @@ struct SessionListView: View {
             .background(Theme.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
     }
 
     // MARK: - Helpers
 
+    #if os(macOS)
+    private var sidebarToolbarRow: some View {
+        HStack(alignment: .center, spacing: 0) {
+            // Reserve the traffic-light strip so the app-owned sidebar toggle
+            // sits on the same vertical center/baseline as the window controls.
+            Color.clear
+                .frame(width: 68, height: 28)
+
+            Button(action: { onToggleSidebar?() }) {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle Sidebar")
+            .accessibilityIdentifier("sidebarToggleButton")
+
+            Spacer(minLength: 0)
+        }
+        .frame(height: 28)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.background)
+    }
+    #endif
+
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Sessions")
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -404,6 +442,20 @@ struct SessionListView: View {
 
 // MARK: - Session Row
 
+private extension View {
+    func sessionListRowStyle(isActive: Bool) -> some View {
+        self
+            .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+            .listRowSeparator(.hidden)
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isActive ? Theme.accent.opacity(0.22) : Color.clear)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+            )
+    }
+}
+
 struct SessionRowView: View {
     let title: String
     let subtitle: String?
@@ -460,7 +512,10 @@ struct SessionRowView: View {
                     .foregroundStyle(.quaternary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var iconColor: Color {

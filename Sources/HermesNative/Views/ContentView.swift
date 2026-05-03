@@ -102,7 +102,8 @@ struct ContentView: View {
                 },
                 onOpenPanel: {
                     showCronSheet = true
-                }
+                },
+                onToggleSidebar: nil
             )
             .environmentObject(sessionList)
             .environmentObject(chatViewModel)
@@ -232,6 +233,9 @@ struct ContentView: View {
                 },
                 onOpenPanel: {
                     showCronSheet = true
+                },
+                onToggleSidebar: {
+                    toggleSidebarColumn()
                 }
             )
                 .environmentObject(sessionList)
@@ -249,6 +253,9 @@ struct ContentView: View {
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
                 .id(chatViewModel.currentSessionID)
+                #if os(macOS)
+                .toolbarBackground(.hidden, for: .windowToolbar)
+                #endif
         }
         #if os(macOS)
         .navigationSplitViewStyle(.balanced)
@@ -318,6 +325,14 @@ struct ContentView: View {
     }
 
     // MARK: - Session Selection
+
+    private func toggleSidebarColumn() {
+        #if os(macOS)
+        withAnimation(.easeInOut(duration: 0.18)) {
+            columnVisibility = (columnVisibility == .detailOnly) ? .automatic : .detailOnly
+        }
+        #endif
+    }
 
     private func pushOwnedSessionOnIOS(_ sessionID: String) {
         #if os(iOS)

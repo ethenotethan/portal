@@ -59,6 +59,10 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(macOS)
+            titlebarClearance
+            #endif
+
             // Toolbar
             chatToolbar
 
@@ -156,6 +160,7 @@ struct ChatView: View {
 
                         ChatInputBar()
                             .environmentObject(chatViewModel)
+                            .frame(maxWidth: 760)
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
@@ -201,14 +206,13 @@ struct ChatView: View {
                     .environmentObject(chatViewModel)
             }
 
-            // Input bar
-            ChatInputBar()
-                .environmentObject(chatViewModel)
-
-            // Debug log (always visible while not session-ready)
             if !chatViewModel.isSessionReady {
                 DebugLogPanel(wrapper: gatewayClientWrapper)
             }
+
+            // Input bar
+            ChatInputBar()
+                .environmentObject(chatViewModel)
             #endif
         }
         #if os(macOS)
@@ -233,6 +237,15 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
     }
+
+    #if os(macOS)
+    private var titlebarClearance: some View {
+        Color.clear
+            .frame(height: 28)
+            .frame(maxWidth: .infinity)
+            .background(activeSkin.background)
+    }
+    #endif
 
     @ViewBuilder
     private var latestAssistantTurnProbe: some View {
