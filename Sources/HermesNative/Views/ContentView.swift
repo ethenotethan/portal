@@ -239,18 +239,10 @@ struct ContentView: View {
                 .environmentObject(sessionList)
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
-                .navigationTitle("Sessions")
-                .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        Button {
-                            showGatewayDebugSheet = true
-                        } label: {
-                            Image(systemName: "wave.3.right.circle")
-                        }
-                        .help("Gateway Debug")
-                        .accessibilityLabel("Gateway Debug")
-                    }
-                }
+                .navigationTitle("")
+                #if os(macOS)
+                .toolbarBackground(.hidden, for: .windowToolbar)
+                #endif
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif

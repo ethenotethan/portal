@@ -38,12 +38,13 @@ struct SessionListView: View {
         VStack(spacing: 0) {
             sidebarHeader
 
-            Divider()
-                .overlay(Theme.border)
+            Rectangle()
+                .fill(Theme.border)
+                .frame(height: 1)
 
             List(selection: $sessionList.activeSessionID) {
-            // My Sessions
-            Section {
+                // My Sessions
+                Section {
                 if !mySessionsCollapsed {
                     if mySessions.isEmpty {
                         VStack(spacing: 8) {
@@ -273,77 +274,79 @@ struct SessionListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
-        .clipShape(Rectangle())
+        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // MARK: - Helpers
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                sidebarHeaderButton(
-                    icon: "plus",
-                    title: "New Session",
-                    foreground: Theme.primary,
-                    background: Theme.accent,
-                    accessibilityLabel: "New Session",
-                    accessibilityID: "newSessionButton",
-                    action: { onCreateSession?() }
-                )
-
-                sidebarHeaderButton(
-                    icon: "clock.badge.checkmark",
-                    title: nil,
-                    foreground: Theme.secondary,
-                    background: Theme.surface,
-                    accessibilityLabel: "Open Cron",
-                    accessibilityID: "panelToggleButton",
-                    action: { onOpenPanel?() }
-                )
-
-                Spacer(minLength: 0)
-            }
-
+        VStack(alignment: .leading, spacing: 12) {
             Text("Sessions")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .textCase(.uppercase)
                 .foregroundStyle(Theme.tertiary)
+
+            HStack(spacing: 8) {
+                sidebarHeaderButton(
+                    icon: "plus",
+                    title: "New Session",
+                    accessibilityLabel: "New Session",
+                    accessibilityID: "newSessionButton",
+                    isPrimary: true,
+                    action: { onCreateSession?() }
+                )
+
+                sidebarHeaderButton(
+                    icon: "clock.badge.checkmark",
+                    title: "Cron",
+                    accessibilityLabel: "Open Cron Jobs",
+                    accessibilityID: "panelToggleButton",
+                    isPrimary: false,
+                    action: { onOpenPanel?() }
+                )
+            }
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)
     }
 
     private func sidebarHeaderButton(
         icon: String,
-        title: String?,
-        foreground: Color,
-        background: Color,
+        title: String,
         accessibilityLabel: String,
         accessibilityID: String,
+        isPrimary: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: 7) {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .bold))
-                if let title {
-                    Text(title)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                }
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
             }
-            .frame(height: 28)
-            .padding(.horizontal, title == nil ? 0 : 10)
-            .frame(width: title == nil ? 30 : nil)
+            .frame(height: 30)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: isPrimary ? .infinity : nil, alignment: .center)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(foreground)
-        .background(background, in: Rectangle())
-        .overlay(Rectangle().stroke(Theme.border, lineWidth: background == Theme.accent ? 0 : 1))
+        .foregroundStyle(isPrimary ? Theme.primary : Theme.secondary)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isPrimary ? Theme.accent : Theme.surface)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isPrimary ? Theme.accent.opacity(0.65) : Theme.border, lineWidth: 1)
+        }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier(accessibilityID)
     }

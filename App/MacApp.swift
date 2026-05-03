@@ -22,7 +22,7 @@ struct HermesNativeAppMac: App {
                 .environmentObject(spawnTreeStore)
                 .environmentObject(gatewayClientWrapper)
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 700)
 
         Settings {
