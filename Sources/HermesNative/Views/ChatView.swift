@@ -493,43 +493,13 @@ struct ChatInputBar: View {
     }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            #if os(macOS)
-            TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText)
-                .accessibilityIdentifier("chatInput")
-                .textFieldStyle(.plain)
-                .focused($isInputFocused)
-                .onSubmit {
-                    Task { await chatViewModel.submitPrompt() }
-                }
-            #else
-            TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
-                .accessibilityIdentifier("chatInput")
-                .textFieldStyle(.plain)
-                .lineLimit(1...8)
-                .focused($isInputFocused)
-                .onSubmit {
-                    Task { await chatViewModel.submitPrompt() }
-                }
-            #endif
-
-            Button {
-                Task { await chatViewModel.submitPrompt() }
-            } label: {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(isSendDisabled ? Theme.tertiary : Theme.primary)
-                    .frame(width: 30, height: 30)
-                    .background(isSendDisabled ? Theme.surfaceHover : Theme.accent, in: Circle())
-            }
-            .accessibilityLabel("Send")
-            .accessibilityIdentifier("sendButton")
-            .disabled(isSendDisabled)
-            .buttonStyle(.plain)
+        #if os(macOS)
+        HStack(alignment: .center, spacing: 10) {
+            inputField
+            sendButton
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        #if os(macOS)
+        .padding(.vertical, 9)
         .frame(maxWidth: 760)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
@@ -538,8 +508,54 @@ struct ChatInputBar: View {
         )
         .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
         #else
+        HStack(alignment: .bottom, spacing: 10) {
+            inputField
+            sendButton
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(.bar)
         #endif
+    }
+
+    private var inputField: some View {
+        #if os(macOS)
+        TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText)
+            .accessibilityIdentifier("chatInput")
+            .textFieldStyle(.plain)
+            .font(.system(size: 15, weight: .regular))
+            .frame(minHeight: 32, alignment: .center)
+            .focused($isInputFocused)
+            .onSubmit {
+                Task { await chatViewModel.submitPrompt() }
+            }
+        #else
+        TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
+            .accessibilityIdentifier("chatInput")
+            .textFieldStyle(.plain)
+            .font(.body)
+            .lineLimit(1...8)
+            .focused($isInputFocused)
+            .onSubmit {
+                Task { await chatViewModel.submitPrompt() }
+            }
+        #endif
+    }
+
+    private var sendButton: some View {
+        Button {
+            Task { await chatViewModel.submitPrompt() }
+        } label: {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(isSendDisabled ? Theme.tertiary : Theme.primary)
+                .frame(width: 30, height: 30)
+                .background(isSendDisabled ? Theme.surfaceHover : Theme.accent, in: Circle())
+        }
+        .accessibilityLabel("Send")
+        .accessibilityIdentifier("sendButton")
+        .disabled(isSendDisabled)
+        .buttonStyle(.plain)
     }
 }
 
