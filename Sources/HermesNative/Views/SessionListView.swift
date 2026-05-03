@@ -11,6 +11,7 @@ struct SessionListView: View {
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
+    var onOpenPanel: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
     @State private var cronSessionsCollapsed = false
@@ -34,7 +35,13 @@ struct SessionListView: View {
     }
 
     var body: some View {
-        List(selection: $sessionList.activeSessionID) {
+        VStack(spacing: 0) {
+            sidebarHeader
+
+            Divider()
+                .overlay(Theme.border)
+
+            List(selection: $sessionList.activeSessionID) {
             // My Sessions
             Section {
                 if !mySessionsCollapsed {
@@ -249,11 +256,9 @@ struct SessionListView: View {
                 }
             }
         }
-        #if os(macOS)
-        .listStyle(.sidebar)
-        #else
-        .listStyle(.insetGrouped)
-        #endif
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
         .overlay {
             if sessionList.sessions.isEmpty && !sessionList.isLoading {
                 emptyState
@@ -265,9 +270,83 @@ struct SessionListView: View {
         .task {
             await sessionList.refreshSessions()
         }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background)
+        .clipShape(Rectangle())
     }
 
     // MARK: - Helpers
+
+    private var sidebarHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                sidebarHeaderButton(
+                    icon: "plus",
+                    title: "New Session",
+                    foreground: Theme.primary,
+                    background: Theme.accent,
+                    accessibilityLabel: "New Session",
+                    accessibilityID: "newSessionButton",
+                    action: { onCreateSession?() }
+                )
+
+                sidebarHeaderButton(
+                    icon: "clock.badge.checkmark",
+                    title: nil,
+                    foreground: Theme.secondary,
+                    background: Theme.surface,
+                    accessibilityLabel: "Open Cron",
+                    accessibilityID: "panelToggleButton",
+                    action: { onOpenPanel?() }
+                )
+
+                Spacer(minLength: 0)
+            }
+
+            Text("Sessions")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .textCase(.uppercase)
+                .foregroundStyle(Theme.tertiary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.background)
+    }
+
+    private func sidebarHeaderButton(
+        icon: String,
+        title: String?,
+        foreground: Color,
+        background: Color,
+        accessibilityLabel: String,
+        accessibilityID: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                if let title {
+                    Text(title)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+            }
+            .frame(height: 28)
+            .padding(.horizontal, title == nil ? 0 : 10)
+            .frame(width: title == nil ? 30 : nil)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(foreground)
+        .background(background, in: Rectangle())
+        .overlay(Rectangle().stroke(Theme.border, lineWidth: background == Theme.accent ? 0 : 1))
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier(accessibilityID)
+    }
 
     private func collapsibleHeader(title: String, icon: String, count: Int, isCollapsed: Bool) -> some View {
         HStack(spacing: 6) {

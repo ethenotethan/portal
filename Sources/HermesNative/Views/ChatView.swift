@@ -34,6 +34,14 @@ struct ChatView: View {
         chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
     }
 
+    private var chatBottomContentPadding: CGFloat {
+        #if os(macOS)
+        128
+        #else
+        8
+        #endif
+    }
+
     /// Current avatar expression based on streaming state
     private var currentAvatarExpression: CharacterExpression {
         if chatViewModel.isStreaming {
@@ -58,18 +66,19 @@ struct ChatView: View {
 
             // Message list
             ScrollViewReader { proxy in
-                ScrollView {
-                    GeometryReader { viewport in
-                        Color.clear.preference(
-                            key: ChatViewportHeightKey.self,
-                            value: viewport.size.height
-                        )
-                    }
-                    .frame(height: 0)
+                ZStack(alignment: .bottom) {
+                    ScrollView {
+                        GeometryReader { viewport in
+                            Color.clear.preference(
+                                key: ChatViewportHeightKey.self,
+                                value: viewport.size.height
+                            )
+                        }
+                        .frame(height: 0)
 
-                    ZStack(alignment: .topLeading) {
-                        LazyVStack(alignment: .leading, spacing: 2) {
-                            ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
+                        ZStack(alignment: .topLeading) {
+                            LazyVStack(alignment: .leading, spacing: 2) {
+                                ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
                                 let msgs = chatViewModel.messages
                                 // Next message in same role group?
                                 let nextIsSameRole = index < msgs.count - 1 &&
@@ -125,7 +134,8 @@ struct ChatView: View {
                         }
                         .padding(.leading, messageLeadingPadding)
                         .padding(.trailing, 16)
-                        .padding(.vertical, 8)
+                        .padding(.top, 8)
+                        .padding(.bottom, chatBottomContentPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                         // ── Singleton traveling avatar ──
@@ -145,14 +155,34 @@ struct ChatView: View {
                     .coordinateSpace(name: "chatContent")
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                    #if os(macOS)
+                    VStack(spacing: 8) {
+                        if chatViewModel.pendingApproval != nil {
+                            ApprovalBanner()
+                                .environmentObject(chatViewModel)
+                        }
+
+                        if !chatViewModel.isSessionReady {
+                            DebugLogPanel(wrapper: gatewayClientWrapper)
+                        }
+
+                        ChatInputBar()
+                            .environmentObject(chatViewModel)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                    #endif
+                }
                 .background(activeSkin.background)
                 #if os(iOS)
                 .scrollDismissesKeyboard(.interactively)
                 #endif
                 .onPreferenceChange(LatestBotTurnYKey.self) { y in
                     if let y = y {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            avatarY = y
+                        Task { @MainActor in
+                            withAnimation(.easeInOut(duration: 0.4)) {
+                                avatarY = y
+                            }
                         }
                     }
                 }
@@ -174,6 +204,7 @@ struct ChatView: View {
                 }
             }
 
+            #if os(iOS)
             Divider()
 
             // Approval sheet (if pending)
@@ -190,6 +221,7 @@ struct ChatView: View {
             if !chatViewModel.isSessionReady {
                 DebugLogPanel(wrapper: gatewayClientWrapper)
             }
+            #endif
         }
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
@@ -436,8 +468,12 @@ struct ChatInputBar: View {
     @EnvironmentObject var personaManager: PersonaManager
     @FocusState private var isInputFocused: Bool
 
+    private var isSendDisabled: Bool {
+        chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming
+    }
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack(alignment: .bottom, spacing: 10) {
             TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
                 .accessibilityIdentifier("chatInput")
                 .textFieldStyle(.plain)
@@ -450,18 +486,30 @@ struct ChatInputBar: View {
             Button {
                 Task { await chatViewModel.submitPrompt() }
             } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming ? .gray : Color.accentColor)
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(isSendDisabled ? Theme.tertiary : Theme.primary)
+                    .frame(width: 30, height: 30)
+                    .background(isSendDisabled ? Theme.surfaceHover : Theme.accent, in: Circle())
             }
             .accessibilityLabel("Send")
             .accessibilityIdentifier("sendButton")
-            .disabled(chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming)
+            .disabled(isSendDisabled)
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        #if os(macOS)
+        .frame(maxWidth: 760)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Theme.border.opacity(0.9), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
+        #else
         .background(.bar)
+        #endif
     }
 }
 
