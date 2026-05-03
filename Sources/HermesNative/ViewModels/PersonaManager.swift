@@ -8,12 +8,11 @@ import Foundation
 final class PersonaManager: ObservableObject {
     /// All available personas (gateway-derived + built-in + user-provided)
     @Published var personas: [Persona] = []
-    /// Currently active persona (persisted to UserDefaults)
-    @Published var activePersona: Persona {
-        didSet {
-            UserDefaults.standard.set(activePersona.id, forKey: Self.activePersonaKey)
-        }
-    }
+    /// Currently active persona. Defaults to the connected Hermes Agent config;
+    /// choosing anything else is an explicit local override.
+    @Published var activePersona: Persona = .defaultPersona
+
+    @Published private(set) var usesAgentDefault = true
 
     nonisolated static let personasDirectory: URL = {
         #if os(macOS)
@@ -29,33 +28,39 @@ final class PersonaManager: ObservableObject {
     }()
 
     private static let activePersonaKey = "hermes.activePersona"
+    private static let personaSelectionModeKey = "hermes.personaSelectionMode"
+    private static let agentDefaultMode = "agentDefault"
+    private static let customMode = "custom"
 
     init() {
-        let savedID = UserDefaults.standard.string(forKey: Self.activePersonaKey)
-        self.activePersona = Persona.defaultPersona
-
+        usesAgentDefault = UserDefaults.standard.string(forKey: Self.personaSelectionModeKey) != Self.customMode
         loadPersonas()
-
-        if let savedID, let match = personas.first(where: { $0.id == savedID }) {
-            self.activePersona = match
-        }
+        applyStoredSelection()
     }
 
-    /// Derive persona from gateway RPCs + PERSONA.md, then merge with local files.
-    /// Uses existing config.get("personality") and config.get("full") RPCs — no new gateway code needed.
+    /// Derive the default persona from the connected Hermes Agent config, then merge with local files.
+    /// Local personas remain available, but are only active when the user explicitly selects one.
     func syncFromGateway(_ client: GatewayClient) async {
         var personalityName = "default"
         var gatewayName: String? = nil
         var personaMDContent: String? = nil
 
-        // 1. Fetch personality name via config.get("personality")
-        if let result = try? await client.getConfig(key: "personality"),
+        if let result = try? await client.getConfig(key: "persona") {
+            if let personality = result["personality"]?.stringValue, !personality.isEmpty {
+                personalityName = personality
+            }
+            gatewayName = result["name"]?.stringValue
+            personaMDContent = result["persona_md"]?.stringValue
+        }
+
+        if personaMDContent == nil,
+           let result = try? await client.getConfig(key: "personality"),
            let value = result["value"]?.stringValue {
             personalityName = value
         }
 
-        // 2. Fetch full config via config.get("full") to get display.agent_name
-        if let result = try? await client.getConfig(key: "full"),
+        if gatewayName == nil,
+           let result = try? await client.getConfig(key: "full"),
            let config = result["config"]?.dictionaryValue {
             let display = config["display"]?.dictionaryValue
             if let name = display?["agent_name"]?.stringValue, !name.isEmpty {
@@ -63,34 +68,16 @@ final class PersonaManager: ObservableObject {
             }
         }
 
-        // 3. Read PERSONA.md via the prompt RPC or fall back to filesystem
-        // The gateway doesn't have a direct PERSONA.md RPC yet, so read from disk
-        #if os(macOS)
-        let hermesDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".hermes")
-        #else
-        let hermesDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent(".hermes")
-        #endif
-        let personaMDPath = hermesDir.appendingPathComponent("PERSONA.md")
-        personaMDContent = try? String(contentsOf: personaMDPath, encoding: .utf8)
-
-        // 4. Build the gateway-derived persona
-        let gatewayPersona = derivePersona(
+        var gatewayPersona = derivePersona(
             personalityName: personalityName,
             gatewayName: gatewayName,
             personaMD: personaMDContent
         )
+        gatewayPersona.isAgentDefault = true
+        gatewayPersona.isBuiltIn = true
 
-        // 5. Reload all personas, putting gateway-derived first
         loadPersonas(gatewayPersona: gatewayPersona)
-
-        // Auto-select gateway persona if no saved preference
-        let savedID = UserDefaults.standard.string(forKey: Self.activePersonaKey)
-        if let savedID, let match = personas.first(where: { $0.id == savedID }) {
-            activePersona = match
-        } else {
-            activePersona = gatewayPersona
-        }
+        applyStoredSelection(gatewayPersona: gatewayPersona)
     }
 
     /// Reload personas from disk (call after adding/removing persona files)
@@ -135,14 +122,53 @@ final class PersonaManager: ObservableObject {
         personas = loaded
     }
 
-    func select(_ persona: Persona) { activePersona = persona }
+    func select(_ persona: Persona) {
+        activePersona = persona
+        usesAgentDefault = persona.isAgentDefault
+        UserDefaults.standard.set(persona.id, forKey: Self.activePersonaKey)
+        UserDefaults.standard.set(
+            persona.isAgentDefault ? Self.agentDefaultMode : Self.customMode,
+            forKey: Self.personaSelectionModeKey
+        )
+    }
+
+    func useAgentDefault() {
+        usesAgentDefault = true
+        UserDefaults.standard.set(Self.agentDefaultMode, forKey: Self.personaSelectionModeKey)
+        if let gatewayPersona = personas.first(where: { $0.isAgentDefault }) {
+            activePersona = gatewayPersona
+            UserDefaults.standard.set(gatewayPersona.id, forKey: Self.activePersonaKey)
+        }
+    }
 
     func delete(_ persona: Persona) {
-        guard !persona.isBuiltIn else { return }
+        guard !persona.isBuiltIn && !persona.isAgentDefault else { return }
         let file = Self.personasDirectory.appendingPathComponent("\(persona.id).json")
         try? FileManager.default.removeItem(at: file)
         personas.removeAll { $0.id == persona.id }
-        if activePersona.id == persona.id { activePersona = Persona.defaultPersona }
+        if activePersona.id == persona.id { useAgentDefault() }
+    }
+
+    private func applyStoredSelection(gatewayPersona: Persona? = nil) {
+        if usesAgentDefault {
+            activePersona = gatewayPersona
+                ?? personas.first(where: { $0.isAgentDefault })
+                ?? personas.first
+                ?? .defaultPersona
+            return
+        }
+
+        let savedID = UserDefaults.standard.string(forKey: Self.activePersonaKey)
+        if let savedID, let match = personas.first(where: { $0.id == savedID && !$0.isAgentDefault }) {
+            activePersona = match
+        } else if let gatewayPersona = gatewayPersona ?? personas.first(where: { $0.isAgentDefault }) {
+            activePersona = gatewayPersona
+            usesAgentDefault = true
+            UserDefaults.standard.set(Self.agentDefaultMode, forKey: Self.personaSelectionModeKey)
+            UserDefaults.standard.set(gatewayPersona.id, forKey: Self.activePersonaKey)
+        } else {
+            activePersona = personas.first ?? .defaultPersona
+        }
     }
 
     func exportTemplate() -> URL? {

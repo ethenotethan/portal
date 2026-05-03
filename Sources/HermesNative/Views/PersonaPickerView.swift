@@ -38,26 +38,54 @@ struct PersonaPickerView: View {
 
             // Persona list
             ScrollView {
-                LazyVStack(spacing: 4) {
-                    ForEach(personaManager.personas) { persona in
-                        PersonaRow(persona: persona, isActive: persona.id == personaManager.activePersona.id)
+                LazyVStack(spacing: 8) {
+                    if let agentPersona = personaManager.personas.first(where: { $0.isAgentDefault }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Default")
+                                .font(.caption2.weight(.semibold))
+                                .textCase(.uppercase)
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 10)
+                            PersonaRow(
+                                persona: agentPersona,
+                                isActive: personaManager.usesAgentDefault,
+                                subtitleOverride: "Mirrors Hermes Agent config"
+                            )
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                personaManager.select(persona)
+                                personaManager.useAgentDefault()
                                 dismiss()
                             }
-                            .contextMenu {
-                                if !persona.isBuiltIn {
-                                    Button("Delete", role: .destructive) {
-                                        personaManager.delete(persona)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Custom")
+                            .font(.caption2.weight(.semibold))
+                            .textCase(.uppercase)
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 10)
+
+                        ForEach(personaManager.personas.filter { !$0.isAgentDefault }) { persona in
+                            PersonaRow(persona: persona, isActive: !personaManager.usesAgentDefault && persona.id == personaManager.activePersona.id)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    personaManager.select(persona)
+                                    dismiss()
+                                }
+                                .contextMenu {
+                                    if !persona.isBuiltIn {
+                                        Button("Delete", role: .destructive) {
+                                            personaManager.delete(persona)
+                                        }
                                     }
+                                    #if os(macOS)
+                                    Button("Open Personas Folder") {
+                                        NSWorkspace.shared.open(PersonaManager.personasDirectory)
+                                    }
+                                    #endif
                                 }
-                                #if os(macOS)
-                                Button("Open Personas Folder") {
-                                    NSWorkspace.shared.open(PersonaManager.personasDirectory)
-                                }
-                                #endif
-                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 8)
@@ -102,6 +130,7 @@ struct PersonaPickerView: View {
 struct PersonaRow: View {
     let persona: Persona
     let isActive: Bool
+    var subtitleOverride: String? = nil
 
     var body: some View {
         HStack(spacing: 10) {
@@ -111,7 +140,7 @@ struct PersonaRow: View {
                 Text(persona.name)
                     .font(.subheadline)
                     .fontWeight(isActive ? .semibold : .regular)
-                Text(persona.tagline)
+                Text(subtitleOverride ?? persona.tagline)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

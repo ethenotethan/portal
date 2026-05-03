@@ -141,15 +141,7 @@ final class ChatViewModel: ObservableObject {
             self.activeToolCalls = [:]
             self.error = nil
 
-            // Inject the app's formatting prompt so the model uses mermaid + rich markdown
-            if let personaSuffix = personaManager?.activePersona.systemPromptSuffix,
-               !personaSuffix.isEmpty {
-                // Merge persona suffix with app formatting prompt
-                let combined = Self.appFormattingPrompt + "\n\n" + personaSuffix
-                try? await client.setEphemeralPrompt(sessionID: sid, prompt: combined)
-            } else {
-                try? await client.setEphemeralPrompt(sessionID: sid, prompt: Self.appFormattingPrompt)
-            }
+            await applyEphemeralPrompt(for: sid, using: client)
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
@@ -178,11 +170,21 @@ final class ChatViewModel: ObservableObject {
             // Parse history messages from the gateway
             self.messages = Self.parseHistoryMessages(result.messages)
 
-            // Re-inject the app's formatting prompt on resume
-            try? await client.setEphemeralPrompt(sessionID: result.sessionID, prompt: Self.appFormattingPrompt)
+            await applyEphemeralPrompt(for: result.sessionID, using: client)
         } catch {
             self.error = "Session resume failed: \(error.localizedDescription)"
         }
+    }
+
+    private func applyEphemeralPrompt(for sessionID: String, using client: GatewayClient) async {
+        var prompt = Self.appFormattingPrompt
+        if let personaManager,
+           !personaManager.usesAgentDefault,
+           let personaSuffix = personaManager.activePersona.systemPromptSuffix,
+           !personaSuffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            prompt += "\n\n" + personaSuffix
+        }
+        try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
     /// Load history for the current session (for reconnects where resume isn't used).

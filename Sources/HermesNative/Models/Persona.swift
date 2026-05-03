@@ -27,6 +27,8 @@ struct Persona: Codable, Identifiable, Equatable {
     var imagePath: String?
     var systemPromptSuffix: String?
     var isBuiltIn: Bool
+    /// True when this entry mirrors the connected Hermes Agent's configured persona.
+    var isAgentDefault: Bool = false
     /// 3D accessories rendered on the avatar — persona-specific identity
     var accessories: [PersonaAccessory] = []
 

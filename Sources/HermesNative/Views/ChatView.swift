@@ -268,7 +268,7 @@ struct ChatView: View {
             } label: {
                 HStack(spacing: 6) {
                     personaManager.activePersona.bubbleAvatar(size: 22)
-                    Text(personaManager.activePersona.name)
+                    Text(personaManager.usesAgentDefault ? "Agent Default" : personaManager.activePersona.name)
                         .font(.caption)
                         .fontWeight(.medium)
                         .lineLimit(1)
