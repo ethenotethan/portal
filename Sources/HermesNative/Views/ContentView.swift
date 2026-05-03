@@ -18,6 +18,14 @@ struct ContentView: View {
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
     @State private var wiredClient: GatewayClient?
+    /// Suppresses selection-driven navigation/resume while New Session is already
+    /// explicitly creating and pushing a chat. Without this, register/select can
+    /// race the compact iOS NavigationStack and append the same destination twice.
+    @State private var pendingCreatedSessionID: String?
+    /// `ChatViewModel.createSession()` publishes `createGeneration` before
+    /// `createAndSwitchToNewSession()` resumes. The explicit New Session flow does
+    /// its own push afterward, so the observer must skip that intermediate push.
+    @State private var shouldSuppressNextCreateGenerationPush = false
     #if os(iOS)
     @State private var iOSNavigationPath: [String] = []
     #endif
@@ -141,11 +149,12 @@ struct ContentView: View {
             NotificationService.shared.activeSessionID = newID
         }
         .onChange(of: chatViewModel.createGeneration) { _, _ in
-            if let sid = chatViewModel.currentSessionID {
-                sessionList.registerOwnedSession(shortHexID: sid)
-                if !isCreatingSession {
-                    pushOwnedSessionOnIOS(sid)
-                }
+            guard let sid = chatViewModel.currentSessionID else { return }
+            sessionList.registerOwnedSession(shortHexID: sid)
+            if shouldSuppressNextCreateGenerationPush {
+                shouldSuppressNextCreateGenerationPush = false
+            } else {
+                pushOwnedSessionOnIOS(sid)
             }
         }
         // Mission Control sheet (for owned sessions)
@@ -248,11 +257,12 @@ struct ContentView: View {
             NotificationService.shared.activeSessionID = newID
         }
         .onChange(of: chatViewModel.createGeneration) { _, _ in
-            if let sid = chatViewModel.currentSessionID {
-                sessionList.registerOwnedSession(shortHexID: sid)
-                if !isCreatingSession {
-                    pushOwnedSessionOnIOS(sid)
-                }
+            guard let sid = chatViewModel.currentSessionID else { return }
+            sessionList.registerOwnedSession(shortHexID: sid)
+            if shouldSuppressNextCreateGenerationPush {
+                shouldSuppressNextCreateGenerationPush = false
+            } else {
+                pushOwnedSessionOnIOS(sid)
             }
         }
         // Mission Control sheet (for owned sessions)
@@ -303,6 +313,11 @@ struct ContentView: View {
         let rpcID = session.rpcID
 
         if session.isOwned {
+            if pendingCreatedSessionID == newID || pendingCreatedSessionID == rpcID {
+                pendingCreatedSessionID = nil
+                return
+            }
+
             pushOwnedSessionOnIOS(newID)
 
             if rpcID == chatViewModel.currentSessionID { return }
@@ -363,18 +378,22 @@ struct ContentView: View {
         wireUpClient(connectedClient)
 
         NSLog("[HermesNative] createAndSwitchToNewSession starting session.create")
+        shouldSuppressNextCreateGenerationPush = true
         await chatViewModel.createSession()
 
         if let error = chatViewModel.error {
+            shouldSuppressNextCreateGenerationPush = false
             sessionCreationError = error
             return
         }
 
         guard let sid = chatViewModel.currentSessionID else {
+            shouldSuppressNextCreateGenerationPush = false
             sessionCreationError = "Session create returned no session ID"
             return
         }
 
+        pendingCreatedSessionID = sid
         sessionList.registerOwnedSession(shortHexID: sid)
         sessionList.selectSession(id: sid)
         spawnTreeStore.createTree(sessionID: sid)

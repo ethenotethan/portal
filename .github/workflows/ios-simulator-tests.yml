@@ -150,6 +150,7 @@ jobs:
             -scheme HermesNative-iOS \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -only-testing:HermesNativeUITests/HermesNativeGatewayConnectionUITests/testConnectsToLocalHermesGateway \
+            -only-testing:HermesNativeUITests/HermesNativeGatewayConnectionUITests/testNewSessionPushesSingleChatDestination \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath "$RESULT_BUNDLE" \
             2>&1 | tee "$RUNNER_TEMP/ios-ui-local-gateway-smoke.log" | xcpretty
