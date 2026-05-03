@@ -669,7 +669,10 @@ struct OpenableBlockChip: View {
         #else
         .sheet(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: content)
-                .frame(minWidth: 700, minHeight: 550)
+                .frame(
+                    width: NSScreen.main?.visibleFrame.width ?? 1200,
+                    height: NSScreen.main?.visibleFrame.height ?? 800
+                )
         }
         #endif
     }
@@ -719,7 +722,7 @@ struct OpenableBlockSheet: View {
                 // Content — WKWebView handles its own scrolling
                 Group {
                     if language == "mermaid" {
-                        MermaidDiagramView(mermaidCode: content)
+                        MermaidDiagramView(mermaidCode: content, isInteractive: true)
                     } else {
                         InlineHTMLView(html: content)
                     }
@@ -730,6 +733,8 @@ struct OpenableBlockSheet: View {
         #if os(iOS)
         .navigationBarHidden(true)
         .statusBarHidden(false)
+        #else
+        .ignoresSafeArea()
         #endif
     }
 }
