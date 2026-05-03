@@ -18,6 +18,16 @@ struct SessionListView: View {
     @State private var otherSessionsCollapsed = false
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
+    private var sidebarTopPadding: CGFloat {
+        #if os(macOS)
+        // The background should fill under the hidden titlebar, but header
+        // controls must sit below the traffic lights/sidebar toggle.
+        34
+        #else
+        10
+        #endif
+    }
+
     private var mySessions: [Session] {
         sessionList.sessions.filter { $0.isOwned && !$0.isArchived }
     }
@@ -35,14 +45,18 @@ struct SessionListView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            sidebarHeader
+        ZStack(alignment: .topLeading) {
+            Theme.background
+                .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
 
-            Rectangle()
-                .fill(Theme.border)
-                .frame(height: 1)
+            VStack(spacing: 0) {
+                sidebarHeader
 
-            List(selection: $sessionList.activeSessionID) {
+                Rectangle()
+                    .fill(Theme.border)
+                    .frame(height: 1)
+
+                List(selection: $sessionList.activeSessionID) {
                 // My Sessions
                 Section {
                 if !mySessionsCollapsed {
@@ -257,25 +271,25 @@ struct SessionListView: View {
                 }
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Theme.background)
-        .overlay {
-            if sessionList.sessions.isEmpty && !sessionList.isLoading {
-                emptyState
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(Theme.background)
+                .overlay {
+                    if sessionList.sessions.isEmpty && !sessionList.isLoading {
+                        emptyState
+                    }
+                }
+                .refreshable {
+                    await sessionList.refreshSessions()
+                }
+                .task {
+                    await sessionList.refreshSessions()
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
         }
-        .refreshable {
-            await sessionList.refreshSessions()
-        }
-        .task {
-            await sessionList.refreshSessions()
-        }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.background)
-        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: - Helpers
@@ -309,7 +323,7 @@ struct SessionListView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.top, 10)
+        .padding(.top, sidebarTopPadding)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)
