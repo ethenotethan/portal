@@ -88,12 +88,12 @@ struct MessageBubbleView: View {
                     if !displayContent.isEmpty {
                         if message.isStreaming && message.content.hasSuffix("…") == false {
                             // Streaming — show content as it arrives
-                            MarkdownContentView(text: displayContent)
+                            LongResponseView(text: displayContent, isStreaming: message.isStreaming)
                         } else if displayContent.isEmpty && message.isStreaming {
                             // Streaming but no content yet — show nothing (agent panel handles it)
                             EmptyView()
                         } else {
-                            MarkdownContentView(text: displayContent)
+                            LongResponseView(text: displayContent, isStreaming: message.isStreaming)
                         }
                     }
 
@@ -141,11 +141,11 @@ struct MessageBubbleView: View {
                 let displayContent = message.contentWithoutAttachments
                 if !displayContent.isEmpty {
                     if message.isStreaming && message.content.hasSuffix("…") == false {
-                        MarkdownContentView(text: displayContent)
+                        LongResponseView(text: displayContent, isStreaming: message.isStreaming)
                     } else if displayContent.isEmpty && message.isStreaming {
                         EmptyView()
                     } else {
-                        MarkdownContentView(text: displayContent)
+                        LongResponseView(text: displayContent, isStreaming: message.isStreaming)
                     }
                 }
 

@@ -95,7 +95,7 @@ private struct DarkMangaMessageBubble: View {
                 }
 
                 if !displayContent.isEmpty {
-                    MarkdownContentView(text: displayContent)
+                    LongResponseView(text: displayContent, isStreaming: message.isStreaming)
                         .foregroundStyle(Theme.primary)
                 }
 
