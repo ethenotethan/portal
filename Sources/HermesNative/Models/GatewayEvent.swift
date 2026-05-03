@@ -38,6 +38,24 @@ enum GatewayEvent {
         }
     }
 
+    var isLiveTurnEvent: Bool {
+        switch self {
+        case .messageStart,
+             .messageDelta,
+             .messageComplete,
+             .toolStart,
+             .toolComplete,
+             .toolProgress,
+             .toolGenerating,
+             .reasoningDelta,
+             .reasoningAvailable,
+             .thinkingDelta:
+            return true
+        default:
+            return false
+        }
+    }
+
     // Connection lifecycle
     case gatewayReady(skin: String)
 

@@ -13,6 +13,7 @@
 		0A5ED4D2B4B0DA8E1883CA48 /* HermesNativeGatewayConnectionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C633B4D795C9824FB4B54E5 /* HermesNativeGatewayConnectionUITests.swift */; };
 		0A80650931890E78EB2A78DF /* ChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742C42FB4508D2508FF94A82 /* ChatSkin.swift */; };
 		0AF3C057F785086D624F6286 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC871CF4533AE44104E0C11A /* OnboardingView.swift */; };
+		0B5306F4E5BC2E3D7AC114CB /* GatewayDebugPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6DCDA4383E8AB84CFB90AE /* GatewayDebugPanelView.swift */; };
 		0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */; };
 		0C4A4097ED49A77466FFE6F0 /* Avatar3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3A77924140DBAD0D735072 /* Avatar3DView.swift */; };
 		0FD4BEE9B35811AC3F5D405C /* GatewayClientWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */; };
@@ -51,6 +52,7 @@
 		56ACF05DAC83D02819DED0B0 /* TreeNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCD3141656594B639005AAD /* TreeNodeView.swift */; };
 		5924909BD661EA6EA43952F2 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DE48DC34DE5ECC63525DDC /* Constants.swift */; };
 		5BF9491236DB40D6C90ABA2E /* PersonaPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17B94CA72B9A0301FB510B2D /* PersonaPickerView.swift */; };
+		5C921E19BDC83E4BD8246C62 /* GatewayDebugPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6DCDA4383E8AB84CFB90AE /* GatewayDebugPanelView.swift */; };
 		5F74549973CC40C2FD192577 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBC71ED91AC512E21E65282 /* Session.swift */; };
 		5FA26E2B73BBAB7B0261CCDF /* CronListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AC0B5715E7BCBE84B1DD9D /* CronListViewModel.swift */; };
 		61A658AC225C0EB372BF3DA4 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
@@ -69,6 +71,7 @@
 		79F8332C74A0AF69F0CAF780 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30743804431E0415F8F6D1F8 /* ContentView.swift */; };
 		7E1BCCCADCFDD000491A7271 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */; };
 		800DE74CC13CFCDAB5420029 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 7ABDD72800FF9093DC07B9C8 /* Lottie */; };
+		8060C4164F4FA40B50846E7D /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */; };
 		82DD829EDC65638DC04ED1BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
 		87955D6459C1CF9D37CBD5C2 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57621A872836514CD5BC0F5B /* ChatView.swift */; };
 		8ACAEB144EAF1FE5B9BE9F49 /* SpawnTreeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD22626EF26E6FC0FBA9589 /* SpawnTreeStore.swift */; };
@@ -78,6 +81,7 @@
 		9173E4A3FBF0AD9AE57E9F26 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3179815C2A0EC7D43C9213AC /* CFAuthView.swift */; };
 		931B84E5C3C6E084C355F5F9 /* ToolCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AE31FDF73C19D9F3762143 /* ToolCallView.swift */; };
 		949710C0980DCAAF18C1BD89 /* HermesNativeSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1B098714AA8CADED2118F6 /* HermesNativeSmokeUITests.swift */; };
+		95006EACD8FAE6B2373C7E9D /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */; };
 		96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2F649BE0F12B966FAF6C47 /* Extensions.swift */; };
 		9BEF3885B4A263FBDAC9F1B3 /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */; };
 		9D846F746180F16291C70E15 /* ToolPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22A7665D966524A9EA9F3483 /* ToolPillView.swift */; };
@@ -145,6 +149,7 @@
 
 /* Begin PBXFileReference section */
 		04413B7162C8D0EAA432920E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0BC9F2DB5B4DCB516D19677C /* AvatarScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarScene.swift; sourceTree = "<group>"; };
 		17B94CA72B9A0301FB510B2D /* PersonaPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPickerView.swift; sourceTree = "<group>"; };
 		1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPanel.swift; sourceTree = "<group>"; };
@@ -211,6 +216,7 @@
 		F82B26CC4D53A1A8AD7A15A4 /* LongResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongResponseView.swift; sourceTree = "<group>"; };
 		FCCD3141656594B639005AAD /* TreeNodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreeNodeView.swift; sourceTree = "<group>"; };
 		FE1B098714AA8CADED2118F6 /* HermesNativeSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeSmokeUITests.swift; sourceTree = "<group>"; };
+		FE6DCDA4383E8AB84CFB90AE /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -245,6 +251,7 @@
 				57621A872836514CD5BC0F5B /* ChatView.swift */,
 				30743804431E0415F8F6D1F8 /* ContentView.swift */,
 				D2350443FCFD79CA0CC60484 /* CronListView.swift */,
+				FE6DCDA4383E8AB84CFB90AE /* GatewayDebugPanelView.swift */,
 				A4F3A8DCE4BC4EE7005ABAEB /* GitHubLinkCard.swift */,
 				F82B26CC4D53A1A8AD7A15A4 /* LongResponseView.swift */,
 				DBDB000F6D0C975615D7F80F /* LottieCharacterView.swift */,
@@ -358,6 +365,7 @@
 			children = (
 				3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */,
 				89DF820435B5D88C97CF7888 /* CronJob.swift */,
+				0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */,
 				6772AAD454D58CA9064AE58D /* GatewayEvent.swift */,
 				C8510CDBA7652A23723C1FA1 /* Persona.swift */,
 				1CBC71ED91AC512E21E65282 /* Session.swift */,
@@ -585,6 +593,8 @@
 				96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */,
 				0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */,
 				638EBF9A517E26DC5A5EA397 /* GatewayClientWrapper.swift in Sources */,
+				5C921E19BDC83E4BD8246C62 /* GatewayDebugPanelView.swift in Sources */,
+				95006EACD8FAE6B2373C7E9D /* GatewayDebugSnapshot.swift in Sources */,
 				FB36647CC221C486A87A10AA /* GatewayEvent.swift in Sources */,
 				FAEAC76D80A7E5CE1C87FF9D /* GitHubLinkCard.swift in Sources */,
 				3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */,
@@ -657,6 +667,8 @@
 				44517A6F6B0BA4238E47FA4E /* Extensions.swift in Sources */,
 				AEBEC273DC598A14283BB649 /* GatewayClient.swift in Sources */,
 				0FD4BEE9B35811AC3F5D405C /* GatewayClientWrapper.swift in Sources */,
+				0B5306F4E5BC2E3D7AC114CB /* GatewayDebugPanelView.swift in Sources */,
+				8060C4164F4FA40B50846E7D /* GatewayDebugSnapshot.swift in Sources */,
 				F07A9C9323E8246CB1728EFA /* GatewayEvent.swift in Sources */,
 				D35DBCE40117088D697FD5AA /* GitHubLinkCard.swift in Sources */,
 				636E6271A60453754BEC74F1 /* HermesNativeApp.swift in Sources */,

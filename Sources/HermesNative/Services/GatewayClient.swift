@@ -15,6 +15,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     @Published var connectionState: ConnectionState = .disconnected
     @Published var sessionInfo: SessionInfo?
+    @Published private(set) var debugSnapshot = GatewayDebugSnapshot()
 
     // MARK: - Event Stream
 
@@ -116,6 +117,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var receiveTask: Task<Void, Never>?
     private var requestIDCounter = 0
     private var pendingRequests: [Int: CheckedContinuation<JSONRPCResponse, Error>] = [:]
+    private var pendingRequestMethods: [Int: String] = [:]
     private let pendingRequestsLock = NSLock()
     private var gatewayURL: URL
     private var apiKey: String
@@ -152,12 +154,70 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         self.gatewayURL = URL(string: Constants.defaultGatewayURL)!
         self.apiKey = ""
         super.init()
+        refreshDebugSnapshot()
     }
 
     init(gatewayURL: URL, apiKey: String) {
         self.gatewayURL = gatewayURL
         self.apiKey = apiKey
         super.init()
+        refreshDebugSnapshot()
+    }
+
+    // MARK: - Debug Telemetry
+
+    private var stateDescription: String {
+        switch connectionState {
+        case .disconnected: return "disconnected"
+        case .connecting: return "connecting"
+        case .connected: return "connected"
+        case .reconnecting(let attempt): return "reconnecting #\(attempt)"
+        case .error(let message): return "error: \(message)"
+        }
+    }
+
+    private func refreshDebugSnapshot() {
+        pendingRequestsLock.lock()
+        let pendingIDs = pendingRequests.keys.sorted()
+        let pendingMethods = pendingRequestMethods
+        pendingRequestsLock.unlock()
+
+        debugSnapshot.connectionState = stateDescription
+        debugSnapshot.socketURL = gatewayURL.absoluteString
+        debugSnapshot.isAuthenticated = !apiKey.isEmpty
+        debugSnapshot.hasCFAuthCookie = cfAuthCookie != nil
+        debugSnapshot.activeSessionID = activeSessionID
+        debugSnapshot.lastSessionKey = lastSessionKey
+        debugSnapshot.pendingRequestIDs = pendingIDs
+        debugSnapshot.pendingRequestMethods = pendingMethods
+        debugSnapshot.reconnectAttempt = reconnectAttempt
+    }
+
+    private func recordDebugEvent(
+        _ direction: GatewayDebugSnapshot.EventRecord.Direction,
+        name: String,
+        sessionID: String? = nil,
+        detail: String = ""
+    ) {
+        let record = GatewayDebugSnapshot.EventRecord(
+            timestamp: Date(),
+            direction: direction,
+            name: name,
+            sessionID: sessionID,
+            detail: detail
+        )
+        debugSnapshot.recentEvents.insert(record, at: 0)
+        if debugSnapshot.recentEvents.count > 40 {
+            debugSnapshot.recentEvents.removeLast(debugSnapshot.recentEvents.count - 40)
+        }
+        if direction == .error {
+            debugSnapshot.lastError = detail.isEmpty ? name : detail
+        }
+        refreshDebugSnapshot()
+    }
+
+    func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String) {
+        recordDebugEvent(.dropped, name: event.debugName, sessionID: sessionID, detail: reason)
     }
 
     // MARK: - Connection
@@ -175,6 +235,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         isIntentionalDisconnect = false
         reconnectAttempt = 0
         connectionState = .connecting
+        refreshDebugSnapshot()
+        recordDebugEvent(.state, name: "connect", detail: "opening")
 
         // If we have a CF_Authorization cookie, verify it's still valid first
         if cfAuthCookie != nil {
@@ -263,6 +325,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         let task = newSession.webSocketTask(with: request)
         self.webSocketTask = task
+        debugSnapshot.lastOpenAt = Date()
+        refreshDebugSnapshot()
         task.resume()
 
         receiveTask = Task { [weak self] in
@@ -289,7 +353,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         pendingRequestsLock.lock()
         let pending = pendingRequests
         pendingRequests.removeAll()
+        pendingRequestMethods.removeAll()
         pendingRequestsLock.unlock()
+
+        debugSnapshot.lastCloseAt = Date()
+        refreshDebugSnapshot()
 
         for (_, cont) in pending {
             cont.resume(throwing: GatewayError.disconnected)
@@ -333,6 +401,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func handleDisconnect(reason: String) {
         NSLog("[HermesNative] Disconnected: \(reason)")
         stopPingTimer()
+        debugSnapshot.lastCloseAt = Date()
+        recordDebugEvent(.error, name: "disconnect", detail: reason)
 
         guard !isIntentionalDisconnect else { return }
 
@@ -345,6 +415,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         reconnectAttempt += 1
         let delay = min(pow(2.0, Double(reconnectAttempt - 1)), Self.maxReconnectDelay)
         connectionState = .reconnecting(attempt: reconnectAttempt)
+        refreshDebugSnapshot()
         onLog?("Reconnecting (attempt \(reconnectAttempt), \(String(format: "%.0f", delay))s)…", true)
 
         reconnectTask?.cancel()
@@ -372,11 +443,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return try await withCheckedThrowingContinuation { continuation in
             pendingRequestsLock.lock()
             pendingRequests[id] = continuation
+            pendingRequestMethods[id] = method
             NSLog("[HermesNative] call: registered continuation for id=\(id), pending count=\(pendingRequests.count)")
             pendingRequestsLock.unlock()
+            refreshDebugSnapshot()
 
             // Send AFTER registration — continuation is now safe to fulfill.
             NSLog("[HermesNative] call: sending \(method) id=\(id)")
+            recordDebugEvent(.outbound, name: method, detail: "id=\(id)")
             onLog?("→ \(method) (id=\(id))", false)
             Task { @MainActor in
                 do {
@@ -386,6 +460,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     // Only resume if it is still pending; a fast disconnect may
                     // already have resumed it via stopConnection().
                     if self.removePendingRequest(id: id) != nil {
+                        self.recordDebugEvent(.error, name: method, detail: "send failed id=\(id): \(error.localizedDescription)")
                         continuation.resume(throwing: error)
                     }
                 }
@@ -410,6 +485,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             lastSessionKey = key
         }
         activeSessionID = sessionID
+        refreshDebugSnapshot()
         return sessionID
     }
 
@@ -586,6 +662,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             throw GatewayError.invalidResponse("missing session_id in session.resume response")
         }
         activeSessionID = sessionID
+        refreshDebugSnapshot()
 
         // Parse history messages if present
         let historyMessages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
@@ -775,6 +852,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }
             let event = GatewayEvent.from(type: type, payload: payload)
             let sessionID = params["session_id"] as? String
+            recordDebugEvent(.inbound, name: type, sessionID: sessionID)
 
             if case .sessionInfo(let info) = event {
                 sessionInfo = info
@@ -787,8 +865,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func fulfillRequest(id: Int, response: JSONRPCResponse) {
         pendingRequestsLock.lock()
         let continuation = pendingRequests.removeValue(forKey: id)
+        let method = pendingRequestMethods.removeValue(forKey: id) ?? "response"
         NSLog("[HermesNative] fulfillRequest: id=\(id), found=\(continuation != nil), remaining=\(pendingRequests.count)")
         pendingRequestsLock.unlock()
+        recordDebugEvent(.inbound, name: method, detail: "response id=\(id)")
 
         continuation?.resume(returning: response)
     }
@@ -798,7 +878,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         MainActor.assumeIsolated {
             pendingRequestsLock.lock()
             let continuation = pendingRequests.removeValue(forKey: id)
+            pendingRequestMethods.removeValue(forKey: id)
             pendingRequestsLock.unlock()
+            refreshDebugSnapshot()
             return continuation
         }
     }
@@ -814,6 +896,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             onLog?("✓ WebSocket connected", false)
             connectionState = .connected
             reconnectAttempt = 0
+            recordDebugEvent(.state, name: "websocket.open", detail: "connected")
 
             // Start keepalive pings
             startPingTimer()
@@ -831,6 +914,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         Task { @MainActor in
             stopPingTimer()
             let reasonStr = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            debugSnapshot.lastCloseAt = Date()
+            recordDebugEvent(.state, name: "websocket.close", detail: "code=\(code.rawValue) \(reasonStr)")
             if case .connecting = connectionState {
                 onLog?("✗ WebSocket closed during handshake: \(code) \(reasonStr)", true)
                 connectionState = .error("Connection closed during handshake (code \(code.rawValue))")

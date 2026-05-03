@@ -397,7 +397,16 @@ final class ChatViewModel: ObservableObject {
 
     private func handleEvent(_ event: GatewayEvent, eventSessionID: String?) {
         guard shouldApplyEvent(sessionID: eventSessionID, event: event) else {
+            let reason = "session mismatch current=\(sessionID ?? "nil")"
             NSLog("[HermesNative] ChatViewModel ignored event for session=\(eventSessionID ?? "nil") current=\(sessionID ?? "nil") event=\(event.debugName)")
+            gatewayClient?.recordDroppedEvent(event, sessionID: eventSessionID, reason: reason)
+            return
+        }
+
+        if event.isLiveTurnEvent && !isStreaming {
+            let reason = "late live-turn event after stream ended"
+            NSLog("[HermesNative] ChatViewModel ignored late live event after stream ended: \(event.debugName)")
+            gatewayClient?.recordDroppedEvent(event, sessionID: eventSessionID, reason: reason)
             return
         }
 
