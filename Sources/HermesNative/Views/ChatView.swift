@@ -125,7 +125,9 @@ struct ChatView: View {
                         // ── Singleton traveling avatar ──
                         // Exactly one avatar element. Animated Y tracks the latest bot turn,
                         // matching Claude Code's bottom-left traveling assistant marker.
-                        if hasBotContent {
+                        // The avatar is part of the Dark Manga presentation only; TUI skin
+                        // should stay terminal-native and sprite-free.
+                        if activeSkin == .darkManga && hasBotContent {
                             FloatingAvatarView(
                                 expression: currentAvatarExpression,
                                 persona: personaManager.activePersona
