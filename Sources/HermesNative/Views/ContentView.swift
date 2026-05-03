@@ -252,6 +252,10 @@ struct ContentView: View {
         }
         #if os(macOS)
         .navigationSplitViewStyle(.balanced)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSessionSelection(newID)

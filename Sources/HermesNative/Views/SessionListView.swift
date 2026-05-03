@@ -20,9 +20,10 @@ struct SessionListView: View {
 
     private var sidebarTopPadding: CGFloat {
         #if os(macOS)
-        // Keep the header high in the left panel while still clearing the
-        // hidden-titlebar traffic-light hit area.
-        14
+        // The window/split shell owns the full-bleed chrome. Keep the rounded
+        // action buttons comfortably inside the sidebar instead of trapping
+        // them under the macOS traffic-light/titlebar region.
+        34
         #else
         6
         #endif
@@ -290,7 +291,6 @@ struct SessionListView: View {
             .background(Theme.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
     }
 
     // MARK: - Helpers
@@ -350,13 +350,16 @@ struct SessionListView: View {
             .frame(height: 30)
             .padding(.horizontal, 10)
             .frame(maxWidth: isPrimary ? .infinity : nil, alignment: .center)
-            .contentShape(Rectangle())
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .foregroundStyle(isPrimary ? Theme.primary : Theme.secondary)
-        .background(isPrimary ? Theme.accent : Theme.surface)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isPrimary ? Theme.accent : Theme.surface)
+        )
         .overlay {
-            Rectangle()
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isPrimary ? Theme.accent.opacity(0.65) : Theme.border, lineWidth: 1)
         }
         .accessibilityLabel(accessibilityLabel)
