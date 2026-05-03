@@ -12,6 +12,8 @@ struct SessionListView: View {
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
 
+    @State private var mySessionsCollapsed = false
+    @State private var cronSessionsCollapsed = false
     @State private var otherSessionsCollapsed = false
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
@@ -35,72 +37,85 @@ struct SessionListView: View {
         List(selection: $sessionList.activeSessionID) {
             // My Sessions
             Section {
-                if mySessions.isEmpty {
-                    VStack(spacing: 8) {
-                        Text("No sessions yet")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        Button("Start New Chat") {
-                            onCreateSession?()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("startNewChatButton")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowBackground(Color.clear)
-                } else {
-                    ForEach(mySessions) { session in
-                        SessionRowView(
-                            title: sessionList.titleForSession(session),
-                            subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
-                            source: nil,
-                            isActive: session.id == chatViewModel.currentSessionID,
-                            isOwned: true
-                        )
-                        .tag(session.id)
-                        .contextMenu {
-                            Button {
-                                onMissionControl?(session.id)
-                            } label: {
-                                Label("Mission Control", systemImage: "network")
+                if !mySessionsCollapsed {
+                    if mySessions.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No sessions yet")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                            Button("Start New Chat") {
+                                onCreateSession?()
                             }
-                            Divider()
-                            Button(role: .destructive) {
-                                sessionList.archiveSession(id: session.id)
-                            } label: {
-                                Label("Archive", systemImage: "archivebox")
-                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("startNewChatButton")
                         }
-                        #if os(iOS)
-                        .swipeActions(edge: .leading) {
-                            Button {
-                                onMissionControl?(session.id)
-                            } label: {
-                                Label("Mission Control", systemImage: "network")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(mySessions) { session in
+                            SessionRowView(
+                                title: sessionList.titleForSession(session),
+                                subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
+                                source: nil,
+                                isActive: session.id == chatViewModel.currentSessionID,
+                                isOwned: true
+                            )
+                            .tag(session.id)
+                            .contextMenu {
+                                Button {
+                                    onMissionControl?(session.id)
+                                } label: {
+                                    Label("Mission Control", systemImage: "network")
+                                }
+                                Divider()
+                                Button(role: .destructive) {
+                                    sessionList.archiveSession(id: session.id)
+                                } label: {
+                                    Label("Archive", systemImage: "archivebox")
+                                }
                             }
-                            .tint(Theme.accent)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                sessionList.archiveSession(id: session.id)
-                            } label: {
-                                Label("Archive", systemImage: "archivebox")
+                            #if os(iOS)
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    onMissionControl?(session.id)
+                                } label: {
+                                    Label("Mission Control", systemImage: "network")
+                                }
+                                .tint(Theme.accent)
                             }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    sessionList.archiveSession(id: session.id)
+                                } label: {
+                                    Label("Archive", systemImage: "archivebox")
+                                }
+                            }
+                            #endif
                         }
-                        #endif
-                    }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            let session = mySessions[index]
-                            Task {
-                                try? await sessionList.closeSession(id: session.id)
+                        .onDelete { indexSet in
+                            for index in indexSet {
+                                let session = mySessions[index]
+                                Task {
+                                    try? await sessionList.closeSession(id: session.id)
+                                }
                             }
                         }
                     }
                 }
             } header: {
-                sectionHeader(title: "My Sessions", icon: "bubble.left.fill")
+                collapsibleHeader(
+                    title: "My Sessions",
+                    icon: "bubble.left.fill",
+                    count: mySessions.count,
+                    isCollapsed: mySessionsCollapsed
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        mySessionsCollapsed.toggle()
+                    }
+                }
             }
 
             // Archived
@@ -168,19 +183,32 @@ struct SessionListView: View {
             // Cron Sessions
             if !cronSessions.isEmpty {
                 Section {
-                    ForEach(cronSessions) { session in
-                        SessionRowView(
-                            title: sessionList.titleForSession(session),
-                            subtitle: sessionList.subtitleForSession(session),
-                            source: session.source,
-                            isActive: session.id == chatViewModel.currentSessionID,
-                            isOwned: false,
-                            sessionStatus: session.status
-                        )
-                        .tag(session.id)
+                    if !cronSessionsCollapsed {
+                        ForEach(cronSessions) { session in
+                            SessionRowView(
+                                title: sessionList.titleForSession(session),
+                                subtitle: sessionList.subtitleForSession(session),
+                                source: session.source,
+                                isActive: session.id == chatViewModel.currentSessionID,
+                                isOwned: false,
+                                sessionStatus: session.status
+                            )
+                            .tag(session.id)
+                        }
                     }
                 } header: {
-                    sectionHeader(title: "Cron Sessions", icon: "clock.fill")
+                    collapsibleHeader(
+                        title: "Cron Sessions",
+                        icon: "clock.fill",
+                        count: cronSessions.count,
+                        isCollapsed: cronSessionsCollapsed
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            cronSessionsCollapsed.toggle()
+                        }
+                    }
                 }
             }
 
@@ -240,18 +268,6 @@ struct SessionListView: View {
     }
 
     // MARK: - Helpers
-
-    private func sectionHeader(title: String, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption2)
-                .foregroundStyle(Theme.accent)
-            Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .textCase(.uppercase)
-        }
-    }
 
     private func collapsibleHeader(title: String, icon: String, count: Int, isCollapsed: Bool) -> some View {
         HStack(spacing: 6) {
