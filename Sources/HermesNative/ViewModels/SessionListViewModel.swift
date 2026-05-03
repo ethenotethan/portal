@@ -344,9 +344,7 @@ final class SessionListViewModel: ObservableObject {
 
     /// Set the active session (local selection only).
     func selectSession(id: String) {
-        withAnimation {
-            activeSessionID = id
-        }
+        activeSessionID = id
     }
 }
 

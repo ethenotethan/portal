@@ -149,10 +149,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: sessionList.activeSessionID) { _, newID in
-            handleSessionSelection(newID)
+            handleSelectionChangeAfterViewUpdate(newID)
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
-            updateSelectedSessionTitle(oldTitle: oldTitle, newTitle: newTitle)
+            handleTitleChangeAfterViewUpdate(oldTitle: oldTitle, newTitle: newTitle)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
             switchToSession(from: notification)
@@ -263,10 +263,10 @@ struct ContentView: View {
         .background(Theme.background)
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
-            handleSessionSelection(newID)
+            handleSelectionChangeAfterViewUpdate(newID)
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
-            updateSelectedSessionTitle(oldTitle: oldTitle, newTitle: newTitle)
+            handleTitleChangeAfterViewUpdate(oldTitle: oldTitle, newTitle: newTitle)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
             switchToSession(from: notification)
@@ -331,6 +331,27 @@ struct ContentView: View {
     }
 
     // MARK: - Session Selection
+
+    /// `List(selection:)` writes into `sessionList.activeSessionID` during
+    /// SwiftUI's own view update pass. Resuming a chat synchronously from that
+    /// `onChange` immediately publishes several observable values (`messages`,
+    /// readiness, runtime session IDs), which triggers SwiftUI's
+    /// “Publishing changes from within view updates” warning on macOS. Hop one
+    /// main-actor turn before doing selection side effects so the list binding
+    /// can finish its update transaction first.
+    private func handleSelectionChangeAfterViewUpdate(_ newID: String?) {
+        Task { @MainActor in
+            await Task.yield()
+            handleSessionSelection(newID)
+        }
+    }
+
+    private func handleTitleChangeAfterViewUpdate(oldTitle: String, newTitle: String) {
+        Task { @MainActor in
+            await Task.yield()
+            updateSelectedSessionTitle(oldTitle: oldTitle, newTitle: newTitle)
+        }
+    }
 
     private func pushOwnedSessionOnIOS(_ sessionID: String) {
         #if os(iOS)
