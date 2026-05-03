@@ -99,6 +99,22 @@ class SpawnNode: Identifiable, ObservableObject, Hashable {
     }
 }
 
+extension SpawnNode {
+    /// Transcript entries normalized for display. Older in-memory trees may have
+    /// been built from token/word-level deltas, so compact adjacent entries with
+    /// the same role as a defensive UI fallback.
+    var readableTranscript: [NodeTranscriptEntry] {
+        transcript.reduce(into: [NodeTranscriptEntry]()) { result, entry in
+            guard !entry.content.isEmpty else { return }
+            if let last = result.indices.last, result[last].role == entry.role {
+                result[last].content += entry.content
+            } else {
+                result.append(entry)
+            }
+        }
+    }
+}
+
 // MARK: - Node Status
 
 enum NodeStatus: String, Equatable {
@@ -153,9 +169,15 @@ struct NodeToolCall: Identifiable {
 // MARK: - Node Transcript Entry
 
 struct NodeTranscriptEntry: Identifiable {
-    let id = UUID()
+    let id: UUID
     let role: Role
     var content: String
+
+    init(id: UUID = UUID(), role: Role, content: String) {
+        self.id = id
+        self.role = role
+        self.content = content
+    }
 
     enum Role {
         case user

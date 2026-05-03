@@ -410,14 +410,8 @@ struct NodeTranscriptSheet: View {
 
                     if !node.transcript.isEmpty {
                         Section("Transcript") {
-                            ForEach(node.transcript) { entry in
-                                Text(entry.content)
-                                    .font(.caption)
-                                    .foregroundStyle(entry.role == .assistant ? Theme.primary : .secondary)
-                                    .padding(6)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(entry.role == .assistant ? Theme.surface : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            ForEach(node.readableTranscript) { entry in
+                                transcriptEntryView(entry)
                             }
                         }
                     }
@@ -451,6 +445,17 @@ struct NodeTranscriptSheet: View {
                 }
             }
         }
+    }
+
+    private func transcriptEntryView(_ entry: NodeTranscriptEntry) -> some View {
+        Text(entry.content)
+            .font(.caption)
+            .foregroundStyle(entry.role == .assistant ? Theme.primary : .secondary)
+            .textSelection(.enabled)
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(entry.role == .assistant ? Theme.surface : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var nodeHeader: some View {

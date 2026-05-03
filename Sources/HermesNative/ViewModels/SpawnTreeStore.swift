@@ -15,6 +15,15 @@ final class SpawnTreeStore: ObservableObject {
     /// Keyed by sessionID; flushed when createTree() is called.
     private var eventBuffer: [String: [(GatewayEvent)]] = [:]
 
+    /// Coalesces streaming message deltas into one readable transcript entry per
+    /// role/node. Gateway deltas are tiny word/token chunks; rendering each as its
+    /// own SwiftUI `Text` creates the "one block per word" Mission Control bug.
+    private var rootAssistantTranscriptEntryIDBySession: [String: UUID] = [:]
+
+    /// Prevents duplicate event subscriptions when ContentView wires the same
+    /// app-level GatewayClient repeatedly during reconnect/create flows.
+    private weak var subscribedClient: GatewayClient?
+
     /// The active session tree (if any).
     var activeTree: SessionTree? {
         sessions.first { $0.sessionID == activeSessionID }
@@ -24,7 +33,10 @@ final class SpawnTreeStore: ObservableObject {
 
     /// Subscribe to gateway events from the given client.
     func subscribe(to client: GatewayClient) {
+        guard subscribedClient !== client else { return }
+
         cancellables.removeAll()
+        subscribedClient = client
         client.eventStream
             .receive(on: RunLoop.main)
             .sink { [weak self] event, sessionID in
@@ -111,13 +123,6 @@ final class SpawnTreeStore: ObservableObject {
         case .subagentThinking:
             break
 
-        case .messageComplete(let payload):
-            tree?.root.status = payload.status == "complete" ? .completed
-                : payload.status == "interrupted" ? .interrupted
-                : payload.status == "error" ? .failed
-                : .completed
-            tree?.root.completedAt = Date()
-
         case .toolStart(let payload):
             let toolCall = NodeToolCall(
                 id: payload.toolID,
@@ -144,13 +149,75 @@ final class SpawnTreeStore: ObservableObject {
             }
 
         case .messageDelta(let text, _):
-            tree?.root.transcript.append(
-                NodeTranscriptEntry(role: .assistant, content: text)
-            )
+            guard let tree, !text.isEmpty else { break }
+            appendTranscript(
+                to: tree.root,
+                role: .assistant,
+                content: text,
+                existingEntryID: rootAssistantTranscriptEntryIDBySession[tree.sessionID]
+            ) { entryID in
+                rootAssistantTranscriptEntryIDBySession[tree.sessionID] = entryID
+            }
+
+        case .messageComplete(let payload):
+            tree?.root.status = payload.status == "complete" ? .completed
+                : payload.status == "interrupted" ? .interrupted
+                : payload.status == "error" ? .failed
+                : .completed
+            tree?.root.completedAt = Date()
+
+            if let tree {
+                let finalText = payload.text
+                if !finalText.isEmpty {
+                    let entryID = rootAssistantTranscriptEntryIDBySession[tree.sessionID]
+                    replaceOrAppendTranscript(
+                        to: tree.root,
+                        role: .assistant,
+                        content: finalText,
+                        existingEntryID: entryID
+                    )
+                }
+                rootAssistantTranscriptEntryIDBySession[tree.sessionID] = nil
+            }
 
         default:
             break
         }
+    }
+
+    // MARK: - Transcript Helpers
+
+    private func appendTranscript(
+        to node: SpawnNode,
+        role: NodeTranscriptEntry.Role,
+        content: String,
+        existingEntryID: UUID?,
+        rememberEntryID: (UUID) -> Void
+    ) {
+        if let existingEntryID,
+           let index = node.transcript.firstIndex(where: { $0.id == existingEntryID }) {
+            node.transcript[index].content += content
+            return
+        }
+
+        let entry = NodeTranscriptEntry(role: role, content: content)
+        node.transcript.append(entry)
+        rememberEntryID(entry.id)
+    }
+
+    private func replaceOrAppendTranscript(
+        to node: SpawnNode,
+        role: NodeTranscriptEntry.Role,
+        content: String,
+        existingEntryID: UUID?
+    ) {
+        if let existingEntryID,
+           let index = node.transcript.firstIndex(where: { $0.id == existingEntryID }) {
+            node.transcript[index].content = content
+            return
+        }
+
+        node.transcript.append(NodeTranscriptEntry(role: role, content: content))
     }
 
     // MARK: - Tree Management
