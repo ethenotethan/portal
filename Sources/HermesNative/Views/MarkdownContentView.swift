@@ -524,33 +524,32 @@ struct TableView: View {
     }
 
     private var tableContent: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let widths = columnWidths
+        let tableWidth = widths.reduce(0, +)
+
+        return ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 // Header row
                 HStack(spacing: 0) {
-                    ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
-                        Text(header)
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Theme.accent)
-                            .textSelection(.enabled)
-                            .frame(minWidth: 64, alignment: .center)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                    ForEach(Array(headers.enumerated()), id: \.offset) { index, header in
+                        tableCell(
+                            text: header,
+                            width: columnWidth(at: index, from: widths),
+                            isHeader: true
+                        )
                     }
                 }
                 .background(Theme.accent.opacity(0.08))
 
                 // Data rows
-                ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
+                ForEach(Array(normalizedRows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            Text(cell)
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundStyle(Theme.primary)
-                                .textSelection(.enabled)
-                                .frame(minWidth: 64, alignment: .center)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
+                        ForEach(Array(row.enumerated()), id: \.offset) { index, cell in
+                            tableCell(
+                                text: cell,
+                                width: columnWidth(at: index, from: widths),
+                                isHeader: false
+                            )
                         }
                     }
                     .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.3))
@@ -570,13 +569,14 @@ struct TableView: View {
                                 .font(.system(size: 9, weight: .bold))
                         }
                         .foregroundStyle(Theme.accent)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: tableWidth, alignment: .center)
                         .padding(.vertical, 7)
                     }
                     .buttonStyle(.plain)
                     .background(Theme.accent.opacity(0.05))
                 }
             }
+            .frame(width: tableWidth, alignment: .leading)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Theme.border, lineWidth: 0.5)
@@ -584,6 +584,53 @@ struct TableView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
+
+    @ViewBuilder
+    private func tableCell(text: String, width: CGFloat, isHeader: Bool) -> some View {
+        Text(text)
+            .font(isHeader
+                ? .system(size: 11, weight: .bold, design: .monospaced)
+                : .system(size: 12, weight: .regular)
+            )
+            .foregroundStyle(isHeader ? Theme.accent : Theme.primary)
+            .textSelection(.enabled)
+            .lineLimit(nil)
+            .multilineTextAlignment(.center)
+            .frame(width: width, alignment: .center)
+            .padding(.vertical, isHeader ? 8 : 7)
+    }
+
+    private var normalizedRows: [[String]] {
+        rows.map { row in
+            let missing = max(0, headers.count - row.count)
+            return Array((row + Array(repeating: "", count: missing)).prefix(headers.count))
+        }
+    }
+
+    private func columnWidth(at index: Int, from widths: [CGFloat]) -> CGFloat {
+        index < widths.count ? widths[index] : Self.minimumColumnWidth
+    }
+
+    private var columnWidths: [CGFloat] {
+        headers.indices.map { index in
+            let values = [headers[index]] + normalizedRows.map { index < $0.count ? $0[index] : "" }
+            let longest = values.map(visualLength).max() ?? 0
+            let headerLength = visualLength(headers[index])
+            let characterWidth: CGFloat = 8.5
+            let horizontalPadding: CGFloat = 28
+            let computed = CGFloat(max(longest, headerLength)) * characterWidth + horizontalPadding
+            return min(max(computed, Self.minimumColumnWidth), Self.maximumColumnWidth)
+        }
+    }
+
+    private func visualLength(_ text: String) -> Int {
+        text.reduce(0) { total, scalar in
+            total + (scalar.isASCII ? 1 : 2)
+        }
+    }
+
+    private static let minimumColumnWidth: CGFloat = 96
+    private static let maximumColumnWidth: CGFloat = 280
 }
 
 // MARK: - Openable Block Chip (Mermaid / HTML)
