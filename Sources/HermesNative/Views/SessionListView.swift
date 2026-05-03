@@ -20,11 +20,11 @@ struct SessionListView: View {
 
     private var sidebarTopPadding: CGFloat {
         #if os(macOS)
-        // The background should fill under the hidden titlebar, but header
-        // controls must sit below the traffic lights/sidebar toggle.
-        34
+        // Keep the header high in the left panel while still clearing the
+        // hidden-titlebar traffic-light hit area.
+        14
         #else
-        10
+        6
         #endif
     }
 
@@ -47,7 +47,7 @@ struct SessionListView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             Theme.background
-                .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 sidebarHeader
@@ -271,9 +271,9 @@ struct SessionListView: View {
                 }
             }
         }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .background(Theme.background)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
                 .overlay {
                     if sessionList.sessions.isEmpty && !sessionList.isLoading {
                         emptyState
@@ -290,6 +290,7 @@ struct SessionListView: View {
             .background(Theme.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
     }
 
     // MARK: - Helpers
@@ -324,7 +325,7 @@ struct SessionListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.top, sidebarTopPadding)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)
     }
@@ -349,16 +350,13 @@ struct SessionListView: View {
             .frame(height: 30)
             .padding(.horizontal, 10)
             .frame(maxWidth: isPrimary ? .infinity : nil, alignment: .center)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(isPrimary ? Theme.primary : Theme.secondary)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isPrimary ? Theme.accent : Theme.surface)
-        )
+        .background(isPrimary ? Theme.accent : Theme.surface)
         .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            Rectangle()
                 .stroke(isPrimary ? Theme.accent.opacity(0.65) : Theme.border, lineWidth: 1)
         }
         .accessibilityLabel(accessibilityLabel)
