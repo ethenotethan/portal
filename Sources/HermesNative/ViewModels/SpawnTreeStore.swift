@@ -24,6 +24,7 @@ final class SpawnTreeStore: ObservableObject {
 
     /// Subscribe to gateway events from the given client.
     func subscribe(to client: GatewayClient) {
+        cancellables.removeAll()
         client.eventStream
             .receive(on: RunLoop.main)
             .sink { [weak self] event, sessionID in

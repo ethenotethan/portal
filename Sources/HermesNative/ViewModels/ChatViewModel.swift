@@ -46,13 +46,22 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Setup
 
     func setGatewayClient(_ client: GatewayClient) {
+        // ContentView can wire the same app-level client repeatedly during
+        // connect/session-create flows. Avoid stacking duplicate Combine
+        // subscriptions, because every gateway event would otherwise be applied
+        // N times and parallel sessions quickly corrupt local chat state.
+        guard gatewayClient !== client else { return }
+
+        cancellables.removeAll()
         gatewayClient = client
 
-        // Subscribe to gateway events
+        // Subscribe to gateway events. Events are multiplexed over one app-level
+        // WebSocket, so only apply events whose session_id matches this chat's
+        // current session. Legacy/global events may have no session_id.
         client.eventStream
             .receive(on: RunLoop.main)
-            .sink { [weak self] tuple in
-                self?.handleEvent(tuple.0)
+            .sink { [weak self] event, eventSessionID in
+                self?.handleEvent(event, eventSessionID: eventSessionID)
             }
             .store(in: &cancellables)
 
@@ -369,7 +378,29 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Event Handling
 
-    private func handleEvent(_ event: GatewayEvent) {
+    private func shouldApplyEvent(sessionID eventSessionID: String?, event: GatewayEvent) -> Bool {
+        switch event {
+        case .gatewayReady, .backgroundComplete, .skinChanged, .voiceTranscript, .voiceStatus:
+            return true
+        default:
+            break
+        }
+
+        guard let eventSessionID, !eventSessionID.isEmpty else {
+            return true
+        }
+        guard let current = sessionID, !current.isEmpty else {
+            return false
+        }
+        return eventSessionID == current
+    }
+
+    private func handleEvent(_ event: GatewayEvent, eventSessionID: String?) {
+        guard shouldApplyEvent(sessionID: eventSessionID, event: event) else {
+            NSLog("[HermesNative] ChatViewModel ignored event for session=\(eventSessionID ?? "nil") current=\(sessionID ?? "nil") event=\(event.debugName)")
+            return
+        }
+
         switch event {
         case .gatewayReady:
             break

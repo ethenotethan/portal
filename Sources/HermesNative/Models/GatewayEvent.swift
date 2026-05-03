@@ -5,6 +5,39 @@ import Foundation
 ///
 /// Source: tui_gateway/server.py _emit() calls
 enum GatewayEvent {
+    var debugName: String {
+        switch self {
+        case .gatewayReady: "gateway.ready"
+        case .sessionInfo: "session.info"
+        case .messageStart: "message.start"
+        case .messageDelta: "message.delta"
+        case .messageComplete: "message.complete"
+        case .toolStart: "tool.start"
+        case .toolComplete: "tool.complete"
+        case .toolProgress: "tool.progress"
+        case .toolGenerating: "tool.generating"
+        case .reasoningDelta: "reasoning.delta"
+        case .reasoningAvailable: "reasoning.available"
+        case .thinkingDelta: "thinking.delta"
+        case .subagentSpawnRequested: "subagent.spawn_requested"
+        case .subagentStart: "subagent.start"
+        case .subagentComplete: "subagent.complete"
+        case .subagentTool: "subagent.tool"
+        case .subagentProgress: "subagent.progress"
+        case .subagentThinking: "subagent.thinking"
+        case .backgroundComplete: "background.complete"
+        case .approvalRequest: "approval.request"
+        case .clarifyRequest: "clarify.request"
+        case .sudoRequest: "sudo.request"
+        case .secretRequest: "secret.request"
+        case .statusUpdate: "status.update"
+        case .error: "error"
+        case .skinChanged: "skin.changed"
+        case .voiceTranscript: "voice.transcript"
+        case .voiceStatus: "voice.status"
+        }
+    }
+
     // Connection lifecycle
     case gatewayReady(skin: String)
 
