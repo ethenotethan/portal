@@ -243,6 +243,7 @@ struct ContentView: View {
                 .environmentObject(gatewayClientWrapper)
                 .navigationTitle("")
                 #if os(macOS)
+                .toolbar(.hidden, for: .windowToolbar)
                 .toolbarBackground(.hidden, for: .windowToolbar)
                 #endif
                 #if os(iOS)
@@ -253,16 +254,13 @@ struct ContentView: View {
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
                 .id(chatViewModel.currentSessionID)
-                #if os(macOS)
-                .toolbarBackground(.hidden, for: .windowToolbar)
-                #endif
         }
         #if os(macOS)
         .navigationSplitViewStyle(.balanced)
+        .toolbar(.hidden, for: .windowToolbar)
+        .toolbarBackground(.hidden, for: .windowToolbar)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
-        .toolbarBackground(.hidden, for: .windowToolbar)
-        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
         #endif
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSessionSelection(newID)
@@ -324,8 +322,6 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Session Selection
-
     private func toggleSidebarColumn() {
         #if os(macOS)
         withAnimation(.easeInOut(duration: 0.18)) {
@@ -333,6 +329,8 @@ struct ContentView: View {
         }
         #endif
     }
+
+    // MARK: - Session Selection
 
     private func pushOwnedSessionOnIOS(_ sessionID: String) {
         #if os(iOS)

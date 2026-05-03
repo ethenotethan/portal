@@ -13,22 +13,40 @@ func requestHermesNativeNotificationAuthorization() {
 }
 
 #if os(macOS)
+import AppKit
+
 func configureHermesNativeMacApplication() {
     NSApplication.shared.setActivationPolicy(.regular)
     NSApplication.shared.activate()
+}
 
-    // Make the higher-order macOS window chrome rectangular and full-bleed.
-    // SwiftUI's hidden-titlebar style still leaves the traffic-light area as
-    // AppKit chrome; configuring NSWindow here lets Theme.background fill that
-    // region instead of visually trapping the sidebar header underneath it.
-    DispatchQueue.main.async {
-        for window in NSApplication.shared.windows {
-            window.titlebarAppearsTransparent = true
-            window.titleVisibility = .hidden
-            window.isOpaque = true
-            window.backgroundColor = NSColor(Theme.background)
-            window.styleMask.insert(.fullSizeContentView)
-        }
+/// Applies the macOS window chrome configuration SwiftUI does not expose.
+/// This intentionally keeps the standard red/yellow/green window controls
+/// visible while allowing the app content to extend behind a transparent titlebar.
+struct MacWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async { configure(window: view.window) }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { configure(window: nsView.window) }
+    }
+
+    private func configure(window: NSWindow?) {
+        guard let window else { return }
+
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.styleMask.insert(.fullSizeContentView)
+        window.isMovableByWindowBackground = true
+        window.backgroundColor = NSColor(Theme.background)
+
+        // Do not hide or remove the standard close/minimize/zoom buttons.
+        window.standardWindowButton(.closeButton)?.isHidden = false
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = false
+        window.standardWindowButton(.zoomButton)?.isHidden = false
     }
 }
 #endif

@@ -19,16 +19,6 @@ struct SessionListView: View {
     @State private var otherSessionsCollapsed = false
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
-    private var sidebarTopPadding: CGFloat {
-        #if os(macOS)
-        // The app-owned toolbar row clears the hidden-titlebar traffic lights,
-        // so only a small gap is needed before the section label/actions.
-        8
-        #else
-        6
-        #endif
-    }
-
     private var mySessions: [Session] {
         sessionList.sessions.filter { $0.isOwned && !$0.isArchived }
     }
@@ -300,7 +290,6 @@ struct SessionListView: View {
             .background(Theme.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .ignoresSafeArea(.container, edges: [.top, .bottom, .leading])
     }
 
     // MARK: - Helpers
@@ -313,6 +302,8 @@ struct SessionListView: View {
             Color.clear
                 .frame(width: 68, height: 28)
 
+            Spacer(minLength: 0)
+
             Button(action: { onToggleSidebar?() }) {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 13, weight: .medium))
@@ -323,10 +314,8 @@ struct SessionListView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Toggle Sidebar")
             .accessibilityIdentifier("sidebarToggleButton")
-
-            Spacer(minLength: 0)
         }
-        .frame(height: 28)
+        .frame(height: 40)
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)
@@ -334,7 +323,7 @@ struct SessionListView: View {
     #endif
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Sessions")
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -362,7 +351,7 @@ struct SessionListView: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.top, sidebarTopPadding)
+        .padding(.top, 12)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)

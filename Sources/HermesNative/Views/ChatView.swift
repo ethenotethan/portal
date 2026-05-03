@@ -36,7 +36,9 @@ struct ChatView: View {
 
     private var chatBottomContentPadding: CGFloat {
         #if os(macOS)
-        128
+        if !chatViewModel.isSessionReady { return 260 }
+        if chatViewModel.pendingApproval != nil { return 190 }
+        return 132
         #else
         8
         #endif
@@ -59,12 +61,12 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            #if os(macOS)
-            titlebarClearance
-            #endif
-
-            // Toolbar
+            // Top toolbar row. On macOS this aligns with the sidebar-owned row
+            // and the system traffic lights in the transparent titlebar.
             chatToolbar
+                #if os(macOS)
+                .frame(height: 40)
+                #endif
 
             Divider()
 
@@ -160,10 +162,11 @@ struct ChatView: View {
 
                         ChatInputBar()
                             .environmentObject(chatViewModel)
-                            .frame(maxWidth: 760)
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 18)
+                    .background(Color.clear)
                     #endif
                 }
                 .background(activeSkin.background)
@@ -206,13 +209,14 @@ struct ChatView: View {
                     .environmentObject(chatViewModel)
             }
 
-            if !chatViewModel.isSessionReady {
-                DebugLogPanel(wrapper: gatewayClientWrapper)
-            }
-
             // Input bar
             ChatInputBar()
                 .environmentObject(chatViewModel)
+
+            // Debug log (always visible while not session-ready)
+            if !chatViewModel.isSessionReady {
+                DebugLogPanel(wrapper: gatewayClientWrapper)
+            }
             #endif
         }
         #if os(macOS)
@@ -232,20 +236,16 @@ struct ChatView: View {
             // This .onAppear fires every time the view is recreated (session switch),
             // which was causing duplicate session creation.
         }
+        #if os(macOS)
+        .navigationTitle("")
+        .toolbar(.hidden, for: .windowToolbar)
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .background(activeSkin.background.ignoresSafeArea())
+        #else
         .navigationTitle(chatViewModel.sessionTitle)
-        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
     }
-
-    #if os(macOS)
-    private var titlebarClearance: some View {
-        Color.clear
-            .frame(height: 28)
-            .frame(maxWidth: .infinity)
-            .background(activeSkin.background)
-    }
-    #endif
 
     @ViewBuilder
     private var latestAssistantTurnProbe: some View {
@@ -355,7 +355,13 @@ struct ChatView: View {
             }
         }
         .padding(.horizontal, 12)
+        #if os(macOS)
+        .padding(.vertical, 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .background(activeSkin.background)
+        #else
         .padding(.vertical, 6)
+        #endif
     }
 
     #if os(iOS)
@@ -488,6 +494,15 @@ struct ChatInputBar: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
+            #if os(macOS)
+            TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText)
+                .accessibilityIdentifier("chatInput")
+                .textFieldStyle(.plain)
+                .focused($isInputFocused)
+                .onSubmit {
+                    Task { await chatViewModel.submitPrompt() }
+                }
+            #else
             TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
                 .accessibilityIdentifier("chatInput")
                 .textFieldStyle(.plain)
@@ -496,6 +511,7 @@ struct ChatInputBar: View {
                 .onSubmit {
                     Task { await chatViewModel.submitPrompt() }
                 }
+            #endif
 
             Button {
                 Task { await chatViewModel.submitPrompt() }
