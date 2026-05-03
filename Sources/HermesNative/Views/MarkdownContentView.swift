@@ -27,9 +27,8 @@ struct MarkdownContentView: View {
                                     .stroke(Theme.border, lineWidth: 0.5)
                             )
                         OpenableBlockChip(label: "Open Diagram", language: "mermaid", content: code)
-                    } else if language == "html" {
-                        CodeBlockView(language: language, code: code)
-                        OpenableBlockChip(label: "Open Page", language: "html", content: code)
+                    } else if MarkdownParser.isHTMLLanguage(language) {
+                        HTMLBlockView(html: code)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -217,6 +216,13 @@ struct MarkdownParser {
         }
 
         return blocks
+    }
+
+    static func isHTMLLanguage(_ language: String) -> Bool {
+        let normalized = language
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return normalized == "html" || normalized == "htm"
     }
 
     private static func isHorizontalRule(_ s: String) -> Bool {
@@ -633,6 +639,103 @@ struct TableView: View {
     private static let maximumColumnWidth: CGFloat = 280
 }
 
+// MARK: - HTML Block
+
+struct HTMLBlockView: View {
+    let html: String
+
+    private var previewText: String {
+        let collapsed = html
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .split(separator: " ")
+            .joined(separator: " ")
+        if collapsed.count <= 180 {
+            return collapsed
+        }
+        return String(collapsed.prefix(180)) + "…"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.red.opacity(0.14))
+                    Image(systemName: "safari")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.red)
+                }
+                .frame(width: 30, height: 30)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("HTML Page")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                    Text("Open in an isolated in-app web preview")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                }
+
+                Spacer()
+            }
+
+            Text(previewText)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(3)
+                .textSelection(.enabled)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: 8))
+
+            HStack(spacing: 8) {
+                OpenableBlockChip(label: "Open Page", language: "html", content: html)
+                CopyHTMLButton(html: html)
+            }
+        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+    }
+}
+
+struct CopyHTMLButton: View {
+    let html: String
+    @State private var isCopied = false
+
+    var body: some View {
+        Button {
+            #if os(macOS)
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(html, forType: .string)
+            #else
+            UIPasteboard.general.string = html
+            #endif
+            isCopied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                isCopied = false
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 9, weight: .bold))
+                Text(isCopied ? "Copied" : "Copy HTML")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(isCopied ? Theme.success : Theme.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Theme.background))
+            .overlay(Capsule().stroke(Theme.border, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Openable Block Chip (Mermaid / HTML)
 
 struct OpenableBlockChip: View {
@@ -747,8 +850,10 @@ struct InlineHTMLView: View {
     var body: some View {
         #if os(macOS)
         InlineHTMLNSView(html: html)
+            .background(Theme.background)
         #else
         InlineHTMLUIView(html: html)
+            .background(Theme.background)
         #endif
     }
 }
@@ -757,11 +862,19 @@ struct InlineHTMLView: View {
 struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
 
+    func makeCoordinator() -> HTMLNavigationDelegate {
+        HTMLNavigationDelegate()
+    }
+
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.isElementFullscreenEnabled = true
+        config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
+        webView.allowsBackForwardNavigationGestures = false
         return webView
     }
 
@@ -773,12 +886,20 @@ struct InlineHTMLNSView: NSViewRepresentable {
 struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
 
+    func makeCoordinator() -> HTMLNavigationDelegate {
+        HTMLNavigationDelegate()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
+        webView.allowsBackForwardNavigationGestures = false
         return webView
     }
 
@@ -787,3 +908,26 @@ struct InlineHTMLUIView: UIViewRepresentable {
     }
 }
 #endif
+
+final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard navigationAction.navigationType == .linkActivated,
+              let url = navigationAction.request.url,
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        else {
+            decisionHandler(.allow)
+            return
+        }
+
+        #if os(macOS)
+        NSWorkspace.shared.open(url)
+        #else
+        UIApplication.shared.open(url)
+        #endif
+        decisionHandler(.cancel)
+    }
+}
