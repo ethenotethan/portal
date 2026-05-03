@@ -177,9 +177,7 @@ struct ContentView: View {
             set: { if !$0 { missionControlSessionID = nil } }
         )) {
             if let sid = missionControlSessionID {
-                // Use the gatewayID (short hex) for Mission Control if available
-                let rpcID = sessionList.sessions.first(where: { $0.id == sid })?.rpcID ?? sid
-                SessionExplorerView(sessionID: rpcID)
+                SessionExplorerView(sessionID: sid)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
                     .presentationDetents([.large])
@@ -285,9 +283,7 @@ struct ContentView: View {
             set: { if !$0 { missionControlSessionID = nil } }
         )) {
             if let sid = missionControlSessionID {
-                // Use the gatewayID (short hex) for Mission Control if available
-                let rpcID = sessionList.sessions.first(where: { $0.id == sid })?.rpcID ?? sid
-                SessionExplorerView(sessionID: rpcID)
+                SessionExplorerView(sessionID: sid)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
                     #if os(iOS)
@@ -342,11 +338,17 @@ struct ContentView: View {
 
             pushOwnedSessionOnIOS(newID)
 
-            if rpcID == chatViewModel.currentSessionID { return }
+            if rpcID == chatViewModel.currentSessionID {
+                spawnTreeStore.bindRuntimeSession(displayID: newID, runtimeID: rpcID)
+                return
+            }
             chatViewModel.loadLocalHistory(sessionID: newID)
             Task {
                 // session.resume expects the database-format ID.
                 await chatViewModel.resumeSession(key: newID)
+                if let runtimeID = chatViewModel.currentSessionID {
+                    spawnTreeStore.bindRuntimeSession(displayID: newID, runtimeID: runtimeID)
+                }
             }
         } else {
             // Non-owned session — open observer view.
@@ -419,15 +421,18 @@ struct ContentView: View {
         sessionList.registerOwnedSession(shortHexID: sid)
         sessionList.selectSession(id: sid)
         spawnTreeStore.createTree(sessionID: sid)
+        spawnTreeStore.bindRuntimeSession(displayID: sid, runtimeID: sid)
         pushOwnedSessionOnIOS(sid)
     }
 
     // MARK: - Mission Control
 
     private func openMissionControl(sessionID: String) {
-        let rpcID = sessionList.sessions.first(where: { $0.id == sessionID })?.rpcID ?? sessionID
-        spawnTreeStore.createTree(sessionID: rpcID)
-        spawnTreeStore.setActive(sessionID: rpcID)
+        let session = sessionList.sessions.first(where: { $0.id == sessionID })
+        let runtimeID = session?.rpcID ?? chatViewModel.currentSessionID ?? sessionID
+        spawnTreeStore.createTree(sessionID: sessionID)
+        spawnTreeStore.bindRuntimeSession(displayID: sessionID, runtimeID: runtimeID)
+        spawnTreeStore.setActive(sessionID: sessionID)
         missionControlSessionID = sessionID
     }
 
@@ -447,6 +452,7 @@ struct ContentView: View {
                 }
                 sessionList.selectSession(id: sid)
                 spawnTreeStore.createTree(sessionID: sid)
+                spawnTreeStore.bindRuntimeSession(displayID: sid, runtimeID: sid)
             }
         }
     }

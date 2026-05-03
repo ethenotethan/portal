@@ -13,7 +13,12 @@ final class SpawnTreeStore: ObservableObject {
 
     /// Buffer for events that arrive before a tree is created for their session.
     /// Keyed by sessionID; flushed when createTree() is called.
-    private var eventBuffer: [String: [(GatewayEvent)]] = [:]
+    private var eventBuffer: [String: [(GatewayEvent, String)]] = [:]
+
+    /// Maps stable database session IDs to the current runtime gateway session ID.
+    /// Mission Control may be opened with either ID; events only carry the runtime ID.
+    private var runtimeIDByDisplaySessionID: [String: String] = [:]
+    private var displayIDByRuntimeSessionID: [String: String] = [:]
 
     /// Coalesces streaming message deltas into one readable transcript entry per
     /// role/node. Gateway deltas are tiny word/token chunks; rendering each as its
@@ -48,21 +53,24 @@ final class SpawnTreeStore: ObservableObject {
     // MARK: - Event Handling
 
     private func handleEvent(_ event: GatewayEvent, sessionID: String?) {
-        let sid = sessionID ?? activeSessionID ?? ""
+        let runtimeID = sessionID ?? activeSessionID ?? ""
+        guard !runtimeID.isEmpty else { return }
 
-        // Find tree for this session
-        let tree = sessions.first { $0.sessionID == sid }
+        let displayID = displayIDByRuntimeSessionID[runtimeID] ?? runtimeID
+        let tree = treeFor(runtimeID: runtimeID, displayID: displayID)
 
-        // If no tree exists yet, buffer the event
-        if tree == nil && !sid.isEmpty {
-            eventBuffer[sid, default: []].append(event)
+        guard let tree else {
+            eventBuffer[runtimeID, default: []].append((event, runtimeID))
+            if displayID != runtimeID {
+                eventBuffer[displayID, default: []].append((event, runtimeID))
+            }
+            return
         }
 
-        // Process the event against the tree (if it exists)
-        processEvent(event, tree: tree)
+        processEvent(event, tree: tree, runtimeSessionID: runtimeID)
     }
 
-    private func processEvent(_ event: GatewayEvent, tree: SessionTree?) {
+    private func processEvent(_ event: GatewayEvent, tree: SessionTree?, runtimeSessionID: String? = nil) {
         switch event {
         case .messageStart:
             tree?.root.status = .running
@@ -150,13 +158,14 @@ final class SpawnTreeStore: ObservableObject {
 
         case .messageDelta(let text, _):
             guard let tree, !text.isEmpty else { break }
+            let key = transcriptKey(for: tree, runtimeSessionID: runtimeSessionID)
             appendTranscript(
                 to: tree.root,
                 role: .assistant,
                 content: text,
-                existingEntryID: rootAssistantTranscriptEntryIDBySession[tree.sessionID]
+                existingEntryID: rootAssistantTranscriptEntryIDBySession[key]
             ) { entryID in
-                rootAssistantTranscriptEntryIDBySession[tree.sessionID] = entryID
+                rootAssistantTranscriptEntryIDBySession[key] = entryID
             }
 
         case .messageComplete(let payload):
@@ -167,9 +176,10 @@ final class SpawnTreeStore: ObservableObject {
             tree?.root.completedAt = Date()
 
             if let tree {
+                let key = transcriptKey(for: tree, runtimeSessionID: runtimeSessionID)
                 let finalText = payload.text
                 if !finalText.isEmpty {
-                    let entryID = rootAssistantTranscriptEntryIDBySession[tree.sessionID]
+                    let entryID = rootAssistantTranscriptEntryIDBySession[key]
                     replaceOrAppendTranscript(
                         to: tree.root,
                         role: .assistant,
@@ -177,12 +187,74 @@ final class SpawnTreeStore: ObservableObject {
                         existingEntryID: entryID
                     )
                 }
-                rootAssistantTranscriptEntryIDBySession[tree.sessionID] = nil
+                rootAssistantTranscriptEntryIDBySession[key] = nil
             }
 
         default:
             break
         }
+    }
+
+    // MARK: - Session ID Mapping
+
+    func bindRuntimeSession(displayID: String, runtimeID: String) {
+        guard !displayID.isEmpty, !runtimeID.isEmpty else { return }
+        runtimeIDByDisplaySessionID[displayID] = runtimeID
+        displayIDByRuntimeSessionID[runtimeID] = displayID
+
+        if let displayTree = sessions.first(where: { $0.sessionID == displayID }),
+           let runtimeTree = sessions.first(where: { $0.sessionID == runtimeID }),
+           displayTree.id != runtimeTree.id {
+            mergeTree(runtimeTree, into: displayTree)
+            sessions.removeAll { $0.id == runtimeTree.id }
+        }
+
+        flushBufferedEvents(for: displayID)
+        flushBufferedEvents(for: runtimeID)
+    }
+
+    private func treeFor(runtimeID: String, displayID: String) -> SessionTree? {
+        if let tree = sessions.first(where: { $0.sessionID == displayID }) {
+            return tree
+        }
+        if let mappedRuntimeID = runtimeIDByDisplaySessionID[displayID],
+           let tree = sessions.first(where: { $0.sessionID == mappedRuntimeID }) {
+            return tree
+        }
+        if let tree = sessions.first(where: { $0.sessionID == runtimeID }) {
+            return tree
+        }
+        return nil
+    }
+
+    private func transcriptKey(for tree: SessionTree, runtimeSessionID: String?) -> String {
+        runtimeSessionID ?? runtimeIDByDisplaySessionID[tree.sessionID] ?? tree.sessionID
+    }
+
+    private func flushBufferedEvents(for sessionID: String) {
+        guard let buffered = eventBuffer.removeValue(forKey: sessionID) else { return }
+        for (event, runtimeID) in buffered {
+            let displayID = displayIDByRuntimeSessionID[runtimeID] ?? sessionID
+            if let tree = treeFor(runtimeID: runtimeID, displayID: displayID) {
+                processEvent(event, tree: tree, runtimeSessionID: runtimeID)
+            } else {
+                eventBuffer[sessionID, default: []].append((event, runtimeID))
+                break
+            }
+        }
+    }
+
+    private func mergeTree(_ source: SessionTree, into destination: SessionTree) {
+        destination.root.status = source.root.status
+        destination.root.toolCalls.append(contentsOf: source.root.toolCalls)
+        destination.root.transcript.append(contentsOf: source.root.transcript)
+        destination.root.thinkingText += source.root.thinkingText
+        destination.root.children.append(contentsOf: source.root.children)
+        destination.root.costUSD = source.root.costUSD ?? destination.root.costUSD
+        destination.root.inputTokens = source.root.inputTokens ?? destination.root.inputTokens
+        destination.root.outputTokens = source.root.outputTokens ?? destination.root.outputTokens
+        destination.root.apiCalls = source.root.apiCalls ?? destination.root.apiCalls
+        destination.root.completedAt = source.root.completedAt ?? destination.root.completedAt
     }
 
     // MARK: - Transcript Helpers
@@ -241,11 +313,7 @@ final class SpawnTreeStore: ObservableObject {
         activeSessionID = sessionID
 
         // Flush any buffered events for this session
-        if let buffered = eventBuffer.removeValue(forKey: sessionID) {
-            for event in buffered {
-                processEvent(event, tree: tree)
-            }
-        }
+        flushBufferedEvents(for: sessionID)
     }
 
     /// Set the active session.
@@ -257,6 +325,15 @@ final class SpawnTreeStore: ObservableObject {
     func removeTree(sessionID: String) {
         sessions.removeAll { $0.sessionID == sessionID }
         eventBuffer.removeValue(forKey: sessionID)
+        rootAssistantTranscriptEntryIDBySession.removeValue(forKey: sessionID)
+        if let runtimeID = runtimeIDByDisplaySessionID.removeValue(forKey: sessionID) {
+            displayIDByRuntimeSessionID.removeValue(forKey: runtimeID)
+            eventBuffer.removeValue(forKey: runtimeID)
+            rootAssistantTranscriptEntryIDBySession.removeValue(forKey: runtimeID)
+        }
+        if let displayID = displayIDByRuntimeSessionID.removeValue(forKey: sessionID) {
+            runtimeIDByDisplaySessionID.removeValue(forKey: displayID)
+        }
         if activeSessionID == sessionID {
             activeSessionID = sessions.first?.sessionID
         }
