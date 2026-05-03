@@ -523,7 +523,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 enabled: d["enabled"]?.boolValue ?? true,
                 state: d["state"]?.stringValue ?? "scheduled",
                 deliver: d["deliver"]?.stringValue ?? "local",
-                promptPreview: d["prompt_preview"]?.stringValue
+                promptPreview: d["prompt_preview"]?.stringValue,
+                prompt: d["prompt"]?.stringValue
+                    ?? d["full_prompt"]?.stringValue
+                    ?? d["prompt_text"]?.stringValue
+                    ?? d["prompt_preview"]?.stringValue
             )
         }
     }

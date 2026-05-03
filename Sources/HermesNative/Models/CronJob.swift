@@ -12,6 +12,7 @@ struct CronJob: Identifiable, Equatable, Hashable {
     var state: String           // "scheduled", "paused"
     var deliver: String         // "local", "telegram:...", etc
     var promptPreview: String?
+    var prompt: String?
 
     static func == (lhs: CronJob, rhs: CronJob) -> Bool {
         lhs.id == rhs.id

@@ -238,6 +238,7 @@ struct CronJobDetailView: View {
     let onResume: () -> Void
     let onRemove: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var isPromptExpanded = false
 
     var body: some View {
         ScrollView {
@@ -290,18 +291,58 @@ struct CronJobDetailView: View {
     }
 
     private var promptCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Prompt")
-                .font(.headline)
-                .foregroundStyle(Theme.primary)
-            Text(job.promptPreview?.isEmpty == false ? job.promptPreview! : "No prompt preview available")
-                .font(.body)
-                .foregroundStyle(Theme.secondary)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Prompt")
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                Spacer()
+                if isPromptExpandable {
+                    Button(isPromptExpanded ? "Collapse" : "Expand") {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            isPromptExpanded.toggle()
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                }
+            }
+
+            ScrollView(isPromptExpanded ? [.vertical] : []) {
+                Text(promptText)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(Theme.secondary)
+                    .textSelection(.enabled)
+                    .lineLimit(isPromptExpanded ? nil : 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: isPromptExpanded ? 420 : nil, alignment: .top)
+
+            if isPromptExpandable && !isPromptExpanded {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isPromptExpanded = true
+                    }
+                } label: {
+                    Label("Read full prompt", systemImage: "arrow.down.right.and.arrow.up.left")
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
         }
         .padding(14)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var promptText: String {
+        let text = job.prompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? job.promptPreview?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? ""
+        return text.isEmpty ? "No prompt available" : text
+    }
+
+    private var isPromptExpandable: Bool {
+        promptText.count > 400 || promptText.contains("\n")
     }
 
     private var actionButtons: some View {
