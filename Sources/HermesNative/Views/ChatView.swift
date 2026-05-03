@@ -23,6 +23,12 @@ struct ChatView: View {
         activeSkin.makeProvider()
     }
 
+    /// Reserve the avatar rail only for skins that render the floating avatar.
+    /// TUI uses the full transcript width.
+    private var messageLeadingPadding: CGFloat {
+        activeSkin == .darkManga ? 72 : 16
+    }
+
     /// Whether any bot content exists (for floating avatar visibility)
     private var hasBotContent: Bool {
         chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
@@ -117,7 +123,7 @@ struct ChatView: View {
                                 }
                             }
                         }
-                        .padding(.leading, 72)
+                        .padding(.leading, messageLeadingPadding)
                         .padding(.trailing, 16)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)

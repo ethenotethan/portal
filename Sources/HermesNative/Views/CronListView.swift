@@ -12,33 +12,20 @@ struct CronListView: View {
                     .listRowBackground(Color.clear)
             } else {
                 ForEach(cronViewModel.jobs) { job in
-                    CronJobRow(job: job)
-                        #if os(iOS)
-                        .swipeActions(edge: .leading) {
-                            if job.state == "paused" {
-                                Button {
-                                    Task { await cronViewModel.resumeJob(id: job.id) }
-                                } label: {
-                                    Label("Resume", systemImage: "play.fill")
-                                }
-                                .tint(.green)
-                            } else if job.enabled {
-                                Button {
-                                    Task { await cronViewModel.pauseJob(id: job.id) }
-                                } label: {
-                                    Label("Pause", systemImage: "pause.fill")
-                                }
-                                .tint(.orange)
-                            }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                Task { await cronViewModel.removeJob(id: job.id) }
-                            } label: {
-                                Label("Remove", systemImage: "trash")
-                            }
-                        }
-                        #endif
+                    NavigationLink(value: job) {
+                        CronJobRow(job: job)
+                    }
+                    .contextMenu {
+                        cronActions(for: job)
+                    }
+                    #if os(iOS)
+                    .swipeActions(edge: .leading) {
+                        pauseResumeButton(for: job)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        removeButton(for: job)
+                    }
+                    #endif
                 }
             }
         }
@@ -47,6 +34,14 @@ struct CronListView: View {
         #else
         .listStyle(.insetGrouped)
         #endif
+        .navigationDestination(for: CronJob.self) { job in
+            CronJobDetailView(
+                job: job,
+                onPause: { Task { await cronViewModel.pauseJob(id: job.id) } },
+                onResume: { Task { await cronViewModel.resumeJob(id: job.id) } },
+                onRemove: { Task { await cronViewModel.removeJob(id: job.id) } }
+            )
+        }
         .navigationTitle("Cron Jobs")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -94,6 +89,44 @@ struct CronListView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func cronActions(for job: CronJob) -> some View {
+        pauseResumeButton(for: job)
+        Divider()
+        removeButton(for: job)
+    }
+
+    @ViewBuilder
+    private func pauseResumeButton(for job: CronJob) -> some View {
+        if job.state == "paused" || !job.enabled {
+            Button {
+                Task { await cronViewModel.resumeJob(id: job.id) }
+            } label: {
+                Label("Resume", systemImage: "play.fill")
+            }
+            #if os(iOS)
+            .tint(.green)
+            #endif
+        } else {
+            Button {
+                Task { await cronViewModel.pauseJob(id: job.id) }
+            } label: {
+                Label("Pause", systemImage: "pause.fill")
+            }
+            #if os(iOS)
+            .tint(.orange)
+            #endif
+        }
+    }
+
+    private func removeButton(for job: CronJob) -> some View {
+        Button(role: .destructive) {
+            Task { await cronViewModel.removeJob(id: job.id) }
+        } label: {
+            Label("Remove", systemImage: "trash")
+        }
     }
 }
 
@@ -194,6 +227,147 @@ struct CronJobRow: View {
 
     private var scheduleBadgeColor: Color {
         job.enabled ? Theme.accent : .secondary
+    }
+}
+
+// MARK: - Cron Job Detail
+
+struct CronJobDetailView: View {
+    let job: CronJob
+    let onPause: () -> Void
+    let onResume: () -> Void
+    let onRemove: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                detailCard
+                promptCard
+                actionButtons
+            }
+            .padding(20)
+            .frame(maxWidth: 760, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .background(Theme.background)
+        .navigationTitle(job.name)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 12) {
+            statusIcon
+                .font(.title2)
+                .frame(width: 32)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(job.name)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                Text(job.id)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(Theme.tertiary)
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var detailCard: some View {
+        VStack(spacing: 0) {
+            detailRow("Schedule", value: job.schedule.isEmpty ? "—" : job.schedule)
+            detailRow("State", value: job.state)
+            detailRow("Enabled", value: job.enabled ? "Yes" : "No")
+            detailRow("Last run", value: job.lastRunAt?.relativeString ?? "Never")
+            detailRow("Last status", value: job.lastStatus ?? "—")
+            detailRow("Next run", value: job.nextRunAt?.relativeString ?? "—")
+            detailRow("Deliver", value: job.deliver.isEmpty ? "—" : job.deliver)
+        }
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var promptCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Prompt")
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+            Text(job.promptPreview?.isEmpty == false ? job.promptPreview! : "No prompt preview available")
+                .font(.body)
+                .foregroundStyle(Theme.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 10) {
+            if job.state == "paused" || !job.enabled {
+                Button {
+                    onResume()
+                } label: {
+                    Label("Resume", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button {
+                    onPause()
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Button(role: .destructive) {
+                onRemove()
+                dismiss()
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private func detailRow(_ title: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.secondary)
+                .frame(width: 100, alignment: .leading)
+            Text(value)
+                .font(.subheadline)
+                .foregroundStyle(Theme.primary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Theme.border.opacity(0.6))
+                .frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        if job.state == "paused" || !job.enabled {
+            Image(systemName: "pause.circle.fill")
+                .foregroundStyle(.secondary)
+        } else if job.lastStatus == "error" {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+        } else if job.lastStatus == "ok" {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Theme.success)
+        } else {
+            Image(systemName: "clock.fill")
+                .foregroundStyle(Theme.accent)
+        }
     }
 }
 

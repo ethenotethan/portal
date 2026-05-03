@@ -1,7 +1,7 @@
 import Foundation
 
 /// A scheduled cron job from the gateway's `cron.manage` (action: list) response.
-struct CronJob: Identifiable, Equatable {
+struct CronJob: Identifiable, Equatable, Hashable {
     var id: String              // job_id
     var name: String            // human-readable name
     var schedule: String        // schedule_display e.g. "every 360m"
