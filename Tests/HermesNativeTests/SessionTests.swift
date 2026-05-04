@@ -170,6 +170,33 @@ struct SessionListViewModelTests {
         #expect(vm.sessions.first?.tags == ["bug", "deploy"])
     }
 
+
+    @Test("setRunState updates row by stable ID")
+    @MainActor
+    func setRunStateByStableID() async {
+        let vm = SessionListViewModel()
+        vm.sessions = [Session(id: "stable", messageCount: 0)]
+
+        vm.setRunState(.streaming, for: "stable")
+
+        #expect(vm.sessions.first?.displayRunState == SessionRunState.streaming)
+    }
+
+    @Test("setRunState updates row by gateway runtime ID")
+    @MainActor
+    func setRunStateByGatewayID() async {
+        let vm = SessionListViewModel()
+        var session = Session(id: "stable", messageCount: 0)
+        session.gatewayID = "runtime"
+        vm.sessions = [session]
+
+        vm.setRunState(.toolRunning, for: "runtime")
+
+        #expect(vm.sessions.first?.displayRunState == SessionRunState.toolRunning)
+        #expect(vm.runState(for: "stable") == SessionRunState.toolRunning)
+        #expect(vm.runState(for: "runtime") == SessionRunState.toolRunning)
+    }
+
 }
 
 

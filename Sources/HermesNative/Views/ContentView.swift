@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Root content view — TabView on iOS with "Sessions" + "Cron" tabs,
 /// NavigationSplitView on macOS with a toolbar button for Cron sheet.
@@ -30,6 +31,7 @@ struct ContentView: View {
     /// `createAndSwitchToNewSession()` resumes. The explicit New Session flow does
     /// its own push afterward, so the observer must skip that intermediate push.
     @State private var shouldSuppressNextCreateGenerationPush = false
+    @State private var chatRunStateCancellable: AnyCancellable?
     #if os(iOS)
     @State private var iOSNavigationPath: [String] = []
     #endif
@@ -514,6 +516,7 @@ struct ContentView: View {
 
         pendingCreatedSessionID = sid
         sessionList.registerOwnedSession(shortHexID: sid)
+        sessionList.setRunState(.queued, for: sid)
         sessionList.selectSession(id: sid)
         spawnTreeStore.createTree(sessionID: sid)
         spawnTreeStore.bindRuntimeSession(displayID: sid, runtimeID: sid)
@@ -547,6 +550,7 @@ struct ContentView: View {
         let client = client ?? gatewayClientWrapper.client
         chatViewModel.setGatewayClient(client)
         sessionList.setGatewayClient(client)
+        observeChatRunState()
         spawnTreeStore.subscribe(to: client)
         activityInbox.setGatewayClient(client)
 
@@ -563,6 +567,20 @@ struct ContentView: View {
             }
         }
     }
+    private func observeChatRunState() {
+        guard chatRunStateCancellable == nil else { return }
+        chatRunStateCancellable = chatViewModel.$isStreaming
+            .receive(on: RunLoop.main)
+            .sink { isStreaming in
+                guard let sid = chatViewModel.currentSessionID else { return }
+                if isStreaming {
+                    sessionList.setRunState(.streaming, for: sid)
+                } else if let existing = sessionList.runState(for: sid), existing != .failed && existing != .canceled {
+                    sessionList.setRunState(.idle, for: sid)
+                }
+            }
+    }
+
     private func updateSelectedSessionTitle(oldTitle: String, newTitle: String) {
         guard let sid = chatViewModel.currentSessionID,
               newTitle != oldTitle else { return }

@@ -14,6 +14,12 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
+    /// Client-observed live run states keyed by stable database ID or runtime
+    /// gateway ID. The gateway's `session.list` response may not include live
+    /// run state yet, so the native app updates this from its own prompt/event
+    /// stream to keep sidebar icons current.
+    private var localRunStates: [String: SessionRunState] = [:]
+
     /// Wired up by ContentView — refreshes cron jobs alongside sessions.
     var cronViewModel: CronListViewModel?
 
@@ -169,6 +175,7 @@ final class SessionListViewModel: ObservableObject {
             let archived = archivedIDs
             let pinned = pinnedIDs
             let tags = sessionTags
+            let runStates = localRunStates
             for i in fetched.indices {
                 // Merge local title (overrides gateway title)
                 if let local = titles[fetched[i].id], !local.isEmpty {
@@ -182,6 +189,11 @@ final class SessionListViewModel: ObservableObject {
                 fetched[i].isArchived = archived.contains(fetched[i].id)
                 fetched[i].isPinned = pinned.contains(fetched[i].id)
                 fetched[i].tags = tags[fetched[i].id] ?? []
+                if fetched[i].runState == nil {
+                    let mappedGatewayID = idMap[fetched[i].id]
+                    fetched[i].runState = runStates[fetched[i].id]
+                        ?? mappedGatewayID.flatMap { runStates[$0] }
+                }
             }
 
             // Preserve sessions that are owned (have gatewayID) but whose
@@ -215,6 +227,8 @@ final class SessionListViewModel: ObservableObject {
         }
         var session = Session(id: shortHexID, messageCount: 0)
         session.gatewayID = shortHexID
+        session.runState = .queued
+        localRunStates[shortHexID] = .queued
         sessions.append(session)
         activeSessionID = shortHexID
 
@@ -231,6 +245,8 @@ final class SessionListViewModel: ObservableObject {
                             let oldID = self.sessions[idx].id
                             self.sessions[idx].id = dbID
                             self.migrateLocalOrganizationState(from: oldID, to: dbID)
+                            self.migrateLocalRunState(from: oldID, to: dbID, gatewayID: shortHexID)
+                            self.sessions[idx].runState = self.localRunStates[dbID] ?? self.sessions[idx].runState
                             self.sessions[idx].isPinned = self.pinnedIDs.contains(dbID)
                             self.sessions[idx].tags = self.sessionTags[dbID] ?? []
                             // Move local title if needed
@@ -317,6 +333,10 @@ final class SessionListViewModel: ObservableObject {
         var tags = sessionTags
         tags.removeValue(forKey: id)
         sessionTags = tags
+        localRunStates.removeValue(forKey: id)
+        if let gatewayID = sessions.first(where: { $0.id == id })?.gatewayID {
+            localRunStates.removeValue(forKey: gatewayID)
+        }
 
         withAnimation {
             sessions.removeAll { $0.id == id }
@@ -324,6 +344,31 @@ final class SessionListViewModel: ObservableObject {
         if activeSessionID == id {
             activeSessionID = sessions.first?.id
         }
+    }
+
+
+    /// Update the best-known run state for a session row from live app events.
+    /// Matches either stable database ID or runtime gateway ID so icons continue
+    /// updating across the short-ID → stable-ID remap.
+    func setRunState(_ runState: SessionRunState?, for id: String) {
+        if let runState {
+            localRunStates[id] = runState
+        } else {
+            localRunStates.removeValue(forKey: id)
+        }
+
+        for idx in sessions.indices where sessions[idx].id == id || sessions[idx].gatewayID == id {
+            sessions[idx].runState = runState
+            localRunStates[sessions[idx].id] = runState
+            if let gatewayID = sessions[idx].gatewayID {
+                localRunStates[gatewayID] = runState
+            }
+        }
+    }
+
+    func runState(for id: String) -> SessionRunState? {
+        localRunStates[id]
+            ?? sessions.first(where: { $0.id == id || $0.gatewayID == id })?.runState
     }
 
 
@@ -396,6 +441,16 @@ final class SessionListViewModel: ObservableObject {
             tags[newID] = oldTags
             sessionTags = tags
         }
+    }
+
+
+    private func migrateLocalRunState(from oldID: String, to newID: String, gatewayID: String?) {
+        guard oldID != newID else { return }
+        if let state = localRunStates[oldID] ?? gatewayID.flatMap({ localRunStates[$0] }) {
+            localRunStates[newID] = state
+            if let gatewayID { localRunStates[gatewayID] = state }
+        }
+        localRunStates.removeValue(forKey: oldID)
     }
 
     /// Shared sidebar sort: pinned first, then most recently active/started.
