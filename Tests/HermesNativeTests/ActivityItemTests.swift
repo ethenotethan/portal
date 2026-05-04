@@ -73,4 +73,44 @@ struct ActivityItemTests {
             Issue.record("Expected activityCreated event")
         }
     }
+
+    @Test("parses dismissed and read flag aliases from gateway payloads")
+    func parsesReadDismissedAliases() {
+        let payload: [String: AnyCodable] = [
+            "id": AnyCodable("act_aliases"),
+            "is_read": AnyCodable(true),
+            "is_dismissed": AnyCodable(true),
+        ]
+
+        let item = ActivityItem.from(payload)
+        #expect(item?.isRead == true)
+        #expect(item?.isDismissed == true)
+    }
+
+    @Test("activity events parse direct payloads as well as nested activity payloads")
+    func parseDirectActivityPayloadGatewayEvent() {
+        let direct = GatewayEvent.from(type: "activity.created", payload: .dictionary([
+            "id": AnyCodable("act_direct"),
+            "title": AnyCodable("Direct activity"),
+        ]))
+        let nested = GatewayEvent.from(type: "activity.updated", payload: .dictionary([
+            "activity": .dictionary([
+                "id": AnyCodable("act_nested"),
+                "title": AnyCodable("Nested activity"),
+            ])
+        ]))
+
+        if case .activityCreated(let directItem) = direct {
+            #expect(directItem.id == "act_direct")
+        } else {
+            Issue.record("Expected direct activity.created event")
+        }
+
+        if case .activityUpdated(let nestedItem) = nested {
+            #expect(nestedItem.id == "act_nested")
+        } else {
+            Issue.record("Expected nested activity.updated event")
+        }
+    }
+
 }

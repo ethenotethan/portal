@@ -69,6 +69,10 @@ final class ActivityInboxViewModel: ObservableObject {
         return try await gatewayClient.getActivityArtifact(artifactID: id)
     }
 
+    func applyForTesting(_ event: GatewayEvent) {
+        handle(event)
+    }
+
     private func handle(_ event: GatewayEvent) {
         switch event {
         case .activityCreated(let item), .activityUpdated(let item):
@@ -81,6 +85,7 @@ final class ActivityInboxViewModel: ObservableObject {
     private func upsert(_ item: ActivityItem) {
         if item.isDismissed {
             items.removeAll { $0.id == item.id }
+            if selectedItem?.id == item.id { selectedItem = nil }
         } else if let idx = items.firstIndex(where: { $0.id == item.id }) {
             items[idx] = item
         } else {

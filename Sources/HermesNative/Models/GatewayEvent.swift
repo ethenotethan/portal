@@ -227,13 +227,13 @@ enum GatewayEvent {
             return .voiceStatus(state: p["state"]?.stringValue ?? "")
 
         case "activity.created":
-            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) {
+            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) ?? ActivityItem.from(p) {
                 return .activityCreated(activity)
             }
             return .error(message: "invalid activity.created payload")
 
         case "activity.updated", "activity.read", "activity.dismissed":
-            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) {
+            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) ?? ActivityItem.from(p) {
                 return .activityUpdated(activity)
             }
             return .error(message: "invalid activity.updated payload")

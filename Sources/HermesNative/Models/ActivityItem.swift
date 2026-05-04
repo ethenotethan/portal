@@ -40,8 +40,8 @@ struct ActivityItem: Identifiable, Equatable, Hashable {
             title: d["title"]?.stringValue ?? "Activity",
             summary: d["summary"]?.stringValue ?? "",
             sessionID: sessionID,
-            isRead: d["read"]?.boolValue ?? false,
-            isDismissed: d["dismissed"]?.boolValue ?? false,
+            isRead: d["read"]?.boolValue ?? d["is_read"]?.boolValue ?? false,
+            isDismissed: d["dismissed"]?.boolValue ?? d["is_dismissed"]?.boolValue ?? false,
             actions: d["actions"]?.arrayValue?.compactMap { $0.dictionaryValue.flatMap(ActivityAction.from) } ?? [],
             artifacts: d["artifacts"]?.arrayValue?.compactMap { $0.dictionaryValue.flatMap(ActivityArtifact.from) } ?? [],
             externalRefs: d["external_refs"]?.arrayValue?.compactMap { $0.dictionaryValue.flatMap(ActivityExternalRef.from) } ?? []
