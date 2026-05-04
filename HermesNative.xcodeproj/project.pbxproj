@@ -32,6 +32,7 @@
 		31D12D614277EDA4B02B87F3 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
 		32C5144C3A885BC6692EED6C /* SessionExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */; };
 		388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
+		3A56767854C15D8E0A04AA2C /* MacScrollViewIntrospection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A3B5B976B82A7352C59766 /* MacScrollViewIntrospection.swift */; };
 		3B0862F9F8DB3ED209EC7505 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */; };
 		3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
 		3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
@@ -42,6 +43,7 @@
 		4620080AB323A2D15D1D842D /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */; };
 		46F14365DAA565AEC59D5F99 /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA16F415470C4A20A1155A3 /* SessionListViewModel.swift */; };
 		499EF1DCD0A4F6C104F366BF /* PersonaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C83FB177D450056599E65 /* PersonaManager.swift */; };
+		4B5A14E500239C1743BDAC53 /* MacScrollViewIntrospection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A3B5B976B82A7352C59766 /* MacScrollViewIntrospection.swift */; };
 		4F00EAC9C54FAF6B2FE39E2E /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 769BBB3BE6C0F8FD9A10A6CF /* JSONRPCResponse.swift */; };
 		4FD6073B1BDD9331CF5F0070 /* idle.json in Resources */ = {isa = PBXBuildFile; fileRef = E75C11A7DC7195F4353C93DA /* idle.json */; };
 		5010A2C2C363186736053DD8 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC871CF4533AE44104E0C11A /* OnboardingView.swift */; };
@@ -188,6 +190,7 @@
 		93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipView.swift; sourceTree = "<group>"; };
 		968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeOfflineSmokeUITests.swift; sourceTree = "<group>"; };
 		98AC0B5715E7BCBE84B1DD9D /* CronListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListViewModel.swift; sourceTree = "<group>"; };
+		A0A3B5B976B82A7352C59766 /* MacScrollViewIntrospection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacScrollViewIntrospection.swift; sourceTree = "<group>"; };
 		A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
 		A4F3A8DCE4BC4EE7005ABAEB /* GitHubLinkCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLinkCard.swift; sourceTree = "<group>"; };
 		B41979884D456FA9522F47D6 /* MacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacApp.swift; sourceTree = "<group>"; };
@@ -400,6 +403,7 @@
 		D9E5130F534B8F5795D42415 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				A0A3B5B976B82A7352C59766 /* MacScrollViewIntrospection.swift */,
 				BFFB378412449B68B78A4511 /* PlatformCompat.swift */,
 			);
 			path = Utils;
@@ -604,6 +608,7 @@
 				41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */,
 				556F13B6B8707155AC893E63 /* LongResponseView.swift in Sources */,
 				11015CE9F95C252B0BF0F96A /* LottieCharacterView.swift in Sources */,
+				4B5A14E500239C1743BDAC53 /* MacScrollViewIntrospection.swift in Sources */,
 				D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */,
 				388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */,
 				E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */,
@@ -678,6 +683,7 @@
 				1A10548E63D0F622DAA2EBEF /* LongResponseView.swift in Sources */,
 				7989F3D46D0A0BF03C275071 /* LottieCharacterView.swift in Sources */,
 				B7A2ACFD1E4703732703EE24 /* MacApp.swift in Sources */,
+				3A56767854C15D8E0A04AA2C /* MacScrollViewIntrospection.swift in Sources */,
 				6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */,
 				E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */,
 				7E1BCCCADCFDD000491A7271 /* MessageBubbleView.swift in Sources */,
