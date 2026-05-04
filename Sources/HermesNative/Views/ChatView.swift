@@ -194,7 +194,10 @@ struct ChatView: View {
                 }
                 .onPreferenceChange(ChatViewportHeightKey.self) { height in
                     if !hasBotContent {
-                        avatarY = max(0, height - 72)
+                        Task { @MainActor in
+                            await Task.yield()
+                            avatarY = max(0, height - 72)
+                        }
                     }
                 }
                 .onChange(of: chatViewModel.messages.count) { _, _ in
