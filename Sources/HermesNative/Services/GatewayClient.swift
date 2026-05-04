@@ -650,6 +650,66 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+
+
+    // MARK: - Activity Inbox RPCs
+
+    func listActivityItems(limit: Int = 100, includeRead: Bool = true, includeDismissed: Bool = false) async throws -> [ActivityItem] {
+        let response = try await call("activity.list", params: [
+            "limit": AnyCodable(limit),
+            "include_read": AnyCodable(includeRead),
+            "include_dismissed": AnyCodable(includeDismissed),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let itemsArray = result["items"]?.arrayValue else {
+            return []
+        }
+        return itemsArray.compactMap { $0.dictionaryValue.flatMap(ActivityItem.from) }
+    }
+
+    func markActivityRead(activityID: String, read: Bool = true) async throws -> ActivityItem {
+        let response = try await call("activity.mark_read", params: [
+            "activity_id": AnyCodable(activityID),
+            "read": AnyCodable(read),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let activity = response.result?.dictionaryValue?["activity"]?.dictionaryValue.flatMap(ActivityItem.from) else {
+            throw GatewayError.invalidResponse("missing activity in activity.mark_read response")
+        }
+        return activity
+    }
+
+    func dismissActivity(activityID: String) async throws -> ActivityItem {
+        let response = try await call("activity.dismiss", params: [
+            "activity_id": AnyCodable(activityID)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let activity = response.result?.dictionaryValue?["activity"]?.dictionaryValue.flatMap(ActivityItem.from) else {
+            throw GatewayError.invalidResponse("missing activity in activity.dismiss response")
+        }
+        return activity
+    }
+
+    func getActivityArtifact(artifactID: String) async throws -> ActivityArtifactContent {
+        let response = try await call("activity.artifacts.get", params: [
+            "artifact_id": AnyCodable(artifactID)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let artifact = response.result?.dictionaryValue?["artifact"]?.dictionaryValue.flatMap(ActivityArtifactContent.from) else {
+            throw GatewayError.invalidResponse("missing artifact in activity.artifacts.get response")
+        }
+        return artifact
+    }
+
     func submitPrompt(sessionID: String, text: String) async throws {
         let response = try await call("prompt.submit", params: [
             "session_id": AnyCodable(sessionID),

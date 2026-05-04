@@ -862,7 +862,7 @@ final class ChatViewModel: ObservableObject {
         }
 
         switch event {
-        case .gatewayReady:
+        case .gatewayReady, .activityCreated, .activityUpdated:
             break
 
         case .messageStart:

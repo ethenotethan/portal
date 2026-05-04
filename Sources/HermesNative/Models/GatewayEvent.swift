@@ -35,6 +35,8 @@ enum GatewayEvent {
         case .skinChanged: "skin.changed"
         case .voiceTranscript: "voice.transcript"
         case .voiceStatus: "voice.status"
+        case .activityCreated: "activity.created"
+        case .activityUpdated: "activity.updated"
         }
     }
 
@@ -107,6 +109,10 @@ enum GatewayEvent {
     // Voice
     case voiceTranscript(text: String, noSpeechLimit: Bool)
     case voiceStatus(state: String)
+
+    // Activity inbox
+    case activityCreated(ActivityItem)
+    case activityUpdated(ActivityItem)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -219,6 +225,18 @@ enum GatewayEvent {
 
         case "voice.status":
             return .voiceStatus(state: p["state"]?.stringValue ?? "")
+
+        case "activity.created":
+            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) {
+                return .activityCreated(activity)
+            }
+            return .error(message: "invalid activity.created payload")
+
+        case "activity.updated", "activity.read", "activity.dismissed":
+            if let activity = p["activity"]?.dictionaryValue.flatMap(ActivityItem.from) {
+                return .activityUpdated(activity)
+            }
+            return .error(message: "invalid activity.updated payload")
 
         default:
             return .error(message: "unknown event type: \(type)")

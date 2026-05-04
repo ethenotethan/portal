@@ -8,6 +8,7 @@ struct ContentView: View {
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @StateObject private var chatViewModel = ChatViewModel()
+    @StateObject private var activityInbox = ActivityInboxViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.scenePhase) private var scenePhase
 
@@ -15,6 +16,7 @@ struct ContentView: View {
     @State private var missionControlSessionID: String?
     @State private var observerSession: Session?
     @State private var showCronSheet = false
+    @State private var showActivitySheet = false
     @State private var showGatewayDebugSheet = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
@@ -90,6 +92,16 @@ struct ContentView: View {
                 Label("Cron", systemImage: "clock.badge.checkmark")
             }
             .tag(1)
+
+            ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
+                selectedTab = 0
+                sessionList.selectSession(id: sessionID)
+            })
+            .tabItem {
+                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+            }
+            .badge(activityInbox.unreadCount)
+            .tag(2)
         }
     }
 
@@ -145,6 +157,15 @@ struct ContentView: View {
                     }
                     .accessibilityLabel("Gateway Debug")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showActivitySheet = true
+                    } label: {
+                        Image(systemName: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                    }
+                    .accessibilityLabel("Activity")
+                    .accessibilityIdentifier("activityInboxButton")
+                }
             }
             .onOpenURL { url in
                 guard url.scheme == "hermesnative", url.host == "new-session" else { return }
@@ -199,6 +220,14 @@ struct ContentView: View {
                     .presentationDetents([.large])
             }
         }
+        .sheet(isPresented: $showActivitySheet) {
+            ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
+                showActivitySheet = false
+                selectedTab = 0
+                sessionList.selectSession(id: sessionID)
+            })
+            .presentationDetents([.large])
+        }
     }
 
     #endif
@@ -216,6 +245,13 @@ struct ContentView: View {
                         #endif
                 }
                 .frame(minWidth: 500, minHeight: 400)
+            }
+            .sheet(isPresented: $showActivitySheet) {
+                ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
+                    showActivitySheet = false
+                    sessionList.selectSession(id: sessionID)
+                })
+                .frame(minWidth: 640, minHeight: 620)
             }
             .sheet(isPresented: $showGatewayDebugSheet) {
                 GatewayDebugPanelView(client: gatewayClientWrapper.client)
@@ -266,6 +302,22 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
         #endif
+        .overlay(alignment: .topTrailing) {
+            #if os(macOS)
+            Button {
+                showActivitySheet = true
+            } label: {
+                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Theme.primary)
+            .padding(.top, 10)
+            .padding(.trailing, 14)
+            .accessibilityLabel("Activity")
+            .accessibilityIdentifier("activityInboxButton")
+            #endif
+        }
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSelectionChangeAfterViewUpdate(newID)
         }
@@ -495,9 +547,11 @@ struct ContentView: View {
         chatViewModel.setGatewayClient(client)
         sessionList.setGatewayClient(client)
         spawnTreeStore.subscribe(to: client)
+        activityInbox.setGatewayClient(client)
 
         Task {
             await sessionList.refreshSessions()
+            await activityInbox.refresh()
             if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
                 if chatViewModel.messages.isEmpty {
                     chatViewModel.loadLocalHistory(sessionID: sid)
