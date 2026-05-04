@@ -4,6 +4,8 @@ import Combine
 /// Manages connection settings: gateway URL, API key, and CF Access auth state.
 @MainActor
 final class SettingsViewModel: ObservableObject {
+    static let responseCompleteNotificationsKey = "hermes.responseCompleteNotificationsEnabled"
+
     @Published var gatewayURL: String {
         didSet { KeychainStore.shared.saveGatewayURL(gatewayURL) }
     }
@@ -11,6 +13,11 @@ final class SettingsViewModel: ObservableObject {
         didSet { KeychainStore.shared.saveAPIKey(apiKey) }
     }
     @Published var isConfigured: Bool = false
+    @Published var responseCompleteNotificationsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(responseCompleteNotificationsEnabled, forKey: Self.responseCompleteNotificationsKey)
+        }
+    }
 
     /// Whether the gateway domain likely requires CF Access auth.
     var needsCFAuth: Bool {
@@ -35,9 +42,11 @@ final class SettingsViewModel: ObservableObject {
         let uiTestGatewayURL = isUITest ? env["HERMES_NATIVE_GATEWAY_URL"] : nil
         let uiTestAPIKey = isUITest ? (env["HERMES_NATIVE_API_KEY"] ?? env["API_SERVER_KEY"]) : nil
 
-        self.gatewayURL = uiTestGatewayURL ?? KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
+        let resolvedGatewayURL = uiTestGatewayURL ?? KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
+        self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
-        self.isConfigured = !gatewayURL.isEmpty && (!isUITest || uiTestGatewayURL != nil)
+        self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
+        self.isConfigured = !resolvedGatewayURL.isEmpty && (!isUITest || uiTestGatewayURL != nil)
 
         if isUITest {
             NSLog("[HermesNative] UITest settings gatewayURL=\(gatewayURL) apiKeySet=\(!apiKey.isEmpty)")

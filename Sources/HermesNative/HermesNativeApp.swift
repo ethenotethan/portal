@@ -7,7 +7,7 @@ import SwiftUI
 /// access those StateObjects before the owner is installed and create transient
 /// instances.
 func requestHermesNativeNotificationAuthorization() {
-    Task {
+    Task { @MainActor in
         _ = await NotificationService.shared.requestAuthorization()
     }
 }
@@ -15,6 +15,7 @@ func requestHermesNativeNotificationAuthorization() {
 #if os(macOS)
 import AppKit
 
+@MainActor
 func configureHermesNativeMacApplication() {
     NSApplication.shared.setActivationPolicy(.regular)
     NSApplication.shared.activate()

@@ -62,6 +62,7 @@ final class NotificationService: NSObject, ObservableObject {
 
     /// Post notification when agent finishes a response (non-blocking, just informational).
     func notifyResponseComplete(sessionTitle: String, preview: String, sessionID: String) {
+        guard responseCompleteNotificationsEnabled else { return }
         post(
             id: "complete-\(sessionID)-\(UUID().uuidString.prefix(8))",
             title: sessionTitle,
@@ -104,6 +105,10 @@ final class NotificationService: NSObject, ObservableObject {
         case cronComplete
     }
 
+    private var responseCompleteNotificationsEnabled: Bool {
+        UserDefaults.standard.object(forKey: SettingsViewModel.responseCompleteNotificationsKey) as? Bool ?? true
+    }
+
     private func post(
         id: String,
         title: String,
@@ -131,10 +136,28 @@ final class NotificationService: NSObject, ObservableObject {
             trigger: nil // Immediate
         )
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                NSLog("[NotificationService] Failed to post: \(error)")
+        Task {
+            guard await ensureAuthorizedForPosting() else { return }
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error {
+                    NSLog("[NotificationService] Failed to post: \(error)")
+                }
             }
+        }
+    }
+
+    private func ensureAuthorizedForPosting() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            return await requestAuthorization()
+        case .denied:
+            return false
+        @unknown default:
+            return false
         }
     }
 }

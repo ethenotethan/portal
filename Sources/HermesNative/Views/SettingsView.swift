@@ -66,6 +66,20 @@ struct SettingsView: View {
 
                     Divider()
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notifications")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
+                        Text("Notify when a response finishes while the app is in the background or another session is active.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Divider()
+
                     capabilitiesSummary
 
                     Divider()
@@ -167,6 +181,13 @@ struct SettingsView: View {
                     .textFieldStyle(.roundedBorder)
                 SecureField("API Key", text: $settings.apiKey)
                     .textFieldStyle(.roundedBorder)
+            }
+
+            Section("Notifications") {
+                Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
+                Text("Notify when a response finishes while the app is in the background or another session is active.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Gateway Capabilities") {

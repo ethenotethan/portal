@@ -19,6 +19,13 @@ struct GatewayDebugSnapshot: Equatable {
         }
     }
 
+    struct DroppedEventReason: Identifiable, Equatable {
+        var id: String { reason }
+        let reason: String
+        var count: Int
+        var lastAt: Date
+    }
+
     var connectionState: String = "disconnected"
     var socketURL: String = "—"
     var isAuthenticated: Bool = false
@@ -30,8 +37,10 @@ struct GatewayDebugSnapshot: Equatable {
     var reconnectAttempt: Int = 0
     var lastOpenAt: Date?
     var lastCloseAt: Date?
+    var lastErrorAt: Date?
     var lastError: String?
     var recentEvents: [EventRecord] = []
+    var droppedEventReasons: [DroppedEventReason] = []
 
     var pendingRequestCount: Int { pendingRequestIDs.count }
 }

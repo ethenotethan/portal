@@ -211,7 +211,24 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             debugSnapshot.recentEvents.removeLast(debugSnapshot.recentEvents.count - 40)
         }
         if direction == .error {
+            debugSnapshot.lastErrorAt = record.timestamp
             debugSnapshot.lastError = detail.isEmpty ? name : detail
+        }
+        if direction == .dropped {
+            let reason = detail.isEmpty ? "unspecified" : detail
+            if let index = debugSnapshot.droppedEventReasons.firstIndex(where: { $0.reason == reason }) {
+                debugSnapshot.droppedEventReasons[index].count += 1
+                debugSnapshot.droppedEventReasons[index].lastAt = record.timestamp
+            } else {
+                debugSnapshot.droppedEventReasons.insert(
+                    GatewayDebugSnapshot.DroppedEventReason(reason: reason, count: 1, lastAt: record.timestamp),
+                    at: 0
+                )
+            }
+            debugSnapshot.droppedEventReasons.sort { $0.lastAt > $1.lastAt }
+            if debugSnapshot.droppedEventReasons.count > 12 {
+                debugSnapshot.droppedEventReasons.removeLast(debugSnapshot.droppedEventReasons.count - 12)
+            }
         }
         refreshDebugSnapshot()
     }
@@ -898,16 +915,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         continuation?.resume(returning: response)
     }
 
-    /// Thread-safe removal of a pending request continuation (safe from async contexts).
-    private nonisolated func removePendingRequest(id: Int) -> CheckedContinuation<JSONRPCResponse, Error>? {
-        MainActor.assumeIsolated {
-            pendingRequestsLock.lock()
-            let continuation = pendingRequests.removeValue(forKey: id)
-            pendingRequestMethods.removeValue(forKey: id)
-            pendingRequestsLock.unlock()
-            refreshDebugSnapshot()
-            return continuation
-        }
+    /// Thread-safe removal of a pending request continuation.
+    private func removePendingRequest(id: Int) -> CheckedContinuation<JSONRPCResponse, Error>? {
+        pendingRequestsLock.lock()
+        let continuation = pendingRequests.removeValue(forKey: id)
+        pendingRequestMethods.removeValue(forKey: id)
+        pendingRequestsLock.unlock()
+        refreshDebugSnapshot()
+        return continuation
     }
 
     // MARK: - URLSessionWebSocketDelegate

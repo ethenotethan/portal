@@ -13,6 +13,7 @@ struct GatewayDebugPanelView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     connectionSection
                     pendingSection
+                    droppedReasonsSection
                     eventSection
                 }
                 .padding(16)
@@ -52,6 +53,7 @@ struct GatewayDebugPanelView: View {
             debugRow("Last opened", formatDate(snapshot.lastOpenAt))
             debugRow("Last closed", formatDate(snapshot.lastCloseAt))
             if let lastError = snapshot.lastError, !lastError.isEmpty {
+                debugRow("Last error at", formatDate(snapshot.lastErrorAt))
                 debugRow("Last error", lastError, isError: true, selectable: true)
             }
         }
@@ -67,6 +69,37 @@ struct GatewayDebugPanelView: View {
                 ForEach(snapshot.pendingRequestIDs, id: \.self) { id in
                     let method = snapshot.pendingRequestMethods[id] ?? "unknown"
                     debugRow("#\(id)", method, selectable: true)
+                }
+            }
+        }
+    }
+
+    private var droppedReasonsSection: some View {
+        debugCard("Dropped Event Reasons") {
+            if snapshot.droppedEventReasons.isEmpty {
+                Text("No dropped events recorded")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            } else {
+                ForEach(snapshot.droppedEventReasons) { reason in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(reason.reason)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(Theme.primary)
+                                .textSelection(.enabled)
+                            Text("last: \(formatTime(reason.lastAt))")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        Spacer(minLength: 8)
+                        Text("×\(reason.count)")
+                            .font(.system(.caption, design: .monospaced).weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.14), in: Capsule())
+                    }
                 }
             }
         }
