@@ -197,6 +197,20 @@ struct SessionListViewModelTests {
         #expect(vm.runState(for: "runtime") == SessionRunState.toolRunning)
     }
 
+
+    @Test("local run state overrides gateway stale state")
+    @MainActor
+    func localRunStateOverridesGatewayStaleState() async {
+        let vm = SessionListViewModel()
+        var session = Session(id: "stable", messageCount: 0, runState: .idle)
+        session.gatewayID = "runtime"
+        vm.sessions = [session]
+
+        vm.setRunState(.streaming, for: "runtime")
+
+        #expect(vm.sessions.first?.displayRunState == SessionRunState.streaming)
+    }
+
 }
 
 

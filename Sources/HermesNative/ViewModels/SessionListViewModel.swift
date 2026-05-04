@@ -189,10 +189,11 @@ final class SessionListViewModel: ObservableObject {
                 fetched[i].isArchived = archived.contains(fetched[i].id)
                 fetched[i].isPinned = pinned.contains(fetched[i].id)
                 fetched[i].tags = tags[fetched[i].id] ?? []
-                if fetched[i].runState == nil {
-                    let mappedGatewayID = idMap[fetched[i].id]
-                    fetched[i].runState = runStates[fetched[i].id]
-                        ?? mappedGatewayID.flatMap { runStates[$0] }
+                let mappedGatewayID = idMap[fetched[i].id]
+                let localRunState = runStates[fetched[i].id]
+                    ?? mappedGatewayID.flatMap { runStates[$0] }
+                if let localRunState {
+                    fetched[i].runState = localRunState
                 }
             }
 
