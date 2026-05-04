@@ -4,12 +4,13 @@ import SwiftUI
 /// Presented as a sheet on long-press of a session row.
 struct SessionExplorerView: View {
     let sessionID: String
+    var runtimeSessionID: String? = nil
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
     @State private var selectedNodeID: String?
     @State private var showTranscriptFor: SpawnNode?
-    @State private var expandDepth: Int = 3
+    private let maxTreeDepth: Int = 32
     @State private var selectedTab: ExplorerTab = .tree
 
     // Usage data
@@ -24,6 +25,10 @@ struct SessionExplorerView: View {
 
     private var tree: SessionTree? {
         spawnTreeStore.sessions.first { $0.sessionID == sessionID }
+    }
+
+    private var rpcSessionID: String {
+        runtimeSessionID?.isEmpty == false ? runtimeSessionID! : sessionID
     }
 
     var body: some View {
@@ -54,13 +59,9 @@ struct SessionExplorerView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                if selectedTab == .tree {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        Stepper("Depth: \(expandDepth)", value: $expandDepth, in: 0...10)
-                            .font(.caption)
-                        if let tree {
-                            interruptButton(tree: tree)
-                        }
+                if selectedTab == .tree, let tree {
+                    ToolbarItem(placement: .primaryAction) {
+                        interruptButton(tree: tree)
                     }
                 }
             }
@@ -95,10 +96,11 @@ struct SessionExplorerView: View {
                 TreeNodeView(
                     node: tree.root,
                     depth: 0,
-                    maxDepth: expandDepth,
+                    maxDepth: maxTreeDepth,
                     selectedNodeID: $selectedNodeID,
                     onNodeTap: { node in
                         selectedNodeID = node.id
+                        showTranscriptFor = node
                     },
                     onNodeLongPress: { node in
                         showTranscriptFor = node
@@ -149,7 +151,7 @@ struct SessionExplorerView: View {
                         .foregroundStyle(Theme.accent)
                 }
 
-                Label("\(tree.nodeCount) nodes", systemImage: "arrow.triangle.branch")
+                Label("\(max(0, tree.nodeCount - 1)) subagents", systemImage: "person.2.wave.2")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -185,7 +187,7 @@ struct SessionExplorerView: View {
         Button {
             Task {
                 guard case .connected = gatewayClientWrapper.client.connectionState else { return }
-                try? await gatewayClientWrapper.client.interrupt(sessionID: tree.sessionID)
+                try? await gatewayClientWrapper.client.interrupt(sessionID: rpcSessionID)
             }
         } label: {
             Label("Interrupt", systemImage: "stop.fill")
@@ -237,7 +239,7 @@ struct SessionExplorerView: View {
                     Text("No Usage Data")
                         .font(.headline)
                         .foregroundStyle(.secondary)
-                    Text("This session may not be active in the gateway.")
+                    Text("Usage is available only while the gateway can resolve the live runtime session.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -348,9 +350,15 @@ struct SessionExplorerView: View {
         isLoadingUsage = true
         usageError = nil
         do {
-            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID)
+            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: rpcSessionID)
         } catch {
-            usageError = error.localizedDescription
+            if rpcSessionID != sessionID,
+               let fallbackUsage = try? await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID) {
+                usage = fallbackUsage
+                usageError = nil
+            } else {
+                usageError = error.localizedDescription
+            }
         }
         isLoadingUsage = false
     }
