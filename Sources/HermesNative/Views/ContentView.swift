@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
+    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @StateObject private var chatViewModel = ChatViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.scenePhase) private var scenePhase
@@ -43,18 +44,19 @@ struct ContentView: View {
                 OnboardingView()
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(chatViewModel)
+                    .environmentObject(capabilitiesStore)
             }
         }
         .task {
             if settings.isConfigured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
-                _ = await gatewayClientWrapper.connectIfNeeded(using: settings)
+                await connectAndRefreshCapabilities()
                 wireUpClient()
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
             if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
                 Task {
-                    await gatewayClientWrapper.connect(using: settings)
+                    await connectAndRefreshCapabilities()
                     wireUpClient()
                 }
             }
@@ -62,7 +64,7 @@ struct ContentView: View {
         .onChange(of: settings.cfAuthCookie) { _, cookie in
             if cookie != nil && settings.isConfigured {
                 Task {
-                    await gatewayClientWrapper.connect(using: settings)
+                    await connectAndRefreshCapabilities()
                     wireUpClient()
                 }
             }
@@ -128,6 +130,7 @@ struct ContentView: View {
                 ChatView()
                     .environmentObject(chatViewModel)
                     .environmentObject(gatewayClientWrapper)
+                    .environmentObject(capabilitiesStore)
                     .id(chatViewModel.currentSessionID)
             }
             .safeAreaInset(edge: .bottom) {
@@ -253,6 +256,7 @@ struct ContentView: View {
             ChatView()
                 .environmentObject(chatViewModel)
                 .environmentObject(gatewayClientWrapper)
+                .environmentObject(capabilitiesStore)
                 .id(chatViewModel.currentSessionID)
         }
         #if os(macOS)
@@ -475,6 +479,16 @@ struct ContentView: View {
     }
 
     // MARK: - Wiring
+
+    @MainActor
+    private func connectAndRefreshCapabilities() async {
+        let connected = await gatewayClientWrapper.connectIfNeeded(using: settings)
+        if connected {
+            await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
+        } else {
+            capabilitiesStore.reset(reason: "Gateway is not connected")
+        }
+    }
 
     private func wireUpClient(_ client: GatewayClient? = nil) {
         let client = client ?? gatewayClientWrapper.client

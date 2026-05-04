@@ -5,6 +5,7 @@ struct OnboardingView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
+    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @State private var testing = false
     @State private var testResult: String?
     @State private var showCFAuth = false
@@ -103,9 +104,17 @@ struct OnboardingView: View {
                 }
 
                 if let result = testResult {
-                    Text(result)
-                        .font(.caption)
-                        .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+                    VStack(spacing: 4) {
+                        Text(result)
+                            .font(.caption)
+                            .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+
+                        if result.hasPrefix("✓") {
+                            Text("Capabilities: \(capabilitiesStore.capabilities.statusDisplay), version \(capabilitiesStore.capabilities.versionDisplay)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .padding(40)
@@ -246,9 +255,17 @@ struct OnboardingView: View {
                     }
 
                     if let result = testResult {
-                        Text(result)
-                            .font(.caption)
-                            .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+                        VStack(spacing: 4) {
+                            Text(result)
+                                .font(.caption)
+                                .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+
+                            if result.hasPrefix("✓") {
+                                Text("Capabilities: \(capabilitiesStore.capabilities.statusDisplay), version \(capabilitiesStore.capabilities.versionDisplay)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -300,6 +317,13 @@ struct OnboardingView: View {
                     testResult = "✗ \(error.localizedDescription)"
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                     testResult = "✓ Gateway reachable"
+                    Task {
+                        if let client = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) {
+                            await capabilitiesStore.refresh(using: client)
+                        } else {
+                            await capabilitiesStore.reset(reason: "Gateway is reachable, but WebSocket did not connect")
+                        }
+                    }
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 401 {
                     testResult = "✗ Invalid API key"
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 302 {

@@ -7,6 +7,7 @@ struct HermesNativeAppMac: App {
     @StateObject private var personaManager = PersonaManager()
     @StateObject private var spawnTreeStore = SpawnTreeStore()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
+    @StateObject private var capabilitiesStore = HermesCapabilitiesStore()
 
     init() {
         configureHermesNativeMacApplication()
@@ -21,6 +22,7 @@ struct HermesNativeAppMac: App {
                 .environmentObject(personaManager)
                 .environmentObject(spawnTreeStore)
                 .environmentObject(gatewayClientWrapper)
+                .environmentObject(capabilitiesStore)
                 .background(MacWindowConfigurator())
         }
         .windowStyle(.hiddenTitleBar)
@@ -30,6 +32,7 @@ struct HermesNativeAppMac: App {
             SettingsView()
                 .environmentObject(settings)
                 .environmentObject(personaManager)
+                .environmentObject(capabilitiesStore)
         }
     }
 }
