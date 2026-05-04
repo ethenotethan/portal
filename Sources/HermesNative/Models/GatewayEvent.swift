@@ -40,19 +40,21 @@ enum GatewayEvent {
 
     var isLiveTurnEvent: Bool {
         switch self {
-        case .messageStart,
-             .messageDelta,
-             .messageComplete,
-             .toolStart,
-             .toolComplete,
-             .toolProgress,
-             .toolGenerating,
-             .reasoningDelta,
-             .reasoningAvailable,
-             .thinkingDelta:
-            return true
+        case .messageStart, .messageDelta, .messageComplete,
+             .toolStart, .toolComplete, .toolProgress, .toolGenerating,
+             .reasoningDelta, .reasoningAvailable, .thinkingDelta:
+            true
         default:
-            return false
+            false
+        }
+    }
+
+    var isSessionScopedRequestEvent: Bool {
+        switch self {
+        case .approvalRequest, .clarifyRequest, .sudoRequest, .secretRequest:
+            true
+        default:
+            false
         }
     }
 

@@ -168,3 +168,76 @@ struct ChatViewModelTitleTests {
         #expect(vm.currentSessionID == nil)
     }
 }
+
+
+// MARK: - ChatViewModel Live Session Routing Tests
+
+@Suite("ChatViewModel live session routing")
+struct ChatViewModelLiveSessionRoutingTests {
+
+    @Test("background live session keeps streaming state and does not steal foreground chat")
+    @MainActor
+    func backgroundLiveSessionDoesNotStealForeground() async {
+        let vm = ChatViewModel()
+
+        let generation = vm.beginSwitchToSession(key: "foreground")
+        #expect(generation > 0)
+        #expect(vm.currentSessionID == "foreground")
+
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "background-runtime")
+        vm.receiveGatewayEventForTesting(.reasoningDelta(text: "thinking"), sessionID: "background-runtime")
+        vm.receiveGatewayEventForTesting(.toolStart(payload: ToolStartPayload(
+            toolID: "tool-1",
+            name: "terminal",
+            context: "running tests"
+        )), sessionID: "background-runtime")
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "partial", rendered: nil), sessionID: "background-runtime")
+
+        #expect(vm.currentSessionID == "foreground")
+        #expect(vm.messages.isEmpty)
+        #expect(vm.activeToolCalls.isEmpty)
+        #expect(vm.isStreaming == false)
+
+        _ = vm.beginSwitchToSession(key: "background-runtime")
+        #expect(vm.currentSessionID == "background-runtime")
+        #expect(vm.isStreaming == true)
+        #expect(vm.messages.last?.content == "partial")
+        #expect(vm.messages.last?.reasoning == "thinking")
+        #expect(vm.activeToolCalls["tool-1"]?.name == "terminal")
+    }
+
+    @Test("stable ID binding preserves existing live runtime state")
+    @MainActor
+    func stableIDBindingPreservesLiveRuntimeState() async {
+        let vm = ChatViewModel()
+
+        _ = vm.beginSwitchToSession(key: "runtime-a")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "runtime-a")
+        vm.receiveGatewayEventForTesting(.toolStart(payload: ToolStartPayload(
+            toolID: "tool-a",
+            name: "browser",
+            context: "opening page"
+        )), sessionID: "runtime-a")
+        vm.bindCurrentGatewaySession(toStableSessionID: "stable-a")
+
+        _ = vm.beginSwitchToSession(key: "other")
+        vm.receiveGatewayEventForTesting(.toolComplete(payload: ToolCompletePayload(
+            toolID: "tool-a",
+            name: "browser",
+            summary: "opened",
+            durationSeconds: 1.0,
+            inlineDiff: nil,
+            todos: nil
+        )), sessionID: "runtime-a")
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "done", rendered: nil), sessionID: "runtime-a")
+
+        #expect(vm.currentSessionID == "other")
+        #expect(vm.messages.isEmpty)
+
+        _ = vm.beginSwitchToSession(key: "stable-a")
+        #expect(vm.currentSessionID == "runtime-a")
+        #expect(vm.isStreaming == true)
+        #expect(vm.messages.last?.content == "done")
+        #expect(vm.activeToolCalls["tool-a"]?.isComplete == true)
+    }
+}

@@ -39,6 +39,23 @@ extension AnyCodable {
         if case .array(let v) = self { return v }
         return nil
     }
+
+    /// Best-effort display conversion for heterogeneous JSON-RPC values.
+    var displayString: String {
+        switch self {
+        case .string(let v): return v
+        case .int(let v): return String(v)
+        case .double(let v): return String(v)
+        case .bool(let v): return String(v)
+        case .null: return "null"
+        case .array(let v): return v.map(\.displayString).joined(separator: ", ")
+        case .dictionary(let v):
+            return v
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key): \($0.value.displayString)" }
+                .joined(separator: ", ")
+        }
+    }
 }
 
 // MARK: - String utilities
