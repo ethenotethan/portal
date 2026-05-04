@@ -10,6 +10,41 @@ enum SessionStatus: Equatable {
     case ended
 }
 
+/// Best-known run state for the latest execution in a session.
+///
+/// The gateway may eventually return a precise `latest_run_state` field; until
+/// then HermesNative derives a conservative state from existing session list
+/// timestamps so the sidebar can show useful state affordances without parsing
+/// chat transcript text.
+enum SessionRunState: String, Equatable, Hashable {
+    case queued
+    case streaming
+    case toolRunning = "tool_running"
+    case waitingForUser = "waiting_for_user"
+    case idle
+    case failed
+    case canceled
+
+    init?(gatewayValue: String?) {
+        guard let normalized = gatewayValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "-", with: "_") else {
+            return nil
+        }
+        switch normalized {
+        case "queued", "pending": self = .queued
+        case "streaming", "active", "running", "in_progress": self = .streaming
+        case "tool_running", "tool", "tool_use", "tool_call", "executing_tool": self = .toolRunning
+        case "waiting", "waiting_for_user", "needs_user", "approval", "clarify": self = .waitingForUser
+        case "idle", "completed", "complete", "success", "succeeded", "ended": self = .idle
+        case "failed", "failure", "error": self = .failed
+        case "canceled", "cancelled", "interrupted": self = .canceled
+        default: return nil
+        }
+    }
+}
+
 /// A Hermes agent session.
 /// Fields match the gateway's `session.list` response schema.
 struct Session: Identifiable, Equatable, Hashable {
@@ -37,8 +72,17 @@ struct Session: Identifiable, Equatable, Hashable {
 
     var isRunning: Bool = false // Derived from source context, not from gateway
 
+    /// Best-known state for the latest run in this session.
+    var runState: SessionRunState? = nil
+
     /// Local-only: archived sessions are hidden from "My Sessions" by default.
     var isArchived: Bool = false
+
+    /// Local-only: pinned sessions stay visually elevated in the sidebar.
+    var isPinned: Bool = false
+
+    /// Local-only: lightweight organization labels.
+    var tags: [String] = []
 
     /// Whether this session was created by this app (we have the gateway short hex ID).
     var isOwned: Bool {
@@ -59,6 +103,16 @@ struct Session: Identifiable, Equatable, Hashable {
         }
         // No lastActive info — treat as idle if still running, ended otherwise
         return isRunning ? .idle : .ended
+    }
+
+    /// Run state to render in the session list. Prefer explicit gateway state
+    /// when available, falling back to timestamp-derived status.
+    var displayRunState: SessionRunState {
+        if let runState { return runState }
+        switch status {
+        case .active: return .streaming
+        case .idle, .ended: return .idle
+        }
     }
 
     static func == (lhs: Session, rhs: Session) -> Bool {

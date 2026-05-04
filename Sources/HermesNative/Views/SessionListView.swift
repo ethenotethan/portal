@@ -20,19 +20,19 @@ struct SessionListView: View {
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
     private var mySessions: [Session] {
-        sessionList.sessions.filter { $0.isOwned && !$0.isArchived }
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && !$0.isArchived })
     }
 
     private var archivedSessions: [Session] {
-        sessionList.sessions.filter { $0.isOwned && $0.isArchived }
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && $0.isArchived })
     }
 
     private var cronSessions: [Session] {
-        sessionList.sessions.filter { $0.source?.lowercased() == "cron" }
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.source?.lowercased() == "cron" })
     }
 
     private var otherSessions: [Session] {
-        sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" }
+        sessionList.sortedForSidebar(sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" })
     }
 
     var body: some View {
@@ -77,11 +77,19 @@ struct SessionListView: View {
                                 subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
                                 source: nil,
                                 isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: true
+                                isOwned: true,
+                                isPinned: session.isPinned,
+                                tags: session.tags,
+                                runState: session.displayRunState
                             )
                             .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                             .contextMenu {
+                                Button {
+                                    sessionList.togglePinned(id: session.id)
+                                } label: {
+                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                                }
                                 Button {
                                     onMissionControl?(session.id)
                                 } label: {
@@ -148,11 +156,19 @@ struct SessionListView: View {
                                 source: nil,
                                 isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: true,
-                                isArchived: true
+                                isArchived: true,
+                                isPinned: session.isPinned,
+                                tags: session.tags,
+                                runState: session.displayRunState
                             )
                             .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
                             .contextMenu {
+                                Button {
+                                    sessionList.togglePinned(id: session.id)
+                                } label: {
+                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                                }
                                 Button {
                                     sessionList.unarchiveSession(id: session.id)
                                 } label: {
@@ -211,10 +227,19 @@ struct SessionListView: View {
                                 source: session.source,
                                 isActive: session.id == chatViewModel.currentSessionID,
                                 isOwned: false,
-                                sessionStatus: session.status
+                                isPinned: session.isPinned,
+                                tags: session.tags,
+                                runState: session.displayRunState
                             )
                             .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
+                            .contextMenu {
+                                Button {
+                                    sessionList.togglePinned(id: session.id)
+                                } label: {
+                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                                }
+                            }
                         }
                     }
                 } header: {
@@ -249,10 +274,20 @@ struct SessionListView: View {
                                 subtitle: sessionList.subtitleForSession(session),
                                 source: session.source,
                                 isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: false
+                                isOwned: false,
+                                isPinned: session.isPinned,
+                                tags: session.tags,
+                                runState: session.displayRunState
                             )
                             .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
                             .tag(session.id)
+                            .contextMenu {
+                                Button {
+                                    sessionList.togglePinned(id: session.id)
+                                } label: {
+                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                                }
+                            }
                         }
                     }
                 }
@@ -452,17 +487,17 @@ struct SessionRowView: View {
     let isActive: Bool
     let isOwned: Bool
     var isArchived: Bool = false
-    var sessionStatus: SessionStatus? = nil
+    var isPinned: Bool = false
+    var tags: [String] = []
+    var runState: SessionRunState = .idle
 
     var body: some View {
         HStack(spacing: 10) {
-            // Source/platform icon or ownership indicator
-            iconView
-                .font(.body)
-                .foregroundStyle(iconColor)
+            stateIcon
                 .frame(width: 24)
+                .accessibilityLabel(stateAccessibilityLabel)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(title)
                         .font(.subheadline)
@@ -470,36 +505,37 @@ struct SessionRowView: View {
                         .lineLimit(1)
                         .foregroundStyle(isArchived ? .secondary : .primary)
 
-                    // Pulsing green dot for active sessions
-                    if sessionStatus == .active {
-                        PulsingDot(color: Theme.success)
+                    if isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.accent)
+                            .accessibilityLabel("Pinned")
                     }
                 }
 
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                HStack(spacing: 5) {
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+
+                    ForEach(tags.prefix(3), id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Theme.accent.opacity(0.12), in: Capsule())
+                    }
                 }
             }
 
             Spacer()
 
-            if isActive {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Theme.accent)
-            } else if isArchived {
-                Image(systemName: "archivebox")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
-            } else if !isOwned {
-                // Observer badge for non-owned sessions
-                Image(systemName: "eye")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
-            }
+            trailingBadge
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -507,28 +543,74 @@ struct SessionRowView: View {
         .contentShape(Rectangle())
     }
 
-    private var iconColor: Color {
-        if isArchived { return .secondary }
-        return isOwned ? Theme.accent : .secondary
+    private var stateAccessibilityLabel: String {
+        switch runState {
+        case .queued: return "Queued"
+        case .streaming: return "Streaming"
+        case .toolRunning: return "Tool running"
+        case .waitingForUser: return "Waiting for user"
+        case .idle: return "Idle"
+        case .failed: return "Failed"
+        case .canceled: return "Canceled"
+        }
     }
 
     @ViewBuilder
-    private var iconView: some View {
-        if isOwned {
-            Image(systemName: "bubble.left.fill")
-        } else {
-            switch source?.lowercased() {
-            case "telegram": Image(systemName: "paperplane.fill")
-            case "discord":  Image(systemName: "headphones")
-            case "cli":      Image(systemName: "terminal.fill")
-            case "tui":      Image(systemName: "terminal.fill")
-            case "slack":    Image(systemName: "number.square.fill")
-            case "matrix":   Image(systemName: "rectangle.3.group.fill")
-            case "whatsapp": Image(systemName: "phone.fill")
-            case "webhook":  Image(systemName: "arrow.triangle.branch")
-            case "cron":     Image(systemName: "clock.fill")
-            default:         Image(systemName: "bubble.left.fill")
-            }
+    private var stateIcon: some View {
+        switch runState {
+        case .queued:
+            Image(systemName: "clock")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        case .streaming:
+            PulsingDot(color: Theme.success)
+        case .toolRunning:
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.body)
+                .foregroundStyle(Theme.accent)
+        case .waitingForUser:
+            Image(systemName: "pause.circle.fill")
+                .font(.body)
+                .foregroundStyle(.orange)
+        case .idle:
+            Image(systemName: "circle")
+                .font(.body)
+                .foregroundStyle(.tertiary)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.body)
+                .foregroundStyle(.red)
+        case .canceled:
+            Image(systemName: "slash.circle")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var trailingBadge: some View {
+        if isActive {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(Theme.accent)
+        } else if isArchived {
+            Image(systemName: "archivebox")
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+        } else if !isOwned {
+            Image(systemName: observerIconName)
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+        }
+    }
+
+    private var observerIconName: String {
+        switch source?.lowercased() {
+        case "telegram": return "paperplane"
+        case "discord": return "headphones"
+        case "cli", "tui": return "terminal"
+        case "cron": return "clock"
+        default: return "eye"
         }
     }
 }

@@ -589,7 +589,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 messageCount: d["message_count"]?.intValue ?? 0,
                 startedAt: startedAt,
                 endedAt: endedAt,
-                lastActive: lastActive
+                lastActive: lastActive,
+                runState: SessionRunState(gatewayValue:
+                    d["latest_run_state"]?.stringValue
+                    ?? d["run_state"]?.stringValue
+                    ?? d["state"]?.stringValue
+                    ?? d["status"]?.stringValue
+                )
             )
         }
     }

@@ -147,6 +147,64 @@ struct SessionListViewModelTests {
         #expect(subtitle!.contains("telegram"))
         #expect(subtitle!.contains("5 msgs"))
     }
+    @Test("pinned sessions sort before unpinned sessions")
+    @MainActor
+    func pinnedSessionsSortFirst() async {
+        let vm = SessionListViewModel()
+        let older = Session(id: "older", messageCount: 0, startedAt: Date(timeIntervalSince1970: 10))
+        var pinned = Session(id: "pinned", messageCount: 0, startedAt: Date(timeIntervalSince1970: 1))
+        pinned.isPinned = true
+
+        let sorted = vm.sortedForSidebar([older, pinned])
+        #expect(sorted.map(\.id) == ["pinned", "older"])
+    }
+
+    @Test("tags normalize to lowercase unique values")
+    @MainActor
+    func tagNormalization() async {
+        let vm = SessionListViewModel()
+        vm.sessions = [Session(id: "s1", messageCount: 0)]
+
+        vm.setTags([" Deploy ", "deploy", "Bug"], for: "s1")
+
+        #expect(vm.sessions.first?.tags == ["bug", "deploy"])
+    }
+
+}
+
+
+
+// MARK: - Session Run State Tests
+
+@Suite("Session run state")
+struct SessionRunStateTests {
+
+    @Test("explicit gateway run states parse common values")
+    func parsesGatewayValues() {
+        #expect(SessionRunState(gatewayValue: "streaming") == .streaming)
+        #expect(SessionRunState(gatewayValue: "tool_running") == .toolRunning)
+        #expect(SessionRunState(gatewayValue: "waiting_for_user") == .waitingForUser)
+        #expect(SessionRunState(gatewayValue: "failed") == .failed)
+        #expect(SessionRunState(gatewayValue: "cancelled") == .canceled)
+    }
+
+    @Test("displayRunState prefers explicit run state")
+    func explicitRunStateWins() {
+        let session = Session(id: "s1", messageCount: 0, lastActive: Date(), runState: .failed)
+        #expect(session.displayRunState == SessionRunState.failed)
+    }
+
+    @Test("displayRunState derives streaming from recent activity")
+    func derivesStreamingFromRecentActivity() {
+        let session = Session(id: "s1", messageCount: 0, lastActive: Date())
+        #expect(session.displayRunState == SessionRunState.streaming)
+    }
+
+    @Test("displayRunState derives idle from ended sessions")
+    func derivesIdleFromEndedSession() {
+        let session = Session(id: "s1", messageCount: 0, endedAt: Date())
+        #expect(session.displayRunState == SessionRunState.idle)
+    }
 }
 
 // MARK: - ChatViewModel Session Title Tests

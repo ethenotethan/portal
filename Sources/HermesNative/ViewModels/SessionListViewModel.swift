@@ -29,6 +29,12 @@ final class SessionListViewModel: ObservableObject {
     /// Set of database-format IDs that are archived.
     private static let archivedIDsKey = "hermes.archivedSessions"
 
+    /// Set of database-format IDs pinned to the top of their section.
+    private static let pinnedIDsKey = "hermes.pinnedSessions"
+
+    /// Mapping: database-format ID → lightweight local tags.
+    private static let tagsKey = "hermes.sessionTags"
+
     private var gatewayIDMap: [String: String] {
         get { (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: Self.gatewayIDMapKey) }
@@ -45,6 +51,18 @@ final class SessionListViewModel: ObservableObject {
     private var archivedIDs: Set<String> {
         get { Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? []) }
         set { UserDefaults.standard.set(Array(newValue), forKey: Self.archivedIDsKey) }
+    }
+
+    /// Pinned session IDs — persisted to UserDefaults.
+    private var pinnedIDs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Self.pinnedIDsKey) }
+    }
+
+    /// Tags keyed by session ID — persisted to UserDefaults.
+    private var sessionTags: [String: [String]] {
+        get { (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: Self.tagsKey) }
     }
 
     /// Whether the "Archived" section is expanded.
@@ -149,6 +167,8 @@ final class SessionListViewModel: ObservableObject {
             let titles = localTitles
             let idMap = gatewayIDMap
             let archived = archivedIDs
+            let pinned = pinnedIDs
+            let tags = sessionTags
             for i in fetched.indices {
                 // Merge local title (overrides gateway title)
                 if let local = titles[fetched[i].id], !local.isEmpty {
@@ -158,8 +178,10 @@ final class SessionListViewModel: ObservableObject {
                 if let gwID = idMap[fetched[i].id] {
                     fetched[i].gatewayID = gwID
                 }
-                // Merge archive state
+                // Merge local organization state
                 fetched[i].isArchived = archived.contains(fetched[i].id)
+                fetched[i].isPinned = pinned.contains(fetched[i].id)
+                fetched[i].tags = tags[fetched[i].id] ?? []
             }
 
             // Preserve sessions that are owned (have gatewayID) but whose
@@ -208,6 +230,9 @@ final class SessionListViewModel: ObservableObject {
                         if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
                             let oldID = self.sessions[idx].id
                             self.sessions[idx].id = dbID
+                            self.migrateLocalOrganizationState(from: oldID, to: dbID)
+                            self.sessions[idx].isPinned = self.pinnedIDs.contains(dbID)
+                            self.sessions[idx].tags = self.sessionTags[dbID] ?? []
                             // Move local title if needed
                             if let title = self.localTitles[oldID] {
                                 var titles = self.localTitles
@@ -282,16 +307,104 @@ final class SessionListViewModel: ObservableObject {
         var idMap = gatewayIDMap
         idMap.removeValue(forKey: id)
         gatewayIDMap = idMap
-        // Remove from archived set too
+        // Remove local organization state too
         var archived = archivedIDs
         archived.remove(id)
         archivedIDs = archived
+        var pinned = pinnedIDs
+        pinned.remove(id)
+        pinnedIDs = pinned
+        var tags = sessionTags
+        tags.removeValue(forKey: id)
+        sessionTags = tags
 
         withAnimation {
             sessions.removeAll { $0.id == id }
         }
         if activeSessionID == id {
             activeSessionID = sessions.first?.id
+        }
+    }
+
+
+    /// Pin or unpin a session. Pinned rows are sorted to the top of each section.
+    func setPinned(_ isPinned: Bool, for id: String) {
+        var pinned = pinnedIDs
+        if isPinned {
+            pinned.insert(id)
+        } else {
+            pinned.remove(id)
+        }
+        pinnedIDs = pinned
+
+        if let idx = sessions.firstIndex(where: { $0.id == id }) {
+            sessions[idx].isPinned = isPinned
+        }
+    }
+
+    func togglePinned(id: String) {
+        setPinned(!pinnedIDs.contains(id), for: id)
+    }
+
+    /// Replace all local tags for a session. Tags are normalized to lowercase,
+    /// trimmed, de-duplicated, and capped so the sidebar stays compact.
+    func setTags(_ tags: [String], for id: String) {
+        let normalized = Array(Set(tags.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }.filter { !$0.isEmpty })).sorted().prefix(8)
+
+        var allTags = sessionTags
+        if normalized.isEmpty {
+            allTags.removeValue(forKey: id)
+        } else {
+            allTags[id] = Array(normalized)
+        }
+        sessionTags = allTags
+
+        if let idx = sessions.firstIndex(where: { $0.id == id }) {
+            sessions[idx].tags = Array(normalized)
+        }
+    }
+
+    func addTag(_ tag: String, to id: String) {
+        let current = sessionTags[id] ?? []
+        setTags(current + [tag], for: id)
+    }
+
+    func removeTag(_ tag: String, from id: String) {
+        let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        setTags((sessionTags[id] ?? []).filter { $0 != normalized }, for: id)
+    }
+
+    private func migrateLocalOrganizationState(from oldID: String, to newID: String) {
+        guard oldID != newID else { return }
+
+        var pinned = pinnedIDs
+        if pinned.remove(oldID) != nil {
+            pinned.insert(newID)
+            pinnedIDs = pinned
+        }
+
+        var archived = archivedIDs
+        if archived.remove(oldID) != nil {
+            archived.insert(newID)
+            archivedIDs = archived
+        }
+
+        var tags = sessionTags
+        if let oldTags = tags.removeValue(forKey: oldID) {
+            tags[newID] = oldTags
+            sessionTags = tags
+        }
+    }
+
+    /// Shared sidebar sort: pinned first, then most recently active/started.
+    func sortedForSidebar(_ sessions: [Session]) -> [Session] {
+        sessions.sorted { lhs, rhs in
+            if lhs.isPinned != rhs.isPinned { return lhs.isPinned && !rhs.isPinned }
+            let lhsDate = lhs.lastActive ?? lhs.startedAt ?? .distantPast
+            let rhsDate = rhs.lastActive ?? rhs.startedAt ?? .distantPast
+            return lhsDate > rhsDate
         }
     }
 
