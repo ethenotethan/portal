@@ -162,19 +162,19 @@ struct ChatView: View {
                         if chatViewModel.pendingApproval != nil {
                             ApprovalBanner()
                                 .environmentObject(chatViewModel)
+                                .padding(.horizontal, 24)
                         }
 
                         if !chatViewModel.isSessionReady {
                             DebugLogPanel(wrapper: gatewayClientWrapper)
+                                .padding(.horizontal, 24)
                         }
 
                         ChatInputBar()
                             .environmentObject(chatViewModel)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 24)
                     .padding(.bottom, 18)
-                    .background(Color.clear)
+                    .frame(maxWidth: 808, alignment: .bottom)
                     #endif
                 }
                 .background(activeSkin.background)
@@ -541,6 +541,17 @@ struct ChatInputBar: View {
                 .stroke(Theme.border.opacity(0.9), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        // ── macOS focus-recovery ──
+        // After the bridged NSTextField resigns first-responder (e.g. user
+        // clicks the sidebar), SwiftUI's hit-test may still land on the
+        // card but the AppKit field editor won't reactivate.  A lightweight
+        // tap gesture on the card shell forces FocusState back to true so
+        // the text field becomes editable again.  Using simultaneousGesture
+        // ensures the TextField's own click→cursor placement still fires.
+        .simultaneousGesture(
+            TapGesture().onEnded { isInputFocused = true }
+        )
         .background {
             MacScrollViewIntrospection()
                 .frame(width: 0, height: 0)
