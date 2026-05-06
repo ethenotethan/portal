@@ -28,6 +28,11 @@ struct MessageBubbleView: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 VStack(alignment: .trailing, spacing: 8) {
+                    // User-sent media attachments (thumbnails)
+                    if !message.userAttachments.isEmpty {
+                        UserAttachmentsGrid(attachments: message.userAttachments, alignment: .trailing)
+                    }
+
                     let displayContent = message.contentWithoutAttachments
                     if !displayContent.isEmpty {
                         Text(displayContent)
@@ -83,6 +88,11 @@ struct MessageBubbleView: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Message bubble
                 VStack(alignment: .leading, spacing: 8) {
+                    // User-sent media attachments (thumbnails)
+                    if !message.userAttachments.isEmpty {
+                        UserAttachmentsGrid(attachments: message.userAttachments, alignment: .leading)
+                    }
+
                     // Text content (MEDIA: tags stripped)
                     let displayContent = message.contentWithoutAttachments
                     if !displayContent.isEmpty {
@@ -265,5 +275,44 @@ private struct CompletedToolsSection: View {
 
 extension ChatMessage {
     var timestamp: Date { Date() }
+}
+
+// MARK: - User Attachments Grid
+
+/// Renders inline thumbnail images for user-sent media attachments
+/// within their message bubble.
+struct UserAttachmentsGrid: View {
+    let attachments: [MediaAttachment]
+    var alignment: HorizontalAlignment = .leading
+
+    var body: some View {
+        VStack(alignment: alignment, spacing: 6) {
+            ForEach(attachments) { attachment in
+                UserAttachmentThumbnail(attachment: attachment)
+            }
+        }
+    }
+}
+
+private struct UserAttachmentThumbnail: View {
+    let attachment: MediaAttachment
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ThumbnailImageView(data: attachment.thumbnailData, fallbackIcon: attachment.category.icon)
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 240, maxHeight: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.border, lineWidth: 0.5)
+                )
+
+            Text(attachment.fileName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(1)
+        }
+    }
 }
 

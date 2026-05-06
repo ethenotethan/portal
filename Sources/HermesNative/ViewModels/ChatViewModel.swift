@@ -46,6 +46,8 @@ final class ChatViewModel: ObservableObject {
     @Published var avatarState: AvatarState = .idle
     @Published var sessionTitle: String = "New Chat"
     @Published private(set) var createGeneration: Int = 0
+    /// Pending media attachments for the next user message.
+    @Published var pendingAttachments: [MediaAttachment] = []
 
     private var gatewayClient: GatewayClient?
     private var sessionID: String?
@@ -646,25 +648,54 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - User Input
 
+    // MARK: Media Attachments
+
+    /// Add an image file to pending attachments for the next message.
+    func addAttachment(path: String) {
+        let thumbnail = MediaAttachment.generateThumbnail(for: path)
+        let attachment = MediaAttachment(path: path, thumbnailData: thumbnail)
+        pendingAttachments.append(attachment)
+    }
+
+    /// Remove a pending attachment.
+    func removeAttachment(_ attachment: MediaAttachment) {
+        pendingAttachments.removeAll { $0.id == attachment.id }
+    }
+
+    /// Remove all pending attachments.
+    func clearAttachments() {
+        pendingAttachments.removeAll()
+    }
+
     /// Send the current input text as a prompt.
     func submitPrompt() async {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client = gatewayClient, let sid = sessionID else { return }
+        let attachments = pendingAttachments
+        // Allow submit if there is text OR pending attachments
+        guard (!text.isEmpty || !attachments.isEmpty),
+              let client = gatewayClient, let sid = sessionID else { return }
         guard !isStreaming && !isStopping else {
             NSLog("[HermesNative] ChatViewModel submitPrompt ignored while streaming/stopping")
             return
         }
 
         inputText = ""
+        pendingAttachments = []
         isStreaming = true
 
-        // Add user message to conversation
-        let userMessage = ChatMessage(role: .user, content: text)
+        // Add user message to conversation (with attachments)
+        let userMessage = ChatMessage(
+            role: .user,
+            content: text,
+            userAttachments: attachments
+        )
         messages.append(userMessage)
 
         // Auto-title from first user message
         if messages.filter({ $0.role == .user }).count == 1 {
-            sessionTitle = String(text.prefix(60))
+            sessionTitle = text.isEmpty
+                ? "Image chat"
+                : String(text.prefix(60))
         }
 
         // Persist user message immediately
@@ -681,6 +712,11 @@ final class ChatViewModel: ObservableObject {
         snapshotCurrentSession()
 
         do {
+            // Attach images via image.attach RPC BEFORE prompt.submit.
+            // The gateway requires images to be pre-registered.
+            for attachment in attachments {
+                try await client.attachImage(path: attachment.path, sessionID: sid)
+            }
             try await client.submitPrompt(sessionID: sid, text: text)
         } catch {
             self.error = error.localizedDescription

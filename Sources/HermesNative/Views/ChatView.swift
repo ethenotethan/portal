@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 /// Main chat interface — skin-aware layout.
 /// Delegates all visual rendering to the active ChatSkinProvider,
@@ -521,66 +523,144 @@ struct ChatInputBar: View {
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @FocusState private var isInputFocused: Bool
 
+    #if os(iOS)
+    @State private var selectedPhotosPickerItems: [PhotosPickerItem] = []
+    #endif
+
     private var isSendDisabled: Bool {
-        chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chatViewModel.isStreaming
+        let textEmpty = chatViewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let noAttachments = chatViewModel.pendingAttachments.isEmpty
+        return (textEmpty && noAttachments) || chatViewModel.isStreaming
     }
 
     var body: some View {
         #if os(macOS)
-        HStack(alignment: .center, spacing: 10) {
-            imagePromptPlaceholder
-            inputField
-            sendButton
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 9)
-        .frame(maxWidth: 760)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Theme.border.opacity(0.9), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        // ── macOS focus-recovery ──
-        // After the bridged NSTextField resigns first-responder (e.g. user
-        // clicks the sidebar), SwiftUI's hit-test may still land on the
-        // card but the AppKit field editor won't reactivate.  A lightweight
-        // tap gesture on the card shell forces FocusState back to true so
-        // the text field becomes editable again.  Using simultaneousGesture
-        // ensures the TextField's own click→cursor placement still fires.
-        .simultaneousGesture(
-            TapGesture().onEnded { isInputFocused = true }
-        )
-        .background {
-            MacScrollViewIntrospection()
-                .frame(width: 0, height: 0)
-                .allowsHitTesting(false)
+        VStack(spacing: 0) {
+            // Attachment preview strip above input
+            if !chatViewModel.pendingAttachments.isEmpty {
+                attachmentPreviewStrip
+                    .padding(.horizontal, 14)
+                    .padding(.top, 6)
+            }
+            HStack(alignment: .center, spacing: 10) {
+                attachButton
+                inputField
+                sendButton
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .frame(maxWidth: 760)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Theme.border.opacity(0.9), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
+            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            // ── macOS focus-recovery ──
+            // After the bridged NSTextField resigns first-responder (e.g. user
+            // clicks the sidebar), SwiftUI's hit-test may still land on the
+            // card but the AppKit field editor won't reactivate.  A lightweight
+            // tap gesture on the card shell forces FocusState back to true so
+            // the text field becomes editable again.  Using simultaneousGesture
+            // ensures the TextField's own click→cursor placement still fires.
+            .simultaneousGesture(
+                TapGesture().onEnded { isInputFocused = true }
+            )
+            .background {
+                MacScrollViewIntrospection()
+                    .frame(width: 0, height: 0)
+                    .allowsHitTesting(false)
+            }
+            .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
+                handleDrop(providers: providers)
+            }
         }
         #else
-        HStack(alignment: .bottom, spacing: 10) {
-            imagePromptPlaceholder
-            inputField
-            sendButton
+        VStack(spacing: 0) {
+            // Attachment preview strip above input
+            if !chatViewModel.pendingAttachments.isEmpty {
+                attachmentPreviewStrip
+                    .padding(.horizontal, 14)
+                    .padding(.top, 6)
+            }
+            HStack(alignment: .bottom, spacing: 10) {
+                attachButton
+                inputField
+                sendButton
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.bar)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.bar)
         #endif
     }
 
-    @ViewBuilder
-    private var imagePromptPlaceholder: some View {
-        if capabilitiesStore.hasImageInput || capabilitiesStore.hasACPImagePrompts {
-            Image(systemName: "photo.badge.plus")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.secondary)
-                .frame(width: 28, height: 28)
-                .background(Theme.surfaceHover, in: Circle())
-                .accessibilityLabel("Image prompts supported")
-                .help("Image prompts are supported by this gateway. Attachments are not enabled in this build.")
+    // MARK: - Attachment Preview Strip
+
+    private var attachmentPreviewStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(chatViewModel.pendingAttachments) { attachment in
+                    PendingAttachmentThumbnail(
+                        attachment: attachment,
+                        onRemove: {
+                            chatViewModel.removeAttachment(attachment)
+                        }
+                    )
+                }
+            }
+            .padding(.vertical, 4)
         }
     }
+
+    // MARK: - Attach Button
+
+    @ViewBuilder
+    private var attachButton: some View {
+        if capabilitiesStore.hasImageInput || capabilitiesStore.hasACPImagePrompts {
+            #if os(macOS)
+            Button {
+                showMacFilePicker()
+            } label: {
+                Image(systemName: "photo.badge.plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Theme.surfaceHover, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Attach image")
+            .help("Attach an image to your message")
+            #else
+            Menu {
+                PhotosPicker(
+                    "Photo Library",
+                    selection: $selectedPhotosPickerItems,
+                    maxSelectionCount: 5,
+                    matching: .images
+                )
+                Button("Choose File") {
+                    showiOSDocumentPicker()
+                }
+            } label: {
+                Image(systemName: "photo.badge.plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Theme.surfaceHover, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Attach image")
+            .onChange(of: selectedPhotosPickerItems) { _, newItems in
+                handlePhotosPickerItems(newItems)
+                selectedPhotosPickerItems = []
+            }
+            #endif
+        }
+    }
+
+    // MARK: - Input Field
 
     private var inputField: some View {
         #if os(macOS)
@@ -592,6 +672,9 @@ struct ChatInputBar: View {
             .focused($isInputFocused)
             .onSubmit {
                 Task { await chatViewModel.submitPrompt() }
+            }
+            .onPasteCommand(of: [.image, .fileURL]) { providers in
+                handlePaste(providers: providers)
             }
         #else
         TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
@@ -605,6 +688,8 @@ struct ChatInputBar: View {
             }
         #endif
     }
+
+    // MARK: - Send Button
 
     private var sendButton: some View {
         Button {
@@ -621,7 +706,222 @@ struct ChatInputBar: View {
         .disabled(isSendDisabled)
         .buttonStyle(.plain)
     }
+
+    // MARK: - macOS File Picker
+
+    #if os(macOS)
+    private func showMacFilePicker() {
+        let panel = NSOpenPanel()
+        panel.title = "Select Images"
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+
+        guard panel.runModal() == .OK else { return }
+
+        for url in panel.urls {
+            let path = url.path
+            chatViewModel.addAttachment(path: path)
+        }
+    }
+    #endif
+
+    // MARK: - iOS Document Picker
+
+    #if os(iOS)
+    @MainActor
+    private func showiOSDocumentPicker() {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = scene.windows.first?.rootViewController else { return }
+
+        let docPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.image], asCopy: true)
+        docPicker.allowsMultipleSelection = true
+        docPicker.delegate = DocumentPickerDelegate.shared
+
+        DocumentPickerDelegate.shared.onSelect = { urls in
+            for url in urls {
+                let cachedPath = Self.copyToCache(url: url)
+                chatViewModel.addAttachment(path: cachedPath)
+            }
+        }
+
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+        topVC.present(docPicker, animated: true)
+    }
+    #endif
+
+    // MARK: - iOS Photos Picker Handler
+
+    #if os(iOS)
+    private func handlePhotosPickerItems(_ items: [PhotosPickerItem]) {
+        for item in items {
+            Task {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
+                await MainActor.run {
+                    chatViewModel.addAttachment(path: cachedPath)
+                }
+            }
+        }
+    }
+    #endif
+
+    // MARK: - Paste Handler (macOS)
+
+    #if os(macOS)
+    private func handlePaste(providers: [NSItemProvider]) {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        let cachedPath = Self.copyToCache(url: url)
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    } else if let data = item as? Data {
+                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        let ext = url.pathExtension.lowercased()
+                        let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
+                        guard imageExts.contains(ext) else { return }
+                        let cachedPath = Self.copyToCache(url: url)
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #endif
+
+    // MARK: - Drop Handler
+
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        var handled = false
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                handled = true
+                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        let cachedPath = Self.copyToCache(url: url)
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    } else if let data = item as? Data {
+                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                handled = true
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        let ext = url.pathExtension.lowercased()
+                        let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
+                        guard imageExts.contains(ext) else { return }
+                        let cachedPath = Self.copyToCache(url: url)
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                }
+            }
+        }
+        return handled
+    }
+
+    // MARK: - Cache Helpers
+
+    /// Directory for cached user-sent images.
+    private static var hermesImagesDir: String {
+        let home = NSHomeDirectory()
+        let dir = "\(home)/.hermes/images"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Copy a file URL into the hermes images cache, returning the cached path.
+    private static func copyToCache(url: URL) -> String {
+        let dir = hermesImagesDir
+        let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
+        let fileName = "\(UUID().uuidString).\(ext)"
+        let dest = "\(dir)/\(fileName)"
+        try? FileManager.default.copyItem(atPath: url.path, toPath: dest)
+        // If copy fails (e.g. same file), use the original path
+        if FileManager.default.fileExists(atPath: dest) {
+            return dest
+        }
+        return url.path
+    }
+
+    /// Save raw image data into the hermes images cache, returning the cached path.
+    private static func saveImageDataToCache(data: Data, ext: String) -> String {
+        let dir = hermesImagesDir
+        let fileName = "\(UUID().uuidString).\(ext)"
+        let dest = "\(dir)/\(fileName)"
+        try? data.write(to: URL(fileURLWithPath: dest))
+        return dest
+    }
 }
+
+// MARK: - Pending Attachment Thumbnail
+
+private struct PendingAttachmentThumbnail: View {
+    let attachment: MediaAttachment
+    let onRemove: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // Thumbnail
+            ThumbnailImageView(data: attachment.thumbnailData, fallbackIcon: attachment.category.icon)
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.border, lineWidth: 0.5)
+                )
+
+            // Remove button
+            Button {
+                onRemove()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.primary)
+                    .background(Circle().fill(Theme.surface).opacity(0.8))
+            }
+            .buttonStyle(.plain)
+            .offset(x: 6, y: -6)
+        }
+    }
+}
+
+// MARK: - iOS Document Picker Delegate
+
+#if os(iOS)
+final class DocumentPickerDelegate: NSObject, UIDocumentPickerDelegate {
+    static let shared = DocumentPickerDelegate()
+    var onSelect: ([URL]) -> Void = { _ in }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        onSelect(urls)
+    }
+}
+#endif
 
 // MARK: - Debug Log Panel
 

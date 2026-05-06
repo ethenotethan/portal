@@ -726,6 +726,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// Attach an image to the current session. Must be called before submitPrompt.
+    /// The gateway validates the file extension and stores it in session state.
+    func attachImage(path: String, sessionID: String? = nil) async throws {
+        var params: [String: AnyCodable] = ["path": AnyCodable(path)]
+        if let sid = sessionID {
+            params["session_id"] = AnyCodable(sid)
+        }
+        let response = try await call("image.attach", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     func interrupt(sessionID: String) async throws {
         let response = try await call("session.interrupt", params: [
             "session_id": AnyCodable(sessionID),
