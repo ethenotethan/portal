@@ -26,6 +26,9 @@ struct ChatView: View {
     /// subsequent clicks on transparent padding regions never return it.
     #if os(macOS)
     @FocusState private var isInputFocused: Bool
+    /// Weak reference to the native NSTextField backing the input. Used by
+    /// ChatPaneClickMonitor to call window.makeFirstResponder() directly.
+    @State private var inputFieldRef: FocusableTextField?
     #endif
 
     /// The active skin — change this to swap the entire visual personality
@@ -181,7 +184,7 @@ struct ChatView: View {
                                 .padding(.horizontal, 24)
                         }
 
-                        ChatInputBar(isFocused: $isInputFocused)
+                        ChatInputBar(isFocused: $isInputFocused, inputFieldRef: $inputFieldRef)
                             .environmentObject(chatViewModel)
                     }
                     .padding(.bottom, 18)
@@ -191,17 +194,16 @@ struct ChatView: View {
                 .background(activeSkin.background)
                 #if os(macOS)
                 .scrollIndicators(.hidden, axes: .horizontal)
-                // ── macOS focus-recovery (root fix) ──
-                // Clicking anywhere in the chat detail pane (messages area,
-                // padding zones, input card) should return focus to the input
-                // text field.  The @FocusState lives here at ChatView level so
-                // the entire ZStack's hit region is covered — not just the
-                // input card's contentShape.  Using simultaneousGesture ensures
-                // the ScrollView's native drag/select and the TextField's
-                // click→cursor placement still work.
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    TapGesture().onEnded { isInputFocused = true }
+                // ── macOS focus-recovery (AppKit-level) ──
+                // ChatPaneClickMonitor uses NSEvent.addLocalMonitorForEvents
+                // to detect mouse clicks in the chat pane and restores focus
+                // to the text field via window.makeFirstResponder(). This sees
+                // events BEFORE any SwiftUI gesture or AppKit view can consume
+                // them — unlike the old simultaneousGesture(TapGesture) approach
+                // which never fired because NSScrollView/NSSplitView absorbed
+                // the mouseDown event.
+                .background(
+                    ChatPaneClickMonitor(textFieldRef: inputFieldRef)
                 )
                 #else
                 .scrollDismissesKeyboard(.interactively)
@@ -548,6 +550,7 @@ struct ChatInputBar: View {
     /// is nil and ChatInputBar owns its own @FocusState internally.
     #if os(macOS)
     var isFocused: FocusState<Bool>.Binding
+    @Binding var inputFieldRef: FocusableTextField?
     #else
     @FocusState private var isInputFocused: Bool
     #endif
@@ -683,19 +686,15 @@ struct ChatInputBar: View {
 
     private var inputField: some View {
         #if os(macOS)
-        TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText)
-            .accessibilityIdentifier("chatInput")
-            .textFieldStyle(.plain)
-            .font(.system(size: 15, weight: .regular))
-            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-            .contentShape(Rectangle())
-            .focused(isFocused)
-            .onSubmit {
-                Task { await chatViewModel.submitPrompt() }
-            }
-            .onPasteCommand(of: [.image, .fileURL]) { providers in
-                handlePaste(providers: providers)
-            }
+        MacInputTextField(
+            text: $chatViewModel.inputText,
+            placeholder: "Message \(personaManager.activePersona.name)…",
+            isFocused: isFocused,
+            fieldRef: $inputFieldRef,
+            onSubmit: { Task { await chatViewModel.submitPrompt() } },
+            onImagePaste: { providers in handlePaste(providers: providers) }
+        )
+        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
         #else
         TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
             .accessibilityIdentifier("chatInput")
