@@ -303,16 +303,30 @@ private struct HTMLArtifactWebView: View {
 #if os(macOS)
 private struct HTMLArtifactNSView: NSViewRepresentable {
     let html: String
+    func makeCoordinator() -> HTMLArtifactCoordinator { HTMLArtifactCoordinator() }
     func makeNSView(context: Context) -> WKWebView { makeWebView() }
-    func updateNSView(_ webView: WKWebView, context: Context) { webView.loadHTMLString(html, baseURL: nil) }
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastLoadedHTML != html else { return }
+        context.coordinator.lastLoadedHTML = html
+        webView.loadHTMLString(html, baseURL: nil)
+    }
 }
 #else
 private struct HTMLArtifactUIView: UIViewRepresentable {
     let html: String
+    func makeCoordinator() -> HTMLArtifactCoordinator { HTMLArtifactCoordinator() }
     func makeUIView(context: Context) -> WKWebView { makeWebView() }
-    func updateUIView(_ webView: WKWebView, context: Context) { webView.loadHTMLString(html, baseURL: nil) }
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastLoadedHTML != html else { return }
+        context.coordinator.lastLoadedHTML = html
+        webView.loadHTMLString(html, baseURL: nil)
+    }
 }
 #endif
+
+private final class HTMLArtifactCoordinator {
+    var lastLoadedHTML: String?
+}
 
 private func makeWebView() -> WKWebView {
     let config = WKWebViewConfiguration()

@@ -18,7 +18,10 @@ struct ChatView: View {
     @State private var showSettings = false
     #endif
     @State private var avatarY: CGFloat = 0
+    @State private var pendingScrollTask: Task<Void, Never>?
 
+    /// On macOS, owns the chat input focus state at the ChatView level so that
+    /// a click anywhere in the detail pane (messages, padding, input card) can
     /// On macOS, owns the chat input focus state at the ChatView level so that
     /// a click anywhere in the detail pane (messages, padding, input card) can
     /// restore focus to the text field.  This fixes the classic SwiftUI/AppKit
@@ -77,25 +80,15 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top toolbar row. On macOS this aligns with the sidebar-owned row
-            // and the system traffic lights in the transparent titlebar.
+            #if os(iOS)
             chatToolbar
-                #if os(macOS)
-                .frame(height: 40)
-                #endif
-
             Divider()
+            #endif
 
             // Message list
             ScrollViewReader { proxy in
                 ZStack(alignment: .bottom) {
-                    #if os(macOS)
-                    MacScrollViewIntrospection()
-                        .frame(width: 0, height: 0)
-                        .allowsHitTesting(false)
-                    #endif
-
-                    ScrollView {
+                    ScrollView(showsIndicators: false) {
                         GeometryReader { viewport in
                             Color.clear.preference(
                                 key: ChatViewportHeightKey.self,
@@ -106,7 +99,7 @@ struct ChatView: View {
 
                         ZStack(alignment: .topLeading) {
                             LazyVStack(alignment: .leading, spacing: 2) {
-                                ForEach(Array(chatViewModel.messages.enumerated()), id: \.element.id) { index, message in
+                                ForEach(renderedMessages, id: \.element.id) { index, message in
                                 let msgs = chatViewModel.messages
                                 // Next message in same role group?
                                 let nextIsSameRole = index < msgs.count - 1 &&
@@ -186,8 +179,14 @@ struct ChatView: View {
 
                         ChatInputBar(isFocused: $isInputFocused, inputFieldRef: $inputFieldRef)
                             .environmentObject(chatViewModel)
+                            .id(chatViewModel.currentSessionID ?? "no-session")
                     }
+                    .padding(.horizontal, 24)
                     .padding(.bottom, 18)
+                    // Keep the macOS composer overlay's hit-test region tight to
+                    // the visible form. A full-width transparent frame here can
+                    // continue intercepting clicks after NSTextField resigns
+                    // focus, making the sidebar/session list feel dead.
                     .frame(maxWidth: 808, alignment: .bottom)
                     #endif
                 }
@@ -226,15 +225,23 @@ struct ChatView: View {
                     }
                 }
                 .onChange(of: chatViewModel.messages.count) { _, _ in
-                    scrollToBottom(proxy: proxy)
+                    scheduleScrollToBottom(proxy: proxy, reason: "message-count")
                 }
-                .onChange(of: chatViewModel.messages.last?.content) { _, _ in
-                    scrollToBottom(proxy: proxy)
+                .onChange(of: latestMessageRenderKey) { _, _ in
+                    scheduleScrollToBottom(proxy: proxy, reason: "message-content")
+                }
+                .onChange(of: activeToolCallRenderKey) { _, _ in
+                    scheduleScrollToBottom(proxy: proxy, reason: "tool-state")
+                }
+                .onChange(of: chatViewModel.isStreaming) { _, streaming in
+                    if streaming { scheduleScrollToBottom(proxy: proxy, reason: "streaming") }
                 }
                 .onChange(of: chatViewModel.avatarState) { _, _ in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("streaming-status", anchor: .bottom)
-                    }
+                    scheduleScrollToBottom(proxy: proxy, reason: "avatar-state")
+                }
+                .onDisappear {
+                    pendingScrollTask?.cancel()
+                    pendingScrollTask = nil
                 }
             }
 
@@ -284,9 +291,7 @@ struct ChatView: View {
         }
         #if os(macOS)
         .navigationTitle("")
-        .toolbar(.hidden, for: .windowToolbar)
-        .toolbarBackground(.hidden, for: .windowToolbar)
-        .background(activeSkin.background.ignoresSafeArea())
+        .background(activeSkin.background)
         #else
         .navigationTitle(chatViewModel.sessionTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -429,15 +434,65 @@ struct ChatView: View {
     }
     #endif
 
-    private func scrollToBottom(proxy: ScrollViewProxy) {
-        if let lastMsg = chatViewModel.messages.last {
-            withAnimation(.easeOut(duration: 0.15)) {
-                if chatViewModel.isStreaming {
-                    proxy.scrollTo("streaming-status", anchor: .bottom)
-                } else {
-                    proxy.scrollTo(lastMsg.id, anchor: .bottom)
-                }
+    private var renderedMessages: [(offset: Int, element: ChatMessage)] {
+        let enumerated = Array(chatViewModel.messages.enumerated())
+        guard ProcessInfo.processInfo.arguments.contains("--virtualize-transcript") else {
+            return enumerated
+        }
+        let keepCount = chatViewModel.isStreaming ? 2 : 4
+        return Array(enumerated.suffix(keepCount))
+    }
+
+    private var latestMessageRenderKey: String {
+        guard let last = chatViewModel.messages.last else { return "none" }
+        // Bucket text length so token-by-token deltas do not force a full
+        // scroll/layout pass for every tiny chunk. Content still renders as it
+        // streams; auto-scroll is just coalesced to reduce main-thread pressure
+        // on long sessions.
+        let contentBucket = last.content.count / 256
+        let reasoningBucket = (last.reasoning?.count ?? 0) / 256
+        return "\(last.id.uuidString):\(contentBucket):\(reasoningBucket):\(last.isStreaming)"
+    }
+
+    private var activeToolCallRenderKey: String {
+        chatViewModel.activeToolCalls
+            .sorted { $0.key < $1.key }
+            .map { key, value in
+                let contextBucket = (value.summary ?? value.context ?? "").count / 256
+                return "\(key):\(value.isComplete):\(contextBucket)"
             }
+            .joined(separator: "|")
+    }
+
+    private func scheduleScrollToBottom(proxy: ScrollViewProxy, reason: String) {
+        _ = reason
+        pendingScrollTask?.cancel()
+        let delay: UInt64 = chatViewModel.isStreaming ? 500_000_000 : 20_000_000
+        pendingScrollTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            scrollToBottom(proxy: proxy)
+        }
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        let action = {
+            if chatViewModel.isStreaming {
+                if chatViewModel.activeToolCalls.isEmpty, let lastMsg = chatViewModel.messages.last {
+                    proxy.scrollTo(lastMsg.id, anchor: .bottom)
+                } else {
+                    proxy.scrollTo("streaming-status", anchor: .bottom)
+                }
+            } else if let lastMsg = chatViewModel.messages.last {
+                proxy.scrollTo(lastMsg.id, anchor: .bottom)
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("--disable-animations") {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction, action)
+        } else {
+            withAnimation(.easeOut(duration: 0.15), action)
         }
     }
 }
@@ -577,6 +632,7 @@ struct ChatInputBar: View {
             HStack(alignment: .center, spacing: 10) {
                 attachButton
                 inputField
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 sendButton
             }
             .padding(.horizontal, 14)

@@ -12,7 +12,6 @@ struct SessionListView: View {
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
     var onOpenPanel: (() -> Void)?
-    var onToggleSidebar: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
     @State private var cronSessionsCollapsed = false
@@ -38,14 +37,8 @@ struct SessionListView: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             Theme.background
-                .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                #if os(macOS)
-                sidebarToolbarRow
-                    .frame(height: 40)
-                #endif
-
                 sidebarHeader
 
                 Rectangle()
@@ -329,36 +322,9 @@ struct SessionListView: View {
 
     // MARK: - Helpers
 
-    #if os(macOS)
-    private var sidebarToolbarRow: some View {
-        HStack(alignment: .center, spacing: 0) {
-            // Reserve the traffic-light strip so the app-owned sidebar toggle
-            // sits on the same vertical center/baseline as the window controls.
-            Color.clear
-                .frame(width: 68, height: 28)
-
-            Spacer(minLength: 0)
-
-            Button(action: { onToggleSidebar?() }) {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.secondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Toggle Sidebar")
-            .accessibilityIdentifier("sidebarToggleButton")
-        }
-        .frame(height: 40)
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.background)
-    }
-    #endif
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Sessions")
                 .font(.caption)
                 .fontWeight(.semibold)

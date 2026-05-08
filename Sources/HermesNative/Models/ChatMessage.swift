@@ -8,6 +8,7 @@ struct ChatMessage: Identifiable, Codable {
     var isStreaming: Bool
     var toolCalls: [ToolCallRecord]
     var reasoning: String?
+    var thinkingTrace: ThinkingTrace?
     var usage: UsageInfo?
     var status: String? // "complete", "interrupted", "error"
     /// Whether this message should display the avatar. Set by ChatView based on
@@ -40,6 +41,7 @@ struct ChatMessage: Identifiable, Codable {
         isStreaming: Bool = false,
         toolCalls: [ToolCallRecord] = [],
         reasoning: String? = nil,
+        thinkingTrace: ThinkingTrace? = nil,
         usage: UsageInfo? = nil,
         status: String? = nil,
         userAttachments: [MediaAttachment] = []
@@ -50,9 +52,84 @@ struct ChatMessage: Identifiable, Codable {
         self.isStreaming = isStreaming
         self.toolCalls = toolCalls
         self.reasoning = reasoning
+        self.thinkingTrace = thinkingTrace
         self.usage = usage
         self.status = status
         self.userAttachments = userAttachments
+    }
+}
+
+/// Structured model/gateway-provided thinking/reasoning trace for a single assistant turn.
+/// This is shown as an expandable trace, rather than being reparsed as normal markdown
+/// while the turn is streaming.
+struct ThinkingTrace: Identifiable, Codable, Equatable {
+    let id: UUID
+    var blocks: [ThinkingBlock]
+    var isStreaming: Bool
+    var startedAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        blocks: [ThinkingBlock] = [],
+        isStreaming: Bool = true,
+        startedAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.blocks = blocks
+        self.isStreaming = isStreaming
+        self.startedAt = startedAt
+        self.updatedAt = updatedAt
+    }
+
+    var fullText: String {
+        blocks.map(\.text).joined(separator: "\n")
+    }
+
+    var characterCount: Int {
+        blocks.reduce(0) { $0 + $1.text.count }
+    }
+
+    var elapsedSeconds: Int {
+        max(0, Int(updatedAt.timeIntervalSince(startedAt)))
+    }
+
+    mutating func append(_ text: String, kind: ThinkingBlock.Kind) {
+        updatedAt = Date()
+        if let lastIndex = blocks.indices.last, blocks[lastIndex].kind == kind {
+            blocks[lastIndex].text += text
+            blocks[lastIndex].updatedAt = updatedAt
+        } else {
+            blocks.append(ThinkingBlock(kind: kind, text: text, startedAt: updatedAt, updatedAt: updatedAt))
+        }
+    }
+
+    mutating func finish() {
+        isStreaming = false
+        updatedAt = Date()
+    }
+}
+
+struct ThinkingBlock: Identifiable, Codable, Equatable {
+    enum Kind: String, Codable, Equatable {
+        case thinking
+        case reasoning
+        case toolStatus
+    }
+
+    let id: UUID
+    var kind: Kind
+    var text: String
+    var startedAt: Date
+    var updatedAt: Date
+
+    init(id: UUID = UUID(), kind: Kind, text: String, startedAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id
+        self.kind = kind
+        self.text = text
+        self.startedAt = startedAt
+        self.updatedAt = updatedAt
     }
 }
 

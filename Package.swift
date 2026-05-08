@@ -12,12 +12,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/airbnb/lottie-spm", from: "4.6.0"),
+        .package(url: "https://github.com/raspu/Highlightr", from: "2.3.0"),
     ],
     targets: [
         .target(
             name: "HermesNative",
             dependencies: [
                 .product(name: "Lottie", package: "lottie-spm"),
+                .product(name: "Highlightr", package: "Highlightr"),
             ],
             resources: [
                 .process("Resources/Lottie"),

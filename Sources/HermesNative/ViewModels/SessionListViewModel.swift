@@ -205,7 +205,28 @@ final class SessionListViewModel: ObservableObject {
                 session.isOwned && !fetchedIDs.contains(session.id)
             }
 
-            sessions = fetched + ownedUnmapped
+            // Preserve sessions that have local history on disk but are no
+            // longer returned by the gateway (gateway restart, session expiry,
+            // etc.). These still appear in the sidebar so the user can read
+            // their history and never loses data.
+            let localOnlyIDs = ChatHistoryStore.shared.localSessionIDs()
+            let localOnlySessions: [Session] = localOnlyIDs.compactMap { id in
+                guard !fetchedIDs.contains(id),
+                      !ownedUnmapped.contains(where: { $0.id == id }) else { return nil }
+                var session = Session(id: id, messageCount: 0)
+                if let gwID = gatewayIDMap[id] {
+                    session.gatewayID = gwID
+                }
+                if let local = titles[id], !local.isEmpty {
+                    session.localTitle = local
+                }
+                session.isArchived = archived.contains(id)
+                session.isPinned = pinned.contains(id)
+                session.tags = tags[id] ?? []
+                return session
+            }
+
+            sessions = fetched + ownedUnmapped + localOnlySessions
         } catch {
             // Silently fail — session list is non-critical
         }

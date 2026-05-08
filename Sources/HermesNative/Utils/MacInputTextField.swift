@@ -99,11 +99,11 @@ struct MacInputTextField: NSViewRepresentable {
         }
 
         func controlTextDidEndEditing(_ obj: Notification) {
-            // Only clear focus if we're not about to re-focus
-            DispatchQueue.main.async {
-                if let window = self.textField?.window,
-                   window.firstResponder !== self.textField?.currentEditor() {
-                    self.parent.isFocused.wrappedValue = false
+            DispatchQueue.main.async { [weak self] in
+                guard let window = self?.textField?.window,
+                      let editor = self?.textField?.currentEditor() else { return }
+                if window.firstResponder !== editor {
+                    self?.parent.isFocused.wrappedValue = false
                 }
             }
         }
@@ -129,13 +129,13 @@ final class FocusableTextField: NSTextField {
 
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
-        // CRITICAL: Force firstResponder on click.
-        // SwiftUI's bridged TextField doesn't do this reliably after the
-        // sidebar steals firstResponder.
         if let window {
-            let editor = currentEditor() ?? self
-            if window.firstResponder !== editor {
-                window.makeFirstResponder(self)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window = self.window else { return }
+                let editor = self.currentEditor() ?? self
+                if window.firstResponder !== editor {
+                    window.makeFirstResponder(self)
+                }
             }
         }
     }
@@ -233,24 +233,17 @@ final class ClickMonitorView: NSView {
         guard let window,
               let textField = textFieldRef else { return }
 
-        // Convert click location to our view's coordinate space
         let locationInWindow = event.locationInWindow
         let locationInView = convert(locationInWindow, from: nil)
 
-        // Only act on clicks within our bounds (the chat detail pane)
         guard bounds.contains(locationInView) else { return }
 
-        // Check what was actually clicked
         if let clickedView = window.contentView?.hitTest(locationInWindow) {
-            // Don't steal focus from buttons, menus, or other interactive controls
-            // that the user intentionally clicked
             if clickedView is NSButton { return }
             if clickedView is NSPopUpButton { return }
             if clickedView is NSSegmentedControl { return }
             if clickedView is NSSlider { return }
 
-            // Don't steal focus if the click was on the text field itself
-            // (it handles its own focus via mouseDown)
             var ancestor: NSView? = clickedView
             while let v = ancestor {
                 if v === textField { return }
@@ -258,11 +251,15 @@ final class ClickMonitorView: NSView {
             }
         }
 
-        // Click was in the chat pane but not on the text field or a button.
-        // Restore focus to the text field.
         let editor = textField.currentEditor() ?? textField
         if window.firstResponder !== editor {
-            window.makeFirstResponder(textField)
+            DispatchQueue.main.async {
+                guard let window = textField.window else { return }
+                let editor = textField.currentEditor() ?? textField
+                if window.firstResponder !== editor {
+                    window.makeFirstResponder(textField)
+                }
+            }
         }
     }
 }

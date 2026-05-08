@@ -59,10 +59,35 @@ class MermaidWebView: WKWebView {
         backgroundColor = .clear
         scrollView.backgroundColor = .clear
         #endif
+        disableScrollViewScrolling()
         navigationDelegate = self
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    #if os(macOS)
+    override func scrollWheel(with event: NSEvent) {
+        if currentInteractive {
+            super.scrollWheel(with: event)
+        } else {
+            superview?.scrollWheel(with: event)
+        }
+    }
+    #endif
+
+    private func disableScrollViewScrolling() {
+        #if os(iOS)
+        scrollView.isScrollEnabled = false
+        scrollView.bounces = false
+        #endif
+    }
+
+    private func enableScrollViewScrolling() {
+        #if os(iOS)
+        scrollView.isScrollEnabled = true
+        scrollView.bounces = true
+        #endif
+    }
 
     func render(mermaidCode: String, isInteractive: Bool = false) {
         guard mermaidCode != currentCode || isInteractive != currentInteractive else { return }
@@ -72,6 +97,11 @@ class MermaidWebView: WKWebView {
         allowsMagnification = isInteractive
         magnification = 1.0
         #endif
+        if isInteractive {
+            enableScrollViewScrolling()
+        } else {
+            disableScrollViewScrolling()
+        }
         let html = buildHTML(mermaidCode: mermaidCode, isInteractive: isInteractive)
         loadHTMLString(html, baseURL: nil)
     }

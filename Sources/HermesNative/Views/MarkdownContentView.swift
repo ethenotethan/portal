@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import Highlightr
 
 /// Parses and renders markdown content in a SwiftUI view.
 /// Uses Apple's built-in AttributedString(markdown:) for inline formatting
@@ -18,15 +19,8 @@ struct MarkdownContentView: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .codeBlock(let language, let code):
-                    if language == "mermaid" {
-                        MermaidDiagramView(mermaidCode: code)
-                            .frame(minHeight: 120)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Theme.border, lineWidth: 0.5)
-                            )
-                        OpenableBlockChip(label: "Open Diagram", language: "mermaid", content: code)
+                    if MarkdownParser.isDiagramLanguage(language) {
+                        DiagramPreviewBlock(mermaidCode: code, language: language)
                     } else if MarkdownParser.isHTMLLanguage(language) {
                         HTMLBlockView(html: code)
                     } else {
@@ -61,8 +55,71 @@ struct MarkdownContentView: View {
     }
 
     private var blocks: [MarkdownBlock] {
-        MarkdownParser.parse(text)
+        MarkdownParseCache.shared.blocks(for: text)
     }
+}
+
+final class MarkdownParseCache: @unchecked Sendable {
+    static let shared = MarkdownParseCache()
+
+    private let lock = NSLock()
+    private var cachedInput: String = ""
+    private var cachedBlocks: [MarkdownBlock] = []
+    private var completedCache: [Int: [MarkdownBlock]] = [:]
+    private var completedOrder: [Int] = []
+    private let completedLimit = 32
+    #if DEBUG
+    private(set) var parseCount = 0
+    #endif
+
+    func blocks(for input: String) -> [MarkdownBlock] {
+        lock.lock()
+        if input == cachedInput {
+            let blocks = cachedBlocks
+            lock.unlock()
+            return blocks
+        }
+        let key = input.hashValue
+        if let blocks = completedCache[key], input.count > 2_400 {
+            cachedInput = input
+            cachedBlocks = blocks
+            lock.unlock()
+            return blocks
+        }
+        lock.unlock()
+
+        let parsed = MarkdownParser.parse(input)
+
+        lock.lock()
+        #if DEBUG
+        parseCount += 1
+        #endif
+        cachedInput = input
+        cachedBlocks = parsed
+        if input.count > 2_400 {
+            completedCache[key] = parsed
+            completedOrder.removeAll { $0 == key }
+            completedOrder.append(key)
+            while completedOrder.count > completedLimit {
+                let evicted = completedOrder.removeFirst()
+                completedCache.removeValue(forKey: evicted)
+            }
+        }
+        lock.unlock()
+        return parsed
+    }
+
+    #if DEBUG
+    func resetForTesting() {
+        lock.lock()
+        cachedInput = ""
+        cachedBlocks = []
+        completedCache = [:]
+        completedOrder = []
+        parseCount = 0
+        lock.unlock()
+    }
+    #endif
 }
 
 // MARK: - Block Types
@@ -229,6 +286,17 @@ struct MarkdownParser {
         return normalized == "html" || normalized == "htm"
     }
 
+    static let diagramLanguages: Set<String> = [
+        "mermaid", "flowchart", "sequence", "sequencediagram", "statediagram",
+        "classdiagram", "erdiagram", "er", "gantt", "pie", "mindmap",
+        "timeline", "gitgraph", "sankey", "block", "quadrant", "radar",
+        "treemap", "xychart", "journey",
+    ]
+
+    static func isDiagramLanguage(_ language: String) -> Bool {
+        diagramLanguages.contains(language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
     private static func isHorizontalRule(_ s: String) -> Bool {
         let dashes = s.filter { $0 == "-" }.count
         if dashes >= 3 && dashes == s.count { return true }
@@ -300,27 +368,111 @@ struct MarkdownParser {
 /// Falls back to plain text if parsing fails.
 struct MarkdownText: View {
     let text: String
+    var baseColor: Color?
+    var baseFont: Font?
 
-    init(text: String) {
+    init(text: String, baseColor: Color? = nil, baseFont: Font? = nil) {
         self.text = text
+        self.baseColor = baseColor
+        self.baseFont = baseFont
     }
 
     var body: some View {
-        if let attributed = parseMarkdown(text) {
-            Text(attributed)
-                .textSelection(.enabled)
-        } else {
-            Text(text)
-                .textSelection(.enabled)
+        let segments = InlineParser.parse(text)
+        SwiftUI.Text(attributedSegments(segments))
+            .textSelection(.enabled)
+    }
+
+    private func attributedSegments(_ segments: [InlineParser.Segment]) -> AttributedString {
+        var result = AttributedString()
+        let textColor: Color = baseColor ?? Theme.primary
+        let font: Font = baseFont ?? .system(size: 14)
+        for segment in segments {
+            switch segment {
+            case .text(let content):
+                if var parsed = try? AttributedString(markdown: content, options: inlineOptions) {
+                    stripSystemColors(&parsed, to: textColor)
+                    applyBaseFont(&parsed, font: font)
+                    result.append(parsed)
+                } else {
+                    var attr = AttributedString(content)
+                    #if os(macOS)
+                    attr.foregroundColor = NSColor(textColor)
+                    #else
+                    attr.foregroundColor = UIColor(textColor)
+                    #endif
+                    applyBaseFont(&attr, font: font)
+                    result.append(attr)
+                }
+            case .inlineCode(let code):
+                var codeAttr = AttributedString(code)
+                codeAttr.font = .system(size: 12, weight: .regular, design: .monospaced)
+                #if os(macOS)
+                codeAttr.backgroundColor = NSColor(Theme.surfaceHover)
+                codeAttr.foregroundColor = NSColor(Theme.accent)
+                #else
+                codeAttr.backgroundColor = UIColor(Theme.surfaceHover)
+                codeAttr.foregroundColor = UIColor(Theme.accent)
+                #endif
+                result.append(codeAttr)
+            }
+        }
+        return result
+    }
+
+    private func applyBaseFont(_ attr: inout AttributedString, font: Font) {
+        for i in attr.runs.indices {
+            if attr.runs[i].font == nil {
+                attr[attr.runs[i].range].font = font
+            }
         }
     }
 
-    private func parseMarkdown(_ input: String) -> AttributedString? {
+    private func stripSystemColors(_ attr: inout AttributedString, to color: Color) {
+        for i in attr.runs.indices {
+            let run = attr.runs[i]
+            if run.foregroundColor != nil, run.backgroundColor == nil {
+                #if os(macOS)
+                attr[run.range].foregroundColor = NSColor(color)
+                #else
+                attr[run.range].foregroundColor = UIColor(color)
+                #endif
+            }
+        }
+    }
+
+    private var inlineOptions: AttributedString.MarkdownParsingOptions {
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
         options.failurePolicy = .returnPartiallyParsedIfPossible
+        return options
+    }
+}
 
-        return try? AttributedString(markdown: input, options: options)
+private enum InlineParser {
+    enum Segment {
+        case text(String)
+        case inlineCode(String)
+    }
+
+    static func parse(_ input: String) -> [Segment] {
+        var segments: [Segment] = []
+        var current = input[...]
+        while let range = current.range(of: "`") {
+            let before = String(current[..<range.lowerBound])
+            if !before.isEmpty { segments.append(.text(before)) }
+            let afterBacktick = current[range.upperBound...]
+            if let endRange = afterBacktick.range(of: "`") {
+                let code = String(afterBacktick[..<endRange.lowerBound])
+                segments.append(.inlineCode(code))
+                current = afterBacktick[endRange.upperBound...]
+            } else {
+                segments.append(.text("`" + String(afterBacktick)))
+                current = ""
+            }
+        }
+        if !current.isEmpty { segments.append(.text(String(current))) }
+        return segments
     }
 }
 
@@ -379,9 +531,8 @@ struct CodeBlockView: View {
 
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(code)
+                Text(highlightedCode)
                     .font(.system(size: 12, weight: .regular, design: .monospaced))
-                    .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -408,6 +559,97 @@ struct CodeBlockView: View {
         case "css": return .purple
         case "javascript", "js", "typescript", "ts": return .yellow
         default: return Theme.accent
+        }
+    }
+
+    private var highlightedCode: AttributedString {
+        CodeHighlighter.highlight(code, language: language)
+    }
+}
+
+// MARK: - Diagram Preview Block
+
+struct DiagramPreviewBlock: View {
+    let mermaidCode: String
+    let language: String
+    @State private var isOpen = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            MermaidDiagramView(mermaidCode: mermaidCode)
+                .frame(height: 180)
+                .clipped()
+                .allowsHitTesting(false)
+
+            HStack(spacing: 6) {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Open Diagram")
+                    .font(.system(size: 11, weight: .semibold))
+                Spacer()
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Theme.accent.opacity(0.06))
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .onTapGesture {
+            isOpen = true
+        }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $isOpen) {
+            OpenableBlockSheet(language: language, content: mermaidCode)
+        }
+        #else
+        .sheet(isPresented: $isOpen) {
+            OpenableBlockSheet(language: language, content: mermaidCode)
+                .frame(
+                    width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.85, 1400),
+                    height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.85, 900)
+                )
+        }
+        #endif
+    }
+}
+
+// MARK: - Code Highlighter (Highlightr)
+
+private enum CodeHighlighter {
+    nonisolated(unsafe) private static let highlightr: Highlightr? = {
+        let h = Highlightr()
+        h?.setTheme(to: "atom-one-dark")
+        return h
+    }()
+
+    static func highlight(_ code: String, language: String) -> AttributedString {
+        guard let highlightr,
+              let attributed = highlightr.highlight(code, as: mapLanguage(language))
+        else {
+            var fallback = AttributedString(code)
+            fallback.font = .system(size: 12, weight: .regular, design: .monospaced)
+            return fallback
+        }
+        var result = AttributedString(attributed)
+        result.font = .system(size: 12, weight: .regular, design: .monospaced)
+        return result
+    }
+
+    private static func mapLanguage(_ lang: String) -> String {
+        switch lang.lowercased() {
+        case "py": return "python"
+        case "js": return "javascript"
+        case "ts": return "typescript"
+        case "sh", "zsh", "shell": return "bash"
+        case "yml": return "yaml"
+        default: return lang.lowercased()
         }
     }
 }
@@ -587,27 +829,27 @@ struct TableView: View {
                 }
             }
             .frame(width: tableWidth, alignment: .leading)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Theme.border, lineWidth: 0.5)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     @ViewBuilder
     private func tableCell(text: String, width: CGFloat, isHeader: Bool) -> some View {
-        Text(text)
-            .font(isHeader
-                ? .system(size: 11, weight: .bold, design: .monospaced)
-                : .system(size: 12, weight: .regular)
-            )
-            .foregroundStyle(isHeader ? Theme.accent : Theme.primary)
-            .textSelection(.enabled)
-            .lineLimit(nil)
-            .multilineTextAlignment(.center)
-            .frame(width: width, alignment: .center)
-            .padding(.vertical, isHeader ? 8 : 7)
+        MarkdownText(
+            text: text,
+            baseColor: isHeader ? Theme.accent : nil,
+            baseFont: isHeader ? .system(size: 11, weight: .bold, design: .monospaced) : nil
+        )
+        .textSelection(.enabled)
+        .lineLimit(nil)
+        .multilineTextAlignment(isHeader ? .center : .leading)
+        .frame(minWidth: width, alignment: isHeader ? .center : .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, isHeader ? 8 : 7)
     }
 
     private var normalizedRows: [[String]] {
@@ -624,23 +866,29 @@ struct TableView: View {
     private var columnWidths: [CGFloat] {
         headers.indices.map { index in
             let values = [headers[index]] + normalizedRows.map { index < $0.count ? $0[index] : "" }
-            let longest = values.map(visualLength).max() ?? 0
-            let headerLength = visualLength(headers[index])
-            let characterWidth: CGFloat = 8.5
-            let horizontalPadding: CGFloat = 28
+            let longest = values.map { visualRenderedLength($0) }.max() ?? 0
+            let headerLength = visualRenderedLength(headers[index])
+            let characterWidth: CGFloat = 8
+            let horizontalPadding: CGFloat = 24
             let computed = CGFloat(max(longest, headerLength)) * characterWidth + horizontalPadding
-            return min(max(computed, Self.minimumColumnWidth), Self.maximumColumnWidth)
+            return max(computed, Self.minimumColumnWidth)
         }
     }
 
-    private func visualLength(_ text: String) -> Int {
-        text.reduce(0) { total, scalar in
+    private func visualRenderedLength(_ text: String) -> Int {
+        let stripped = text
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "__", with: "")
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "~~", with: "")
+        return stripped.reduce(0) { total, scalar in
             total + (scalar.isASCII ? 1 : 2)
         }
     }
 
     private static let minimumColumnWidth: CGFloat = 96
-    private static let maximumColumnWidth: CGFloat = 280
 }
 
 // MARK: - HTML Block
@@ -753,7 +1001,7 @@ struct OpenableBlockChip: View {
             isOpen = true
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: language == "mermaid" ? "arrow.up.left.and.arrow.down.right" : "safari")
+                Image(systemName: MarkdownParser.isDiagramLanguage(language) ? "arrow.up.left.and.arrow.down.right" : "safari")
                     .font(.system(size: 9, weight: .bold))
                 Text(label)
                     .font(.system(size: 11, weight: .semibold))
@@ -777,8 +1025,8 @@ struct OpenableBlockChip: View {
         .sheet(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: content)
                 .frame(
-                    width: NSScreen.main?.visibleFrame.width ?? 1200,
-                    height: NSScreen.main?.visibleFrame.height ?? 800
+                    width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.85, 1400),
+                    height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.85, 900)
                 )
         }
         #endif
@@ -799,11 +1047,11 @@ struct OpenableBlockSheet: View {
             VStack(spacing: 0) {
                 // Title bar
                 HStack(spacing: 10) {
-                    Image(systemName: language == "mermaid" ? "diagram" : "globe")
+                    Image(systemName: MarkdownParser.isDiagramLanguage(language) ? "chart.bar.doc.horizontal" : "globe")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Theme.accent)
 
-                    Text(language == "mermaid" ? "Diagram" : "Page")
+                    Text(MarkdownParser.isDiagramLanguage(language) ? "Diagram" : "Page")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(Theme.primary)
 
@@ -828,7 +1076,7 @@ struct OpenableBlockSheet: View {
 
                 // Content — WKWebView handles its own scrolling
                 Group {
-                    if language == "mermaid" {
+                    if MarkdownParser.isDiagramLanguage(language) {
                         MermaidDiagramView(mermaidCode: content, isInteractive: true)
                     } else {
                         InlineHTMLView(html: content)
@@ -883,6 +1131,8 @@ struct InlineHTMLNSView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastLoadedHTML != html else { return }
+        context.coordinator.lastLoadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
@@ -908,12 +1158,15 @@ struct InlineHTMLUIView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastLoadedHTML != html else { return }
+        context.coordinator.lastLoadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
 #endif
 
 final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
+    var lastLoadedHTML: String?
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,

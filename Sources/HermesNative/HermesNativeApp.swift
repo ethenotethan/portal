@@ -40,14 +40,47 @@ struct MacWindowConfigurator: NSViewRepresentable {
 
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.styleMask.insert(.fullSizeContentView)
+        window.styleMask.insert([.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView])
+        window.styleMask.remove(.borderless)
         window.isMovableByWindowBackground = true
         window.backgroundColor = NSColor(Theme.background)
+        window.showsResizeIndicator = false
 
         // Do not hide or remove the standard close/minimize/zoom buttons.
-        window.standardWindowButton(.closeButton)?.isHidden = false
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = false
-        window.standardWindowButton(.zoomButton)?.isHidden = false
+        for buttonType in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            if let button = window.standardWindowButton(buttonType) {
+                button.isHidden = false
+                button.alphaValue = 1
+                button.isEnabled = true
+                button.superview?.isHidden = false
+                button.superview?.alphaValue = 1
+            }
+        }
+
+        logWindowDiagnostics(window)
+    }
+
+    private func logWindowDiagnostics(_ window: NSWindow) {
+        #if DEBUG
+        DispatchQueue.main.async {
+            guard let w = NSApp.windows.first else { return }
+            NSLog("=== HERMES WINDOW ===")
+            NSLog("frame: \(w.frame) styleMask: \(w.styleMask.rawValue)")
+            NSLog("titlebarTransparent: \(w.titlebarAppearsTransparent)")
+            NSLog("titleVisibility: \(w.titleVisibility.rawValue)")
+            for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                let b = w.standardWindowButton(kind)
+                NSLog("\(kind): \(String(describing: b)) hidden: \(String(describing: b?.isHidden)) alpha: \(String(describing: b?.alphaValue)) frame: \(String(describing: b?.frame ?? .zero)) superview: \(String(describing: b?.superview.map { type(of: $0) })) superFrame: \(String(describing: b?.superview?.frame ?? .zero))")
+            }
+            NSLog("=== HERMES CONTENT VIEW HIERARCHY ===")
+            func dump(_ v: NSView, _ depth: Int = 0) {
+                let pad = String(repeating: "  ", count: depth)
+                NSLog("\(pad)\(type(of: v)) frame=\(v.frame) bounds=\(v.bounds) hidden=\(v.isHidden) alpha=\(v.alphaValue) subviews=\(v.subviews.count)")
+                v.subviews.forEach { dump($0, depth + 1) }
+            }
+            if let cv = w.contentView { dump(cv) }
+        }
+        #endif
     }
 }
 #endif

@@ -117,8 +117,10 @@ struct MessageBubbleView: View {
                         }
                     }
 
-                    // Reasoning (collapsible)
-                    if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    // Model/gateway-provided thinking trace (collapsible)
+                    if let trace = message.thinkingTrace, !trace.blocks.isEmpty {
+                        ThinkingTraceSection(trace: trace)
+                    } else if let reasoning = message.reasoning, !reasoning.isEmpty {
                         ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
                     }
 
@@ -168,7 +170,9 @@ struct MessageBubbleView: View {
                     }
                 }
 
-                if let reasoning = message.reasoning, !reasoning.isEmpty {
+                if let trace = message.thinkingTrace, !trace.blocks.isEmpty {
+                    ThinkingTraceSection(trace: trace)
+                } else if let reasoning = message.reasoning, !reasoning.isEmpty {
                     ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
                 }
 
@@ -193,12 +197,96 @@ struct MessageBubbleView: View {
 
 }
 
+
+// MARK: - Thinking Trace Section
+
+private struct ThinkingTraceSection: View {
+    let trace: ThinkingTrace
+    @State private var isExpanded = false
+
+    private var latestPreview: String {
+        let text = trace.blocks.last?.text.trimmingCharacters(in: .whitespacesAndNewlines) ?? trace.fullText
+        guard text.count > 220 else { return text }
+        return String(text.suffix(220))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.accent)
+                    Text(trace.isStreaming ? "Thinking trace…" : "Reasoning trace")
+                        .font(.system(.caption, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                    Text("\(trace.blocks.count) block\(trace.blocks.count == 1 ? "" : "s") · \(trace.characterCount) chars")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                    if trace.isStreaming {
+                        ProgressView()
+                            .controlSize(.mini)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            if trace.isStreaming && !isExpanded && !latestPreview.isEmpty {
+                Text(latestPreview)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
+            }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(trace.blocks) { block in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(block.kind.label)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Theme.accent.opacity(0.85))
+                            Text(block.text)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(Theme.secondary)
+                                .textSelection(.enabled)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if trace.isStreaming { isExpanded = false }
+        }
+    }
+}
+
+private extension ThinkingBlock.Kind {
+    var label: String {
+        switch self {
+        case .thinking: "Thinking"
+        case .reasoning: "Reasoning"
+        case .toolStatus: "Tool status"
+        }
+    }
+}
+
 // MARK: - Reasoning Section
 
 private struct ReasoningSection: View {
     let reasoning: String
     let isStreaming: Bool
     @State private var isExpanded = false
+
+    private var displayedReasoning: String {
+        guard isStreaming, reasoning.count > 2_000 else { return reasoning }
+        return String(reasoning.suffix(2_000))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -223,14 +311,19 @@ private struct ReasoningSection: View {
             .buttonStyle(.plain)
 
             if isExpanded {
-                Text(reasoning)
+                if isStreaming && reasoning.count > displayedReasoning.count {
+                    Text("Showing latest \(displayedReasoning.count) chars of \(reasoning.count) while streaming")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
+                Text(displayedReasoning)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
             }
         }
         .onAppear {
-            if isStreaming { isExpanded = true }
+            if isStreaming { isExpanded = false }
         }
     }
 }
