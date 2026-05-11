@@ -112,5 +112,4 @@ struct ActivityItemTests {
             Issue.record("Expected nested activity.updated event")
         }
     }
-
 }

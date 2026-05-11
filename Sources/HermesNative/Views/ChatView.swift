@@ -285,11 +285,18 @@ struct ChatView: View {
         }
         .onAppear {
             chatViewModel.personaManager = personaManager
-            // Do NOT auto-create session here — ContentView owns session lifecycle.
-            // This .onAppear fires every time the view is recreated (session switch),
-            // which was causing duplicate session creation.
+            #if os(macOS)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+            #endif
         }
         #if os(macOS)
+        .onChange(of: chatViewModel.refocusInput) { _, _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isInputFocused = true
+            }
+        }
         .navigationTitle("")
         .background(activeSkin.background)
         #else
@@ -541,7 +548,7 @@ private struct FloatingAvatarView: View {
 // reduce takes the last non-nil value (bottom-most in view tree = latest turn).
 
 private struct LatestBotTurnYKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat? = nil
+    nonisolated(unsafe) static var defaultValue: CGFloat?
     static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
         if let next = nextValue() { value = next }
     }

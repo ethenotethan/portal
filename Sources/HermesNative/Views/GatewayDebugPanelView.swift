@@ -2,8 +2,9 @@ import SwiftUI
 
 struct GatewayDebugPanelView: View {
     @ObservedObject var client: GatewayClient
+    @State private var snapshotVersion = 0
 
-    private var snapshot: GatewayDebugSnapshot { client.debugSnapshot }
+    private var snapshot: GatewayDebugSnapshot { _ = snapshotVersion; return client.snapshotForDebug }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -22,6 +23,12 @@ struct GatewayDebugPanelView: View {
         .background(Theme.background)
         .foregroundStyle(Theme.primary)
         .frame(minWidth: 420, minHeight: 520)
+        .onAppear {
+            client.onDebugSnapshotChange = { snapshotVersion &+= 1 }
+        }
+        .onDisappear {
+            client.onDebugSnapshotChange = nil
+        }
     }
 
     private var header: some View {

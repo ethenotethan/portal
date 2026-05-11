@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "ContentView")
 
 /// Root content view — TabView on iOS with "Sessions" + "Cron" tabs,
 /// custom split layout on macOS with app-owned chrome.
@@ -22,6 +25,9 @@ struct ContentView: View {
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
     @State private var showActivitySheet = false
+    @State private var showLiveSessions = false
+    @State private var showCronDashboard = false
+    @State private var showSkills = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
@@ -150,6 +156,14 @@ struct ContentView: View {
                     }
                     .accessibilityLabel("Gateway Debug")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showLiveSessions = true
+                    } label: {
+                        Image(systemName: "square.grid.2x2")
+                    }
+                    .accessibilityLabel("Sessions")
+                }
             }
             .onOpenURL { url in
                 guard url.scheme == "hermesnative", url.host == "new-session" else { return }
@@ -212,6 +226,14 @@ struct ContentView: View {
             })
             .presentationDetents([.large])
         }
+        .sheet(isPresented: $showLiveSessions) {
+            SessionsDashboard(onOpenSession: { sessionID in
+                openMissionControl(sessionID: sessionID)
+            })
+                .environmentObject(sessionList)
+                .environmentObject(gatewayClientWrapper)
+                .presentationDetents([.large])
+        }
     }
 
     #endif
@@ -225,16 +247,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
-        .sheet(isPresented: $showCronSheet) {
-            NavigationStack {
-                CronListView()
-                    .environmentObject(gatewayClientWrapper)
-                    #if os(iOS)
-                    .presentationDetents([.large])
-                    #endif
-            }
-            .frame(minWidth: 500, minHeight: 400)
-        }
         .sheet(isPresented: $showGatewayDebugSheet) {
             GatewayDebugPanelView(client: gatewayClientWrapper.client)
                 .frame(minWidth: 560, minHeight: 620)
@@ -246,38 +258,12 @@ struct ContentView: View {
             })
             .frame(minWidth: 640, minHeight: 620)
         }
-        .sheet(isPresented: Binding(
-            get: { missionControlSessionID != nil },
-            set: { if !$0 { missionControlSessionID = nil; missionControlRuntimeSessionID = nil } }
-        )) {
-            if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid, runtimeSessionID: missionControlRuntimeSessionID)
-                    .environmentObject(gatewayClientWrapper)
-                    .environmentObject(spawnTreeStore)
-            }
-        }
         .sheet(item: $observerSession, onDismiss: {
             sessionList.activeSessionID = chatViewModel.currentSessionID
-        }) { session in
+        }, content: { session in
             SessionObserverView(session: session)
                 .environmentObject(gatewayClientWrapper)
-        }
-        .overlay(alignment: .topTrailing) {
-            #if os(macOS)
-            Button {
-                showActivitySheet = true
-            } label: {
-                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Theme.primary)
-            .padding(.top, 10)
-            .padding(.trailing, 14)
-            .accessibilityLabel("Activity")
-            .accessibilityIdentifier("activityInboxButton")
-            #endif
-        }
+        })
         .onChange(of: sessionList.activeSessionID) { _, newID in
             handleSelectionChangeAfterViewUpdate(newID)
         }
@@ -304,11 +290,22 @@ struct ContentView: View {
         }
     }
 
+    private var isOverlayActive: Bool {
+        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showSkills
+    }
+
+    private var overlayTitle: String {
+        if showSkills { return "Skills" }
+        if showLiveSessions { return "Sessions" }
+        if showCronDashboard { return "Cron Activity" }
+        if showActivitySheet { return "Activity" }
+        if missionControlSessionID != nil { return "Mission Control" }
+        return ""
+    }
+
     private var macTopChromeRow: some View {
         HStack(spacing: 0) {
             HStack(spacing: 0) {
-                // Standard traffic lights occupy the first ~78pt of the hidden
-                // titlebar. Keep app controls out of that space.
                 Color.clear.frame(width: 78)
 
                 Button {
@@ -337,14 +334,64 @@ struct ContentView: View {
                     .frame(width: 1, height: 40)
             }
 
-            chatToolbarPills
-                .padding(.leading, 12)
+            if isOverlayActive {
+                overlayHeaderBar
+            } else {
+                HStack(spacing: 0) {
+                    chatToolbarPills
+                        .padding(.leading, 12)
+                    Spacer(minLength: 0)
+                    #if os(macOS)
+                    macOverlayIcons
+                        .padding(.trailing, 14)
+                    #endif
+                }
                 .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40, alignment: .leading)
                 .background(Theme.background)
+            }
         }
         .frame(height: 40)
         .background(Theme.background)
     }
+
+    private var overlayHeaderBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                missionControlSessionID = nil
+                missionControlRuntimeSessionID = nil
+                showCronDashboard = false
+                showLiveSessions = false
+                showActivitySheet = false
+                showSkills = false
+                chatViewModel.refocusInput += 1
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Back")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(Theme.accent)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.escape, modifiers: [])
+
+            Text(overlayTitle)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+
+            Spacer(minLength: 0)
+
+            #if os(macOS)
+            macOverlayIcons
+            #endif
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 14)
+        .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40, alignment: .leading)
+        .background(Theme.background)
+    }
+
 
     private var chatToolbarPills: some View {
         HStack(spacing: 8) {
@@ -395,37 +442,130 @@ struct ContentView: View {
         .frame(height: 40)
     }
 
-    private var macSplitContent: some View {
-        HStack(spacing: 0) {
-            if isMacSidebarVisible {
-                SessionListView(
-                    onMissionControl: { sessionID in
-                        openMissionControl(sessionID: sessionID)
-                    },
-                    onCreateSession: {
-                        Task { await createAndSwitchToNewSession() }
-                    },
-                    onOpenPanel: {
-                        showCronSheet = true
-                    }
-                )
-                .environmentObject(sessionList)
-                .environmentObject(chatViewModel)
-                .environmentObject(gatewayClientWrapper)
-                .frame(width: macSidebarWidth)
-                .transition(.move(edge: .leading).combined(with: .opacity))
+    #if os(macOS)
+    private var macOverlayIcons: some View {
+        HStack(spacing: 8) {
+            Button {
+                showLiveSessions = true
+            } label: {
+                Label("Sessions", systemImage: "square.grid.2x2")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("l", modifiers: .command)
+            .accessibilityLabel("Sessions")
 
-                Rectangle()
-                    .fill(Theme.border)
-                    .frame(width: 1)
+            Button {
+                showCronDashboard = true
+            } label: {
+                Label("Cron", systemImage: "clock.badge.checkmark")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("k", modifiers: .command)
+            .accessibilityLabel("Cron Dashboard")
+
+            Button {
+                showActivitySheet = true
+            } label: {
+                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Theme.primary)
+            .accessibilityLabel("Activity")
+            .accessibilityIdentifier("activityInboxButton")
+
+            Button {
+                showSkills = true
+            } label: {
+                Label("Skills", systemImage: "sparkles")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("j", modifiers: .command)
+            .accessibilityLabel("Skills")
+        }
+        .foregroundStyle(Theme.primary)
+    }
+    #endif
+
+    private var macSplitContent: some View {
+        ZStack {
+            HStack(spacing: 0) {
+                if isMacSidebarVisible {
+                    SessionListView(
+                        onMissionControl: { sessionID in
+                            openMissionControl(sessionID: sessionID)
+                        },
+                        onCreateSession: {
+                            Task { await createAndSwitchToNewSession() }
+                        },
+                        onOpenPanel: {
+                            showCronDashboard = true
+                        }
+                    )
+                    .environmentObject(sessionList)
+                    .environmentObject(chatViewModel)
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(width: macSidebarWidth)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+
+                    Rectangle()
+                        .fill(Theme.border)
+                        .frame(width: 1)
+                }
+
+                ChatView()
+                    .environmentObject(chatViewModel)
+                    .environmentObject(gatewayClientWrapper)
+                    .environmentObject(capabilitiesStore)
+                    .id(chatViewModel.currentSessionID)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            ChatView()
-                .environmentObject(chatViewModel)
-                .environmentObject(gatewayClientWrapper)
-                .environmentObject(capabilitiesStore)
-                .id(chatViewModel.currentSessionID)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let sid = missionControlSessionID {
+                SessionExplorerView(sessionID: sid, runtimeSessionID: missionControlRuntimeSessionID, onDismiss: {
+                    missionControlSessionID = nil
+                    missionControlRuntimeSessionID = nil
+                    chatViewModel.refocusInput += 1
+                })
+                    .environmentObject(gatewayClientWrapper)
+                    .environmentObject(spawnTreeStore)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
+            if showLiveSessions {
+                SessionsDashboard(onOpenSession: { sessionID in
+                    showLiveSessions = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        openMissionControl(sessionID: sessionID)
+                    }
+                })
+                    .environmentObject(sessionList)
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
+            if showCronDashboard {
+                CronDashboardView()
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
+            if showSkills {
+                SkillsView()
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
@@ -457,7 +597,7 @@ struct ContentView: View {
     private func pushOwnedSessionOnIOS(_ sessionID: String) {
         #if os(iOS)
         if iOSNavigationPath.last != sessionID {
-            NSLog("[HermesNative] push iOS session \(sessionID)")
+            log.info("push iOS session \(sessionID)")
             iOSNavigationPath.append(sessionID)
         }
         #endif
@@ -538,13 +678,13 @@ struct ContentView: View {
         defer { isCreatingSession = false }
 
         guard let connectedClient = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) else {
-            NSLog("[HermesNative] createAndSwitchToNewSession failed: gateway not connected")
+            log.error("createAndSwitchToNewSession failed: gateway not connected")
             sessionCreationError = "Gateway is not connected"
             return
         }
         wireUpClient(connectedClient)
 
-        NSLog("[HermesNative] createAndSwitchToNewSession starting session.create")
+        log.info("createAndSwitchToNewSession starting session.create")
         shouldSuppressNextCreateGenerationPush = true
         await chatViewModel.createSession()
 
@@ -588,6 +728,7 @@ struct ContentView: View {
         let client = client ?? gatewayClientWrapper.client
         chatViewModel.setGatewayClient(client)
         sessionList.setGatewayClient(client)
+        activityInbox.setGatewayClient(client)
         observeChatRunState()
         spawnTreeStore.subscribe(to: client)
 

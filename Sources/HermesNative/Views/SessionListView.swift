@@ -427,7 +427,6 @@ struct SessionListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
 }
 
 // MARK: - Session Row

@@ -26,8 +26,8 @@ class SpawnNode: Identifiable, ObservableObject, Hashable {
     @Published var status: NodeStatus
     @Published var children: [SpawnNode] = []
     @Published var toolCalls: [NodeToolCall] = []
-    @Published var transcript: [NodeTranscriptEntry] = []
-    @Published var thinkingText: String = ""
+    var transcript: [NodeTranscriptEntry] = []
+    var thinkingText: String = ""
     @Published var costUSD: Double?
     @Published var inputTokens: Int?
     @Published var outputTokens: Int?

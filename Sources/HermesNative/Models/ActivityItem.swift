@@ -1,7 +1,6 @@
 import Foundation
 
-/// Durable notification/activity item from the Hermes gateway `activity.*` RPCs.
-struct ActivityItem: Identifiable, Equatable, Hashable {
+struct ActivityItem: Identifiable, Equatable, Hashable, Codable {
     var id: String
     var createdAt: Date
     var updatedAt: Date?
@@ -63,7 +62,7 @@ enum ActivitySeverity: String, Codable, Hashable {
     }
 }
 
-struct ActivityAction: Identifiable, Equatable, Hashable {
+struct ActivityAction: Identifiable, Equatable, Hashable, Codable {
     var id: String { "\(type)-\(label)-\(sessionID ?? artifactID ?? url ?? "")" }
     var type: String
     var label: String
@@ -83,7 +82,7 @@ struct ActivityAction: Identifiable, Equatable, Hashable {
     }
 }
 
-struct ActivityExternalRef: Identifiable, Equatable, Hashable {
+struct ActivityExternalRef: Identifiable, Equatable, Hashable, Codable {
     var id: String { url }
     var type: String
     var url: String
@@ -99,7 +98,7 @@ struct ActivityExternalRef: Identifiable, Equatable, Hashable {
     }
 }
 
-struct ActivityArtifact: Identifiable, Equatable, Hashable {
+struct ActivityArtifact: Identifiable, Equatable, Hashable, Codable {
     var id: String
     var name: String
     var mimeType: String

@@ -73,7 +73,7 @@ struct Session: Identifiable, Equatable, Hashable {
     var isRunning: Bool = false // Derived from source context, not from gateway
 
     /// Best-known state for the latest run in this session.
-    var runState: SessionRunState? = nil
+    var runState: SessionRunState?
 
     /// Local-only: archived sessions are hidden from "My Sessions" by default.
     var isArchived: Bool = false
@@ -117,5 +117,9 @@ struct Session: Identifiable, Equatable, Hashable {
 
     static func == (lhs: Session, rhs: Session) -> Bool {
         lhs.id == rhs.id
+    }
+
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }

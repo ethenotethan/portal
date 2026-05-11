@@ -1,5 +1,8 @@
 import Foundation
 import UserNotifications
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "NotificationService")
 
 /// Posts local notifications for gateway events that require user action.
 /// Fires when the app is backgrounded or the event is for a non-active session.
@@ -7,6 +10,7 @@ import UserNotifications
 @MainActor
 final class NotificationService: NSObject, ObservableObject {
     static let shared = NotificationService()
+    static var isTestEnvironment: Bool = false
 
     /// Set by ChatViewModel — the session the user is currently viewing.
     var activeSessionID: String? {
@@ -20,16 +24,18 @@ final class NotificationService: NSObject, ObservableObject {
 
     private override init() {
         super.init()
+        guard !Self.isTestEnvironment else { return }
         UNUserNotificationCenter.current().delegate = self
     }
 
     /// Call on app launch to request permission.
     func requestAuthorization() async -> Bool {
+        guard !Self.isTestEnvironment else { return false }
         do {
             return try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            NSLog("[NotificationService] Authorization failed: \(error)")
+            log.error("Authorization failed: \(error)")
             return false
         }
     }
@@ -72,6 +78,24 @@ final class NotificationService: NSObject, ObservableObject {
         )
     }
 
+    /// Post notification for a gateway activity event.
+    func notifyActivity(_ item: ActivityItem) {
+        guard !item.isRead else { return }
+        let prefix: String
+        switch item.severity {
+        case .error: prefix = "✗"
+        case .warning: prefix = "⚠"
+        case .info: prefix = "•"
+        }
+        post(
+            id: "activity-\(item.id)",
+            title: "\(prefix) \(item.title)",
+            body: item.summary.truncated(to: 80),
+            category: .activity,
+            sessionID: item.sessionID
+        )
+    }
+
     /// Post notification for background task completion.
     func notifyBackgroundComplete(taskID: String, text: String) {
         post(
@@ -103,6 +127,7 @@ final class NotificationService: NSObject, ObservableObject {
         case responseComplete
         case backgroundComplete
         case cronComplete
+        case activity
     }
 
     private var responseCompleteNotificationsEnabled: Bool {
@@ -117,6 +142,8 @@ final class NotificationService: NSObject, ObservableObject {
         category: NotificationCategory,
         sessionID: String?
     ) {
+        guard !Self.isTestEnvironment else { return }
+
         // Suppress if user is foregrounded AND viewing this session
         if isForegrounded, let sessionID, sessionID == activeSessionID {
             return
@@ -140,7 +167,7 @@ final class NotificationService: NSObject, ObservableObject {
             guard await ensureAuthorizedForPosting() else { return }
             UNUserNotificationCenter.current().add(request) { error in
                 if let error {
-                    NSLog("[NotificationService] Failed to post: \(error)")
+                    log.error("Failed to post: \(error)")
                 }
             }
         }

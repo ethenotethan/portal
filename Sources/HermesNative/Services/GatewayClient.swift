@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os.log
+
+private let log = Logger(subsystem: "com.hermes-native", category: "Gateway")
 
 /// WebSocket client for the Hermes gateway JSON-RPC protocol.
 ///
@@ -15,7 +18,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     @Published var connectionState: ConnectionState = .disconnected
     @Published var sessionInfo: SessionInfo?
-    @Published private(set) var debugSnapshot = GatewayDebugSnapshot()
+    private var debugSnapshot: GatewayDebugSnapshot = GatewayDebugSnapshot()
+    var onDebugSnapshotChange: (() -> Void)?
+    var snapshotForDebug: GatewayDebugSnapshot { debugSnapshot }
+    private var debugNotifyTask: Task<Void, Never>?
+    private var debugNeedsNotify = false
 
     // MARK: - Event Stream
 
@@ -191,6 +198,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         debugSnapshot.pendingRequestIDs = pendingIDs
         debugSnapshot.pendingRequestMethods = pendingMethods
         debugSnapshot.reconnectAttempt = reconnectAttempt
+        scheduleDebugNotify()
     }
 
     private func recordDebugEvent(
@@ -230,7 +238,23 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 debugSnapshot.droppedEventReasons.removeLast(debugSnapshot.droppedEventReasons.count - 12)
             }
         }
-        refreshDebugSnapshot()
+        scheduleDebugNotify()
+    }
+
+    private func scheduleDebugNotify() {
+        guard debugNotifyTask == nil else {
+            debugNeedsNotify = true
+            return
+        }
+        debugNeedsNotify = false
+        debugNotifyTask = Task { @MainActor in
+            onDebugSnapshotChange?()
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            debugNotifyTask = nil
+            if debugNeedsNotify {
+                scheduleDebugNotify()
+            }
+        }
     }
 
     func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String) {
@@ -308,7 +332,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     private func openWebSocket() {
-        NSLog("[HermesNative] Connecting to WS: \(gatewayURL) auth=\(!apiKey.isEmpty) cookie=\(cfAuthCookie != nil)")
+        let url = gatewayURL, hasKey = !apiKey.isEmpty, hasCookie = cfAuthCookie != nil
+        log.debug("Connecting to WS: \(url) auth=\(hasKey) cookie=\(hasCookie)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
 
         // Clean up previous connection
@@ -405,7 +430,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard let task = webSocketTask else { return }
         task.sendPing { [weak self] error in
             if let error = error {
-                NSLog("[HermesNative] Ping failed: \(error)")
+                log.debug("Ping failed: \(error)")
                 Task { @MainActor in
                     self?.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
                 }
@@ -416,7 +441,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Auto-Reconnect
 
     private func handleDisconnect(reason: String) {
-        NSLog("[HermesNative] Disconnected: \(reason)")
+        log.debug("Disconnected: \(reason)")
         stopPingTimer()
         debugSnapshot.lastCloseAt = Date()
         recordDebugEvent(.error, name: "disconnect", detail: reason)
@@ -461,12 +486,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             pendingRequestsLock.lock()
             pendingRequests[id] = continuation
             pendingRequestMethods[id] = method
-            NSLog("[HermesNative] call: registered continuation for id=\(id), pending count=\(pendingRequests.count)")
+            let count = pendingRequests.count
+            log.debug("call: registered continuation for id=\(id), pending count=\(count)")
             pendingRequestsLock.unlock()
             refreshDebugSnapshot()
 
             // Send AFTER registration — continuation is now safe to fulfill.
-            NSLog("[HermesNative] call: sending \(method) id=\(id)")
+            log.debug("call: sending \(method) id=\(id)")
             recordDebugEvent(.outbound, name: method, detail: "id=\(id)")
             onLog?("→ \(method) (id=\(id))", false)
             Task { @MainActor in
@@ -656,7 +682,223 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    func getCronJob(id: String) async throws -> CronJob? {
+        let response = try await call("cron.manage", params: [
+            "action": AnyCodable("get"),
+            "name": AnyCodable(id)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let d = response.result?.dictionaryValue else { return nil }
 
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        guard let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
+
+        let nextRunAt: Date? = {
+            if let str = d["next_run_at"]?.stringValue {
+                return iso8601Formatter.date(from: str)
+            }
+            return nil
+        }()
+
+        let lastRunAt: Date? = {
+            if let str = d["last_run_at"]?.stringValue {
+                return iso8601Formatter.date(from: str)
+            }
+            return nil
+        }()
+
+        return CronJob(
+            id: jobID,
+            name: d["name"]?.stringValue ?? jobID,
+            schedule: d["schedule"]?.stringValue ?? "",
+            nextRunAt: nextRunAt,
+            lastRunAt: lastRunAt,
+            lastStatus: d["last_status"]?.stringValue,
+            enabled: d["enabled"]?.boolValue ?? true,
+            state: d["state"]?.stringValue ?? "scheduled",
+            deliver: d["deliver"]?.stringValue ?? "local",
+            promptPreview: d["prompt_preview"]?.stringValue,
+            prompt: d["prompt"]?.stringValue
+                ?? d["full_prompt"]?.stringValue
+                ?? d["prompt_text"]?.stringValue
+                ?? d["prompt_preview"]?.stringValue
+        )
+    }
+
+    // MARK: - Skills RPCs
+
+    func listSkills() async throws -> [String: [String]] {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("list")
+        ])
+        if let error = response.error {
+            log.error("listSkills: RPC error code=\(error.code) message=\(error.message)")
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            log.info("listSkills: result is nil or not a dict, raw=\(String(describing: response.result))")
+            return [:]
+        }
+
+        let keys = result.keys.sorted()
+        log.info("listSkills: result keys=\(keys)")
+        for k in keys {
+            let v = result[k]
+            log.info("listSkills: key=\(k) type=\(type(of: v)) value=\(String(describing: v))")
+        }
+
+        var categories: [String: [String]] = [:]
+
+        // Gateway may return flat {category: [names]} or nested under "skills"/"categories" key
+        let sourceDict: [String: AnyCodable]
+        if let nested = result["skills"]?.dictionaryValue {
+            sourceDict = nested
+            log.info("listSkills: using nested 'skills' key")
+        } else if let nested = result["categories"]?.dictionaryValue {
+            sourceDict = nested
+            log.info("listSkills: using nested 'categories' key")
+        } else {
+            sourceDict = result
+            log.info("listSkills: using flat result dict")
+        }
+
+        for (key, value) in sourceDict {
+            if key == "action" || key == "status" || key == "message" { continue }
+            if let arr = value.arrayValue {
+                let names = arr.compactMap { $0.stringValue }
+                if !names.isEmpty {
+                    categories[key] = names
+                    log.info("listSkills: category=\(key) names=\(names)")
+                }
+            } else if let str = value.stringValue {
+                categories[key] = [str]
+                log.info("listSkills: category=\(key) single=\(str)")
+            }
+        }
+
+        if categories.isEmpty {
+            log.warning("listSkills: no categories parsed from \(sourceDict.count) source keys")
+        }
+
+        return categories
+    }
+
+    func scanSkillCommands() async throws -> [SkillInfo] {
+        let response = try await call("commands.catalog")
+        if let error = response.error {
+            log.error("scanSkillCommands: RPC error code=\(error.code) message=\(error.message)")
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            log.info("scanSkillCommands: result is nil")
+            return []
+        }
+
+        log.info("scanSkillCommands: result keys=\(result.keys.sorted())")
+
+        var skills: [SkillInfo] = []
+        if let pairs = result["commands"]?.arrayValue {
+            for pair in pairs {
+                guard let arr = pair.arrayValue, arr.count >= 2,
+                      let key = arr[0].stringValue,
+                      key.hasPrefix("/") else { continue }
+                let desc = arr[1].stringValue ?? ""
+                skills.append(SkillInfo(
+                    name: key,
+                    description: desc,
+                    category: "general",
+                    source: "local",
+                    identifier: nil,
+                    tags: [],
+                    skillMdPath: nil,
+                    skillDir: nil,
+                    skillMdPreview: nil,
+                    slashCommand: key
+                ))
+            }
+        }
+        log.info("scanSkillCommands: found \(skills.count) skill commands")
+        return skills
+    }
+
+    func inspectSkill(name: String) async throws -> SkillInfo? {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("inspect"),
+            "query": AnyCodable(name)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let infoDict = response.result?.dictionaryValue?["info"]?.dictionaryValue else { return nil }
+        return SkillInfo.fromInspectDict(infoDict)
+    }
+
+    func searchSkills(query: String) async throws -> [SkillSearchResult] {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("search"),
+            "query": AnyCodable(query)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let results = response.result?.dictionaryValue?["results"]?.arrayValue else { return [] }
+        return results.compactMap { SkillSearchResult.from($0.dictionaryValue ?? [:]) }
+    }
+
+    func installSkill(name: String) async throws -> Bool {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("install"),
+            "query": AnyCodable(name)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue?["installed"]?.boolValue ?? false
+    }
+
+    func uninstallSkill(name: String) async throws -> Bool {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("uninstall"),
+            "query": AnyCodable(name)
+        ])
+        if let error = response.error {
+            if error.code == 4017 {
+                return try await uninstallSkillViaSlashExec(name)
+            }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return true
+    }
+
+    private func uninstallSkillViaSlashExec(_ name: String) async throws -> Bool {
+        let response = try await call("slash.exec", params: [
+            "command": AnyCodable("skills uninstall \(name)"),
+            "session_id": AnyCodable(activeSessionID ?? "")
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return true
+    }
+
+    func reloadSkills() async throws -> SkillsReloadResult {
+        let response = try await call("skills.reload")
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            return SkillsReloadResult(output: "Reloaded", added: [], removed: [], total: 0)
+        }
+        let added = result["result"]?.dictionaryValue?["added"]?.arrayValue?.compactMap { $0.dictionaryValue?["name"]?.stringValue } ?? []
+        let removed = result["result"]?.dictionaryValue?["removed"]?.arrayValue?.compactMap { $0.dictionaryValue?["name"]?.stringValue } ?? []
+        let total = result["result"]?.dictionaryValue?["total"]?.intValue ?? 0
+        let output = result["output"]?.stringValue ?? "Reloaded"
+        return SkillsReloadResult(output: output, added: added, removed: removed, total: total)
+    }
 
     // MARK: - Activity Inbox RPCs
 
@@ -669,8 +911,16 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
-        guard let result = response.result?.dictionaryValue,
-              let itemsArray = result["items"]?.arrayValue else {
+        guard let result = response.result?.dictionaryValue else {
+            if let arr = response.result?.arrayValue {
+                return arr.compactMap { $0.dictionaryValue.flatMap(ActivityItem.from) }
+            }
+            return []
+        }
+        let itemsArray = result["items"]?.arrayValue
+            ?? result["activities"]?.arrayValue
+            ?? result["records"]?.arrayValue
+        guard let itemsArray else {
             return []
         }
         return itemsArray.compactMap { $0.dictionaryValue.flatMap(ActivityItem.from) }
@@ -844,7 +1094,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         let messages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
 
         // 3. Get usage via the new short ID
-        var usage: SessionUsage? = nil
+        var usage: SessionUsage?
         if let usageResult = try? await sessionUsage(sessionID: shortID) {
             usage = usageResult
         }
@@ -909,11 +1159,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
                 switch message {
                 case .data(let data):
-                    NSLog("[HermesNative] WS recv data: \(data.count) bytes")
                     handleMessage(data)
 
                 case .string(let text):
-                    NSLog("[HermesNative] WS recv string: \(text.prefix(200))")
                     if let data = text.data(using: .utf8) {
                         handleMessage(data)
                     }
@@ -923,14 +1171,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 }
             }
         } catch {
-            NSLog("[HermesNative] receiveLoop error: \(error)")
+            log.debug("receiveLoop error: \(error)")
             switch connectionState {
             case .connecting:
                 connectionState = .error(error.localizedDescription)
             case .connected, .reconnecting:
                 let nsError = error as NSError
                 if nsError.domain == NSPOSIXErrorDomain && nsError.code == 57 {
-                    NSLog("[HermesNative] receiveLoop ended after socket close; waiting for delegate close")
+                    log.debug("receiveLoop ended after socket close; waiting for delegate close")
                     return
                 }
                 handleDisconnect(reason: error.localizedDescription)
@@ -942,14 +1190,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     private func handleMessage(_ data: Data) {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            NSLog("[HermesNative] handleMessage: failed to parse JSON")
+            log.debug("handleMessage: failed to parse JSON")
             onLog?("⚠ Failed to parse WS message", true)
             return
         }
 
         // Response (has numeric "id" > 0)
         if let id = json["id"] as? Int, id > 0 {
-            NSLog("[HermesNative] handleMessage: response id=\(id)")
+            log.debug("handleMessage: response id=\(id)")
             onLog?("← response id=\(id)", false)
             if let responseData = try? JSONSerialization.data(withJSONObject: json),
                let response = try? JSONDecoder().decode(JSONRPCResponse.self, from: responseData) {
@@ -957,7 +1205,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 return
             }
             let raw = String(data: data, encoding: .utf8)?.prefix(300) ?? "nil"
-            NSLog("[HermesNative] handleMessage: failed to decode response for id=\(id), raw: \(raw)")
+            log.debug("handleMessage: failed to decode response for id=\(id), raw: \(raw)")
             onLog?("⚠ Decode failed for id=\(id): \(raw)", true)
             return
         }
@@ -967,8 +1215,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
            let params = json["params"] as? [String: Any],
            let type = params["type"] as? String {
 
-            NSLog("[HermesNative] handleMessage: event type=\(type)")
-            onLog?("← event: \(type)", false)
+            log.debug("handleMessage: event type=\(type)")
+            if type != "message.delta" && type != "reasoning.delta" && type != "thinking.delta" {
+                onLog?("← event: \(type)", false)
+            }
             let payloadData = try? JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
             let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }
             let event = GatewayEvent.from(type: type, payload: payload)
@@ -987,7 +1237,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         pendingRequestsLock.lock()
         let continuation = pendingRequests.removeValue(forKey: id)
         let method = pendingRequestMethods.removeValue(forKey: id) ?? "response"
-        NSLog("[HermesNative] fulfillRequest: id=\(id), found=\(continuation != nil), remaining=\(pendingRequests.count)")
+        let remaining = pendingRequests.count
+        let found = continuation != nil
+        log.debug("fulfillRequest: id=\(id), found=\(found), remaining=\(remaining)")
         pendingRequestsLock.unlock()
         recordDebugEvent(.inbound, name: method, detail: "response id=\(id)")
 

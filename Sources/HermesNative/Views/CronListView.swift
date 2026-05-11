@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Dashboard view for cron jobs — list with status, schedule, and management actions.
 struct CronListView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @State private var cronViewModel = CronListViewModel()
@@ -39,13 +38,26 @@ struct CronListView: View {
                 job: job,
                 onPause: { Task { await cronViewModel.pauseJob(id: job.id) } },
                 onResume: { Task { await cronViewModel.resumeJob(id: job.id) } },
-                onRemove: { Task { await cronViewModel.removeJob(id: job.id) } }
+                onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },
+                onUpdatePrompt: { newPrompt in
+                    Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
+                }
             )
         }
         .navigationTitle("Cron Jobs")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    CronDashboardView()
+                        .environmentObject(gatewayClientWrapper)
+                } label: {
+                    Image(systemName: "chart.bar.xaxis")
+                }
+            }
+        }
         .overlay {
             if cronViewModel.jobs.isEmpty && !cronViewModel.isLoading {
                 emptyStateOverlay
@@ -137,12 +149,10 @@ struct CronJobRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            // Status dot
             statusDot
                 .font(.caption)
 
             VStack(alignment: .leading, spacing: 3) {
-                // Name + schedule badge
                 HStack(spacing: 6) {
                     Text(job.name)
                         .font(.subheadline)
@@ -161,7 +171,6 @@ struct CronJobRow: View {
                     }
                 }
 
-                // Second line: last run + status
                 HStack(spacing: 4) {
                     if let lastRun = job.lastRunAt {
                         Text("Last: \(lastRun.relativeString)")
@@ -175,14 +184,12 @@ struct CronJobRow: View {
                     }
                 }
 
-                // Third line: next run
                 if let nextRun = job.nextRunAt {
                     Text("Next: \(nextRun.relativeString)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 
-                // Prompt preview
                 if let preview = job.promptPreview, !preview.isEmpty {
                     Text(preview.truncated(to: 60))
                         .font(.caption2)
@@ -193,7 +200,6 @@ struct CronJobRow: View {
 
             Spacer()
 
-            // Enabled/disabled indicator
             if !job.enabled || job.state == "paused" {
                 Text(job.state == "paused" ? "Paused" : "Disabled")
                     .font(.caption2)
@@ -237,8 +243,11 @@ struct CronJobDetailView: View {
     let onPause: () -> Void
     let onResume: () -> Void
     let onRemove: () -> Void
+    let onUpdatePrompt: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var isPromptExpanded = false
+    @State private var isEditingPrompt = false
+    @State private var editedPrompt = ""
 
     var body: some View {
         ScrollView {
@@ -297,7 +306,20 @@ struct CronJobDetailView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
                 Spacer()
-                if isPromptExpandable {
+
+                if !isEditingPrompt {
+                    Button {
+                        editedPrompt = promptText
+                        isEditingPrompt = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                if isPromptExpandable && !isEditingPrompt {
                     Button(isPromptExpanded ? "Collapse" : "Expand") {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             isPromptExpanded.toggle()
@@ -308,6 +330,51 @@ struct CronJobDetailView: View {
                 }
             }
 
+            if isEditingPrompt {
+                promptEditor
+            } else {
+                promptDisplay
+            }
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var promptEditor: some View {
+        VStack(spacing: 10) {
+            TextEditor(text: $editedPrompt)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(Theme.primary)
+                .scrollContentBackground(.hidden)
+                .background(Theme.background)
+                .frame(minHeight: 180, maxHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.border, lineWidth: 1)
+                )
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    isEditingPrompt = false
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Save") {
+                    onUpdatePrompt(editedPrompt)
+                    isEditingPrompt = false
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(editedPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private var promptDisplay: some View {
+        Group {
             ScrollView(isPromptExpanded ? [.vertical] : []) {
                 Text(promptText)
                     .font(.system(.body, design: .monospaced))
@@ -330,8 +397,6 @@ struct CronJobDetailView: View {
                 .buttonStyle(.bordered)
             }
         }
-        .padding(14)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var promptText: String {

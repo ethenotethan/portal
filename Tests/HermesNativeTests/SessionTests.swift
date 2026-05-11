@@ -210,9 +210,7 @@ struct SessionListViewModelTests {
 
         #expect(vm.sessions.first?.displayRunState == SessionRunState.streaming)
     }
-
 }
-
 
 
 // MARK: - Session Run State Tests

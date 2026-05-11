@@ -4,5 +4,7 @@
 *.xcodeproj/xcuserdata/
 DerivedData/
 build/
-.build/
 HermesNative.xcodeproj/project.xcworkspace/xcuserdata/
+**/__pycache__/
+*.pyc
+google-cloud-sdk/

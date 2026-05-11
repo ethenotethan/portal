@@ -8,6 +8,18 @@ on:
 
 jobs:
   swift-lint:
+    name: SwiftLint
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --reporter github-actions-logging
+
+  swift-build:
     name: Swift Build (warnings-as-errors)
     runs-on: macos-14
     steps:

@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "SessionListViewModel")
 
 /// Manages the list of sessions and session creation/resumption/killing.
 /// Tracks the mapping between database IDs (from session.list) and
@@ -166,6 +169,10 @@ final class SessionListViewModel: ObservableObject {
     /// discovered in the gateway's session.list yet (their short hex ID
     /// hasn't been mapped to a database-format ID).
     func refreshSessions() async {
+        await refreshSessions(refreshCron: true)
+    }
+
+    func refreshSessions(refreshCron: Bool) async {
         guard let client = gatewayClient else { return }
         isLoading = true
         do {
@@ -233,7 +240,7 @@ final class SessionListViewModel: ObservableObject {
         isLoading = false
 
         // Refresh cron jobs if a cron view model is wired up
-        if let cronVM = cronViewModel {
+        if refreshCron, let cronVM = cronViewModel {
             await cronVM.refreshJobs()
         }
     }
@@ -287,12 +294,12 @@ final class SessionListViewModel: ObservableObject {
                         return  // Success — done
                     }
                 } catch {
-                    NSLog("[HermesNative] session.title attempt \(attempt + 1) failed: \(error)")
+                    log.error("session.title attempt \(attempt + 1) failed: \(error)")
                 }
                 // Wait before retry (agent may still be initializing)
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
-            NSLog("[HermesNative] session.title gave up after 3 attempts for \(shortHexID)")
+            log.error("session.title gave up after 3 attempts for \(shortHexID)")
         }
     }
 
@@ -338,27 +345,26 @@ final class SessionListViewModel: ObservableObject {
         try await client.closeSession(sessionID: rpcID)
         // Clean up local history file
         ChatHistoryStore.shared.deleteMessages(forSession: id)
-        // Clean up local data
+        // Clean up local data — batch all UserDefaults writes into one transaction
         var titles = localTitles
         titles.removeValue(forKey: id)
-        localTitles = titles
         var idMap = gatewayIDMap
         idMap.removeValue(forKey: id)
-        gatewayIDMap = idMap
-        // Remove local organization state too
         var archived = archivedIDs
         archived.remove(id)
-        archivedIDs = archived
         var pinned = pinnedIDs
         pinned.remove(id)
-        pinnedIDs = pinned
         var tags = sessionTags
         tags.removeValue(forKey: id)
-        sessionTags = tags
         localRunStates.removeValue(forKey: id)
         if let gatewayID = sessions.first(where: { $0.id == id })?.gatewayID {
             localRunStates.removeValue(forKey: gatewayID)
         }
+        UserDefaults.standard.set(titles, forKey: Self.titlesKey)
+        UserDefaults.standard.set(idMap, forKey: Self.gatewayIDMapKey)
+        UserDefaults.standard.set(Array(archived), forKey: Self.archivedIDsKey)
+        UserDefaults.standard.set(Array(pinned), forKey: Self.pinnedIDsKey)
+        UserDefaults.standard.set(tags, forKey: Self.tagsKey)
 
         withAnimation {
             sessions.removeAll { $0.id == id }

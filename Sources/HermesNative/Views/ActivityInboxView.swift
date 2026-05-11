@@ -11,21 +11,41 @@ struct ActivityInboxView: View {
                 get: { viewModel.selectedItem?.id },
                 set: { id in viewModel.selectedItem = viewModel.items.first(where: { $0.id == id }) }
             )) {
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .foregroundStyle(.red)
-                }
-                ForEach(viewModel.items) { item in
-                    NavigationLink(value: item) {
-                        ActivityRowView(item: item)
-                    }
-                    .tag(item.id)
-                    .contextMenu {
-                        Button(item.isRead ? "Mark Unread" : "Mark Read") {
-                            Task { await viewModel.markRead(item, read: !item.isRead) }
+                if viewModel.items.isEmpty {
+                    Section {
+                        VStack(spacing: 16) {
+                            Image(systemName: "bell.slash")
+                                .font(.system(size: 36))
+                                .foregroundStyle(Theme.tertiary)
+                            Text("No Activity Yet")
+                                .font(.headline)
+                                .foregroundStyle(Theme.secondary)
+                            Text("Notifications will appear here when the agent needs approval, asks questions, completes background tasks, or encounters errors.")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.tertiary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 320)
                         }
-                        Button("Dismiss", role: .destructive) {
-                            Task { await viewModel.dismiss(item) }
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                        .listRowBackground(Theme.background)
+                    }
+                } else {
+                    if let error = viewModel.errorMessage {
+                        Text(error)
+                            .foregroundStyle(.red)
+                    }
+                    ForEach(viewModel.items) { item in
+                        NavigationLink(value: item) {
+                            ActivityRowView(item: item)
+                        }
+                        .tag(item.id)
+                        .contextMenu {
+                            Button(item.isRead ? "Mark Unread" : "Mark Read") {
+                                Task { await viewModel.markRead(item, read: !item.isRead) }
+                            }
+                            Button("Dismiss", role: .destructive) {
+                                Task { await viewModel.dismiss(item) }
+                            }
                         }
                     }
                 }
@@ -35,12 +55,26 @@ struct ActivityInboxView: View {
             .navigationTitle("Activity")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        Task { await viewModel.refresh() }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                    HStack(spacing: 8) {
+                        if viewModel.unreadCount > 0 {
+                            Button("Mark All Read") {
+                                viewModel.markAllRead()
+                            }
+                        }
+                        if !viewModel.items.isEmpty {
+                            Button(role: .destructive) {
+                                viewModel.clearAll()
+                            } label: {
+                                Label("Clear All", systemImage: "trash")
+                            }
+                        }
+                        Button {
+                            Task { await viewModel.refresh() }
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .accessibilityIdentifier("activityRefreshButton")
                     }
-                    .accessibilityIdentifier("activityRefreshButton")
                 }
             }
             .navigationDestination(for: ActivityItem.self) { item in

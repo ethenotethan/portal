@@ -56,7 +56,6 @@ struct MacInputTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: FocusableTextField, context: Context) {
-        // Update text only when changed externally (avoid overwriting while typing)
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
@@ -64,15 +63,24 @@ struct MacInputTextField: NSViewRepresentable {
         nsView.onSubmit = onSubmit
         nsView.onImagePaste = onImagePaste
 
-        // When @FocusState becomes true, force firstResponder via AppKit.
-        // This bypasses SwiftUI's broken focus bridging entirely.
-        if isFocused.wrappedValue {
+        // Keep the reference current in case the view was recycled
+        if fieldRef !== nsView {
             DispatchQueue.main.async {
-                guard let window = nsView.window else { return }
-                let editor = nsView.currentEditor() ?? nsView
-                if window.firstResponder !== editor {
-                    window.makeFirstResponder(nsView)
-                }
+                fieldRef = nsView
+            }
+        }
+
+        if isFocused.wrappedValue {
+            makeFirstResponder(nsView)
+        }
+    }
+
+    private func makeFirstResponder(_ nsView: FocusableTextField) {
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            let editor = nsView.currentEditor() ?? nsView
+            if window.firstResponder !== editor {
+                window.makeFirstResponder(nsView)
             }
         }
     }
@@ -230,8 +238,11 @@ final class ClickMonitorView: NSView {
     weak var textFieldRef: FocusableTextField?
 
     func handleClick(_ event: NSEvent) {
-        guard let window,
-              let textField = textFieldRef else { return }
+        guard let window else { return }
+
+        let textField = textFieldRef ?? findTextField(in: window.contentView)
+
+        guard let textField else { return }
 
         let locationInWindow = event.locationInWindow
         let locationInView = convert(locationInWindow, from: nil)
@@ -261,6 +272,15 @@ final class ClickMonitorView: NSView {
                 }
             }
         }
+    }
+
+    private func findTextField(in view: NSView?) -> FocusableTextField? {
+        guard let view else { return nil }
+        if let tf = view as? FocusableTextField { return tf }
+        for subview in view.subviews {
+            if let found = findTextField(in: subview) { return found }
+        }
+        return nil
     }
 }
 

@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.researchoors.HermesNative", category: "GatewayClientWrapper")
 
 /// Observable wrapper for the app-level GatewayClient lifecycle.
 ///
@@ -40,7 +43,21 @@ final class GatewayClientWrapper: ObservableObject {
             isConnected = false
             return false
         }
-        NSLog("[HermesNative] GatewayClientWrapper connectIfNeeded force=\(force) url=\(wsURL) apiKeySet=\(!settings.apiKey.isEmpty) currentConnected=\(isConnected) isConnecting=\(isConnecting) hasTask=\(connectTask != nil)")
+        let forceStr = String(describing: force)
+        let urlStr = String(describing: wsURL)
+        let keySet = String(describing: !settings.apiKey.isEmpty)
+        let isConnectedStr = String(describing: self.isConnected)
+        let isConnectingStr = String(describing: self.isConnecting)
+        let hasTaskStr = String(describing: self.connectTask != nil)
+        let msg = [
+            "force=\(forceStr)",
+            "url=\(urlStr)",
+            "apiKeySet=\(keySet)",
+            "currentConnected=\(isConnectedStr)",
+            "isConnecting=\(isConnectingStr)",
+            "hasTask=\(hasTaskStr)",
+        ].joined(separator: " ")
+        logger.info("GatewayClientWrapper connectIfNeeded \(msg)")
 
         let signature = ConnectionSignature(
             url: wsURL.absoluteString,
@@ -52,7 +69,7 @@ final class GatewayClientWrapper: ObservableObject {
             if isConnected { return true }
             if isConnecting || connectTask != nil {
                 let connected = await waitUntilConnected(timeout: 12)
-                NSLog("[HermesNative] GatewayClientWrapper reused in-flight connection result=\(connected)")
+                logger.info("GatewayClientWrapper reused in-flight connection result=\(connected)")
                 return connected
             }
         }
@@ -97,7 +114,7 @@ final class GatewayClientWrapper: ObservableObject {
         }
 
         let connected = await waitUntilConnected(timeout: 12)
-        NSLog("[HermesNative] GatewayClientWrapper new connection result=\(connected)")
+        logger.info("GatewayClientWrapper new connection result=\(connected)")
         return connected
     }
 
@@ -151,21 +168,22 @@ final class GatewayClientWrapper: ObservableObject {
                 case .connected:
                     self.isConnected = true
                     self.isConnecting = false
-                    NSLog("[HermesNative] GatewayClientWrapper observed connected")
+                    logger.info("GatewayClientWrapper observed connected")
                 case .connecting, .reconnecting:
                     self.isConnected = false
                     self.isConnecting = true
-                    NSLog("[HermesNative] GatewayClientWrapper observed connecting state=\(state)")
+                    logger.info("GatewayClientWrapper observed connecting state=\(String(describing: state))")
                 default:
                     self.isConnected = false
                     self.isConnecting = false
                     self.connectTask = nil
-                    NSLog("[HermesNative] GatewayClientWrapper observed non-connected state=\(state)")
+                    logger.info("GatewayClientWrapper observed non-connected state=\(String(describing: state))")
                 }
             }
     }
 
     private func appendLog(_ text: String, error: Bool = false) {
         log.append(LogEntry(text: text, isError: error))
+        if log.count > 200 { log.removeFirst(log.count - 200) }
     }
 }

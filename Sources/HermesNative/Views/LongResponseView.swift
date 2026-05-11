@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "LongResponseView")
 
 /// Presentation wrapper for long assistant responses.
 ///
@@ -108,7 +111,7 @@ struct LongResponseView: View {
         let now = Date()
         guard now.timeIntervalSince(lastLog) >= 5 else { return }
         lastLog = now
-        NSLog("[HermesNativePerf] LongResponseView renders=\(renderCount) streaming=\(isStreaming) chars=\(text.count)")
+        log.info("LongResponseView renders=\(renderCount) streaming=\(isStreaming) chars=\(text.count)")
     }
 }
 
@@ -365,7 +368,7 @@ struct LongResponseDocument {
 
     var statsLabel: String {
         var parts: [String] = []
-        if headings.count > 0 { parts.append("\(headings.count) sections") }
+        if !headings.isEmpty { parts.append("\(headings.count) sections") }
         parts.append("~\(max(1, wordCount / 100) * 100) words")
         return parts.joined(separator: " · ")
     }

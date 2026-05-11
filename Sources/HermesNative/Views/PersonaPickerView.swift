@@ -130,7 +130,7 @@ struct PersonaPickerView: View {
 struct PersonaRow: View {
     let persona: Persona
     let isActive: Bool
-    var subtitleOverride: String? = nil
+    var subtitleOverride: String?
 
     var body: some View {
         HStack(spacing: 10) {

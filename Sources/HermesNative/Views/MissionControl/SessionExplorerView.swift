@@ -4,7 +4,8 @@ import SwiftUI
 /// Presented as a sheet on long-press of a session row.
 struct SessionExplorerView: View {
     let sessionID: String
-    var runtimeSessionID: String? = nil
+    var runtimeSessionID: String?
+    var onDismiss: (() -> Void)?
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +21,7 @@ struct SessionExplorerView: View {
 
     enum ExplorerTab: String, CaseIterable {
         case tree = "Agents"
+        case history = "History"
         case usage = "Usage"
     }
 
@@ -49,6 +51,8 @@ struct SessionExplorerView: View {
                     switch selectedTab {
                     case .tree:
                         treeOrEmpty
+                    case .history:
+                        historyContent
                     case .usage:
                         usageContent
                     }
@@ -57,7 +61,9 @@ struct SessionExplorerView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        if let onDismiss { onDismiss() } else { dismiss() }
+                    }
                 }
                 if selectedTab == .tree, let tree {
                     ToolbarItem(placement: .primaryAction) {
@@ -72,6 +78,13 @@ struct SessionExplorerView: View {
                 NodeTranscriptSheet(node: node)
             }
         }
+    }
+
+    // MARK: - History Tab
+
+    private var historyContent: some View {
+        SessionRunTimelineView(events: SessionRunHistoryStore.shared.events(for: sessionID))
+            .padding(16)
     }
 
     // MARK: - Tree Tab

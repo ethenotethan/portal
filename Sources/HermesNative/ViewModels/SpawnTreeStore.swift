@@ -29,6 +29,9 @@ final class SpawnTreeStore: ObservableObject {
     /// app-level GatewayClient repeatedly during reconnect/create flows.
     private weak var subscribedClient: GatewayClient?
 
+    private var pendingDeltaBatch: [(event: GatewayEvent, sessionID: String?)] = []
+    private var deltaFlushTask: Task<Void, Never>?
+
     /// The active session tree (if any).
     var activeTree: SessionTree? {
         sessions.first { $0.sessionID == activeSessionID }
@@ -53,6 +56,38 @@ final class SpawnTreeStore: ObservableObject {
     // MARK: - Event Handling
 
     private func handleEvent(_ event: GatewayEvent, sessionID: String?) {
+        switch event {
+        case .messageDelta, .thinkingDelta, .reasoningDelta:
+            pendingDeltaBatch.append((event, sessionID))
+            scheduleDeltaFlush()
+        default:
+            flushDeltas()
+            processEvent(event, sessionID: sessionID)
+        }
+    }
+
+    private func scheduleDeltaFlush() {
+        guard deltaFlushTask == nil else { return }
+        deltaFlushTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            flushDeltas()
+            deltaFlushTask = nil
+        }
+    }
+
+    private func flushDeltas() {
+        guard !pendingDeltaBatch.isEmpty else { return }
+        let batch = pendingDeltaBatch
+        pendingDeltaBatch.removeAll()
+        for (event, sid) in batch {
+            processEvent(event, sessionID: sid)
+        }
+        if let tree = activeTree ?? sessions.first {
+            tree.objectWillChange.send()
+        }
+    }
+
+    private func processEvent(_ event: GatewayEvent, sessionID: String?) {
         let runtimeID = sessionID ?? activeSessionID ?? ""
         guard !runtimeID.isEmpty else { return }
 
@@ -67,10 +102,10 @@ final class SpawnTreeStore: ObservableObject {
             return
         }
 
-        processEvent(event, tree: tree, runtimeSessionID: runtimeID)
+        processEventOnTree(event, tree: tree, runtimeSessionID: runtimeID)
     }
 
-    private func processEvent(_ event: GatewayEvent, tree: SessionTree?, runtimeSessionID: String? = nil) {
+    private func processEventOnTree(_ event: GatewayEvent, tree: SessionTree?, runtimeSessionID: String? = nil) {
         switch event {
         case .messageStart:
             tree?.root.status = .running
@@ -236,7 +271,7 @@ final class SpawnTreeStore: ObservableObject {
         for (event, runtimeID) in buffered {
             let displayID = displayIDByRuntimeSessionID[runtimeID] ?? sessionID
             if let tree = treeFor(runtimeID: runtimeID, displayID: displayID) {
-                processEvent(event, tree: tree, runtimeSessionID: runtimeID)
+                processEventOnTree(event, tree: tree, runtimeSessionID: runtimeID)
             } else {
                 eventBuffer[sessionID, default: []].append((event, runtimeID))
                 break

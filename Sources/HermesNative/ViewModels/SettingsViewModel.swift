@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "SettingsViewModel")
 
 /// Manages connection settings: gateway URL, API key, and CF Access auth state.
 @MainActor
@@ -7,10 +10,14 @@ final class SettingsViewModel: ObservableObject {
     static let responseCompleteNotificationsKey = "hermes.responseCompleteNotificationsEnabled"
 
     @Published var gatewayURL: String {
-        didSet { KeychainStore.shared.saveGatewayURL(gatewayURL) }
+        didSet {
+            if didCompleteInit { KeychainStore.shared.saveGatewayURL(gatewayURL) }
+        }
     }
     @Published var apiKey: String {
-        didSet { KeychainStore.shared.saveAPIKey(apiKey) }
+        didSet {
+            if didCompleteInit { KeychainStore.shared.saveAPIKey(apiKey) }
+        }
     }
     @Published var isConfigured: Bool = false
     @Published var responseCompleteNotificationsEnabled: Bool {
@@ -18,6 +25,12 @@ final class SettingsViewModel: ObservableObject {
             UserDefaults.standard.set(responseCompleteNotificationsEnabled, forKey: Self.responseCompleteNotificationsKey)
         }
     }
+
+    private static let onboardingCompleteKey = "hermes.onboardingComplete"
+    var hasCompletedOnboarding: Bool {
+        UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
+    }
+    private var didCompleteInit = false
 
     /// Whether the gateway domain likely requires CF Access auth.
     var needsCFAuth: Bool {
@@ -42,20 +55,27 @@ final class SettingsViewModel: ObservableObject {
         let uiTestGatewayURL = isUITest ? env["HERMES_NATIVE_GATEWAY_URL"] : nil
         let uiTestAPIKey = isUITest ? (env["HERMES_NATIVE_API_KEY"] ?? env["API_SERVER_KEY"]) : nil
 
-        let resolvedGatewayURL = uiTestGatewayURL ?? KeychainStore.shared.loadGatewayURL() ?? Constants.defaultGatewayURL
+        let savedURL = KeychainStore.shared.loadGatewayURL()
+        let resolvedGatewayURL = uiTestGatewayURL ?? savedURL ?? Constants.defaultGatewayURL
         self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
-        self.isConfigured = !resolvedGatewayURL.isEmpty && (!isUITest || uiTestGatewayURL != nil)
+
+        let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
+            || (savedURL != nil && savedURL != Constants.defaultGatewayURL)
+        self.isConfigured = onboarded || (isUITest && uiTestGatewayURL != nil)
+        didCompleteInit = true
 
         if isUITest {
-            NSLog("[HermesNative] UITest settings gatewayURL=\(gatewayURL) apiKeySet=\(!apiKey.isEmpty)")
+            log.info("UITest settings gatewayURL=\(self.gatewayURL) apiKeySet=\(!self.apiKey.isEmpty)")
         }
     }
 
     /// Validate and update the configured state.
     func validate() {
-        isConfigured = !gatewayURL.isEmpty
+        guard !gatewayURL.isEmpty else { return }
+        UserDefaults.standard.set(true, forKey: Self.onboardingCompleteKey)
+        isConfigured = true
     }
 
     /// Build the WebSocket URL from the configured gateway URL.

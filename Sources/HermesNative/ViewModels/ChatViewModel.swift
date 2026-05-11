@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "ChatViewModel")
 
 /// Core chat ViewModel — manages conversation state and interacts with the gateway.
 @MainActor
@@ -54,6 +57,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
+    @Published var refocusInput: Int = 0
 
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
@@ -72,6 +76,7 @@ final class ChatViewModel: ObservableObject {
         var sessionTitle: String = "New Chat"
         var streamingMessageID: UUID?
     }
+
 
     private var gatewayClient: GatewayClient?
     private var sessionID: String?
@@ -107,7 +112,7 @@ final class ChatViewModel: ObservableObject {
         perfWriteCount += 1
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let fullLine = "\(timestamp) #\(perfWriteCount) \(line)\n"
-        NSLog("%@", fullLine)
+        log.info("\(fullLine)")
         guard let url = perfLogURL, let data = fullLine.data(using: .utf8) else { return }
         if FileManager.default.fileExists(atPath: url.path),
            let handle = try? FileHandle(forWritingTo: url) {
@@ -123,7 +128,21 @@ final class ChatViewModel: ObservableObject {
         guard perfLoggingEnabled else { return }
         let last = messages.last
         let counts = perfEventCounts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
-        writePerfLog("[HermesNativePerf] snapshot=\(label) session=\(sessionID ?? "nil") messages=\(messages.count) streaming=\(isStreaming) content=\(last?.content.count ?? 0) reasoning=\(last?.reasoning?.count ?? 0) activeTools=\(activeToolCalls.count) flushes=\(perfFlushCount) pendingMessageBytes=\(pendingVisibleMessageDelta.count) pendingReasoningBytes=\(pendingVisibleReasoningDelta.count) pendingThinkingBytes=\(pendingVisibleThinkingDelta.count) \(counts)")
+        let fields = [
+            "snapshot=\(label)",
+            "session=\(sessionID ?? "nil")",
+            "messages=\(messages.count)",
+            "streaming=\(isStreaming)",
+            "content=\(last?.content.count ?? 0)",
+            "reasoning=\(last?.reasoning?.count ?? 0)",
+            "activeTools=\(activeToolCalls.count)",
+            "flushes=\(perfFlushCount)",
+            "pendingMessageBytes=\(pendingVisibleMessageDelta.count)",
+            "pendingReasoningBytes=\(pendingVisibleReasoningDelta.count)",
+            "pendingThinkingBytes=\(pendingVisibleThinkingDelta.count)",
+            counts,
+        ]
+        writePerfLog("[HermesNativePerf] \(fields.joined(separator: " "))")
     }
     weak var personaManager: PersonaManager?
 
@@ -317,15 +336,15 @@ final class ChatViewModel: ObservableObject {
             self.error = "No gateway client"
             return
         }
-        NSLog("[HermesNative] ChatViewModel createSession invoked state=\(client.connectionState)")
+        log.info("ChatViewModel createSession invoked state=\(String(describing: client.connectionState))")
         guard !isCreatingSession else {
-            NSLog("[HermesNative] ChatViewModel createSession ignored: already creating")
+            log.info("ChatViewModel createSession ignored: already creating")
             return
         }
         isCreatingSession = true
         do {
             let sid = try await client.createSession()
-            NSLog("[HermesNative] ChatViewModel createSession succeeded sid=\(sid)")
+            log.info("ChatViewModel createSession succeeded sid=\(sid)")
             snapshotCurrentSessionState()
             self.sessionID = sid
             self.createGeneration += 1
@@ -418,7 +437,7 @@ final class ChatViewModel: ObservableObject {
         do {
             let result = try await client.resumeSession(key: key)
             guard generation == sessionSwitchGeneration else {
-                NSLog("[HermesNative] ignoring stale resume for \(key) generation=\(generation) current=\(sessionSwitchGeneration)")
+                log.info("ignoring stale resume for \(key) generation=\(generation) current=\(self.sessionSwitchGeneration)")
                 return false
             }
 
@@ -586,7 +605,7 @@ final class ChatViewModel: ObservableObject {
         guard (!text.isEmpty || !attachments.isEmpty),
               let client = gatewayClient, let sid = sessionID else { return }
         guard !isStreaming && !isStopping else {
-            NSLog("[HermesNative] ChatViewModel submitPrompt ignored while streaming/stopping")
+            log.info("ChatViewModel submitPrompt ignored while streaming/stopping")
             return
         }
 
@@ -699,13 +718,25 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Local Persistence
 
-    /// Save current messages to disk (debounced — only call at stable points).
+    private var saveHistoryTask: Task<Void, Never>?
+
+    /// Save current messages to disk immediately.
     func saveHistory() {
         guard let sid = sessionID, !messages.isEmpty else { return }
         ChatHistoryStore.shared.saveMessages(messages, forSession: sid)
         let displayID = displaySessionID(for: sid)
         if displayID != sid {
             ChatHistoryStore.shared.saveMessages(messages, forSession: displayID)
+        }
+    }
+
+    /// Debounced save — coalesces rapid calls during streaming into at most one save per second.
+    func saveHistoryDebounced() {
+        saveHistoryTask?.cancel()
+        saveHistoryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.saveHistory()
         }
     }
 
@@ -828,7 +859,18 @@ final class ChatViewModel: ObservableObject {
         guard now.timeIntervalSince(perfLastLog) >= 5 else { return }
         perfLastLog = now
         let counts = perfEventCounts.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
-        writePerfLog("[HermesNativePerf] visible session=\(sessionID ?? "nil") messages=\(messages.count) streaming=\(isStreaming) content=\(messages.last?.content.count ?? 0) reasoning=\(messages.last?.reasoning?.count ?? 0) activeTools=\(activeToolCalls.count) flushes=\(perfFlushCount) \(counts)")
+        let fields = [
+            "visible",
+            "session=\(sessionID ?? "nil")",
+            "messages=\(messages.count)",
+            "streaming=\(isStreaming)",
+            "content=\(messages.last?.content.count ?? 0)",
+            "reasoning=\(messages.last?.reasoning?.count ?? 0)",
+            "activeTools=\(activeToolCalls.count)",
+            "flushes=\(perfFlushCount)",
+            counts,
+        ]
+        writePerfLog("[HermesNativePerf] \(fields.joined(separator: " "))")
     }
 
     private func appendPendingVisibleMessageDelta(_ text: String) {
@@ -878,7 +920,11 @@ final class ChatViewModel: ObservableObject {
         if perfLoggingEnabled {
             perfVisibleFlushLogCount += 1
             if perfVisibleFlushLogCount <= 20 || perfVisibleFlushLogCount % 20 == 0 {
-                writePerfLog("[HermesNativePerf] flush=\(perfVisibleFlushLogCount) messageBytes=\(messageDelta.count) reasoningBytes=\(reasoningDelta.count) thinkingBytes=\(thinkingDelta.count) pendingMessages=\(messages.count)")
+                writePerfLog("[HermesNativePerf] flush=\(perfVisibleFlushLogCount) " +
+                    "messageBytes=\(messageDelta.count) " +
+                    "reasoningBytes=\(reasoningDelta.count) " +
+                    "thinkingBytes=\(thinkingDelta.count) " +
+                    "pendingMessages=\(messages.count)")
             }
         }
 
@@ -918,7 +964,7 @@ final class ChatViewModel: ObservableObject {
                 break
             default:
                 let reason = "late live-turn event after stream ended"
-                NSLog("[HermesNative] ChatViewModel ignored late live event after stream ended: \(event.debugName)")
+                log.info("ChatViewModel ignored late live event after stream ended: \(event.debugName)")
                 gatewayClient?.recordDroppedEvent(event, sessionID: eventSessionID, reason: reason)
                 return
             }
@@ -939,6 +985,9 @@ final class ChatViewModel: ObservableObject {
             }
             if displaySessionID(for: sessionID ?? "") == displayID {
                 streamingMessageID = state.streamingMessageID
+            }
+            if let sid = sessionID ?? currentSessionID {
+                SessionRunHistoryStore.shared.recordRunStart(sessionID: sid)
             }
 
         case .messageDelta(let text, _):
@@ -971,6 +1020,17 @@ final class ChatViewModel: ObservableObject {
             state.isStreaming = false
             state.streamingMessageID = nil
             state.avatarState = .idle
+            if let sid = sessionID ?? currentSessionID {
+                let runStatus: SessionRunEvent.RunStatus = payload.status == "error" ? .failed : .completed
+                SessionRunHistoryStore.shared.recordRunEnd(
+                    sessionID: sid,
+                    inputTokens: payload.usage?.promptTokens ?? 0,
+                    outputTokens: payload.usage?.completionTokens ?? 0,
+                    totalTokens: payload.usage?.totalTokens ?? 0,
+                    apiCalls: 1,
+                    status: runStatus
+                )
+            }
 
         case .toolStart(payload: let payload):
             state.avatarState = .toolUse
@@ -996,7 +1056,7 @@ final class ChatViewModel: ObservableObject {
             }
 
         case .reasoningDelta(let text):
-            if state.avatarState != .toolUse { state.avatarState = .thinking }
+            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
                 state.messages[idx].reasoning = (state.messages[idx].reasoning ?? "") + text
                 if displaySessionID(for: sessionID ?? "") == displayID {
@@ -1006,7 +1066,7 @@ final class ChatViewModel: ObservableObject {
             }
 
         case .thinkingDelta(let text):
-            if state.avatarState != .toolUse { state.avatarState = .thinking }
+            if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if displaySessionID(for: sessionID ?? "") == displayID {
                 let existing = messages.last(where: { $0.role == .assistant && $0.isStreaming })?.reasoning ?? ""
                 let separator = existing.isEmpty ? "" : "\n"
@@ -1054,22 +1114,11 @@ final class ChatViewModel: ObservableObject {
         }
 
         if case .messageComplete(let payload) = event {
-            ChatHistoryStore.shared.saveMessages(state.messages, forSession: eventSessionID)
-            if displayID != eventSessionID {
-                ChatHistoryStore.shared.saveMessages(state.messages, forSession: displayID)
-            }
+            saveHistoryDebounced()
             #if !DEBUG
             NotificationService.shared.notifyResponseComplete(
                 sessionTitle: state.sessionTitle,
                 preview: payload.text.truncated(to: 80),
-                sessionID: eventSessionID
-            )
-            #endif
-        } else if case .approvalRequest(let payload) = event {
-            #if !DEBUG
-            NotificationService.shared.notifyApproval(
-                sessionTitle: state.sessionTitle,
-                command: payload.command,
                 sessionID: eventSessionID
             )
             #endif
@@ -1083,7 +1132,7 @@ final class ChatViewModel: ObservableObject {
         }
 
         guard shouldApplyGlobalEvent(event) || sessionID != nil else {
-            NSLog("[HermesNative] ChatViewModel ignored global event current=\(sessionID ?? "nil") event=\(event.debugName)")
+            log.info("ChatViewModel ignored global event current=\(self.sessionID ?? "nil") event=\(event.debugName)")
             gatewayClient?.recordDroppedEvent(event, sessionID: eventSessionID, reason: "no active session")
             return
         }
@@ -1184,13 +1233,12 @@ final class ChatViewModel: ObservableObject {
         case .reasoningDelta(let text):
             // Thinking/reasoning — avatar thinks
             guard isStreaming else { break }
-            if avatarState != .toolUse { avatarState = .thinking }
+            if avatarState != .toolUse && avatarState != .thinking { avatarState = .thinking }
             appendPendingVisibleReasoningDelta(text)
 
         case .thinkingDelta(let text):
-            // Thinking — avatar thinks (unless tool is running)
             guard isStreaming else { break }
-            if avatarState != .toolUse { avatarState = .thinking }
+            if avatarState != .toolUse && avatarState != .thinking { avatarState = .thinking }
             // Append to last assistant message's reasoning (thinking IS reasoning
             // from the model's perspective — e.g. GLM-5.1 fires thinking.delta
             // not reasoning.delta).  Show it live so the user sees progress.
@@ -1208,14 +1256,6 @@ final class ChatViewModel: ObservableObject {
 
         case .approvalRequest(payload: let payload):
             pendingApproval = payload
-            // Push notification so user sees it even if backgrounded/on another session
-            if let sid = sessionID {
-                NotificationService.shared.notifyApproval(
-                    sessionTitle: sessionTitle,
-                    command: payload.command,
-                    sessionID: sid
-                )
-            }
 
         case .statusUpdate:
             break
@@ -1234,16 +1274,10 @@ final class ChatViewModel: ObservableObject {
             break
 
         case .backgroundComplete(let taskID, let text):
-            NotificationService.shared.notifyBackgroundComplete(taskID: taskID, text: text)
+            break
 
-        case .clarifyRequest(let question, _):
-            if let sid = sessionID {
-                NotificationService.shared.notifyClarify(
-                    sessionTitle: sessionTitle,
-                    question: question,
-                    sessionID: sid
-                )
-            }
+        case .clarifyRequest:
+            break
 
         case .sudoRequest:
             // TODO: Present sudo password dialog

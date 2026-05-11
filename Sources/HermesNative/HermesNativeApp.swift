@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "HermesNativeApp")
 
 /// Shared app helpers used by the platform-specific @main entry points.
 ///
@@ -64,18 +67,28 @@ struct MacWindowConfigurator: NSViewRepresentable {
         #if DEBUG
         DispatchQueue.main.async {
             guard let w = NSApp.windows.first else { return }
-            NSLog("=== HERMES WINDOW ===")
-            NSLog("frame: \(w.frame) styleMask: \(w.styleMask.rawValue)")
-            NSLog("titlebarTransparent: \(w.titlebarAppearsTransparent)")
-            NSLog("titleVisibility: \(w.titleVisibility.rawValue)")
+            log.debug("=== HERMES WINDOW ===")
+            log.debug("frame: \(String(describing: w.frame)) styleMask: \(w.styleMask.rawValue)")
+            log.debug("titlebarTransparent: \(w.titlebarAppearsTransparent)")
+            log.debug("titleVisibility: \(w.titleVisibility.rawValue)")
             for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
                 let b = w.standardWindowButton(kind)
-                NSLog("\(kind): \(String(describing: b)) hidden: \(String(describing: b?.isHidden)) alpha: \(String(describing: b?.alphaValue)) frame: \(String(describing: b?.frame ?? .zero)) superview: \(String(describing: b?.superview.map { type(of: $0) })) superFrame: \(String(describing: b?.superview?.frame ?? .zero))")
+                log.debug("""
+                \(kind.rawValue): \
+                \(String(describing: b)) \
+                hidden: \(String(describing: b?.isHidden)) \
+                alpha: \(String(describing: b?.alphaValue)) \
+                frame: \(String(describing: b?.frame ?? .zero)) \
+                superview: \(String(describing: b?.superview.map { type(of: $0) })) \
+                superFrame: \(String(describing: b?.superview?.frame ?? .zero))
+                """)
             }
-            NSLog("=== HERMES CONTENT VIEW HIERARCHY ===")
+            log.debug("=== HERMES CONTENT VIEW HIERARCHY ===")
             func dump(_ v: NSView, _ depth: Int = 0) {
                 let pad = String(repeating: "  ", count: depth)
-                NSLog("\(pad)\(type(of: v)) frame=\(v.frame) bounds=\(v.bounds) hidden=\(v.isHidden) alpha=\(v.alphaValue) subviews=\(v.subviews.count)")
+                let frameStr = String(describing: v.frame)
+                let boundsStr = String(describing: v.bounds)
+                log.debug("\(pad)\(type(of: v)) frame=\(frameStr) bounds=\(boundsStr) hidden=\(v.isHidden) alpha=\(v.alphaValue) subviews=\(v.subviews.count)")
                 v.subviews.forEach { dump($0, depth + 1) }
             }
             if let cv = w.contentView { dump(cv) }

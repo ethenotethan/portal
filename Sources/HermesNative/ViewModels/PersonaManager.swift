@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "PersonaManager")
 
 /// Manages persona identity: auto-derives from the gateway's PERSONA.md + config,
 /// with optional local JSON overrides in ~/HermesNative/Personas/.
@@ -42,8 +45,8 @@ final class PersonaManager: ObservableObject {
     /// Local personas remain available, but are only active when the user explicitly selects one.
     func syncFromGateway(_ client: GatewayClient) async {
         var personalityName = "default"
-        var gatewayName: String? = nil
-        var personaMDContent: String? = nil
+        var gatewayName: String?
+        var personaMDContent: String?
 
         if let result = try? await client.getConfig(key: "persona") {
             if let personality = result["personality"]?.stringValue, !personality.isEmpty {
@@ -104,7 +107,7 @@ final class PersonaManager: ObservableObject {
                 do {
                     persona = try JSONDecoder().decode(Persona.self, from: data)
                 } catch {
-                    NSLog("[PersonaManager] Failed to decode \(file.lastPathComponent): \(error)")
+                    log.error("Failed to decode \(file.lastPathComponent): \(error)")
                     continue
                 }
                 if persona.id.isEmpty {

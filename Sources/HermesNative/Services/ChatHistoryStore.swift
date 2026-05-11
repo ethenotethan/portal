@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "ChatHistoryStore")
 
 /// Persists chat message history per session to local disk.
 /// Files live in Application Support/hermes-native/sessions/<id>.json
@@ -11,7 +14,12 @@ final class ChatHistoryStore {
     private let sessionsDir: URL
 
     private init() {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            log.error("ChatHistoryStore: cannot locate Application Support directory")
+            sessionsDir = URL(fileURLWithPath: "/tmp/hermes-native/sessions")
+            try? fileManager.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
+            return
+        }
         sessionsDir = appSupport.appendingPathComponent("hermes-native/sessions", isDirectory: true)
         try? fileManager.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
     }
@@ -25,7 +33,7 @@ final class ChatHistoryStore {
             let data = try JSONEncoder().encode(messages)
             try data.write(to: file, options: .atomic)
         } catch {
-            NSLog("[ChatHistoryStore] Failed to save session \(sessionID): \(error)")
+            log.error("Failed to save session \(sessionID): \(error)")
         }
     }
 
@@ -39,7 +47,7 @@ final class ChatHistoryStore {
             let data = try Data(contentsOf: file)
             return try JSONDecoder().decode([ChatMessage].self, from: data)
         } catch {
-            NSLog("[ChatHistoryStore] Failed to load session \(sessionID): \(error)")
+            log.error("Failed to load session \(sessionID): \(error)")
             return nil
         }
     }
