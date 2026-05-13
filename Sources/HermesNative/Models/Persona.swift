@@ -1,23 +1,16 @@
 import SwiftUI
 import Foundation
 
-/// 3D accessory that can be attached to the avatar — persona-specific.
-enum PersonaAccessory: String, Codable, CaseIterable {
-    case cowboyHat
-    case fedora
-    case pirateHat
-    case crown
-    case helmet       // Greek/Athena
-    case catEars
-    case glasses
-    case sunglasses
-    case eyepatch
-    case bow          // kawaii hair bow
-    case boots
+enum AvatarState: String, CaseIterable {
+    case idle
+    case thinking
+    case speaking
+    case toolUse
+    case error
 }
 
 /// A composable persona asset that gives the AI assistant a visual identity.
-/// Auto-derived from gateway PERSONA.md + config, or from local JSON overrides.
+/// Auto-derived from gateway PERSONA.md + config.
 struct Persona: Codable, Identifiable, Equatable {
     var id: String
     var name: String
@@ -27,30 +20,13 @@ struct Persona: Codable, Identifiable, Equatable {
     var imagePath: String?
     var systemPromptSuffix: String?
     var isBuiltIn: Bool
-    /// True when this entry mirrors the connected Hermes Agent's configured persona.
     var isAgentDefault: Bool = false
-    /// 3D accessories rendered on the avatar — persona-specific identity
-    var accessories: [PersonaAccessory] = []
-
-    // MARK: - Computed
 
     var accentColor: Color { Color(hex: accentColorHex) ?? .accentColor }
 
     @ViewBuilder
     var avatar: some View {
-        if let imagePath, let platformImage = loadImage(at: imagePath) {
-            #if os(macOS)
-            Image(nsImage: platformImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            #else
-            Image(uiImage: platformImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            #endif
-        } else {
-            Image(systemName: symbolName)
-        }
+        Image(systemName: symbolName)
     }
 
     @ViewBuilder
@@ -62,34 +38,12 @@ struct Persona: Codable, Identifiable, Equatable {
             .background(accentColor, in: Circle())
     }
 
-    // MARK: - Image Loading
-
-    #if os(macOS)
-    private func loadImage(at path: String) -> PlatformImage? {
-        if path.hasPrefix("/") { return PlatformImage(contentsOfFile: path) }
-        let personasDir = PersonaManager.personasDirectory
-        let absolute = personasDir.appendingPathComponent(path).path
-        return PlatformImage(contentsOfFile: absolute)
-    }
-    #else
-    private func loadImage(at path: String) -> PlatformImage? {
-        if path.hasPrefix("/") { return PlatformImage(contentsOfFile: path) }
-        let personasDir = PersonaManager.personasDirectory
-        let absolute = personasDir.appendingPathComponent(path).path
-        return PlatformImage(contentsOfFile: absolute)
-    }
-    #endif
-
-    // MARK: - Defaults
-
     static let defaultPersona = Persona(
         id: "hermes", name: "Hermes", tagline: "Your AI agent",
         symbolName: "sparkles", accentColorHex: "#007AFF",
-        isBuiltIn: true, accessories: []
+        isBuiltIn: true
     )
 }
-
-// MARK: - Color Hex Extension
 
 extension Color {
     init?(hex: String) {

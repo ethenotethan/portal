@@ -51,10 +51,10 @@ struct SessionListView: View {
                 if !mySessionsCollapsed {
                     if mySessions.isEmpty {
                         VStack(spacing: 8) {
-                            Text("No sessions yet")
+                            Text("Ready when you are ✨")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
-                            Button("Start New Chat") {
+                            Button("Start First Chat") {
                                 onCreateSession?()
                             }
                             .buttonStyle(.borderedProminent)
@@ -339,15 +339,6 @@ struct SessionListView: View {
                     accessibilityID: "newSessionButton",
                     isPrimary: true,
                     action: { onCreateSession?() }
-                )
-
-                sidebarHeaderButton(
-                    icon: "clock.badge.checkmark",
-                    title: "Cron",
-                    accessibilityLabel: "Open Cron Jobs",
-                    accessibilityID: "panelToggleButton",
-                    isPrimary: false,
-                    action: { onOpenPanel?() }
                 )
             }
         }

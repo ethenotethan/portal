@@ -476,6 +476,8 @@ private struct CronJobCard: View {
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
 
+    private var displayJob: CronJob { job }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerRow
@@ -511,13 +513,13 @@ private struct CronJobCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(job.name)
+                    Text(displayJob.name)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)
 
-                    if !job.schedule.isEmpty {
-                        Text(job.schedule)
+                    if !displayJob.schedule.isEmpty {
+                        Text(displayJob.schedule)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .padding(.horizontal, 5)
@@ -527,8 +529,8 @@ private struct CronJobCard: View {
                             .clipShape(Capsule())
                     }
 
-                    if !job.enabled || job.state == "paused" {
-                        Text(job.state == "paused" ? "Paused" : "Disabled")
+                    if !displayJob.enabled || displayJob.state == "paused" {
+                        Text(displayJob.state == "paused" ? "Paused" : "Disabled")
                             .font(.caption2)
                             .fontWeight(.medium)
                             .padding(.horizontal, 5)
@@ -540,17 +542,17 @@ private struct CronJobCard: View {
                 }
 
                 HStack(spacing: 8) {
-                    if let lastRun = job.lastRunAt {
+                    if let lastRun = displayJob.lastRunAt {
                         Text("Last: \(lastRun.relativeString)")
                             .font(.caption2)
                             .foregroundStyle(Theme.tertiary)
                     }
-                    if let status = job.lastStatus {
+                    if let status = displayJob.lastStatus {
                         Circle()
                             .fill(status == "ok" ? Theme.success : Color.red)
                             .frame(width: 6, height: 6)
                     }
-                    if let nextRun = job.nextRunAt {
+                    if let nextRun = displayJob.nextRunAt {
                         Text("Next: \(nextRun.relativeString)")
                             .font(.caption2)
                             .foregroundStyle(Theme.secondary)
@@ -568,15 +570,15 @@ private struct CronJobCard: View {
 
     @ViewBuilder
     private var statusDot: some View {
-        if job.state == "paused" || !job.enabled {
+        if displayJob.state == "paused" || !displayJob.enabled {
             Image(systemName: "pause.circle.fill")
                 .foregroundStyle(.secondary)
                 .font(.body)
-        } else if job.lastStatus == "error" {
+        } else if displayJob.lastStatus == "error" {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
                 .font(.body)
-        } else if job.lastStatus == "ok" {
+        } else if displayJob.lastStatus == "ok" {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(Theme.success)
                 .font(.body)
@@ -589,16 +591,16 @@ private struct CronJobCard: View {
 
     private var detailRows: some View {
         VStack(spacing: 0) {
-            detailRow("Job ID", value: job.id)
-            detailRow("Schedule", value: job.schedule.isEmpty ? "—" : job.schedule)
-            detailRow("State", value: job.state)
-            detailRow("Enabled", value: job.enabled ? "Yes" : "No")
-            detailRow("Last run", value: job.lastRunAt?.relativeString ?? "Never")
-            detailRow("Last status", value: job.lastStatus ?? "—")
-            detailRow("Next run", value: job.nextRunAt?.relativeString ?? "—")
-            detailRow("Deliver", value: job.deliver.isEmpty ? "—" : job.deliver)
+            detailRow("Job ID", value: displayJob.id)
+            detailRow("Schedule", value: displayJob.schedule.isEmpty ? "—" : displayJob.schedule)
+            detailRow("State", value: displayJob.state)
+            detailRow("Enabled", value: displayJob.enabled ? "Yes" : "No")
+            detailRow("Last run", value: displayJob.lastRunAt?.relativeString ?? "Never")
+            detailRow("Last status", value: displayJob.lastStatus ?? "—")
+            detailRow("Next run", value: displayJob.nextRunAt?.relativeString ?? "—")
+            detailRow("Deliver", value: displayJob.deliver.isEmpty ? "—" : displayJob.deliver)
             if !runRecords.isEmpty {
-                let rate = CronRunHistoryStore.shared.successRate(for: job.id)
+                let rate = CronRunHistoryStore.shared.successRate(for: displayJob.id)
                 detailRow("Success rate", value: String(format: "%.0f%% (%d runs)", rate, runRecords.count))
             }
         }
@@ -626,6 +628,16 @@ private struct CronJobCard: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.primary)
                 Spacer()
+                if job.isPromptTruncated {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text("Truncated")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
                 if !isEditingPrompt {
                     Button {
                         editedPrompt = promptText
@@ -641,12 +653,14 @@ private struct CronJobCard: View {
             if isEditingPrompt {
                 promptEditor
             } else {
-                Text(promptText)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(Theme.secondary)
-                    .textSelection(.enabled)
-                    .lineLimit(6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView([.vertical]) {
+                    Text(promptText)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Theme.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 300, alignment: .top)
             }
         }
         .padding(8)
@@ -687,10 +701,40 @@ private struct CronJobCard: View {
     }
 
     private var promptText: String {
-        let text = job.prompt?.trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? job.promptPreview?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = displayJob.prompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? displayJob.promptPreview?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? ""
         return text.isEmpty ? "No prompt available" : text
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 8) {
+            if displayJob.state == "paused" || !displayJob.enabled {
+                Button {
+                    onResume()
+                } label: {
+                    Label("Resume", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            } else {
+                Button {
+                    onPause()
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            Button(role: .destructive) {
+                onRemove()
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
     }
 
     private var recentRuns: some View {
@@ -724,36 +768,6 @@ private struct CronJobCard: View {
                 .padding(8)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
             }
-        }
-    }
-
-    private var actionButtons: some View {
-        HStack(spacing: 8) {
-            if job.state == "paused" || !job.enabled {
-                Button {
-                    onResume()
-                } label: {
-                    Label("Resume", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-            } else {
-                Button {
-                    onPause()
-                } label: {
-                    Label("Pause", systemImage: "pause.fill")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-
-            Button(role: .destructive) {
-                onRemove()
-            } label: {
-                Label("Remove", systemImage: "trash")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
     }
 }

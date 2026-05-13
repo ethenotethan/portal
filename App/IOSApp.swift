@@ -8,6 +8,8 @@ struct HermesNativeAppIOS: App {
     @StateObject private var spawnTreeStore = SpawnTreeStore()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
     @StateObject private var capabilitiesStore = HermesCapabilitiesStore()
+    @StateObject private var celebrationManager = CelebrationManager.shared
+    @StateObject private var ttsService = TTSService.shared
 
     init() {
         requestHermesNativeNotificationAuthorization()
@@ -22,6 +24,8 @@ struct HermesNativeAppIOS: App {
                 .environmentObject(spawnTreeStore)
                 .environmentObject(gatewayClientWrapper)
                 .environmentObject(capabilitiesStore)
+                .environmentObject(celebrationManager)
+                .environmentObject(ttsService)
         }
     }
 }

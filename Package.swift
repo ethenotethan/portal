@@ -13,6 +13,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/airbnb/lottie-spm", from: "4.6.0"),
         .package(url: "https://github.com/raspu/Highlightr", from: "2.3.0"),
+        .package(url: "https://github.com/lukilabs/beautiful-mermaid-swift", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -20,6 +21,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Lottie", package: "lottie-spm"),
                 .product(name: "Highlightr", package: "Highlightr"),
+                .product(name: "BeautifulMermaid", package: "beautiful-mermaid-swift"),
             ],
             resources: [
                 .process("Resources/Lottie"),

@@ -11,7 +11,7 @@ struct ChatView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
-    @State private var showPersonaPicker = false
+    @EnvironmentObject var ttsService: TTSService
     @State private var showSkinPicker = false
     @State private var showGatewayDebug = false
     #if os(iOS)
@@ -99,29 +99,27 @@ struct ChatView: View {
 
                         ZStack(alignment: .topLeading) {
                             LazyVStack(alignment: .leading, spacing: 2) {
-                                ForEach(renderedMessages, id: \.element.id) { index, message in
                                 let msgs = chatViewModel.messages
-                                // Next message in same role group?
-                                let nextIsSameRole = index < msgs.count - 1 &&
-                                    msgs[index + 1].role == message.role
-                                let isLastInGroup = !nextIsSameRole
+                                ForEach(renderedMessages, id: \.element.id) { index, message in
+                                    // Index is into renderedMessages, NOT msgs. Use the
+                                    // actual offset into msgs for next-is-same-role check.
+                                    let msgIndex = msgs.firstIndex(where: { $0.id == message.id }) ?? index
+                                    let nextIsSameRole = msgIndex < msgs.count - 1 &&
+                                        msgs[msgIndex + 1].role == message.role
+                                    let isLastInGroup = !nextIsSameRole
+                                    let showTimestamp = isLastInGroup
 
-                                // Timestamp: only on the last message in a consecutive same-role group
-                                let showTimestamp = isLastInGroup
-
-                                skinProvider.messageBubble(
-                                    message: {
-                                        var m = message
-                                        m.showAvatar = false
-                                        m.showTimestamp = showTimestamp
-                                        return m
-                                    }(),
-                                    persona: personaManager.activePersona
-                                )
-                                .id(message.id)
-                                // Report the latest assistant turn's bottom edge so the
-                                // singleton avatar can travel through the conversation.
-                            }
+                                    skinProvider.messageBubble(
+                                        message: {
+                                            var m = message
+                                            m.showAvatar = false
+                                            m.showTimestamp = showTimestamp
+                                            return m
+                                        }(),
+                                        persona: personaManager.activePersona
+                                    )
+                                    .id(message.id)
+                                }
 
                             // Streaming panel — skin-provided
                             if chatViewModel.isStreaming {
@@ -193,17 +191,6 @@ struct ChatView: View {
                 .background(activeSkin.background)
                 #if os(macOS)
                 .scrollIndicators(.hidden, axes: .horizontal)
-                // ── macOS focus-recovery (AppKit-level) ──
-                // ChatPaneClickMonitor uses NSEvent.addLocalMonitorForEvents
-                // to detect mouse clicks in the chat pane and restores focus
-                // to the text field via window.makeFirstResponder(). This sees
-                // events BEFORE any SwiftUI gesture or AppKit view can consume
-                // them — unlike the old simultaneousGesture(TapGesture) approach
-                // which never fired because NSScrollView/NSSplitView absorbed
-                // the mouseDown event.
-                .background(
-                    ChatPaneClickMonitor(textFieldRef: inputFieldRef)
-                )
                 #else
                 .scrollDismissesKeyboard(.interactively)
                 #endif
@@ -266,14 +253,18 @@ struct ChatView: View {
         }
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
+        .background(
+            ChatPaneClickMonitor(textFieldRef: inputFieldRef)
+        )
         #endif
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
             settingsSheet
         }
-        .onTapGesture {
-            dismissKeyboard()
-        }
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in dismissKeyboard() },
+            including: .all
+        )
         #endif
         .sheet(isPresented: $showGatewayDebug) {
             GatewayDebugPanelView(client: gatewayClientWrapper.client)
@@ -284,7 +275,7 @@ struct ChatView: View {
                 #endif
         }
         .onAppear {
-            chatViewModel.personaManager = personaManager
+            // no-op: persona is read-only from gateway
             #if os(macOS)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
@@ -321,12 +312,9 @@ struct ChatView: View {
     private var chatToolbar: some View {
         HStack {
             // Persona badge — tap to switch persona
-            Button {
-                showPersonaPicker = true
-            } label: {
-                HStack(spacing: 6) {
+            HStack(spacing: 6) {
                     personaManager.activePersona.bubbleAvatar(size: 22)
-                    Text(personaManager.usesAgentDefault ? "Agent Default" : personaManager.activePersona.name)
+                    Text(personaManager.activePersona.name)
                         .font(.caption)
                         .fontWeight(.medium)
                         .lineLimit(1)
@@ -338,12 +326,6 @@ struct ChatView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(.quaternary, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .popover(isPresented: $showPersonaPicker) {
-                PersonaPickerView()
-                    .environmentObject(personaManager)
-            }
 
             // Skin badge — tap to switch skin
             Button {
@@ -372,6 +354,18 @@ struct ChatView: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .background(.quaternary.opacity(0.6), in: Capsule())
+
+            // TTS toggle
+            Button {
+                ttsService.toggle()
+            } label: {
+                Image(systemName: ttsService.isEnabled ? "speaker.wave.3.fill" : "speaker.slash")
+                    .font(.caption2)
+                    .foregroundStyle(ttsService.isEnabled ? Theme.accent : .secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
 
             Spacer()
 

@@ -10,6 +10,8 @@ struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
+    @EnvironmentObject var celebrationManager: CelebrationManager
+    @EnvironmentObject var ttsService: TTSService
     @EnvironmentObject var personaManager: PersonaManager
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @StateObject private var chatViewModel = ChatViewModel()
@@ -17,11 +19,13 @@ struct ContentView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var showSettings = false
     @State private var isMacSidebarVisible = true
     private let macSidebarWidth: CGFloat = 352
     @State private var missionControlSessionID: String?
     @State private var missionControlRuntimeSessionID: String?
     @State private var observerSession: Session?
+    @State private var previousActiveSessionID: String?  // Preserve List selection when opening observer
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
     @State private var showActivitySheet = false
@@ -58,6 +62,14 @@ struct ContentView: View {
                 OnboardingView()
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(chatViewModel)
+            }
+
+            // Celebration overlay — positive reinforcement effects
+            if let celebration = celebrationManager.activeCelebration {
+                CelebrationOverlay(
+                    particles: ConfettiParticle.burst(count: 60),
+                    onComplete: { celebrationManager.activeCelebration = nil }
+                )
             }
         }
         .task {
@@ -258,8 +270,16 @@ struct ContentView: View {
             })
             .frame(minWidth: 640, minHeight: 620)
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(settings)
+                .environmentObject(personaManager)
+                .environmentObject(capabilitiesStore)
+                .frame(minWidth: 500, minHeight: 450)
+        }
         .sheet(item: $observerSession, onDismiss: {
-            sessionList.activeSessionID = chatViewModel.currentSessionID
+            sessionList.activeSessionID = previousActiveSessionID ?? chatViewModel.currentSessionID
+            previousActiveSessionID = nil
         }, content: { session in
             SessionObserverView(session: session)
                 .environmentObject(gatewayClientWrapper)
@@ -446,6 +466,16 @@ struct ContentView: View {
     private var macOverlayIcons: some View {
         HStack(spacing: 8) {
             Button {
+                showSettings = true
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut(",", modifiers: .command)
+            .accessibilityLabel("Settings")
+
+            Button {
                 showLiveSessions = true
             } label: {
                 Label("Sessions", systemImage: "square.grid.2x2")
@@ -610,6 +640,7 @@ struct ContentView: View {
         let rpcID = session.rpcID
 
         if session.isOwned {
+            previousActiveSessionID = nil
             if pendingCreatedSessionID == newID || pendingCreatedSessionID == rpcID {
                 pendingCreatedSessionID = nil
                 return
@@ -624,6 +655,7 @@ struct ContentView: View {
                 return
             }
             let generation = chatViewModel.beginSwitchToSession(key: newID)
+            chatViewModel.refocusInput += 1
             Task {
                 // session.resume expects the database-format ID.
                 let resumed = await chatViewModel.resumeSession(key: newID, generation: generation)
@@ -634,8 +666,14 @@ struct ContentView: View {
                 }
             }
         } else {
-            // Non-owned session — open observer view.
+            // Non-owned session — open observer view, but preserve List selection.
+            previousActiveSessionID = sessionList.activeSessionID
             observerSession = session
+            // Reset the List back to the previously selected owned session so the
+            // sidebar does not stay highlighted on a non-owned session. This
+            // avoids layout recursion inside SwiftUI's List(selection:) when a
+            // sheet is presented from the same update pass.
+            sessionList.activeSessionID = previousActiveSessionID
         }
     }
 

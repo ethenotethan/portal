@@ -158,7 +158,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Init
 
     override init() {
-        self.gatewayURL = URL(string: Constants.defaultGatewayURL)!
+        self.gatewayURL = URL(string: Constants.defaultGatewayURL) ?? URL(string: "ws://localhost:8642/v1/ws")!
         self.apiKey = ""
         super.init()
         refreshDebugSnapshot()
@@ -279,13 +279,59 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         refreshDebugSnapshot()
         recordDebugEvent(.state, name: "connect", detail: "opening")
 
-        // If we have a CF_Authorization cookie, verify it's still valid first
-        if cfAuthCookie != nil {
-            Task {
-                await verifyCFCookieThenConnect()
+        Task {
+            // Always probe HTTP first so we fail fast with a useful status.
+            let httpStatus = await probeHTTPHealth()
+            if httpStatus == 404 {
+                onLog?("⚠ HTTP health returned 404 — gateway may not have a WebSocket route at \(gatewayURL.path)", true)
+                connectionState = .error(
+                    "Gateway returned 404. The server does not have a WebSocket endpoint at \(gatewayURL.path). " +
+                    "Check your gateway URL or server configuration."
+                )
+                return
             }
-        } else {
-            openWebSocket()
+            // If HTTP is also failing (non-200, non-404), surface it but still try WS
+            if httpStatus != 200 {
+                onLog?("⚠ HTTP health returned \(httpStatus) — trying WS anyway", true)
+            }
+
+            // If we have a CF_Authorization cookie, verify it's still valid first
+            if cfAuthCookie != nil {
+                await verifyCFCookieThenConnect()
+            } else {
+                openWebSocket()
+            }
+        }
+    }
+
+    /// Quick HTTP HEAD to the gateway host to confirm reachability.
+    /// Returns the HTTP status code, or -1 if the request itself failed.
+    private func probeHTTPHealth() async -> Int {
+        guard let host = gatewayURL.host,
+              let scheme = gatewayURL.scheme else { return -1 }
+        let healthURL = URL(string: "\(scheme)://\(host)/health")
+            ?? URL(string: "\(scheme)://\(host)")
+        guard let url = healthURL else { return -1 }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 5
+        request.httpMethod = "HEAD"
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        if let cookie = cfAuthCookie {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
+
+        onLog?("Probing HTTP health at \(url)…", false)
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            onLog?("HTTP health status: \(status)", status != 200)
+            return status
+        } catch {
+            onLog?("HTTP health probe failed: \(error.localizedDescription)", true)
+            return -1
         }
     }
 
@@ -497,7 +543,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             onLog?("→ \(method) (id=\(id))", false)
             Task { @MainActor in
                 do {
-                    try await webSocketTask.send(.string(String(data: data, encoding: .utf8)!))
+                    guard let jsonString = String(data: data, encoding: .utf8) else {
+                        log.error("call: failed to encode JSON as UTF-8 for \(method) id=\(id)")
+                        if self.removePendingRequest(id: id) != nil {
+                            self.recordDebugEvent(.error, name: method, detail: "UTF-8 encode failed id=\(id)")
+                            continuation.resume(throwing: GatewayError.invalidResponse("JSON UTF-8 encoding failed"))
+                        }
+                        return
+                    }
+                    try await webSocketTask.send(.string(jsonString))
                 } catch {
                     // Send failed — remove continuation and propagate error.
                     // Only resume if it is still pending; a fast disconnect may
@@ -663,6 +717,28 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 return nil
             }()
 
+            let promptValue: String? = {
+                let candidates = [
+                    d["prompt"]?.stringValue,
+                    d["full_prompt"]?.stringValue,
+                    d["prompt_text"]?.stringValue,
+                    d["cron_prompt"]?.stringValue,
+                    d["command"]?.stringValue,
+                    d["task"]?.stringValue,
+                    d["script"]?.stringValue,
+                    d["description"]?.stringValue,
+                    d["body"]?.stringValue,
+                    d["text"]?.stringValue,
+                    d["message"]?.stringValue,
+                    d["query"]?.stringValue,
+                    d["content"]?.stringValue,
+                    d["args"]?.stringValue,
+                    d["input"]?.stringValue,
+                    d["prompt_preview"]?.stringValue
+                ]
+                return candidates.compactMap { $0 }.first
+            }()
+
             return CronJob(
                 id: jobID,
                 name: d["name"]?.stringValue ?? jobID,
@@ -674,59 +750,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 state: d["state"]?.stringValue ?? "scheduled",
                 deliver: d["deliver"]?.stringValue ?? "local",
                 promptPreview: d["prompt_preview"]?.stringValue,
-                prompt: d["prompt"]?.stringValue
-                    ?? d["full_prompt"]?.stringValue
-                    ?? d["prompt_text"]?.stringValue
-                    ?? d["prompt_preview"]?.stringValue
+                prompt: promptValue
             )
         }
-    }
-
-    func getCronJob(id: String) async throws -> CronJob? {
-        let response = try await call("cron.manage", params: [
-            "action": AnyCodable("get"),
-            "name": AnyCodable(id)
-        ])
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        guard let d = response.result?.dictionaryValue else { return nil }
-
-        let iso8601Formatter = ISO8601DateFormatter()
-        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        guard let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
-
-        let nextRunAt: Date? = {
-            if let str = d["next_run_at"]?.stringValue {
-                return iso8601Formatter.date(from: str)
-            }
-            return nil
-        }()
-
-        let lastRunAt: Date? = {
-            if let str = d["last_run_at"]?.stringValue {
-                return iso8601Formatter.date(from: str)
-            }
-            return nil
-        }()
-
-        return CronJob(
-            id: jobID,
-            name: d["name"]?.stringValue ?? jobID,
-            schedule: d["schedule"]?.stringValue ?? "",
-            nextRunAt: nextRunAt,
-            lastRunAt: lastRunAt,
-            lastStatus: d["last_status"]?.stringValue,
-            enabled: d["enabled"]?.boolValue ?? true,
-            state: d["state"]?.stringValue ?? "scheduled",
-            deliver: d["deliver"]?.stringValue ?? "local",
-            promptPreview: d["prompt_preview"]?.stringValue,
-            prompt: d["prompt"]?.stringValue
-                ?? d["full_prompt"]?.stringValue
-                ?? d["prompt_text"]?.stringValue
-                ?? d["prompt_preview"]?.stringValue
-        )
     }
 
     // MARK: - Skills RPCs
@@ -739,6 +765,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             log.error("listSkills: RPC error code=\(error.code) message=\(error.message)")
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
+
+        // Handle case where result is a string (e.g. "No skills configured")
+        if let stringResult = response.result?.stringValue {
+            log.info("listSkills: result is a string: '\(stringResult)'")
+            return [:]
+        }
+
         guard let result = response.result?.dictionaryValue else {
             log.info("listSkills: result is nil or not a dict, raw=\(String(describing: response.result))")
             return [:]
@@ -1219,8 +1252,22 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             if type != "message.delta" && type != "reasoning.delta" && type != "thinking.delta" {
                 onLog?("← event: \(type)", false)
             }
-            let payloadData = try? JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
-            let payload = payloadData.flatMap { try? JSONDecoder().decode(AnyCodable.self, from: $0) }
+            let payloadData: Data
+            do {
+                payloadData = try JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
+            } catch {
+                log.error("JSONSerialization failed for event payload: \(error)")
+                onLog?("⚠ Serialize failed for \(type): \(error.localizedDescription)", true)
+                return
+            }
+            let payload: AnyCodable?
+            do {
+                payload = try JSONDecoder().decode(AnyCodable.self, from: payloadData)
+            } catch {
+                log.error("JSONDecoder failed for event payload: \(error)")
+                onLog?("⚠ Decode failed for \(type): \(error.localizedDescription)", true)
+                return
+            }
             let event = GatewayEvent.from(type: type, payload: payload)
             let sessionID = params["session_id"] as? String
             recordDebugEvent(.inbound, name: type, sessionID: sessionID)
@@ -1257,6 +1304,37 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     // MARK: - URLSessionWebSocketDelegate
+
+    nonisolated func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        Task { @MainActor in
+            if let error = error as NSError? {
+                let code = error.code
+                let domain = error.domain
+                let description = error.localizedDescription
+                recordDebugEvent(.error, name: "websocket.failed", detail: "[\(domain) \(code)] \(description)")
+                onLog?("✗ WebSocket handshake failed: [\(domain) \(code)] \(description)", true)
+
+                // If it's a bad server response (-1011), try to read the HTTP status
+                if code == NSURLErrorBadServerResponse,
+                   let response = task.response as? HTTPURLResponse {
+                    let status = response.statusCode
+                    let headers = response.allHeaderFields
+                    recordDebugEvent(.error, name: "websocket.http", detail: "status=\(status) headers=\(headers)")
+                    onLog?("  HTTP status on upgrade: \(status)", true)
+                }
+
+                // Don't spin-reconnect on permanent errors
+                if code == NSURLErrorBadServerResponse || code == NSURLErrorNotConnectedToInternet {
+                    connectionState = .error("Server rejected connection (\(code): \(description))")
+                    return
+                }
+            }
+        }
+    }
 
     nonisolated func urlSession(
         _ session: URLSession,

@@ -568,6 +568,10 @@ struct DiagramPreviewBlock: View {
                 .frame(height: 180)
                 .clipped()
                 .allowsHitTesting(false)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isOpen = true
+                }
 
             HStack(spacing: 6) {
                 Image(systemName: "chart.bar.doc.horizontal")
@@ -589,9 +593,6 @@ struct DiagramPreviewBlock: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
-        .onTapGesture {
-            isOpen = true
-        }
         #if os(iOS)
         .fullScreenCover(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: mermaidCode)
@@ -1062,15 +1063,16 @@ struct OpenableBlockSheet: View {
 
                 Divider().overlay(Theme.border)
 
-                // Content — WKWebView handles its own scrolling
+                // Content — diagram or HTML, clipped so zoom/pan never overlaps the title bar
                 Group {
                     if MarkdownParser.isDiagramLanguage(language) {
-                        MermaidDiagramView(mermaidCode: content, isInteractive: true)
+                        MermaidDiagramView(mermaidCode: content)
                     } else {
                         InlineHTMLView(html: content)
                     }
                 }
                 .padding(12)
+                .clipped()
             }
         }
         #if os(iOS)

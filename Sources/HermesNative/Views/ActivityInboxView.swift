@@ -259,8 +259,11 @@ private struct ActivityDetailView: View {
         .sheet(item: $selectedArtifact) { artifact in
             ActivityArtifactView(artifact: artifact)
         }
-        .task {
-            if !item.isRead { await viewModel.markRead(item) }
+        .onAppear {
+            // Only auto-mark as read once per detail open, not on every re-appear
+            if !item.isRead {
+                Task { await viewModel.markRead(item) }
+            }
         }
     }
 

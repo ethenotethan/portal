@@ -47,7 +47,7 @@ final class CronRunHistoryStore: ObservableObject {
             guard let lastRun = job.lastRunAt else { continue }
             let prev = previousLastRuns[job.id]
 
-            if prev == nil || lastRun > prev! {
+            if let prev, lastRun > prev {
                 let alreadyRecorded = records.contains { $0.jobID == job.id && $0.firedAt == lastRun }
                 if !alreadyRecorded {
                     let record = CronRunRecord(
@@ -94,7 +94,9 @@ final class CronRunHistoryStore: ObservableObject {
                 didChange = true
             }
             let prev = previousLastRuns[job.id]
-            if prev == nil || lastRun > prev! {
+            if let prev, lastRun > prev {
+                previousLastRuns[job.id] = lastRun
+            } else if prev == nil {
                 previousLastRuns[job.id] = lastRun
             }
         }
@@ -119,8 +121,8 @@ final class CronRunHistoryStore: ObservableObject {
 
     func averageInterval(for jobID: String) -> TimeInterval? {
         let jobRecords = records(for: jobID)
-        guard jobRecords.count >= 2 else { return nil }
-        let totalSpan = jobRecords.last!.firedAt.timeIntervalSince(jobRecords.first!.firedAt)
+        guard let first = jobRecords.first, let last = jobRecords.last else { return nil }
+        let totalSpan = last.firedAt.timeIntervalSince(first.firedAt)
         return totalSpan / Double(jobRecords.count - 1)
     }
 
@@ -135,7 +137,9 @@ final class CronRunHistoryStore: ObservableObject {
     private func rebuildPreviousState() {
         for record in records {
             let prev = previousLastRuns[record.jobID]
-            if prev == nil || record.firedAt > prev! {
+            if let prev, record.firedAt > prev {
+                previousLastRuns[record.jobID] = record.firedAt
+            } else if prev == nil {
                 previousLastRuns[record.jobID] = record.firedAt
             }
         }

@@ -29,11 +29,13 @@ final class ChatHistoryStore {
     /// Save messages for a session. Called after every message change.
     func saveMessages(_ messages: [ChatMessage], forSession sessionID: String) {
         let file = sessionsDir.appendingPathComponent("\(sessionID).json")
-        do {
-            let data = try JSONEncoder().encode(messages)
-            try data.write(to: file, options: .atomic)
-        } catch {
-            log.error("Failed to save session \(sessionID): \(error)")
+        Task.detached(priority: .background) {
+            do {
+                let data = try JSONEncoder().encode(messages)
+                try data.write(to: file, options: .atomic)
+            } catch {
+                log.error("Failed to save session \(sessionID): \(error)")
+            }
         }
     }
 
@@ -57,7 +59,9 @@ final class ChatHistoryStore {
     /// Delete local history for a session.
     func deleteMessages(forSession sessionID: String) {
         let file = sessionsDir.appendingPathComponent("\(sessionID).json")
-        try? fileManager.removeItem(at: file)
+        Task.detached(priority: .background) { [file] in
+            try? FileManager.default.removeItem(at: file)
+        }
     }
 
     // MARK: - List

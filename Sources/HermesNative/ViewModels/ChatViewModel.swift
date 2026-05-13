@@ -84,6 +84,7 @@ final class ChatViewModel: ObservableObject {
     private var gatewayIDByStableSession: [String: String] = [:]
     private var sessionStates: [String: SessionRuntimeState] = [:]
     private var streamingMessageID: UUID?
+    private var streamStartDate: Date?
     private var cancellables = Set<AnyCancellable>()
     private var isCreatingSession = false  // Guard against double-trigger
     private var isStopping = false
@@ -114,13 +115,15 @@ final class ChatViewModel: ObservableObject {
         let fullLine = "\(timestamp) #\(perfWriteCount) \(line)\n"
         log.info("\(fullLine)")
         guard let url = perfLogURL, let data = fullLine.data(using: .utf8) else { return }
-        if FileManager.default.fileExists(atPath: url.path),
-           let handle = try? FileHandle(forWritingTo: url) {
-            try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-            try? handle.close()
-        } else {
-            try? data.write(to: url, options: .atomic)
+        Task.detached(priority: .background) {
+            if FileManager.default.fileExists(atPath: url.path),
+               let handle = try? FileHandle(forWritingTo: url) {
+                try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url, options: .atomic)
+            }
         }
     }
 
@@ -144,7 +147,6 @@ final class ChatViewModel: ObservableObject {
         ]
         writePerfLog("[HermesNativePerf] \(fields.joined(separator: " "))")
     }
-    weak var personaManager: PersonaManager?
 
     // MARK: - Setup
 
@@ -214,10 +216,6 @@ final class ChatViewModel: ObservableObject {
         // the New Session button and leaves the list empty on compact iOS.
         client.onReconnected = { [weak self] in
             guard let self else { return }
-            // Sync persona
-            if let pm = self.personaManager, let client = self.gatewayClient {
-                await pm.syncFromGateway(client)
-            }
             // If GatewayClient already resumed the session, use that session ID
             if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
                 self.sessionID = resumedID
@@ -356,6 +354,7 @@ final class ChatViewModel: ObservableObject {
             self.isStreaming = false
             self.avatarState = .idle
             self.error = nil
+            cancelPendingFlush()
             snapshotCurrentSessionState()
 
             await applyEphemeralPrompt(for: sid, using: client)
@@ -404,6 +403,7 @@ final class ChatViewModel: ObservableObject {
         self.avatarState = .idle
         self.error = nil
         self.sessionTitle = "New Chat"
+        cancelPendingFlush()
         snapshotCurrentSessionState()
         return generation
     }
@@ -497,13 +497,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: GatewayClient) async {
-        var prompt = Self.appFormattingPrompt
-        if let personaManager,
-           !personaManager.usesAgentDefault,
-           let personaSuffix = personaManager.activePersona.systemPromptSuffix,
-           !personaSuffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            prompt += "\n\n" + personaSuffix
-        }
+        let prompt = Self.appFormattingPrompt
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
@@ -622,10 +616,12 @@ final class ChatViewModel: ObservableObject {
         messages.append(userMessage)
 
         // Auto-title from first user message
-        if messages.filter({ $0.role == .user }).count == 1 {
+        let isFirstMessage = messages.filter({ $0.role == .user }).count == 1
+        if isFirstMessage {
             sessionTitle = text.isEmpty
                 ? "Image chat"
                 : String(text.prefix(60))
+            CelebrationManager.shared.onFirstMessage(sessionID: sid)
         }
 
         // Persist user message immediately
@@ -639,6 +635,7 @@ final class ChatViewModel: ObservableObject {
             isStreaming: true
         )
         streamingMessageID = assistantMessage.id
+        streamStartDate = Date()
         messages.append(assistantMessage)
         snapshotCurrentSessionState()
 
@@ -691,8 +688,18 @@ final class ChatViewModel: ObservableObject {
         activeToolCalls = [:]
         isStreaming = false
         streamingMessageID = nil
+        let duration = streamStartDate.map { Date().timeIntervalSince($0) } ?? 0
+        streamStartDate = nil
         avatarState = .idle
         saveHistory()
+
+        // Positive reinforcement celebration
+        if status == nil || status == "complete" {
+            CelebrationManager.shared.onResponseComplete(sessionID: currentSessionID ?? "", duration: duration)
+        }
+
+        // Text-to-speech summary
+        TTSService.shared.speakLastAssistantMessage(messages)
     }
 
     /// Respond to a pending approval.
@@ -759,8 +766,13 @@ final class ChatViewModel: ObservableObject {
 
     /// Delete local history for a session.
     func deleteLocalHistory(sessionID: String) {
+        cancelPendingFlush()
         ChatHistoryStore.shared.deleteMessages(forSession: sessionID)
         sessionStates.removeValue(forKey: sessionID)
+        gatewayIDByStableSession.removeValue(forKey: sessionID)
+        for (gatewayID, displayID) in stableSessionByGatewayID where displayID == sessionID {
+            stableSessionByGatewayID.removeValue(forKey: gatewayID)
+        }
     }
 
 #if DEBUG
@@ -897,10 +909,23 @@ final class ChatViewModel: ObservableObject {
         scheduleVisibleEventFlush()
     }
 
+    private func cancelPendingFlush() {
+        pendingVisibleEventFlush?.cancel()
+        pendingVisibleEventFlush = nil
+        pendingVisibleMessageDelta = ""
+        pendingVisibleReasoningDelta = ""
+        pendingVisibleThinkingDelta = ""
+    }
+
     private func scheduleVisibleEventFlush() {
         guard pendingVisibleEventFlush == nil else { return }
-        pendingVisibleEventFlush = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
+        pendingVisibleEventFlush = Task {
+            do {
+                try await Task.sleep(nanoseconds: 500_000_000)
+            } catch {
+                if error is CancellationError { return }
+            }
+            guard !Task.isCancelled else { return }
             flushPendingVisibleEventDeltas()
         }
     }
@@ -1084,6 +1109,14 @@ final class ChatViewModel: ObservableObject {
             state.error = message
             state.isStreaming = false
             state.avatarState = .error
+            // Finalize the last streaming assistant message so it doesn't appear stuck
+            if let msgID = state.streamingMessageID,
+               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
+                state.messages[idx].isStreaming = false
+                state.messages[idx].status = "error"
+                state.streamingMessageID = nil
+            }
+            state.activeToolCalls = [:]
 
         case .statusUpdate, .toolGenerating, .reasoningAvailable,
              .gatewayReady, .skinChanged, .backgroundComplete,
@@ -1110,6 +1143,9 @@ final class ChatViewModel: ObservableObject {
                 // or every token triggers a full SwiftUI re-render cycle.
             } else {
                 _ = restoreSessionState(displayID: displayID, runtimeID: eventSessionID)
+            }
+            if case .messageComplete(let payload) = event {
+                finishStreaming(status: payload.status)
             }
         }
 
@@ -1180,12 +1216,19 @@ final class ChatViewModel: ObservableObject {
             activeToolCalls = [:]
             isStreaming = false
             streamingMessageID = nil
+            streamStartDate = nil
             avatarState = .idle
 
             writePerfSnapshot("messageComplete")
 
             // Persist to local storage after each completed response
             saveHistory()
+
+            // Positive reinforcement celebration
+            CelebrationManager.shared.onResponseComplete(sessionID: sessionID ?? "", duration: 0)
+
+            // Text-to-speech summary
+            TTSService.shared.speakLastAssistantMessage(messages)
 
             // Notify if app is backgrounded or this isn't the active session
             let preview = payload.text.truncated(to: 80)
@@ -1264,6 +1307,7 @@ final class ChatViewModel: ObservableObject {
             self.error = message
             isStreaming = false
             avatarState = .error
+            finishStreaming(status: "error")
             writePerfSnapshot("error")
 
         case .skinChanged:

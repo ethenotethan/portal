@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// Settings view for gateway connection configuration + persona management.
+/// Settings view for gateway connection configuration.
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var personaManager: PersonaManager
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @Environment(\.dismiss) private var dismiss
+    @State private var showCFAuth = false
 
     var body: some View {
         #if os(macOS)
@@ -41,7 +42,6 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Gateway
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Gateway URL")
                             .font(.caption)
@@ -84,14 +84,12 @@ struct SettingsView: View {
 
                     Divider()
 
-                    // Persona
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Persona")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
 
-                        // Active persona
                         HStack(spacing: 12) {
                             personaManager.activePersona.bubbleAvatar(size: 36)
                             VStack(alignment: .leading, spacing: 2) {
@@ -101,29 +99,6 @@ struct SettingsView: View {
                                 Text(personaManager.activePersona.tagline)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        // Picker
-                        ForEach(personaManager.personas) { persona in
-                            HStack(spacing: 10) {
-                                persona.bubbleAvatar(size: 28)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(persona.name)
-                                        .font(.subheadline)
-                                    Text(persona.tagline)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if persona.id == personaManager.activePersona.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(persona.accentColor)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                personaManager.select(persona)
                             }
                         }
                     }
@@ -183,6 +158,33 @@ struct SettingsView: View {
                     .textFieldStyle(.roundedBorder)
             }
 
+            if settings.needsCFAuth {
+                Section("Cloudflare Access") {
+                    HStack {
+                        if let email = settings.cfAuthEmail {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text(email)
+                                .lineLimit(1)
+                        } else if settings.cfAuthCookie != nil {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Authenticated")
+                        } else {
+                            Image(systemName: "lock.shield")
+                                .foregroundStyle(.secondary)
+                            Text("Not authenticated")
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                            showCFAuth = true
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+
             Section("Notifications") {
                 Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                 Text("Notify when a response finishes while the app is in the background or another session is active.")
@@ -201,11 +203,22 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showCFAuth) {
+            if let host = settings.buildWebSocketURL()?.host {
+                CFAuthView(gatewayHost: host) { cookie in
+                    settings.cfAuthCookie = cookie
+                    settings.parseCFAuthEmail(from: cookie)
+                    showCFAuth = false
+                } onDismiss: {
+                    showCFAuth = false
+                }
+            }
+        }
     }
 
     private var personaTab: some View {
         Form {
-            Section("Active Persona") {
+            Section("Gateway Persona") {
                 HStack(spacing: 12) {
                     personaManager.activePersona.bubbleAvatar(size: 40)
                     VStack(alignment: .leading, spacing: 2) {
@@ -218,66 +231,14 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Available Personas") {
-                ForEach(personaManager.personas) { persona in
-                    HStack(spacing: 10) {
-                        persona.bubbleAvatar(size: 28)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(persona.name)
-                                .font(.subheadline)
-                            Text(persona.tagline)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if persona.id == personaManager.activePersona.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(persona.accentColor)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        personaManager.select(persona)
-                    }
-                }
-            }
-
-            Section("Custom Personas") {
-                HStack {
-                    Text("Drop .json files in:")
-                        .font(.caption)
-                    Text(PersonaManager.personasDirectory.path)
-                        .font(.caption)
+            if let suffix = personaManager.activePersona.systemPromptSuffix,
+               !suffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Section("Persona Prompt (from PERSONA.md)") {
+                    Text(suffix)
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
-                HStack {
-                    Button("Open Folder") {
-                        NSWorkspace.shared.open(PersonaManager.personasDirectory)
-                    }
-                    Button("Create Template") {
-                        if let url = personaManager.exportTemplate() {
-                            NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
-                        }
-                    }
-                }
-            }
-
-            Section("Persona JSON Format") {
-                Text("""
-                    {
-                      "id": "my-persona",
-                      "name": "My Persona",
-                      "tagline": "A custom AI assistant",
-                      "symbolName": "person.fill",
-                      "accentColorHex": "#5856D6",
-                      "imagePath": null,
-                      "systemPromptSuffix": "You are…"
-                    }
-                    """)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
             }
         }
         .formStyle(.grouped)

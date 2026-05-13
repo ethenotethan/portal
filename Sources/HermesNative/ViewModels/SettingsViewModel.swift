@@ -63,7 +63,7 @@ final class SettingsViewModel: ObservableObject {
 
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)
-        self.isConfigured = onboarded || (isUITest && uiTestGatewayURL != nil)
+        self.isConfigured = onboarded || (isUITest && !(uiTestGatewayURL?.isEmpty ?? true))
         didCompleteInit = true
 
         if isUITest {

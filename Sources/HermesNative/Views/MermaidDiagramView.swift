@@ -1,304 +1,274 @@
 import SwiftUI
-import WebKit
+import BeautifulMermaid
+import os
 
-/// Renders a Mermaid diagram inside a WKWebView using mermaid.js from CDN.
-/// Falls back to raw code display if rendering fails.
+private let log = Logger(
+    subsystem: "com.researchoors.HermesNative",
+    category: "MermaidDiagramView"
+)
+
+/// Renders a Mermaid diagram natively using BeautifulMermaid.
+/// Works around a macOS coordinate-system bug by manually flipping the Y-axis.
 struct MermaidDiagramView: View {
     let mermaidCode: String
-    var isInteractive: Bool = false
 
     var body: some View {
-        #if os(macOS)
-        MermaidDiagramNSView(mermaidCode: mermaidCode, isInteractive: isInteractive)
-        #else
-        MermaidDiagramUIView(mermaidCode: mermaidCode, isInteractive: isInteractive)
-        #endif
+        NativeMermaidRenderer(source: mermaidCode)
     }
 }
 
-#if os(macOS)
-struct MermaidDiagramNSView: NSViewRepresentable {
-    let mermaidCode: String
-    let isInteractive: Bool
+// MARK: - Native Renderer
 
-    func makeNSView(context: Context) -> MermaidWebView {
-        MermaidWebView()
+private struct NativeMermaidRenderer: View {
+    let source: String
+    @State private var image: PlatformImage?
+    @State private var errorText: String?
+
+    /// Strips markdown fences and trims whitespace.
+    private var cleanedSource: String {
+        source
+            .replacingOccurrences(of: "```mermaid", with: "")
+            .replacingOccurrences(of: "```flowchart", with: "")
+            .replacingOccurrences(of: "```sequenceDiagram", with: "")
+            .replacingOccurrences(of: "```stateDiagram", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func updateNSView(_ webView: MermaidWebView, context: Context) {
-        webView.render(mermaidCode: mermaidCode, isInteractive: isInteractive)
-    }
-}
-#else
-struct MermaidDiagramUIView: UIViewRepresentable {
-    let mermaidCode: String
-    let isInteractive: Bool
-
-    func makeUIView(context: Context) -> MermaidWebView {
-        MermaidWebView()
-    }
-
-    func updateUIView(_ webView: MermaidWebView, context: Context) {
-        webView.render(mermaidCode: mermaidCode, isInteractive: isInteractive)
-    }
-}
-#endif
-
-/// WKWebView subclass that loads mermaid.js from CDN and renders diagrams.
-/// Detects system appearance for dark/light theme.
-class MermaidWebView: WKWebView {
-    private var currentCode: String = ""
-    private var currentInteractive = false
-
-    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
-        super.init(frame: frame, configuration: configuration)
-        #if os(macOS)
-        setValue(false, forKey: "drawsBackground")
-        #else
-        isOpaque = false
-        backgroundColor = .clear
-        scrollView.backgroundColor = .clear
-        #endif
-        disableScrollViewScrolling()
-        navigationDelegate = self
-    }
-
-    required init?(coder: NSCoder) { fatalError("init?(coder:) is not implemented") }
-
-    #if os(macOS)
-    override func scrollWheel(with event: NSEvent) {
-        if currentInteractive {
-            super.scrollWheel(with: event)
-        } else {
-            superview?.scrollWheel(with: event)
-        }
-    }
-    #endif
-
-    private func disableScrollViewScrolling() {
-        #if os(iOS)
-        scrollView.isScrollEnabled = false
-        scrollView.bounces = false
-        #endif
-    }
-
-    private func enableScrollViewScrolling() {
-        #if os(iOS)
-        scrollView.isScrollEnabled = true
-        scrollView.bounces = true
-        #endif
-    }
-
-    func render(mermaidCode: String, isInteractive: Bool = false) {
-        guard mermaidCode != currentCode || isInteractive != currentInteractive else { return }
-        currentCode = mermaidCode
-        currentInteractive = isInteractive
-        #if os(macOS)
-        allowsMagnification = isInteractive
-        magnification = 1.0
-        #endif
-        if isInteractive {
-            enableScrollViewScrolling()
-        } else {
-            disableScrollViewScrolling()
-        }
-        let html = buildHTML(mermaidCode: mermaidCode, isInteractive: isInteractive)
-        loadHTMLString(html, baseURL: nil)
-    }
-
-    private func buildHTML(mermaidCode: String, isInteractive: Bool) -> String {
-        let escaped = mermaidCode
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-            .replacingOccurrences(of: "</script>", with: "<\\/script>")
-
-        let interactiveClass = isInteractive ? "interactive" : "preview"
-        let bodyPadding = isInteractive ? 24 : 10
-        let bodyOverflow = isInteractive ? "auto" : "hidden"
-        let hint = isInteractive ? "<div class=\"hint\">drag/scroll to pan · ⌘/+/- to zoom</div>" : ""
-
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <style>
-            html, body {
-                width: 100%;
-                min-height: 100%;
-            }
-            body {
-                margin: 0;
-                padding: \(bodyPadding)px;
-                background: transparent;
-                color: #e0e0e0;
-                font-family: -apple-system, system-ui, sans-serif;
-                overflow: \(bodyOverflow);
-            }
-            #viewport.interactive {
-                min-width: max-content;
-                min-height: max-content;
-                transform-origin: 0 0;
-                cursor: grab;
-            }
-            #viewport.interactive.dragging { cursor: grabbing; }
-            #container { text-align: center; min-width: max-content; }
-            .preview svg { max-width: 100%; height: auto; }
-            .interactive svg {
-                max-width: none;
-                height: auto;
-                min-width: 100%;
-            }
-            .error { color: #ff6b6b; font-family: monospace; font-size: 11px; white-space: pre-wrap; text-align: left; }
-            .loading { color: #888; font-size: 12px; }
-            .hint {
-                position: fixed;
-                right: 14px;
-                bottom: 12px;
-                padding: 5px 8px;
-                border-radius: 999px;
-                background: rgba(42, 42, 42, 0.82);
-                color: #9a9a9a;
-                font-size: 11px;
-                pointer-events: none;
-            }
-        </style>
-        </head>
-        <body>
-        <div id="viewport" class="\(interactiveClass)"><div id="container"><span class="loading">Rendering diagram…</span></div></div>
-        \(hint)
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-        <script>
-        const code = `\(escaped)`;
-        const interactive = \(isInteractive ? "true" : "false");
-        let scale = 1;
-        let panX = 0;
-        let panY = 0;
-        const viewport = document.getElementById('viewport');
-
-        function applyTransform() {
-            if (!interactive) return;
-            viewport.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-        }
-
-        function setScale(nextScale, originX = 0, originY = 0) {
-            const oldScale = scale;
-            scale = Math.max(0.2, Math.min(4, nextScale));
-            if (scale === oldScale) return;
-            panX = originX - ((originX - panX) * (scale / oldScale));
-            panY = originY - ((originY - panY) * (scale / oldScale));
-            applyTransform();
-        }
-
-        if (interactive) {
-            document.addEventListener('wheel', (event) => {
-                if (event.metaKey || event.ctrlKey) {
-                    event.preventDefault();
-                    const factor = event.deltaY < 0 ? 1.1 : 0.9;
-                    setScale(scale * factor, event.clientX, event.clientY);
+    var body: some View {
+        Group {
+            if let image {
+                ZoomableDiagram(image: image)
+            } else if let error = errorText {
+                ErrorCard(error: error, source: cleanedSource)
+            } else {
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text("Rendering diagram…")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
                 }
-            }, { passive: false });
+                .onAppear(perform: render)
+            }
+        }
+    }
 
-            let dragging = false;
-            let lastX = 0;
-            let lastY = 0;
-            viewport.addEventListener('mousedown', (event) => {
-                if (event.button !== 0) return;
-                dragging = true;
-                lastX = event.clientX;
-                lastY = event.clientY;
-                viewport.classList.add('dragging');
-            });
-            window.addEventListener('mousemove', (event) => {
-                if (!dragging) return;
-                panX += event.clientX - lastX;
-                panY += event.clientY - lastY;
-                lastX = event.clientX;
-                lastY = event.clientY;
-                applyTransform();
-            });
-            window.addEventListener('mouseup', () => {
-                dragging = false;
-                viewport.classList.remove('dragging');
-            });
-
-            document.addEventListener('keydown', (event) => {
-                if (!(event.metaKey || event.ctrlKey)) return;
-                if (event.key === '+' || event.key === '=') {
-                    event.preventDefault();
-                    setScale(scale * 1.15, window.innerWidth / 2, window.innerHeight / 2);
-                } else if (event.key === '-') {
-                    event.preventDefault();
-                    setScale(scale * 0.85, window.innerWidth / 2, window.innerHeight / 2);
-                } else if (event.key === '0') {
-                    event.preventDefault();
-                    scale = 1; panX = 0; panY = 0; applyTransform();
-                }
-            });
+    private func render() {
+        let code = cleanedSource
+        guard !code.isEmpty else {
+            errorText = "Empty source after cleaning fences"
+            return
         }
 
-        if (typeof mermaid !== 'undefined') {
-            mermaid.initialize({
-                startOnLoad: false,
-                theme: 'dark',
-                securityLevel: 'strict',
-                flowchart: { htmlLabels: true, curve: 'basis' },
-                sequence: { useMaxWidth: true },
-            });
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                // Parse + layout via BeautifulMermaid.
+                let positioned = try MermaidRenderer.layout(code)
+                guard let img = renderPositioned(positioned, scale: 2.0) else {
+                    DispatchQueue.main.async {
+                        errorText = "renderPositioned returned nil"
+                    }
+                    return
+                }
+                DispatchQueue.main.async {
+                    self.image = img
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    errorText = "\(error.localizedDescription)\n\nCode:\n\(code.prefix(200))"
+                }
+                log.error("Native mermaid failed: \(error.localizedDescription)")
+            }
+        }
+    }
 
-            async function render() {
-                try {
-                    const { svg } = await mermaid.render('mermaid-svg', code);
-                    document.getElementById('container').innerHTML = svg;
-                    const h = document.getElementById('container').scrollHeight;
-                    try {
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.resize) {
-                            window.webkit.messageHandlers.resize.postMessage({ height: h });
+    /// Draws a PositionedGraph into a new CGContext with the correct Y-axis flip for macOS.
+    private func renderPositioned(_ positioned: PositionedGraph, scale: CGFloat) -> PlatformImage? {
+        let bounds = CGRect(
+            x: 0, y: 0,
+            width: max(1, positioned.width),
+            height: max(1, positioned.height)
+        )
+        let pixelSize = CGSize(
+            width: bounds.width * scale,
+            height: bounds.height * scale
+        )
+        let w = Int(pixelSize.width)
+        let h = Int(pixelSize.height)
+        guard w > 0, h > 0,
+              let ctx = CGContext(
+                  data: nil, width: w, height: h,
+                  bitsPerComponent: 8, bytesPerRow: 0,
+                  space: CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                        | CGBitmapInfo.byteOrder32Big.rawValue
+              ) else { return nil }
+
+        // Background fill
+        ctx.setFillColor(nativeTheme.background.cgColor)
+        ctx.fill(CGRect(origin: .zero, size: pixelSize))
+
+        // Retina scale
+        ctx.scaleBy(x: scale, y: scale)
+
+        // Y-axis flip: DiagramRenderer assumes y=0 at top (UIKit) but
+        // raw CGContext on macOS has y=0 at bottom (AppKit).
+        ctx.translateBy(x: 0, y: bounds.height)
+        ctx.scaleBy(x: 1, y: -1)
+
+        // Render
+        DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+
+        guard let cgImage = ctx.makeImage() else { return nil }
+
+        #if os(macOS)
+        return NSImage(cgImage: cgImage, size: bounds.size)
+        #else
+        return UIImage(cgImage: cgImage)
+        #endif
+    }
+}
+
+// MARK: - Zoomable Diagram
+
+/// Wraps a rendered diagram image with pinch-to-zoom and drag-to-pan.
+private struct ZoomableDiagram: View {
+    let image: PlatformImage
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    private let minScale: CGFloat = 0.5
+    private let maxScale: CGFloat = 8.0
+
+    var body: some View {
+        GeometryReader { geo in
+            platformImageView(for: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .scaleEffect(scale)
+                .offset(offset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .clipped()
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring(response: 0.3)) {
+                        scale = 1.0
+                        offset = .zero
+                        lastScale = 1.0
+                        lastOffset = .zero
+                    }
+                }
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            let newScale = lastScale * value
+                            scale = min(max(newScale, minScale), maxScale)
                         }
-                    } catch(e) {}
-                } catch (err) {
-                    document.getElementById('container').innerHTML =
-                        '<div class="error">Mermaid: ' + err.message.replace(/</g, '&lt;') + '</div>';
+                        .onEnded { _ in
+                            lastScale = scale
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            offset = CGSize(
+                                width: lastOffset.width + value.translation.width,
+                                height: lastOffset.height + value.translation.height
+                            )
+                        }
+                        .onEnded { _ in
+                            lastOffset = offset
+                        }
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    if scale != 1.0 || offset != .zero {
+                        Text("\(Int(scale * 100))%")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(Theme.tertiary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Theme.surface.opacity(0.9), in: Capsule())
+                            .padding(8)
+                    }
                 }
-            }
-            render();
-        } else {
-            document.getElementById('container').innerHTML =
-                '<div class="error">Failed to load mermaid.js — check network</div>';
         }
-        </script>
-        </body>
-        </html>
-        """
     }
 }
 
-// MARK: - Navigation Delegate (auto-size)
+// MARK: - Error Card
 
-extension MermaidWebView: WKNavigationDelegate {
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        evaluateRenderedHeight()
-    }
+private struct ErrorCard: View {
+    let error: String
+    let source: String
 
-    private func evaluateRenderedHeight() {
-        guard !currentInteractive else { return }
-        // Poll for the rendered SVG height — mermaid renders async
-        let js = "document.getElementById('container').scrollHeight"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.evaluateJavaScript(js) { height, _ in
-                guard let h = height as? CGFloat, h > 0 else { return }
-                self?.frame.size.height = h + 20
-                self?.invalidateIntrinsicContentSize()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Text("Diagram render failed")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
             }
+
+            Text(error)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Divider()
+                .overlay(Theme.border.opacity(0.5))
+
+            Text(source)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(Theme.tertiary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(8)
         }
-        // Second pass after SVG fully settles
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            self?.evaluateJavaScript(js) { height, _ in
-                guard let h = height as? CGFloat, h > 0 else { return }
-                self?.frame.size.height = h + 20
-                self?.invalidateIntrinsicContentSize()
-            }
-        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
     }
+}
+
+// MARK: - Theme
+
+private let nativeTheme = DiagramTheme(
+    background: bmColor(hex: "1a1a1a"),
+    foreground: bmColor(hex: "f0f0f0"),
+    line: bmColor(hex: "7c7cff"),
+    accent: bmColor(hex: "7c7cff"),
+    muted: bmColor(hex: "666666"),
+    surface: bmColor(hex: "2a2a2a"),
+    border: bmColor(hex: "3a3a3a")
+)
+
+// MARK: - Helpers
+
+private func platformImageView(for image: PlatformImage) -> Image {
+    #if os(macOS)
+    Image(nsImage: image)
+    #else
+    Image(uiImage: image)
+    #endif
+}
+
+private func bmColor(hex: String) -> BMColor {
+    let sanitized = hex.replacingOccurrences(of: "#", with: "")
+    var rgb: UInt64 = 0
+    Scanner(string: sanitized).scanHexInt64(&rgb)
+    return BMColor(
+        red: CGFloat((rgb & 0xFF0000) >> 16) / 255.0,
+        green: CGFloat((rgb & 0x00FF00) >> 8) / 255.0,
+        blue: CGFloat(rgb & 0x0000FF) / 255.0,
+        alpha: 1.0
+    )
 }

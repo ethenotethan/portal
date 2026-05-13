@@ -516,13 +516,13 @@ struct SessionsDashboard: View {
 
     private var noResults: some View {
         VStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
+            Image(systemName: "sparkles")
                 .font(.largeTitle)
                 .foregroundStyle(Theme.tertiary)
-            Text("No matching sessions")
+            Text("Adventure awaits 🚀")
                 .font(.subheadline)
                 .foregroundStyle(Theme.secondary)
-            Text("Try a different search or filter.")
+            Text("Start a new chat to begin exploring.")
                 .font(.caption)
                 .foregroundStyle(Theme.tertiary)
         }

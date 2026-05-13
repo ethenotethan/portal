@@ -22,27 +22,11 @@ final class CronListViewModel {
         do {
             jobs = try await client.listCronJobs()
             CronRunHistoryStore.shared.detectNewRuns(from: jobs)
-            await fetchFullPrompts(client)
+            CronRunHistoryStore.shared.seedFromJobs(jobs)
         } catch {
             log.error("Failed to fetch cron jobs: \(error)")
         }
         isLoading = false
-    }
-
-    private func fetchFullPrompts(_ client: GatewayClient) async {
-        await withTaskGroup(of: (Int, CronJob?).self) { group in
-            for (index, job) in jobs.enumerated() {
-                let hasFullPrompt = job.prompt != nil && job.prompt != job.promptPreview
-                if hasFullPrompt { continue }
-                group.addTask { (index, try? await client.getCronJob(id: job.id)) }
-            }
-            for await (index, fullJob) in group {
-                guard let fullJob else { continue }
-                jobs[index] = fullJob
-            }
-        }
-        CronRunHistoryStore.shared.seedFromJobs(jobs)
-        CronRunHistoryStore.shared.detectNewRuns(from: jobs)
     }
 
     func pauseJob(id: String) async {

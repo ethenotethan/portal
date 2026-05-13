@@ -70,19 +70,28 @@ struct MacInputTextField: NSViewRepresentable {
             }
         }
 
-        if isFocused.wrappedValue {
+        // Only drive AppKit first-responder on a true → false transition.
+        // Calling makeFirstResponder on every updateNSView (e.g. every
+        // keystroke via the text binding) causes a focus fight that can
+        // drop the caret or break editing state.
+        let nowFocused = isFocused.wrappedValue
+        if nowFocused && !context.coordinator.wasFocused {
             makeFirstResponder(nsView)
         }
+        context.coordinator.wasFocused = nowFocused
     }
 
     private func makeFirstResponder(_ nsView: FocusableTextField) {
-        DispatchQueue.main.async {
-            guard let window = nsView.window else { return }
+        let attempt: () -> Void = { [weak nsView] in
+            guard let nsView, let window = nsView.window else { return }
             let editor = nsView.currentEditor() ?? nsView
-            if window.firstResponder !== editor {
-                window.makeFirstResponder(nsView)
-            }
+            guard window.firstResponder !== editor else { return }
+            nsView.isEditable = true
+            nsView.isSelectable = true
+            window.makeFirstResponder(nil)
+            window.makeFirstResponder(nsView)
         }
+        DispatchQueue.main.async(execute: attempt)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -92,6 +101,10 @@ struct MacInputTextField: NSViewRepresentable {
     class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: MacInputTextField
         weak var textField: FocusableTextField?
+        /// Tracks the previous SwiftUI focus-state value so updateNSView only
+        /// calls makeFirstResponder on a false→true transition, not on every
+        /// keystroke while already focused.
+        var wasFocused: Bool = false
 
         init(_ parent: MacInputTextField) {
             self.parent = parent
@@ -107,13 +120,7 @@ struct MacInputTextField: NSViewRepresentable {
         }
 
         func controlTextDidEndEditing(_ obj: Notification) {
-            DispatchQueue.main.async { [weak self] in
-                guard let window = self?.textField?.window,
-                      let editor = self?.textField?.currentEditor() else { return }
-                if window.firstResponder !== editor {
-                    self?.parent.isFocused.wrappedValue = false
-                }
-            }
+            parent.isFocused.wrappedValue = false
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
@@ -135,17 +142,26 @@ final class FocusableTextField: NSTextField {
     var onSubmit: (() -> Void)?
     var onImagePaste: (([NSItemProvider]) -> Void)?
 
+    override var acceptsFirstResponder: Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
-        if let window {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let window = self.window else { return }
-                let editor = self.currentEditor() ?? self
-                if window.firstResponder !== editor {
-                    window.makeFirstResponder(self)
-                }
+        guard let window else { return }
+        let editor = currentEditor() ?? self
+        guard window.firstResponder !== editor else { return }
+        let attempt: () -> Void = { [weak self] in
+            guard let self, let window = self.window else { return }
+            let editor = self.currentEditor() ?? self
+            guard window.firstResponder !== editor else { return }
+            self.isEditable = true
+            self.isSelectable = true
+            let success = window.makeFirstResponder(self)
+            if !success {
+                window.makeFirstResponder(nil)
+                window.makeFirstResponder(self)
             }
         }
+        DispatchQueue.main.async(execute: attempt)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -238,22 +254,17 @@ final class ClickMonitorView: NSView {
     weak var textFieldRef: FocusableTextField?
 
     func handleClick(_ event: NSEvent) {
-        guard let window else { return }
+        guard let window, let textField = textFieldRef else { return }
 
-        let textField = textFieldRef ?? findTextField(in: window.contentView)
-
-        guard let textField else { return }
-
-        let locationInWindow = event.locationInWindow
-        let locationInView = convert(locationInWindow, from: nil)
-
+        // Only respond to clicks inside this chat pane
+        let locationInView = convert(event.locationInWindow, from: nil)
         guard bounds.contains(locationInView) else { return }
 
-        if let clickedView = window.contentView?.hitTest(locationInWindow) {
-            if clickedView is NSButton { return }
-            if clickedView is NSPopUpButton { return }
-            if clickedView is NSSegmentedControl { return }
-            if clickedView is NSSlider { return }
+        // Don't steal focus if the user clicked on the text field itself
+        if let clickedView = window.contentView?.hitTest(event.locationInWindow) {
+            // Allow buttons/controls to keep focus
+            if clickedView is NSButton || clickedView is NSPopUpButton ||
+               clickedView is NSSegmentedControl || clickedView is NSSlider { return }
 
             var ancestor: NSView? = clickedView
             while let v = ancestor {
@@ -262,25 +273,17 @@ final class ClickMonitorView: NSView {
             }
         }
 
+        // Already focused? Nothing to do.
         let editor = textField.currentEditor() ?? textField
-        if window.firstResponder !== editor {
-            DispatchQueue.main.async {
-                guard let window = textField.window else { return }
-                let editor = textField.currentEditor() ?? textField
-                if window.firstResponder !== editor {
-                    window.makeFirstResponder(textField)
-                }
-            }
-        }
-    }
+        guard window.firstResponder !== editor else { return }
 
-    private func findTextField(in view: NSView?) -> FocusableTextField? {
-        guard let view else { return nil }
-        if let tf = view as? FocusableTextField { return tf }
-        for subview in view.subviews {
-            if let found = findTextField(in: subview) { return found }
+        textField.isEditable = true
+        textField.isSelectable = true
+        let success = window.makeFirstResponder(textField)
+        if !success {
+            window.makeFirstResponder(nil)
+            window.makeFirstResponder(textField)
         }
-        return nil
     }
 }
 

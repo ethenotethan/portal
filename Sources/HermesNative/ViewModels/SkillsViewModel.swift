@@ -9,10 +9,13 @@ final class SkillsViewModel {
     var categories: [String: [SkillInfo]] = [:]
     var isLoading = false
     var errorMessage: String?
+    var lastRawResponse: String?
+    var diagnosticResult: String?
 
     var searchResults: [SkillSearchResult] = []
     var isSearching = false
     var searchQuery = ""
+    var searchError: String?
     var installStatus: [String: String] = [:]
 
     private var gatewayClient: GatewayClient?
@@ -32,6 +35,7 @@ final class SkillsViewModel {
         do {
             let categoriesDict = try await client.listSkills()
             log.info("refresh: listSkills returned \(categoriesDict.count) categories")
+            lastRawResponse = "Categories: \(categoriesDict.keys.sorted().joined(separator: ", "))"
             var allSkills: [SkillInfo] = []
             var grouped: [String: [SkillInfo]] = [:]
 
@@ -100,12 +104,17 @@ final class SkillsViewModel {
 
     func search() async {
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty, let client = gatewayClient else { return }
+        guard !query.isEmpty, let client = gatewayClient else {
+            searchError = !query.isEmpty ? "Gateway not connected" : nil
+            return
+        }
         isSearching = true
+        searchError = nil
         do {
             searchResults = try await client.searchSkills(query: query)
         } catch {
             searchResults = []
+            searchError = error.localizedDescription
         }
         isSearching = false
     }
@@ -117,6 +126,7 @@ final class SkillsViewModel {
             let success = try await client.installSkill(name: name)
             installStatus[name] = success ? "installed" : "failed"
             if success {
+                CelebrationManager.shared.onSkillInstalled(name: name)
                 _ = try? await client.reloadSkills()
                 await refresh()
             }
@@ -148,6 +158,58 @@ final class SkillsViewModel {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    enum DiagnosticTest {
+        case list, scan, search
+    }
+
+    func runDiagnostic(_ test: DiagnosticTest) async {
+        guard let client = gatewayClient else {
+            diagnosticResult = "❌ Gateway client not available"
+            return
+        }
+        var output = "Running \(String(describing: test))...\n"
+        do {
+            switch test {
+            case .list:
+                let result = try await client.listSkills()
+                output += "✅ listSkills returned \(result.count) categories:\n"
+                for (cat, names) in result.sorted(by: { $0.key < $1.key }) {
+                    output += "  • \(cat): \(names.joined(separator: ", "))\n"
+                }
+                if result.isEmpty {
+                    output += "  (empty — gateway reported no skills)\n"
+                }
+            case .scan:
+                let result = try await client.scanSkillCommands()
+                output += "✅ scanSkillCommands returned \(result.count) commands:\n"
+                for skill in result {
+                    output += "  • \(skill.name) — \(skill.category)\n"
+                }
+                if result.isEmpty {
+                    output += "  (empty — no slash commands found)\n"
+                }
+            case .search:
+                let query = searchQuery.trimmingCharacters(in: .whitespaces)
+                guard !query.isEmpty else {
+                    output += "⚠️ Enter a search query first\n"
+                    diagnosticResult = output
+                    return
+                }
+                let result = try await client.searchSkills(query: query)
+                output += "✅ searchSkills(\"\(query)\") returned \(result.count) results:\n"
+                for r in result {
+                    output += "  • \(r.name) — \(r.description)\n"
+                }
+                if result.isEmpty {
+                    output += "  (empty — no matches)\n"
+                }
+            }
+        } catch {
+            output += "❌ Error: \(error.localizedDescription)\n"
+        }
+        diagnosticResult = output
     }
 
     var totalSkills: Int { skills.count }

@@ -14,21 +14,11 @@ packages:
   Highlightr:
     url: https://github.com/raspu/Highlightr
     from: "2.3.0"
+  BeautifulMermaid:
+    url: https://github.com/lukilabs/beautiful-mermaid-swift
+    from: "1.0.0"
 
 targets:
-  HermesNativeUITests:
-    type: bundle.ui-testing
-    platform: iOS
-    sources:
-      - path: Tests/HermesNativeUITests
-    dependencies:
-      - target: HermesNative-iOS
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.UITests
-        TEST_TARGET_NAME: HermesNative-iOS
-        GENERATE_INFOPLIST_FILE: YES
-
   HermesNative-macOS:
     type: application
     platform: macOS
@@ -38,6 +28,7 @@ targets:
     dependencies:
       - package: Lottie
       - package: Highlightr
+      - package: BeautifulMermaid
     entitlements:
       path: HermesNative-macOS.entitlements
     settings:
@@ -60,6 +51,7 @@ targets:
     dependencies:
       - package: Lottie
       - package: Highlightr
+      - package: BeautifulMermaid
     entitlements:
       path: HermesNative-iOS.entitlements
     settings:
@@ -81,3 +73,15 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
+
+  HermesNativeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Tests/HermesNativeUITests
+    dependencies:
+      - target: HermesNative-iOS
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"

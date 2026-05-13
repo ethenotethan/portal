@@ -6,6 +6,7 @@ struct SkillsView: View {
     @State private var expandedSkill: String?
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var confirmUninstall: String?
+    @State private var showDiagnostics = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -13,6 +14,12 @@ struct SkillsView: View {
             Divider().background(Theme.border)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if let error = viewModel.errorMessage {
+                        errorBanner(error)
+                    }
+                    if !gatewayClientWrapper.isConnected {
+                        connectionBanner
+                    }
                     summaryBar
                     installedSection
                     hubSection
@@ -23,10 +30,47 @@ struct SkillsView: View {
             .refreshable { await viewModel.reload() }
         }
         .background(Theme.background)
-        .task {
+        .task(id: gatewayClientWrapper.isConnected) {
             viewModel.setGatewayClient(gatewayClientWrapper.client)
-            await viewModel.refresh()
+            if gatewayClientWrapper.isConnected {
+                await viewModel.refresh()
+            }
         }
+    }
+
+    // MARK: - Connection Banner
+
+    private var connectionBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Theme.warning)
+            Text("Gateway disconnected — skills unavailable")
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+            Spacer()
+        }
+        .padding(10)
+        .background(Theme.warning.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(_ error: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.red)
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+            Spacer()
+            Button("Retry") {
+                Task { await viewModel.refresh() }
+            }
+            .font(.caption)
+            .buttonStyle(.borderless)
+        }
+        .padding(10)
+        .background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Header
@@ -38,6 +82,15 @@ struct SkillsView: View {
                 .foregroundStyle(Theme.primary)
 
             Spacer()
+
+            Button {
+                showDiagnostics.toggle()
+            } label: {
+                Image(systemName: "stethoscope")
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .help("Diagnostics")
 
             Button {
                 Task { await viewModel.reload() }
@@ -85,7 +138,9 @@ struct SkillsView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.primary)
 
-            if viewModel.skills.isEmpty && !viewModel.isLoading {
+            if viewModel.isLoading {
+                loadingState
+            } else if viewModel.skills.isEmpty {
                 emptyState
             } else {
                 ForEach(viewModel.categories.keys.sorted(), id: \.self) { category in
@@ -94,9 +149,86 @@ struct SkillsView: View {
                     }
                 }
             }
+
+            if showDiagnostics {
+                diagnosticsPanel
+            }
         }
         .padding(14)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var loadingState: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Loading skills…")
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 120)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: viewModel.errorMessage != nil ? "wifi.exclamationmark" : "sparkles")
+                .font(.system(size: 32))
+                .foregroundStyle(Theme.tertiary)
+            Text(viewModel.errorMessage != nil ? "Could not load skills" : "Your toolkit is ready to grow! 🌱")
+                .font(.headline)
+                .foregroundStyle(Theme.secondary)
+            Text(viewModel.errorMessage != nil ? "Check your connection and tap Retry above." : "Search the Skills Hub below to discover and install your first superpower.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+            if let raw = viewModel.lastRawResponse {
+                Text("Debug: \(raw)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(Theme.tertiary)
+                    .padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 120)
+    }
+
+    // MARK: - Diagnostics Panel
+
+    private var diagnosticsPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Diagnostics")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.secondary)
+
+            HStack(spacing: 8) {
+                diagnosticButton("Test List", action: { await viewModel.runDiagnostic(.list) })
+                diagnosticButton("Test Scan", action: { await viewModel.runDiagnostic(.scan) })
+                diagnosticButton("Test Search", action: { await viewModel.runDiagnostic(.search) })
+            }
+
+            if let diag = viewModel.diagnosticResult {
+                ScrollView {
+                    Text(diag)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Theme.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 200)
+                .padding(8)
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    private func diagnosticButton(_ title: String, action: @escaping () async -> Void) -> some View {
+        Button {
+            Task { await action() }
+        } label: {
+            Text(title)
+                .font(.caption)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 
     private func skillCategoryGroup(category: String, skills: [SkillInfo]) -> some View {
@@ -133,23 +265,6 @@ struct SkillsView: View {
         }
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 32))
-                .foregroundStyle(Theme.tertiary)
-            Text("No Skills Installed")
-                .font(.headline)
-                .foregroundStyle(Theme.secondary)
-            Text("Search the Skills Hub below to discover and install skills.")
-                .font(.subheadline)
-                .foregroundStyle(Theme.tertiary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-        }
-        .frame(maxWidth: .infinity, minHeight: 120)
-    }
-
     // MARK: - Skills Hub
 
     private var hubSection: some View {
@@ -181,6 +296,18 @@ struct SkillsView: View {
                 }
             }
 
+            if let searchError = viewModel.searchError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(Theme.warning)
+                    Text(searchError)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                }
+                .padding(8)
+                .background(Theme.warning.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
+
             if !viewModel.searchResults.isEmpty {
                 ForEach(viewModel.searchResults) { result in
                     HubResultRow(
@@ -189,8 +316,8 @@ struct SkillsView: View {
                         onInstall: { Task { await viewModel.installSkill(name: result.name) } }
                     )
                 }
-            } else if !viewModel.isSearching && viewModel.searchQuery.count >= 2 {
-                Text("No results found")
+            } else if !viewModel.isSearching && viewModel.searchQuery.count >= 2 && viewModel.searchError == nil {
+                Text("Keep exploring — try a different keyword 🔍")
                     .font(.caption)
                     .foregroundStyle(Theme.tertiary)
             }

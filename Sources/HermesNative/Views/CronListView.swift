@@ -6,7 +6,10 @@ struct CronListView: View {
 
     var body: some View {
         List {
-            if cronViewModel.jobs.isEmpty {
+            if cronViewModel.jobs.isEmpty && cronViewModel.isLoading {
+                loadingState
+                    .listRowBackground(Color.clear)
+            } else if cronViewModel.jobs.isEmpty {
                 emptyState
                     .listRowBackground(Color.clear)
             } else {
@@ -43,6 +46,7 @@ struct CronListView: View {
                     Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
                 }
             )
+            .environmentObject(gatewayClientWrapper)
         }
         .navigationTitle("Cron Jobs")
         #if os(iOS)
@@ -56,11 +60,6 @@ struct CronListView: View {
                 } label: {
                     Image(systemName: "chart.bar.xaxis")
                 }
-            }
-        }
-        .overlay {
-            if cronViewModel.jobs.isEmpty && !cronViewModel.isLoading {
-                emptyStateOverlay
             }
         }
         .refreshable {
@@ -88,19 +87,15 @@ struct CronListView: View {
         .padding(.vertical, 40)
     }
 
-    private var emptyStateOverlay: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "clock.badge.checkmark")
-                .font(.system(size: 40))
-                .foregroundStyle(.tertiary)
-            Text("No Cron Jobs")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Cron jobs will appear here when scheduled")
+    private var loadingState: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small)
+            Text("Loading cron jobs…")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 
     @ViewBuilder
@@ -375,26 +370,26 @@ struct CronJobDetailView: View {
 
     private var promptDisplay: some View {
         Group {
-            ScrollView(isPromptExpanded ? [.vertical] : []) {
-                Text(promptText)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(Theme.secondary)
-                    .textSelection(.enabled)
-                    .lineLimit(isPromptExpanded ? nil : 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxHeight: isPromptExpanded ? 420 : nil, alignment: .top)
-
-            if isPromptExpandable && !isPromptExpanded {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        isPromptExpanded = true
+            VStack(alignment: .leading, spacing: 6) {
+                if job.isPromptTruncated {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text("Gateway stores truncated prompts only")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
                     }
-                } label: {
-                    Label("Read full prompt", systemImage: "arrow.down.right.and.arrow.up.left")
+                    .padding(.horizontal, 2)
                 }
-                .font(.caption)
-                .buttonStyle(.bordered)
+                ScrollView([.vertical]) {
+                    Text(promptText)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(Theme.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 420, alignment: .top)
             }
         }
     }
@@ -462,10 +457,10 @@ struct CronJobDetailView: View {
     @ViewBuilder
     private var statusIcon: some View {
         if job.state == "paused" || !job.enabled {
-            Image(systemName: "pause.circle.fill")
-                .foregroundStyle(.secondary)
+            Image(systemName: "pause.circle")
+                .foregroundStyle(.orange)
         } else if job.lastStatus == "error" {
-            Image(systemName: "exclamationmark.circle.fill")
+            Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
         } else if job.lastStatus == "ok" {
             Image(systemName: "checkmark.circle.fill")
