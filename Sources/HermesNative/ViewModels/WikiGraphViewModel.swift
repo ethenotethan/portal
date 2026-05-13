@@ -14,6 +14,14 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var graph: WikiGraph = .empty
     @Published var selectedPage: WikiPage?
     @Published var showPageDetail = false
+
+    /// Currently selected node index (not page, local sim index).
+    @Published var selectedNodeIndex: Int?
+
+    var selectedNodeTitle: String? {
+        guard let idx = selectedNodeIndex, simNodes.indices.contains(idx) else { return nil }
+        return simNodes[idx].label
+    }
     @Published var isLoading = false
     @Published var error: String?
 
@@ -28,8 +36,8 @@ final class WikiGraphViewModel: ObservableObject {
         let label: String
     }
 
-    var simNodes: [SimNode] = []
-    var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
+    @Published var simNodes: [SimNode] = []
+    @Published var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
 
     // Simulation parameters (tuned for ~20-50 nodes)
     private let friction: CGFloat = 0.92
@@ -37,7 +45,9 @@ final class WikiGraphViewModel: ObservableObject {
     private let springConstant: CGFloat = 0.008
     private let chargeConstant: CGFloat = 8000
     private let centerPull: CGFloat = 0.0005
-    private let iterationsPerFrame = 5
+    private let iterationsPerFrame = 2
+    private let maxVelocity: CGFloat = 30
+    private let maxRepulsionForce: CGFloat = 500
 
     // View transforms
     @Published var zoom: CGFloat = 1.0
@@ -70,7 +80,10 @@ final class WikiGraphViewModel: ObservableObject {
         do {
             let newGraph = try await client.wikiScan()
             self.graph = newGraph
-            setupSimulation()
+            // If canvas already has a real size, set up sim now; otherwise Canvas frame will trigger it.
+            if canvasSize != .zero {
+                setupSimulation()
+            }
         } catch {
             log.error("wiki.scan failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
@@ -89,17 +102,19 @@ final class WikiGraphViewModel: ObservableObject {
     // MARK: - Simulation Setup
 
     func setupSimulation() {
-        guard !graph.pages.isEmpty else { return }
+        guard canvasSize != .zero, !graph.pages.isEmpty else { return }
 
         let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
         var rng = SystemRandomNumberGenerator()
 
         simNodes = graph.pages.map { page in
-            SimNode(
+            let angle = Double.random(in: 0...(2 * .pi), using: &rng)
+            let dist = Double.random(in: 50...200, using: &rng)
+            return SimNode(
                 id: page.id,
                 position: CGPoint(
-                    x: center.x + CGFloat(Int.random(in: -150...150, using: &rng)),
-                    y: center.y + CGFloat(Int.random(in: -150...150, using: &rng))
+                    x: center.x + cos(angle) * dist,
+                    y: center.y + sin(angle) * dist
                 ),
                 type: page.type,
                 label: page.title
@@ -117,23 +132,21 @@ final class WikiGraphViewModel: ObservableObject {
     // MARK: - Simulation Step
 
     func tick() {
-        guard simNodes.count > 1 else { return }
-
-        let positions = simNodes.map { $0.position }
-        var velocities = simNodes.map { $0.velocity }
+        guard canvasSize != .zero, simNodes.count > 1 else { return }
 
         for _ in 0..<iterationsPerFrame {
-            var forces = Array(repeating: CGVector.zero, count: positions.count)
+            var forces = Array(repeating: CGVector.zero, count: simNodes.count)
 
-            // Repulsion (charge)
-            for i in 0..<positions.count {
+            // Repulsion (charge) with softening and force cap
+            for i in 0..<simNodes.count {
                 guard !simNodes[i].isDragging else { continue }
-                for j in (i+1)..<positions.count {
-                    let dx = positions[i].x - positions[j].x
-                    let dy = positions[i].y - positions[j].y
-                    let distSq = dx*dx + dy*dy
-                    guard distSq > 1 else { continue }
-                    let force = chargeConstant / distSq
+                for j in (i + 1)..<simNodes.count {
+                    let dx = simNodes[i].position.x - simNodes[j].position.x
+                    let dy = simNodes[i].position.y - simNodes[j].position.y
+                    let distSq = dx * dx + dy * dy
+                    guard distSq > 0.01 else { continue }
+                    let rawForce = chargeConstant / distSq
+                    let force = min(rawForce, maxRepulsionForce)
                     let dist = sqrt(distSq)
                     let fx = (dx / dist) * force
                     let fy = (dy / dist) * force
@@ -146,9 +159,9 @@ final class WikiGraphViewModel: ObservableObject {
 
             // Spring forces (links)
             for (si, ti) in simLinks {
-                let dx = positions[ti].x - positions[si].x
-                let dy = positions[ti].y - positions[si].y
-                let dist = sqrt(dx*dx + dy*dy)
+                let dx = simNodes[ti].position.x - simNodes[si].position.x
+                let dy = simNodes[ti].position.y - simNodes[si].position.y
+                let dist = sqrt(dx * dx + dy * dy)
                 guard dist > 0 else { continue }
                 let force = (dist - springLength) * springConstant
                 let fx = (dx / dist) * force
@@ -160,25 +173,30 @@ final class WikiGraphViewModel: ObservableObject {
             }
 
             // Centering force
-            let meanX = positions.reduce(0) { $0 + $1.x } / CGFloat(positions.count)
-            let meanY = positions.reduce(0) { $0 + $1.y } / CGFloat(positions.count)
+            let meanX = simNodes.reduce(0) { $0 + $1.position.x } / CGFloat(simNodes.count)
+            let meanY = simNodes.reduce(0) { $0 + $1.position.y } / CGFloat(simNodes.count)
             let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
-            for i in 0..<positions.count {
+            for i in 0..<simNodes.count {
                 guard !simNodes[i].isDragging else { continue }
                 forces[i].dx += (center.x - meanX) * centerPull
                 forces[i].dy += (center.y - meanY) * centerPull
             }
 
-            // Integrate
+            // Integrate with velocity clamp
             for i in 0..<simNodes.count {
                 guard !simNodes[i].isDragging else { continue }
-                var v = velocities[i]
+                var v = simNodes[i].velocity
                 v.dx = (v.dx + forces[i].dx) * friction
                 v.dy = (v.dy + forces[i].dy) * friction
-                velocities[i] = v
+                let speed = sqrt(v.dx * v.dx + v.dy * v.dy)
+                if speed > maxVelocity {
+                    let scale = maxVelocity / speed
+                    v.dx *= scale
+                    v.dy *= scale
+                }
+                simNodes[i].velocity = v
                 simNodes[i].position.x += v.dx
                 simNodes[i].position.y += v.dy
-                simNodes[i].velocity = v
             }
         }
     }
@@ -220,20 +238,62 @@ final class WikiGraphViewModel: ObservableObject {
 
     func handleTap(at point: CGPoint) {
         if let index = hitTest(point: point) {
-            let pageID = simNodes[index].id
-            if let page = graph.pages.first(where: { $0.id == pageID }) {
-                selectedPage = page
-                showPageDetail = true
+            if selectedNodeIndex == index {
+                // Double-tap: open detail
+                let pageID = simNodes[index].id
+                if let page = graph.pages.first(where: { $0.id == pageID }) {
+                    selectedPage = page
+                    showPageDetail = true
+                }
+            } else {
+                selectedNodeIndex = index
             }
+        } else {
+            selectedNodeIndex = nil
         }
     }
 
+    func deselectNode() {
+        selectedNodeIndex = nil
+    }
+
+    // MARK: - Selection Helpers
+
+    func selectedNodeNeighbors() -> [Int] {
+        guard let sel = selectedNodeIndex else { return [] }
+        var result = Set<Int>()
+        for (si, ti) in simLinks {
+            if si == sel { result.insert(ti) }
+            if ti == sel { result.insert(si) }
+        }
+        return Array(result)
+    }
+
+    func isNodeConnectedToSelection(_ index: Int) -> Bool {
+        guard let sel = selectedNodeIndex else { return true }
+        if index == sel { return true }
+        return selectedNodeNeighbors().contains(index)
+    }
+
+    func linkIsConnectedToSelection(_ source: Int, _ target: Int) -> Bool {
+        guard let sel = selectedNodeIndex else { return true }
+        return source == sel || target == sel
+    }
+
     func zoomAtPoint(factor: CGFloat, around point: CGPoint) {
+        guard factor.isFinite, factor > 0 else { return }
         let oldZoom = zoom
-        zoom = max(0.3, min(5.0, zoom * factor))
-        // Adjust pan so the zoom centers on the point
-        panOffset.width -= point.x * (1/oldZoom - 1/zoom)
-        panOffset.height -= point.y * (1/oldZoom - 1/zoom)
+        let newZoom = max(0.3, min(5.0, oldZoom * factor))
+        guard newZoom != oldZoom else { return }
+        // Adjust pan so the point under the cursor stays fixed
+        panOffset.width += point.x * (oldZoom - newZoom)
+        panOffset.height += point.y * (oldZoom - newZoom)
+        zoom = newZoom
+    }
+
+    func resetView() {
+        panOffset = .zero
+        zoom = 1.0
     }
 }
 
@@ -247,4 +307,3 @@ extension CGPoint {
 extension CGVector {
     static let zero = CGVector(dx: 0, dy: 0)
 }
-

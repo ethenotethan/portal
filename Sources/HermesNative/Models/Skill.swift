@@ -11,6 +11,7 @@ struct SkillInfo: Identifiable, Equatable {
     var skillMdPath: String?
     var skillDir: String?
     var skillMdPreview: String?
+    var skillMdFullContent: String?
     var slashCommand: String
 
     static func fromCommandEntry(key: String, dict: [String: AnyCodable]) -> SkillInfo {
@@ -24,6 +25,7 @@ struct SkillInfo: Identifiable, Equatable {
             skillMdPath: dict["skill_md_path"]?.stringValue,
             skillDir: dict["skill_dir"]?.stringValue,
             skillMdPreview: nil,
+            skillMdFullContent: nil,
             slashCommand: key
         )
     }
@@ -33,14 +35,15 @@ struct SkillInfo: Identifiable, Equatable {
         return SkillInfo(
             name: name,
             description: d["description"]?.stringValue ?? "",
-            category: "general",
+            category: d["category"]?.stringValue ?? "general",
             source: d["source"]?.stringValue ?? "local",
             identifier: d["identifier"]?.stringValue,
             tags: d["tags"]?.arrayValue?.map { $0.stringValue ?? "" } ?? [],
-            skillMdPath: nil,
-            skillDir: nil,
+            skillMdPath: d["skill_md_path"]?.stringValue,
+            skillDir: d["skill_dir"]?.stringValue,
             skillMdPreview: d["skill_md_preview"]?.stringValue,
-            slashCommand: "/\(name.lowercased().replacingOccurrences(of: " ", with: "-"))"
+            skillMdFullContent: d["skill_md_full"]?.stringValue ?? d["content"]?.stringValue,
+            slashCommand: d["slash_command"]?.stringValue ?? "/\(name.lowercased().replacingOccurrences(of: " ", with: "-"))"
         )
     }
 }

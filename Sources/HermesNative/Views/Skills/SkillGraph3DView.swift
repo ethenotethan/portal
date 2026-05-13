@@ -143,9 +143,22 @@ extension SkillGraphWebView {
               ctx.clearRect(0,0,w,h);
               const pos=new Map(graph.nodes.map(n=>[n.id, project(n)]));
               ctx.lineWidth=1;
-              graph.links.forEach(l=>{ const a=pos.get(l.source), b=pos.get(l.target); if(!a||!b) return; ctx.strokeStyle='rgba(124,124,255,.28)'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); });
+              graph.links.forEach(l=>{
+                const a=pos.get(l.source), b=pos.get(l.target);
+                if(!a||!b) return;
+                ctx.strokeStyle='rgba(124,124,255,.28)';
+                ctx.beginPath();
+                ctx.moveTo(a.x,a.y);
+                ctx.lineTo(b.x,b.y);
+                ctx.stroke();
+              });
               graph.nodes.map(n=>({n,p:pos.get(n.id)})).sort((a,b)=>a.p.z-b.p.z).forEach(({n,p})=>{
-                ctx.beginPath(); ctx.fillStyle=colorFor(n.group); ctx.globalAlpha=Math.max(.45, Math.min(1, .72+p.s*.28)); ctx.arc(p.x,p.y,Math.max(4,7*p.s),0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+                ctx.beginPath();
+                ctx.fillStyle=colorFor(n.group);
+                ctx.globalAlpha=Math.max(.45, Math.min(1, .72+p.s*.28));
+                ctx.arc(p.x,p.y,Math.max(4,7*p.s),0,Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha=1;
                 ctx.fillStyle='#f0f0f0'; ctx.font='12px -apple-system,BlinkMacSystemFont,sans-serif'; ctx.fillText(n.label,p.x+9,p.y+4);
               });
             }
@@ -154,7 +167,14 @@ extension SkillGraphWebView {
             canvas.addEventListener('mousemove',e=>{ if(!drag) return; angleY+=(e.clientX-lastX)*.008; angleX+=(e.clientY-lastY)*.008; lastX=e.clientX; lastY=e.clientY; draw(); });
             addEventListener('mouseup',()=>drag=false);
             canvas.addEventListener('wheel',e=>{ e.preventDefault(); zoom=Math.max(.35,Math.min(4,zoom*(e.deltaY>0?.92:1.08))); draw(); }, {passive:false});
-            canvas.addEventListener('click',e=>{ const n=nearest(e.clientX,e.clientY); if(n){ try{ window.webkit.messageHandlers.skillGraph.postMessage({type:'selectSkill', skillId:n.id}); }catch(_){} } });
+            canvas.addEventListener('click',e=>{
+              const n=nearest(e.clientX,e.clientY);
+              if(n){
+                try{
+                  window.webkit.messageHandlers.skillGraph.postMessage({type:'selectSkill', skillId:n.id});
+                }catch(_){}
+              }
+            });
             addEventListener('resize',resize); resize();
           </script>
         </body>

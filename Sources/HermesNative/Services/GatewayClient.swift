@@ -850,6 +850,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     skillMdPath: nil,
                     skillDir: nil,
                     skillMdPreview: nil,
+                    skillMdFullContent: nil,
                     slashCommand: key
                 ))
             }
@@ -868,6 +869,33 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
         guard let infoDict = response.result?.dictionaryValue?["info"]?.dictionaryValue else { return nil }
         return SkillInfo.fromInspectDict(infoDict)
+    }
+
+    /// Read the full SKILL.md content for a skill.
+    func readSkillMarkdown(name: String) async throws -> String {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("read"),
+            "query": AnyCodable(name)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue?["content"]?.stringValue
+            ?? response.result?.stringValue
+            ?? ""
+    }
+
+    /// Write (overwrite) the full SKILL.md content for a skill.
+    func writeSkillMarkdown(name: String, content: String) async throws -> Bool {
+        let response = try await call("skills.manage", params: [
+            "action": AnyCodable("write"),
+            "query": AnyCodable(name),
+            "content": AnyCodable(content)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue?["success"]?.boolValue ?? true
     }
 
     func searchSkills(query: String) async throws -> [SkillSearchResult] {

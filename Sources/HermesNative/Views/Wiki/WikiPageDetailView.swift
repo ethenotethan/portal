@@ -13,7 +13,6 @@ struct WikiPageDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 Button("Back") {
                     dismiss()
@@ -27,12 +26,6 @@ struct WikiPageDetailView: View {
                     .foregroundStyle(Theme.primary)
 
                 Spacer()
-
-                Button("Open in Obsidian") {
-                    openInObsidian()
-                }
-                .buttonStyle(.borderless)
-                .disabled(!FileManager.default.fileExists(atPath: resolveLocalPath()))
             }
             .padding()
 
@@ -50,14 +43,12 @@ struct WikiPageDetailView: View {
             } else if let content = pageContent {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Frontmatter card
                         frontmatterCard(content: content)
                             .padding(.horizontal)
 
                         Divider()
                             .padding(.horizontal)
 
-                        // Markdown body
                         MarkdownContentView(text: stripFrontmatter(content.body))
                             .padding(.horizontal)
                     }
@@ -157,25 +148,6 @@ struct WikiPageDetailView: View {
         guard parts.count >= 3 else { return text }
         return parts[2...].joined(separator: "---")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    // MARK: - Obsidian Deep Link
-
-    private func resolveLocalPath() -> String {
-        let home = NSHomeDirectory()
-        return "\(home)/wiki/\(page.path)"
-    }
-
-    private func openInObsidian() {
-        let vaultName = "wiki"
-        let encoded = page.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? page.id
-        let typeDir = page.path.components(separatedBy: "/").first ?? "concepts"
-        guard let url = URL(string: "obsidian://open?vault=\(vaultName)&file=\(typeDir)%2F\(encoded)") else { return }
-        #if os(macOS)
-        NSWorkspace.shared.open(url)
-        #else
-        UIApplication.shared.open(url)
-        #endif
     }
 }
 
