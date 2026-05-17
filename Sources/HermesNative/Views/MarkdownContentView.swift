@@ -383,6 +383,13 @@ struct MarkdownText: View {
     var baseColor: Color?
     var baseFont: Font?
 
+    private static let singleQuotedCodeRegex: NSRegularExpression? = {
+        try? NSRegularExpression(
+            pattern: "'([^'\\s][^']{1,120})'",
+            options: []
+        )
+    }()
+
     init(text: String, baseColor: Color? = nil, baseFont: Font? = nil) {
         self.text = text
         self.baseColor = baseColor
@@ -398,21 +405,60 @@ struct MarkdownText: View {
         let textColor: Color = baseColor ?? Theme.primary
         let font: Font = baseFont ?? .system(size: 14)
 
-        if var parsed = try? AttributedString(markdown: input, options: inlineOptions) {
+        let normalized = Self.normalizeInlineCode(input)
+
+        if var parsed = try? AttributedString(markdown: normalized, options: inlineOptions) {
             stripSystemColors(&parsed, to: textColor)
             applyBaseFont(&parsed, font: font)
             applyInlineCodeStyling(&parsed)
             return parsed
         }
 
-        var fallback = AttributedString(input)
+        // Fallback: use regex to style inline code when native parser fails
+        if var fallback = try? AttributedString(markdown: normalized, options: .init()) {
+            stripSystemColors(&fallback, to: textColor)
+            applyBaseFont(&fallback, font: font)
+            applyInlineCodeStyling(&fallback)
+            return fallback
+        }
+
+        var plain = AttributedString(normalized)
         #if os(macOS)
-        fallback.foregroundColor = NSColor(textColor)
+        plain.foregroundColor = NSColor(textColor)
         #else
-        fallback.foregroundColor = UIColor(textColor)
+        plain.foregroundColor = UIColor(textColor)
         #endif
-        applyBaseFont(&fallback, font: font)
-        return fallback
+        applyBaseFont(&plain, font: font)
+        return plain
+    }
+
+    /// Normalize inline code markers that Apple's parser sometimes misses:
+    /// - Convert single-quoted code spans like 'path/to/file' to backtick code
+    /// - Escape unpaired backticks so the parser doesn't bail out
+    private static func normalizeInlineCode(_ input: String) -> String {
+        var result = input
+
+        // Convert single-quoted code-like spans to backtick code
+        guard let regex = singleQuotedCodeRegex else { return result }
+        let nsRange = NSRange(result.startIndex..., in: result)
+        let matches = regex.matches(in: result, range: nsRange)
+        for match in matches.reversed() {
+            guard let range = Range(match.range, in: result) else { continue }
+            let inner = result[range]
+            result.replaceSubrange(range, with: "`\(inner)`")
+        }
+
+        // Fix unpaired backticks: count them, if odd, escape the last one
+        var backtickCount = 0
+        for char in result where char == "`" {
+            backtickCount += 1
+        }
+        if backtickCount % 2 != 0 {
+            if let lastIdx = result.lastIndex(of: "`") {
+                result = result.replacingOccurrences(of: "`", with: "\\`", range: lastIdx..<result.index(after: lastIdx))
+            }
+        }
+        return result
     }
 
     private func applyInlineCodeStyling(_ attr: inout AttributedString) {

@@ -2,78 +2,87 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "MacInputTextField")
 
 // MARK: - MacInputTextField
 
-/// A native NSTextField wrapper that fixes the broken SwiftUI/AppKit focus
-/// bridging on macOS.
+/// A native NSTextView wrapper that supports multi-line input with dynamic height.
 ///
-/// ## The Problem
-/// SwiftUI's `TextField` on macOS is backed by an `NSTextField`, but SwiftUI
-/// does not reliably call `window.makeFirstResponder(_:)` when the user clicks
-/// the field after the sidebar (an `NSTableView` in `NavigationSplitView`) has
-/// stolen first-responder. SwiftUI's `@FocusState` and `TapGesture` both fail
-/// because the NSScrollView / NSSplitView absorbs the mouseDown event before
-/// SwiftUI's gesture system processes it.
-///
-/// ## The Fix
-/// 1. The native `NSTextField` handles click-to-focus via its own `mouseDown`
-///    override — calling `window.makeFirstResponder(self)` directly.
-/// 2. When `@FocusState` becomes `true` (e.g. from session switch or
-///    the chat-pane click monitor), `updateNSView` calls
-///    `window.makeFirstResponder(nsView)` directly.
-/// 3. `ChatPaneClickMonitor` uses `NSEvent.addLocalMonitorForEvents` to detect
-///    clicks anywhere in the chat detail pane and restore focus — this sees
-///    events before any SwiftUI gesture or AppKit view can consume them.
+/// - Single-line: horizontal scroll (like before)
+/// - Multi-line: grows vertically up to `maxLines` (default 8), then scrolls
+/// - Return sends, Shift+Return inserts newline
 struct MacInputTextField: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String
     var isFocused: FocusState<Bool>.Binding
-    @Binding var fieldRef: FocusableTextField?
+    @Binding var fieldRef: FocusableTextView?
     var onSubmit: () -> Void
     var onImagePaste: ([NSItemProvider]) -> Void
+    var onTextChange: ((String) -> Void)?
+    var onNavigateUp: (() -> Void)?
+    var onNavigateDown: (() -> Void)?
+    var onConfirm: (() -> Void)?
+    var maxLines: Int = 8
 
-    func makeNSView(context: Context) -> FocusableTextField {
-        let tf = FocusableTextField()
-        tf.placeholderString = placeholder
-        tf.isBezeled = false
-        tf.drawsBackground = false
-        tf.focusRingType = .none
-        tf.font = .systemFont(ofSize: 15, weight: .regular)
-        tf.usesSingleLineMode = true
-        tf.cell?.isScrollable = true
-        tf.lineBreakMode = .byTruncatingTail
-        tf.delegate = context.coordinator
-        tf.onSubmit = onSubmit
-        tf.onImagePaste = onImagePaste
-        tf.setAccessibilityIdentifier("chatInput")
-        context.coordinator.textField = tf
-        // Propagate the reference back to ChatView for ChatPaneClickMonitor
-        DispatchQueue.main.async {
-            fieldRef = tf
+    func makeNSView(context: Context) -> FocusableTextView {
+        let tv = FocusableTextView()
+        tv.placeholder = placeholder
+        tv.maxLines = maxLines
+        tv.font = .systemFont(ofSize: 15, weight: .regular)
+        tv.delegate = context.coordinator
+        tv.onSubmit = onSubmit
+        tv.onImagePaste = onImagePaste
+        tv.onHeightChange = { height in
+            context.coordinator.parentHeight = height
         }
-        return tf
+        tv.onTextChange = onTextChange
+        tv.setAccessibilityIdentifier("chatInput")
+        tv.isRichText = false
+        tv.allowsUndo = true
+        tv.drawsBackground = false
+        tv.backgroundColor = .clear
+        tv.textContainerInset = NSSize(width: 4, height: 4)
+        tv.textContainer?.lineFragmentPadding = 2
+        tv.autoresizingMask = .none
+        tv.isHorizontallyResizable = false
+        tv.isVerticallyResizable = true
+        tv.textContainer?.widthTracksTextView = true
+        tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        tv.setContentHuggingPriority(.defaultHigh, for: .vertical)
+
+        context.coordinator.textView = tv
+        DispatchQueue.main.async {
+            fieldRef = tv
+        }
+        return tv
     }
 
-    func updateNSView(_ nsView: FocusableTextField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
+    func updateNSView(_ nsView: FocusableTextView, context: Context) {
+        if nsView.string != text {
+            let selectedRanges = nsView.selectedRanges
+            nsView.string = text
+            if let range = selectedRanges.first as? NSRange,
+               range.location <= nsView.string.count {
+                nsView.setSelectedRange(range)
+            }
         }
-        nsView.placeholderString = placeholder
+        nsView.placeholder = placeholder
         nsView.onSubmit = onSubmit
         nsView.onImagePaste = onImagePaste
+        nsView.onHeightChange = { height in
+            context.coordinator.parentHeight = height
+        }
+        nsView.onTextChange = onTextChange
+        nsView.maxLines = maxLines
 
-        // Keep the reference current in case the view was recycled
         if fieldRef !== nsView {
             DispatchQueue.main.async {
                 fieldRef = nsView
             }
         }
 
-        // Only drive AppKit first-responder on a true → false transition.
-        // Calling makeFirstResponder on every updateNSView (e.g. every
-        // keystroke via the text binding) causes a focus fight that can
-        // drop the caret or break editing state.
         let nowFocused = isFocused.wrappedValue
         if nowFocused && !context.coordinator.wasFocused {
             makeFirstResponder(nsView)
@@ -81,13 +90,19 @@ struct MacInputTextField: NSViewRepresentable {
         context.coordinator.wasFocused = nowFocused
     }
 
-    private func makeFirstResponder(_ nsView: FocusableTextField) {
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusableTextView, context: Context) -> CGSize? {
+        let width = proposal.width ?? 300
+        nsView.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+        nsView.invalidateIntrinsicContentSize()
+        let size = nsView.intrinsicContentSize
+        return CGSize(width: width, height: size.height)
+    }
+
+    private func makeFirstResponder(_ nsView: FocusableTextView) {
         let attempt: () -> Void = { [weak nsView] in
             guard let nsView, let window = nsView.window else { return }
-            let editor = nsView.currentEditor() ?? nsView
-            guard window.firstResponder !== editor else { return }
+            guard window.firstResponder !== nsView else { return }
             nsView.isEditable = true
-            nsView.isSelectable = true
             window.makeFirstResponder(nil)
             window.makeFirstResponder(nsView)
         }
@@ -98,74 +113,60 @@ struct MacInputTextField: NSViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, NSTextFieldDelegate {
+    final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: MacInputTextField
-        weak var textField: FocusableTextField?
-        /// Tracks the previous SwiftUI focus-state value so updateNSView only
-        /// calls makeFirstResponder on a false→true transition, not on every
-        /// keystroke while already focused.
+        weak var textView: FocusableTextView?
         var wasFocused: Bool = false
+        var parentHeight: CGFloat = 0
 
         init(_ parent: MacInputTextField) {
             self.parent = parent
         }
 
-        func controlTextDidChange(_ obj: Notification) {
-            guard let tf = obj.object as? NSTextField else { return }
-            parent.text = tf.stringValue
+        func textDidChange(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView else { return }
+            parent.text = tv.string
         }
 
-        func controlTextDidBeginEditing(_ obj: Notification) {
+        func textDidBeginEditing(_ notification: Notification) {
             parent.isFocused.wrappedValue = true
         }
 
-        func controlTextDidEndEditing(_ obj: Notification) {
+        func textDidEndEditing(_ notification: Notification) {
             parent.isFocused.wrappedValue = false
-        }
-
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-                parent.onSubmit()
-                return true
-            }
-            return false
         }
     }
 }
 
-// MARK: - FocusableTextField
+// MARK: - FocusableTextView
 
-/// Custom `NSTextField` that:
-/// - Overrides `mouseDown` to force `becomeFirstResponder` (fixes click-to-focus)
-/// - Intercepts ⌘V paste for image content
-final class FocusableTextField: NSTextField {
+/// Multi-line NSTextView with placeholder, height tracking, Return-to-send.
+final class FocusableTextView: NSTextView {
     var onSubmit: (() -> Void)?
     var onImagePaste: (([NSItemProvider]) -> Void)?
+    var onHeightChange: ((CGFloat) -> Void)?
+    var onTextChange: ((String) -> Void)?
+    var placeholder: String = "" {
+        didSet { needsDisplay = true }
+    }
+    var maxLines: Int = 8
 
     override var acceptsFirstResponder: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
         guard let window else { return }
-        let editor = currentEditor() ?? self
-        guard window.firstResponder !== editor else { return }
-        let attempt: () -> Void = { [weak self] in
+        guard window.firstResponder !== self else { return }
+        DispatchQueue.main.async { [weak self] in
             guard let self, let window = self.window else { return }
-            let editor = self.currentEditor() ?? self
-            guard window.firstResponder !== editor else { return }
+            guard window.firstResponder !== self else { return }
             self.isEditable = true
-            self.isSelectable = true
-            let success = window.makeFirstResponder(self)
-            if !success {
-                window.makeFirstResponder(nil)
-                window.makeFirstResponder(self)
-            }
+            window.makeFirstResponder(nil)
+            window.makeFirstResponder(self)
         }
-        DispatchQueue.main.async(execute: attempt)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // Intercept ⌘V for image paste
         if event.modifierFlags.contains(.command),
            event.charactersIgnoringModifiers == "v" {
             let pb = NSPasteboard.general
@@ -173,7 +174,6 @@ final class FocusableTextField: NSTextField {
                                 options: [.urlReadingFileURLsOnly: true]) {
                 var providers: [NSItemProvider] = []
 
-                // Check for file URLs (image files)
                 if let urls = pb.readObjects(forClasses: [NSURL.self],
                                              options: [.urlReadingFileURLsOnly: true]) as? [URL] {
                     let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
@@ -184,7 +184,6 @@ final class FocusableTextField: NSTextField {
                     }
                 }
 
-                // Check for image data on pasteboard
                 for type in [NSPasteboard.PasteboardType.tiff, NSPasteboard.PasteboardType.png] {
                     if let data = pb.data(forType: type) {
                         let provider = NSItemProvider()
@@ -206,26 +205,70 @@ final class FocusableTextField: NSTextField {
         }
         return super.performKeyEquivalent(with: event)
     }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.shift) == false,
+           event.characters == "\r" {
+            onSubmit?()
+            return
+        }
+
+        super.keyDown(with: event)
+
+        if !event.modifierFlags.contains(.shift) {
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    override func didChangeText() {
+        super.didChangeText()
+        onTextChange?(string)
+    }
+
+    override var intrinsicContentSize: NSSize {
+        guard let layoutManager, let textContainer else {
+            return super.intrinsicContentSize
+        }
+        layoutManager.ensureLayout(for: textContainer)
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        let lineHeight = font?.boundingRectForFont.height ?? 18
+        let cappedHeight = min(usedRect.height + 12, lineHeight * CGFloat(maxLines))
+        return NSSize(width: NSView.noIntrinsicMetric, height: cappedHeight)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        guard string.isEmpty, !placeholder.isEmpty else { return }
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font ?? .systemFont(ofSize: 15, weight: .regular),
+            .foregroundColor: NSColor.placeholderTextColor,
+        ]
+        let inset = textContainerInset
+        let padding = textContainer?.lineFragmentPadding ?? 0
+        // Match NSTextView's first-line baseline using font metrics
+        let ascender = font?.ascender ?? 14
+        let maxW = (textContainer?.containerSize.width ?? bounds.width) - inset.width * 2
+        let rect = NSRect(x: inset.width + padding,
+                          y: inset.height + ascender,
+                          width: maxW,
+                          height: ascender + (font?.descender ?? -4) * -1)
+        (placeholder as NSString).draw(with: rect, options: .truncatesLastVisibleLine, attributes: attrs)
+    }
 }
 
 // MARK: - Chat Pane Click Monitor
 
-/// Monitors mouse clicks in the chat detail pane and restores focus to the
-/// input text field. Uses `NSEvent.addLocalMonitorForEvents` which sees ALL
-/// mouse events **before** any SwiftUI gesture or AppKit view can consume them.
-///
-/// Place this as a `.background` on the chat content ZStack. It uses the
-/// NSView's bounds to determine whether a click is inside the chat pane
-/// (vs. the sidebar).
 struct ChatPaneClickMonitor: NSViewRepresentable {
-    var textFieldRef: FocusableTextField?
+    var textFieldRef: FocusableTextView?
 
     func makeNSView(context: Context) -> ClickMonitorView {
         let view = ClickMonitorView()
-        view.textFieldRef = textFieldRef
+        view.textViewRef = textFieldRef
         let monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak view] event in
             view?.handleClick(event)
-            return event  // Always propagate — never consume
+            return event
         }
         context.coordinator.monitor = monitor
         context.coordinator.view = view
@@ -233,14 +276,14 @@ struct ChatPaneClickMonitor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: ClickMonitorView, context: Context) {
-        nsView.textFieldRef = textFieldRef
+        nsView.textViewRef = textFieldRef
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
 
-    class Coordinator {
+    final class Coordinator {
         var monitor: Any?
         weak var view: ClickMonitorView?
 
@@ -251,38 +294,32 @@ struct ChatPaneClickMonitor: NSViewRepresentable {
 }
 
 final class ClickMonitorView: NSView {
-    weak var textFieldRef: FocusableTextField?
+    weak var textViewRef: FocusableTextView?
 
     func handleClick(_ event: NSEvent) {
-        guard let window, let textField = textFieldRef else { return }
+        guard let window, let textView = textViewRef else { return }
 
-        // Only respond to clicks inside this chat pane
         let locationInView = convert(event.locationInWindow, from: nil)
         guard bounds.contains(locationInView) else { return }
 
-        // Don't steal focus if the user clicked on the text field itself
         if let clickedView = window.contentView?.hitTest(event.locationInWindow) {
-            // Allow buttons/controls to keep focus
             if clickedView is NSButton || clickedView is NSPopUpButton ||
                clickedView is NSSegmentedControl || clickedView is NSSlider { return }
 
             var ancestor: NSView? = clickedView
             while let v = ancestor {
-                if v === textField { return }
+                if v === textView { return }
                 ancestor = v.superview
             }
         }
 
-        // Already focused? Nothing to do.
-        let editor = textField.currentEditor() ?? textField
-        guard window.firstResponder !== editor else { return }
+        guard window.firstResponder !== textView else { return }
 
-        textField.isEditable = true
-        textField.isSelectable = true
-        let success = window.makeFirstResponder(textField)
+        textView.isEditable = true
+        let success = window.makeFirstResponder(textView)
         if !success {
             window.makeFirstResponder(nil)
-            window.makeFirstResponder(textField)
+            window.makeFirstResponder(textView)
         }
     }
 }

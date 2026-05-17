@@ -4,6 +4,33 @@ import os
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "ChatViewModel")
 
+private let MIMETypeMap: [String: String] = [
+    "pdf": "application/pdf",
+    "doc": "application/msword",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xls": "application/vnd.ms-excel",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "ppt": "application/vnd.ms-powerpoint",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "zip": "application/zip",
+    "gz": "application/gzip",
+    "tar": "application/x-tar",
+    "json": "application/json",
+    "xml": "application/xml",
+    "csv": "text/csv",
+    "html": "text/html",
+    "rtf": "application/rtf",
+    "mp3": "audio/mpeg",
+    "mp4": "video/mp4",
+    "wav": "audio/wav",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "svg": "image/svg+xml",
+]
+
 /// Core chat ViewModel — manages conversation state and interacts with the gateway.
 @MainActor
 final class ChatViewModel: ObservableObject {
@@ -57,6 +84,13 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
+    /// Skills attached to this session (their instructions are prepended to prompts).
+    @Published var activeSkills: [SkillInfo] = []
+    /// Slash-command autocomplete suggestions.
+    @Published var slashSuggestions: [SkillInfo] = []
+    @Published var slashMode: Bool = false
+    /// Currently selected suggestion index for keyboard navigation.
+    @Published var slashSelectedIndex: Int = 0
     @Published var refocusInput: Int = 0
 
     /// Monotonic token for user-driven session switches/creates. Async resume
@@ -358,6 +392,7 @@ final class ChatViewModel: ObservableObject {
             snapshotCurrentSessionState()
 
             await applyEphemeralPrompt(for: sid, using: client)
+            await applySessionSkills(for: sid, using: client)
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
@@ -501,6 +536,93 @@ final class ChatViewModel: ObservableObject {
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
+    private func applySessionSkills(for sessionID: String, using client: GatewayClient) async {
+        let names = activeSkills.map { $0.name }
+        guard !names.isEmpty else { return }
+        try? await client.setSessionSkills(sessionID: sessionID, skillNames: names)
+    }
+
+    /// Build a preamble prepending attached skill instructions.
+    private func skillPreamble() -> String {
+        guard !activeSkills.isEmpty else { return "" }
+        let sections = activeSkills.compactMap { skill -> String? in
+            let content = skill.skillMdFullContent ?? skill.skillMdPreview
+            guard let content, !content.isEmpty else { return nil }
+            return "## Skill: \(skill.name)\n\(content)"
+        }
+        guard !sections.isEmpty else { return "" }
+        return "# Attached Skills\n\n" + sections.joined(separator: "\n\n---\n\n") + "\n\n---\n\n"
+    }
+
+    // MARK: - Slash Command Autocomplete & Skill Attachment
+
+    /// Call this whenever `inputText` changes to update slash suggestions.
+    func updateSlashSuggestions() {
+        let text = inputText
+        guard text.hasPrefix("/") else {
+            slashMode = false
+            slashSuggestions = []
+            slashSelectedIndex = 0
+            return
+        }
+        let query = String(text.dropFirst()).lowercased().trimmingCharacters(in: .whitespaces)
+        let all = SkillCache.shared.skills
+        slashSuggestions = all.filter {
+            let nameMatch = $0.name.lowercased().contains(query)
+            let cmdMatch = $0.slashCommand.lowercased().contains(query)
+            return nameMatch || cmdMatch
+        }.sorted { $0.name < $1.name }
+        slashMode = true
+        slashSelectedIndex = 0
+    }
+
+    /// Attach a skill to the active session and clear slash mode.
+    func attachSkill(_ skill: SkillInfo) {
+        guard !activeSkills.contains(where: { $0.name == skill.name }) else { return }
+        activeSkills.append(skill)
+        inputText = ""
+        slashMode = false
+        slashSuggestions = []
+        Task {
+            // Lazy-load full content if needed
+            if skill.skillMdFullContent == nil,
+               let content = await SkillCache.shared.readSkillContent(name: skill.name),
+               let idx = activeSkills.firstIndex(where: { $0.name == skill.name }) {
+                activeSkills[idx].skillMdFullContent = content
+            }
+            if let sid = sessionID, let client = gatewayClient {
+                try? await client.setSessionSkills(sessionID: sid, skillNames: activeSkills.map { $0.name })
+            }
+        }
+    }
+
+    func detachSkill(named name: String) {
+        activeSkills.removeAll { $0.name == name }
+        Task {
+            if let sid = sessionID, let client = gatewayClient {
+                let names = activeSkills.map { $0.name }
+                try? await client.setSessionSkills(sessionID: sid, skillNames: names)
+            }
+        }
+    }
+
+    // MARK: - Keyboard Navigation for Slash Menu
+
+    func navigateSlashDown() {
+        guard slashMode else { return }
+        slashSelectedIndex = min(slashSelectedIndex + 1, slashSuggestions.count - 1)
+    }
+
+    func navigateSlashUp() {
+        guard slashMode else { return }
+        slashSelectedIndex = max(slashSelectedIndex - 1, 0)
+    }
+
+    func confirmSlashSelection() {
+        guard slashMode, slashSelectedIndex < slashSuggestions.count else { return }
+        attachSkill(slashSuggestions[slashSelectedIndex])
+    }
+
     /// Load history for the current session (for reconnects where resume isn't used).
     func loadSessionHistory() async {
         guard let client = gatewayClient, let sid = sessionID else { return }
@@ -640,13 +762,57 @@ final class ChatViewModel: ObservableObject {
         snapshotCurrentSessionState()
 
         do {
-            // Attach images via image.attach RPC BEFORE prompt.submit.
-            // The gateway requires images to be pre-registered.
+            var promptParts: [String] = []
+
             for attachment in attachments {
-                try await client.attachImage(path: attachment.path, sessionID: sid)
+                guard FileManager.default.fileExists(atPath: attachment.path) else {
+                    log.warning("Attachment file does not exist, skipping: \(attachment.path)")
+                    continue
+                }
+
+                guard let fileData = FileManager.default.contents(atPath: attachment.path) as Data?,
+                      !fileData.isEmpty else { continue }
+
+                if attachment.category == .image {
+                    let ext = attachment.fileExtension.lowercased()
+                    let mime = ext == "jpg" || ext == "jpeg" ? "image/jpeg" : "image/\(ext)"
+                    let serverPath = try await client.uploadFile(
+                        data: fileData, filename: attachment.fileName,
+                        mimeType: mime, sessionID: sid
+                    )
+                    try await client.attachImage(path: serverPath, sessionID: sid)
+                    promptParts.append("[Image: \(attachment.fileName)]")
+                } else {
+                    if let content = String(data: fileData, encoding: .utf8) {
+                        log.info("Embedding document inline: \(attachment.fileName), \(content.count) chars")
+                        promptParts.append("Attached document: \(attachment.fileName)\n\n\(content)")
+                    } else {
+                        let ext = attachment.fileExtension.lowercased()
+                        let mime = MIMETypeMap[ext] ?? "application/octet-stream"
+                        let serverPath = try await client.uploadFile(
+                            data: fileData, filename: attachment.fileName,
+                            mimeType: mime, sessionID: sid
+                        )
+                        try await client.attachImage(path: serverPath, sessionID: sid)
+                        promptParts.append("[File: \(attachment.fileName)]")
+                    }
+                }
             }
-            try await client.submitPrompt(sessionID: sid, text: text)
+
+            var promptText: String
+            if !promptParts.isEmpty && !text.isEmpty {
+                promptText = text + "\n\n" + promptParts.joined(separator: "\n\n")
+            } else if !promptParts.isEmpty {
+                promptText = promptParts.joined(separator: "\n\n")
+            } else {
+                promptText = text
+            }
+
+            log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
+            let promptWithSkills = skillPreamble() + promptText
+            try await client.submitPrompt(sessionID: sid, text: promptWithSkills)
         } catch {
+            log.error("Submit failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
             finishStreaming(status: "error")
         }

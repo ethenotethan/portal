@@ -7,6 +7,15 @@ struct CronDashboardView: View {
     @State private var cronListVM = CronListViewModel()
     @State private var timeHorizon: TimeHorizon = .day
     @State private var expandedJobID: String?
+    @State private var selectedBucketRecords: [CronRunRecord]?
+    @State private var selectedRecord: CronRunRecord?
+    @State private var bucketSelection: BucketSelection?
+
+    private struct BucketSelection: Identifiable {
+        let id = UUID()
+        let records: [CronRunRecord]
+    }
+    @State private var popoverAnchor: CGRect = .zero
 
     enum TimeHorizon: String, CaseIterable {
         case hour = "1h"
@@ -68,6 +77,15 @@ struct CronDashboardView: View {
         let all = store.allRecordsSorted()
         guard let cutoff = timeHorizon.cutoff else { return all }
         return all.filter { $0.firedAt >= cutoff }
+    }
+
+    private func recordsInBucket(_ bucket: TimeBucket) -> [CronRunRecord] {
+        let cal = Calendar.current
+        let component = timeHorizon.bucketComponent
+        return filteredRecords.filter { record in
+            let bucketStart = cal.dateInterval(of: component, for: record.firedAt)?.start ?? record.firedAt
+            return bucketStart == bucket.start
+        }.sorted { $0.firedAt > $1.firedAt }
     }
 
     private var jobNames: [String] {
@@ -190,6 +208,80 @@ struct CronDashboardView: View {
 
     // MARK: - Volume Chart
 
+    private var volumeChartBars: some View {
+        Chart(aggregatedBuckets) { bucket in
+            BarMark(
+                x: .value("Time", bucket.start),
+                y: .value("Runs", bucket.okCount)
+            )
+            .foregroundStyle(by: .value("Status", "OK"))
+            .cornerRadius(2)
+
+            if bucket.errorCount > 0 {
+                BarMark(
+                    x: .value("Time", bucket.start),
+                    y: .value("Runs", bucket.errorCount)
+                )
+                .foregroundStyle(by: .value("Status", "Error"))
+                .cornerRadius(2)
+            }
+        }
+        .chartForegroundStyleScale([
+            "OK": Theme.success,
+            "Error": Color.red
+        ])
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 8)) { value in
+                AxisValueLabel(format: timeHorizon.xAxisFormat)
+                    .font(.caption2)
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                    .foregroundStyle(Theme.border)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { _ in
+                AxisValueLabel()
+                    .font(.caption2)
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                    .foregroundStyle(Theme.border)
+            }
+        }
+        .chartLegend(.hidden)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                let plotFrame = geo[proxy.plotFrame!]
+                                guard plotFrame.contains(value.startLocation) else {
+                                    bucketSelection = nil
+                                    return
+                                }
+                                if let bucketDate: Date = proxy.value(atX: value.startLocation.x) {
+                                    let cal = Calendar.current
+                                    let component = timeHorizon.bucketComponent
+                                    let bucketStart = cal.dateInterval(of: component, for: bucketDate)?.start ?? bucketDate
+                                    if let match = aggregatedBuckets.first(where: { $0.start == bucketStart }) {
+                                        let recs = recordsInBucket(match)
+                                        bucketSelection = recs.isEmpty ? nil : BucketSelection(records: recs)
+                                    } else {
+                                        bucketSelection = nil
+                                    }
+                                }
+                            }
+                    )
+            }
+        }
+        .frame(height: 200)
+        .padding(.trailing, 8)
+        .popover(item: $bucketSelection) { item in
+            runListPopover(title: "\(item.records.count) activation(s)", records: item.records)
+        }
+    }
+
     private var volumeChart: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -206,48 +298,7 @@ struct CronDashboardView: View {
             if aggregatedBuckets.isEmpty {
                 emptyChart
             } else {
-                Chart {
-                    ForEach(aggregatedBuckets) { bucket in
-                        BarMark(
-                            x: .value("Time", bucket.start),
-                            y: .value("Runs", bucket.okCount)
-                        )
-                        .foregroundStyle(by: .value("Status", "OK"))
-                        .cornerRadius(2)
-
-                        if bucket.errorCount > 0 {
-                            BarMark(
-                                x: .value("Time", bucket.start),
-                                y: .value("Runs", bucket.errorCount)
-                            )
-                            .foregroundStyle(by: .value("Status", "Error"))
-                            .cornerRadius(2)
-                        }
-                    }
-                }
-                .chartForegroundStyleScale([
-                    "OK": Theme.success,
-                    "Error": Color.red
-                ])
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 8)) { value in
-                        AxisValueLabel(format: timeHorizon.xAxisFormat)
-                            .font(.caption2)
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
-                            .foregroundStyle(Theme.border)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(position: .leading) { _ in
-                        AxisValueLabel()
-                            .font(.caption2)
-                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
-                            .foregroundStyle(Theme.border)
-                    }
-                }
-                .chartLegend(.hidden)
-                .frame(height: 200)
-                .padding(.trailing, 8)
+                volumeChartBars
             }
         }
         .padding(14)
@@ -304,6 +355,10 @@ struct CronDashboardView: View {
     private var timelineContent: some View {
         let minDate = filteredRecords.map { $0.firedAt }.min() ?? Date()
         let maxDate = filteredRecords.map { $0.firedAt }.max() ?? Date()
+        let laneHeight: CGFloat = 28
+        let dotRadius: CGFloat = 5
+        let rightPad: CGFloat = 12
+        let totalSpan = maxDate.timeIntervalSince(minDate)
 
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 0) {
@@ -314,59 +369,58 @@ struct CronDashboardView: View {
                             .foregroundStyle(Theme.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            .frame(width: 140, height: 28, alignment: .trailing)
+                            .frame(width: 140, height: laneHeight, alignment: .trailing)
                     }
                 }
                 .padding(.trailing, 10)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Canvas { context, size in
-                        let laneHeight: CGFloat = 28
-                        let dotRadius: CGFloat = 5
-                        let rightPad: CGFloat = 12
-
-                        for (i, name) in jobNames.enumerated() {
-                            let laneY = CGFloat(i) * laneHeight + laneHeight / 2
-
-                            context.stroke(
-                                Path { p in
-                                    p.move(to: CGPoint(x: 0, y: laneY))
-                                    p.addLine(to: CGPoint(x: size.width, y: laneY))
-                                },
-                                with: .color(Theme.border.opacity(0.3)),
-                                lineWidth: 0.5
-                            )
-
-                            let jobRecords = filteredRecords.filter { $0.jobName == name }
-                            let totalSpan = maxDate.timeIntervalSince(minDate)
-
-                            for record in jobRecords {
-                                let x: CGFloat
-                                if totalSpan > 0 {
-                                    let xRatio = record.firedAt.timeIntervalSince(minDate) / totalSpan
-                                    x = CGFloat(xRatio) * (size.width - rightPad)
-                                } else {
-                                    x = size.width / 2
+                    GeometryReader { geo in
+                        let plotWidth = geo.size.width - rightPad
+                        ZStack(alignment: .topLeading) {
+                            Canvas { context, size in
+                                for i in jobNames.indices {
+                                    let laneY = CGFloat(i) * laneHeight + laneHeight / 2
+                                    context.stroke(
+                                        Path { p in
+                                            p.move(to: CGPoint(x: 0, y: laneY))
+                                            p.addLine(to: CGPoint(x: size.width, y: laneY))
+                                        },
+                                        with: .color(Theme.border.opacity(0.3)),
+                                        lineWidth: 0.5
+                                    )
                                 }
+                            }
 
-                                let rect = CGRect(
-                                    x: x - dotRadius,
-                                    y: laneY - dotRadius,
-                                    width: dotRadius * 2,
-                                    height: dotRadius * 2
-                                )
-                                context.fill(
-                                    Path(ellipseIn: rect),
-                                    with: .color(record.isOk ? Theme.success : Color.red)
-                                )
+                            ForEach(filteredRecords) { record in
+                                let x: CGFloat = {
+                                    guard totalSpan > 0 else { return plotWidth / 2 }
+                                    return CGFloat(record.firedAt.timeIntervalSince(minDate) / totalSpan) * plotWidth
+                                }()
+                                let y: CGFloat = {
+                                    guard let rowIdx = jobNames.firstIndex(of: record.jobName) else { return 0 }
+                                    return CGFloat(rowIdx) * laneHeight + laneHeight / 2
+                                }()
+
+                                Circle()
+                                    .fill(record.isOk ? Theme.success : Color.red)
+                                    .frame(width: dotRadius * 2, height: dotRadius * 2)
+                                    .position(x: x, y: y)
+                                    .contentShape(Circle().size(width: dotRadius * 4, height: dotRadius * 4))
+                                    .onTapGesture {
+                                        selectedRecord = record
+                                    }
                             }
                         }
                     }
-                    .frame(height: CGFloat(jobNames.count) * 28)
+                    .frame(height: CGFloat(jobNames.count) * laneHeight)
 
                     timelineAxis(min: minDate, max: maxDate)
                 }
             }
+        }
+        .popover(item: $selectedRecord) { record in
+            singleRunPopover(record: record)
         }
     }
 
@@ -458,6 +512,97 @@ struct CronDashboardView: View {
         }
         .frame(height: 120)
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Run Detail Popovers
+
+    @ViewBuilder
+    private func runListPopover(title: String, records: [CronRunRecord]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.primary)
+
+            Divider()
+
+            ForEach(records) { record in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(record.isOk ? Theme.success : Color.red)
+                        .frame(width: 6, height: 6)
+                    Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondary)
+                    Spacer()
+                    Text(record.status)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(record.isOk ? Theme.success : .red)
+                    if let dur = record.duration {
+                        Text(record.durationLabel)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 260)
+    }
+
+    @ViewBuilder
+    private func singleRunPopover(record: CronRunRecord) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(record.isOk ? Theme.success : Color.red)
+                    .frame(width: 8, height: 8)
+                Text(record.jobName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+            }
+
+            Divider()
+
+            detailRow("Status", value: record.status.capitalized)
+            detailRow("Fired", value: record.firedAt, format: .dateTime.month().day().hour().minute().second())
+            if let dur = record.duration {
+                detailRow("Duration", value: record.durationLabel)
+            }
+            detailRow("Job ID", value: String(record.jobID.prefix(12)))
+
+            if !record.isOk {
+                Text("Check session logs for error details.")
+                    .font(.caption2)
+                    .foregroundStyle(.red.opacity(0.8))
+                    .padding(.top, 4)
+            }
+        }
+        .padding(10)
+        .frame(width: 240)
+    }
+
+    private func detailRow(_ title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 60, alignment: .leading)
+            Text(value)
+                .font(.caption2)
+                .foregroundStyle(Theme.primary)
+        }
+    }
+
+    private func detailRow(_ title: String, value: Date, format: Date.FormatStyle) -> some View {
+        HStack {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 60, alignment: .leading)
+            Text(value, format: format)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.primary)
+        }
     }
 }
 

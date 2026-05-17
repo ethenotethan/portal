@@ -880,9 +880,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
-        return response.result?.dictionaryValue?["content"]?.stringValue
-            ?? response.result?.stringValue
-            ?? ""
+        // Try multiple response formats:
+        // 1. {"content": "..."} - standard wrapper
+        // 2. {"skill_md_full": "..."} - inspect-style field
+        // 3. {"content": {"text": "..."}} - nested content
+        // 4. raw string - direct content
+        if let dict = response.result?.dictionaryValue {
+            if let content = dict["content"]?.stringValue, !content.isEmpty {
+                return content
+            }
+            if let full = dict["skill_md_full"]?.stringValue, !full.isEmpty {
+                return full
+            }
+            if let nested = dict["content"]?.dictionaryValue?["text"]?.stringValue, !nested.isEmpty {
+                return nested
+            }
+            if let result = dict["result"]?.stringValue, !result.isEmpty {
+                return result
+            }
+        }
+        if let raw = response.result?.stringValue, !raw.isEmpty {
+            return raw
+        }
+        return ""
     }
 
     /// Write (overwrite) the full SKILL.md content for a skill.
@@ -961,6 +981,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return SkillsReloadResult(output: output, added: added, removed: removed, total: total)
     }
 
+    /// Set the active skills for a session.
+    func setSessionSkills(sessionID: String, skillNames: [String]) async throws {
+        let response = try await call("session.attach_skills", params: [
+            "session_id": AnyCodable(sessionID),
+            "skills": .array(skillNames.map(AnyCodable.init))
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     // MARK: - Activity Inbox RPCs
 
     func listActivityItems(limit: Int = 100, includeRead: Bool = true, includeDismissed: Bool = false) async throws -> [ActivityItem] {
@@ -1035,6 +1066,74 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
+    }
+
+    // MARK: - File Upload (HTTP)
+
+    /// Upload file data to the gateway via HTTP multipart POST.
+    /// Returns the server-side file path on success.
+    func uploadFile(data: Data, filename: String, mimeType: String, sessionID: String? = nil) async throws -> String {
+        guard var httpBase = URL(string: gatewayURL.absoluteString.replacingOccurrences(
+            of: "/v1/ws", with: ""
+        ).replacingOccurrences(
+            of: "ws://", with: "http://"
+        ).replacingOccurrences(
+            of: "wss://", with: "https://"
+        )) else {
+            throw GatewayError.invalidResponse("cannot derive HTTP base URL from \(gatewayURL)")
+        }
+
+        var components = URLComponents(url: httpBase, resolvingAgainstBaseURL: false)
+        var queryItems = components?.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "filename", value: filename))
+        if let sid = sessionID {
+            queryItems.append(URLQueryItem(name: "session_id", value: sid))
+        }
+        components?.queryItems = queryItems
+
+        guard let uploadURL = components?.url?.appendingPathComponent("v1/upload") else {
+            throw GatewayError.invalidResponse("cannot build upload URL")
+        }
+
+        log.info("Uploading file: \(filename) (\(data.count) bytes) to \(uploadURL.host ?? "unknown")")
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var requestBody = Data()
+
+        requestBody.append(Data("--\(boundary)\r\n".utf8))
+        requestBody.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".utf8))
+        requestBody.append(Data("Content-Type: \(mimeType)\r\n\r\n".utf8))
+        requestBody.append(data)
+        requestBody.append(Data("\r\n--\(boundary)--\r\n".utf8))
+
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 60
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        if let cookie = cfAuthCookie {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
+
+        let (responseData, httpResponse) = try await URLSession.shared.data(for: request)
+
+        guard let http = httpResponse as? HTTPURLResponse else {
+            throw GatewayError.invalidResponse("upload failed: no HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: responseData, encoding: .utf8) ?? "(binary)"
+            throw GatewayError.invalidResponse("upload failed: HTTP \(http.statusCode) — \(body)")
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+              let serverPath = json["path"] as? String else {
+            throw GatewayError.invalidResponse("upload response missing 'path' field")
+        }
+
+        log.info("Upload succeeded: \(serverPath)")
+        return serverPath
     }
 
     /// Attach an image to the current session. Must be called before submitPrompt.

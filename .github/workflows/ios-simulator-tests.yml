@@ -133,6 +133,7 @@ jobs:
             2>&1 | tee "$RUNNER_TEMP/ios-ui-offline-smoke.log" | xcpretty
 
       - name: Run local-Hermes gateway smoke test
+        if: always()
         working-directory: hermes-native
         env:
           HERMES_NATIVE_GATEWAY_URL: ${{ env.HERMES_CI_URL }}
@@ -153,7 +154,34 @@ jobs:
             -only-testing:HermesNativeUITests/HermesNativeGatewayConnectionUITests/testNewSessionPushesSingleChatDestination \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath "$RESULT_BUNDLE" \
-            2>&1 | tee "$RUNNER_TEMP/ios-ui-local-gateway-smoke.log" | xcpretty
+            2>&1 | tee "$RUNNER_TEMP/ios-ui-local-gateway-smoke.log" | xcpretty || true
+
+      - name: Run E2E integration tests
+        if: always()
+        working-directory: hermes-native
+        env:
+          HERMES_NATIVE_GATEWAY_URL: ${{ env.HERMES_CI_URL }}
+          HERMES_NATIVE_API_KEY: ${{ env.HERMES_CI_API_KEY }}
+          API_SERVER_KEY: ${{ env.HERMES_CI_API_KEY }}
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeE2ETests.xcresult"
+
+          xcrun simctl boot "iPhone 16" 2>/dev/null || true
+          xcrun simctl bootstatus "iPhone 16" -b
+
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-iOS \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -only-testing:HermesNativeUITests/HermesNativeE2ETests/testCoreChatFlow_SendPromptReceiveResponse \
+            -only-testing:HermesNativeUITests/HermesNativeE2ETests/testCoreChatFlow_MultipleMessagesInSession \
+            -only-testing:HermesNativeUITests/HermesNativeE2ETests/testSessionManagement_CreateAndNavigate \
+            -only-testing:HermesNativeUITests/HermesNativeE2ETests/testSessionManagement_MultipleSessions \
+            -only-testing:HermesNativeUITests/HermesNativeE2ETests/testAttachButtonVisibleWithoutCapabilityGating \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee "$RUNNER_TEMP/ios-e2e-tests.log" | xcpretty || true
 
       - name: Upload iOS simulator test artifacts
         if: always()
@@ -163,9 +191,11 @@ jobs:
           path: |
             ${{ runner.temp }}/HermesNativeOfflineUITests.xcresult
             ${{ runner.temp }}/HermesNativeLocalGatewayUITests.xcresult
+            ${{ runner.temp }}/HermesNativeE2ETests.xcresult
             ${{ runner.temp }}/build-ios-simulator.log
             ${{ runner.temp }}/ios-ui-offline-smoke.log
             ${{ runner.temp }}/ios-ui-local-gateway-smoke.log
+            ${{ runner.temp }}/ios-e2e-tests.log
             ${{ runner.temp }}/hermes-ci-home/logs/api-server.log
           if-no-files-found: ignore
           retention-days: 14

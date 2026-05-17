@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import os
 
 /// Main chat interface — skin-aware layout.
 /// Delegates all visual rendering to the active ChatSkinProvider,
@@ -31,7 +32,7 @@ struct ChatView: View {
     @FocusState private var isInputFocused: Bool
     /// Weak reference to the native NSTextField backing the input. Used by
     /// ChatPaneClickMonitor to call window.makeFirstResponder() directly.
-    @State private var inputFieldRef: FocusableTextField?
+    @State private var inputFieldRef: FocusableTextView?
     #endif
 
     /// The active skin — change this to swap the entire visual personality
@@ -57,7 +58,8 @@ struct ChatView: View {
         #if os(macOS)
         if !chatViewModel.isSessionReady { return 260 }
         if chatViewModel.pendingApproval != nil { return 190 }
-        return 132
+        // Extra room for multi-line composer (up to 8 lines + attachments/skills)
+        return 240
         #else
         8
         #endif
@@ -177,7 +179,35 @@ struct ChatView: View {
 
                         ChatInputBar(isFocused: $isInputFocused, inputFieldRef: $inputFieldRef)
                             .environmentObject(chatViewModel)
+                            .frame(maxWidth: 840, alignment: .center)
                             .id(chatViewModel.currentSessionID ?? "no-session")
+                        if let error = chatViewModel.error {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.red)
+                                Text(error)
+                                    .font(.caption2)
+                                    .foregroundStyle(.red.opacity(0.9))
+                                    .lineLimit(2)
+                                Spacer()
+                                Button {
+                                    chatViewModel.error = nil
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
+                                        .foregroundStyle(.red.opacity(0.6))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            .background(.red.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 4)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 18)
@@ -606,7 +636,7 @@ struct ChatInputBar: View {
     /// is nil and ChatInputBar owns its own @FocusState internally.
     #if os(macOS)
     var isFocused: FocusState<Bool>.Binding
-    @Binding var inputFieldRef: FocusableTextField?
+    @Binding var inputFieldRef: FocusableTextView?
     #else
     @FocusState private var isInputFocused: Bool
     #endif
@@ -624,13 +654,19 @@ struct ChatInputBar: View {
     var body: some View {
         #if os(macOS)
         VStack(spacing: 0) {
+            // Attached skills chips
+            if !chatViewModel.activeSkills.isEmpty {
+                attachedSkillsChips
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
+            }
             // Attachment preview strip above input
             if !chatViewModel.pendingAttachments.isEmpty {
                 attachmentPreviewStrip
                     .padding(.horizontal, 14)
                     .padding(.top, 6)
             }
-            HStack(alignment: .center, spacing: 10) {
+            HStack(alignment: .bottom, spacing: 10) {
                 attachButton
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -638,25 +674,25 @@ struct ChatInputBar: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .frame(maxWidth: 760)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Theme.border.opacity(0.9), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .background {
-                MacScrollViewIntrospection()
-                    .frame(width: 0, height: 0)
-                    .allowsHitTesting(false)
-            }
-            .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
-                handleDrop(providers: providers)
-            }
+        }
+        .frame(maxWidth: 760)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Theme.border.opacity(0.9), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
+        .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
+            handleDrop(providers: providers)
         }
         #else
         VStack(spacing: 0) {
+            // Attached skills chips
+            if !chatViewModel.activeSkills.isEmpty {
+                attachedSkillsChips
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
+            }
             // Attachment preview strip above input
             if !chatViewModel.pendingAttachments.isEmpty {
                 attachmentPreviewStrip
@@ -673,6 +709,34 @@ struct ChatInputBar: View {
             .background(.bar)
         }
         #endif
+    }
+
+    // MARK: - Attached Skills Chips
+
+    private var attachedSkillsChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(chatViewModel.activeSkills) { skill in
+                    HStack(spacing: 4) {
+                        Text(skill.slashCommand)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Theme.accent)
+                        Button {
+                            chatViewModel.detachSkill(named: skill.name)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Theme.accent.opacity(0.10), in: Capsule())
+                }
+            }
+            .padding(.vertical, 4)
+        }
     }
 
     // MARK: - Attachment Preview Strip
@@ -695,63 +759,73 @@ struct ChatInputBar: View {
 
     // MARK: - Attach Button
 
-    @ViewBuilder
     private var attachButton: some View {
-        if capabilitiesStore.hasImageInput || capabilitiesStore.hasACPImagePrompts {
-            #if os(macOS)
-            Button {
-                showMacFilePicker()
-            } label: {
-                Image(systemName: "photo.badge.plus")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(Theme.surfaceHover, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Attach image")
-            .help("Attach an image to your message")
-            #else
-            Menu {
-                PhotosPicker(
-                    "Photo Library",
-                    selection: $selectedPhotosPickerItems,
-                    maxSelectionCount: 5,
-                    matching: .images
-                )
-                Button("Choose File") {
-                    showiOSDocumentPicker()
-                }
-            } label: {
-                Image(systemName: "photo.badge.plus")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(Theme.surfaceHover, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Attach image")
-            .onChange(of: selectedPhotosPickerItems) { _, newItems in
-                handlePhotosPickerItems(newItems)
-                selectedPhotosPickerItems = []
-            }
-            #endif
+        #if os(macOS)
+        Button {
+            showMacFilePicker()
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .frame(width: 28, height: 28)
+                .background(Theme.surfaceHover, in: Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Attach file")
+        .accessibilityIdentifier("attachFileButton")
+        .help("Attach a file to your message")
+        #else
+        Menu {
+            PhotosPicker(
+                "Photo Library",
+                selection: $selectedPhotosPickerItems,
+                maxSelectionCount: 5,
+                matching: .images
+            )
+            Button("Choose File") {
+                showiOSDocumentPicker()
+            }
+        } label: {
+            Image(systemName: "paperclip")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .frame(width: 28, height: 28)
+                .background(Theme.surfaceHover, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Attach file")
+        .accessibilityIdentifier("attachFileButton")
+        .onChange(of: selectedPhotosPickerItems) { _, newItems in
+            handlePhotosPickerItems(newItems)
+            selectedPhotosPickerItems = []
+        }
+        #endif
     }
 
     // MARK: - Input Field
 
     private var inputField: some View {
         #if os(macOS)
-        MacInputTextField(
-            text: $chatViewModel.inputText,
-            placeholder: "Message \(personaManager.activePersona.name)…",
-            isFocused: isFocused,
-            fieldRef: $inputFieldRef,
-            onSubmit: { Task { await chatViewModel.submitPrompt() } },
-            onImagePaste: { providers in handlePaste(providers: providers) }
-        )
-        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+        ZStack(alignment: .topLeading) {
+            MacInputTextField(
+                text: $chatViewModel.inputText,
+                placeholder: "Message \(personaManager.activePersona.name)…",
+                isFocused: isFocused,
+                fieldRef: $inputFieldRef,
+                onSubmit: { Task { await chatViewModel.submitPrompt() } },
+                onImagePaste: { providers in handlePaste(providers: providers) },
+                onTextChange: { text in
+                    chatViewModel.inputText = text
+                    chatViewModel.updateSlashSuggestions()
+                }
+            )
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+
+            if chatViewModel.slashMode {
+                slashAutocompleteOverlay
+                    .offset(y: -CGFloat(min(chatViewModel.slashSuggestions.count, 6)) * 36 - 8)
+            }
+        }
         #else
         TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
             .accessibilityIdentifier("chatInput")
@@ -762,7 +836,55 @@ struct ChatInputBar: View {
             .onSubmit {
                 Task { await chatViewModel.submitPrompt() }
             }
+            .onChange(of: chatViewModel.inputText) { _, newValue in
+                chatViewModel.updateSlashSuggestions()
+            }
+            .overlay(alignment: .bottom) {
+                if chatViewModel.slashMode {
+                    slashAutocompleteOverlay
+                }
+            }
         #endif
+    }
+
+    // MARK: - Slash Autocomplete Overlay
+
+    private var slashAutocompleteOverlay: some View {
+        VStack(spacing: 0) {
+            ForEach(chatViewModel.slashSuggestions.prefix(6)) { skill in
+                Button {
+                    chatViewModel.attachSkill(skill)
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(skill.slashCommand)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.accent)
+                        Text(skill.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.primary)
+                        Spacer()
+                        if !skill.description.isEmpty {
+                            Text(skill.description)
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .background(Theme.surface)
+                if skill.id != chatViewModel.slashSuggestions.prefix(6).last?.id {
+                    Divider().background(Theme.border)
+                }
+            }
+        }
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+        .frame(maxWidth: .infinity, maxHeight: 220)
     }
 
     // MARK: - Send Button
@@ -788,8 +910,8 @@ struct ChatInputBar: View {
     #if os(macOS)
     private func showMacFilePicker() {
         let panel = NSOpenPanel()
-        panel.title = "Select Images"
-        panel.allowedContentTypes = [.image]
+        panel.title = "Select Files"
+        panel.allowedContentTypes = [.item]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -797,8 +919,9 @@ struct ChatInputBar: View {
         guard panel.runModal() == .OK else { return }
 
         for url in panel.urls {
-            let path = url.path
-            chatViewModel.addAttachment(path: path)
+            let cachedPath = Self.copyToCache(url: url)
+            guard !cachedPath.isEmpty else { continue }
+            chatViewModel.addAttachment(path: cachedPath)
         }
     }
     #endif
@@ -811,13 +934,14 @@ struct ChatInputBar: View {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = scene.windows.first?.rootViewController else { return }
 
-        let docPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.image], asCopy: true)
+        let docPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
         docPicker.allowsMultipleSelection = true
         docPicker.delegate = DocumentPickerDelegate.shared
 
         DocumentPickerDelegate.shared.onSelect = { urls in
             for url in urls {
                 let cachedPath = Self.copyToCache(url: url)
+                guard !cachedPath.isEmpty else { continue }
                 chatViewModel.addAttachment(path: cachedPath)
             }
         }
@@ -855,13 +979,34 @@ struct ChatInputBar: View {
                 provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
                     if let url = item as? URL {
                         let cachedPath = Self.copyToCache(url: url)
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
                         }
                     } else if let data = item as? Data {
                         let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    } else if let nsImage = item as? NSImage,
+                              let tiffData = nsImage.tiffRepresentation,
+                              let bitmapRep = NSBitmapImageRep(data: tiffData),
+                              let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
+                        guard !cachedPath.isEmpty else { return }
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                            if let url = item as? URL {
+                                let cachedPath = Self.copyToCache(url: url)
+                                guard !cachedPath.isEmpty else { return }
+                                Task { @MainActor in
+                                    chatViewModel.addAttachment(path: cachedPath)
+                                }
+                            }
                         }
                     }
                 }
@@ -872,6 +1017,7 @@ struct ChatInputBar: View {
                         let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
                         guard imageExts.contains(ext) else { return }
                         let cachedPath = Self.copyToCache(url: url)
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
                         }
@@ -892,13 +1038,38 @@ struct ChatInputBar: View {
                 provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
                     if let url = item as? URL {
                         let cachedPath = Self.copyToCache(url: url)
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
                         }
                     } else if let data = item as? Data {
                         let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                    #if os(macOS)
+                    if let nsImage = item as? NSImage,
+                       let tiffData = nsImage.tiffRepresentation,
+                       let bitmapRep = NSBitmapImageRep(data: tiffData),
+                       let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
+                        guard !cachedPath.isEmpty else { return }
+                        Task { @MainActor in
+                            chatViewModel.addAttachment(path: cachedPath)
+                        }
+                    }
+                    #endif
+                    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                            if let url = item as? URL {
+                                let cachedPath = Self.copyToCache(url: url)
+                                guard !cachedPath.isEmpty else { return }
+                                Task { @MainActor in
+                                    chatViewModel.addAttachment(path: cachedPath)
+                                }
+                            }
                         }
                     }
                 }
@@ -910,6 +1081,7 @@ struct ChatInputBar: View {
                         let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
                         guard imageExts.contains(ext) else { return }
                         let cachedPath = Self.copyToCache(url: url)
+                        guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
                             chatViewModel.addAttachment(path: cachedPath)
                         }
@@ -936,21 +1108,28 @@ struct ChatInputBar: View {
         let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"
-        try? FileManager.default.copyItem(atPath: url.path, toPath: dest)
-        // If copy fails (e.g. same file), use the original path
-        if FileManager.default.fileExists(atPath: dest) {
+        do {
+            try FileManager.default.copyItem(atPath: url.path, toPath: dest)
             return dest
+        } catch {
+            os_log(.error, "Failed to copy file to cache: %{public}@ -> %{public}@: %{public}@",
+                   url.path, dest, error.localizedDescription)
+            return url.path
         }
-        return url.path
     }
 
-    /// Save raw image data into the hermes images cache, returning the cached path.
     private static func saveImageDataToCache(data: Data, ext: String) -> String {
         let dir = hermesImagesDir
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"
-        try? data.write(to: URL(fileURLWithPath: dest))
-        return dest
+        do {
+            try data.write(to: URL(fileURLWithPath: dest))
+            return dest
+        } catch {
+            os_log(.error, "Failed to save image data to cache %{public}@: %{public}@",
+                   dest, error.localizedDescription)
+            return ""
+        }
     }
 }
 

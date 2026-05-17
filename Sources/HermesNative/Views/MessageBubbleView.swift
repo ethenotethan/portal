@@ -93,18 +93,11 @@ struct MessageBubbleView: View {
                         UserAttachmentsGrid(attachments: message.userAttachments, alignment: .leading)
                     }
 
-                    // Text content (MEDIA: tags stripped)
                     let displayContent = message.contentWithoutAttachments
                     if !displayContent.isEmpty {
-                        if message.isStreaming && message.content.hasSuffix("…") == false {
-                            // Streaming — show content as it arrives
-                            LongResponseView(text: displayContent, isStreaming: message.isStreaming)
-                        } else if displayContent.isEmpty && message.isStreaming {
-                            // Streaming but no content yet — show nothing (agent panel handles it)
-                            EmptyView()
-                        } else {
-                            LongResponseView(text: displayContent, isStreaming: message.isStreaming)
-                        }
+                        Text(displayContent)
+                            .foregroundStyle(Theme.primary)
+                            .textSelection(.enabled)
                     }
 
                     // File attachments from MEDIA: tags

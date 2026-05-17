@@ -5,10 +5,10 @@ import os.log
 @MainActor
 @Observable
 final class SkillsViewModel {
-    var skills: [SkillInfo] = []
-    var categories: [String: [SkillInfo]] = [:]
-    var isLoading = false
-    var errorMessage: String?
+    // Proxy to SkillCache.shared — single source of truth
+    var skills: [SkillInfo] { SkillCache.shared.skills }
+    var isLoading: Bool { SkillCache.shared.isLoading }
+    var errorMessage: String? { SkillCache.shared.errorMessage }
     var lastRawResponse: String?
     var diagnosticResult: String?
 
@@ -24,96 +24,25 @@ final class SkillsViewModel {
 
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
-        // Populate instantly from local cache so the UI never flashes empty
-        if self.skills.isEmpty, self.categories.isEmpty, let cached = SkillCache.load() {
-            self.skills = cached.values.flatMap { $0 }.sorted { $0.name.lowercased() < $1.name.lowercased() }
-            self.categories = cached
-            log.info("setGatewayClient: restored \(self.skills.count) skills from cache")
-        }
+        SkillCache.shared.setGatewayClient(client)
     }
 
     func refresh() async {
-        guard let client = gatewayClient else {
-            log.warning("refresh: gatewayClient is nil")
-            return
-        }
-        isLoading = true
-        errorMessage = nil
-        do {
-            let categoriesDict = try await client.listSkills()
-            log.info("refresh: listSkills returned \(categoriesDict.count) categories")
-            lastRawResponse = "Categories: \(categoriesDict.keys.sorted().joined(separator: ", "))"
-            var allSkills: [SkillInfo] = []
-            var grouped: [String: [SkillInfo]] = [:]
-
-            if !categoriesDict.isEmpty {
-                for (category, names) in categoriesDict {
-                    for name in names {
-                        let slashCmd = "/\(name.lowercased().replacingOccurrences(of: " ", with: "-"))"
-                        let skill = SkillInfo(
-                            name: name,
-                            description: "",
-                            category: category,
-                            source: "local",
-                            identifier: nil,
-                            tags: [],
-                            skillMdPath: nil,
-                            skillDir: nil,
-                            skillMdPreview: nil,
-                            skillMdFullContent: nil,
-                            slashCommand: slashCmd
-                        )
-                        allSkills.append(skill)
-                        grouped[category, default: []].append(skill)
-                    }
-                }
-            } else {
-                log.info("refresh: listSkills empty, falling back to scanSkillCommands")
-                let commandSkills = (try? await client.scanSkillCommands()) ?? []
-                log.info("refresh: scanSkillCommands returned \(commandSkills.count) skills")
-                for skill in commandSkills {
-                    allSkills.append(skill)
-                    grouped[skill.category, default: []].append(skill)
-                }
-            }
-
-            let inspected = await inspectSkills(client, names: allSkills.map { $0.name })
-            for i in allSkills.indices {
-                if let detail = inspected[allSkills[i].name] {
-                    allSkills[i].description = detail.description
-                    allSkills[i].skillMdPreview = detail.skillMdPreview
-                    allSkills[i].skillMdFullContent = detail.skillMdFullContent
-                    allSkills[i].tags = detail.tags
-                    allSkills[i].source = detail.source
-                    allSkills[i].skillMdPath = detail.skillMdPath
-                    allSkills[i].skillDir = detail.skillDir
-                    allSkills[i].slashCommand = detail.slashCommand
-                }
-            }
-
-            self.skills = allSkills.sorted { $0.name.lowercased() < $1.name.lowercased() }
-            self.categories = grouped
-            hasLoaded = true
-            SkillCache.save(categories: grouped)
-            log.info("refresh: total \(allSkills.count) skills in \(grouped.count) categories")
-        } catch {
-            log.error("refresh: error=\(error.localizedDescription)")
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
+        await SkillCache.shared.reload()
     }
 
-    private func inspectSkills(_ client: GatewayClient, names: [String]) async -> [String: SkillInfo] {
-        await withTaskGroup(of: (String, SkillInfo?).self) { group in
-            for name in names {
-                group.addTask { (name, try? await client.inspectSkill(name: name)) }
-            }
-            var result: [String: SkillInfo] = [:]
-            for await (name, info) in group {
-                if let info { result[name] = info }
-            }
-            return result
-        }
+    func refreshIfNeeded() async {
+        await SkillCache.shared.refreshIfNeeded()
+    }
+
+    func backgroundRefresh() async {
+        await SkillCache.shared.backgroundRefresh()
+    }
+
+    var totalSkills: Int { skills.count }
+    var categoryCount: Int { Set(skills.map { $0.category }).count }
+    var categories: [String: [SkillInfo]] {
+        Dictionary(grouping: skills) { $0.category }
     }
 
     func search() async {
@@ -142,7 +71,7 @@ final class SkillsViewModel {
             if success {
                 CelebrationManager.shared.onSkillInstalled(name: name)
                 _ = try? await client.reloadSkills()
-                await refresh()
+                await SkillCache.shared.reload()
             }
         } catch {
             installStatus[name] = "failed: \(error.localizedDescription)"
@@ -156,7 +85,7 @@ final class SkillsViewModel {
             _ = try await client.uninstallSkill(name: name)
             installStatus[name] = nil
             _ = try? await client.reloadSkills()
-            await refresh()
+            await SkillCache.shared.reload()
         } catch {
             installStatus[name] = "failed: \(error.localizedDescription)"
         }
@@ -164,14 +93,8 @@ final class SkillsViewModel {
 
     func reload() async {
         guard let client = gatewayClient else { return }
-        isLoading = true
-        do {
-            _ = try await client.reloadSkills()
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
+        _ = try? await client.reloadSkills()
+        await SkillCache.shared.reload()
     }
 
     enum DiagnosticTest {
@@ -226,10 +149,6 @@ final class SkillsViewModel {
         diagnosticResult = output
     }
 
-    var totalSkills: Int { skills.count }
-    var categoryCount: Int { categories.keys.count }
-
-    /// Load full markdown content for a skill on demand.
     func readSkillMarkdown(name: String) async -> String? {
         guard let client = gatewayClient else { return nil }
         do {
@@ -240,24 +159,40 @@ final class SkillsViewModel {
         }
     }
 
+    /// Lazily fetch skill metadata (description, tags, md preview) on expand.
+    func inspectSkill(name: String) async {
+        guard let client = gatewayClient else { return }
+        // Check if we already have metadata
+        if let idx = SkillCache.shared.skills.firstIndex(where: { $0.name == name }),
+           !SkillCache.shared.skills[idx].description.isEmpty {
+            return
+        }
+        do {
+            if let detail = try await client.inspectSkill(name: name) {
+                await MainActor.run {
+                    if let idx = SkillCache.shared.skills.firstIndex(where: { $0.name == name }) {
+                        SkillCache.shared.skills[idx].description = detail.description
+                        SkillCache.shared.skills[idx].skillMdPreview = detail.skillMdPreview
+                        SkillCache.shared.skills[idx].tags = detail.tags
+                        SkillCache.shared.skills[idx].source = detail.source
+                    }
+                }
+            }
+        } catch {
+            log.error("inspectSkill(\(name)) failed: \(error.localizedDescription)")
+        }
+    }
+
     /// Save edited markdown back to the skill.
     func saveSkillMarkdown(name: String, content: String) async -> Bool {
         guard let client = gatewayClient else { return false }
         do {
             let success = try await client.writeSkillMarkdown(name: name, content: content)
             if success {
-                // Update local cache so the UI reflects changes immediately
-                for i in skills.indices where skills[i].name == name {
-                    skills[i].skillMdFullContent = content
-                    skills[i].skillMdPreview = String(content.prefix(500))
-                }
-                // Also update categories
-                for (key, var list) in categories {
-                    for i in list.indices where list[i].name == name {
-                        list[i].skillMdFullContent = content
-                        list[i].skillMdPreview = String(content.prefix(500))
-                    }
-                    categories[key] = list
+                // Update SkillCache so the UI reflects changes immediately
+                for i in SkillCache.shared.skills.indices where SkillCache.shared.skills[i].name == name {
+                    SkillCache.shared.skills[i].skillMdFullContent = content
+                    SkillCache.shared.skills[i].skillMdPreview = String(content.prefix(500))
                 }
             }
             return success
