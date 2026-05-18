@@ -73,12 +73,12 @@ final class WikiGraphViewModel: ObservableObject {
 
     // MARK: - Gateway
 
-    func load(client: GatewayClient) async {
+    func load(client: GatewayClient, wiki: String? = nil) async {
         isLoading = true
         error = nil
         defer { isLoading = false }
         do {
-            let newGraph = try await client.wikiScan()
+            let newGraph = try await client.wikiScan(wiki: wiki)
             self.graph = newGraph
             // If canvas already has a real size, set up sim now; otherwise Canvas frame will trigger it.
             if canvasSize != .zero {
@@ -90,9 +90,9 @@ final class WikiGraphViewModel: ObservableObject {
         }
     }
 
-    func loadPage(client: GatewayClient, path: String) async -> WikiPageContent? {
+    func loadPage(client: GatewayClient, path: String, wiki: String? = nil) async -> WikiPageContent? {
         do {
-            return try await client.wikiPage(path: path)
+            return try await client.wikiPage(path: path, wiki: wiki)
         } catch {
             log.error("wiki.page failed: \(error.localizedDescription)")
             return nil

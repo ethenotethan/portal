@@ -6,11 +6,13 @@ import Foundation
 extension GatewayClient {
 
     /// Scan the wiki directory and return the full graph structure.
-    /// Respects $WIKI_PATH on the server; defaults to ~/wiki.
-    func wikiScan(path: String? = nil) async throws -> WikiGraph {
+    /// - Parameters:
+    ///   - wiki: Wiki name from ~/.hermes/wikis.yaml (e.g. "d-inference").
+    ///     Omit to use the server-side default wiki.
+    func wikiScan(wiki: String? = nil) async throws -> WikiGraph {
         var params: [String: AnyCodable] = [:]
-        if let p = path {
-            params["path"] = AnyCodable(p)
+        if let w = wiki {
+            params["wiki"] = AnyCodable(w)
         }
         let response = try await call("wiki.scan", params: params)
         if let error = response.error {
@@ -52,8 +54,16 @@ extension GatewayClient {
     }
 
     /// Read a single wiki page by relative path.
-    func wikiPage(path: String) async throws -> WikiPageContent {
-        let response = try await call("wiki.page", params: ["path": AnyCodable(path)])
+    /// - Parameters:
+    ///   - path: Relative path within the wiki (e.g. "entities/dflash-mlx.md").
+    ///   - wiki: Wiki name from ~/.hermes/wikis.yaml (e.g. "d-inference").
+    ///     Omit to use the server-side default wiki.
+    func wikiPage(path: String, wiki: String? = nil) async throws -> WikiPageContent {
+        var params: [String: AnyCodable] = ["path": AnyCodable(path)]
+        if let w = wiki {
+            params["wiki"] = AnyCodable(w)
+        }
+        let response = try await call("wiki.page", params: params)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
