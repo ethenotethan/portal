@@ -49,6 +49,8 @@ struct MarkdownContentView: View {
                             .foregroundStyle(Theme.primary)
                             .lineSpacing(3)
                     }
+                case .mathBlock(let tex):
+                    MathBlockView(tex: tex)
                 }
             }
         }
@@ -132,6 +134,7 @@ enum MarkdownBlock: Equatable, Identifiable {
     case blockquote(content: String)
     case horizontalRule
     case table(headers: [String], rows: [[String]])
+    case mathBlock(String)
 
     var id: String {
         switch self {
@@ -142,6 +145,7 @@ enum MarkdownBlock: Equatable, Identifiable {
         case .blockquote(let content): return "bq-\(content.prefix(64))"
         case .horizontalRule: return "hr"
         case .table(let headers, _): return "table-\(headers.joined(separator: "|"))"
+        case .mathBlock(let tex): return "math-\(tex.prefix(64))"
         }
     }
 }
@@ -171,6 +175,34 @@ struct MarkdownParser {
                 let code = codeLines.joined(separator: "\n")
                 if !code.isEmpty {
                     blocks.append(.codeBlock(language: language, code: code))
+                }
+                continue
+            }
+
+            // Math block
+            if trimmed.hasPrefix("$$") {
+                var mathLines: [String] = []
+                if trimmed.count > 2 {
+                    // Single-line $$...$$
+                    let content = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                    let endIdx = content.index(content.endIndex, offsetBy: -2, limitedBy: content.startIndex)
+                    let cleaned = (endIdx != nil && content.suffix(2) == "$$") ? String(content.prefix(content.count - 2)) : content
+                    if !cleaned.isEmpty {
+                        blocks.append(.mathBlock(cleaned.trimmingCharacters(in: .whitespaces)))
+                    }
+                    i += 1
+                    continue
+                }
+                // Multi-line $$
+                i += 1
+                while i < lines.count && !lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("$$") {
+                    mathLines.append(lines[i])
+                    i += 1
+                }
+                if i < lines.count { i += 1 }
+                let tex = mathLines.joined(separator: "\n").trimmingCharacters(in: .whitespaces)
+                if !tex.isEmpty {
+                    blocks.append(.mathBlock(tex))
                 }
                 continue
             }
@@ -383,12 +415,7 @@ struct MarkdownText: View {
     var baseColor: Color?
     var baseFont: Font?
 
-    private static let singleQuotedCodeRegex: NSRegularExpression? = {
-        try? NSRegularExpression(
-            pattern: "'([^'\\s][^']{1,120})'",
-            options: []
-        )
-    }()
+    private static let singleQuotedCodeRegex: NSRegularExpression? = nil
 
     init(text: String, baseColor: Color? = nil, baseFont: Font? = nil) {
         self.text = text
@@ -432,21 +459,9 @@ struct MarkdownText: View {
         return plain
     }
 
-    /// Normalize inline code markers that Apple's parser sometimes misses:
-    /// - Convert single-quoted code spans like 'path/to/file' to backtick code
-    /// - Escape unpaired backticks so the parser doesn't bail out
+    /// Escape unpaired backticks so the AttributedString parser doesn't bail out.
     private static func normalizeInlineCode(_ input: String) -> String {
         var result = input
-
-        // Convert single-quoted code-like spans to backtick code
-        guard let regex = singleQuotedCodeRegex else { return result }
-        let nsRange = NSRange(result.startIndex..., in: result)
-        let matches = regex.matches(in: result, range: nsRange)
-        for match in matches.reversed() {
-            guard let range = Range(match.range, in: result) else { continue }
-            let inner = result[range]
-            result.replaceSubrange(range, with: "`\(inner)`")
-        }
 
         // Fix unpaired backticks: count them, if odd, escape the last one
         var backtickCount = 0
@@ -475,6 +490,10 @@ struct MarkdownText: View {
             let run = attr.runs[i]
             guard let intent = run.inlinePresentationIntent,
                   intent.contains(.code) else { continue }
+
+            // Skip short single-word spans — they're usually prose emphasis, not code
+            let content = String(attr[run.range].characters)
+            guard content.contains(where: { $0.isWhitespace }) || content.count >= 10 else { continue }
 
             let inheritedWeight: Font.Weight = intent.contains(.stronglyEmphasized) ? .bold : .regular
 
@@ -1222,5 +1241,52 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
         UIApplication.shared.open(url)
         #endif
         decisionHandler(.cancel)
+    }
+}
+
+// MARK: - Math Block
+
+struct MathBlockView: View {
+    let tex: String
+    @State private var isCopied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "function")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                Text("Math")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                Spacer()
+                Button {
+                    #if os(macOS)
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(tex, forType: .string)
+                    #else
+                    UIPasteboard.general.string = tex
+                    #endif
+                    isCopied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        isCopied = false
+                    }
+                } label: {
+                    Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            Text(tex)
+                .font(.system(size: 13, design: .monospaced))
+                .foregroundStyle(Theme.primary)
+                .textSelection(.enabled)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
+        }
+        .padding(10)
+        .background(Theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 }

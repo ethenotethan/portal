@@ -118,8 +118,10 @@ struct WikiPageDetailView: View {
                     .foregroundStyle(Theme.warning)
             }
 
-            if let source = content.frontmatter["source_url"], !source.isEmpty {
-                Link("Source", destination: URL(string: source)!)
+            if let source = content.frontmatter["source_url"],
+               !source.isEmpty,
+               let url = URL(string: source) {
+                Link("Source", destination: url)
                     .font(.caption)
                     .foregroundStyle(Theme.accent)
             }

@@ -47,7 +47,7 @@ struct MacInputTextField: NSViewRepresentable {
         tv.textContainer?.lineFragmentPadding = 2
         tv.autoresizingMask = .none
         tv.isHorizontallyResizable = false
-        tv.isVerticallyResizable = true
+        tv.isVerticallyResizable = false
         tv.textContainer?.widthTracksTextView = true
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         tv.setContentHuggingPriority(.defaultHigh, for: .vertical)
@@ -92,6 +92,7 @@ struct MacInputTextField: NSViewRepresentable {
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusableTextView, context: Context) -> CGSize? {
         let width = proposal.width ?? 300
+        // Update text container width to match the proposed width
         nsView.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
         nsView.invalidateIntrinsicContentSize()
         let size = nsView.intrinsicContentSize

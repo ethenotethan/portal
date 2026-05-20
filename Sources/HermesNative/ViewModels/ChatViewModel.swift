@@ -200,7 +200,7 @@ final class ChatViewModel: ObservableObject {
         // WebSocket, so only apply events whose session_id matches this chat's
         // current session. Legacy/global events may have no session_id.
         client.eventStream
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] event, eventSessionID in
                 self?.handleEvent(event, eventSessionID: eventSessionID)
             }

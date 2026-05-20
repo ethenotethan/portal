@@ -45,267 +45,95 @@ struct SessionListView: View {
                     .fill(Theme.border)
                     .frame(height: 1)
 
-                List(selection: $sessionList.activeSessionID) {
-                // My Sessions
-                Section {
-                if !mySessionsCollapsed {
-                    if mySessions.isEmpty {
-                        VStack(spacing: 8) {
-                            Text("Ready when you are ✨")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                            Button("Start First Chat") {
-                                onCreateSession?()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("startNewChatButton")
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(mySessions) { session in
-                            SessionRowView(
-                                title: sessionList.titleForSession(session),
-                                subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
-                                source: nil,
-                                isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: true,
-                                isPinned: session.isPinned,
-                                tags: session.tags,
-                                runState: session.displayRunState
-                            )
-                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
-                            .tag(session.id)
-                            .contextMenu {
-                                Button {
-                                    sessionList.togglePinned(id: session.id)
-                                } label: {
-                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
-                                }
-                                Button {
-                                    onMissionControl?(session.id)
-                                } label: {
-                                    Label("Mission Control", systemImage: "network")
-                                }
-                                Divider()
-                                Button(role: .destructive) {
-                                    sessionList.archiveSession(id: session.id)
-                                } label: {
-                                    Label("Archive", systemImage: "archivebox")
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        // My Sessions
+                        sessionSection(
+                            title: "My Sessions",
+                            icon: "bubble.left.fill",
+                            count: mySessions.count,
+                            isCollapsed: mySessionsCollapsed,
+                            onToggle: { mySessionsCollapsed.toggle() },
+                            content: {
+                                if mySessions.isEmpty {
+                                    VStack(spacing: 8) {
+                                        Text("Ready when you are ✨")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                        Button("Start First Chat") {
+                                            onCreateSession?()
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .controlSize(.small)
+                                        .accessibilityIdentifier("startNewChatButton")
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 20)
+                                } else {
+                                    ForEach(mySessions) { session in
+                                        mySessionRow(session: session)
+                                    }
                                 }
                             }
-                            #if os(iOS)
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    onMissionControl?(session.id)
-                                } label: {
-                                    Label("Mission Control", systemImage: "network")
-                                }
-                                .tint(Theme.accent)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    sessionList.archiveSession(id: session.id)
-                                } label: {
-                                    Label("Archive", systemImage: "archivebox")
-                                }
-                            }
-                            #endif
-                        }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                let session = mySessions[index]
-                                Task {
-                                    try? await sessionList.closeSession(id: session.id)
-                                }
-                            }
-                        }
-                    }
-                }
-            } header: {
-                collapsibleHeader(
-                    title: "My Sessions",
-                    icon: "bubble.left.fill",
-                    count: mySessions.count,
-                    isCollapsed: mySessionsCollapsed
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        mySessionsCollapsed.toggle()
-                    }
-                }
-            }
+                        )
 
-            // Archived
-            if !archivedSessions.isEmpty {
-                Section {
-                    if sessionList.showArchived {
-                        ForEach(archivedSessions) { session in
-                            SessionRowView(
-                                title: sessionList.titleForSession(session),
-                                subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
-                                source: nil,
-                                isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: true,
-                                isArchived: true,
-                                isPinned: session.isPinned,
-                                tags: session.tags,
-                                runState: session.displayRunState
+                        // Archived
+                        if !archivedSessions.isEmpty {
+                            sessionSection(
+                                title: "Archived",
+                                icon: "archivebox",
+                                count: archivedSessions.count,
+                                isCollapsed: !sessionList.showArchived,
+                                onToggle: { sessionList.showArchived.toggle() },
+                                content: {
+                                    if sessionList.showArchived {
+                                        ForEach(archivedSessions) { session in
+                                            archivedSessionRow(session: session)
+                                        }
+                                    }
+                                }
                             )
-                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
-                            .tag(session.id)
-                            .contextMenu {
-                                Button {
-                                    sessionList.togglePinned(id: session.id)
-                                } label: {
-                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
-                                }
-                                Button {
-                                    sessionList.unarchiveSession(id: session.id)
-                                } label: {
-                                    Label("Unarchive", systemImage: "arrow.up.archive")
-                                }
-                                Divider()
-                                Button(role: .destructive) {
-                                    Task { try? await sessionList.deleteArchivedSession(id: session.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            #if os(iOS)
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    sessionList.unarchiveSession(id: session.id)
-                                } label: {
-                                    Label("Unarchive", systemImage: "arrow.up.archive")
-                                }
-                                .tint(.green)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    Task { try? await sessionList.deleteArchivedSession(id: session.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                            #endif
                         }
-                    }
-                } header: {
-                    collapsibleHeader(
-                        title: "Archived",
-                        icon: "archivebox",
-                        count: archivedSessions.count,
-                        isCollapsed: !sessionList.showArchived
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            sessionList.showArchived.toggle()
-                        }
-                    }
-                }
-            }
 
-            // Cron Sessions
-            if !cronSessions.isEmpty {
-                Section {
-                    if !cronSessionsCollapsed {
-                        ForEach(cronSessions) { session in
-                            SessionRowView(
-                                title: sessionList.titleForSession(session),
-                                subtitle: sessionList.subtitleForSession(session),
-                                source: session.source,
-                                isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: false,
-                                isPinned: session.isPinned,
-                                tags: session.tags,
-                                runState: session.displayRunState
-                            )
-                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
-                            .tag(session.id)
-                            .contextMenu {
-                                Button {
-                                    sessionList.togglePinned(id: session.id)
-                                } label: {
-                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                        // Cron Sessions
+                        if !cronSessions.isEmpty {
+                            sessionSection(
+                                title: "Cron Sessions",
+                                icon: "clock.fill",
+                                count: cronSessions.count,
+                                isCollapsed: cronSessionsCollapsed,
+                                onToggle: { cronSessionsCollapsed.toggle() },
+                                content: {
+                                    ForEach(cronSessions) { session in
+                                        otherSessionRow(session: session)
+                                    }
                                 }
-                            }
+                            )
                         }
-                    }
-                } header: {
-                    collapsibleHeader(
-                        title: "Cron Sessions",
-                        icon: "clock.fill",
-                        count: cronSessions.count,
-                        isCollapsed: cronSessionsCollapsed
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            cronSessionsCollapsed.toggle()
-                        }
-                    }
-                }
-            }
 
-            // Other Sessions (read-only, collapsible)
-            Section {
-                if !otherSessionsCollapsed {
-                    if otherSessions.isEmpty {
-                        Text("No other sessions")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(otherSessions) { session in
-                            SessionRowView(
-                                title: sessionList.titleForSession(session),
-                                subtitle: sessionList.subtitleForSession(session),
-                                source: session.source,
-                                isActive: session.id == chatViewModel.currentSessionID,
-                                isOwned: false,
-                                isPinned: session.isPinned,
-                                tags: session.tags,
-                                runState: session.displayRunState
-                            )
-                            .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
-                            .tag(session.id)
-                            .contextMenu {
-                                Button {
-                                    sessionList.togglePinned(id: session.id)
-                                } label: {
-                                    Label(session.isPinned ? "Unpin Session" : "Pin Session", systemImage: session.isPinned ? "pin.slash" : "pin")
+                        // Other Sessions
+                        sessionSection(
+                            title: "Other Sessions",
+                            icon: "eye",
+                            count: otherSessions.count,
+                            isCollapsed: otherSessionsCollapsed,
+                            onToggle: { otherSessionsCollapsed.toggle() },
+                            content: {
+                                if otherSessions.isEmpty {
+                                    Text("No other sessions")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.vertical, 20)
+                                } else {
+                                    ForEach(otherSessions) { session in
+                                        otherSessionRow(session: session)
+                                    }
                                 }
                             }
-                        }
+                        )
                     }
-                }
-            } header: {
-                collapsibleHeader(
-                    title: "Other Sessions",
-                    icon: "eye",
-                    count: otherSessions.count,
-                    isCollapsed: otherSessionsCollapsed
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        otherSessionsCollapsed.toggle()
-                    }
-                }
-            }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Theme.background)
-                .overlay {
-                    if sessionList.sessions.isEmpty && !sessionList.isLoading {
-                        emptyState
-                    }
+                    .padding(.horizontal, 8)
                 }
                 .refreshable {
                     await sessionList.refreshSessions()
@@ -313,11 +141,155 @@ struct SessionListView: View {
                 .task {
                     await sessionList.refreshSessions()
                 }
+                .overlay {
+                    if sessionList.sessions.isEmpty && !sessionList.isLoading {
+                        emptyState
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: - Row Builders
+
+    @ViewBuilder
+    private func mySessionRow(session: Session) -> some View {
+        SessionRowView(
+            title: sessionList.titleForSession(session),
+            subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
+            source: nil,
+            isActive: session.id == chatViewModel.currentSessionID,
+            isOwned: true,
+            isPinned: session.isPinned,
+            tags: session.tags,
+            runState: session.displayRunState
+        )
+        .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            sessionList.selectSession(id: session.id)
+        }
+        .contextMenu {
+            Button {
+                sessionList.togglePinned(id: session.id)
+            } label: {
+                Label(session.isPinned ? "Unpin Session" : "Pin Session",
+                      systemImage: session.isPinned ? "pin.slash" : "pin")
+            }
+            Button {
+                onMissionControl?(session.id)
+            } label: {
+                Label("Mission Control", systemImage: "network")
+            }
+            Divider()
+            Button(role: .destructive) {
+                sessionList.archiveSession(id: session.id)
+            } label: {
+                Label("Archive", systemImage: "archivebox")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func archivedSessionRow(session: Session) -> some View {
+        SessionRowView(
+            title: sessionList.titleForSession(session),
+            subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
+            source: nil,
+            isActive: session.id == chatViewModel.currentSessionID,
+            isOwned: true,
+            isArchived: true,
+            isPinned: session.isPinned,
+            tags: session.tags,
+            runState: session.displayRunState
+        )
+        .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            sessionList.selectSession(id: session.id)
+        }
+        .contextMenu {
+            Button {
+                sessionList.togglePinned(id: session.id)
+            } label: {
+                Label(session.isPinned ? "Unpin Session" : "Pin Session",
+                      systemImage: session.isPinned ? "pin.slash" : "pin")
+            }
+            Button {
+                sessionList.unarchiveSession(id: session.id)
+            } label: {
+                Label("Unarchive", systemImage: "arrow.up.archive")
+            }
+            Divider()
+            Button(role: .destructive) {
+                Task { try? await sessionList.deleteArchivedSession(id: session.id) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func otherSessionRow(session: Session) -> some View {
+        SessionRowView(
+            title: sessionList.titleForSession(session),
+            subtitle: sessionList.subtitleForSession(session),
+            source: session.source,
+            isActive: session.id == chatViewModel.currentSessionID,
+            isOwned: false,
+            isPinned: session.isPinned,
+            tags: session.tags,
+            runState: session.displayRunState
+        )
+        .sessionListRowStyle(isActive: session.id == sessionList.activeSessionID)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            sessionList.selectSession(id: session.id)
+        }
+        .contextMenu {
+            Button {
+                sessionList.togglePinned(id: session.id)
+            } label: {
+                Label(session.isPinned ? "Unpin Session" : "Pin Session",
+                      systemImage: session.isPinned ? "pin.slash" : "pin")
+            }
+        }
+    }
+
+    // MARK: - Section Header
+
+    private func sessionSection<Content: View>(
+        title: String,
+        icon: String,
+        count: Int,
+        isCollapsed: Bool,
+        onToggle: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        Section {
+            if !isCollapsed {
+                content()
+            }
+        } header: {
+            collapsibleHeader(
+                title: title,
+                icon: icon,
+                count: count,
+                isCollapsed: isCollapsed
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    onToggle()
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+            .background(Theme.background)
+        }
     }
 
     // MARK: - Helpers
@@ -425,13 +397,11 @@ struct SessionListView: View {
 private extension View {
     func sessionListRowStyle(isActive: Bool) -> some View {
         self
-            .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-            .listRowSeparator(.hidden)
-            .listRowBackground(
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isActive ? Theme.accent.opacity(0.22) : Color.clear)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
             )
     }
 }

@@ -73,6 +73,9 @@ final class WikiGraphViewModel: ObservableObject {
 
     // MARK: - Gateway
 
+    @Published var selectedWikiPath: String?
+    @Published var availableWikis: [String] = []
+
     func load(client: GatewayClient, wiki: String? = nil) async {
         isLoading = true
         error = nil
@@ -80,7 +83,6 @@ final class WikiGraphViewModel: ObservableObject {
         do {
             let newGraph = try await client.wikiScan(wiki: wiki)
             self.graph = newGraph
-            // If canvas already has a real size, set up sim now; otherwise Canvas frame will trigger it.
             if canvasSize != .zero {
                 setupSimulation()
             }
@@ -119,6 +121,14 @@ final class WikiGraphViewModel: ObservableObject {
                 type: page.type,
                 label: page.title
             )
+        }
+
+        // Deduplicate nodes by ID — graph data may contain duplicates
+        var seenIds = Set<String>()
+        simNodes = simNodes.filter { node in
+            guard !seenIds.contains(node.id) else { return false }
+            seenIds.insert(node.id)
+            return true
         }
 
         let idToIndex = Dictionary(uniqueKeysWithValues: simNodes.enumerated().map { ($1.id, $0) })

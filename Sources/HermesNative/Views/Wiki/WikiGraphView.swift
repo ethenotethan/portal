@@ -76,6 +76,7 @@ struct WikiGraphView: View {
     @State private var dragStartPan: CGSize = .zero
     @State private var dragStartPoint: CGPoint = .zero
     @State private var dragNodeIndex: Int?
+    @State private var showWikiPicker = false
 
     private enum MouseState {
         case idle, deciding, panning, draggingNode
@@ -119,9 +120,50 @@ struct WikiGraphView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Wiki Graph")
-                    .font(.headline)
-                    .foregroundStyle(Theme.primary)
+                HStack(spacing: 6) {
+                    Text("Wiki Graph")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+
+                    // Wiki selector
+                    Menu {
+                        Button("Default wiki") {
+                            viewModel.selectedWikiPath = nil
+                            Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: nil) }
+                        }
+                        Divider()
+                        ForEach(viewModel.availableWikis, id: \.self) { wiki in
+                            Button(wiki) {
+                                viewModel.selectedWikiPath = wiki
+                                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki) }
+                            }
+                        }
+                        if viewModel.availableWikis.isEmpty {
+                            Text("No wikis discovered")
+                                .font(.caption)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        Divider()
+                        Button {
+                            showWikiPicker = true
+                        } label: {
+                            Label("Enter custom path…", systemImage: "pencil")
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(viewModel.selectedWikiPath ?? "default")
+                                .font(.caption)
+                                .foregroundStyle(Theme.accent)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Theme.surfaceHover, in: Capsule())
+                    }
+                    .buttonStyle(.borderless)
+                }
                 Text("\(viewModel.graph.pages.count) pages · \(viewModel.graph.links.count) links")
                     .font(.caption)
                     .foregroundStyle(Theme.secondary)
@@ -130,27 +172,13 @@ struct WikiGraphView: View {
             .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 10))
             .padding(12)
         }
-        .overlay(alignment: .bottomLeading) {
-            VStack(alignment: .leading, spacing: 6) {
-                if viewModel.isLoading {
-                    HStack(spacing: 6) {
-                        ProgressView().controlSize(.small)
-                        Text("Loading…").font(.caption2)
-                    }
-                } else if let error = viewModel.error {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(Theme.warning)
-                        Text(error)
-                            .font(.caption2)
-                            .lineLimit(2)
-                            .frame(maxWidth: 260, alignment: .leading)
-                    }
+        .sheet(isPresented: $showWikiPicker) {
+            WikiPathPickerSheet(
+                selectedPath: $viewModel.selectedWikiPath,
+                onSelect: { path in
+                    Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: path) }
                 }
-                legendView
-            }
-            .padding(8)
-            .padding(12)
+            )
         }
         .overlay(alignment: .topTrailing) {
             controlsOverlay
@@ -162,7 +190,7 @@ struct WikiGraphView: View {
             }
         }
         .onAppear {
-            Task { await viewModel.load(client: gatewayClientWrapper.client) }
+                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
         }
     }
 
@@ -530,7 +558,7 @@ struct WikiGraphView: View {
             Divider().frame(height: 14)
 
             Button {
-                Task { await viewModel.load(client: gatewayClientWrapper.client) }
+            Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 12, weight: .medium))
