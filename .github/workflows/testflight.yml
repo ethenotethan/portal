@@ -67,7 +67,7 @@ jobs:
             -archivePath build/HermesNative.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ env.PROFILE_UUID }}" \
+            "HermesNative-iOS.PROVISIONING_PROFILE_SPECIFIER=${{ env.PROFILE_UUID }}" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
