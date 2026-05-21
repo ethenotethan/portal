@@ -45,6 +45,7 @@ jobs:
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
             <<< "$(security cms -D -i "$PP_DIR/AppStore.mobileprovision")")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          mv "$PP_DIR/AppStore.mobileprovision" "$PP_DIR/$PROFILE_UUID.mobileprovision"
 
           echo "=== Keychain search list ==="
           security list-keychains -d user
