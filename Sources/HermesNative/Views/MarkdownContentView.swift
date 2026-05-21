@@ -409,26 +409,32 @@ struct MarkdownParser {
 // MARK: - Inline Markdown Text
 
 /// Renders inline markdown using AttributedString(markdown:).
-/// Falls back to plain text if parsing fails.
+/// Caches the parsed result so repeated body evaluations (e.g. during
+/// streaming token-by-token updates from the parent) do not re-parse
+/// the same growing text on every frame.
 struct MarkdownText: View {
     let text: String
     var baseColor: Color?
     var baseFont: Font?
 
-    private static let singleQuotedCodeRegex: NSRegularExpression? = nil
+    /// The pre-computed attributed string. Parsing happens once in init
+    /// so body() is O(1) — critical during streaming where the parent
+    /// may re-evaluate frequently but the text changes token-by-token.
+    private let rendered: AttributedString
 
     init(text: String, baseColor: Color? = nil, baseFont: Font? = nil) {
         self.text = text
         self.baseColor = baseColor
         self.baseFont = baseFont
+        self.rendered = Self.render(text, baseColor: baseColor, baseFont: baseFont)
     }
 
     var body: some View {
-        SwiftUI.Text(renderMarkdown(text))
+        SwiftUI.Text(rendered)
             .textSelection(.enabled)
     }
 
-    private func renderMarkdown(_ input: String) -> AttributedString {
+    private static func render(_ input: String, baseColor: Color?, baseFont: Font?) -> AttributedString {
         let textColor: Color = baseColor ?? Theme.primary
         let font: Font = baseFont ?? .system(size: 14)
 
@@ -476,7 +482,7 @@ struct MarkdownText: View {
         return result
     }
 
-    private func applyInlineCodeStyling(_ attr: inout AttributedString) {
+    private static func applyInlineCodeStyling(_ attr: inout AttributedString) {
         #if os(macOS)
         let codeBg = NSColor(Theme.surfaceHover)
         let codeFg = NSColor(Theme.accent)
@@ -503,12 +509,12 @@ struct MarkdownText: View {
         }
     }
 
-    private func applyBaseFont(_ attr: inout AttributedString, font: Font) {
+    private static func applyBaseFont(_ attr: inout AttributedString, font: Font) {
         for i in attr.runs.indices where attr.runs[i].font == nil {
             attr[attr.runs[i].range].font = font
         }
     }
-    private func stripSystemColors(_ attr: inout AttributedString, to color: Color) {
+    private static func stripSystemColors(_ attr: inout AttributedString, to color: Color) {
         for i in attr.runs.indices {
             let run = attr.runs[i]
             if run.foregroundColor != nil, run.backgroundColor == nil {
@@ -521,7 +527,7 @@ struct MarkdownText: View {
         }
     }
 
-    private var inlineOptions: AttributedString.MarkdownParsingOptions {
+    private static var inlineOptions: AttributedString.MarkdownParsingOptions {
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .inlineOnlyPreservingWhitespace
         options.failurePolicy = .returnPartiallyParsedIfPossible
