@@ -116,6 +116,9 @@ final class ChatViewModel: ObservableObject {
     private var sessionID: String?
     private var stableSessionByGatewayID: [String: String] = [:]
     private var gatewayIDByStableSession: [String: String] = [:]
+
+    /// Manager for downloading remote file attachments from the gateway.
+    var fileDownloadManager = FileDownloadManager()
     private var sessionStates: [String: SessionRuntimeState] = [:]
     private var streamingMessageID: UUID?
     private var streamStartDate: Date?
@@ -873,6 +876,46 @@ final class ChatViewModel: ObservableObject {
         TTSService.shared.speakLastAssistantMessage(messages)
     }
 
+    // MARK: - Remote Attachment Downloads
+
+    /// Trigger pre-fetch for any remote attachments in the last assistant message.
+    /// Called after message.complete to start downloading files so they're ready
+    /// by the time the user taps a chip.
+    private func prefetchRemoteAttachments() {
+        guard let client = gatewayClient,
+              let lastIdx = messages.lastIndex(where: { $0.role == .assistant }) else { return }
+
+        let remoteAttachments = messages[lastIdx].attachments.filter { $0.isRemote }
+
+        for attachment in remoteAttachments {
+            guard case .remote(let url) = attachment.source else { continue }
+            guard case .notStarted = attachment.downloadState else { continue }
+
+            let attachmentID = attachment.id
+            let token = client.apiKey
+
+            log.info("Pre-fetching remote attachment: \(attachment.fileName)")
+
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let data = try await client.downloadFile(from: url, token: token)
+                    // Update the attachment in the message
+                    if let msgIdx = self.messages.lastIndex(where: { $0.role == .assistant }),
+                       let attIdx = self.messages[msgIdx].attachments.firstIndex(where: { $0.id == attachmentID }) {
+                        self.messages[msgIdx].attachments[attIdx].downloadState = .ready(data: data)
+                    }
+                } catch {
+                    log.error("Pre-fetch failed for \(attachment.fileName): \(error)")
+                    if let msgIdx = self.messages.lastIndex(where: { $0.role == .assistant }),
+                       let attIdx = self.messages[msgIdx].attachments.firstIndex(where: { $0.id == attachmentID }) {
+                        self.messages[msgIdx].attachments[attIdx].downloadState = .failed(error: error.localizedDescription)
+                    }
+                }
+            }
+        }
+    }
+
     /// Respond to a pending approval.
     func respondApproval(choice: String) async {
         guard let client = gatewayClient, let sid = sessionID else { return }
@@ -1210,6 +1253,7 @@ final class ChatViewModel: ObservableObject {
             state.messages[idx].isStreaming = false
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
+            state.messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
             state.activeToolCalls = [:]
@@ -1317,6 +1361,12 @@ final class ChatViewModel: ObservableObject {
             }
             if case .messageComplete(let payload) = event {
                 finishStreaming(status: payload.status)
+                // Extract attachments and pre-fetch remote ones
+                if let msgID = state.streamingMessageID ?? streamingMessageID,
+                   let idx = messages.firstIndex(where: { $0.id == msgID }) {
+                    messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
+                }
+                prefetchRemoteAttachments()
             }
         }
 
@@ -1389,6 +1439,10 @@ final class ChatViewModel: ObservableObject {
             streamingMessageID = nil
             streamStartDate = nil
             avatarState = .idle
+
+            // Extract attachments and pre-fetch remote ones
+            messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
+            prefetchRemoteAttachments()
 
             writePerfSnapshot("messageComplete")
 

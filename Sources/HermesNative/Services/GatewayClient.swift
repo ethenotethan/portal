@@ -127,7 +127,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var pendingRequestMethods: [Int: String] = [:]
     private let pendingRequestsLock = NSLock()
     private var gatewayURL: URL
-    private var apiKey: String
+    private(set) var apiKey: String
 
     /// CF_Authorization cookie from browser-based CF Access login.
     var cfAuthCookie: HTTPCookie?
@@ -1084,16 +1084,56 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - File Upload (HTTP)
 
-    /// Upload file data to the gateway via HTTP multipart POST.
-    /// Returns the server-side file path on success.
-    func uploadFile(data: Data, filename: String, mimeType: String, sessionID: String? = nil) async throws -> String {
-        guard var httpBase = URL(string: gatewayURL.absoluteString.replacingOccurrences(
+    /// Convert the WebSocket URL to an HTTP base URL for file downloads/uploads.
+    /// e.g. ws://127.0.0.1:8642/v1/ws → http://127.0.0.1:8642
+    private var httpBaseURL: URL? {
+        URL(string: gatewayURL.absoluteString.replacingOccurrences(
             of: "/v1/ws", with: ""
         ).replacingOccurrences(
             of: "ws://", with: "http://"
         ).replacingOccurrences(
             of: "wss://", with: "https://"
-        )) else {
+        ))
+    }
+
+    /// Download a file from the gateway HTTP endpoint.
+    /// - Parameters:
+    ///   - url: The full URL to download (e.g. http://gateway:8642/v1/files/{session}/{file}.ext)
+    ///   - token: Bearer token for authorization.
+    /// - Returns: The downloaded file data.
+    func downloadFile(from url: URL, token: String? = nil) async throws -> Data {
+        log.info("Downloading file: \(url.lastPathComponent)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 120
+
+        let authToken = token ?? apiKey
+        if !authToken.isEmpty {
+            request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
+        }
+        if let cookie = cfAuthCookie {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
+
+        let (responseData, httpResponse) = try await URLSession.shared.data(for: request)
+
+        guard let http = httpResponse as? HTTPURLResponse else {
+            throw GatewayError.invalidResponse("download failed: no HTTP response")
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let body = String(data: responseData, encoding: .utf8) ?? "(binary)"
+            throw GatewayError.invalidResponse("download failed: HTTP \(http.statusCode) — \(body)")
+        }
+
+        log.info("Download succeeded: \(responseData.count) bytes")
+        return responseData
+    }
+
+    /// Upload file data to the gateway via HTTP multipart POST.
+    /// Returns the server-side file path on success.
+    func uploadFile(data: Data, filename: String, mimeType: String, sessionID: String? = nil) async throws -> String {
+        guard let httpBase = httpBaseURL else {
             throw GatewayError.invalidResponse("cannot derive HTTP base URL from \(gatewayURL)")
         }
 

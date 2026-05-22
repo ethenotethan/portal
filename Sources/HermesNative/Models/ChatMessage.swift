@@ -166,11 +166,68 @@ struct ToolCallRecord: Identifiable, Codable {
 
 /// A file attachment extracted from a MEDIA: tag in agent output.
 struct FileAttachment: Identifiable, Codable {
-    let id = UUID()
-    let path: String
-    let fileName: String
-    let fileExtension: String
-    let category: Category
+    let id: UUID
+    let source: Source
+    var downloadState: DownloadState = .notStarted
+    var mimeType: String?
+
+    /// The source location of the attachment — local file path or remote HTTP URL.
+    enum Source: Equatable, Hashable, Codable {
+        case local(path: String)
+        case remote(url: URL)
+    }
+
+    /// Runtime download state for remote attachments. Not persisted (excluded from Codable).
+    enum DownloadState: Equatable {
+        case notStarted
+        case downloading(progress: Double)
+        case ready(data: Data)
+        case failed(error: String)
+    }
+
+    // MARK: - Computed backward-compatible properties
+
+    /// File path. For local files, returns the absolute path.
+    /// For remote files, returns the URL string (for display/logging only).
+    var path: String {
+        switch source {
+        case .local(let p): return p
+        case .remote(let url): return url.absoluteString
+        }
+    }
+
+    /// Display file name extracted from the source.
+    var fileName: String {
+        switch source {
+        case .local(let p):
+            return (p as NSString).lastPathComponent
+        case .remote(let url):
+            return url.lastPathComponent
+        }
+    }
+
+    /// File extension derived from the source.
+    var fileExtension: String {
+        switch source {
+        case .local(let p):
+            return (p as NSString).pathExtension
+        case .remote(let url):
+            return url.pathExtension
+        }
+    }
+
+    /// Whether this attachment is a remote file that needs downloading.
+    var isRemote: Bool {
+        if case .remote = source { return true }
+        return false
+    }
+
+    /// Whether the attachment data is ready for preview.
+    var isReady: Bool {
+        if case .ready = downloadState { return true }
+        if case .local = source { return true }
+        return false
+    }
 
     enum Category: String, Codable {
         case html
@@ -207,18 +264,54 @@ struct FileAttachment: Identifiable, Codable {
         }
     }
 
+    /// The category derived from the source's file extension.
+    var category: Category {
+        Category(ext: fileExtension)
+    }
+
+    // MARK: - Initializers
+
+    /// Local file attachment (backward-compatible with existing code).
     init(path: String) {
-        self.path = path
-        self.fileName = (path as NSString).lastPathComponent
-        self.fileExtension = (path as NSString).pathExtension
-        self.category = Category(ext: self.fileExtension)
+        self.id = UUID()
+        self.source = .local(path: path)
+        self.mimeType = nil
+    }
+
+    /// Remote file attachment (needs download before preview).
+    init(remoteURL: URL, mimeType: String? = nil) {
+        self.id = UUID()
+        self.source = .remote(url: remoteURL)
+        self.mimeType = mimeType
+        self.downloadState = .notStarted
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, source, mimeType
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        self.source = try container.decode(Source.self, forKey: .source)
+        self.mimeType = try container.decodeIfPresent(String.self, forKey: .mimeType)
+        self.downloadState = .notStarted
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(source, forKey: .source)
+        try container.encodeIfPresent(mimeType, forKey: .mimeType)
     }
 }
 
 // MARK: - MEDIA: Parser
 
 /// Parses MEDIA: tags from agent response text.
-/// Format: `MEDIA:/absolute/path/to/file.ext` on its own line.
+/// Format: `MEDIA:/absolute/path/to/file.ext` or `MEDIA:http://gateway:8642/v1/files/{session}/{file}.ext` on its own line.
 struct MediaParser {
     /// Regex matching standalone MEDIA: lines (not embedded in prose).
     /// Mirrors the TUI's MEDIA_LINE_RE pattern.
@@ -228,8 +321,16 @@ struct MediaParser {
     static func extractAttachments(from content: String) -> [FileAttachment] {
         content.split(separator: "\n", omittingEmptySubsequences: false).compactMap { line in
             guard let match = line.wholeMatch(of: mediaLinePattern) else { return nil }
-            let path = String(match.1)
-            // Verify file exists
+            let captured = String(match.1)
+
+            // Remote URL
+            if captured.hasPrefix("http://") || captured.hasPrefix("https://"),
+               let url = URL(string: captured) {
+                return FileAttachment(remoteURL: url)
+            }
+
+            // Local file path
+            let path = captured
             guard FileManager.default.fileExists(atPath: path) else { return nil }
             return FileAttachment(path: path)
         }
