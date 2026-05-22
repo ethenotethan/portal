@@ -386,6 +386,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         stopPingTimer()
         receiveTask?.cancel()
         receiveTask = nil
+        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        webSocketTask = nil
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
+        failAllPendingRequests(error: GatewayError.disconnected)
 
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
@@ -438,20 +443,26 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         urlSession?.invalidateAndCancel()
         urlSession = nil
 
+        failAllPendingRequests(error: GatewayError.disconnected)
+
+        debugSnapshot.lastCloseAt = Date()
+        refreshDebugSnapshot()
+
+        connectionState = .disconnected
+    }
+
+    /// Fails every pending JSON-RPC continuation so no caller hangs forever.
+    private func failAllPendingRequests(error: Error) {
         pendingRequestsLock.lock()
         let pending = pendingRequests
         pendingRequests.removeAll()
         pendingRequestMethods.removeAll()
         pendingRequestsLock.unlock()
 
-        debugSnapshot.lastCloseAt = Date()
-        refreshDebugSnapshot()
-
-        for (_, cont) in pending {
-            cont.resume(throwing: GatewayError.disconnected)
+        for (id, cont) in pending {
+            log.debug("failAllPendingRequests: failing id=\(id)")
+            cont.resume(throwing: error)
         }
-
-        connectionState = .disconnected
     }
 
     // MARK: - Ping/Pong Keepalive
@@ -489,6 +500,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func handleDisconnect(reason: String) {
         log.debug("Disconnected: \(reason)")
         stopPingTimer()
+
+        failAllPendingRequests(error: GatewayError.disconnected)
+
         debugSnapshot.lastCloseAt = Date()
         recordDebugEvent(.error, name: "disconnect", detail: reason)
 
