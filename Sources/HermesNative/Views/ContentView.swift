@@ -117,6 +117,20 @@ struct ContentView: View {
                 Label("Cron", systemImage: "clock.badge.checkmark")
             }
             .tag(1)
+
+            WikiGraphView()
+                .environmentObject(gatewayClientWrapper)
+                .tabItem {
+                    Label("Wiki", systemImage: "network")
+                }
+                .tag(2)
+
+            SkillsView()
+                .environmentObject(gatewayClientWrapper)
+                .tabItem {
+                    Label("Skills", systemImage: "sparkles")
+                }
+                .tag(3)
         }
     }
 
