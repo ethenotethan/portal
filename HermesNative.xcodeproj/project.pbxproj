@@ -43,6 +43,7 @@
 		39A181E3B5C4BE94E11C595C /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */; };
 		3A56767854C15D8E0A04AA2C /* MacScrollViewIntrospection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A3B5B976B82A7352C59766 /* MacScrollViewIntrospection.swift */; };
 		3B0862F9F8DB3ED209EC7505 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */; };
+		3CC74257A7F5B12CC65CE0D8 /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */; };
 		3D83490DD79DE8C63FAD28C3 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 066A8C773BEA50BCC352CF5A /* Highlightr */; };
 		3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
 		3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
@@ -82,6 +83,7 @@
 		61A658AC225C0EB372BF3DA4 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
 		636E6271A60453754BEC74F1 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
 		638EBF9A517E26DC5A5EA397 /* GatewayClientWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */; };
+		63E4CC3663F96C4B4D392455 /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */; };
 		67130AAEA71842A5F830CDAF /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342D787380CE678F4DDFEB8F /* ChatViewModel.swift */; };
 		671C44A8273230CAC312A014 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57621A872836514CD5BC0F5B /* ChatView.swift */; };
 		6A125FB74D9B1C28E38E3666 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 769BBB3BE6C0F8FD9A10A6CF /* JSONRPCResponse.swift */; };
@@ -224,6 +226,7 @@
 		2C62719357450637B7EF8D76 /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 		2C9CE5DF772697EFC0D7F9F1 /* Skill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skill.swift; sourceTree = "<group>"; };
 		2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDownloadManager.swift; sourceTree = "<group>"; };
 		30743804431E0415F8F6D1F8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3179815C2A0EC7D43C9213AC /* CFAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CFAuthView.swift; sourceTree = "<group>"; };
 		342D787380CE678F4DDFEB8F /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -555,6 +558,7 @@
 			isa = PBXGroup;
 			children = (
 				D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */,
+				2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */,
 				3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */,
 				CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */,
 				CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */,
@@ -650,9 +654,11 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					4C5636A071FF7F1F85058B29 = {
+						DevelopmentTeam = "$(DEVELOPMENT_TEAM)";
 						ProvisioningStyle = Automatic;
 					};
 					50357E9A910E7A34C0E26F6C = {
+						DevelopmentTeam = "$(DEVELOPMENT_TEAM)";
 						ProvisioningStyle = Automatic;
 					};
 					AE4CCD10646F59872D9448D5 = {
@@ -742,6 +748,7 @@
 				F7BDD355C6FFA1D4ADDA7F2D /* CronRunHistory.swift in Sources */,
 				084F93081436CDBE85BDB6D3 /* DarkMangaSkin.swift in Sources */,
 				96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */,
+				63E4CC3663F96C4B4D392455 /* FileDownloadManager.swift in Sources */,
 				7F7E9984E8457B5BC402254F /* GatewayClient+Wiki.swift in Sources */,
 				0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */,
 				638EBF9A517E26DC5A5EA397 /* GatewayClientWrapper.swift in Sources */,
@@ -845,6 +852,7 @@
 				568AF4824A43A644F6CEF7A5 /* CronRunHistory.swift in Sources */,
 				216EE5D31DBCF0FE68E54F21 /* DarkMangaSkin.swift in Sources */,
 				44517A6F6B0BA4238E47FA4E /* Extensions.swift in Sources */,
+				3CC74257A7F5B12CC65CE0D8 /* FileDownloadManager.swift in Sources */,
 				7DDD74B3B3868AD3CEEF5786 /* GatewayClient+Wiki.swift in Sources */,
 				AEBEC273DC598A14283BB649 /* GatewayClient.swift in Sources */,
 				0FD4BEE9B35811AC3F5D405C /* GatewayClientWrapper.swift in Sources */,
@@ -946,6 +954,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_AllowsArbitraryLoads = YES;
@@ -977,6 +986,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSAppTransportSecurity_AllowsArbitraryLoads = YES;
@@ -1008,6 +1018,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1110,6 +1121,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (

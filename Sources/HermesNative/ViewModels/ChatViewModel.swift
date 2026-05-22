@@ -1357,7 +1357,22 @@ final class ChatViewModel: ObservableObject {
                 // scheduleVisibleEventFlush() — do NOT publish immediately here
                 // or every token triggers a full SwiftUI re-render cycle.
             } else {
-                _ = restoreSessionState(displayID: displayID, runtimeID: eventSessionID)
+                // Only replace the entire messages array for lifecycle events
+                // that create or finalize a message.  Tool and thinking events
+                // update tool records and reasoning text in-place — replacing
+                // the array on every event causes SwiftUI to re-render every
+                // WKWebView in the tree, saturating IPC with WebContent processes.
+                switch event {
+                case .messageStart, .messageComplete, .error:
+                    _ = restoreSessionState(displayID: displayID, runtimeID: eventSessionID)
+                default:
+                    isStreaming = state.isStreaming
+                    isSessionReady = state.isSessionReady
+                    pendingApproval = state.pendingApproval
+                    activeToolCalls = state.activeToolCalls
+                    avatarState = state.avatarState
+                    streamingMessageID = state.streamingMessageID
+                }
             }
             if case .messageComplete(let payload) = event {
                 finishStreaming(status: payload.status)

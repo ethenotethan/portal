@@ -682,24 +682,21 @@ struct ContentView: View {
     private func handleSessionSelection(_ newID: String?) {
         guard let newID else { return }
 
-        // Don't resume during session creation — the newly created session
-        // will be set as active after creation completes.  The guard on
-        // pendingCreatedSessionID below would catch this if it ran early,
-        // but createGeneration.onChange can fire during the suspend point
-        // inside ChatViewModel.createSession (await applyEphemeralPrompt),
-        // before pendingCreatedSessionID is assigned.
-        if chatViewModel.isCreatingSession { return }
-
         // Find the session and use its database ID for resume.
         guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
         let rpcID = session.rpcID
 
         if session.isOwned {
             previousActiveSessionID = nil
-            if pendingCreatedSessionID == newID || pendingCreatedSessionID == rpcID {
-                pendingCreatedSessionID = nil
+
+            // Don't resume the session we just finished creating — the sentinel
+            // is set before createSession and stays set until the user clicks a
+            // different session, so all activeSessionID changes during creation
+            // (including the title-discovery dbID flip) are silently ignored.
+            if pendingCreatedSessionID == newID || pendingCreatedSessionID == rpcID || pendingCreatedSessionID == "__creating__" {
                 return
             }
+            pendingCreatedSessionID = nil
 
             pushOwnedSessionOnIOS(newID)
 
@@ -779,6 +776,7 @@ struct ContentView: View {
 
         log.info("createAndSwitchToNewSession starting session.create")
         shouldSuppressNextCreateGenerationPush = true
+        pendingCreatedSessionID = "__creating__"
         await chatViewModel.createSession()
 
         if let error = chatViewModel.error {

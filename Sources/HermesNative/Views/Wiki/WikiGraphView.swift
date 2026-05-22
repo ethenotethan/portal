@@ -12,6 +12,7 @@ final class GraphMouseView: NSView {
     var onMouseDown: ((CGPoint) -> Void)?
     var onMouseDragged: ((CGPoint) -> Void)?
     var onMouseUp: ((CGPoint) -> Void)?
+    var onScrollWheel: ((CGSize) -> Void)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -42,6 +43,11 @@ final class GraphMouseView: NSView {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseUp?(pt)
     }
+
+    override func scrollWheel(with event: NSEvent) {
+        let delta = CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)
+        onScrollWheel?(delta)
+    }
 }
 
 /// SwiftUI wrapper for GraphMouseView.
@@ -49,12 +55,14 @@ struct GraphMouseInterceptor: NSViewRepresentable {
     var onMouseDown: ((CGPoint) -> Void)?
     var onMouseDragged: ((CGPoint) -> Void)?
     var onMouseUp: ((CGPoint) -> Void)?
+    var onScrollWheel: ((CGSize) -> Void)?
 
     func makeNSView(context: Context) -> GraphMouseView {
         let v = GraphMouseView()
         v.onMouseDown = onMouseDown
         v.onMouseDragged = onMouseDragged
         v.onMouseUp = onMouseUp
+        v.onScrollWheel = onScrollWheel
         return v
     }
 
@@ -62,6 +70,7 @@ struct GraphMouseInterceptor: NSViewRepresentable {
         nsView.onMouseDown = onMouseDown
         nsView.onMouseDragged = onMouseDragged
         nsView.onMouseUp = onMouseUp
+        nsView.onScrollWheel = onScrollWheel
     }
 }
 #endif
@@ -77,6 +86,7 @@ struct WikiGraphView: View {
     @State private var dragStartPoint: CGPoint = .zero
     @State private var dragNodeIndex: Int?
     @State private var showWikiPicker = false
+    @State private var lastPinchScale: CGFloat = 1.0
 
     private enum MouseState {
         case idle, deciding, panning, draggingNode
@@ -94,7 +104,8 @@ struct WikiGraphView: View {
                     GraphMouseInterceptor(
                         onMouseDown: { pt in handleMouseDown(pt) },
                         onMouseDragged: { pt in handleMouseDragged(pt) },
-                        onMouseUp: { pt in handleMouseUp(pt) }
+                        onMouseUp: { pt in handleMouseUp(pt) },
+                        onScrollWheel: { delta in handleScrollWheel(delta) }
                     )
                     #else
                     Color.clear
@@ -106,6 +117,21 @@ struct WikiGraphView: View {
                 .onReceive(timer) { _ in
                     viewModel.tick()
                 }
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            let targetZoom = lastPinchScale * value
+                            let clamped = max(0.3, min(5.0, targetZoom))
+                            let oldZoom = viewModel.zoom
+                            guard abs(clamped - oldZoom) > 0.001 else { return }
+                            let c = CGPoint(x: viewModel.canvasSize.width / 2,
+                                            y: viewModel.canvasSize.height / 2)
+                            viewModel.zoomAtPoint(factor: clamped / oldZoom, around: c)
+                        }
+                        .onEnded { _ in
+                            lastPinchScale = viewModel.zoom
+                        }
+                )
 
                 if let selIdx = viewModel.selectedNodeIndex,
                    viewModel.simNodes.indices.contains(selIdx) {
@@ -118,6 +144,9 @@ struct WikiGraphView: View {
         }
         .background(Theme.background)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: viewModel.zoom) { _, _ in
+            lastPinchScale = viewModel.zoom
+        }
         .overlay(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -244,6 +273,13 @@ struct WikiGraphView: View {
         }
         mouseState = .idle
         dragNodeIndex = nil
+    }
+
+    private func handleScrollWheel(_ delta: CGSize) {
+        viewModel.panOffset = CGSize(
+            width: viewModel.panOffset.width + delta.width,
+            height: viewModel.panOffset.height + delta.height
+        )
     }
 
     #if !os(macOS)
