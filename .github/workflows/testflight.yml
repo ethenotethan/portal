@@ -55,6 +55,14 @@ jobs:
           security find-identity -v -p codesigning ~/Library/Keychains/signing_temp.keychain-db
 
       # ── Archive ──────────────────────────────────────────────────────
+      - name: Generate CI signing xcconfig (SPM deps need this)
+        run: |
+          cat > .github/ci-signing.xcconfig << 'EOF'
+          DEVELOPMENT_TEAM = ${{ secrets.TEAM_ID }}
+          CODE_SIGN_STYLE = Manual
+          CODE_SIGN_IDENTITY = Apple Distribution
+          EOF
+
       - name: Clear SwiftPM Artifact Cache
         run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
 
@@ -179,10 +187,7 @@ jobs:
             -scheme HermesNative-iOS \
             -destination "generic/platform=iOS" \
             -archivePath build/HermesNative.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-
-            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
+            -xcconfig .github/ci-signing.xcconfig \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
 

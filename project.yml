@@ -35,6 +35,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.developer-tools"
@@ -60,6 +61,7 @@ targets:
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_EMIT_LOC_STRINGS: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
