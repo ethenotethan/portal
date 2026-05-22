@@ -58,6 +58,118 @@ jobs:
       - name: Clear SwiftPM Artifact Cache
         run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
 
+      - name: Patch pbxproj with provisioning profile (app target only)
+        run: |
+          # Target-scoped PROVISIONING_PROFILE_SPECIFIER is silently ignored by
+          # xcodebuild. Instead, patch the xcodegen-generated pbxproj directly
+          # so the setting only applies to HermesNative-iOS, not SPM deps.
+          python3 - "${{ env.PROFILE_UUID }}" << 'PYEOF'
+          import sys, plistlib, os
+
+          UUID = sys.argv[1]
+          pbxproj = "HermesNative.xcodeproj/project.pbxproj"
+
+          # Read the pbxproj (it's a plist-in-text format, not standard plist)
+          with open(pbxproj) as f:
+              data = f.read()
+
+          # Find the HermesNative-iOS native target section and its build config list
+          import re
+
+          # Find the target's buildConfigurationList ID
+          # The native target section looks like:
+          # /* Begin PBXNativeTarget section */
+          #   A1B2C3D4 /* HermesNative-iOS */ = { ... buildConfigurationList = XYZ /* Build configuration list for PBXNativeTarget "HermesNative-iOS" */ ... };
+          target_match = re.search(
+              r'/\* HermesNative-iOS \*/.*?buildConfigurationList = ([A-F0-9]+) ',
+              data
+          )
+          if not target_match:
+              print("ERROR: Could not find HermesNative-iOS target")
+              print("Available targets:")
+              for m in re.finditer(r'/\* (\w[^\*]+) \*/.*?buildConfigurationList', data):
+                  print(f"  {m.group(1)}")
+              sys.exit(1)
+
+          config_list_id = target_match.group(1)
+          print(f"Found buildConfigurationList ID: {config_list_id}")
+
+          # Find the XCConfigurationList section and the Release config
+          # XCConfigurationList looks like:
+          #   XYZ /* Build configuration list for ... */ = { ... buildConfigurations = ( ABC /* Release */, DEF /* Debug */ ); ... };
+          list_match = re.search(
+              rf'{config_list_id} /\*.*?\*/ = \{{.*?buildConfigurations = \(\s*([^)]+)\)',
+              data,
+              re.DOTALL
+          )
+          if not list_match:
+              print(f"ERROR: Could not find configuration list {config_list_id}")
+              sys.exit(1)
+
+          config_ids_str = list_match.group(1)
+          # Parse IDs: "ABC /* Release */, DEF /* Debug */"
+          config_refs = re.findall(r'([A-F0-9]+) /\* (\w+) \*/', config_ids_str)
+          print(f"Build configurations: {config_refs}")
+
+          release_id = None
+          for cid, cname in config_refs:
+              if cname == 'Release':
+                  release_id = cid
+                  break
+
+          if not release_id:
+              print("ERROR: Could not find Release configuration")
+              sys.exit(1)
+
+          print(f"Found Release config ID: {release_id}")
+
+          # Find the XCBuildConfiguration section entry for this Release config
+          #   XYZ /* Release */ = { ... buildSettings = { ... }; ... };
+          config_match = re.search(
+              rf'{release_id} /\* Release \*/ = \{{.*?buildSettings = \{{(.*?)\}}',
+              data,
+              re.DOTALL
+          )
+          if not config_match:
+              print(f"ERROR: Could not find build settings for Release config {release_id}")
+              sys.exit(1)
+
+          build_settings_block = config_match.group(1)
+          print(f"Current build settings (first 200 chars): {build_settings_block[:200]}")
+
+          # Add PROVISIONING_PROFILE_SPECIFIER and ensure CODE_SIGN_STYLE is Manual
+          # The build settings block format: key = value; (one per line)
+          new_settings = build_settings_block
+
+          # Replace or add CODE_SIGN_STYLE
+          if 'CODE_SIGN_STYLE' in new_settings:
+              new_settings = re.sub(
+                  r'CODE_SIGN_STYLE = [^;]+;',
+                  'CODE_SIGN_STYLE = Manual;',
+                  new_settings
+              )
+          else:
+              new_settings += '\n\t\t\t\tCODE_SIGN_STYLE = Manual;'
+
+          # Replace or add PROVISIONING_PROFILE_SPECIFIER
+          if 'PROVISIONING_PROFILE_SPECIFIER' in new_settings:
+              new_settings = re.sub(
+                  r'PROVISIONING_PROFILE_SPECIFIER = [^;]+;',
+                  f'PROVISIONING_PROFILE_SPECIFIER = {UUID};',
+                  new_settings
+              )
+          else:
+              new_settings += f'\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = {UUID};'
+
+          # Apply the replacement back to the full data
+          data = data.replace(build_settings_block, new_settings)
+
+          with open(pbxproj, 'w') as f:
+              f.write(data)
+
+          print(f"Patched pbxproj: set PROVISIONING_PROFILE_SPECIFIER={UUID} on HermesNative-iOS Release")
+          PYEOF
+
       - name: Archive iOS App
         run: |
           mkdir -p build
@@ -68,7 +180,7 @@ jobs:
             -archivePath build/HermesNative.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            "HermesNative-iOS.PROVISIONING_PROFILE=${{ env.PROFILE_UUID }}" \
+
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
