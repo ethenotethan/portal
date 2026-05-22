@@ -82,7 +82,8 @@ jobs:
           #   A1B2C3D4 /* HermesNative-iOS */ = { ... buildConfigurationList = XYZ /* Build configuration list for PBXNativeTarget "HermesNative-iOS" */ ... };
           target_match = re.search(
               r'/\* HermesNative-iOS \*/.*?buildConfigurationList = ([A-F0-9]+) ',
-              data
+              data,
+              re.DOTALL
           )
           if not target_match:
               print("ERROR: Could not find HermesNative-iOS target")
