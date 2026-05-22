@@ -120,7 +120,7 @@ final class ChatViewModel: ObservableObject {
     private var streamingMessageID: UUID?
     private var streamStartDate: Date?
     private var cancellables = Set<AnyCancellable>()
-    private var isCreatingSession = false  // Guard against double-trigger
+    private(set) var isCreatingSession = false
     private var isStopping = false
     private var pendingVisibleEventFlush: Task<Void, Never>?
     private var pendingVisibleMessageDelta = ""
@@ -199,10 +199,15 @@ final class ChatViewModel: ObservableObject {
         // Subscribe to gateway events. Events are multiplexed over one app-level
         // WebSocket, so only apply events whose session_id matches this chat's
         // current session. Legacy/global events may have no session_id.
+        // Use collect(.byTimeOrCount) to batch rapid events (e.g. reasoning.delta
+        // floods) into fewer main-thread dispatches, preventing layout recursion
+        // and spinning-wheel freezes during heavy streaming.
         client.eventStream
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] event, eventSessionID in
-                self?.handleEvent(event, eventSessionID: eventSessionID)
+            .collect(.byTimeOrCount(DispatchQueue.main, .milliseconds(16), 10))
+            .sink { [weak self] batch in
+                for (event, eventSessionID) in batch {
+                    self?.handleEvent(event, eventSessionID: eventSessionID)
+                }
             }
             .store(in: &cancellables)
 
