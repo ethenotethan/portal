@@ -2,6 +2,12 @@ import Foundation
 
 // MARK: - Wiki RPCs
 
+/// Lightweight wiki descriptor returned by wiki.list RPC.
+struct WikiInfo: Codable, Hashable {
+    let name: String
+    let path: String
+}
+
 @MainActor
 extension GatewayClient {
 
@@ -78,5 +84,23 @@ extension GatewayClient {
             body: dict["body"]?.stringValue ?? "",
             path: pathStr
         )
+    }
+
+    /// List available wikis from the server's ~/.hermes/wikis.yaml registry.
+    func wikiList() async throws -> [WikiInfo] {
+        let response = try await call("wiki.list", params: [:])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let dict = response.result?.dictionaryValue,
+              let wikisArray = dict["wikis"]?.arrayValue else {
+            throw GatewayError.invalidResponse("wiki.list missing wikis array")
+        }
+        return wikisArray.compactMap { item -> WikiInfo? in
+            guard let d = item.dictionaryValue,
+                  let name = d["name"]?.stringValue,
+                  let path = d["path"]?.stringValue else { return nil }
+            return WikiInfo(name: name, path: path)
+        }
     }
 }

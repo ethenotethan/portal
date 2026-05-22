@@ -190,7 +190,10 @@ struct WikiGraphView: View {
             }
         }
         .onAppear {
-                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
+                Task {
+                    await viewModel.discoverWikis(client: gatewayClientWrapper.client)
+                    await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath)
+                }
         }
     }
 

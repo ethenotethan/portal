@@ -92,6 +92,17 @@ final class WikiGraphViewModel: ObservableObject {
         }
     }
 
+    /// Discover available wikis from the server-side registry.
+    func discoverWikis(client: GatewayClient) async {
+        do {
+            let wikis = try await client.wikiList()
+            self.availableWikis = wikis.map { $0.name }
+        } catch {
+            log.warning("wiki.list failed: \(error.localizedDescription)")
+            // Non-fatal — the menu will just show "No wikis discovered"
+        }
+    }
+
     func loadPage(client: GatewayClient, path: String, wiki: String? = nil) async -> WikiPageContent? {
         do {
             return try await client.wikiPage(path: path, wiki: wiki)
