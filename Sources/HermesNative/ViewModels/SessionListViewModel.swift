@@ -272,20 +272,21 @@ final class SessionListViewModel: ObservableObject {
                         // Update the session's primary ID to the database format
                         if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
                             let oldID = self.sessions[idx].id
-                            self.sessions[idx].id = dbID
+                            var updated = self.sessions[idx]
+                            updated.id = dbID
                             self.migrateLocalOrganizationState(from: oldID, to: dbID)
                             self.migrateLocalRunState(from: oldID, to: dbID, gatewayID: shortHexID)
-                            self.sessions[idx].runState = self.localRunStates[dbID] ?? self.sessions[idx].runState
-                            self.sessions[idx].isPinned = self.pinnedIDs.contains(dbID)
-                            self.sessions[idx].tags = self.sessionTags[dbID] ?? []
-                            // Move local title if needed
+                            updated.runState = self.localRunStates[dbID] ?? updated.runState
+                            updated.isPinned = self.pinnedIDs.contains(dbID)
+                            updated.tags = self.sessionTags[dbID] ?? []
                             if let title = self.localTitles[oldID] {
                                 var titles = self.localTitles
                                 titles[dbID] = title
                                 titles.removeValue(forKey: oldID)
                                 self.localTitles = titles
-                                self.sessions[idx].localTitle = title
+                                updated.localTitle = title
                             }
+                            self.sessions[idx] = updated
                         }
                         self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
                         if self.activeSessionID == shortHexID, self.sessions.contains(where: { $0.id == dbID }) {

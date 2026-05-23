@@ -86,7 +86,8 @@ struct Session: Identifiable, Equatable, Hashable {
 
     /// Whether this session was created by this app (we have the gateway short hex ID).
     var isOwned: Bool {
-        gatewayID != nil && !gatewayID!.isEmpty
+        guard let gid = gatewayID else { return false }
+        return !gid.isEmpty
     }
 
     /// The ID to use for gateway RPCs (short hex if we own the session,
