@@ -817,13 +817,16 @@ struct ChatInputBar: View {
                 onTextChange: { text in
                     chatViewModel.inputText = text
                     chatViewModel.updateSlashSuggestions()
-                }
+                },
+                onNavigateUp: chatViewModel.slashMode ? { chatViewModel.navigateSlashUp() } : nil,
+                onNavigateDown: chatViewModel.slashMode ? { chatViewModel.navigateSlashDown() } : nil,
+                onConfirm: chatViewModel.slashMode ? { chatViewModel.confirmSlashSelection() } : nil
             )
             .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
 
             if chatViewModel.slashMode {
                 slashAutocompleteOverlay
-                    .offset(y: -CGFloat(min(chatViewModel.slashSuggestions.count, 6)) * 36 - 8)
+                    .offset(y: -236)
             }
         }
         #else
@@ -850,41 +853,52 @@ struct ChatInputBar: View {
     // MARK: - Slash Autocomplete Overlay
 
     private var slashAutocompleteOverlay: some View {
-        VStack(spacing: 0) {
-            ForEach(chatViewModel.slashSuggestions.prefix(6)) { skill in
-                Button {
-                    chatViewModel.attachSkill(skill)
-                } label: {
-                    HStack(spacing: 8) {
-                        Text(skill.slashCommand)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Theme.accent)
-                        Text(skill.name)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.primary)
-                        Spacer()
-                        if !skill.description.isEmpty {
-                            Text(skill.description)
-                                .font(.caption2)
-                                .foregroundStyle(Theme.tertiary)
-                                .lineLimit(1)
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: true) {
+                VStack(spacing: 0) {
+                    ForEach(Array(chatViewModel.slashSuggestions.enumerated().prefix(50)), id: \.element.id) { idx, skill in
+                        Button {
+                            chatViewModel.slashSelectedIndex = idx
+                            chatViewModel.confirmSlashSelection()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(skill.slashCommand)
+                                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(Theme.accent)
+                                Text(skill.name)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Theme.primary)
+                                Spacer()
+                                if !skill.description.isEmpty {
+                                    Text(skill.description)
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.tertiary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .background(idx == chatViewModel.slashSelectedIndex ? Theme.accent.opacity(0.15) : Color.clear)
+                        .id(idx)
+                        if idx < chatViewModel.slashSuggestions.prefix(50).count - 1 {
+                            Divider().background(Theme.border)
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.plain)
-                .background(Theme.surface)
-                if skill.id != chatViewModel.slashSuggestions.prefix(6).last?.id {
-                    Divider().background(Theme.border)
+            }
+            .frame(maxHeight: 220)
+            .onChange(of: chatViewModel.slashSelectedIndex) { _, newIdx in
+                withAnimation {
+                    proxy.scrollTo(newIdx, anchor: .center)
                 }
             }
         }
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
-        .frame(maxWidth: .infinity, maxHeight: 220)
     }
 
     // MARK: - Send Button

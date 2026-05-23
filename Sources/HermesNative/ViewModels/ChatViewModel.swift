@@ -580,7 +580,7 @@ final class ChatViewModel: ObservableObject {
             let cmdMatch = $0.slashCommand.lowercased().contains(query)
             return nameMatch || cmdMatch
         }.sorted { $0.name < $1.name }
-        slashMode = true
+        slashMode = !slashSuggestions.isEmpty
         slashSelectedIndex = 0
     }
 

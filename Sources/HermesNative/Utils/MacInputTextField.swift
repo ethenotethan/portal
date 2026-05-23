@@ -38,6 +38,9 @@ struct MacInputTextField: NSViewRepresentable {
             context.coordinator.parentHeight = height
         }
         tv.onTextChange = onTextChange
+        tv.onNavigateUp = onNavigateUp
+        tv.onNavigateDown = onNavigateDown
+        tv.onConfirmSelection = onConfirm
         tv.setAccessibilityIdentifier("chatInput")
         tv.isRichText = false
         tv.allowsUndo = true
@@ -75,6 +78,9 @@ struct MacInputTextField: NSViewRepresentable {
             context.coordinator.parentHeight = height
         }
         nsView.onTextChange = onTextChange
+        nsView.onNavigateUp = onNavigateUp
+        nsView.onNavigateDown = onNavigateDown
+        nsView.onConfirmSelection = onConfirm
         nsView.maxLines = maxLines
 
         if fieldRef !== nsView {
@@ -148,6 +154,9 @@ final class FocusableTextView: NSTextView {
     var onImagePaste: (([NSItemProvider]) -> Void)?
     var onHeightChange: ((CGFloat) -> Void)?
     var onTextChange: ((String) -> Void)?
+    var onNavigateUp: (() -> Void)?
+    var onNavigateDown: (() -> Void)?
+    var onConfirmSelection: (() -> Void)?
     var placeholder: String = "" {
         didSet { needsDisplay = true }
     }
@@ -211,7 +220,21 @@ final class FocusableTextView: NSTextView {
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.contains(.shift) == false,
            event.characters == "\r" {
-            onSubmit?()
+            if onConfirmSelection != nil {
+                onConfirmSelection?()
+            } else {
+                onSubmit?()
+            }
+            return
+        }
+
+        let arrowKey = event.specialKey
+        if arrowKey == .upArrow, let nav = onNavigateUp {
+            nav()
+            return
+        }
+        if arrowKey == .downArrow, let nav = onNavigateDown {
+            nav()
             return
         }
 
