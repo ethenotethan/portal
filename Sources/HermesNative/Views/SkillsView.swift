@@ -34,12 +34,7 @@ struct SkillsView: View {
         .task {
             viewModel.setGatewayClient(gatewayClientWrapper.client)
             if gatewayClientWrapper.isConnected {
-                // Show cached data immediately, refresh silently in background
                 await viewModel.refreshIfNeeded()
-                // If cache is stale (>30s), do a background refresh
-                if SkillCacheDisk.age == nil || SkillCacheDisk.age! > 30 {
-                    await viewModel.backgroundRefresh()
-                }
             }
         }
         .sheet(item: $markdownSkill) { skill in
@@ -276,9 +271,6 @@ struct SkillsView: View {
                     },
                     onViewMarkdown: {
                         markdownSkill = skill
-                    },
-                    onExpandInspect: { name in
-                        Task { await viewModel.inspectSkill(name: name) }
                     }
                 )
             }
@@ -358,7 +350,6 @@ struct SkillCard: View {
     let onUninstall: () -> Void
     let onCancelUninstall: () -> Void
     let onViewMarkdown: () -> Void
-    let onExpandInspect: (String) async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -369,14 +360,7 @@ struct SkillCard: View {
                 if isExpanded {
                     VStack(alignment: .leading, spacing: 10) {
                         Divider().background(Theme.border)
-                        if skill.description.isEmpty {
-                            HStack(spacing: 6) {
-                                ProgressView().controlSize(.mini)
-                                Text("Loading details...")
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.tertiary)
-                            }
-                        } else {
+                        if !skill.description.isEmpty {
                             Text(skill.description)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(Theme.secondary)
@@ -405,11 +389,6 @@ struct SkillCard: View {
                     .padding(.leading, 28)
                     .padding(.trailing, 4)
                     .padding(.bottom, 4)
-                    .task {
-                        if skill.description.isEmpty {
-                            await onExpandInspect(skill.name)
-                        }
-                    }
                 }
         }
         .padding(10)

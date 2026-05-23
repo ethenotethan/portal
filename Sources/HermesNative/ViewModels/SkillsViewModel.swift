@@ -5,10 +5,9 @@ import os.log
 @MainActor
 @Observable
 final class SkillsViewModel {
-    // Proxy to SkillCache.shared — single source of truth
-    var skills: [SkillInfo] { SkillCache.shared.skills }
-    var isLoading: Bool { SkillCache.shared.isLoading }
-    var errorMessage: String? { SkillCache.shared.errorMessage }
+    var skills: [SkillInfo] { SkillStore.shared.skills }
+    var isLoading: Bool { SkillStore.shared.isLoading || SkillStore.shared.isPreFetching }
+    var errorMessage: String? { SkillStore.shared.errorMessage }
     var lastRawResponse: String?
     var diagnosticResult: String?
 
@@ -24,19 +23,19 @@ final class SkillsViewModel {
 
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
-        SkillCache.shared.setGatewayClient(client)
+        SkillStore.shared.setGatewayClient(client)
     }
 
     func refresh() async {
-        await SkillCache.shared.reload()
+        await SkillStore.shared.reload()
     }
 
     func refreshIfNeeded() async {
-        await SkillCache.shared.refreshIfNeeded()
+        await SkillStore.shared.refreshIfNeeded()
     }
 
     func backgroundRefresh() async {
-        await SkillCache.shared.backgroundRefresh()
+        await SkillStore.shared.backgroundRefresh()
     }
 
     var totalSkills: Int { skills.count }
@@ -71,7 +70,7 @@ final class SkillsViewModel {
             if success {
                 CelebrationManager.shared.onSkillInstalled(name: name)
                 _ = try? await client.reloadSkills()
-                await SkillCache.shared.reload()
+                await SkillStore.shared.reload()
             }
         } catch {
             installStatus[name] = "failed: \(error.localizedDescription)"
@@ -85,7 +84,7 @@ final class SkillsViewModel {
             _ = try await client.uninstallSkill(name: name)
             installStatus[name] = nil
             _ = try? await client.reloadSkills()
-            await SkillCache.shared.reload()
+            await SkillStore.shared.reload()
         } catch {
             installStatus[name] = "failed: \(error.localizedDescription)"
         }
@@ -94,7 +93,7 @@ final class SkillsViewModel {
     func reload() async {
         guard let client = gatewayClient else { return }
         _ = try? await client.reloadSkills()
-        await SkillCache.shared.reload()
+        await SkillStore.shared.reload()
     }
 
     enum DiagnosticTest {
@@ -159,41 +158,12 @@ final class SkillsViewModel {
         }
     }
 
-    /// Lazily fetch skill metadata (description, tags, md preview) on expand.
-    func inspectSkill(name: String) async {
-        guard let client = gatewayClient else { return }
-        // Check if we already have metadata
-        if let idx = SkillCache.shared.skills.firstIndex(where: { $0.name == name }),
-           !SkillCache.shared.skills[idx].description.isEmpty {
-            return
-        }
-        do {
-            if let detail = try await client.inspectSkill(name: name) {
-                await MainActor.run {
-                    if let idx = SkillCache.shared.skills.firstIndex(where: { $0.name == name }) {
-                        SkillCache.shared.skills[idx].description = detail.description
-                        SkillCache.shared.skills[idx].skillMdPreview = detail.skillMdPreview
-                        SkillCache.shared.skills[idx].tags = detail.tags
-                        SkillCache.shared.skills[idx].source = detail.source
-                    }
-                }
-            }
-        } catch {
-            log.error("inspectSkill(\(name)) failed: \(error.localizedDescription)")
-        }
-    }
-
-    /// Save edited markdown back to the skill.
     func saveSkillMarkdown(name: String, content: String) async -> Bool {
         guard let client = gatewayClient else { return false }
         do {
             let success = try await client.writeSkillMarkdown(name: name, content: content)
             if success {
-                // Update SkillCache so the UI reflects changes immediately
-                for i in SkillCache.shared.skills.indices where SkillCache.shared.skills[i].name == name {
-                    SkillCache.shared.skills[i].skillMdFullContent = content
-                    SkillCache.shared.skills[i].skillMdPreview = String(content.prefix(500))
-                }
+                SkillStore.shared.updateSkillContent(name: name, content: content)
             }
             return success
         } catch {

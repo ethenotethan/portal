@@ -574,7 +574,7 @@ final class ChatViewModel: ObservableObject {
             return
         }
         let query = String(text.dropFirst()).lowercased().trimmingCharacters(in: .whitespaces)
-        let all = SkillCache.shared.skills
+        let all = SkillStore.shared.skills
         slashSuggestions = all.filter {
             let nameMatch = $0.name.lowercased().contains(query)
             let cmdMatch = $0.slashCommand.lowercased().contains(query)
@@ -594,7 +594,7 @@ final class ChatViewModel: ObservableObject {
         Task {
             // Lazy-load full content if needed
             if skill.skillMdFullContent == nil,
-               let content = await SkillCache.shared.readSkillContent(name: skill.name),
+               let content = await SkillStore.shared.readSkillContent(name: skill.name),
                let idx = activeSkills.firstIndex(where: { $0.name == skill.name }) {
                 activeSkills[idx].skillMdFullContent = content
             }

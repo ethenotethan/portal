@@ -820,6 +820,7 @@ struct ContentView: View {
         chatViewModel.setGatewayClient(client)
         sessionList.setGatewayClient(client)
         activityInbox.setGatewayClient(client)
+        SkillStore.shared.setGatewayClient(client)
         observeChatRunState()
         spawnTreeStore.subscribe(to: client)
 

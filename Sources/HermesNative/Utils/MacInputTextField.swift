@@ -93,8 +93,9 @@ struct MacInputTextField: NSViewRepresentable {
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusableTextView, context: Context) -> CGSize? {
         let width = proposal.width ?? 300
         // Update text container width to match the proposed width
-        nsView.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        nsView.invalidateIntrinsicContentSize()
+        if nsView.textContainer?.containerSize.width != width {
+            nsView.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+        }
         let size = nsView.intrinsicContentSize
         return CGSize(width: width, height: size.height)
     }
