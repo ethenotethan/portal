@@ -189,21 +189,6 @@ final class SkillStore: ObservableObject {
 
             let newNames = Set(allSkills.map { $0.name })
 
-            let toInspect = allSkills.filter { $0.description.isEmpty }
-            if !toInspect.isEmpty {
-                let details = await inspectSkillsConcurrently(toInspect, client: client)
-                for detail in details {
-                    guard let idx = allSkills.firstIndex(where: { $0.name == detail.name }) else { continue }
-                    allSkills[idx].description = detail.description
-                    allSkills[idx].skillMdPreview = detail.skillMdPreview
-                    allSkills[idx].tags = detail.tags
-                    allSkills[idx].source = detail.source
-                    if let path = detail.skillMdPath { allSkills[idx].skillMdPath = path }
-                    if let dir = detail.skillDir { allSkills[idx].skillDir = dir }
-                    if let id = detail.identifier { allSkills[idx].identifier = id }
-                }
-            }
-
             let added = newNames.subtracting(previousSkillNames)
             let removed = previousSkillNames.subtracting(newNames)
             if !added.isEmpty || !removed.isEmpty {
@@ -214,27 +199,34 @@ final class SkillStore: ObservableObject {
             previousSkillNames = newNames
             lastUpdated = Date()
             persistToDisk()
+
+            let toInspect = skills.enumerated().filter { $0.element.description.isEmpty }
+            isPreFetching = false
+            log.info("SkillStore.preFetchAll: \(self.skills.count) skills listed, \(toInspect.count) to inspect")
+
+            for (idx, skill) in toInspect {
+                if Task.isCancelled { break }
+                do {
+                    if let detail = try await client.inspectSkill(name: skill.name) {
+                        skills[idx].description = detail.description
+                        skills[idx].skillMdPreview = detail.skillMdPreview
+                        skills[idx].tags = detail.tags
+                        skills[idx].source = detail.source
+                        if let path = detail.skillMdPath { skills[idx].skillMdPath = path }
+                        if let dir = detail.skillDir { skills[idx].skillDir = dir }
+                        if let id = detail.identifier { skills[idx].identifier = id }
+                    }
+                } catch {
+                    log.warning("SkillStore.preFetchAll inspectSkill(\(skill.name)) failed: \(error.localizedDescription)")
+                }
+                await Task.yield()
+            }
+            persistToDisk()
             log.info("SkillStore.preFetchAll done: \(self.skills.count) skills fully loaded")
         } catch {
             log.error("SkillStore.preFetchAll error: \(error.localizedDescription)")
+            isPreFetching = false
         }
-
-        isPreFetching = false
-    }
-
-    private func inspectSkillsConcurrently(_ skills: [SkillInfo], client: GatewayClient) async -> [SkillInfo] {
-        var results: [SkillInfo] = []
-        for skill in skills {
-            do {
-                if let detail = try await client.inspectSkill(name: skill.name) {
-                    results.append(detail)
-                }
-            } catch {
-                log.warning("SkillStore inspectSkill(\(skill.name)) failed: \(error.localizedDescription)")
-            }
-            await Task.yield()
-        }
-        return results
     }
 
     func readSkillContent(name: String) async -> String? {
@@ -396,16 +388,23 @@ final class SkillStore: ObservableObject {
     }
 
     private func preFetchMissingDetails(_ targets: [SkillInfo], client: GatewayClient) async {
-        let details = await inspectSkillsConcurrently(targets, client: client)
-        for detail in details {
-            guard let idx = skills.firstIndex(where: { $0.name == detail.name }) else { continue }
-            skills[idx].description = detail.description
-            skills[idx].skillMdPreview = detail.skillMdPreview
-            skills[idx].tags = detail.tags
-            skills[idx].source = detail.source
-            if let path = detail.skillMdPath { skills[idx].skillMdPath = path }
-            if let dir = detail.skillDir { skills[idx].skillDir = dir }
-            if let id = detail.identifier { skills[idx].identifier = id }
+        for skill in targets {
+            guard let idx = skills.firstIndex(where: { $0.name == skill.name }),
+                  skills[idx].description.isEmpty else { continue }
+            do {
+                if let detail = try await client.inspectSkill(name: skill.name) {
+                    skills[idx].description = detail.description
+                    skills[idx].skillMdPreview = detail.skillMdPreview
+                    skills[idx].tags = detail.tags
+                    skills[idx].source = detail.source
+                    if let path = detail.skillMdPath { skills[idx].skillMdPath = path }
+                    if let dir = detail.skillDir { skills[idx].skillDir = dir }
+                    if let id = detail.identifier { skills[idx].identifier = id }
+                }
+            } catch {
+                log.warning("SkillStore preFetchMissingDetails(\(skill.name)) failed: \(error.localizedDescription)")
+            }
+            await Task.yield()
         }
         persistToDisk()
     }
