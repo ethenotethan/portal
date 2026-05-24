@@ -829,6 +829,9 @@ struct ChatInputBar: View {
                     .offset(y: -236)
             }
         }
+        .onChange(of: chatViewModel.inputText) { _, _ in
+            chatViewModel.updateSlashSuggestions()
+        }
         #else
         TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
             .accessibilityIdentifier("chatInput")
