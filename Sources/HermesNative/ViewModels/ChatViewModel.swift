@@ -426,6 +426,7 @@ final class ChatViewModel: ObservableObject {
     /// same selection from the gateway; stale generations are ignored.
     @discardableResult
     func beginSwitchToSession(key: String) -> Int {
+        flushPendingVisibleEventDeltas()
         snapshotCurrentSessionState()
         sessionSwitchGeneration += 1
         let generation = sessionSwitchGeneration
@@ -1321,6 +1322,10 @@ final class ChatViewModel: ObservableObject {
         case .reasoningDelta(let text):
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
+                if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                    let existing = state.messages[idx].reasoning ?? ""
+                    state.messages[idx].reasoning = existing + text
+                }
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     pendingVisibleReasoningDelta += text
                     scheduleVisibleEventFlush()
@@ -1362,12 +1367,15 @@ final class ChatViewModel: ObservableObject {
             break
         }
 
-        // Only persist state for lifecycle events — delta events are too
-        // high-frequency and copying the full messages array every time
-        // saturates the main thread on long sessions.
+        // Only persist state for lifecycle events on the active session —
+        // delta events are too high-frequency and copying the full messages
+        // array every token saturates the main thread. For background
+        // sessions, persist delta state so it survives session switches.
         switch event {
         case .messageDelta, .reasoningDelta, .thinkingDelta:
-            break
+            if displayID != displaySessionID(for: sessionID ?? "") {
+                sessionStates[displayID] = state
+            }
         default:
             sessionStates[displayID] = state
         }
