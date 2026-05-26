@@ -13,6 +13,7 @@ final class SessionListViewModel: ObservableObject {
     @Published var sessions: [Session] = []
     @Published var activeSessionID: String?
     @Published var isLoading: Bool = false
+    var isSuppressingSelectionHandler = false
 
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
@@ -304,6 +305,7 @@ final class SessionListViewModel: ObservableObject {
                         }
                         self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
                         if self.activeSessionID == shortHexID, self.sessions.contains(where: { $0.id == dbID }) {
+                            self.isSuppressingSelectionHandler = true
                             self.activeSessionID = dbID
                         }
                         return  // Success — done

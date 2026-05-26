@@ -673,6 +673,10 @@ struct ContentView: View {
     private func handleSelectionChangeAfterViewUpdate(_ newID: String?) {
         guard observerSession == nil, !isObserverDismissing else { return }
         guard newID != lastProcessedSelectionID else { return }
+        if sessionList.isSuppressingSelectionHandler {
+            sessionList.isSuppressingSelectionHandler = false
+            return
+        }
         lastProcessedSelectionID = newID
         Task { @MainActor in
             await Task.yield()
