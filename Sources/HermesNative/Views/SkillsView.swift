@@ -360,7 +360,13 @@ struct SkillCard: View {
                 if isExpanded {
                     VStack(alignment: .leading, spacing: 10) {
                         Divider().background(Theme.border)
-                        if !skill.description.isEmpty {
+                        if skill.description.isEmpty {
+                            Text("No description available")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(Theme.tertiary)
+                                .italic()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
                             Text(skill.description)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(Theme.secondary)
@@ -375,6 +381,9 @@ struct SkillCard: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        if let dir = skill.skillDir {
+                            detailRow("Directory", value: dir)
+                        }
                         if let path = skill.skillMdPath {
                             detailRow("Path", value: path)
                         }
