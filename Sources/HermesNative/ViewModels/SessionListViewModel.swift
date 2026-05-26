@@ -208,8 +208,11 @@ final class SessionListViewModel: ObservableObject {
             // short hex ID hasn't been mapped to a database-format ID yet,
             // so they wouldn't appear in the fetched list.
             let fetchedIDs = Set(fetched.map { $0.id })
+            let fetchedGatewayIDs = Set(fetched.compactMap { $0.gatewayID })
             let ownedUnmapped = sessions.filter { session in
-                session.isOwned && !fetchedIDs.contains(session.id)
+                session.isOwned
+                    && !fetchedIDs.contains(session.id)
+                    && !fetchedGatewayIDs.contains(session.gatewayID ?? "")
             }
 
             // Preserve sessions that have local history on disk but are no
@@ -269,6 +272,17 @@ final class SessionListViewModel: ObservableObject {
                 do {
                     let result = try await client.sessionTitle(sessionID: shortHexID)
                     if let dbID = result.sessionKey, !dbID.isEmpty, dbID != shortHexID {
+                        // If the database-format ID already exists (from a concurrent
+                        // refreshSessions), remove the short-hex "owned unmapped" entry
+                        // to avoid duplicate ForEach identities.
+                        if self.sessions.contains(where: { $0.id == dbID }) {
+                            self.sessions.removeAll { $0.id == shortHexID || $0.gatewayID == shortHexID }
+                            self.storeGatewayIDMapping(databaseID: dbID, gatewayID: shortHexID)
+                            if self.activeSessionID == shortHexID {
+                                self.activeSessionID = dbID
+                            }
+                            return
+                        }
                         // Update the session's primary ID to the database format
                         if let idx = self.sessions.firstIndex(where: { $0.gatewayID == shortHexID }) {
                             let oldID = self.sessions[idx].id

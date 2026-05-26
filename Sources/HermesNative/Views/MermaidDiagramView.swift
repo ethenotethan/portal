@@ -181,287 +181,232 @@ private struct NativeMermaidRenderer: View {
 
 // MARK: - Web (WKWebView) Fallback Renderer
 
+private let sharedMermaidProcessPool = WKProcessPool()
+private var mermaidImageCache: [String: PlatformImage] = [:]
+private let mermaidCacheLock = NSLock()
+
+#if os(macOS)
+private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
+    static let shared = MermaidSharedRenderer()
+    private let webView: WKWebView
+    private var pendingCompletion: ((PlatformImage?) -> Void)?
+    private var isBusy = false
+    private var queue: [(String, (PlatformImage?) -> Void)] = []
+
+    override init() {
+        let config = WKWebViewConfiguration()
+        config.processPool = sharedMermaidProcessPool
+        webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
+        super.init()
+        webView.navigationDelegate = self
+        // Place off-screen in a hidden window so it can render
+        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1200, height: 800),
+                             styleMask: .borderless, backing: .buffered, defer: true)
+        window.isReleasedWhenClosed = false
+        window.contentView?.addSubview(webView)
+        webView.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+    }
+
+    func render(source: String, completion: @escaping (PlatformImage?) -> Void) {
+        if isBusy {
+            queue.append((source, completion))
+            return
+        }
+        isBusy = true
+        pendingCompletion = completion
+        webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
+    }
+
+    private func processQueue() {
+        isBusy = false
+        guard !queue.isEmpty else { return }
+        let (source, completion) = queue.removeFirst()
+        render(source: source, completion: completion)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self else { return }
+            let config = WKSnapshotConfiguration()
+            self.webView.takeSnapshot(with: config) { [weak self] image, error in
+                guard let self else { return }
+                if let error {
+                    log.warning("Mermaid snapshot failed: \(error.localizedDescription)")
+                }
+                self.pendingCompletion?(image)
+                self.pendingCompletion = nil
+                self.processQueue()
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        pendingCompletion?(nil)
+        pendingCompletion = nil
+        processQueue()
+    }
+}
+#else
+private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
+    static let shared = MermaidSharedRenderer()
+    private let webView: WKWebView
+    private var pendingCompletion: ((PlatformImage?) -> Void)?
+    private var isBusy = false
+    private var queue: [(String, (PlatformImage?) -> Void)] = []
+
+    override init() {
+        let config = WKWebViewConfiguration()
+        config.processPool = sharedMermaidProcessPool
+        webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
+        super.init()
+        webView.navigationDelegate = self
+    }
+
+    func render(source: String, completion: @escaping (PlatformImage?) -> Void) {
+        if isBusy {
+            queue.append((source, completion))
+            return
+        }
+        isBusy = true
+        pendingCompletion = completion
+        webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
+    }
+
+    private func processQueue() {
+        isBusy = false
+        guard !queue.isEmpty else { return }
+        let (source, completion) = queue.removeFirst()
+        render(source: source, completion: completion)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            guard let self else { return }
+            let config = WKSnapshotConfiguration()
+            self.webView.takeSnapshot(with: config) { [weak self] image, error in
+                guard let self else { return }
+                if let error {
+                    log.warning("Mermaid snapshot failed: \(error.localizedDescription)")
+                }
+                self.pendingCompletion?(image)
+                self.pendingCompletion = nil
+                self.processQueue()
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        pendingCompletion?(nil)
+        pendingCompletion = nil
+        processQueue()
+    }
+}
+#endif
+
 private struct WebMermaidRenderer: View {
     let source: String
+    @State private var cachedImage: PlatformImage?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var renderKey: String
+
+    init(source: String) {
+        self.source = source
+        _renderKey = State(initialValue: source)
+    }
 
     var body: some View {
         Group {
             if let error = errorMessage {
                 ErrorCard(error: error, source: source)
+            } else if let image = cachedImage {
+                ZoomableDiagram(image: image)
             } else {
-                ZStack {
-                    MermaidWebView(source: source, isLoading: $isLoading, onError: { msg in
-                        errorMessage = msg
-                    })
-                    if isLoading {
-                        VStack(spacing: 8) {
-                            ProgressView()
-                            Text("Rendering diagram…")
-                                .font(.caption2)
-                                .foregroundStyle(Theme.tertiary)
-                        }
-                    }
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text("Rendering diagram…")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
                 }
+                .onAppear(perform: loadCachedOrRender)
+            }
+        }
+    }
+
+    private func loadCachedOrRender() {
+        mermaidCacheLock.lock()
+        let cached = mermaidImageCache[renderKey]
+        mermaidCacheLock.unlock()
+        if let cached {
+            cachedImage = cached
+            isLoading = false
+            return
+        }
+        MermaidSharedRenderer.shared.render(source: source) { image in
+            if let image {
+                mermaidCacheLock.lock()
+                mermaidImageCache[renderKey] = image
+                mermaidCacheLock.unlock()
+                cachedImage = image
+                isLoading = false
+            } else {
+                errorMessage = "Failed to render diagram"
             }
         }
     }
 }
 
-#if os(macOS)
-private struct MermaidWebView: NSViewRepresentable {
-    let source: String
-    @Binding var isLoading: Bool
-    let onError: (String) -> Void
+private func makeMermaidHTML(source: String) -> String {
+    let escaped = source
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "'", with: "\\'")
+        .replacingOccurrences(of: "</", with: "<\\/")
 
-    private func makeHTML() -> String {
-        let escaped = source
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "</", with: "<\\/")
-
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          html, body { background: #1a1a1a; width: 100%; height: 100%; overflow: auto; }
-          .mermaid-container { display: flex; justify-content: center; padding: 16px; min-height: 100%; }
-          .mermaid { max-width: none; }
-        </style>
-        </head>
-        <body>
-        <div class="mermaid-container">
-          <pre class="mermaid" id="diagram">
-        \(escaped)
-          </pre>
-        </div>
-        <script>
-          mermaid.initialize({
-            startOnLoad: true,
-            theme: 'dark',
-            themeVariables: {
-              primaryColor: '#7c7cff',
-              primaryTextColor: '#f0f0f0',
-              primaryBorderColor: '#7c7cff',
-              lineColor: '#7c7cff',
-              background: '#1a1a1a',
-              mainBkg: '#2a2a2a',
-              nodeBorder: '#7c7cff',
-              clusterBkg: '#2a2a2a',
-              titleColor: '#f0f0f0',
-              textColor: '#f0f0f0',
-            },
-            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-          });
-          document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() { window.webkit.messageHandlers.mermaidDone.postMessage('ok'); }, 1500);
-          });
-          window.onerror = function(msg, url, line) {
-            window.webkit.messageHandlers.mermaidError.postMessage(msg);
-          };
-        </script>
-        </body>
-        </html>
-        """
-    }
-
-    func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "mermaidDone")
-        config.userContentController.add(context.coordinator, name: "mermaidError")
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        webView.setValue(false, forKey: "drawsBackground")
-        webView.loadHTMLString(makeHTML(), baseURL: nil)
-        return webView
-    }
-
-    func updateNSView(_ webView: WKWebView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        let parent: MermaidWebView
-
-        init(parent: MermaidWebView) {
-            self.parent = parent
-        }
-
-        func userContentController(
-            _ userContentController: WKUserContentController,
-            didReceive message: WKScriptMessage
-        ) {
-            if message.name == "mermaidDone" {
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.isLoading = false
-                }
-            } else if message.name == "mermaidError" {
-                let msg = message.body as? String ?? "Unknown error"
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.onError("Web renderer error: \(msg)")
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-                if self?.parent.isLoading == true {
-                    self?.parent.isLoading = false
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.onError("Failed to load mermaid.js: \(error.localizedDescription)")
-            }
-        }
-
-        func webView(
-            _ webView: WKWebView,
-            didFailProvisionalNavigation navigation: WKNavigation!,
-            withError error: Error
-        ) {
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.onError("Failed to load mermaid.js: \(error.localizedDescription)")
-            }
-        }
-    }
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { background: #1a1a1a; width: 100%; height: 100%; overflow: hidden; }
+      .mermaid-container { display: flex; justify-content: center; padding: 16px; }
+    </style>
+    </head>
+    <body>
+    <div class="mermaid-container">
+      <pre class="mermaid" id="diagram">
+    \(escaped)
+      </pre>
+    </div>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+          primaryColor: '#7c7cff',
+          primaryTextColor: '#f0f0f0',
+          primaryBorderColor: '#7c7cff',
+          lineColor: '#7c7cff',
+          background: '#1a1a1a',
+          mainBkg: '#2a2a2a',
+          nodeBorder: '#7c7cff',
+          clusterBkg: '#2a2a2a',
+          titleColor: '#f0f0f0',
+          textColor: '#f0f0f0',
+        },
+        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      });
+    </script>
+    </body>
+    </html>
+    """
 }
-#else
-private struct MermaidWebView: UIViewRepresentable {
-    let source: String
-    @Binding var isLoading: Bool
-    let onError: (String) -> Void
-
-    private func makeHTML() -> String {
-        let escaped = source
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "</", with: "<\\/")
-
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          html, body { background: #1a1a1a; width: 100%; height: 100%; overflow: auto; }
-          .mermaid-container { display: flex; justify-content: center; padding: 16px; min-height: 100%; }
-          .mermaid { max-width: none; }
-        </style>
-        </head>
-        <body>
-        <div class="mermaid-container">
-          <pre class="mermaid" id="diagram">
-        \(escaped)
-          </pre>
-        </div>
-        <script>
-          mermaid.initialize({
-            startOnLoad: true,
-            theme: 'dark',
-            themeVariables: {
-              primaryColor: '#7c7cff',
-              primaryTextColor: '#f0f0f0',
-              primaryBorderColor: '#7c7cff',
-              lineColor: '#7c7cff',
-              background: '#1a1a1a',
-              mainBkg: '#2a2a2a',
-              nodeBorder: '#7c7cff',
-              clusterBkg: '#2a2a2a',
-              titleColor: '#f0f0f0',
-              textColor: '#f0f0f0',
-            },
-            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-          });
-          document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() { window.webkit.messageHandlers.mermaidDone.postMessage('ok'); }, 1500);
-          });
-          window.onerror = function(msg, url, line) {
-            window.webkit.messageHandlers.mermaidError.postMessage(msg);
-          };
-        </script>
-        </body>
-        </html>
-        """
-    }
-
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "mermaidDone")
-        config.userContentController.add(context.coordinator, name: "mermaidError")
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        webView.isOpaque = false
-        webView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
-        webView.scrollView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
-        webView.loadHTMLString(makeHTML(), baseURL: nil)
-        return webView
-    }
-
-    func updateUIView(_ webView: WKWebView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
-
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        let parent: MermaidWebView
-
-        init(parent: MermaidWebView) {
-            self.parent = parent
-        }
-
-        func userContentController(
-            _ userContentController: WKUserContentController,
-            didReceive message: WKScriptMessage
-        ) {
-            if message.name == "mermaidDone" {
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.isLoading = false
-                }
-            } else if message.name == "mermaidError" {
-                let msg = message.body as? String ?? "Unknown error"
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.onError("Web renderer error: \(msg)")
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-                if self?.parent.isLoading == true {
-                    self?.parent.isLoading = false
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.onError("Failed to load mermaid.js: \(error.localizedDescription)")
-            }
-        }
-
-        func webView(
-            _ webView: WKWebView,
-            didFailProvisionalNavigation navigation: WKNavigation!,
-            withError error: Error
-        ) {
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.onError("Failed to load mermaid.js: \(error.localizedDescription)")
-            }
-        }
-    }
-}
-#endif
 
 // MARK: - Zoomable Diagram
 

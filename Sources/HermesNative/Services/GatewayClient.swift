@@ -141,6 +141,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     private var reconnectTask: Task<Void, Never>?
     private var reconnectAttempt: Int = 0
+    private var isHandlingDisconnect = false
+    private var isReconnecting: Bool {
+        if case .reconnecting = connectionState { return true }
+        return false
+    }
     private static let maxReconnectDelay: TimeInterval = 30
     private static let maxReconnectAttempts: Int = 10
     private var isIntentionalDisconnect = false
@@ -394,6 +399,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
+        sessionConfig.waitsForConnectivity = true
+        sessionConfig.timeoutIntervalForResource = 300
 
         // Carry CF_Authorization cookie
         if let cookie = cfAuthCookie {
@@ -498,6 +505,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Auto-Reconnect
 
     private func handleDisconnect(reason: String) {
+        guard !isHandlingDisconnect else {
+            log.debug("handleDisconnect skipped (already in progress): \(reason)")
+            return
+        }
+        isHandlingDisconnect = true
+        defer { isHandlingDisconnect = false }
         log.debug("Disconnected: \(reason)")
         stopPingTimer()
 
@@ -507,6 +520,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         recordDebugEvent(.error, name: "disconnect", detail: reason)
 
         guard !isIntentionalDisconnect else { return }
+        guard !isReconnecting else { return }
 
         if reconnectAttempt >= Self.maxReconnectAttempts {
             onLog?("✗ Max reconnect attempts reached", true)

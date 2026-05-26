@@ -566,10 +566,8 @@ struct SessionsDashboard: View {
 
 extension Session {
     var isLive: Bool {
-        // A session is live if it hasn't explicitly ended.
-        // If lastActive is available, also require activity within 5 minutes
-        // to avoid marking ancient idle sessions as live.
         guard endedAt == nil else { return false }
+        if let runState, runState.isActive { return true }
         if let last = lastActive {
             return Date().timeIntervalSince(last) < 300  // 5 min
         }

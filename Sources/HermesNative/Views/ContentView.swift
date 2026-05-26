@@ -37,6 +37,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
+    @State private var lastProcessedSelectionID: String?
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
     @State private var wiredClient: GatewayClient?
     /// Suppresses selection-driven navigation/resume while New Session is already
@@ -654,9 +655,9 @@ struct ContentView: View {
     /// main-actor turn before doing selection side effects so the list binding
     /// can finish its update transaction first.
     private func handleSelectionChangeAfterViewUpdate(_ newID: String?) {
-        // Guard: don't resume sessions while a non-owned session observer is open,
-        // and don't handle selection changes triggered by observer dismissal.
         guard observerSession == nil, !isObserverDismissing else { return }
+        guard newID != lastProcessedSelectionID else { return }
+        lastProcessedSelectionID = newID
         Task { @MainActor in
             await Task.yield()
             handleSessionSelection(newID)

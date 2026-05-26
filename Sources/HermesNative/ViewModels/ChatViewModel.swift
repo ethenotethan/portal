@@ -258,12 +258,25 @@ final class ChatViewModel: ObservableObject {
         // the New Session button and leaves the list empty on compact iOS.
         client.onReconnected = { [weak self] in
             guard let self else { return }
-            // If GatewayClient already resumed the session, use that session ID
             if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
                 self.sessionID = resumedID
                 self.createGeneration += 1
                 self.isSessionReady = true
                 self.error = nil
+            } else if let sid = self.sessionID, self.isSessionReady,
+                      self.gatewayClient?.activeSessionID == nil {
+                // Gateway didn't auto-resume — explicitly re-resume so the
+                // session is re-registered and streaming events will flow.
+                let displayID = self.displaySessionID(for: sid)
+                Task {
+                    let _ = try? await self.gatewayClient?.resumeSession(key: displayID)
+                    if let resumedID = self.gatewayClient?.activeSessionID,
+                       self.sessionID != resumedID {
+                        self.sessionID = resumedID
+                    }
+                    self.isSessionReady = true
+                    self.error = nil
+                }
             }
         }
     }
@@ -1062,7 +1075,7 @@ final class ChatViewModel: ObservableObject {
         if let traceText = message.thinkingTrace?.fullText, !traceText.isEmpty {
             message.reasoning = traceText
         } else {
-            message.reasoning = finalReasoning
+            message.reasoning = finalReasoning ?? message.reasoning
         }
     }
 
@@ -1243,6 +1256,8 @@ final class ChatViewModel: ObservableObject {
         case .messageComplete(payload: let payload):
             if displaySessionID(for: sessionID ?? "") == displayID {
                 flushPendingVisibleEventDeltas()
+                // Reload state to pick up flushed reasoning from snapshot
+                state = sessionStates[displayID] ?? state
             }
             guard let msgID = state.streamingMessageID,
                   let idx = state.messages.firstIndex(where: { $0.id == msgID }) else {
@@ -1297,8 +1312,7 @@ final class ChatViewModel: ObservableObject {
 
         case .reasoningDelta(let text):
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
-            if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                state.messages[idx].reasoning = (state.messages[idx].reasoning ?? "") + text
+            if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     pendingVisibleReasoningDelta += text
                     scheduleVisibleEventFlush()
@@ -1307,14 +1321,10 @@ final class ChatViewModel: ObservableObject {
 
         case .thinkingDelta(let text):
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
-            if displaySessionID(for: sessionID ?? "") == displayID {
-                let existing = messages.last(where: { $0.role == .assistant && $0.isStreaming })?.reasoning ?? ""
-                let separator = existing.isEmpty ? "" : "\n"
-                appendPendingVisibleThinkingDelta(text, separator: separator)
-            } else if let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                let existing = state.messages[idx].reasoning ?? ""
-                let separator = existing.isEmpty ? "" : "\n"
-                state.messages[idx].reasoning = existing + separator + text
+            if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
+                if displaySessionID(for: sessionID ?? "") == displayID {
+                    appendPendingVisibleThinkingDelta(text, separator: "\n")
+                }
             }
 
         case .approvalRequest(payload: let payload):
@@ -1339,11 +1349,20 @@ final class ChatViewModel: ObservableObject {
              .voiceTranscript, .voiceStatus,
              .activityCreated, .activityUpdated,
              .subagentSpawnRequested, .subagentStart, .subagentComplete,
-             .subagentTool, .subagentProgress, .subagentThinking:
+.subagentTool, .subagentProgress, .subagentThinking,
+              .reviewSummary:
             break
         }
 
-        sessionStates[displayID] = state
+        // Only persist state for lifecycle events — delta events are too
+        // high-frequency and copying the full messages array every time
+        // saturates the main thread on long sessions.
+        switch event {
+        case .messageDelta, .reasoningDelta, .thinkingDelta:
+            break
+        default:
+            sessionStates[displayID] = state
+        }
         let isVisibleCoalescedDelta: Bool
         switch event {
         case .messageDelta, .reasoningDelta, .thinkingDelta:
@@ -1410,7 +1429,7 @@ final class ChatViewModel: ObservableObject {
         }
 
         switch event {
-        case .gatewayReady, .activityCreated, .activityUpdated:
+        case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary:
             break
 
         case .sessionInfo(let info):

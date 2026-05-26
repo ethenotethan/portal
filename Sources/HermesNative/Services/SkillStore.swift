@@ -126,8 +126,53 @@ final class SkillStore: ObservableObject {
     func setGatewayClient(_ client: GatewayClient?) {
         self.gatewayClient = client
         if client != nil, skills.isEmpty || needsRefresh {
-            Task { await preFetchAll() }
+            Task.detached(priority: .background) { [weak self] in
+                await self?.refreshSkillList()
+            }
         }
+    }
+
+    /// Fast refresh: list skills from gateway without fetching full details.
+    /// Skill content is lazy-loaded when the user types a slash command.
+    private func refreshSkillList() async {
+        guard let client = gatewayClient, !isPreFetching else { return }
+        isPreFetching = true
+        do {
+            let categoriesDict = try await client.listSkills()
+            var allSkills: [SkillInfo] = []
+
+            for (category, names) in categoriesDict {
+                for name in names {
+                    let slashCmd = "/\(name.lowercased().replacingOccurrences(of: " ", with: "-"))"
+                    let existing = skills.first { $0.name == name }
+                    allSkills.append(SkillInfo(
+                        name: name,
+                        description: existing?.description ?? "",
+                        category: category,
+                        source: existing?.source ?? "local",
+                        identifier: existing?.identifier,
+                        tags: existing?.tags ?? [],
+                        skillMdPath: existing?.skillMdPath,
+                        skillDir: existing?.skillDir,
+                        skillMdPreview: existing?.skillMdPreview,
+                        skillMdFullContent: existing?.skillMdFullContent,
+                        slashCommand: existing?.slashCommand ?? slashCmd
+                    ))
+                }
+            }
+
+            if allSkills.isEmpty {
+                let commands = (try? await client.scanSkillCommands()) ?? []
+                if !commands.isEmpty { allSkills = commands }
+            }
+
+            skills = allSkills.sorted { $0.name.lowercased() < $1.name.lowercased() }
+            lastUpdated = Date()
+            persistToDisk()
+        } catch {
+            log.error("SkillStore.refreshSkillList error: \(error.localizedDescription)")
+        }
+        isPreFetching = false
     }
 
     // MARK: - Public API
@@ -219,7 +264,9 @@ final class SkillStore: ObservableObject {
                 } catch {
                     log.warning("SkillStore.preFetchAll inspectSkill(\(skill.name)) failed: \(error.localizedDescription)")
                 }
-                await Task.yield()
+                // Throttle: space out RPCs to avoid saturating the WebSocket
+                // and competing with session create/prompt submits.
+                try? await Task.sleep(nanoseconds: 250_000_000)
             }
             persistToDisk()
             log.info("SkillStore.preFetchAll done: \(self.skills.count) skills fully loaded")
@@ -323,7 +370,7 @@ final class SkillStore: ObservableObject {
 
             preFetchTask?.cancel()
             preFetchTask = Task { @MainActor in
-                await preFetchAll()
+                await refreshSkillList()
                 isLoading = false
             }
         } catch {
