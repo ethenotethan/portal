@@ -261,6 +261,7 @@ final class SessionListViewModel: ObservableObject {
         var session = Session(id: shortHexID, messageCount: 0)
         session.gatewayID = shortHexID
         session.runState = .queued
+        session.lastActive = Date()
         localRunStates[shortHexID] = .queued
         sessions.append(session)
         activeSessionID = shortHexID
