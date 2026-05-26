@@ -14,7 +14,7 @@ struct MarkdownContentView: View, Equatable {
         self.isStreaming = isStreaming
     }
 
-    static func == (lhs: MarkdownContentView, rhs: MarkdownContentView) -> Bool {
+    nonisolated static func == (lhs: MarkdownContentView, rhs: MarkdownContentView) -> Bool {
         lhs.text == rhs.text && lhs.isStreaming == rhs.isStreaming
     }
 

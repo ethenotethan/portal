@@ -181,13 +181,13 @@ private struct NativeMermaidRenderer: View {
 
 // MARK: - Web (WKWebView) Fallback Renderer
 
-private let sharedMermaidProcessPool = WKProcessPool()
-private var mermaidImageCache: [String: PlatformImage] = [:]
+nonisolated(unsafe) private var mermaidImageCache: [String: PlatformImage] = [:]
 private let mermaidCacheLock = NSLock()
 
 #if os(macOS)
 private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
+    @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
     private var pendingCompletion: ((PlatformImage?) -> Void)?
     private var isBusy = false
@@ -195,7 +195,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
 
     override init() {
         let config = WKWebViewConfiguration()
-        config.processPool = sharedMermaidProcessPool
+        config.processPool = Self.processPool
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
         super.init()
@@ -250,6 +250,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
 #else
 private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
+    @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
     private var pendingCompletion: ((PlatformImage?) -> Void)?
     private var isBusy = false
@@ -257,7 +258,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
 
     override init() {
         let config = WKWebViewConfiguration()
-        config.processPool = sharedMermaidProcessPool
+        config.processPool = Self.processPool
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
