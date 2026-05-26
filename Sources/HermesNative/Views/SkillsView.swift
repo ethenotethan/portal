@@ -582,6 +582,7 @@ private struct SkillMarkdownSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+                    #if os(macOS)
                     HSplitView {
                         ScrollView {
                             MarkdownContentView(text: content)
@@ -611,6 +612,13 @@ private struct SkillMarkdownSheet: View {
                         .frame(minWidth: 400)
                         .background(Theme.background)
                     }
+                    #else
+                    ScrollView {
+                        MarkdownContentView(text: content)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    #endif
                 }
 
                 if isSaving {
@@ -633,10 +641,12 @@ private struct SkillMarkdownSheet: View {
                 }
             }
         }
+        #if os(macOS)
         .frame(
             minWidth: (NSScreen.main?.visibleFrame.width ?? 1200) * 0.85,
             minHeight: (NSScreen.main?.visibleFrame.height ?? 800) * 0.85
         )
+        #endif
         .background(Theme.background)
         .task { await loadMarkdown() }
     }
