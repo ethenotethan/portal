@@ -312,6 +312,7 @@ private struct WebMermaidRenderer: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var renderKey: String
+    @State private var renderTask: Task<Void, Never>?
 
     init(source: String) {
         self.source = source
@@ -331,8 +332,18 @@ private struct WebMermaidRenderer: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                 }
-                .onAppear(perform: loadCachedOrRender)
+                .onAppear { scheduleRender() }
+                .onDisappear { renderTask?.cancel() }
             }
+        }
+    }
+
+    private func scheduleRender() {
+        renderTask?.cancel()
+        renderTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            loadCachedOrRender()
         }
     }
 
