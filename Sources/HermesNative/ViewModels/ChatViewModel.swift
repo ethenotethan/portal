@@ -92,6 +92,7 @@ final class ChatViewModel: ObservableObject {
     /// Currently selected suggestion index for keyboard navigation.
     @Published var slashSelectedIndex: Int = 0
     @Published var refocusInput: Int = 0
+    private var pendingResumeKey: String?
 
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
@@ -487,6 +488,13 @@ final class ChatViewModel: ObservableObject {
             }
             return false
         }
+
+        guard pendingResumeKey != key else {
+            log.info("skipping duplicate resume for key=\(key) generation=\(generation)")
+            return false
+        }
+        pendingResumeKey = key
+        defer { pendingResumeKey = nil }
 
         let cachedBeforeResume = sessionStates[key]
 
