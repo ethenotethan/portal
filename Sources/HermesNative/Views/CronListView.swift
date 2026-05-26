@@ -373,12 +373,18 @@ struct CronJobDetailView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if job.isPromptTruncated {
                     HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle")
+                        Image(systemName: "info.circle")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
-                        Text("Gateway stores truncated prompts only")
+                            .foregroundStyle(Theme.accent)
+                        Text("Prompt may be truncated — edit to save the full version")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.secondary)
+                        Button("Edit Now") {
+                            editedPrompt = promptText
+                            isEditingPrompt = true
+                        }
+                        .font(.caption2)
+                        .buttonStyle(.borderless)
                     }
                     .padding(.horizontal, 2)
                 }

@@ -17,6 +17,7 @@ struct ContentView: View {
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var activityInbox = ActivityInboxViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showSettings = false
@@ -246,6 +247,9 @@ struct ContentView: View {
                     .environmentObject(gatewayClientWrapper)
                     .presentationDetents([.large])
             }
+        }
+        .onChange(of: showCronSheet) { _, presented in
+            if presented { cronRunStore.markAllCronRunsRead() }
         }
         .sheet(isPresented: $showActivitySheet) {
             ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
@@ -513,11 +517,23 @@ struct ContentView: View {
 
             Button {
                 showCronDashboard = true
+                CronRunHistoryStore.shared.markAllCronRunsRead()
             } label: {
                 Label("Cron", systemImage: "clock.badge.checkmark")
                     .labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
+            .overlay(alignment: .topTrailing) {
+                if cronRunStore.unreadCronRunCount > 0 {
+                    Text("\(cronRunStore.unreadCronRunCount)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Circle().fill(.red))
+                        .offset(x: 6, y: -4)
+                }
+            }
             .keyboardShortcut("k", modifiers: .command)
             .accessibilityLabel("Cron Dashboard")
 

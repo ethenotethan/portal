@@ -528,7 +528,6 @@ private struct SkillMarkdownSheet: View {
     @State private var saveError: String?
     @State private var loadError: String?
     @State private var hasChanges = false
-    @State private var isEditing = false
 
     var body: some View {
         NavigationStack {
@@ -537,11 +536,9 @@ private struct SkillMarkdownSheet: View {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
-                        Text(saveError)
-                            .font(.caption)
+                        Text(saveError).font(.caption)
                         Spacer()
-                        Button("Dismiss") { self.saveError = nil }
-                            .font(.caption)
+                        Button("Dismiss") { self.saveError = nil }.font(.caption)
                     }
                     .padding(10)
                     .background(Color.red.opacity(0.06))
@@ -555,55 +552,60 @@ private struct SkillMarkdownSheet: View {
                 } else if let loadError {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Theme.tertiary)
+                            .font(.system(size: 32)).foregroundStyle(Theme.tertiary)
                         Text("Could not load markdown")
-                            .font(.headline)
-                            .foregroundStyle(Theme.secondary)
+                            .font(.headline).foregroundStyle(Theme.secondary)
                         Text(loadError)
-                            .font(.caption)
-                            .foregroundStyle(Theme.tertiary)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: 320)
-                        Button("Retry") {
-                            Task { await loadMarkdown() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                            .font(.caption).foregroundStyle(Theme.tertiary)
+                            .multilineTextAlignment(.center).frame(maxWidth: 320)
+                        Button("Retry") { Task { await loadMarkdown() } }
+                            .buttonStyle(.bordered).controlSize(.small)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if content.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "doc.text")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Theme.tertiary)
+                            .font(.system(size: 32)).foregroundStyle(Theme.tertiary)
                         Text("No markdown content")
-                            .font(.headline)
-                            .foregroundStyle(Theme.secondary)
+                            .font(.headline).foregroundStyle(Theme.secondary)
                         Text("This skill does not have a SKILL.md file.")
-                            .font(.caption)
-                            .foregroundStyle(Theme.tertiary)
+                            .font(.caption).foregroundStyle(Theme.tertiary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if isEditing {
-                    TextEditor(text: $content)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(Theme.primary)
-                        .padding(8)
-                        .onChange(of: content) { _, _ in
-                            hasChanges = true
-                        }
                 } else {
-                    ScrollView {
-                        MarkdownContentView(text: content)
-                            .padding(16)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    HSplitView {
+                        ScrollView {
+                            MarkdownContentView(text: content)
+                                .padding(20)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(minWidth: 400)
+                        .background(Theme.background)
+
+                        VStack(spacing: 0) {
+                            Text("Edit Markdown")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.top, 12)
+                                .padding(.bottom, 6)
+                            TextEditor(text: $content)
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(Theme.primary)
+                                .padding(8)
+                                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 12)
+                                .onChange(of: content) { _, _ in hasChanges = true }
+                        }
+                        .frame(minWidth: 400)
+                        .background(Theme.background)
                     }
                 }
 
                 if isSaving {
-                    ProgressView("Saving…")
-                        .padding(8)
+                    ProgressView("Saving…").padding(8)
                 }
             }
             .background(Theme.background)
@@ -613,31 +615,21 @@ private struct SkillMarkdownSheet: View {
                     Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    HStack(spacing: 8) {
-                        if !content.isEmpty {
-                            Button {
-                                withAnimation { isEditing.toggle() }
-                            } label: {
-                                Label(isEditing ? "Preview" : "Edit",
-                                      systemImage: isEditing ? "doc.text.viewfinder" : "pencil")
-                            }
-                            .buttonStyle(.borderless)
+                    if !content.isEmpty {
+                        Button("Save") {
+                            Task { await saveMarkdown() }
                         }
-                        if isEditing {
-                            Button("Save") {
-                                Task { await saveMarkdown() }
-                            }
-                            .disabled(!hasChanges || isSaving)
-                        }
+                        .disabled(!hasChanges || isSaving)
                     }
                 }
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
+        .frame(
+            minWidth: (NSScreen.main?.visibleFrame.width ?? 1200) * 0.85,
+            minHeight: (NSScreen.main?.visibleFrame.height ?? 800) * 0.85
+        )
         .background(Theme.background)
-        .task {
-            await loadMarkdown()
-        }
+        .task { await loadMarkdown() }
     }
 
     private func loadMarkdown() async {
@@ -673,7 +665,6 @@ private struct SkillMarkdownSheet: View {
         isSaving = false
         if success {
             hasChanges = false
-            isEditing = false
         } else {
             saveError = "Failed to save. Check connection and try again."
         }

@@ -775,12 +775,12 @@ private struct CronJobCard: View {
                 Spacer()
                 if job.isPromptTruncated {
                     HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle")
+                        Image(systemName: "info.circle")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
-                        Text("Truncated")
+                            .foregroundStyle(Theme.accent)
+                        Text("May be truncated")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.secondary)
                     }
                 }
                 if !isEditingPrompt {

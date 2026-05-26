@@ -23,6 +23,7 @@ final class CronRunHistoryStore: ObservableObject {
     static let shared = CronRunHistoryStore()
 
     @Published private(set) var records: [CronRunRecord] = []
+    @Published var unreadCronRunCount: Int = 0
 
     private static let storageKey = "hermes.cronRunHistory"
     private let maxRecordsPerJob = 500
@@ -39,6 +40,10 @@ final class CronRunHistoryStore: ObservableObject {
         guard !testing else { return }
         load()
         rebuildPreviousState()
+    }
+
+    func markAllCronRunsRead() {
+        unreadCronRunCount = 0
     }
 
     func detectNewRuns(from jobs: [CronJob]) {
@@ -67,6 +72,9 @@ final class CronRunHistoryStore: ObservableObject {
                             status: job.lastStatus ?? "unknown",
                             jobID: job.id
                         )
+                    }
+                    if prev != nil {
+                        unreadCronRunCount += 1
                     }
                 }
                 previousLastRuns[job.id] = lastRun
