@@ -39,6 +39,7 @@ struct LongResponseView: View {
                 enhancedBody
             } else {
                 MarkdownContentView(text: text, isStreaming: isStreaming)
+                    .equatable()
             }
         }
         .task(id: isStreaming ? "streaming" : text) {

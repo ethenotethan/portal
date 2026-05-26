@@ -5,13 +5,17 @@ import Highlightr
 /// Parses and renders markdown content in a SwiftUI view.
 /// Uses Apple's built-in AttributedString(markdown:) for inline formatting
 /// and custom block parsing for code blocks, headings, lists, etc.
-struct MarkdownContentView: View {
+struct MarkdownContentView: View, Equatable {
     let text: String
     let isStreaming: Bool
 
     init(text: String, isStreaming: Bool = false) {
         self.text = text
         self.isStreaming = isStreaming
+    }
+
+    static func == (lhs: MarkdownContentView, rhs: MarkdownContentView) -> Bool {
+        lhs.text == rhs.text && lhs.isStreaming == rhs.isStreaming
     }
 
     var body: some View {
