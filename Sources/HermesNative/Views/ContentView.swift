@@ -233,6 +233,7 @@ struct ContentView: View {
                 SessionExplorerView(sessionID: sid, runtimeSessionID: missionControlRuntimeSessionID)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
+                    .environmentObject(sessionList)
                     .presentationDetents([.large])
             }
         }

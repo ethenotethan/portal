@@ -8,6 +8,7 @@ struct SessionExplorerView: View {
     var onDismiss: (() -> Void)?
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var sessionList: SessionListViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var selectedNodeID: String?
     @State private var showTranscriptFor: SpawnNode?
@@ -19,10 +20,20 @@ struct SessionExplorerView: View {
     @State private var isLoadingUsage = false
     @State private var usageError: String?
 
+    // Chat data
+    @State private var chatMessages: [ChatMessage] = []
+    @State private var isLoadingChat = false
+    @State private var chatError: String?
+
     enum ExplorerTab: String, CaseIterable {
         case tree = "Agents"
+        case chat = "Chat"
         case history = "History"
         case usage = "Usage"
+    }
+
+    private var session: Session? {
+        sessionList.sessions.first(where: { $0.id == sessionID })
     }
 
     private var tree: SessionTree? {
@@ -51,6 +62,8 @@ struct SessionExplorerView: View {
                     switch selectedTab {
                     case .tree:
                         treeOrEmpty
+                    case .chat:
+                        chatContent
                     case .history:
                         historyContent
                     case .usage:
@@ -87,6 +100,82 @@ struct SessionExplorerView: View {
             .padding(16)
     }
 
+    // MARK: - Chat Tab
+
+    private var chatContent: some View {
+        Group {
+            if isLoadingChat {
+                ProgressView("Loading conversation…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = chatError {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    Text("Cannot Load Chat")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if chatMessages.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    Text("No Messages")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("This session's conversation history is empty or unavailable.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(chatMessages) { message in
+                            ChatHistoryMessageView(message: message)
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+        .task { await loadChat() }
+    }
+
+    private func loadChat() async {
+        guard case .connected = gatewayClientWrapper.client.connectionState else {
+            chatError = "Not connected to gateway"
+            return
+        }
+        isLoadingChat = true
+        chatError = nil
+        do {
+            let raw: [[String: AnyCodable]]
+            if session?.isOwned == true {
+                raw = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcSessionID)
+            } else {
+                // session.history requires a short hex runtime ID.  Non-owned
+                // sessions only have the database key, so use peekSession which
+                // resumes, fetches messages, and closes the session immediately.
+                let peek = try await gatewayClientWrapper.client.peekSession(sessionKey: sessionID)
+                raw = peek.messages
+            }
+            chatMessages = ChatViewModel.parseHistoryMessages(raw)
+        } catch {
+            chatError = error.localizedDescription
+        }
+        isLoadingChat = false
+    }
+
     // MARK: - Tree Tab
 
     private var treeOrEmpty: some View {
@@ -102,6 +191,8 @@ struct SessionExplorerView: View {
     private func treeContent(tree: SessionTree) -> some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 12) {
+                sessionMetadataCard
+
                 // HUD
                 sessionHUD(tree: tree)
 
@@ -142,6 +233,71 @@ struct SessionExplorerView: View {
             Spacer()
         }
         .navigationTitle("Mission Control")
+    }
+
+    // MARK: - Session Metadata Card
+
+    @ViewBuilder
+    private var sessionMetadataCard: some View {
+        guard let session else { return AnyView(EmptyView()) }
+        return AnyView(
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(sessionList.titleForSession(session))
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(2)
+                    Spacer()
+                    if session.isLive {
+                        let state = session.displayRunState
+                        Text(state.displayName)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.success)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Theme.success.opacity(0.12), in: Capsule())
+                    } else {
+                        Text(session.status == .ended ? "Ended" : "Idle")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.secondary.opacity(0.12), in: Capsule())
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    if let source = session.source, !source.isEmpty {
+                        Label(source.capitalized, systemImage: sourceIcon(source))
+                            .font(.caption)
+                            .foregroundStyle(Theme.accent)
+                    }
+                    if session.messageCount > 0 {
+                        Label("\(session.messageCount) msgs", systemImage: "envelope")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let startedAt = session.startedAt {
+                        Label(startedAt.formatted(date: .abbreviated, time: .shortened),
+                              systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                if let preview = session.preview, !preview.isEmpty {
+                    Text(preview)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .padding(.top, 2)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        )
     }
 
     // MARK: - HUD (iOS-friendly: wrapping HStack → flow layout)
@@ -206,6 +362,18 @@ struct SessionExplorerView: View {
             Label("Interrupt", systemImage: "stop.fill")
         }
         .disabled(!tree.isRunning)
+    }
+
+    private func sourceIcon(_ source: String) -> String {
+        switch source.lowercased() {
+        case "native", "hermes native": return "macbook.and.iphone"
+        case "telegram": return "paperplane"
+        case "discord": return "headphones"
+        case "cli", "tui": return "terminal"
+        case "cron": return "clock"
+        case "web": return "globe"
+        default: return "questionmark.circle"
+        }
     }
 
     private func shortModel(_ model: String) -> String {
@@ -374,6 +542,62 @@ struct SessionExplorerView: View {
             }
         }
         isLoadingUsage = false
+    }
+}
+
+// MARK: - Chat History Message View
+
+private struct ChatHistoryMessageView: View {
+    let message: ChatMessage
+
+    var body: some View {
+        VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+            HStack {
+                if message.role == .user {
+                    Spacer(minLength: 60)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    if !message.content.isEmpty {
+                        Text(message.content)
+                            .font(.caption)
+                            .foregroundStyle(message.role == .user ? .white : Theme.primary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    ForEach(message.toolCalls) { tool in
+                        HStack(spacing: 4) {
+                            Image(systemName: "wrench.and.screwdriver")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                            Text(tool.name)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            if let summary = tool.summary {
+                                Text("·")
+                                    .foregroundStyle(.tertiary)
+                                Text(summary)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .padding(6)
+                        .background(Theme.surface.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                .padding(10)
+                .background(message.role == .user
+                    ? Theme.accent
+                    : Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                if message.role == .assistant {
+                    Spacer(minLength: 60)
+                }
+            }
+        }
     }
 }
 

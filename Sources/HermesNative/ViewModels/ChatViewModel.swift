@@ -517,7 +517,16 @@ final class ChatViewModel: ObservableObject {
                     // replace an in-memory live stream with non-streaming history when
                     // the user clicks away and back mid-tool-use; that is the exact
                     // path that made the live session appear to disappear.
-                    if liveState.messages.isEmpty {
+                    //
+                    // However, background delta events are skipped for performance
+                    // (see applySessionEvent), so the cached state may only contain
+                    // the empty assistant placeholder from messageStart.  When the
+                    // cache is stale (no assistant message with content), fall back
+                    // to the gateway's persisted history.
+                    let cachedHasContent = liveState.messages.contains(where: {
+                        $0.role == .assistant && (!$0.isStreaming || !$0.content.isEmpty)
+                    })
+                    if !cachedHasContent {
                         liveState.messages = parsedMessages
                     }
                     liveState.isSessionReady = true
@@ -669,7 +678,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Parse gateway history messages into ChatMessage array.
     /// Gateway format: {"role": "user"|"assistant"|"tool", "text": "...", "name": "...", "context": "..."}
-    private static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
+    static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
 
@@ -1231,6 +1240,20 @@ final class ChatViewModel: ObservableObject {
             }
         }
 
+        // Skip high-frequency delta events for background (non-visible)
+        // sessions.  Every delta triggers a copy-on-write clone of the full
+        // messages array — for long sessions this saturates the main thread
+        // and causes the spinning wheel.  Background session state is
+        // re-synced via the session.resume RPC when the user switches back.
+        switch event {
+        case .messageDelta, .reasoningDelta, .thinkingDelta:
+            if displaySessionID(for: sessionID ?? "") != displayID {
+                return
+            }
+        default:
+            break
+        }
+
         switch event {
         case .sessionInfo(let info):
             currentModel = info.model
@@ -1367,15 +1390,14 @@ final class ChatViewModel: ObservableObject {
             break
         }
 
-        // Only persist state for lifecycle events on the active session —
-        // delta events are too high-frequency and copying the full messages
-        // array every token saturates the main thread. For background
-        // sessions, persist delta state so it survives session switches.
+// Persist state for lifecycle events on every session.  Delta events
+        // for visible sessions are persisted by the coalesced flush timer
+        // (snapshotCurrentSessionState); background delta events return early
+        // above to avoid saturating the main thread with COW copies of the
+        // full messages array.
         switch event {
         case .messageDelta, .reasoningDelta, .thinkingDelta:
-            if displayID != displaySessionID(for: sessionID ?? "") {
-                sessionStates[displayID] = state
-            }
+            break
         default:
             sessionStates[displayID] = state
         }

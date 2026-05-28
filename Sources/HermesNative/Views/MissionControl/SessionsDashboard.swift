@@ -319,10 +319,19 @@ struct SessionsDashboard: View {
         let isLive = session.isLive
 
         return Button {
+            #if os(macOS)
+            // macOS renders this inline (ZStack) — no modal presentation,
+            // so dismiss() is a no-op that triggers a runtime assertion.
+            onOpenSession?(session.id)
+            #else
+            // iOS presents this as a sheet.  Dismiss the sheet first, then
+            // wait for the dismiss animation to finish before opening
+            // Mission Control to avoid simultaneous-sheet-presentation crash.
             dismiss()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                 onOpenSession?(session.id)
             }
+            #endif
         } label: {
             HStack(spacing: 12) {
                 runStateIcon(runState, isLive: isLive)
@@ -381,30 +390,42 @@ struct SessionsDashboard: View {
         .contextMenu {
             if session.isOwned {
                 Button {
+                    #if os(macOS)
+                    sessionList.selectSession(id: session.id)
+                    #else
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         sessionList.selectSession(id: session.id)
                     }
+                    #endif
                 } label: {
                     Label("Open Chat", systemImage: "bubble.left.and.bubble.right")
                 }
             }
 
             Button {
+                #if os(macOS)
+                onOpenSession?(session.id)
+                #else
                 dismiss()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     onOpenSession?(session.id)
                 }
+                #endif
             } label: {
                 Label("Mission Control", systemImage: "network")
             }
 
             if !session.isOwned {
                 Button {
+                    #if os(macOS)
+                    onOpenSession?(session.id)
+                    #else
                     dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         onOpenSession?(session.id)
                     }
+                    #endif
                 } label: {
                     Label("Observe", systemImage: "eye")
                 }

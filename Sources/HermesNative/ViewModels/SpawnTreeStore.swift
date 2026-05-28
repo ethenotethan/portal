@@ -46,9 +46,11 @@ final class SpawnTreeStore: ObservableObject {
         cancellables.removeAll()
         subscribedClient = client
         client.eventStream
-            .receive(on: RunLoop.main)
-            .sink { [weak self] event, sessionID in
-                self?.handleEvent(event, sessionID: sessionID)
+            .collect(.byTimeOrCount(DispatchQueue.main, .milliseconds(32), 30))
+            .sink { [weak self] batch in
+                for (event, sessionID) in batch {
+                    self?.handleEvent(event, sessionID: sessionID)
+                }
             }
             .store(in: &cancellables)
     }
@@ -58,6 +60,13 @@ final class SpawnTreeStore: ObservableObject {
     private func handleEvent(_ event: GatewayEvent, sessionID: String?) {
         switch event {
         case .messageDelta, .thinkingDelta, .reasoningDelta:
+            // Only buffer deltas for sessions that have a tree — avoids
+            // allocating thousands of tuples for sessions the user hasn't
+            // opened in Mission Control.
+            let runtimeID = sessionID ?? activeSessionID ?? ""
+            guard !runtimeID.isEmpty else { return }
+            let displayID = displayIDByRuntimeSessionID[runtimeID] ?? runtimeID
+            guard sessions.contains(where: { $0.sessionID == displayID || $0.sessionID == runtimeID }) else { return }
             pendingDeltaBatch.append((event, sessionID))
             scheduleDeltaFlush()
         default:
