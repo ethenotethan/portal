@@ -339,9 +339,38 @@ struct SessionObserverView: View {
     /// Load data for a session we own (we have the gateway short hex ID).
     private func loadOwnedSessionData() async {
         let rpcID = session.rpcID  // gatewayID (short hex)
-        async let historyTask = loadHistory(rpcID: rpcID)
         async let usageTask = loadUsage(rpcID: rpcID)
-        _ = await (historyTask, usageTask)
+
+        // Try session.history (lightweight, requires live short hex).
+        // If the session ended and the gateway cleaned up the runtime,
+        // the short hex may be stale -> 4001. Fall back to peekSession.
+        do {
+            let response = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcID)
+            historyMessages = response.compactMap { d -> ObserverMessage? in
+                guard let role = d["role"]?.stringValue else { return nil }
+                let content = d["text"]?.stringValue ?? d["content"]?.stringValue ?? ""
+                guard !content.isEmpty || role == "tool" else { return nil }
+                return ObserverMessage(
+                    role: role,
+                    content: String(content.prefix(2000)),
+                    toolName: d["name"]?.stringValue ?? d["tool_name"]?.stringValue,
+                    toolContext: d["context"]?.stringValue.map { String($0.prefix(2000)) }
+                )
+            }
+            if let firstUser = historyMessages.first(where: { $0.role == "user" }) {
+                sessionTitle = String(firstUser.content.prefix(80))
+            }
+        } catch let error as GatewayError {
+            if case .rpcError(let rpcErr) = error, rpcErr.code == 4001 {
+                await loadOtherSessionData()
+            } else {
+                loadError = "History unavailable: \(error.localizedDescription)"
+            }
+        } catch {
+            loadError = "History unavailable: \(error.localizedDescription)"
+        }
+
+        _ = await usageTask
     }
 
     /// Load data for a session from another transport using peekSession.

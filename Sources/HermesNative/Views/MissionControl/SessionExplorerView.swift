@@ -161,11 +161,24 @@ struct SessionExplorerView: View {
         do {
             let raw: [[String: AnyCodable]]
             if session?.isOwned == true {
-                raw = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcSessionID)
+                // Try session.history (lightweight, requires live short hex).
+                // If the session has ended and the gateway cleaned up the
+                // runtime, the short hex may be stale → 4001. Fall back to
+                // peekSession which resumes from the persistent database key.
+                do {
+                    raw = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcSessionID)
+                } catch let error as GatewayError {
+                    if case .rpcError(let rpcErr) = error, rpcErr.code == 4001 {
+                        let peek = try await gatewayClientWrapper.client.peekSession(sessionKey: sessionID)
+                        raw = peek.messages
+                    } else {
+                        throw error
+                    }
+                }
             } else {
-                // session.history requires a short hex runtime ID.  Non-owned
-                // sessions only have the database key, so use peekSession which
-                // resumes, fetches messages, and closes the session immediately.
+                // Non-owned sessions only have the database key, so use
+                // peekSession which resumes, fetches messages, and closes
+                // the session immediately.
                 let peek = try await gatewayClientWrapper.client.peekSession(sessionKey: sessionID)
                 raw = peek.messages
             }
