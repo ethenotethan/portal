@@ -8,11 +8,17 @@ private let log = Logger(
     category: "MermaidDiagramView"
 )
 
+/// BeautifulMermaid native renderer supports exactly 6 diagram types:
+/// flowchart, stateDiagram, sequenceDiagram, classDiagram, erDiagram, xyChart.
+/// Aliases (graph, sequence, class, er) are NOT natively supported and
+/// should fall through to the WKWebView-based mermaid.js renderer.
 private let nativeDiagramTypes: Set<String> = [
-    "flowchart", "graph", "sequence", "sequencediagram", "sequenceDiagram",
-    "class", "classDiagram", "classdiagram",
-    "er", "erDiagram", "erdiagram",
-    "xychart", "xyChart", "xychart-beta",
+    "flowchart",
+    "sequenceDiagram",
+    "stateDiagram",
+    "classDiagram",
+    "erDiagram",
+    "xychart", "xychart-beta", "xyChart",
 ]
 
 private let knownDiagramKeywords: Set<String> = [
@@ -27,9 +33,10 @@ private let knownDiagramKeywords: Set<String> = [
 
 struct MermaidDiagramView: View {
     let mermaidCode: String
+    let isStreaming: Bool
 
     var body: some View {
-        MermaidRendererCoordinator(source: mermaidCode)
+        MermaidRendererCoordinator(source: mermaidCode, isStreaming: isStreaming)
     }
 }
 
@@ -37,6 +44,7 @@ struct MermaidDiagramView: View {
 
 private struct MermaidRendererCoordinator: View {
     let source: String
+    let isStreaming: Bool
     @State private var useFallback = false
 
     private var cleanedSource: String {
@@ -48,6 +56,23 @@ private struct MermaidRendererCoordinator: View {
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return s
+    }
+
+    /// Stable identity key that prevents SwiftUI from destroying/recreating
+    /// the WKWebView on every token during streaming.  When the source appears
+    /// to still be streaming (no closing fence, or isStreaming flag set), we
+    /// key on the diagram type line only.  Once complete we key on the full
+    /// content hash so the final render reflects the settled source.
+    private var stabilityKey: String {
+        let trimmed = cleanedSource.trimmingCharacters(in: .whitespacesAndNewlines)
+        let looksComplete = trimmed.hasSuffix("```") || !isStreaming
+
+        if looksComplete {
+            return "done-\\(cleanedSource.hashValue)"
+        }
+        // Streaming — stable identity on first line (diagram type)
+        let firstLine = cleanedSource.split(separator: "\n").first ?? "diagram"
+        return "streaming-\\(firstLine)"
     }
 
     private var diagramType: String? {
@@ -65,13 +90,16 @@ private struct MermaidRendererCoordinator: View {
     }
 
     var body: some View {
-        if useFallback || !isNativeSupported {
-            WebMermaidRenderer(source: cleanedSource)
-        } else {
-            NativeMermaidRenderer(source: cleanedSource) {
-                useFallback = true
+        Group {
+            if useFallback || !isNativeSupported {
+                WebMermaidRenderer(source: cleanedSource)
+            } else {
+                NativeMermaidRenderer(source: cleanedSource) {
+                    useFallback = true
+                }
             }
         }
+        .id(stabilityKey)
     }
 }
 
