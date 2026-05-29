@@ -199,6 +199,23 @@ struct SessionExplorerView: View {
                 emptyTreeState
             }
         }
+        .onAppear {
+            backfillTranscriptFromDiskIfNeeded()
+        }
+    }
+
+    private func backfillTranscriptFromDiskIfNeeded() {
+        guard let tree, tree.root.transcript.isEmpty else { return }
+        guard let localMessages = ChatHistoryStore.shared.loadMessages(forSession: sessionID) else { return }
+        for msg in localMessages {
+            let role: NodeTranscriptEntry.Role
+            switch msg.role {
+            case .user: role = .user
+            case .assistant: role = .assistant
+            }
+            tree.root.transcript.append(NodeTranscriptEntry(role: role, content: msg.content))
+        }
+        tree.objectWillChange.send()
     }
 
     private func treeContent(tree: SessionTree) -> some View {

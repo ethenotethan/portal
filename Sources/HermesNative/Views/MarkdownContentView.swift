@@ -642,6 +642,7 @@ struct DiagramPreviewBlock: View {
             MermaidDiagramView(mermaidCode: mermaidCode)
                 .frame(height: 180)
                 .clipped()
+                .drawingGroup()
                 .allowsHitTesting(false)
                 .contentShape(Rectangle())
                 .onTapGesture {

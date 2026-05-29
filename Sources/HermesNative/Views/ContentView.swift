@@ -18,6 +18,7 @@ struct ContentView: View {
     @StateObject private var activityInbox = ActivityInboxViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
+    @StateObject private var cronPoller = CronPoller()
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showSettings = false
@@ -844,20 +845,10 @@ struct ContentView: View {
         activityInbox.setGatewayClient(client)
         SkillStore.shared.setGatewayClient(client)
         observeChatRunState()
-        spawnTreeStore.subscribe(to: client)
-
-        Task {
-            await sessionList.refreshSessions()
-            if chatViewModel.isSessionReady, let sid = chatViewModel.currentSessionID {
-                if chatViewModel.messages.isEmpty {
-                    chatViewModel.loadLocalHistory(sessionID: sid)
-                }
-                sessionList.selectSession(id: sid)
-                spawnTreeStore.createTree(sessionID: sid)
-                spawnTreeStore.bindRuntimeSession(displayID: sid, runtimeID: sid)
-            }
-        }
+spawnTreeStore.subscribe(to: client)
+        cronPoller.setGatewayClient(client)
     }
+
     private func observeChatRunState() {
         guard chatRunStateCancellable == nil else { return }
         chatRunStateCancellable = chatViewModel.$isStreaming
