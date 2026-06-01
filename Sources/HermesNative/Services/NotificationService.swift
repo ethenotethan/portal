@@ -1,6 +1,12 @@
 import Foundation
 import UserNotifications
 import os
+#if canImport(AppKit)
+import AppKit
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "NotificationService")
 
@@ -155,7 +161,12 @@ final class NotificationService: NSObject, ObservableObject {
         if let subtitle { content.subtitle = subtitle }
         content.sound = .default
         content.categoryIdentifier = category.rawValue
-        if let sessionID { content.userInfo["session_id"] = sessionID }
+        if let sessionID {
+            content.userInfo["session_id"] = sessionID
+            if let url = HermesNativeDeepLink.session(sessionID).url {
+                content.userInfo["url"] = url.absoluteString
+            }
+        }
 
         let request = UNNotificationRequest(
             identifier: id,
@@ -208,16 +219,43 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         }
     }
 
-    /// Handle notification tap — switch to the relevant session.
+    /// Handle notification tap — bring the app forward and route to the
+    /// relevant session via a registered URL scheme.
+    ///
+    /// On macOS, an in-process `NotificationCenter.post` is invisible if the
+    /// process is dead and unreliable if the app is already running but not
+    /// frontmost — macOS will not necessarily deliver a new process to the
+    /// prior instance, and the user sees a freshly-spawned copy. Routing
+    /// through the `hermesnative://` URL scheme guarantees Launch Services
+    /// hands the URL to the existing app process (or launches one and
+    /// delivers the URL on first run), so the user lands in the right session.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let sessionID = userInfo["session_id"] as? String {
-            Task { @MainActor in
-                // Post a notification that ContentView can observe
+        let sessionID = userInfo["session_id"] as? String
+        let urlString = userInfo["url"] as? String
+
+        Task { @MainActor in
+            Self.activateAppForUserInteraction()
+
+            if let urlString, let url = URL(string: urlString) {
+                #if os(macOS)
+                // Launch Services routes this to the app's .onOpenURL handler
+                // in the existing process if running, or on first launch if not.
+                NSWorkspace.shared.open(url)
+                #else
+                // iOS already activates the app and delivers .onOpenURL when
+                // a notification is tapped, so this is a no-op fallback for
+                // any custom deep-link path we might add later.
+                UIApplication.shared.open(url)
+                #endif
+            } else if let sessionID {
+                // Backwards-compat: notifications posted before the URL
+                // scheme was wired up still carry only a session_id. Fall
+                // back to the in-process post so we don't break those.
                 NotificationCenter.default.post(
                     name: .hermesSwitchToSession,
                     object: nil,
@@ -226,6 +264,20 @@ extension NotificationService: UNUserNotificationCenterDelegate {
             }
         }
         completionHandler()
+    }
+
+    /// Bring the app to the foreground. macOS will not auto-activate on a
+    /// notification tap and will silently spawn a duplicate if activation
+    /// is missing. We make any existing window key and order it forward.
+    /// On iOS the system handles activation for us.
+    @MainActor
+    static func activateAppForUserInteraction() {
+        #if os(macOS)
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows where window.canBecomeKey {
+            window.makeKeyAndOrderFront(nil)
+        }
+        #endif
     }
 }
 

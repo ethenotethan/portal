@@ -115,6 +115,8 @@ private final class Coordinator: NSObject {
     private var labelContainer: SCNNode?
     private var lastTopologyKey: String = ""
     private let labelDistanceThreshold: Float = 350
+    private let cameraMinDistance: Float = 100
+    private let cameraMaxDistance: Float = 1500
 
     init(viewModel: WikiGraphViewModel) {
         self.viewModel = viewModel
@@ -122,6 +124,8 @@ private final class Coordinator: NSObject {
 
     @MainActor
     func sync(from vm: WikiGraphViewModel, in scnView: SCNView) {
+        clampCamera(scnView)
+
         let topologyKey = vm.simNodes.map { $0.id }.sorted().joined(separator: ",")
         if topologyKey != lastTopologyKey || nodeMap.isEmpty {
             rebuildScene(from: vm, in: scnView)
@@ -350,6 +354,18 @@ private final class Coordinator: NSObject {
         selectNode(at: pt, scnView: scnView)
     }
     #endif
+
+    @MainActor
+    private func clampCamera(_ scnView: SCNView) {
+        guard let cameraNode = scnView.pointOfView ?? scnView.scene?.rootNode.childNodes.first(where: { $0.camera != nil }),
+              let camera = cameraNode.camera else { return }
+        let dist = simd_length(cameraNode.simdPosition)
+        if dist < cameraMinDistance || dist > cameraMaxDistance {
+            let clamped = simd_clamp(dist, cameraMinDistance, cameraMaxDistance)
+            let dir = cameraNode.simdPosition / dist
+            cameraNode.simdPosition = dir * clamped
+        }
+    }
 
     @MainActor
     private func selectNode(at point: CGPoint, scnView: SCNView) {

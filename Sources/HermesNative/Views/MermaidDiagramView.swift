@@ -67,7 +67,7 @@ private struct MermaidRendererCoordinator: View {
                     // which legitimately uses `(( ... ))` for circle shape.
                     let trimmed = line.trimmingCharacters(in: .whitespaces)
                     if trimmed.hasPrefix("root((") || trimmed.hasPrefix("root)") {
-                        return line
+                        return String(line)
                     }
                     return String(line.unicodeScalars.filter { !shapeDelimiters.contains($0) })
                 }
