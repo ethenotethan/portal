@@ -640,7 +640,7 @@ struct DiagramPreviewBlock: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
+MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
                 .frame(minHeight: 200, idealHeight: 400)
                 .clipped()
                 .drawingGroup()

@@ -8,3 +8,4 @@ HermesNative.xcodeproj/project.xcworkspace/xcuserdata/
 **/__pycache__/
 *.pyc
 google-cloud-sdk/
+.build-xcode/

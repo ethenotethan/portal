@@ -78,13 +78,18 @@ struct ContentView: View {
             }
         }
         .task {
-            if settings.isConfigured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
+            if settings.isConfigured {
                 _ = await gatewayClientWrapper.connectIfNeeded(using: settings)
                 wireUpClient()
             }
         }
+        .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
+            if connected {
+                Task { await sessionList.refreshSessions() }
+            }
+        }
         .onChange(of: settings.isConfigured) { _, configured in
-            if configured && (!settings.needsCFAuth || settings.cfAuthCookie != nil) {
+            if configured {
                 Task {
                     await gatewayClientWrapper.connect(using: settings)
                     wireUpClient()
@@ -878,6 +883,11 @@ spawnTreeStore.subscribe(to: client)
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
         if newPhase != .active {
             chatViewModel.saveHistory()
+        } else if settings.isConfigured, !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
+            Task {
+                await gatewayClientWrapper.connectIfNeeded(using: settings)
+                wireUpClient()
+            }
         }
         NotificationService.shared.isForegrounded = (newPhase == .active)
     }

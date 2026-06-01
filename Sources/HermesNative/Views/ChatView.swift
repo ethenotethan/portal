@@ -856,46 +856,48 @@ struct ChatInputBar: View {
     // MARK: - Slash Autocomplete Overlay
 
     private var slashAutocompleteOverlay: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: true) {
-                VStack(spacing: 0) {
-                    ForEach(Array(chatViewModel.slashSuggestions.enumerated().prefix(50)), id: \.element.id) { idx, skill in
-                        Button {
-                            chatViewModel.slashSelectedIndex = idx
-                            chatViewModel.confirmSlashSelection()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(skill.slashCommand)
-                                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(Theme.accent)
-                                Text(skill.name)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Theme.primary)
-                                Spacer()
-                                if !skill.description.isEmpty {
-                                    Text(skill.description)
-                                        .font(.caption2)
-                                        .foregroundStyle(Theme.tertiary)
-                                        .lineLimit(1)
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: true) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(chatViewModel.slashSuggestions.enumerated()), id: \.element.id) { idx, skill in
+                            Button {
+                                chatViewModel.slashSelectedIndex = idx
+                                chatViewModel.confirmSlashSelection()
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text(skill.slashCommand)
+                                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(Theme.accent)
+                                    Text(skill.name)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Theme.primary)
+                                    Spacer()
+                                    if !skill.description.isEmpty {
+                                        Text(skill.description)
+                                            .font(.caption2)
+                                            .foregroundStyle(Theme.tertiary)
+                                            .lineLimit(1)
+                                    }
                                 }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .buttonStyle(.plain)
-                        .background(idx == chatViewModel.slashSelectedIndex ? Theme.accent.opacity(0.15) : Color.clear)
-                        .id(idx)
-                        if idx < chatViewModel.slashSuggestions.prefix(50).count - 1 {
-                            Divider().background(Theme.border)
+                            .buttonStyle(.plain)
+                            .background(idx == chatViewModel.slashSelectedIndex ? Theme.accent.opacity(0.15) : Color.clear)
+                            .id(idx)
+                            if idx < chatViewModel.slashSuggestions.count - 1 {
+                                Divider().background(Theme.border)
+                            }
                         }
                     }
                 }
-            }
-            .frame(maxHeight: 220)
-            .onChange(of: chatViewModel.slashSelectedIndex) { _, newIdx in
-                withAnimation {
-                    proxy.scrollTo(newIdx, anchor: .center)
+                .frame(maxHeight: 300)
+                .onChange(of: chatViewModel.slashSelectedIndex) { _, newIdx in
+                    withAnimation {
+                        proxy.scrollTo(newIdx, anchor: .center)
+                    }
                 }
             }
         }

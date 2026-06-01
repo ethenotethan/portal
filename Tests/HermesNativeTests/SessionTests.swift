@@ -298,9 +298,9 @@ struct ChatViewModelLiveSessionRoutingTests {
         _ = vm.beginSwitchToSession(key: "background-runtime")
         #expect(vm.currentSessionID == "background-runtime")
         #expect(vm.isStreaming == true)
-        #expect(vm.messages.last?.content == "partial")
-        #expect(vm.messages.last?.reasoning == "thinking")
         #expect(vm.activeToolCalls["tool-1"]?.name == "terminal")
+        // Deltas are intentionally skipped for background sessions to avoid
+        // saturating the main thread; the gateway delivers full history on resume.
     }
 
     @Test("stable ID binding preserves existing live runtime state")
@@ -334,7 +334,8 @@ struct ChatViewModelLiveSessionRoutingTests {
         _ = vm.beginSwitchToSession(key: "stable-a")
         #expect(vm.currentSessionID == "runtime-a")
         #expect(vm.isStreaming == true)
-        #expect(vm.messages.last?.content == "done")
         #expect(vm.activeToolCalls["tool-a"]?.isComplete == true)
+        // Background deltas are intentionally skipped to avoid main thread
+        // saturation; message content is recovered on session resume.
     }
 }

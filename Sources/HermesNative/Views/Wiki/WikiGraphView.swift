@@ -13,6 +13,10 @@ final class GraphMouseView: NSView {
     var onMouseDragged: ((CGPoint) -> Void)?
     var onMouseUp: ((CGPoint) -> Void)?
     var onScrollWheel: ((CGSize) -> Void)?
+    var onMouseMoved: ((CGPoint) -> Void)?
+    var onMouseExited: (() -> Void)?
+
+    private var trackingAreaRef: NSTrackingArea?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -29,6 +33,21 @@ final class GraphMouseView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingAreaRef {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingAreaRef = area
+    }
+
     override func mouseDown(with event: NSEvent) {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseDown?(pt)
@@ -44,6 +63,15 @@ final class GraphMouseView: NSView {
         onMouseUp?(pt)
     }
 
+    override func mouseMoved(with event: NSEvent) {
+        let pt = convert(event.locationInWindow, from: nil)
+        onMouseMoved?(pt)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onMouseExited?()
+    }
+
     override func scrollWheel(with event: NSEvent) {
         let delta = CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)
         onScrollWheel?(delta)
@@ -56,6 +84,8 @@ struct GraphMouseInterceptor: NSViewRepresentable {
     var onMouseDragged: ((CGPoint) -> Void)?
     var onMouseUp: ((CGPoint) -> Void)?
     var onScrollWheel: ((CGSize) -> Void)?
+    var onMouseMoved: ((CGPoint) -> Void)?
+    var onMouseExited: (() -> Void)?
 
     func makeNSView(context: Context) -> GraphMouseView {
         let v = GraphMouseView()
@@ -63,6 +93,8 @@ struct GraphMouseInterceptor: NSViewRepresentable {
         v.onMouseDragged = onMouseDragged
         v.onMouseUp = onMouseUp
         v.onScrollWheel = onScrollWheel
+        v.onMouseMoved = onMouseMoved
+        v.onMouseExited = onMouseExited
         return v
     }
 
@@ -71,6 +103,8 @@ struct GraphMouseInterceptor: NSViewRepresentable {
         nsView.onMouseDragged = onMouseDragged
         nsView.onMouseUp = onMouseUp
         nsView.onScrollWheel = onScrollWheel
+        nsView.onMouseMoved = onMouseMoved
+        nsView.onMouseExited = onMouseExited
     }
 }
 #endif
@@ -92,26 +126,38 @@ struct WikiGraphView: View {
         case idle, deciding, panning, draggingNode
     }
 
+    private enum GraphViewMode { case twoD, threeD }
+
     private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    @State private var viewMode: GraphViewMode = .twoD
 
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 ZStack {
-                    graphCanvas
+                    if viewMode == .threeD {
+                        WikiGraph3DView(viewModel: viewModel)
+                    } else {
+                        graphCanvas
 
-                    #if os(macOS)
-                    GraphMouseInterceptor(
-                        onMouseDown: { pt in handleMouseDown(pt) },
-                        onMouseDragged: { pt in handleMouseDragged(pt) },
-                        onMouseUp: { pt in handleMouseUp(pt) },
-                        onScrollWheel: { delta in handleScrollWheel(delta) }
-                    )
-                    #else
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(iosDragGesture)
-                    #endif
+                        #if os(macOS)
+                        GraphMouseInterceptor(
+                            onMouseDown: { pt in handleMouseDown(pt) },
+                            onMouseDragged: { pt in handleMouseDragged(pt) },
+                            onMouseUp: { pt in handleMouseUp(pt) },
+                            onScrollWheel: { delta in handleScrollWheel(delta) },
+                            onMouseMoved: { pt in
+                                if mouseState == .idle { viewModel.updateHover(at: pt) }
+                            },
+                            onMouseExited: { viewModel.clearHover() }
+                        )
+                        #else
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .gesture(iosDragGesture)
+                        #endif
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onReceive(timer) { _ in
@@ -196,6 +242,46 @@ struct WikiGraphView: View {
                 Text("\(viewModel.graph.pages.count) pages · \(viewModel.graph.links.count) links")
                     .font(.caption)
                     .foregroundStyle(Theme.secondary)
+
+                if viewModel.isFiltering {
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.accent)
+                        Text("\(viewModel.filteredNodeIndices.count) of \(viewModel.simNodes.count) nodes")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.accent)
+                        Button {
+                            viewModel.searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    TextField("Search…", text: $viewModel.searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                        .frame(minWidth: 80)
+                        .onSubmit { /* just focus — filtering is live */ }
+                    if !viewModel.searchQuery.isEmpty {
+                        Button {
+                            viewModel.searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: 5))
             }
             .padding(10)
             .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 10))
@@ -329,7 +415,7 @@ struct WikiGraphView: View {
     // MARK: - Graph Canvas
 
     private var graphCanvas: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             Canvas { context, size in
                 let wasZero = viewModel.canvasSize == .zero
                 viewModel.canvasSize = size
@@ -337,89 +423,149 @@ struct WikiGraphView: View {
                     viewModel.setupSimulation()
                 }
 
-                let hasSelection = viewModel.selectedNodeIndex != nil
+                let hasSelection = viewModel.highlightAnchor != nil
+                let filtering = viewModel.isFiltering
+                let filteredSet = viewModel.filteredNodeIndices
 
                 context.translateBy(x: viewModel.panOffset.width, y: viewModel.panOffset.height)
                 context.scaleBy(x: viewModel.zoom, y: viewModel.zoom)
 
+                // ── Curved edges ──
                 for (si, ti) in viewModel.simLinks {
                     guard viewModel.simNodes.indices.contains(si),
                           viewModel.simNodes.indices.contains(ti) else { continue }
 
                     let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
-                    let opacity: CGFloat = isConnected ? 0.5 : 0.08
-                    let lineWidth: CGFloat = isConnected ? 1.5 : 0.5
+                    let linkFilterMatch = !filtering || (filteredSet.contains(si) || filteredSet.contains(ti))
+                    let opacity: CGFloat = isConnected ? (linkFilterMatch ? 0.55 : 0.06) : 0.06
+                    let lineWidth: CGFloat = isConnected ? 1.6 : 0.5
                     let color = isConnected
-                        ? Color(hex: "7c7cff")!.opacity(opacity)
+                        ? Color(hex: "8a8aff")!.opacity(opacity)
                         : Theme.secondary.opacity(opacity)
 
                     let sp = viewModel.simNodes[si].position
                     let tp = viewModel.simNodes[ti].position
+
+                    // Gentle quadratic curve: bow the line perpendicular to its
+                    // direction for an organic, neural-network feel.
+                    let mid = CGPoint(x: (sp.x + tp.x) / 2, y: (sp.y + tp.y) / 2)
+                    let dx = tp.x - sp.x
+                    let dy = tp.y - sp.y
+                    let len = max(hypot(dx, dy), 1)
+                    let bow: CGFloat = min(len * 0.12, 26)
+                    let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
+
                     var path = Path()
                     path.move(to: sp)
-                    path.addLine(to: tp)
+                    path.addQuadCurve(to: tp, control: ctrl)
                     context.stroke(path, with: .color(color), lineWidth: lineWidth)
 
                     if isConnected, hasSelection,
-                       viewModel.simNodes.indices.contains(si),
-                       viewModel.simNodes.indices.contains(ti),
-                       let selIdx = viewModel.selectedNodeIndex {
-                        let mid = CGPoint(x: (sp.x + tp.x) / 2, y: (sp.y + tp.y) / 2)
+                       let selIdx = viewModel.selectedNodeIndex,
+                       viewModel.simNodes.indices.contains(selIdx) {
                         let source = viewModel.simNodes[si]
                         let target = viewModel.simNodes[ti]
                         let labelText: String
                         if source.id == viewModel.simNodes[selIdx].id {
                             labelText = "→ \(target.label)"
-                        } else {
+                        } else if target.id == viewModel.simNodes[selIdx].id {
                             labelText = "← \(source.label)"
+                        } else {
+                            labelText = ""
                         }
-                        context.draw(
-                            Text(labelText)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(Color(hex: "7c7cff")!.opacity(0.7)),
-                            at: mid, anchor: .center
+                        if !labelText.isEmpty {
+                            context.draw(
+                                Text(labelText)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(Color(hex: "8a8aff")!.opacity(0.7)),
+                                at: ctrl, anchor: .center
+                            )
+                        }
+                    }
+                }
+
+                // ── Nodes with radial glow + gradient ──
+                let drawOrder = viewModel.simNodes.indices.sorted {
+                    viewModel.simNodes[$0].position.y < viewModel.simNodes[$1].position.y
+                }
+                for index in drawOrder {
+                    let node = viewModel.simNodes[index]
+                    let isSelected = viewModel.selectedNodeIndex == index
+                    let isHovered = viewModel.hoveredNodeIndex == index
+                    let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
+                    let matchFilter = !filtering || filteredSet.contains(index)
+                    let baseOpacity: CGFloat = isConnected ? (matchFilter ? 1.0 : 0.13) : 0.18
+                    let r = viewModel.nodeRadius(at: index)
+                    let base = viewModel.color(for: node.type)
+                    let pos = node.position
+
+                    // Glow halo
+                    if isConnected {
+                        let glowR = r * (isSelected || isHovered ? 3.4 : 2.4)
+                        let glowRect = CGRect(x: pos.x - glowR, y: pos.y - glowR,
+                                              width: glowR * 2, height: glowR * 2)
+                        let glow = GraphicsContext.Shading.radialGradient(
+                            Gradient(colors: [
+                                base.opacity(isSelected || isHovered ? 0.45 : 0.22),
+                                base.opacity(0)
+                            ]),
+                            center: pos, startRadius: 0, endRadius: glowR
+                        )
+                        context.fill(Path(ellipseIn: glowRect), with: glow)
+                    }
+
+                    // Selection / hover ring
+                    if isSelected || isHovered {
+                        let ringR = r + (isSelected ? 5 : 3)
+                        let ringRect = CGRect(x: pos.x - ringR, y: pos.y - ringR,
+                                              width: ringR * 2, height: ringR * 2)
+                        context.stroke(
+                            Path(ellipseIn: ringRect),
+                            with: .color(.white.opacity(isSelected ? 0.85 : 0.5)),
+                            lineWidth: isSelected ? 2 : 1.2
                         )
                     }
+
+                    // Node body — radial gradient for depth
+                    let nodeRect = CGRect(x: pos.x - r, y: pos.y - r, width: r * 2, height: r * 2)
+                    let bodyShading = GraphicsContext.Shading.radialGradient(
+                        Gradient(colors: [
+                            base.opacity(baseOpacity),
+                            base.opacity(baseOpacity * 0.62)
+                        ]),
+                        center: CGPoint(x: pos.x - r * 0.3, y: pos.y - r * 0.3),
+                        startRadius: 0, endRadius: r * 1.4
+                    )
+                    context.fill(Path(ellipseIn: nodeRect), with: bodyShading)
+                    context.stroke(
+                        Path(ellipseIn: nodeRect),
+                        with: .color(.white.opacity(isConnected ? 0.45 : 0.15)),
+                        lineWidth: 0.8
+                    )
                 }
 
-                let sorted = viewModel.simNodes.enumerated().sorted { (a, b) in
-                    a.element.position.y < b.element.position.y
-                }
-                for (index, node) in sorted {
-                    let isSelected = viewModel.selectedNodeIndex == index
-                    let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
-                    let baseOpacity = isConnected ? 1.0 : 0.2
-                    let r = viewModel.nodeRadius(for: node.type)
-                    let ellipse = CGRect(x: node.position.x - r, y: node.position.y - r,
-                                         width: r * 2, height: r * 2)
-
-                    if isSelected {
-                        let ringRect = CGRect(x: node.position.x - r - 4,
-                                               y: node.position.y - r - 4,
-                                               width: r * 2 + 8, height: r * 2 + 8)
-                        context.fill(Path(ellipseIn: ringRect), with: .color(.white.opacity(0.3)))
-                    }
-
-                    context.fill(Path(ellipseIn: ellipse),
-                                 with: .color(viewModel.color(for: node.type).opacity(baseOpacity)))
-                    context.stroke(Path(ellipseIn: ellipse),
-                                   with: .color(.white.opacity(isSelected ? 0.8 : 0.3)))
-                }
-
+                // ── Labels (screen space, unscaled) ──
                 context.transform = .identity
+                let neighborSet = Set(viewModel.selectedNodeNeighbors())
                 for (index, node) in viewModel.simNodes.enumerated() {
                     let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
-                    guard isConnected else { continue }
+                    let matchesFilter = !filtering || filteredSet.contains(index)
+                    guard isConnected && matchesFilter else { continue }
+                    let isAnchor = viewModel.selectedNodeIndex == index || viewModel.hoveredNodeIndex == index
+                    let isNeighbor = neighborSet.contains(index)
+                    if viewModel.zoom < 0.7 && !isAnchor && !isNeighbor { continue }
+                    let r = viewModel.nodeRadius(at: index)
                     let screenPos = CGPoint(
-                        x: node.position.x * viewModel.zoom + viewModel.panOffset.width + 10,
-                        y: node.position.y * viewModel.zoom + viewModel.panOffset.height + 4
+                        x: node.position.x * viewModel.zoom + viewModel.panOffset.width + r * viewModel.zoom + 4,
+                        y: node.position.y * viewModel.zoom + viewModel.panOffset.height
                     )
                     guard screenPos.x > -50, screenPos.x < size.width + 50,
                           screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
                     context.draw(
                         Text(node.label)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.white.opacity(0.85)),
+                            .font(.system(size: isAnchor ? 12 : 11,
+                                          weight: isAnchor ? .semibold : .medium))
+                            .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
                         at: screenPos, anchor: .leading
                     )
                 }
@@ -566,7 +712,9 @@ struct WikiGraphView: View {
         HStack(spacing: 6) {
             Button {
                 let c = CGPoint(x: viewModel.canvasSize.width / 2, y: viewModel.canvasSize.height / 2)
-                viewModel.zoomAtPoint(factor: 0.8, around: c)
+                withAnimation(.easeOut(duration: 0.22)) {
+                    viewModel.zoomAtPoint(factor: 0.8, around: c)
+                }
             } label: {
                 Image(systemName: "minus.magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
@@ -579,7 +727,9 @@ struct WikiGraphView: View {
 
             Button {
                 let c = CGPoint(x: viewModel.canvasSize.width / 2, y: viewModel.canvasSize.height / 2)
-                viewModel.zoomAtPoint(factor: 1.25, around: c)
+                withAnimation(.easeOut(duration: 0.22)) {
+                    viewModel.zoomAtPoint(factor: 1.25, around: c)
+                }
             } label: {
                 Image(systemName: "plus.magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
@@ -587,12 +737,27 @@ struct WikiGraphView: View {
             .buttonStyle(.borderless)
 
             Button {
-                viewModel.resetView()
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    viewModel.resetView()
+                }
             } label: {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
+
+            Divider().frame(height: 14)
+
+            Button {
+                viewMode = viewMode == .twoD ? .threeD : .twoD
+                viewModel.is3D = viewMode == .threeD
+                viewModel.setupSimulation()
+            } label: {
+                Image(systemName: viewMode == .twoD ? "cube.transparent" : "square.grid.2x2")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help(viewMode == .twoD ? "Switch to 3D" : "Switch to 2D")
 
             Divider().frame(height: 14)
 
