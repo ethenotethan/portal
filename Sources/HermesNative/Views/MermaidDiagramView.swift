@@ -48,13 +48,32 @@ private struct MermaidRendererCoordinator: View {
     @State private var useFallback = false
 
     private var cleanedSource: String {
-        let s = source
+        var s = source
             .replacingOccurrences(of: "```mermaid", with: "")
             .replacingOccurrences(of: "```flowchart", with: "")
             .replacingOccurrences(of: "```sequenceDiagram", with: "")
             .replacingOccurrences(of: "```stateDiagram", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Mermaid mindmap treats `() [] {}` as node shape markers
+        // and has no escaping mechanism. Strip them from node text
+        // so diagrams with parenthetical content don't fail to parse.
+        if s.lowercased().hasPrefix("mindmap") {
+            let shapeDelimiters = CharacterSet(charactersIn: "()[]{}")
+            s = s.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { line in
+                    // Don't strip from the root node definition line,
+                    // which legitimately uses `(( ... ))` for circle shape.
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    if trimmed.hasPrefix("root((") || trimmed.hasPrefix("root)") {
+                        return line
+                    }
+                    return String(line.unicodeScalars.filter { !shapeDelimiters.contains($0) })
+                }
+                .joined(separator: "\n")
+        }
+
         return s
     }
 
