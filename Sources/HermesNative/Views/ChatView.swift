@@ -21,6 +21,10 @@ struct ChatView: View {
     @State private var avatarY: CGFloat = 0
     @State private var pendingScrollTask: Task<Void, Never>?
 
+    // ── Thought Graph ──
+    @State private var showThoughtGraph = false
+    @StateObject private var thoughtGraphEngine = ThoughtGraphLayoutEngine()
+
     /// On macOS, owns the chat input focus state at the ChatView level so that
     /// a click anywhere in the detail pane (messages, padding, input card) can
     /// On macOS, owns the chat input focus state at the ChatView level so that
@@ -52,6 +56,25 @@ struct ChatView: View {
     /// Whether any bot content exists (for floating avatar visibility)
     private var hasBotContent: Bool {
         chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
+    }
+
+    // MARK: - Thought Graph Helpers
+
+    /// Whether to show the thought graph toggle button.
+    private var shouldShowThoughtGraphToggle: Bool {
+        chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty
+    }
+
+    /// Convert activeToolCalls to ThoughtGraphNode array using category-based
+    /// dependency inference (search→read→patch/write, terminal→patch) with
+    /// parallel-sibling detection.
+    private var thoughtGraphNodes: [ThoughtGraphNode] {
+        let tools = Array(chatViewModel.activeToolCalls.values)
+            .sorted { $0.id < $1.id }
+        return ThoughtGraphLayoutEngine.inferAndLayout(
+            tools: tools,
+            canvasSize: .zero  // size not used during inference
+        )
     }
 
     private var chatBottomContentPadding: CGFloat {
@@ -86,6 +109,12 @@ struct ChatView: View {
             chatToolbar
             Divider()
             #endif
+
+            // ── Thought Graph (collapsible) ──
+            if shouldShowThoughtGraphToggle {
+                thoughtGraphSection
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             // Message list
             ScrollViewReader { proxy in
@@ -312,6 +341,12 @@ struct ChatView: View {
             }
             #endif
         }
+        .onChange(of: chatViewModel.currentSessionID) { _, _ in
+            // Close the thought graph when switching sessions
+            withAnimation(.easeOut(duration: 0.2)) {
+                showThoughtGraph = false
+            }
+        }
         #if os(macOS)
         .onChange(of: chatViewModel.refocusInput) { _, _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -493,6 +528,59 @@ struct ChatView: View {
                 return "\(key):\(value.isComplete):\(contextBucket)"
             }
             .joined(separator: "|")
+    }
+
+    // MARK: - Thought Graph Section
+
+    @ViewBuilder
+    private var thoughtGraphSection: some View {
+        VStack(spacing: 0) {
+            // ── Toggle button ──
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    showThoughtGraph.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.caption)
+                    Text(showThoughtGraph ? "Hide Thought Graph" : "Show Thought Graph")
+                        .font(.caption)
+                    Spacer()
+                    if chatViewModel.isStreaming {
+                        Circle()
+                            .fill(Color.amber)
+                            .frame(width: 6, height: 6)
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.green)
+                    }
+                    Image(systemName: showThoughtGraph ? "chevron.up" : "chevron.down")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Theme.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+
+            // ── Graph content ──
+            if showThoughtGraph {
+                ThoughtGraphView(
+                    engine: thoughtGraphEngine,
+                    nodes: thoughtGraphNodes,
+                    isStreaming: chatViewModel.isStreaming
+                )
+                .frame(height: 300)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+            }
+        }
     }
 
     private func scheduleScrollToBottom(proxy: ScrollViewProxy, reason: String) {

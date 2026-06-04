@@ -20,6 +20,8 @@ struct SessionObserverView: View {
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var selectedTab: ObserverTab = .history
+    @State private var showPlayback = false
+    @State private var showPromptBreakdown = false
 
     enum ObserverTab: String, CaseIterable {
         case history = "History"
@@ -64,10 +66,34 @@ struct SessionObserverView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 12) {
+                        Button {
+                            showPlayback = true
+                        } label: {
+                            Image(systemName: "play.rectangle")
+                        }
+                        .help("Playback")
+                        Button {
+                            showPromptBreakdown = true
+                        } label: {
+                            Image(systemName: "text.alignleft")
+                        }
+                        .help("Prompt Breakdown")
+                    }
+                }
             }
             .task { await loadSessionData() }
             .sheet(item: $selectedSnapshot) { snapshot in
                 SpawnTreeSnapshotView(snapshot: snapshot)
+            }
+            .sheet(isPresented: $showPlayback) {
+                SessionPlaybackView(sessionID: session.id)
+                    .environmentObject(gatewayClientWrapper)
+            }
+            .sheet(isPresented: $showPromptBreakdown) {
+                PromptBreakdownSheet(sessionID: session.id)
+                    .environmentObject(gatewayClientWrapper)
             }
         }
     }
@@ -642,5 +668,64 @@ struct SubagentRecordView: View {
             .replacingOccurrences(of: "anthropic/", with: "")
             .replacingOccurrences(of: "openai/", with: "")
             .replacingOccurrences(of: "openrouter/", with: "")
+    }
+}
+
+// MARK: - Prompt Breakdown Sheet
+
+/// Wrapper that loads the prompt breakdown from the gateway before presenting
+/// the ``PromptBreakdownView``. Handles loading and error states.
+struct PromptBreakdownSheet: View {
+    let sessionID: String
+    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var breakdown: PromptBreakdown?
+    @State private var isLoading = true
+    @State private var error: String?
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView("Loading prompt breakdown…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+            } else if let error {
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.tertiary)
+                    Text("Cannot Load Prompt")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.background)
+            } else if let breakdown {
+                PromptBreakdownView(breakdown: breakdown)
+            }
+        }
+        .task { await loadBreakdown() }
+    }
+
+    private func loadBreakdown() async {
+        guard case .connected = gatewayClientWrapper.client.connectionState else {
+            error = "Not connected to gateway."
+            isLoading = false
+            return
+        }
+
+        do {
+            breakdown = try await gatewayClientWrapper.client.promptBreakdown(sessionID: sessionID)
+        } catch {
+            self.error = error.localizedDescription
+        }
+
+        isLoading = false
     }
 }

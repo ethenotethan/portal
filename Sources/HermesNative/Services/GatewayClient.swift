@@ -117,6 +117,68 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return SessionUsage.from(d)
     }
 
+    // MARK: - Session Visualization RPCs
+
+    /// Fetch a timeline of all events in a session for playback visualization (Swift Charts bar/line chart).
+    func sessionTimeline(sessionID: String) async throws -> SessionTimeline {
+        let response = try await call("session.timeline", params: ["session_id": AnyCodable(sessionID)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let d = response.result?.dictionaryValue else {
+            throw GatewayError.invalidResponse("missing result in session.timeline response")
+        }
+        let jsonData = try JSONEncoder().encode(d)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return try decoder.decode(SessionTimeline.self, from: jsonData)
+    }
+
+    /// Fetch the prompt assembly breakdown for a session, showing token allocation across
+    /// system prompt sections, tool definitions, and conversation history.
+    /// Falls back to mock data when the gateway RPC is unavailable.
+    func promptBreakdown(sessionID: String) async throws -> PromptBreakdown {
+        let response = try await call("session.prompt_breakdown", params: ["session_id": AnyCodable(sessionID)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else {
+            return PromptBreakdown.mock(sessionID: sessionID)
+        }
+        let sections = result["sections"]?.arrayValue?.compactMap { s -> PromptSection? in
+            guard let sd = s.dictionaryValue else { return nil }
+            return PromptSection(
+                id: sd["name"]?.stringValue ?? UUID().uuidString,
+                name: sd["name"]?.stringValue ?? "",
+                source: sd["source"]?.stringValue ?? "",
+                contentPreview: String((sd["content"]?.stringValue ?? "").prefix(200)),
+                fullContent: sd["content"]?.stringValue ?? "",
+                tokenCount: sd["tokens"]?.intValue ?? 0,
+                charCount: sd["char_count"]?.intValue ?? 0,
+                colorHex: sd["color"]?.stringValue ?? "#888888"
+            )
+        } ?? []
+
+        return PromptBreakdown(
+            sessionID: sessionID,
+            model: result["model"]?.stringValue ?? "",
+            contextLimit: result["context_limit"]?.intValue ?? 131072,
+            totalSystemTokens: result["total_system_tokens"]?.intValue ?? 0,
+            sections: sections,
+            toolDefinitionsTokenCount: result["tool_definition_tokens"]?.intValue ?? 0,
+            toolDefinitionsCount: result["tool_definition_count"]?.intValue ?? 0,
+            conversationHistoryTokenCount: result["conversation_tokens"]?.intValue ?? 0,
+            conversationHistoryMessageCount: result["conversation_message_count"]?.intValue ?? 0
+        )
+    }
+
+    // ThoughtGraph visualisation does not require a dedicated RPC method.
+    // It is built entirely from existing stream events — toolStart / toolComplete
+    // are emitted by the gateway during normal agent execution. ChatViewModel
+    // accumulates tool-event pairs and the new ThoughtGraphView renders the
+    // DAG from those events, so no new RPC surface is needed.
+
     // MARK: - Private State
 
     private var webSocketTask: URLSessionWebSocketTask?
