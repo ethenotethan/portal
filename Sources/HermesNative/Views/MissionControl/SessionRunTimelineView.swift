@@ -38,7 +38,7 @@ struct SessionRunTimelineView: View {
                 .cornerRadius(3)
             }
             .chartYAxisLabel("Seconds")
-            .frame(height: 160)
+            .frame(height: 220)
         }
         .padding(14)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -78,7 +78,7 @@ struct SessionRunTimelineView: View {
                     .foregroundStyle(Theme.accent.opacity(0.1))
                 }
             }
-            .frame(height: 160)
+            .frame(height: 220)
         }
         .padding(14)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12)))

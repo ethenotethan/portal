@@ -641,10 +641,8 @@ struct DiagramPreviewBlock: View {
     var body: some View {
         VStack(spacing: 0) {
 MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
-                .frame(minHeight: 200, idealHeight: 400)
+                .frame(minHeight: 300, idealHeight: 550)
                 .clipped()
-                .drawingGroup()
-                .allowsHitTesting(false)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     isOpen = true
@@ -1140,7 +1138,7 @@ struct OpenableBlockSheet: View {
 
                 Divider().overlay(Theme.border)
 
-                // Content — diagram or HTML, clipped so zoom/pan never overlaps the title bar
+                // Content — diagram or HTML
                 Group {
                     if MarkdownParser.isDiagramLanguage(language) {
                         MermaidDiagramView(mermaidCode: content, isStreaming: false)
@@ -1149,7 +1147,6 @@ struct OpenableBlockSheet: View {
                     }
                 }
                 .padding(12)
-                .clipped()
             }
         }
         #if os(iOS)

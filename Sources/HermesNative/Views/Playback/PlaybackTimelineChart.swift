@@ -131,7 +131,7 @@ struct PlaybackTimelineChart: View {
             .chartOverlay { proxy in
                 tapOverlay(proxy: proxy, data: data)
             }
-            .frame(width: chartWidth, height: 200)
+            .frame(width: chartWidth, height: 320)
             .padding(.horizontal, 16)
         }
     }
@@ -151,7 +151,7 @@ struct PlaybackTimelineChart: View {
                 .foregroundStyle(Theme.tertiary)
         }
         .padding(30)
-        .frame(height: 200)
+        .frame(height: 320)
     }
 
     // MARK: - Axis Styling
