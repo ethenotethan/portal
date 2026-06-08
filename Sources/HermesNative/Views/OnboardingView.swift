@@ -87,7 +87,7 @@ struct OnboardingView: View {
                         testConnection()
                     } label: {
                         if testing {
-                            ProgressView()
+                            HermesProgressView()
                                 .controlSize(.small)
                         } else {
                             Text("Test Connection")
@@ -222,7 +222,7 @@ struct OnboardingView: View {
                             testConnection()
                         } label: {
                             if testing {
-                                ProgressView()
+                                HermesProgressView()
                                     .controlSize(.small)
                             } else {
                                 Text("Test Connection")
@@ -287,7 +287,7 @@ struct OnboardingView: View {
     }
     #endif
 
-    private func testConnection() {
+    func testConnection() {
         testing = true
         testResult = nil
 

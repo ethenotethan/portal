@@ -71,10 +71,12 @@ struct ChatView: View {
     private var thoughtGraphNodes: [ThoughtGraphNode] {
         let tools = Array(chatViewModel.activeToolCalls.values)
             .sorted { $0.id < $1.id }
-        return ThoughtGraphLayoutEngine.inferAndLayout(
+        var nodes = ThoughtGraphLayoutEngine.inferAndLayout(
             tools: tools,
-            canvasSize: .zero  // size not used during inference
+            canvasSize: .zero
         )
+        nodes.append(contentsOf: chatViewModel.reasoningGraph.reasoningNodes)
+        return nodes
     }
 
     private var chatBottomContentPadding: CGFloat {
@@ -108,6 +110,26 @@ struct ChatView: View {
             #if os(iOS)
             chatToolbar
             Divider()
+            #endif
+
+            #if os(macOS)
+            HStack {
+                Spacer()
+                // TTS toggle
+                Button {
+                    ttsService.toggle()
+                } label: {
+                    Label(ttsService.isEnabled ? "Speaking" : "Muted",
+                          systemImage: ttsService.isEnabled ? "speaker.wave.3.fill" : "speaker.slash")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(ttsService.isEnabled ? Theme.accent : Theme.secondary)
+                .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
+                .padding(.horizontal, 8)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
             #endif
 
             // ── Thought Graph (collapsible) ──
@@ -467,7 +489,8 @@ struct ChatView: View {
 
             if !chatViewModel.isSessionReady && chatViewModel.error == nil {
                 HStack(spacing: 4) {
-                    ProgressView().controlSize(.small)
+                    HermesProgressView()
+                        .scaleEffect(0.7)
                     Text("Creating session…")
                         .font(.caption)
                         .foregroundStyle(.secondary)

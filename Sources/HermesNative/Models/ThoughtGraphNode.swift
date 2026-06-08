@@ -60,6 +60,30 @@ struct ThoughtGraphNode: Identifiable, Codable {
         ThoughtGraphLayoutEngine.ToolCategory.classify(name: name)
     }
 
+    /// Extract the file path or target from the tool's context string.
+    /// For tools like write_file/read_file, the context typically contains
+    /// the file path. This extracts it for display as a node subtitle.
+    var extractedFilePath: String? {
+        guard let ctx = context else { return nil }
+        // Common patterns in tool contexts: "Writing /path/to/file.ext"
+        let filePatterns = [
+            #"(?:Writing|Reading|Creating|Editing|Modifying|Updating|Saving|Opening|Processing|{})? ?([/~\.]{1,2}[\w/\-\.]+)"#,
+        ]
+        for pattern in filePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: ctx, range: NSRange(ctx.startIndex..<ctx.endIndex, in: ctx)),
+               match.numberOfRanges > 1,
+               match.range(at: 1).location != NSNotFound {
+                let path = (ctx as NSString).substring(with: match.range(at: 1))
+                let trimmed = path.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { return trimmed }
+            }
+        }
+        // Fallback: return first line of context if it's short
+        let firstLine = ctx.components(separatedBy: "\n").first ?? ""
+        return firstLine.count <= 60 ? firstLine : nil
+    }
+
     // MARK: - Initializer
 
     init(

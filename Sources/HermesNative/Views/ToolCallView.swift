@@ -89,8 +89,7 @@ struct ToolRow: View {
                     }
 
                     if !tool.isComplete {
-                        ProgressView()
-                            .controlSize(.mini)
+                        HermesProgressView()
                     }
                 }
 

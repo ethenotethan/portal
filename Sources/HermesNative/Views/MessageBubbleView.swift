@@ -220,8 +220,8 @@ private struct ThinkingTraceSection: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                     if trace.isStreaming {
-                        ProgressView()
-                            .controlSize(.mini)
+                        HermesProgressView()
+                            .scaleEffect(0.6)
                     }
                 }
             }
@@ -296,8 +296,8 @@ private struct ReasoningSection: View {
                         .font(.system(.caption, weight: .medium))
                         .foregroundStyle(Theme.accent)
                     if isStreaming {
-                        ProgressView()
-                            .controlSize(.mini)
+                        HermesProgressView()
+                            .scaleEffect(0.6)
                     }
                 }
             }

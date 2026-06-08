@@ -75,4 +75,10 @@ final class ChatHistoryStore {
             .filter { $0.pathExtension == "json" }
             .map { $0.deletingPathExtension().lastPathComponent }
     }
+
+    /// Extract the first user message content from local history for display as fallback title.
+    func firstUserMessage(forSession sessionID: String) -> String? {
+        guard let messages = loadMessages(forSession: sessionID) else { return nil }
+        return messages.first(where: { $0.role == .user })?.content
+    }
 }

@@ -120,12 +120,22 @@ final class ChatViewModel: ObservableObject {
 
     /// Manager for downloading remote file attachments from the gateway.
     var fileDownloadManager = FileDownloadManager()
+    /// Live reasoning summarization — extracts decision trees from agent thought traces
+    /// in real-time during streaming. Results feed into the ThoughtGraphView.
+    /// Uses heuristic pattern-matching (zero dep, works immediately).
+    /// Set summarizer: MLXReasoningSummarizer() for local LLM inference.
+    lazy var reasoningGraph = ReasoningGraphIntegrator(
+        summarizer: HeuristicReasoningSummarizer()
+    )
     private var sessionStates: [String: SessionRuntimeState] = [:]
     private var streamingMessageID: UUID?
     private var streamStartDate: Date?
     private var cancellables = Set<AnyCancellable>()
     private(set) var isCreatingSession = false
     private var isStopping = false
+    /// True when the active session hasn't been properly resumed on the gateway
+    /// (e.g. after WebSocket reconnection). Prompt submission will auto-resume first.
+    private var needsGatewayResume = false
     private var pendingVisibleEventFlush: Task<Void, Never>?
     private var pendingVisibleMessageDelta = ""
     private var pendingVisibleReasoningDelta = ""
@@ -206,11 +216,13 @@ final class ChatViewModel: ObservableObject {
         // Use collect(.byTimeOrCount) to batch rapid events (e.g. reasoning.delta
         // floods) into fewer main-thread dispatches, preventing layout recursion
         // and spinning-wheel freezes during heavy streaming.
-        client.eventStream
-            .collect(.byTimeOrCount(DispatchQueue.main, .milliseconds(32), 30))
+client.eventStream
+            .collect(.byTimeOrCount(RunLoop.main, .milliseconds(32), 30))
             .sink { [weak self] batch in
-                for (event, eventSessionID) in batch {
-                    self?.handleEvent(event, eventSessionID: eventSessionID)
+                DispatchQueue.main.async {
+                    for (event, eventSessionID) in batch {
+                        self?.handleEvent(event, eventSessionID: eventSessionID)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -223,7 +235,8 @@ final class ChatViewModel: ObservableObject {
                 case .connected:
                     self?.error = nil
                 case .reconnecting:
-                    self?.error = nil  // Clear errors — reconnect in progress
+                    self?.error = nil
+                    self?.needsGatewayResume = true
                     // Do not mark the active turn as stopped during a transient
                     // reconnect. The gateway agent may still be running, and
                     // clearing isStreaming makes later frames look stale.
@@ -264,8 +277,8 @@ final class ChatViewModel: ObservableObject {
                 self.createGeneration += 1
                 self.isSessionReady = true
                 self.error = nil
-            } else if let sid = self.sessionID, self.isSessionReady,
-                      self.gatewayClient?.activeSessionID == nil {
+} else if let sid = self.sessionID, self.isSessionReady,
+                       self.gatewayClient?.activeSessionID == nil {
                 // Gateway didn't auto-resume — explicitly re-resume so the
                 // session is re-registered and streaming events will flow.
                 let displayID = self.displaySessionID(for: sid)
@@ -277,6 +290,7 @@ final class ChatViewModel: ObservableObject {
                     }
                     self.isSessionReady = true
                     self.error = nil
+                    self.needsGatewayResume = false
                 }
             }
         }
@@ -500,6 +514,7 @@ final class ChatViewModel: ObservableObject {
         }
         guard case .connected = client.connectionState else {
             if generation == sessionSwitchGeneration {
+                needsGatewayResume = true
                 self.error = "Not connected to gateway"
             }
             return false
@@ -576,9 +591,11 @@ final class ChatViewModel: ObservableObject {
             }
 
             await applyEphemeralPrompt(for: result.sessionID, using: client)
+            needsGatewayResume = false
             return true
         } catch {
             if generation == sessionSwitchGeneration {
+                self.needsGatewayResume = true
                 self.error = "Session resume failed: \(error.localizedDescription)"
             }
             return false
@@ -779,6 +796,17 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
+        if needsGatewayResume, let sid = sessionID {
+            let key = displaySessionID(for: sid)
+            log.info("Auto-resume before submit: key=\(key)")
+            if await resumeSession(key: key) {
+                needsGatewayResume = false
+            } else {
+                self.error = "Session connection lost. Please try again."
+                return
+            }
+        }
+
         inputText = ""
         pendingAttachments = []
         isStreaming = true
@@ -877,6 +905,7 @@ final class ChatViewModel: ObservableObject {
         guard !isStopping else { return }
         guard let client = gatewayClient, let sid = sessionID else {
             finishStreaming(status: "interrupted")
+            await reasoningGraph.finalize()
             return
         }
 
@@ -892,6 +921,7 @@ final class ChatViewModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
         }
+        await reasoningGraph.finalize()
     }
 
     private func finishStreaming(status: String? = nil) {
@@ -1216,27 +1246,35 @@ final class ChatViewModel: ObservableObject {
         // Update the streaming message in-place instead of replacing the
         // entire messages array.  This avoids a full SwiftUI re-render of
         // every message view on each 500ms flush tick.
-        if !messageDelta.isEmpty {
-            if let msgID = streamingMessageID,
-               let idx = messages.firstIndex(where: { $0.id == msgID }) {
-                messages[idx].content += messageDelta
-            } else if isStreaming, let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                messages[idx].content += messageDelta
+        if !messageDelta.isEmpty || !reasoningDelta.isEmpty || !thinkingDelta.isEmpty {
+            let msgDelta = messageDelta
+            let reasDelta = reasoningDelta
+            let thinkDelta = thinkingDelta
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if !msgDelta.isEmpty {
+                    if let msgID = self.streamingMessageID,
+                       let idx = self.messages.firstIndex(where: { $0.id == msgID }) {
+                        self.messages[idx].content += msgDelta
+                    } else if self.isStreaming, let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                        self.messages[idx].content += msgDelta
+                    }
+                }
+                if !reasDelta.isEmpty {
+                    if let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                        let existing = self.messages[idx].reasoning ?? ""
+                        self.messages[idx].reasoning = existing + reasDelta
+                    }
+                }
+                if !thinkDelta.isEmpty {
+                    if let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                        let existing = self.messages[idx].reasoning ?? ""
+                        self.messages[idx].reasoning = existing + thinkDelta
+                    }
+                }
+                self.snapshotCurrentSessionState()
             }
         }
-        if !reasoningDelta.isEmpty {
-            if let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                let existing = messages[idx].reasoning ?? ""
-                messages[idx].reasoning = existing + reasoningDelta
-            }
-        }
-        if !thinkingDelta.isEmpty {
-            if let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                let existing = messages[idx].reasoning ?? ""
-                messages[idx].reasoning = existing + thinkingDelta
-            }
-        }
-        snapshotCurrentSessionState()
     }
 
     private func applySessionEvent(_ event: GatewayEvent, to eventSessionID: String) {
@@ -1284,6 +1322,7 @@ final class ChatViewModel: ObservableObject {
             }
             if displaySessionID(for: sessionID ?? "") == displayID {
                 streamingMessageID = state.streamingMessageID
+                reasoningGraph.reset()
             }
             if let sid = sessionID ?? currentSessionID {
                 SessionRunHistoryStore.shared.recordRunStart(sessionID: sid)
@@ -1305,6 +1344,7 @@ final class ChatViewModel: ObservableObject {
                 flushPendingVisibleEventDeltas()
                 // Reload state to pick up flushed reasoning from snapshot
                 state = sessionStates[displayID] ?? state
+                Task { await reasoningGraph.finalize() }
             }
             guard let msgID = state.streamingMessageID,
                   let idx = state.messages.firstIndex(where: { $0.id == msgID }) else {
@@ -1368,6 +1408,7 @@ final class ChatViewModel: ObservableObject {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     pendingVisibleReasoningDelta += text
                     scheduleVisibleEventFlush()
+                    reasoningGraph.feed(delta: text)
                 }
             }
 
@@ -1376,6 +1417,7 @@ final class ChatViewModel: ObservableObject {
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     appendPendingVisibleThinkingDelta(text, separator: "\n")
+                    reasoningGraph.feed(delta: text)
                 }
             }
 
@@ -1513,6 +1555,7 @@ final class ChatViewModel: ObservableObject {
             // Streaming begins — avatar is speaking
             guard isStreaming else { break }
             avatarState = .speaking
+            reasoningGraph.reset()
 
         case .messageDelta(let text, _):
             recordPerfEvent("messageDelta", bytes: text.count)
@@ -1530,6 +1573,7 @@ final class ChatViewModel: ObservableObject {
             guard let msgID = streamingMessageID,
                   let idx = messages.firstIndex(where: { $0.id == msgID }) else {
                 activeToolCalls = [:]
+                Task { await reasoningGraph.finalize() }
                 return
             }
 
@@ -1572,6 +1616,8 @@ final class ChatViewModel: ObservableObject {
                 )
             }
 
+            Task { await reasoningGraph.finalize() }
+
         case .toolStart(payload: let payload):
             recordPerfEvent("toolStart")
             guard isStreaming else { break }
@@ -1610,6 +1656,7 @@ final class ChatViewModel: ObservableObject {
             guard isStreaming else { break }
             if avatarState != .toolUse && avatarState != .thinking { avatarState = .thinking }
             appendPendingVisibleReasoningDelta(text)
+            reasoningGraph.feed(delta: text)
 
         case .thinkingDelta(let text):
             guard isStreaming else { break }

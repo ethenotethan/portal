@@ -135,12 +135,13 @@ final class SessionListViewModel: ObservableObject {
         if let preview = session.preview, !preview.isEmpty {
             return String(preview.prefix(50)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        // 4. Source-based fallback
-        if let source = session.source, !source.isEmpty {
-            return "\(source) session"
+        // 4. Local chat history — extract first user message as title
+        if let firstUser = ChatHistoryStore.shared.firstUserMessage(forSession: session.id) {
+            let title = String(firstUser.prefix(60)).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty { return title }
         }
         // 5. Short ID
-        return "Session \(session.id.prefix(8))"
+        return session.id.prefix(8).description
     }
 
     /// Get the subtitle for a session (second line info).

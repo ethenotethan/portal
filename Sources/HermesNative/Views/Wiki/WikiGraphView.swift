@@ -161,7 +161,7 @@ struct WikiGraphView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onReceive(timer) { _ in
-                    viewModel.tick()
+                    if viewMode != .threeD { viewModel.tick() }
                 }
                 .gesture(
                     MagnificationGesture()

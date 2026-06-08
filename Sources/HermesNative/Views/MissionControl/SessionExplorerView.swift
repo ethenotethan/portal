@@ -27,6 +27,8 @@ struct SessionExplorerView: View {
 
     enum ExplorerTab: String, CaseIterable {
         case tree = "Agents"
+        case graph = "Graph"
+        case toolCalls = "Tool Calls"
         case chat = "Chat"
         case history = "History"
         case usage = "Usage"
@@ -62,6 +64,10 @@ struct SessionExplorerView: View {
                     switch selectedTab {
                     case .tree:
                         treeOrEmpty
+                    case .graph:
+                        graphOrEmpty
+                    case .toolCalls:
+                        toolCallsOrEmpty
                     case .chat:
                         chatContent
                     case .history:
@@ -105,7 +111,7 @@ struct SessionExplorerView: View {
     private var chatContent: some View {
         Group {
             if isLoadingChat {
-                ProgressView("Loading conversation…")
+                HermesProgressView(label: "Loading conversation…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = chatError {
                 VStack(spacing: 16) {
@@ -245,6 +251,82 @@ struct SessionExplorerView: View {
         }
         .navigationTitle(tree.root.goal.isEmpty ? "Mission Control" : String(tree.root.goal.prefix(50)))
     }
+
+    // MARK: - Graph Tab
+
+    @ViewBuilder
+    private var graphOrEmpty: some View {
+        if let tree, !tree.root.children.isEmpty {
+            graphContent(tree: tree)
+        } else {
+            emptyGraphState
+        }
+    }
+
+    private func graphContent(tree: SessionTree) -> some View {
+        VStack(spacing: 0) {
+            sessionHUD(tree: tree)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+            ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                SpawnCallGraphView(
+                    root: tree.root,
+                    selectedNodeID: $selectedNodeID,
+                    onNodeTap: { node in
+                        selectedNodeID = node.id
+                        showTranscriptFor = node
+                    }
+                )
+                .padding()
+                .frame(minWidth: 800)
+            }
+        }
+    }
+
+    private var emptyGraphState: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "point.bottomleft.filled.forward.to.point.topright.scurvepath")
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+            Text("No Subagents")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text("This session has a root prompt only. Run a task with delegation to see the call graph.")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Spacer()
+        }
+    }
+
+    // MARK: - Tool Calls Tab
+
+    @ViewBuilder
+    private var toolCallsOrEmpty: some View {
+        let targetNode = findSelectedNode ?? tree?.root
+        if let targetNode {
+            ToolCallFlowView(node: targetNode)
+        } else {
+            emptyTreeState
+        }
+    }
+
+    private var findSelectedNode: SpawnNode? {
+        guard let sid = selectedNodeID, let tree else { return nil }
+        func find(in node: SpawnNode) -> SpawnNode? {
+            if node.id == sid { return node }
+            for child in node.children {
+                if let found = find(in: child) { return found }
+            }
+            return nil
+        }
+        return find(in: tree.root)
+    }
+
+    // MARK: - Empty Tree
 
     private var emptyTreeState: some View {
         VStack(spacing: 16) {
@@ -420,7 +502,7 @@ struct SessionExplorerView: View {
     private var usageContent: some View {
         Group {
             if isLoadingUsage {
-                ProgressView("Loading usage…")
+                HermesProgressView(label: "Loading usage…")
             } else if let error = usageError {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")

@@ -46,7 +46,7 @@ struct PromptBreakdownView: View {
 
     private var loadingBody: some View {
         VStack(spacing: 16) {
-            ProgressView()
+            HermesProgressView()
                 .scaleEffect(1.2)
             Text("Loading prompt breakdown…")
                 .font(.subheadline)

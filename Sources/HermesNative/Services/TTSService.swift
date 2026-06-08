@@ -23,11 +23,17 @@ final class TTSService: ObservableObject {
 
         // Pick a high-quality voice
         let voices = AVSpeechSynthesisVoice.speechVoices()
+        // macOS 14+ / iOS 17+ has AVSpeechSynthesisVoice
         if let enhanced = voices.first(where: { $0.quality == .enhanced && $0.language.starts(with: "en") }) {
             preferredVoice = enhanced
+        } else if let premium = voices.first(where: { $0.quality == .premium && $0.language.starts(with: "en") }) {
+            preferredVoice = premium
         } else if let defaultVoice = voices.first(where: { $0.language.starts(with: "en") }) {
             preferredVoice = defaultVoice
+        } else if let anyVoice = voices.first {
+            preferredVoice = anyVoice
         }
+        log.info("TTS voice: \(self.preferredVoice?.name ?? "none"), quality: \(self.preferredVoice?.quality.rawValue ?? 0)")
     }
 
     private var preferredVoice: AVSpeechSynthesisVoice?
@@ -47,14 +53,14 @@ final class TTSService: ObservableObject {
         stop()
 
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = preferredVoice
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1 // slightly faster
+        utterance.voice = preferredVoice ?? AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1
         utterance.pitchMultiplier = 1.0
         utterance.volume = 1.0
 
         isSpeaking = true
         synthesizer.speak(utterance)
-        log.info("TTS speaking \(text.count) chars")
+        log.info("TTS speaking \(text.count) chars, voice=\(utterance.voice?.name ?? "default")")
     }
 
     /// Speak the last assistant message from a list.

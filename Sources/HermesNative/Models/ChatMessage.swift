@@ -30,8 +30,28 @@ struct ChatMessage: Identifiable, Codable {
         _contentWithoutAttachments ?? MediaParser.stripMediaTags(from: content)
     }
 
-    /// Cached value — set eagerly to avoid repeated regex scanning during renders.
+/// Cached value — set eagerly to avoid repeated regex scanning during renders.
     var _contentWithoutAttachments: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
+        case usage, status, attachments, userAttachments
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        role = try container.decode(Role.self, forKey: .role)
+        content = try container.decode(String.self, forKey: .content)
+        isStreaming = try container.decodeIfPresent(Bool.self, forKey: .isStreaming) ?? false
+        toolCalls = try container.decodeIfPresent([ToolCallRecord].self, forKey: .toolCalls) ?? []
+        reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning)
+        thinkingTrace = try container.decodeIfPresent(ThinkingTrace.self, forKey: .thinkingTrace)
+        usage = try container.decodeIfPresent(UsageInfo.self, forKey: .usage)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        attachments = try container.decodeIfPresent([FileAttachment].self, forKey: .attachments) ?? []
+        userAttachments = try container.decodeIfPresent([MediaAttachment].self, forKey: .userAttachments) ?? []
+    }
 
     enum Role: String, Equatable, Codable {
         case user

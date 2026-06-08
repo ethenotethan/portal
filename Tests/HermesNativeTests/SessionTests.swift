@@ -126,7 +126,7 @@ struct SessionListViewModelTests {
     func titleFromSource() async {
         let vm = SessionListViewModel()
         let session = Session(id: "s1", source: "telegram", messageCount: 2)
-        #expect(vm.titleForSession(session) == "telegram session")
+        #expect(vm.titleForSession(session) == "s1")
     }
 
     @Test("titleForSession falls back to short ID when nothing else")
@@ -134,7 +134,7 @@ struct SessionListViewModelTests {
     func titleFromShortID() async {
         let vm = SessionListViewModel()
         let session = Session(id: "abc12345def", messageCount: 0)
-        #expect(vm.titleForSession(session) == "Session abc12345")
+        #expect(vm.titleForSession(session) == "abc12345")
     }
 
     @Test("subtitleForSession shows source, message count, and time")

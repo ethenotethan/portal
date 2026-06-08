@@ -33,7 +33,7 @@ struct WikiPageDetailView: View {
 
             if isLoading {
                 Spacer()
-                ProgressView("Loading…")
+                HermesProgressView(label: "Loading…")
                 Spacer()
             } else if let error = loadError {
                 Spacer()

@@ -116,7 +116,7 @@ private final class Coordinator: NSObject {
     private var lastTopologyKey: String = ""
     private let labelDistanceThreshold: Float = 350
     private let cameraMinDistance: Float = 100
-    private let cameraMaxDistance: Float = 1500
+private let cameraMaxDistance: Float = 4000
 
     init(viewModel: WikiGraphViewModel) {
         self.viewModel = viewModel
@@ -131,11 +131,6 @@ private final class Coordinator: NSObject {
             rebuildScene(from: vm, in: scnView)
             lastTopologyKey = topologyKey
             return
-        }
-
-        let isActive = vm.simAlpha > 0.003 || vm.simNodes.contains(where: { $0.isDragging })
-        if isActive {
-            updatePositions(from: vm)
         }
 
         let currentIndex = vm.selectedNodeIndex
@@ -166,7 +161,7 @@ private final class Coordinator: NSObject {
             let nsColor = PlatformColor(nodeColor)
             sphere.firstMaterial?.diffuse.contents = nsColor
             sphere.firstMaterial?.emission.contents = nsColor.withAlphaComponent(0.25)
-            sphere.firstMaterial?.lightingModel = .physicallyBased
+            sphere.firstMaterial?.lightingModel = .constant
 
             let scnNode = SCNNode(geometry: sphere)
             scnNode.name = simNode.id
@@ -174,7 +169,7 @@ private final class Coordinator: NSObject {
             graphRoot.addChildNode(scnNode)
             nodeMap[simNode.id] = scnNode
 
-            let labelText = SCNText(string: simNode.label, extrusionDepth: 0.1)
+            let labelText = SCNText(string: simNode.label, extrusionDepth: 0)
             #if os(macOS)
             labelText.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
             labelText.firstMaterial?.diffuse.contents = NSColor(white: 0.9, alpha: 1.0)
@@ -269,10 +264,9 @@ private final class Coordinator: NSObject {
             }
         }
 
-        if vm.simAlpha > 0.005 || vm.simNodes.contains(where: { $0.isDragging }) {
-            if let root = edgeNode?.parent {
-                rebuildEdgeGeometry(from: vm, graphRoot: root)
-            }
+        let simSettled = vm.simAlpha <= 0.01 && !vm.simNodes.contains(where: { $0.isDragging })
+        if simSettled, let root = edgeNode?.parent {
+            rebuildEdgeGeometry(from: vm, graphRoot: root)
         }
     }
 

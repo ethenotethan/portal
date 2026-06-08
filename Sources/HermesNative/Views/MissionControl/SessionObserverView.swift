@@ -103,7 +103,7 @@ struct SessionObserverView: View {
     private var historyContent: some View {
         Group {
             if isLoading {
-                ProgressView("Loading history…")
+                HermesProgressView(label: "Loading history…")
             } else if let error = loadError {
                 // Show error for Other Sessions that can't be loaded
                 emptyState(icon: "exclamationmark.triangle", title: "Cannot Load History",
@@ -165,7 +165,7 @@ struct SessionObserverView: View {
     private var usageContent: some View {
         Group {
             if isLoading {
-                ProgressView("Loading usage…")
+                HermesProgressView(label: "Loading usage…")
             } else if let error = loadError {
                 emptyState(icon: "exclamationmark.triangle", title: "Cannot Load Usage",
                            subtitle: error)
@@ -284,7 +284,7 @@ struct SessionObserverView: View {
     private var agentsContent: some View {
         Group {
             if isLoading {
-                ProgressView("Loading agent data…")
+                HermesProgressView(label: "Loading agent data…")
             } else if spawnTreeEntries.isEmpty {
                 emptyState(icon: "arrow.triangle.branch", title: "No Spawn Trees",
                            subtitle: "No subagent snapshots saved for this session.")
@@ -687,7 +687,7 @@ struct PromptBreakdownSheet: View {
     var body: some View {
         Group {
             if isLoading {
-                ProgressView("Loading prompt breakdown…")
+                HermesProgressView(label: "Loading prompt breakdown…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
             } else if let error {

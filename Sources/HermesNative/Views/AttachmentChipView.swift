@@ -65,20 +65,16 @@ struct AttachmentChipView: View {
         switch attachment.downloadState {
         case .notStarted:
             if attachment.isRemote {
-                ProgressView()
-                    .progressViewStyle(.circular)
+                HermesProgressView()
                     .scaleEffect(0.6)
-                    .tint(Theme.accent)
             } else {
                 Image(systemName: attachment.category.icon)
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.accent)
             }
         case .downloading:
-            ProgressView()
-                .progressViewStyle(.circular)
+            HermesProgressView()
                 .scaleEffect(0.6)
-                .tint(Theme.accent)
         case .ready:
             Image(systemName: attachment.category.icon)
                 .font(.system(size: 14))
@@ -280,10 +276,8 @@ struct FilePreviewView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             } else {
-                ProgressView()
-                    .progressViewStyle(.circular)
+                HermesProgressView()
                     .scaleEffect(0.8)
-                    .tint(Theme.accent)
                 Text("Preparing file…")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.secondary)

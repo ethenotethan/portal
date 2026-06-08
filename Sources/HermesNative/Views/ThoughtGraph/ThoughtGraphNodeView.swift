@@ -16,32 +16,42 @@ struct ThoughtGraphNodeView: View {
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: 6) {
-            // ── Left: status icon ──
-            statusIcon
-                .frame(width: 16, height: 16)
+        VStack(spacing: 2) {
+            // ── Line 1: status icon + tool name ──
+            HStack(spacing: 6) {
+                statusIcon
+                    .frame(width: 14, height: 14)
 
-            // ── Center: tool name ──
-            Text(truncatedName)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(Theme.primary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                Text(truncatedName)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
-            Spacer(minLength: 4)
+                Spacer(minLength: 2)
 
-            // ── Right: duration badge (completed only) ──
-            if node.isComplete, let dur = node.durationSeconds {
-                Text(DurationFormatter.short(dur))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(Theme.secondary)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Theme.surface, in: Capsule())
+                if node.isComplete, let dur = node.durationSeconds {
+                    Text(DurationFormatter.short(dur))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.secondary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Theme.surface, in: Capsule())
+                }
+            }
+
+            // ── Line 2: file/path context (tools only) ──
+            if let contextPath = node.extractedFilePath, node.name != "reasoning" {
+                Text(contextPath)
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .frame(width: layout.width, height: layout.height)
         .background(
             RoundedRectangle(cornerRadius: 10)

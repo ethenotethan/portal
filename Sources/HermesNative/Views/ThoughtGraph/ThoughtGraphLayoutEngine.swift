@@ -64,7 +64,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     // MARK: - Layout Constants
 
     /// Width × height of every node rectangle.
-    static let nodeSize = CGSize(width: 140, height: 56)
+    static let nodeSize = CGSize(width: 150, height: 52)
 
     /// Minimum horizontal distance between sibling nodes at the same depth.
     static let minHorizontalGap: Double = 80

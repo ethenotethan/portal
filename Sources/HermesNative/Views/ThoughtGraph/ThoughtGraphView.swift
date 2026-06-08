@@ -27,7 +27,7 @@ struct ThoughtGraphView: View {
     /// All nodes currently in the graph — changed externally as new
     /// tool.start / tool.complete events arrive.
     var nodes: [ThoughtGraphNode] {
-        didSet { engine.layout(nodes: nodes) }
+        didSet { engine.layout(nodes: activeNodes) }
     }
 
     /// Whether the conversation turn is still streaming.  Controls the
@@ -41,6 +41,20 @@ struct ThoughtGraphView: View {
     @State private var selectedNodeID: String?
     @State private var hoveredNodeID: String?
     @State private var showInferredEdges: Bool = true
+    @State private var isFullScreen = false
+    @State private var mode: GraphMode = .tools
+
+    enum GraphMode: String, CaseIterable { case tools = "Tools", reasoning = "Reasoning" }
+
+    private var toolNodes: [ThoughtGraphNode] { nodes.filter { $0.name != "reasoning" } }
+    private var reasoningNodes: [ThoughtGraphNode] { nodes.filter { $0.name == "reasoning" } }
+
+    private var activeNodes: [ThoughtGraphNode] {
+        let subset = mode == .tools ? toolNodes : reasoningNodes
+        return subset
+    }
+
+    // MARK: - Expand Button
 
     // ── Mouse interaction (macOS) ──
     #if os(macOS)
@@ -76,7 +90,7 @@ struct ThoughtGraphView: View {
                     graphCanvas
 
                     // ── Empty state ──
-                    if nodes.isEmpty {
+                    if activeNodes.isEmpty {
                         emptyState
                     }
 
@@ -162,9 +176,9 @@ struct ThoughtGraphView: View {
             previousNodeIDs = Set(nodes.map(\.id))
             engine.layout(nodes: nodes)
         }
-        .onChange(of: nodes.count) { _, _ in
-            engine.layout(nodes: nodes)
-            let newIDs = Set(nodes.map(\.id))
+        .onChange(of: activeNodes.count) { _, _ in
+            engine.layout(nodes: activeNodes)
+            let newIDs = Set(activeNodes.map(\.id))
             let appeared = newIDs.subtracting(previousNodeIDs)
             // Animate new nodes: briefly reset cache so they redraw fresh.
             // The actual scale-up is handled by the Canvas' draw closure
@@ -181,10 +195,62 @@ struct ThoughtGraphView: View {
         ) { _ in
             // Only invalidate if there are running nodes to avoid
             // unnecessary Canvas redraws.
-            if nodes.contains(where: { $0.status == .running }) {
+            if activeNodes.contains(where: { $0.status == .running }) {
                 invalidateSnapshots()
             }
         }
+
+        // Full-screen overlay
+        .overlay {
+            if isFullScreen {
+                graphContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var graphContent: some View {
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                ZStack {
+                    Theme.background
+                        .ignoresSafeArea()
+
+                    graphCanvas
+
+                    if activeNodes.isEmpty {
+                        emptyState
+                    }
+
+                    #if os(macOS)
+                    GraphMouseInterceptor(
+                        onMouseDown: { pt in handleMouseDown(at: pt) },
+                        onMouseDragged: { pt in handleMouseDragged(to: pt) },
+                        onMouseUp: { pt in handleMouseUp(at: pt) },
+                        onScrollWheel: { delta in
+                            panOffset.width += delta.width
+                            panOffset.height += delta.height
+                        },
+                        onMouseMoved: { pt in
+                            if mouseState == .idle {
+                                hoveredNodeID = hitTest(point: pt)
+                            }
+                        },
+                        onMouseExited: { hoveredNodeID = nil }
+                    )
+                    #endif
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if let selID = selectedNodeID,
+                   let node = activeNodes.first(where: { $0.id == selID }) {
+                    detailPopover(node: node)
+                        .frame(width: 280)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+        }
+        .background(.ultraThinMaterial)
     }
 
     // MARK: - Graph Canvas
@@ -348,7 +414,7 @@ struct ThoughtGraphView: View {
     // MARK: - Header Bar
 
     private var headerBar: some View {
-        let runningCount = nodes.filter { $0.status == .running }.count
+        let runningCount = activeNodes.filter { $0.status == .running }.count
 
         return VStack(spacing: 6) {
             HStack(spacing: 8) {
@@ -389,11 +455,22 @@ struct ThoughtGraphView: View {
 
                 Spacer()
 
-                // Minimize placeholder
+                // Mode selector
+                Picker("", selection: $mode) {
+                    ForEach(GraphMode.allCases, id: \.self) { m in
+                        Text(m.rawValue).tag(m)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+
+                // Expand
                 Button {
-                    // Reserved: close/minimize for ChatView integration
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        isFullScreen.toggle()
+                    }
                 } label: {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                    Image(systemName: isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
                         .font(.caption)
                         .foregroundStyle(Theme.secondary)
                 }
