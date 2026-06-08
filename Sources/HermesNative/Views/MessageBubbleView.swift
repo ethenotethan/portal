@@ -40,7 +40,7 @@ struct MessageBubbleView: View {
                             .textSelection(.enabled)
                     }
 
-                    let attachments = MediaParser.extractAttachments(from: message.content)
+                    let attachments = message.attachments
                     if !attachments.isEmpty {
                         VStack(spacing: 4) {
                             ForEach(attachments) { attachment in
@@ -101,7 +101,7 @@ struct MessageBubbleView: View {
                     }
 
                     // File attachments from MEDIA: tags
-                    let attachments = MediaParser.extractAttachments(from: message.content)
+                    let attachments = message.attachments
                     if !attachments.isEmpty {
                         VStack(spacing: 4) {
                             ForEach(attachments) { attachment in
@@ -154,7 +154,7 @@ struct MessageBubbleView: View {
                     }
                 }
 
-                let attachments = MediaParser.extractAttachments(from: message.content)
+                let attachments = message.attachments
                 if !attachments.isEmpty {
                     VStack(spacing: 4) {
                         ForEach(attachments) { attachment in

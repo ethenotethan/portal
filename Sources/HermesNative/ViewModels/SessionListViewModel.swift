@@ -18,10 +18,6 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
-    init() {
-        loadFromUserDefaults()
-    }
-
     /// Client-observed live run states keyed by stable database ID or runtime
     /// gateway ID. The gateway's `session.list` response may not include live
     /// run state yet, so the native app updates this from its own prompt/event
@@ -31,107 +27,53 @@ final class SessionListViewModel: ObservableObject {
     /// Wired up by ContentView — refreshes cron jobs alongside sessions.
     var cronViewModel: CronListViewModel?
 
-    // MARK: - Local Storage
+    // MARK: - Local Storage (Coalesced UserDefaults)
+
+    /// All UserDefaults writes are batched through a 500ms coalesced flush
+    /// timer. On iOS, individual UserDefaults.set() calls saturate the
+    /// CFPreferences daemon and cause main-thread stalls. The coalesced
+    /// pattern updates in-memory backing stores immediately and flushes
+    /// to disk on a timer, collapsing rapid mutations into one write cycle.
 
     private static let titlesKey = "hermes.sessionTitles"
-
-    /// Mapping: database-format ID → short hex gateway ID.
-    /// Stored in UserDefaults so it persists across app launches.
-    /// For "My Sessions", this lets us find the correct RPC session_id.
     private static let gatewayIDMapKey = "hermes.gatewayIDMap"
-
-    /// Set of database-format IDs that are archived.
     private static let archivedIDsKey = "hermes.archivedSessions"
-
-    /// Set of database-format IDs pinned to the top of their section.
     private static let pinnedIDsKey = "hermes.pinnedSessions"
-
-    /// Mapping: database-format ID → lightweight local tags.
     private static let tagsKey = "hermes.sessionTags"
 
-    // MARK: - Coalesced UserDefaults Writes
-    //
-    // Individual computed-property setters used to call UserDefaults.set() on
-    // every mutation.  With many sessions this caused per-mutation disk syncs
-    // that saturated iOS's CFPreferences daemon.  Now all writes are batched
-    // through a single coalesced flush that fires at most once per 500ms.
-
-    private var defaultsDirty = false
-    private var defaultsFlushTask: Task<Void, Never>?
-
-    /// Backing stores — read from UserDefaults on init, written in batch on flush.
+    // ── In-memory backing stores ──
     private var _gatewayIDMap: [String: String] = [:]
     private var _localTitles: [String: String] = [:]
     private var _archivedIDs: Set<String> = []
     private var _pinnedIDs: Set<String> = []
     private var _sessionTags: [String: [String]] = [:]
 
-    /// Load all backing stores from UserDefaults.  Called once at init.
-    private func loadFromUserDefaults() {
-        _gatewayIDMap = (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:]
-        _localTitles   = (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]
-        _archivedIDs   = Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? [])
-        _pinnedIDs     = Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? [])
-        _sessionTags   = (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:]
-    }
+    // ── Coalesced flush plumbing ──
+    private var defaultsDirty = false
+    private var defaultsFlushTask: Task<Void, Never>?
 
-    /// Schedule a coalesced flush of dirty UserDefaults keys.  Safe to call
-    /// repeatedly — only one Task runs at a time.
-    private func scheduleDefaultsFlush() {
-        defaultsDirty = true
-        guard defaultsFlushTask == nil else { return }
-        defaultsFlushTask = Task {
-            do {
-                try await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            } catch {
-                if error is CancellationError { return }
-            }
-            guard !Task.isCancelled, defaultsDirty else { return }
-            flushDefaultsNow()
-        }
-    }
+    // ── Public accessors (in-memory reads, coalesced writes) ──
 
-    /// Synchronous flush — called by the coalescing timer or by closeSession
-    /// when we want immediate persistence.
-    private func flushDefaultsNow() {
-        defaultsFlushTask?.cancel()
-        defaultsFlushTask = nil
-        guard defaultsDirty else { return }
-        defaultsDirty = false
-
-        UserDefaults.standard.set(_gatewayIDMap, forKey: Self.gatewayIDMapKey)
-        UserDefaults.standard.set(_localTitles,   forKey: Self.titlesKey)
-        UserDefaults.standard.set(Array(_archivedIDs), forKey: Self.archivedIDsKey)
-        UserDefaults.standard.set(Array(_pinnedIDs),   forKey: Self.pinnedIDsKey)
-        UserDefaults.standard.set(_sessionTags,   forKey: Self.tagsKey)
-    }
-
-    // Public read access via computed properties (reads from backing store).
     private var gatewayIDMap: [String: String] {
         get { _gatewayIDMap }
         set { _gatewayIDMap = newValue; scheduleDefaultsFlush() }
     }
 
-    /// Client-side titles keyed by database ID. Persisted to UserDefaults.
-    /// Overrides gateway title when present (user has chatted in-app).
     private var localTitles: [String: String] {
         get { _localTitles }
         set { _localTitles = newValue; scheduleDefaultsFlush() }
     }
 
-    /// Archived session IDs — persisted to UserDefaults.
     private var archivedIDs: Set<String> {
         get { _archivedIDs }
         set { _archivedIDs = newValue; scheduleDefaultsFlush() }
     }
 
-    /// Pinned session IDs — persisted to UserDefaults.
     private var pinnedIDs: Set<String> {
         get { _pinnedIDs }
         set { _pinnedIDs = newValue; scheduleDefaultsFlush() }
     }
 
-    /// Tags keyed by session ID — persisted to UserDefaults.
     private var sessionTags: [String: [String]] {
         get { _sessionTags }
         set { _sessionTags = newValue; scheduleDefaultsFlush() }
@@ -139,6 +81,44 @@ final class SessionListViewModel: ObservableObject {
 
     /// Whether the "Archived" section is expanded.
     @Published var showArchived: Bool = false
+
+    // MARK: - Init
+
+    init() {
+        loadFromUserDefaults()
+    }
+
+    // MARK: - UserDefaults Flush
+
+    private func loadFromUserDefaults() {
+        _gatewayIDMap = (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:]
+        _localTitles = (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]
+        _archivedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? [])
+        _pinnedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? [])
+        _sessionTags = (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:]
+    }
+
+    private func scheduleDefaultsFlush() {
+        defaultsDirty = true
+        guard defaultsFlushTask == nil else { return }
+        defaultsFlushTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            guard let self, !Task.isCancelled, self.defaultsDirty else { return }
+            await MainActor.run { self.flushDefaultsNow() }
+        }
+    }
+
+    private func flushDefaultsNow() {
+        defaultsFlushTask?.cancel()
+        defaultsFlushTask = nil
+        guard defaultsDirty else { return }
+        defaultsDirty = false
+        UserDefaults.standard.set(_gatewayIDMap, forKey: Self.gatewayIDMapKey)
+        UserDefaults.standard.set(_localTitles, forKey: Self.titlesKey)
+        UserDefaults.standard.set(Array(_archivedIDs), forKey: Self.archivedIDsKey)
+        UserDefaults.standard.set(Array(_pinnedIDs), forKey: Self.pinnedIDsKey)
+        UserDefaults.standard.set(_sessionTags, forKey: Self.tagsKey)
+    }
 
     /// Get the display title for a session.
     /// Priority: local title (from first user message) > gateway title > preview (truncated) > source > short ID.
@@ -425,9 +405,9 @@ final class SessionListViewModel: ObservableObject {
         try await client.closeSession(sessionID: rpcID)
         // Clean up local history file
         ChatHistoryStore.shared.deleteMessages(forSession: id)
-        // Clean up local data — mutate backing stores directly and flush once.
-        _gatewayIDMap.removeValue(forKey: id)
+        // Clean up local data — mutate backing stores directly, then flush
         _localTitles.removeValue(forKey: id)
+        _gatewayIDMap.removeValue(forKey: id)
         _archivedIDs.remove(id)
         _pinnedIDs.remove(id)
         _sessionTags.removeValue(forKey: id)
@@ -596,12 +576,9 @@ final class SessionListViewModel: ObservableObject {
         } else {
             // Not owned — just clean local data
             ChatHistoryStore.shared.deleteMessages(forSession: id)
-            var archived = archivedIDs
-            archived.remove(id)
-            archivedIDs = archived
-            var titles = localTitles
-            titles.removeValue(forKey: id)
-            localTitles = titles
+            _archivedIDs.remove(id)
+            _localTitles.removeValue(forKey: id)
+            flushDefaultsNow()
 
             withAnimation {
                 sessions.removeAll { $0.id == id }
