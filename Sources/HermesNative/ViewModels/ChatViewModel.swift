@@ -448,8 +448,6 @@ client.eventStream
     func beginSwitchToSession(key: String) -> Int {
         flushPendingVisibleEventDeltas()
         snapshotCurrentSessionState()
-        // Evict messages from the session we're leaving (but keep streaming
-        // sessions intact — deltas are in-flight and ChatHistoryStore is stale).
         if let oldDisplayID = sessionID.map({ displaySessionID(for: $0) }),
            oldDisplayID != key,
            var oldState = sessionStates[oldDisplayID],
@@ -460,26 +458,12 @@ client.eventStream
         sessionSwitchGeneration += 1
         let generation = sessionSwitchGeneration
 
-        if restoreSessionState(displayID: key) {
-            return generation
-        }
-        if let cachedMessages = ChatHistoryStore.shared.loadMessages(forSession: key) {
-            self.messages = cachedMessages
-            self.sessionID = runtimeSessionID(for: key)
-            self.isSessionReady = true
-            self.isStreaming = false
-            self.streamingMessageID = nil
-            self.activeToolCalls = [:]
-            self.pendingApproval = nil
-            self.avatarState = .idle
-            self.error = nil
-            snapshotCurrentSessionState()
+if restoreSessionState(displayID: key) {
             return generation
         }
 
-        // Bind the selected session immediately, even before session.resume
-        // returns, so the previous streaming chat cannot keep owning the detail
-        // pane/composer during rapid sidebar clicks.
+        // Show empty chat immediately to avoid spinning wheel.
+        // Load messages from disk in background and apply when ready.
         self.sessionID = runtimeSessionID(for: key)
         self.messages = []
         self.isSessionReady = true
@@ -489,9 +473,17 @@ client.eventStream
         self.pendingApproval = nil
         self.avatarState = .idle
         self.error = nil
-        self.sessionTitle = "New Chat"
-        cancelPendingFlush()
         snapshotCurrentSessionState()
+
+        if ChatHistoryStore.shared.hasLocalMessages(forSession: key) {
+            let gen = generation
+            Task {
+                if let cachedMessages = await ChatHistoryStore.shared.loadMessagesBackground(forSession: key),
+                   gen == self.sessionSwitchGeneration {
+                    self.messages = cachedMessages
+                }
+            }
+        }
         return generation
     }
 

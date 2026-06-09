@@ -54,6 +54,21 @@ final class ChatHistoryStore {
         }
     }
 
+    /// Load messages off-main for large sessions to avoid UI jank.
+    func loadMessagesBackground(forSession sessionID: String) async -> [ChatMessage]? {
+        let file = sessionsDir.appendingPathComponent("\(sessionID).json")
+        guard fileManager.fileExists(atPath: file.path) else { return nil }
+        return await Task.detached(priority: .userInitiated) {
+            do {
+                let data = try Data(contentsOf: file)
+                return try JSONDecoder().decode([ChatMessage].self, from: data)
+            } catch {
+                log.error("Failed to load session \(sessionID): \(error)")
+                return nil
+            }
+        }.value
+    }
+
     // MARK: - Delete
 
     /// Delete local history for a session.
@@ -74,6 +89,12 @@ final class ChatHistoryStore {
         return contents
             .filter { $0.pathExtension == "json" }
             .map { $0.deletingPathExtension().lastPathComponent }
+    }
+
+    /// Check if a session has local history on disk without loading it.
+    func hasLocalMessages(forSession sessionID: String) -> Bool {
+        let file = sessionsDir.appendingPathComponent("\(sessionID).json")
+        return fileManager.fileExists(atPath: file.path)
     }
 
     /// Extract the first user message content from local history for display as fallback title.
