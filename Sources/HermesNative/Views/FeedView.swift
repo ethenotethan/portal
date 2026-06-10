@@ -37,7 +37,7 @@ struct FeedView: View {
             }
         }
         .navigationTitle("Feed")
-        .background(Color(.controlBackgroundColor))
+        .background(Theme.background)
         .task { if vm.articles.isEmpty { await vm.loadFeed(client: gatewayClientWrapper.client) } }
     }
 
@@ -229,20 +229,18 @@ struct FeedCard: View {
                     .background(Circle().fill(Color.secondary.opacity(0.08)))
             }
 
-            // Title
-            Text(article.title)
+            // Title — markdown-aware
+            MarkdownText(text: article.title)
                 .font(.body).fontWeight(.semibold)
                 .foregroundColor(.primary)
                 .lineLimit(isExpanded ? nil : 2)
-                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 10)
 
-            // Summary preview (collapsed) — show first line as preview
+            // Summary preview (collapsed)
             if !article.summary.isEmpty && !isExpanded {
-                Text(article.summary)
+                MarkdownText(text: article.summary)
                     .font(.subheadline).foregroundColor(.secondary)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             }
 
@@ -268,20 +266,19 @@ struct FeedCard: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Divider()
 
-                    // Full summary
+                    // Full summary — markdown-aware
                     if !article.summary.isEmpty {
-                        Text(article.summary)
+                        MarkdownText(text: article.summary)
                             .font(.subheadline).foregroundColor(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    // URL button — prominent, full-width
-                    if !article.url.isEmpty {
+                    // URL button — safe unwrap
+                    if let validURL = URL(string: article.url), !article.url.isEmpty {
                         Button {
                             #if os(macOS)
-                            NSWorkspace.shared.open(URL(string: article.url)!)
+                            NSWorkspace.shared.open(validURL)
                             #else
-                            UIApplication.shared.open(URL(string: article.url)!)
+                            UIApplication.shared.open(validURL)
                             #endif
                         } label: {
                             HStack {
@@ -310,13 +307,13 @@ struct FeedCard: View {
 
             // Bottom action bar
             HStack(spacing: 24) {
-                // Read / Open link
-                if !article.url.isEmpty {
+                // Read / Open link — safe URL
+                if let validURL = URL(string: article.url), !article.url.isEmpty {
                     Button {
                         #if os(macOS)
-                        NSWorkspace.shared.open(URL(string: article.url)!)
+                        NSWorkspace.shared.open(validURL)
                         #else
-                        UIApplication.shared.open(URL(string: article.url)!)
+                        UIApplication.shared.open(validURL)
                         #endif
                     } label: {
                         HStack(spacing: 4) {
