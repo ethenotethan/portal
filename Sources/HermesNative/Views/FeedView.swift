@@ -99,7 +99,11 @@ struct SourceFilterBar: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 6)
         }
+        #if os(macOS)
         .background(Color(.windowBackgroundColor))
+        #else
+        .background(Color(.systemBackground))
+        #endif
     }
 
     private func sourceLabel(_ s: String) -> String {

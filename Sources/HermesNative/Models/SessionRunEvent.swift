@@ -111,10 +111,11 @@ final class SessionRunHistoryStore: ObservableObject {
 
     private func performSave() {
         let events = self.events
+        let key = Self.storageKey
         Task.detached(priority: .background) {
             let encoder = JSONEncoder()
             if let data = try? encoder.encode(events) {
-                UserDefaults.standard.set(data, forKey: Self.storageKey)
+                UserDefaults.standard.set(data, forKey: key)
             }
         }
     }

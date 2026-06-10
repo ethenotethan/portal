@@ -165,10 +165,11 @@ final class CronRunHistoryStore: ObservableObject {
 
     private func performSave() {
         let records = self.records
+        let key = Self.storageKey
         Task.detached(priority: .background) {
             let encoder = JSONEncoder()
             if let data = try? encoder.encode(records) {
-                UserDefaults.standard.set(data, forKey: Self.storageKey)
+                UserDefaults.standard.set(data, forKey: key)
             }
         }
     }
