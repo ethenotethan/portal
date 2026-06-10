@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// Instagram/Twitter-style curated news feed from the digest pipeline.
+// MARK: - Feed View
+
+/// Social-media-style curated feed from the digest pipeline.
 struct FeedView: View {
     @StateObject private var vm = FeedViewModel()
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
@@ -12,6 +14,8 @@ struct FeedView: View {
                 selected: vm.selectedSource,
                 onSelect: { vm.selectSource($0, client: gatewayClientWrapper.client) }
             )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
 
             if let error = vm.error {
                 HStack {
@@ -20,51 +24,98 @@ struct FeedView: View {
                     Spacer()
                     Button("Retry") { Task { await vm.loadFeed(client: gatewayClientWrapper.client) } }.font(.caption)
                 }
-                .padding(.horizontal).padding(.vertical, 6)
+                .padding(.horizontal, 16).padding(.vertical, 6)
                 .background(Color.yellow.opacity(0.1))
             }
 
             if vm.articles.isEmpty && !vm.isLoading {
                 emptyState
+            } else if vm.isLoading && vm.articles.isEmpty {
+                loadingSkeleton
             } else {
-                articleList
+                articleFeed
             }
         }
         .navigationTitle("Feed")
+        .background(Color(.controlBackgroundColor))
         .task { if vm.articles.isEmpty { await vm.loadFeed(client: gatewayClientWrapper.client) } }
     }
 
-    private var articleList: some View {
+    // MARK: - Article Feed
+
+    private var articleFeed: some View {
         ScrollView {
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 12) {
                 ForEach(vm.articles) { article in
                     FeedCard(article: article)
-                        .padding(.horizontal).padding(.vertical, 10)
+                        .padding(.horizontal, 12)
                         .onAppear {
                             if article.id == vm.articles.last?.id {
                                 Task { await vm.loadMore(client: gatewayClientWrapper.client) }
                             }
                         }
-                    Divider().padding(.leading, 16)
+                }
+
+                if vm.isLoadingMore {
+                    HStack { Spacer(); ProgressView().padding(); Spacer() }
                 }
             }
-            .padding(.top, 8)
-            if vm.isLoadingMore { ProgressView().padding() }
+            .padding(.vertical, 12)
         }
         .refreshable { await vm.refresh(client: gatewayClientWrapper.client) }
     }
 
+    // MARK: - Empty / Loading States
+
     private var emptyState: some View {
         VStack(spacing: 16) {
-            if vm.isLoading { ProgressView().scaleEffect(1.2) }
-            else {
-                Image(systemName: "newspaper").font(.system(size: 48)).foregroundColor(.secondary.opacity(0.5))
-                Text("No articles yet").font(.headline).foregroundColor(.secondary)
-                Text("Articles from your research digests will appear here as the pipeline runs.")
-                    .font(.caption).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal, 40)
-            }
+            Spacer()
+            Image(systemName: "newspaper").font(.system(size: 48)).foregroundColor(.secondary.opacity(0.4))
+            Text("No articles yet").font(.headline).foregroundColor(.secondary)
+            Text("Articles from your research digests will appear here as the pipeline runs.")
+                .font(.caption).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal, 40)
+            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var loadingSkeleton: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(0..<6, id: \.self) { _ in
+                    SkeletonCard().padding(.horizontal, 12)
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
+}
+
+// MARK: - Skeleton Card
+
+struct SkeletonCard: View {
+    @State private var shimmer = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.15)).frame(width: 28, height: 28)
+                RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(width: 80, height: 12)
+                Spacer()
+                RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(width: 50, height: 10)
+            }
+            RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(height: 14)
+            RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(width: 200, height: 14)
+            RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(height: 12)
+            RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(width: 120, height: 12)
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.windowBackgroundColor)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.secondary.opacity(0.1), lineWidth: 0.5)
+        )
+        .opacity(shimmer ? 0.4 : 0.8)
+        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: shimmer)
+        .onAppear { shimmer = true }
     }
 }
 
@@ -97,7 +148,6 @@ struct SourceFilterBar: View {
                         .onTapGesture { onSelect(source) }
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
         }
         #if os(macOS)
         .background(Color(.windowBackgroundColor))
@@ -148,31 +198,84 @@ struct FeedCard: View {
     @State private var isExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: article.sourceIcon).font(.caption2)
-                Text(article.sourceLabel).font(.caption).fontWeight(.medium).foregroundColor(sourceColor(article.source))
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row — source avatar + name + time
+            HStack(spacing: 10) {
+                // Source avatar circle
+                ZStack {
+                    Circle()
+                        .fill(sourceColor(article.source).opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: article.sourceIcon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(sourceColor(article.source))
+                }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(article.sourceLabel)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    Text(article.relativeTime)
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+
                 Spacer()
-                Text(article.relativeTime).font(.caption2).foregroundColor(.secondary)
+
+                // Expand/collapse indicator
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(6)
+                    .background(Circle().fill(Color.secondary.opacity(0.08)))
             }
-            Text(article.title).font(.headline).lineLimit(isExpanded ? nil : 3).fixedSize(horizontal: false, vertical: true)
-            if !article.summary.isEmpty {
-                Text(article.summary).font(.subheadline).foregroundColor(.secondary)
-                    .lineLimit(isExpanded ? nil : 3)
+
+            // Title
+            Text(article.title)
+                .font(.body).fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .lineLimit(isExpanded ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+
+            // Summary preview (collapsed) — show first line as preview
+            if !article.summary.isEmpty && !isExpanded {
+                Text(article.summary)
+                    .font(.subheadline).foregroundColor(.secondary)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
             }
+
+            // Tags
             if !article.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(article.tags.prefix(isExpanded ? article.tags.count : 5), id: \.self) { tag in
-                            Text(tag).font(.caption2).padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Color.secondary.opacity(0.1)).cornerRadius(6)
+                        ForEach(article.tags.prefix(isExpanded ? article.tags.count : 4), id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(sourceColor(article.source).opacity(0.08))
+                                .foregroundColor(sourceColor(article.source))
+                                .cornerRadius(6)
                         }
                     }
                 }
+                .padding(.top, 8)
             }
+
+            // Expanded content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Divider()
+
+                    // Full summary
+                    if !article.summary.isEmpty {
+                        Text(article.summary)
+                            .font(.subheadline).foregroundColor(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // URL button — prominent, full-width
                     if !article.url.isEmpty {
                         Button {
                             #if os(macOS)
@@ -181,29 +284,83 @@ struct FeedCard: View {
                             UIApplication.shared.open(URL(string: article.url)!)
                             #endif
                         } label: {
-                            Label(article.url, systemImage: "safari")
-                                .font(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            HStack {
+                                Image(systemName: "safari")
+                                Text(article.url)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Image(systemName: "arrow.up.forward")
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(sourceColor(article.source).opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(sourceColor(article.source).opacity(0.2), lineWidth: 0.5)
+                            )
                         }
-                        .buttonStyle(.bordered)
-                        .tint(sourceColor(article.source))
-                    }
-                    if !article.summary.isEmpty {
-                        Text(article.summary)
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        .buttonStyle(.plain)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+
+            // Bottom action bar
+            HStack(spacing: 24) {
+                // Read / Open link
+                if !article.url.isEmpty {
+                    Button {
+                        #if os(macOS)
+                        NSWorkspace.shared.open(URL(string: article.url)!)
+                        #else
+                        UIApplication.shared.open(URL(string: article.url)!)
+                        #endif
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "safari").font(.caption2)
+                            Text("Open").font(.caption2)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(sourceColor(article.source))
+                }
+
+                // Expand/collapse
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isExpanded ? "chevron.up" : "text.justify.leading")
+                            .font(.caption2)
+                        Text(isExpanded ? "Less" : "More").font(.caption2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+
+                Spacer()
+            }
+            .padding(.top, article.summary.isEmpty && article.tags.isEmpty ? 6 : 10)
         }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.secondary.opacity(0.08), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+            withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
         }
     }
+
     private func sourceColor(_ s: String) -> Color {
         switch s {
         case "arxiv": return .blue
