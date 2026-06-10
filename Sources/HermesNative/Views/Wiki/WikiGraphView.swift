@@ -415,14 +415,8 @@ struct WikiGraphView: View {
     // MARK: - Graph Canvas
 
     private var graphCanvas: some View {
-        GeometryReader { _ in
+        GeometryReader { geo in
             Canvas { context, size in
-                let wasZero = viewModel.canvasSize == .zero
-                viewModel.canvasSize = size
-                if wasZero && size != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
-                    viewModel.setupSimulation()
-                }
-
                 let hasSelection = viewModel.highlightAnchor != nil
                 let filtering = viewModel.isFiltering
                 let filteredSet = viewModel.filteredNodeIndices
@@ -568,6 +562,18 @@ struct WikiGraphView: View {
                             .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
                         at: screenPos, anchor: .leading
                     )
+                }
+            }
+            .onAppear {
+                viewModel.canvasSize = geo.size
+                if geo.size != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
+                    viewModel.setupSimulation()
+                }
+            }
+            .onChange(of: geo.size) { _, newSize in
+                viewModel.canvasSize = newSize
+                if newSize != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
+                    viewModel.setupSimulation()
                 }
             }
         }

@@ -257,10 +257,8 @@ struct ThoughtGraphView: View {
 
     @ViewBuilder
     private var graphCanvas: some View {
-        GeometryReader { _ in
+        GeometryReader { geo in
             Canvas { context, size in
-                canvasSize = size
-
                 let selectedID = selectedNodeID
 
                 context.translateBy(x: size.width / 2 + panOffset.width,
@@ -385,6 +383,8 @@ struct ThoughtGraphView: View {
                     )
                 }
             }
+            .onAppear { canvasSize = geo.size }
+            .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
         }
     }
 

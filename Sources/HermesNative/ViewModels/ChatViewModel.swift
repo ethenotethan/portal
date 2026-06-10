@@ -375,12 +375,7 @@ client.eventStream
 
     private func restoreSessionState(displayID: String, runtimeID: String? = nil) -> Bool {
         guard var state = sessionStates[displayID] else { return false }
-        // Lazy-reload messages evicted on session switch
-        if state.messages.isEmpty && !state.isStreaming,
-           let cached = ChatHistoryStore.shared.loadMessages(forSession: displayID) {
-            state.messages = cached
-            sessionStates[displayID] = state
-        }
+        // Lazy-reload messages evicted on session switch — use background load
         sessionID = runtimeID ?? runtimeSessionID(for: displayID)
         messages = state.messages
         isStreaming = state.isStreaming
@@ -391,6 +386,18 @@ client.eventStream
         avatarState = state.avatarState
         sessionTitle = state.sessionTitle
         streamingMessageID = state.streamingMessageID
+        if state.messages.isEmpty && !state.isStreaming,
+           ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
+            Task {
+                if let cached = await ChatHistoryStore.shared.loadMessagesBackground(forSession: displayID) {
+                    state.messages = cached
+                    sessionStates[displayID] = state
+                    if self.sessionID == (runtimeID ?? displayID) {
+                        self.messages = cached
+                    }
+                }
+            }
+        }
         return true
     }
 
@@ -561,12 +568,14 @@ if restoreSessionState(displayID: key) {
                         sessionTitle: cachedBeforeResume?.sessionTitle ?? sessionTitle
                     )
                 }
-            } else if cachedBeforeResume == nil, let cachedMessages = ChatHistoryStore.shared.loadMessages(forSession: key) {
-                sessionStates[key] = SessionRuntimeState(
-                    messages: cachedMessages,
-                    isStreaming: false,
-                    isSessionReady: true
-                )
+            } else if cachedBeforeResume == nil, ChatHistoryStore.shared.hasLocalMessages(forSession: key) {
+                if let cachedMessages = await ChatHistoryStore.shared.loadMessagesBackground(forSession: key) {
+                    sessionStates[key] = SessionRuntimeState(
+                        messages: cachedMessages,
+                        isStreaming: false,
+                        isSessionReady: true
+                    )
+                }
             }
 
             if !restoreSessionState(displayID: key, runtimeID: result.sessionID) {
