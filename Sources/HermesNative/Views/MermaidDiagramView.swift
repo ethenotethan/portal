@@ -304,6 +304,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         pendingCompletion?(nil)
         pendingCompletion = nil
+        activeRenderCount -= 1
         processQueue()
     }
 }
@@ -370,6 +371,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         pendingCompletion?(nil)
         pendingCompletion = nil
+        activeRenderCount -= 1
         processQueue()
     }
 }
