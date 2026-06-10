@@ -108,7 +108,7 @@ struct SkeletonCard: View {
             RoundedRectangle(cornerRadius: 4).fill(Color.secondary.opacity(0.15)).frame(width: 120, height: 12)
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.windowBackgroundColor)))
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.secondary.opacity(0.1), lineWidth: 0.5)
@@ -150,7 +150,7 @@ struct SourceFilterBar: View {
             }
         }
         #if os(macOS)
-        .background(Color(.windowBackgroundColor))
+        .background(Theme.surface)
         #else
         .background(Color(.systemBackground))
         #endif
@@ -348,7 +348,7 @@ struct FeedCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.windowBackgroundColor))
+                .fill(Theme.surface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
