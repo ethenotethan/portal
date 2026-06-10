@@ -22,7 +22,7 @@ struct ThoughtGraphNodeView: View {
                 statusIcon
                     .frame(width: 14, height: 14)
 
-                Text(truncatedName)
+                Text(displayName)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
@@ -78,9 +78,11 @@ struct ThoughtGraphNodeView: View {
 
     // MARK: - Helpers
 
-    private var truncatedName: String {
-        if node.name.count <= 18 { return node.name }
-        return String(node.name.prefix(16)) + "…"
+    private var displayName: String {
+        if node.name == "reasoning", let context = node.context, !context.isEmpty {
+            return String(context.prefix(24))
+        }
+        return node.name.count <= 18 ? node.name : String(node.name.prefix(16)) + "…"
     }
 
     // MARK: - Styling

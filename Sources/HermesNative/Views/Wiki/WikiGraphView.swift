@@ -128,7 +128,7 @@ struct WikiGraphView: View {
 
     private enum GraphViewMode { case twoD, threeD }
 
-    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     @State private var viewMode: GraphViewMode = .twoD
 
@@ -161,7 +161,9 @@ struct WikiGraphView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onReceive(timer) { _ in
-                    if viewMode != .threeD { viewModel.tick() }
+                    guard viewMode != .threeD else { return }
+                    guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
+                    viewModel.tick()
                 }
                 .gesture(
                     MagnificationGesture()

@@ -186,8 +186,16 @@ struct ThoughtGraphView: View {
             for id in appeared { snapshotCache.removeValue(forKey: id) }
             previousNodeIDs = newIDs
         }
-        .onChange(of: zoom) { _, _ in lastPinchScale = zoom }
+        .onChange(of: isFullScreen) { _, fullScreen in
+            if fullScreen {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    zoom = 1.0
+                    panOffset = .zero
+                }
+            }
+        }
         .onChange(of: selectedNodeID) { _, _ in invalidateSnapshots() }
+        .onChange(of: zoom) { _, _ in lastPinchScale = zoom }
 
         // ── Periodic refresh for running nodes (pulsing) ──
         .onReceive(
