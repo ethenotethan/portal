@@ -2,9 +2,11 @@ import SwiftUI
 
 /// A macOS-safe alternative to ProgressView that avoids the
 /// "Unable to render flattened version of PlatformViewRepresentableAdaptor<AppKitProgressView>"
-/// diagnostic by using a SwiftUI-native spinner instead of the AppKit NSProgressIndicator.
+/// diagnostic by using a SwiftUI-native spinner.
 struct HermesProgressView: View {
     var label: String?
+
+    @State private var rotation: Double = 0
 
     var body: some View {
         HStack(spacing: 6) {
@@ -12,15 +14,16 @@ struct HermesProgressView: View {
                 .trim(from: 0, to: 0.7)
                 .stroke(Theme.accent, lineWidth: 2)
                 .frame(width: 14, height: 14)
-                .phaseAnimator([0, 360]) { view, phase in
-                    view.rotationEffect(.degrees(phase))
-                } animation: { _ in
-                    .linear(duration: 0.8).repeatForever(autoreverses: false)
-                }
+                .rotationEffect(.degrees(rotation))
             if let label = label {
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                rotation = 360
             }
         }
     }

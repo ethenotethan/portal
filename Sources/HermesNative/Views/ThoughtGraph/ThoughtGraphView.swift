@@ -191,7 +191,7 @@ struct ThoughtGraphView: View {
 
         // ── Periodic refresh for running nodes (pulsing) ──
         .onReceive(
-            Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+            Timer.publish(every: 1.0 / 10.0, on: .main, in: .common).autoconnect()
         ) { _ in
             // Only invalidate if there are running nodes to avoid
             // unnecessary Canvas redraws.
