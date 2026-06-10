@@ -16,8 +16,8 @@ struct CelebrationOverlay: View {
                     let progress = min(age / p.lifetime, 1.0)
                     guard progress < 1.0 else { continue }
 
-                    var x = p.startX * size.width + p.velocityX * age * 60
-                    var y = p.startY * size.height - p.velocityY * age * 60 + 0.5 * 300 * age * age
+                    let x = p.startX * size.width + p.velocityX * age * 60
+                    let y = p.startY * size.height - p.velocityY * age * 60 + 0.5 * 300 * age * age
 
                     // Fade near end
                     let alpha = progress > 0.7 ? 1.0 - (progress - 0.7) / 0.3 : 1.0

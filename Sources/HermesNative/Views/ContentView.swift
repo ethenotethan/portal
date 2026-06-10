@@ -36,6 +36,7 @@ struct ContentView: View {
     @State private var showCronDashboard = false
     @State private var showSkills = false
     @State private var showWikiGraph = false
+    @State private var showFeedSheet = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
@@ -70,7 +71,7 @@ struct ContentView: View {
             }
 
             // Celebration overlay — positive reinforcement effects
-            if let celebration = celebrationManager.activeCelebration {
+            if let _ = celebrationManager.activeCelebration {
                 CelebrationOverlay(
                     particles: ConfettiParticle.burst(count: 60),
                     onComplete: { celebrationManager.activeCelebration = nil }
@@ -142,6 +143,13 @@ struct ContentView: View {
                     Label("Skills", systemImage: "sparkles")
                 }
                 .tag(3)
+
+            FeedView()
+                .environmentObject(gatewayClientWrapper)
+                .tabItem {
+                    Label("Feed", systemImage: "newspaper")
+                }
+                .tag(4)
         }
     }
 
@@ -351,11 +359,12 @@ struct ContentView: View {
     }
 
     private var isOverlayActive: Bool {
-        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showSkills || showWikiGraph
+        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showFeedSheet || showSkills || showWikiGraph
     }
 
     private var overlayTitle: String {
         if showWikiGraph { return "Wiki Graph" }
+        if showFeedSheet { return "Feed" }
         if showSkills { return "Skills" }
         if showLiveSessions { return "Sessions" }
         if showCronDashboard { return "Cron Activity" }
@@ -571,6 +580,16 @@ struct ContentView: View {
             .accessibilityLabel("Skills")
 
             Button {
+                showFeedSheet = true
+            } label: {
+                Label("Feed", systemImage: "newspaper")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("f", modifiers: .command)
+            .accessibilityLabel("Feed")
+
+            Button {
                 showWikiGraph = true
             } label: {
                 Label("Wiki", systemImage: "network")
@@ -655,6 +674,14 @@ struct ContentView: View {
 
             if showSkills {
                 SkillsView()
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
+            if showFeedSheet {
+                FeedView()
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)

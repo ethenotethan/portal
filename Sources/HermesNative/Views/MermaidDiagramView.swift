@@ -90,7 +90,7 @@ private struct MermaidRendererCoordinator: View {
             return "done-\\(cleanedSource.hashValue)"
         }
         // Streaming — stable identity on first line (diagram type)
-        let firstLine = cleanedSource.split(separator: "\n").first ?? "diagram"
+        let _ = cleanedSource.split(separator: "\n").first ?? "diagram"
         return "streaming-\\(firstLine)"
     }
 
@@ -234,6 +234,7 @@ private let mermaidCacheLock = NSLock()
 #if os(macOS)
 private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
+    @available(macOS, deprecated: 12.0)
     @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
     private var pendingCompletion: ((PlatformImage?) -> Void)?
