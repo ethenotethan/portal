@@ -141,6 +141,8 @@ struct SourcePill: View {
 
 struct FeedCard: View {
     let article: FeedArticle
+    @State private var isExpanded = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
@@ -149,35 +151,53 @@ struct FeedCard: View {
                 Spacer()
                 Text(article.relativeTime).font(.caption2).foregroundColor(.secondary)
             }
-            Text(article.title).font(.headline).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            Text(article.title).font(.headline).lineLimit(isExpanded ? nil : 3).fixedSize(horizontal: false, vertical: true)
             if !article.summary.isEmpty {
-                Text(article.summary).font(.subheadline).foregroundColor(.secondary).lineLimit(3)
+                Text(article.summary).font(.subheadline).foregroundColor(.secondary)
+                    .lineLimit(isExpanded ? nil : 3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !article.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        ForEach(article.tags.prefix(5), id: \.self) { tag in
+                        ForEach(article.tags.prefix(isExpanded ? article.tags.count : 5), id: \.self) { tag in
                             Text(tag).font(.caption2).padding(.horizontal, 8).padding(.vertical, 3)
                                 .background(Color.secondary.opacity(0.1)).cornerRadius(6)
                         }
                     }
                 }
             }
-            HStack(spacing: 20) {
-                if !article.url.isEmpty {
-                    Button {
-                        #if os(macOS)
-                        NSWorkspace.shared.open(URL(string: article.url)!)
-                        #else
-                        UIApplication.shared.open(URL(string: article.url)!)
-                        #endif
-                    } label: { Label("Read", systemImage: "safari").font(.caption) }
-                        .buttonStyle(.plain)
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    if !article.url.isEmpty {
+                        Button {
+                            #if os(macOS)
+                            NSWorkspace.shared.open(URL(string: article.url)!)
+                            #else
+                            UIApplication.shared.open(URL(string: article.url)!)
+                            #endif
+                        } label: {
+                            Label(article.url, systemImage: "safari")
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(sourceColor(article.source))
+                    }
+                    if !article.summary.isEmpty {
+                        Text(article.summary)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                Spacer()
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .foregroundColor(.secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
         }
     }
     private func sourceColor(_ s: String) -> Color {

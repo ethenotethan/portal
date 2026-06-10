@@ -13,7 +13,7 @@ final class FeedViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var error: String?
 
-    private let pageSize = 50
+    private let pageSize = 200 // Server max: digest_store caps at 200
     private var totalCount = 0
 
     var hasMore: Bool { articles.count < totalCount }
@@ -27,6 +27,10 @@ final class FeedViewModel: ObservableObject {
             let feed = try await client.feedGet(sources: selectedSource.flatMap { [$0] }, limit: pageSize)
             self.articles = feed.articles; self.totalCount = feed.total
             log.info("Feed loaded: \(feed.articles.count) articles (total: \(feed.total))")
+            // Auto-fetch remaining pages so user sees everything without manual scroll-triggered loads
+            if hasMore {
+                Task { await self.loadRemaining(client: client) }
+            }
         } catch { log.error("feed.get failed: \(error.localizedDescription)"); self.error = error.localizedDescription }
     }
 
@@ -40,6 +44,12 @@ final class FeedViewModel: ObservableObject {
             self.articles.append(contentsOf: feed.articles); self.totalCount = feed.total
             log.info("Feed loaded more: now \(self.articles.count) / \(self.totalCount) articles")
         } catch { log.error("feed.get (more) failed: \(error.localizedDescription)") }
+    }
+
+    private func loadRemaining(client: GatewayClient) async {
+        while hasMore, !isLoading, !isLoadingMore {
+            await loadMore(client: client)
+        }
     }
 
     func selectSource(_ source: String?, client: GatewayClient) {
