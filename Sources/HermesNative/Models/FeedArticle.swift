@@ -10,30 +10,22 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     let imageUrl: String
     let ts: String
 
-    /// Clean display-ready summary — strips markdown, HTML, and collapses whitespace.
+    /// Clean summary ready for MarkdownText rendering — strips HTML, preserves markdown.
     var displaySummary: String {
         var text = summary
         // Strip HTML tags
         while let range = text.range(of: "<[^>]+>", options: .regularExpression) {
             text.removeSubrange(range)
         }
-        // Strip markdown links: [text](url) → text
-        text = text.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
-        // Strip markdown formatting: **bold**, __bold__, *italic*, _italic_
-        text = text.replacingOccurrences(of: #"\*\*([^*]+)\*\*"#, with: "$1", options: .regularExpression)
-        text = text.replacingOccurrences(of: #"__([^_]+)__"#, with: "$1", options: .regularExpression)
-        text = text.replacingOccurrences(of: #"\*([^*]+)\*"#, with: "$1", options: .regularExpression)
-        text = text.replacingOccurrences(of: #"_([^_]+)_"#, with: "$1", options: .regularExpression)
-        // Strip markdown headers: ##, ### etc
-        text = text.replacingOccurrences(of: #"(?m)^#{1,6}\s+"#, with: "", options: .regularExpression)
-        // Strip backtick code spans
-        text = text.replacingOccurrences(of: #"`([^`]+)`"#, with: "$1", options: .regularExpression)
-        // Strip bullet markers
-        text = text.replacingOccurrences(of: #"(?m)^\s*[-*+]\s+"#, with: "", options: .regularExpression)
-        // Strip bare URLs
-        text = text.replacingOccurrences(of: #"https?://\S+"#, with: "", options: .regularExpression)
-        // Collapse whitespace
-        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        // Decode HTML entities
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "&lt;", with: "<")
+        text = text.replacingOccurrences(of: "&gt;", with: ">")
+        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        // Normalize newlines and whitespace
+        text = text.replacingOccurrences(of: "\\n", with: "\n")
+        text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\s*\n\s*"#, with: "\n", options: .regularExpression)
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
