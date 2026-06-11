@@ -26,13 +26,39 @@ struct ThoughtGraphView: View {
 
     /// All nodes currently in the graph — changed externally as new
     /// tool.start / tool.complete events arrive.
-    var nodes: [ThoughtGraphNode] {
-        didSet { engine.layout(nodes: activeNodes) }
-    }
+    let nodes: [ThoughtGraphNode]
 
     /// Whether the conversation turn is still streaming.  Controls the
     /// live indicator in the header.
-    var isStreaming: Bool
+    let isStreaming: Bool
+
+    // MARK: - Derived Node Data (computed once per view update)
+
+    /// `nodes` filtered by mode, cached so body evaluations don't re-filter.
+    private let toolNodes: [ThoughtGraphNode]
+    private let reasoningNodes: [ThoughtGraphNode]
+
+    /// Lookup from node ID → node for O(1) access in the Canvas draw path.
+    private let nodeIndex: [String: ThoughtGraphNode]
+
+    private let runningToolCount: Int
+    private let runningReasoningCount: Int
+
+    init(engine: ThoughtGraphLayoutEngine, nodes: [ThoughtGraphNode], isStreaming: Bool) {
+        self.engine = engine
+        self.nodes = nodes
+        self.isStreaming = isStreaming
+        let toolNodes = nodes.filter { $0.name != "reasoning" }
+        let reasoningNodes = nodes.filter { $0.name == "reasoning" }
+        self.toolNodes = toolNodes
+        self.reasoningNodes = reasoningNodes
+        self.nodeIndex = Dictionary(
+            nodes.map { ($0.id, $0) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        self.runningToolCount = toolNodes.filter { $0.status == .running }.count
+        self.runningReasoningCount = reasoningNodes.filter { $0.status == .running }.count
+    }
 
     // MARK: - Local State
 
@@ -46,13 +72,17 @@ struct ThoughtGraphView: View {
 
     enum GraphMode: String, CaseIterable { case tools = "Tools", reasoning = "Reasoning" }
 
-    private var toolNodes: [ThoughtGraphNode] { nodes.filter { $0.name != "reasoning" } }
-    private var reasoningNodes: [ThoughtGraphNode] { nodes.filter { $0.name == "reasoning" } }
-
     private var activeNodes: [ThoughtGraphNode] {
-        let subset = mode == .tools ? toolNodes : reasoningNodes
-        return subset
+        mode == .tools ? toolNodes : reasoningNodes
     }
+
+    private var runningCount: Int {
+        mode == .tools ? runningToolCount : runningReasoningCount
+    }
+
+    /// Layout trigger key — changes when the active node set changes,
+    /// either via mode switch or node arrival/removal.
+    private var layoutKey: String { "\(mode.rawValue)-\(activeNodes.count)" }
 
     // MARK: - Expand Button
 
@@ -72,6 +102,9 @@ struct ThoughtGraphView: View {
 
     // ── Cached node snapshots ──
     @State private var snapshotCache: [String: Image] = [:]
+
+    // ── Running-node pulse phase (advanced by the 10Hz timer) ──
+    @State private var pulsePhase: TimeInterval = Date.now.timeIntervalSinceReferenceDate
 
     // ── Transitions ──
     @State private var previousNodeIDs: Set<String> = []
@@ -119,7 +152,7 @@ struct ThoughtGraphView: View {
 
                 // ── Detail popover (right panel) ──
                 if let selID = selectedNodeID,
-                   let node = nodes.first(where: { $0.id == selID }) {
+                   let node = nodeIndex[selID] {
                     detailPopover(node: node)
                         .frame(width: 280)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -173,17 +206,17 @@ struct ThoughtGraphView: View {
         #endif
 
         .onAppear {
-            previousNodeIDs = Set(nodes.map(\.id))
-            engine.layout(nodes: nodes)
+            previousNodeIDs = Set(activeNodes.map(\.id))
+            engine.layout(nodes: activeNodes)
         }
-        .onChange(of: activeNodes.count) { _, _ in
+        .onChange(of: layoutKey) { _, _ in
             engine.layout(nodes: activeNodes)
             let newIDs = Set(activeNodes.map(\.id))
             let appeared = newIDs.subtracting(previousNodeIDs)
             // Animate new nodes: briefly reset cache so they redraw fresh.
             // The actual scale-up is handled by the Canvas' draw closure
             // when a node is "new".
-            for id in appeared { snapshotCache.removeValue(forKey: id) }
+            for id in appeared { invalidateSnapshots(for: id) }
             previousNodeIDs = newIDs
         }
         .onChange(of: isFullScreen) { _, fullScreen in
@@ -194,17 +227,24 @@ struct ThoughtGraphView: View {
                 }
             }
         }
-        .onChange(of: selectedNodeID) { _, _ in invalidateSnapshots() }
+        .onChange(of: selectedNodeID) { oldID, newID in
+            // Cache keys encode selection state, so only the two affected
+            // nodes' snapshot variants need pruning.
+            if let oldID { invalidateSnapshots(for: oldID) }
+            if let newID { invalidateSnapshots(for: newID) }
+        }
         .onChange(of: zoom) { _, _ in lastPinchScale = zoom }
 
         // ── Periodic refresh for running nodes (pulsing) ──
         .onReceive(
             Timer.publish(every: 1.0 / 10.0, on: .main, in: .common).autoconnect()
-        ) { _ in
-            // Only invalidate if there are running nodes to avoid
-            // unnecessary Canvas redraws.
-            if activeNodes.contains(where: { $0.status == .running }) {
-                invalidateSnapshots()
+        ) { now in
+            // Advance the pulse phase only while nodes are running.  The
+            // Canvas reads `pulsePhase`, so this triggers a cheap redraw of
+            // cached snapshots instead of invalidating and re-rendering
+            // every node image through ImageRenderer.
+            if runningCount > 0 {
+                pulsePhase = now.timeIntervalSinceReferenceDate
             }
         }
 
@@ -251,7 +291,7 @@ struct ThoughtGraphView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if let selID = selectedNodeID,
-                   let node = activeNodes.first(where: { $0.id == selID }) {
+                   let node = nodeIndex[selID] {
                     detailPopover(node: node)
                         .frame(width: 280)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -268,6 +308,10 @@ struct ThoughtGraphView: View {
         GeometryReader { geo in
             Canvas { context, size in
                 let selectedID = selectedNodeID
+                // Breathing opacity for running nodes (0.6…1.0, 1.5s period).
+                // Reading `pulsePhase` ties the Canvas to the 10Hz timer so
+                // cached snapshots redraw cheaply instead of re-rendering.
+                let pulse = 0.8 + 0.2 * sin(pulsePhase * (2 * .pi / 1.5))
 
                 context.translateBy(x: size.width / 2 + panOffset.width,
                                     y: 80 + panOffset.height)
@@ -303,7 +347,7 @@ struct ThoughtGraphView: View {
 
                 // ── 2. Draw node glow (running nodes only) ──
                 for layout in engine.layouts {
-                    guard let node = node(for: layout.nodeID),
+                    guard let node = nodeIndex[layout.nodeID],
                           node.status == .running else { continue }
                     let glowR: CGFloat = 36
                     let cx = layout.x
@@ -314,7 +358,7 @@ struct ThoughtGraphView: View {
                     )
                     let glow = GraphicsContext.Shading.radialGradient(
                         Gradient(colors: [
-                            Theme.warning.opacity(0.25),
+                            Theme.warning.opacity(0.25 * pulse),
                             Theme.warning.opacity(0.0),
                         ]),
                         center: CGPoint(x: cx, y: cy),
@@ -326,12 +370,19 @@ struct ThoughtGraphView: View {
 
                 // ── 3. Draw nodes (prerendered images) ──
                 for layout in engine.layouts {
-                    guard let node = node(for: layout.nodeID) else { continue }
+                    guard let node = nodeIndex[layout.nodeID] else { continue }
                     let isSelected = selectedNodeID == node.id
                     let isHovered = hoveredNodeID == node.id
 
+                    // Pulse running nodes by modulating draw opacity over the
+                    // cached snapshot — the cache itself stays intact.
+                    var nodeContext = context
+                    if node.status == .running {
+                        nodeContext.opacity = pulse
+                    }
+
                     if let cached = snapshotCache[node.cacheKey(isSelected: isSelected, hovered: isHovered)] {
-                        context.draw(cached, at: CGPoint(x: layout.x, y: layout.y))
+                        nodeContext.draw(cached, at: CGPoint(x: layout.x, y: layout.y))
                     } else {
                         // Render a fresh snapshot
                         let view = ThoughtGraphNodeView(
@@ -346,7 +397,7 @@ struct ThoughtGraphView: View {
                         if let nsImage = renderer.nsImage {
                             let img = Image(nsImage: nsImage)
                             snapshotCache[node.cacheKey(isSelected: isSelected, hovered: isHovered)] = img
-                            context.draw(img, at: CGPoint(x: layout.x, y: layout.y))
+                            nodeContext.draw(img, at: CGPoint(x: layout.x, y: layout.y))
                         }
                         #else
                         let renderer = ImageRenderer(
@@ -356,7 +407,7 @@ struct ThoughtGraphView: View {
                         if let uiImage = renderer.uiImage {
                             let img = Image(uiImage: uiImage)
                             snapshotCache[node.cacheKey(isSelected: isSelected, hovered: isHovered)] = img
-                            context.draw(img, at: CGPoint(x: layout.x, y: layout.y))
+                            nodeContext.draw(img, at: CGPoint(x: layout.x, y: layout.y))
                         }
                         #endif
                     }
@@ -367,7 +418,7 @@ struct ThoughtGraphView: View {
                 // independent of zoom to stay readable.
                 context.transform = .identity
                 let completedNodes = engine.layouts.compactMap { layout -> (ThoughtGraphLayout, ThoughtGraphNode)? in
-                    guard let n = node(for: layout.nodeID),
+                    guard let n = nodeIndex[layout.nodeID],
                           n.status == .completed else { return nil }
                     return (layout, n)
                 }
@@ -422,9 +473,7 @@ struct ThoughtGraphView: View {
     // MARK: - Header Bar
 
     private var headerBar: some View {
-        let runningCount = activeNodes.filter { $0.status == .running }.count
-
-        return VStack(spacing: 6) {
+        VStack(spacing: 6) {
             HStack(spacing: 8) {
                 Text("Agent Thought Graph")
                     .font(.headline)
@@ -750,14 +799,12 @@ struct ThoughtGraphView: View {
 
     // MARK: - Snapshots
 
-    private func invalidateSnapshots() {
-        snapshotCache.removeAll()
-    }
-
-    // MARK: - Helpers
-
-    private func node(for id: String) -> ThoughtGraphNode? {
-        nodes.first(where: { $0.id == id })
+    /// Remove all cached snapshot variants (selected/hovered/status) for one node.
+    private func invalidateSnapshots(for nodeID: String) {
+        let prefix = "\(nodeID)-"
+        for key in snapshotCache.keys where key.hasPrefix(prefix) {
+            snapshotCache.removeValue(forKey: key)
+        }
     }
 
     // MARK: - Mouse Handlers (macOS)

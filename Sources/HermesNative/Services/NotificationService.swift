@@ -84,6 +84,21 @@ final class NotificationService: NSObject, ObservableObject {
         )
     }
 
+    /// Post notification when a turn finishes (message.complete). Fires when
+    /// the app is backgrounded OR the session isn't the active one; `post()`
+    /// suppresses it for the foregrounded active session, matching the other
+    /// triggers.
+    func notifyTurnComplete(sessionTitle: String, preview: String, sessionID: String) {
+        guard responseCompleteNotificationsEnabled else { return }
+        post(
+            id: "turn-complete-\(sessionID)-\(UUID().uuidString.prefix(8))",
+            title: sessionTitle.isEmpty ? "Turn Complete" : sessionTitle,
+            body: preview.isEmpty ? "Response complete" : preview.truncated(to: 80),
+            category: .responseComplete,
+            sessionID: sessionID
+        )
+    }
+
     /// Post notification for a gateway activity event.
     func notifyActivity(_ item: ActivityItem) {
         guard !item.isRead else { return }

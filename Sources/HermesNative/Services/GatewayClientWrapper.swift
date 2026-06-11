@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 import os
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private let logger = Logger(subsystem: "com.researchoors.HermesNative", category: "GatewayClientWrapper")
 
@@ -118,6 +121,27 @@ final class GatewayClientWrapper: ObservableObject {
         return connected
     }
 
+    /// Connect with a small bounded retry for cold-start races where the
+    /// network path isn't up yet (iOS launch, foreground radio wake). A failed
+    /// attempt leaves GatewayClient in a terminal `.error`/`.connecting` state
+    /// with no automatic retry — auto-reconnect only arms after a successful
+    /// connection — so retry with backoff here. Attempts: immediate, +2s, +4s.
+    @discardableResult
+    func connectWithRetry(using settings: SettingsViewModel, maxAttempts: Int = 3) async -> Bool {
+        var delay: TimeInterval = 2
+        for attempt in 1...maxAttempts {
+            let connected = await connectIfNeeded(using: settings, force: attempt > 1)
+            if connected { return true }
+            guard attempt < maxAttempts else { break }
+            logger.info("connectWithRetry attempt \(attempt) failed; retrying in \(delay)s")
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if Task.isCancelled { return isConnected }
+            if isConnected { return true }
+            delay *= 2
+        }
+        return isConnected
+    }
+
     func connectedClient(using settings: SettingsViewModel, timeout seconds: TimeInterval = 12) async -> GatewayClient? {
         guard await connectIfNeeded(using: settings) else { return nil }
         guard await waitUntilConnected(timeout: seconds) else { return nil }
@@ -186,4 +210,30 @@ final class GatewayClientWrapper: ObservableObject {
         log.append(LogEntry(text: text, isError: error))
         if log.count > 200 { log.removeFirst(log.count - 200) }
     }
+
+    // MARK: - iOS Background Grace Period
+
+    #if os(iOS)
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+
+    /// Keep the WebSocket alive for the system-granted background grace
+    /// period (~30s) so a short in-flight turn can stream to completion and
+    /// post its completion notification before the socket is torn down.
+    func beginBackgroundGracePeriod() {
+        guard backgroundTaskID == .invalid else { return }
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "hermes.finishTurn") { [weak self] in
+            Task { @MainActor in
+                self?.endBackgroundGracePeriod()
+            }
+        }
+        logger.info("began background grace period task=\(self.backgroundTaskID.rawValue)")
+    }
+
+    func endBackgroundGracePeriod() {
+        guard backgroundTaskID != .invalid else { return }
+        logger.info("ending background grace period task=\(self.backgroundTaskID.rawValue)")
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
+    }
+    #endif
 }

@@ -79,11 +79,16 @@ final class ActivityStore {
     }
 
     private func save() {
-        do {
-            let data = try JSONEncoder().encode(items)
-            defaults.set(data, forKey: saveKey)
-        } catch {
-            storeLog.error("save failed: \(error.localizedDescription)")
+        // Encode + write off the main actor — up to 500 items per save.
+        let items = self.items
+        let key = saveKey
+        Task.detached(priority: .background) {
+            do {
+                let data = try JSONEncoder().encode(items)
+                UserDefaults.standard.set(data, forKey: key)
+            } catch {
+                storeLog.error("save failed: \(error.localizedDescription)")
+            }
         }
     }
 

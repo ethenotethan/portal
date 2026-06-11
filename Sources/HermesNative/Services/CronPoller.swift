@@ -6,7 +6,10 @@ import Foundation
 @MainActor
 final class CronPoller: ObservableObject {
     private weak var client: GatewayClient?
-    private var timer: Timer? {
+    // nonisolated(unsafe) so the nonisolated deinit can invalidate it.
+    // All reads/writes happen on the MainActor; deinit runs after the last
+    // (MainActor-held) reference is released.
+    nonisolated(unsafe) private var timer: Timer? {
         didSet { oldValue?.invalidate() }
     }
 
@@ -22,5 +25,12 @@ final class CronPoller: ObservableObject {
                 CronRunHistoryStore.shared.detectNewRuns(from: jobs)
             }
         }
+    }
+
+    deinit {
+        // deinit is nonisolated even on a @MainActor class; Timer.invalidate()
+        // is safe here because the repeating timer would otherwise retain its
+        // closure (weak self, so no cycle) and keep firing forever.
+        timer?.invalidate()
     }
 }

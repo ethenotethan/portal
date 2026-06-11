@@ -126,7 +126,7 @@ struct WikiGraphView: View {
         case idle, deciding, panning, draggingNode
     }
 
-    private enum GraphViewMode { case twoD, threeD }
+    private enum GraphViewMode { case twoD, threeD, files }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
@@ -136,7 +136,15 @@ struct WikiGraphView: View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 ZStack {
-                    if viewMode == .threeD {
+                    if viewMode == .files {
+                        // Files mode uses an in-flow toolbar; the floating
+                        // graph overlays would cover the browser's sidebar.
+                        VStack(spacing: 0) {
+                            filesToolbar
+                            Divider()
+                            WikiBrowserView(viewModel: viewModel)
+                        }
+                    } else if viewMode == .threeD {
                         WikiGraph3DView(viewModel: viewModel)
                     } else {
                         graphCanvas
@@ -161,7 +169,7 @@ struct WikiGraphView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onReceive(timer) { _ in
-                    guard viewMode != .threeD else { return }
+                    guard viewMode != .files else { return }
                     guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
                     viewModel.tick()
                 }
@@ -181,7 +189,8 @@ struct WikiGraphView: View {
                         }
                 )
 
-                if let selIdx = viewModel.selectedNodeIndex,
+                if viewMode != .files,
+                   let selIdx = viewModel.selectedNodeIndex,
                    viewModel.simNodes.indices.contains(selIdx) {
                     nodeDetailPanel(nodeIndex: selIdx)
                         .frame(width: 260)
@@ -196,98 +205,63 @@ struct WikiGraphView: View {
             lastPinchScale = viewModel.zoom
         }
         .overlay(alignment: .topLeading) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text("Wiki Graph")
-                        .font(.headline)
-                        .foregroundStyle(Theme.primary)
-
-                    // Wiki selector
-                    Menu {
-                        Button("Default wiki") {
-                            viewModel.selectedWikiPath = nil
-                            Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: nil) }
-                        }
-                        Divider()
-                        ForEach(viewModel.availableWikis, id: \.self) { wiki in
-                            Button(wiki) {
-                                viewModel.selectedWikiPath = wiki
-                                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki) }
-                            }
-                        }
-                        if viewModel.availableWikis.isEmpty {
-                            Text("No wikis discovered")
-                                .font(.caption)
-                                .foregroundStyle(Theme.tertiary)
-                        }
-                        Divider()
-                        Button {
-                            showWikiPicker = true
-                        } label: {
-                            Label("Enter custom path…", systemImage: "pencil")
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(viewModel.selectedWikiPath ?? "default")
-                                .font(.caption)
-                                .foregroundStyle(Theme.accent)
-                            Image(systemName: "chevron.down")
-                                .font(.caption2)
-                                .foregroundStyle(Theme.tertiary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Theme.surfaceHover, in: Capsule())
-                    }
-                    .buttonStyle(.borderless)
-                }
-                Text("\(viewModel.graph.pages.count) pages · \(viewModel.graph.links.count) links")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondary)
-
-                if viewModel.isFiltering {
+            if viewMode != .files {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.accent)
-                        Text("\(viewModel.filteredNodeIndices.count) of \(viewModel.simNodes.count) nodes")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.accent)
-                        Button {
-                            viewModel.searchQuery = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(Theme.tertiary)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
+                        Text("Wiki Graph")
+                            .font(.headline)
+                            .foregroundStyle(Theme.primary)
 
-                HStack(spacing: 4) {
-                    TextField("Search…", text: $viewModel.searchQuery)
-                        .textFieldStyle(.plain)
-                        .font(.caption)
-                        .frame(minWidth: 80)
-                        .onSubmit { /* just focus — filtering is live */ }
-                    if !viewModel.searchQuery.isEmpty {
-                        Button {
-                            viewModel.searchQuery = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(Theme.tertiary)
-                        }
-                        .buttonStyle(.borderless)
+                        wikiPickerMenu
                     }
+                    Text("\(viewModel.graph.pages.count) pages · \(viewModel.graph.links.count) links")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+
+                    if viewModel.isFiltering {
+                        HStack(spacing: 6) {
+                            Image(systemName: "line.3.horizontal.decrease")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.accent)
+                            Text("\(viewModel.filteredNodeIndices.count) of \(viewModel.simNodes.count) nodes")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.accent)
+                            Button {
+                                viewModel.searchQuery = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+
+                    HStack(spacing: 4) {
+                        TextField("Search…", text: $viewModel.searchQuery)
+                            .textFieldStyle(.plain)
+                            .font(.caption)
+                            .frame(minWidth: 80)
+                            .onSubmit { /* just focus — filtering is live */ }
+                        if !viewModel.searchQuery.isEmpty {
+                            Button {
+                                viewModel.searchQuery = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 5))
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(Theme.background, in: RoundedRectangle(cornerRadius: 5))
+                .padding(10)
+                .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 10))
+                .padding(12)
             }
-            .padding(10)
-            .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 10))
-            .padding(12)
         }
         .sheet(isPresented: $showWikiPicker) {
             WikiPathPickerSheet(
@@ -298,7 +272,9 @@ struct WikiGraphView: View {
             )
         }
         .overlay(alignment: .topTrailing) {
-            controlsOverlay
+            if viewMode != .files {
+                controlsOverlay
+            }
         }
         .sheet(isPresented: $viewModel.showPageDetail) {
             if let page = viewModel.selectedPage {
@@ -716,6 +692,82 @@ struct WikiGraphView: View {
     // MARK: - Zoom Controls
 
     @ViewBuilder
+    private var wikiPickerMenu: some View {
+        Menu {
+            Button("Default wiki") {
+                viewModel.selectedWikiPath = nil
+                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: nil) }
+            }
+            Divider()
+            ForEach(viewModel.availableWikis, id: \.self) { wiki in
+                Button(wiki) {
+                    viewModel.selectedWikiPath = wiki
+                    Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki) }
+                }
+            }
+            if viewModel.availableWikis.isEmpty {
+                Text("No wikis discovered")
+                    .font(.caption)
+                    .foregroundStyle(Theme.tertiary)
+            }
+            Divider()
+            Button {
+                showWikiPicker = true
+            } label: {
+                Label("Enter custom path…", systemImage: "pencil")
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(viewModel.selectedWikiPath ?? "default")
+                    .font(.caption)
+                    .foregroundStyle(Theme.accent)
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Theme.surfaceHover, in: Capsule())
+        }
+        .buttonStyle(.borderless)
+    }
+
+    @ViewBuilder
+    private var filesToolbar: some View {
+        HStack(spacing: 6) {
+            Text("Wiki")
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+
+            wikiPickerMenu
+
+            Text("\(viewModel.graph.pages.count) pages")
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+
+            Spacer()
+
+            modeButton(.twoD, icon: "square.grid.2x2", help: "2D graph")
+            modeButton(.threeD, icon: "cube.transparent", help: "3D graph")
+            modeButton(.files, icon: "list.bullet", help: "File browser")
+
+            Divider().frame(height: 14)
+
+            Button {
+                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+        }
+        .foregroundStyle(Theme.secondary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Theme.surface)
+    }
+
+    @ViewBuilder
     private var controlsOverlay: some View {
         HStack(spacing: 6) {
             Button {
@@ -756,16 +808,9 @@ struct WikiGraphView: View {
 
             Divider().frame(height: 14)
 
-            Button {
-                viewMode = viewMode == .twoD ? .threeD : .twoD
-                viewModel.is3D = viewMode == .threeD
-                viewModel.setupSimulation()
-            } label: {
-                Image(systemName: viewMode == .twoD ? "cube.transparent" : "square.grid.2x2")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .buttonStyle(.borderless)
-            .help(viewMode == .twoD ? "Switch to 3D" : "Switch to 2D")
+            modeButton(.twoD, icon: "square.grid.2x2", help: "2D graph")
+            modeButton(.threeD, icon: "cube.transparent", help: "3D graph")
+            modeButton(.files, icon: "list.bullet", help: "File browser")
 
             Divider().frame(height: 14)
 
@@ -779,5 +824,23 @@ struct WikiGraphView: View {
         }
         .foregroundStyle(Theme.secondary)
         .padding(12)
+    }
+
+    @ViewBuilder
+    private func modeButton(_ mode: GraphViewMode, icon: String, help: String) -> some View {
+        Button {
+            guard viewMode != mode else { return }
+            viewMode = mode
+            if mode != .files {
+                viewModel.is3D = mode == .threeD
+                viewModel.setupSimulation()
+            }
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(viewMode == mode ? Theme.accent : Theme.secondary)
+        }
+        .buttonStyle(.borderless)
+        .help(help)
     }
 }

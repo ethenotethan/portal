@@ -87,10 +87,36 @@ struct PlaybackTimelineChart: View {
         self._selectedEventID = selectedEventID
     }
 
+    // MARK: - Chart Data Memoization
+
+    /// Reference-type memo so body evaluations (e.g. selection changes)
+    /// reuse the computed chart data instead of re-sorting all events.
+    private final class ChartDataCache {
+        var key: String?
+        var data: [ChartDatum] = []
+    }
+
+    @State private var chartDataCache = ChartDataCache()
+
+    /// Cheap fingerprint of the inputs that affect `computeChartData()`.
+    private var chartDataKey: String {
+        let last = events.last?.timestamp.timeIntervalSince1970 ?? 0
+        return "\(events.count)-\(last)-\(totalDuration)"
+    }
+
+    private var chartData: [ChartDatum] {
+        let key = chartDataKey
+        if chartDataCache.key != key {
+            chartDataCache.key = key
+            chartDataCache.data = computeChartData()
+        }
+        return chartDataCache.data
+    }
+
     // MARK: - Body
 
     public var body: some View {
-        let chartData = computeChartData()
+        let chartData = self.chartData
 
         if chartData.isEmpty {
             emptyState

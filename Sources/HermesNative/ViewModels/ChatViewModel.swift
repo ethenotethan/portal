@@ -848,13 +848,17 @@ if restoreSessionState(displayID: key) {
             var promptParts: [String] = []
 
             for attachment in attachments {
-                guard FileManager.default.fileExists(atPath: attachment.path) else {
-                    log.warning("Attachment file does not exist, skipping: \(attachment.path)")
+                // Read off the main actor — attachments can be tens of MB and
+                // synchronous file I/O here beachballs the UI.
+                let path = attachment.path
+                let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in
+                    guard FileManager.default.fileExists(atPath: path) else { return nil }
+                    return FileManager.default.contents(atPath: path)
+                }.value
+                guard let fileData, !fileData.isEmpty else {
+                    log.warning("Attachment file missing or empty, skipping: \(attachment.path)")
                     continue
                 }
-
-                guard let fileData = FileManager.default.contents(atPath: attachment.path) as Data?,
-                      !fileData.isEmpty else { continue }
 
                 if attachment.category == .image {
                     let ext = attachment.fileExtension.lowercased()
@@ -1522,13 +1526,18 @@ if restoreSessionState(displayID: key) {
 
         if case .messageComplete(let payload) = event {
             saveHistoryDebounced()
-            #if !DEBUG
-            NotificationService.shared.notifyResponseComplete(
-                sessionTitle: state.sessionTitle,
-                preview: payload.text.truncated(to: 80),
-                sessionID: eventSessionID
-            )
-            #endif
+            // Turn-completion notification. NotificationService suppresses it
+            // when the app is foregrounded AND this is the active session, so
+            // it only surfaces for backgrounded or non-active sessions. Was
+            // previously compiled out of DEBUG builds entirely, which meant no
+            // completion notification ever fired while backgrounded.
+            if payload.status == "complete" {
+                NotificationService.shared.notifyTurnComplete(
+                    sessionTitle: state.sessionTitle,
+                    preview: payload.text.truncated(to: 80),
+                    sessionID: eventSessionID
+                )
+            }
         }
     }
 

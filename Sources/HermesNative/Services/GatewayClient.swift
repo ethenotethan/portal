@@ -20,7 +20,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     @Published var sessionInfo: SessionInfo?
     private var debugSnapshot: GatewayDebugSnapshot = GatewayDebugSnapshot()
     var onDebugSnapshotChange: (() -> Void)?
-    var snapshotForDebug: GatewayDebugSnapshot { debugSnapshot }
+    var snapshotForDebug: GatewayDebugSnapshot {
+        // recentEvents is stored oldest-first (append + cap, avoids per-event
+        // insert(at: 0) churn during streaming floods); the panel expects
+        // newest-first, so reverse only when the panel actually reads it.
+        var snapshot = debugSnapshot
+        snapshot.recentEvents.reverse()
+        return snapshot
+    }
     private var debugNotifyTask: Task<Void, Never>?
     private var debugNeedsNotify = false
 
@@ -281,9 +288,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             sessionID: sessionID,
             detail: detail
         )
-        debugSnapshot.recentEvents.insert(record, at: 0)
+        // Append + cap (oldest-first) instead of insert(at: 0) — avoids O(n)
+        // element shifting on every inbound event during streaming floods.
+        debugSnapshot.recentEvents.append(record)
         if debugSnapshot.recentEvents.count > 40 {
-            debugSnapshot.recentEvents.removeLast(debugSnapshot.recentEvents.count - 40)
+            debugSnapshot.recentEvents.removeFirst(debugSnapshot.recentEvents.count - 40)
         }
         if direction == .error {
             debugSnapshot.lastErrorAt = record.timestamp
@@ -1447,18 +1456,27 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             while true {
                 let message = try await webSocketTask.receive()
 
+                let data: Data?
                 switch message {
-                case .data(let data):
-                    handleMessage(data)
-
+                case .data(let d):
+                    data = d
                 case .string(let text):
-                    if let data = text.data(using: .utf8) {
-                        handleMessage(data)
-                    }
-
+                    data = text.data(using: .utf8)
                 @unknown default:
-                    break
+                    data = nil
                 }
+                guard let data else { continue }
+
+                // Parse off the main actor so streaming floods (dozens of
+                // events/sec, payloads up to hundreds of KB) don't stall the
+                // UI. Awaited inline so per-connection event ordering is
+                // preserved — do NOT parallelize parsing across messages.
+                let parsed = await Task.detached(priority: .userInitiated) {
+                    Self.parseMessage(data)
+                }.value
+                // Connection may have been torn down while parsing.
+                guard !Task.isCancelled else { return }
+                applyParsedMessage(parsed)
             }
         } catch {
             log.debug("receiveLoop error: \(error)")
@@ -1478,55 +1496,83 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
-    private func handleMessage(_ data: Data) {
+    /// Result of decoding one inbound WebSocket frame, produced off the main
+    /// actor so state application stays cheap.
+    private enum ParsedMessage: Sendable {
+        case response(id: Int, response: JSONRPCResponse)
+        case responseDecodeFailed(id: Int, rawPrefix: String)
+        case event(type: String, sessionID: String?, event: GatewayEvent)
+        case eventPayloadFailed(type: String, detail: String)
+        case parseFailed
+        case ignored
+    }
+
+    /// Pure bytes → decoded message. Runs in a detached task so streaming
+    /// floods (large payloads, dozens of events/sec) never block the UI.
+    /// Must stay free of any GatewayClient state access.
+    private nonisolated static func parseMessage(_ data: Data) -> ParsedMessage {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            log.debug("handleMessage: failed to parse JSON")
-            onLog?("⚠ Failed to parse WS message", true)
-            return
+            return .parseFailed
         }
 
         // Response (has numeric "id" > 0)
         if let id = json["id"] as? Int, id > 0 {
-            log.debug("handleMessage: response id=\(id)")
-            onLog?("← response id=\(id)", false)
-            if let responseData = try? JSONSerialization.data(withJSONObject: json),
-               let response = try? JSONDecoder().decode(JSONRPCResponse.self, from: responseData) {
-                fulfillRequest(id: id, response: response)
-                return
+            if let response = try? JSONDecoder().decode(JSONRPCResponse.self, from: data) {
+                return .response(id: id, response: response)
             }
             let raw = String(data: data, encoding: .utf8)?.prefix(300) ?? "nil"
-            log.debug("handleMessage: failed to decode response for id=\(id), raw: \(raw)")
-            onLog?("⚠ Decode failed for id=\(id): \(raw)", true)
-            return
+            return .responseDecodeFailed(id: id, rawPrefix: String(raw))
         }
 
         // Event (method == "event")
         if json["method"] as? String == "event",
            let params = json["params"] as? [String: Any],
            let type = params["type"] as? String {
-
-            log.debug("handleMessage: event type=\(type)")
-            if type != "message.delta" && type != "reasoning.delta" && type != "thinking.delta" {
-                onLog?("← event: \(type)", false)
-            }
             let payloadData: Data
             do {
                 payloadData = try JSONSerialization.data(withJSONObject: params["payload"] ?? [:])
             } catch {
-                log.error("JSONSerialization failed for event payload: \(error)")
-                onLog?("⚠ Serialize failed for \(type): \(error.localizedDescription)", true)
-                return
+                return .eventPayloadFailed(type: type, detail: "Serialize failed: \(error.localizedDescription)")
             }
             let payload: AnyCodable?
             do {
                 payload = try JSONDecoder().decode(AnyCodable.self, from: payloadData)
             } catch {
-                log.error("JSONDecoder failed for event payload: \(error)")
-                onLog?("⚠ Decode failed for \(type): \(error.localizedDescription)", true)
-                return
+                return .eventPayloadFailed(type: type, detail: "Decode failed: \(error.localizedDescription)")
             }
             let event = GatewayEvent.from(type: type, payload: payload)
-            let sessionID = params["session_id"] as? String
+            return .event(type: type, sessionID: params["session_id"] as? String, event: event)
+        }
+
+        return .ignored
+    }
+
+    /// Apply an already-decoded message to client state. MainActor-only:
+    /// pendingRequests fulfillment, @Published vars, and debug snapshot.
+    private func applyParsedMessage(_ parsed: ParsedMessage) {
+        switch parsed {
+        case .parseFailed:
+            log.debug("handleMessage: failed to parse JSON")
+            onLog?("⚠ Failed to parse WS message", true)
+
+        case .response(let id, let response):
+            log.debug("handleMessage: response id=\(id)")
+            onLog?("← response id=\(id)", false)
+            fulfillRequest(id: id, response: response)
+
+        case .responseDecodeFailed(let id, let raw):
+            log.debug("handleMessage: failed to decode response for id=\(id), raw: \(raw)")
+            onLog?("⚠ Decode failed for id=\(id): \(raw)", true)
+
+        case .eventPayloadFailed(let type, let detail):
+            log.error("event payload parse failed for \(type): \(detail)")
+            onLog?("⚠ \(detail) for \(type)", true)
+
+        case .event(let type, let sessionID, let event):
+            log.debug("handleMessage: event type=\(type)")
+            if type != "message.delta" && type != "reasoning.delta" && type != "thinking.delta" {
+                onLog?("← event: \(type)", false)
+            }
             recordDebugEvent(.inbound, name: type, sessionID: sessionID)
 
             if case .sessionInfo(let info) = event {
@@ -1534,6 +1580,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             }
 
             eventStream.send((event, sessionID))
+
+        case .ignored:
+            break
         }
     }
 

@@ -18,6 +18,13 @@ final class SessionListViewModel: ObservableObject {
     private var gatewayClient: GatewayClient?
     private var cancellables = Set<AnyCancellable>()
 
+    /// Guards against overlapping timer-driven refreshes: if one refresh takes
+    /// longer than the poll interval, new invocations are skipped, and a
+    /// generation token ensures a slow older fetch can't overwrite the list
+    /// after a newer one already committed.
+    private var isRefreshInFlight = false
+    private var refreshGeneration = 0
+
     /// Client-observed live run states keyed by stable database ID or runtime
     /// gateway ID. The gateway's `session.list` response may not include live
     /// run state yet, so the native app updates this from its own prompt/event
@@ -218,9 +225,22 @@ final class SessionListViewModel: ObservableObject {
 
     func refreshSessions(refreshCron: Bool) async {
         guard let client = gatewayClient else { return }
+        // Skip if a refresh is already running (3s poll timer can stack
+        // invocations when the gateway is slow).
+        guard !isRefreshInFlight else { return }
+        isRefreshInFlight = true
+        defer { isRefreshInFlight = false }
+        refreshGeneration += 1
+        let generation = refreshGeneration
         isLoading = true
         do {
             var fetched = try await client.listSessions()
+            // Stale-completion guard: a newer refresh committed while this one
+            // was awaiting — don't overwrite its result.
+            guard generation == refreshGeneration else {
+                isLoading = false
+                return
+            }
             let titles = localTitles
             let idMap = gatewayIDMap
             let archived = archivedIDs

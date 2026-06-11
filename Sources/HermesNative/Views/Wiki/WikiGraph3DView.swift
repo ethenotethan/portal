@@ -111,12 +111,16 @@ private func makeSceneView(context: Any) -> SCNView {
 private final class Coordinator: NSObject {
     private let viewModel: WikiGraphViewModel
     private var nodeMap: [String: SCNNode] = [:]
+    private var labelMap: [String: SCNNode] = [:]
+    private var indexByID: [String: Int] = [:]
     private var edgeNode: SCNNode?
     private var labelContainer: SCNNode?
     private var lastTopologyKey: String = ""
-    private let labelDistanceThreshold: Float = 350
-    private let cameraMinDistance: Float = 100
-private let cameraMaxDistance: Float = 4000
+    private var labelCullDistance: Float = 800
+    private var cameraMinDistance: Float = 100
+    private var cameraMaxDistance: Float = 4000
+    private var edgesNeedFinalRebuild = true
+    private var hasFittedCamera = false
 
     init(viewModel: WikiGraphViewModel) {
         self.viewModel = viewModel
@@ -132,6 +136,8 @@ private let cameraMaxDistance: Float = 4000
             lastTopologyKey = topologyKey
             return
         }
+
+        updatePositions(from: vm, in: scnView)
 
         let currentIndex = vm.selectedNodeIndex
         if currentIndex != lastHighlightedIndex {
@@ -149,6 +155,10 @@ private let cameraMaxDistance: Float = 4000
 
         graphRoot.childNodes.forEach { $0.removeFromParentNode() }
         nodeMap.removeAll()
+        labelMap.removeAll()
+        indexByID = Dictionary(uniqueKeysWithValues: vm.simNodes.enumerated().map { ($1.id, $0) })
+        edgesNeedFinalRebuild = true
+        hasFittedCamera = false
 
         labelContainer = SCNNode()
         labelContainer?.name = "labels"
@@ -171,10 +181,10 @@ private let cameraMaxDistance: Float = 4000
 
             let labelText = SCNText(string: simNode.label, extrusionDepth: 0)
             #if os(macOS)
-            labelText.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+            labelText.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
             labelText.firstMaterial?.diffuse.contents = NSColor(white: 0.9, alpha: 1.0)
             #else
-            labelText.font = UIFont.systemFont(ofSize: 10, weight: .semibold)
+            labelText.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
             labelText.firstMaterial?.diffuse.contents = UIColor(white: 0.9, alpha: 1.0)
             #endif
             labelText.flatness = 0.4
@@ -182,11 +192,17 @@ private let cameraMaxDistance: Float = 4000
             let labelNode = SCNNode(geometry: labelText)
             labelNode.name = "label:\(simNode.id)"
             labelNode.position = SCNVector3(simNode.position3D.x, simNode.position3D.y + 7, simNode.position3D.z)
+            // Scale label slightly with node importance.
+            let degree = vm.degrees.indices.contains(idx) ? vm.degrees[idx] : 0
+            let labelScale = 1.0 + min(Float(degree) * 0.06, 0.8)
+            labelNode.scale = SCNVector3(labelScale, labelScale, labelScale)
             labelNode.constraints = [SCNBillboardConstraint()]
             labelContainer?.addChildNode(labelNode)
+            labelMap[simNode.id] = labelNode
         }
 
         buildEdgeGeometry(from: vm, graphRoot: graphRoot)
+        fitCamera(to: vm, in: scnView)
 
         #if os(macOS)
         if let click = scnView.gestureRecognizers.first as? NSClickGestureRecognizer {
@@ -238,36 +254,60 @@ private let cameraMaxDistance: Float = 4000
     }
 
     @MainActor
-    private func updatePositions(from vm: WikiGraphViewModel) {
-        let selectedID: String? = vm.selectedNodeIndex.flatMap { idx in
-            vm.simNodes.indices.contains(idx) ? vm.simNodes[idx].id : nil
-        }
-        let neighborIDs: Set<String> = {
-            guard let selIdx = vm.selectedNodeIndex else { return [] }
-            var ids = Set<String>()
-            for (si, ti) in vm.simLinks {
-                if si == selIdx, vm.simNodes.indices.contains(ti) { ids.insert(vm.simNodes[ti].id) }
-                if ti == selIdx, vm.simNodes.indices.contains(si) { ids.insert(vm.simNodes[si].id) }
-            }
-            return ids
-        }()
+    private func updatePositions(from vm: WikiGraphViewModel, in scnView: SCNView) {
+        let selectedIndex = vm.selectedNodeIndex
+        let neighborIndices: Set<Int> = selectedIndex.map { vm.neighbors(of: $0) } ?? []
+        let hasSelection = selectedIndex != nil
+        let cameraPos: SIMD3<Float>? = scnView.pointOfView?.presentation.simdWorldPosition
 
-        for simNode in vm.simNodes {
+        for (idx, simNode) in vm.simNodes.enumerated() {
             guard let scnNode = nodeMap[simNode.id] else { continue }
             scnNode.position = SCNVector3(simNode.position3D)
 
-            if let labelNode = labelContainer?.childNode(withName: "label:\(simNode.id)", recursively: false) {
+            if let labelNode = labelMap[simNode.id] {
                 labelNode.position = SCNVector3(simNode.position3D.x, simNode.position3D.y + 7, simNode.position3D.z)
-                let isImportant = simNode.id == selectedID || neighborIDs.contains(simNode.id)
-                let isClose = abs(simNode.position3D.z) < labelDistanceThreshold
-                labelNode.isHidden = !isImportant && !isClose
+                let isAnchorOrNeighbor = idx == selectedIndex || neighborIndices.contains(idx)
+                let degree = vm.degrees.indices.contains(idx) ? vm.degrees[idx] : 0
+                // No selection: only label well-connected nodes to reduce clutter.
+                let isImportant = hasSelection ? isAnchorOrNeighbor : degree >= 2
+                let isClose = cameraPos.map { simd_distance(simNode.position3D, $0) < labelCullDistance } ?? true
+                labelNode.isHidden = !(isAnchorOrNeighbor || (isImportant && isClose))
             }
         }
 
-        let simSettled = vm.simAlpha <= 0.01 && !vm.simNodes.contains(where: { $0.isDragging })
-        if simSettled, let root = edgeNode?.parent {
-            rebuildEdgeGeometry(from: vm, graphRoot: root)
+        // 0.003 matches the tick guard in WikiGraphView so the final rebuild
+        // happens on the last real tick.
+        let simHot = vm.simAlpha > 0.003 || vm.simNodes.contains(where: { $0.isDragging })
+        if simHot {
+            // Rebuild edge lines every sync while hot so they track moving spheres.
+            if let root = edgeNode?.parent { rebuildEdgeGeometry(from: vm, graphRoot: root) }
+            edgesNeedFinalRebuild = true
+        } else if edgesNeedFinalRebuild {
+            if let root = edgeNode?.parent { rebuildEdgeGeometry(from: vm, graphRoot: root) }
+            edgesNeedFinalRebuild = false
+            if !hasFittedCamera { fitCamera(to: vm, in: scnView); hasFittedCamera = true }
         }
+    }
+
+    /// Positions the camera so the whole graph fits in the 45-degree FOV with margin.
+    @MainActor
+    private func fitCamera(to vm: WikiGraphViewModel, in scnView: SCNView) {
+        guard !vm.simNodes.isEmpty,
+              let cameraNode = scnView.pointOfView ?? scnView.scene?.rootNode.childNodes.first(where: { $0.camera != nil }) else { return }
+        var centroid = SIMD3<Float>.zero
+        for n in vm.simNodes { centroid += n.position3D }
+        centroid /= Float(vm.simNodes.count)
+        var radius: Float = 0
+        for n in vm.simNodes { radius = max(radius, simd_distance(n.position3D, centroid)) }
+        radius = max(radius, 100)
+
+        let fov = Float((cameraNode.camera?.fieldOfView ?? 45) * .pi / 180)
+        let distance = radius / tan(fov / 2) * 1.25
+        cameraMinDistance = max(radius * 0.15, 50)
+        cameraMaxDistance = max(distance * 4, 1000)
+        cameraNode.position = SCNVector3(centroid.x, centroid.y + radius * 0.2, centroid.z + distance)
+        cameraNode.look(at: SCNVector3(centroid))
+        labelCullDistance = distance * 1.5
     }
 
     @MainActor
@@ -278,31 +318,23 @@ private let cameraMaxDistance: Float = 4000
 
     @MainActor
     private func updateSelectionHighlight(from vm: WikiGraphViewModel) {
-        let selectedID: String? = {
+        let selectedIndex: Int? = {
             guard let idx = vm.selectedNodeIndex, vm.simNodes.indices.contains(idx) else { return nil }
-            return vm.simNodes[idx].id
+            return idx
         }()
-
-        let neighborIDs: Set<String> = {
-            guard let selIdx = vm.selectedNodeIndex else { return [] }
-            var ids = Set<String>()
-            for (si, ti) in vm.simLinks {
-                if si == selIdx, vm.simNodes.indices.contains(ti) { ids.insert(vm.simNodes[ti].id) }
-                if ti == selIdx, vm.simNodes.indices.contains(si) { ids.insert(vm.simNodes[si].id) }
-            }
-            return ids
-        }()
+        let selectedID = selectedIndex.map { vm.simNodes[$0].id }
+        let neighborIndices: Set<Int> = selectedIndex.map { vm.neighbors(of: $0) } ?? []
 
         let filtering = vm.isFiltering
         let filteredSet = vm.filteredNodeIndices
 
         for (id, scnNode) in nodeMap {
             guard let geom = scnNode.geometry else { continue }
+            let idx = indexByID[id]
             let isSelected = id == selectedID
-            let isNeighbor = neighborIDs.contains(id)
-            let hasSelection = selectedID != nil && !neighborIDs.isEmpty
+            let isNeighbor = idx.map { neighborIndices.contains($0) } ?? false
+            let hasSelection = selectedID != nil && !neighborIndices.isEmpty
 
-            let idx = vm.simNodes.firstIndex(where: { $0.id == id })
             let matchesFilter = !filtering || (idx != nil && filteredSet.contains(idx!))
             let filterDim: CGFloat = matchesFilter ? 1.0 : 0.12
 
@@ -325,7 +357,7 @@ private let cameraMaxDistance: Float = 4000
                 #endif
                 scnNode.removeAllActions()
             } else {
-                let nodeType = vm.simNodes.first(where: { $0.id == id })?.type ?? ""
+                let nodeType = idx.map { vm.simNodes[$0].type } ?? ""
                 let nodeColor = vm.color(for: nodeType)
                 geom.firstMaterial?.diffuse.contents = PlatformColor(nodeColor).withAlphaComponent(filterDim)
                 scnNode.removeAllActions()
@@ -368,7 +400,7 @@ private let cameraMaxDistance: Float = 4000
         ])
         for hit in hits {
             guard let name = hit.node.name, !name.hasPrefix("label:") else { continue }
-            guard let idx = viewModel.simNodes.firstIndex(where: { $0.id == name }) else { continue }
+            guard let idx = indexByID[name], viewModel.simNodes.indices.contains(idx) else { continue }
             if viewModel.selectedNodeIndex == idx {
                 if let page = viewModel.graph.pages.first(where: { $0.id == name }) {
                     viewModel.selectedPage = page

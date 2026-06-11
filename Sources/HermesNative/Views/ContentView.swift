@@ -80,7 +80,12 @@ struct ContentView: View {
         }
         .task {
             if settings.isConfigured {
-                await gatewayClientWrapper.connectIfNeeded(using: settings)
+                // Bounded retry: a cold-start connect can fail before the
+                // network path is up, and a failed first connect is terminal
+                // (GatewayClient only auto-reconnects after a successful
+                // connection). Without the retry the app sits disconnected
+                // until the user taps something that reconnects.
+                await gatewayClientWrapper.connectWithRetry(using: settings)
                 wireUpClient()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
@@ -95,7 +100,7 @@ struct ContentView: View {
         .onChange(of: settings.isConfigured) { _, configured in
             if configured {
                 Task {
-                    await gatewayClientWrapper.connect(using: settings)
+                    await gatewayClientWrapper.connectWithRetry(using: settings)
                     wireUpClient()
                 }
             }
@@ -895,6 +900,13 @@ spawnTreeStore.subscribe(to: client)
         chatRunStateCancellable = chatViewModel.$isStreaming
             .receive(on: RunLoop.main)
             .sink { isStreaming in
+                #if os(iOS)
+                // Turn finished while we were holding the background grace
+                // period — release the assertion early.
+                if !isStreaming {
+                    gatewayClientWrapper.endBackgroundGracePeriod()
+                }
+                #endif
                 guard let sid = chatViewModel.currentSessionID else { return }
                 if isStreaming {
                     sessionList.setRunState(.streaming, for: sid)
@@ -939,12 +951,51 @@ spawnTreeStore.subscribe(to: client)
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
         if newPhase != .active {
             chatViewModel.saveHistory()
-        } else if settings.isConfigured, !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
-            Task {
-                await gatewayClientWrapper.connectIfNeeded(using: settings)
-                wireUpClient()
+            #if os(iOS)
+            // If a turn is streaming, ask iOS for the short background grace
+            // period (~30s) so the socket stays up long enough for quick turns
+            // to finish and post their completion notification.
+            if newPhase == .background, chatViewModel.isStreaming {
+                gatewayClientWrapper.beginBackgroundGracePeriod()
+            }
+            #endif
+        } else {
+            #if os(iOS)
+            gatewayClientWrapper.endBackgroundGracePeriod()
+            #endif
+            if settings.isConfigured {
+                Task {
+                    if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
+                        await gatewayClientWrapper.connectWithRetry(using: settings)
+                        wireUpClient()
+                    } else if gatewayClientWrapper.isConnecting {
+                        _ = await gatewayClientWrapper.waitUntilConnected(timeout: 12)
+                    }
+                    #if os(iOS)
+                    // Sessions ran server-side while we were suspended; the
+                    // launch task's refresh never re-runs, so resync here or
+                    // the UI shows stale progress until the user pokes it.
+                    guard gatewayClientWrapper.isConnected else { return }
+                    await sessionList.refreshSessions()
+                    await resyncActiveChatSession()
+                    #endif
+                }
             }
         }
         NotificationService.shared.isForegrounded = (newPhase == .active)
     }
+
+    #if os(iOS)
+    /// Re-attach the open chat to its server-side session after returning to
+    /// the foreground. `session.resume` returns the persisted history, so a
+    /// turn that progressed or completed while suspended becomes visible
+    /// without manual poking. ChatViewModel's own streaming-state guards keep
+    /// a genuinely live turn from being clobbered by stale history.
+    private func resyncActiveChatSession() async {
+        guard let activeID = sessionList.activeSessionID,
+              let session = sessionList.sessions.first(where: { $0.id == activeID }),
+              session.isOwned else { return }
+        await chatViewModel.resumeSession(key: activeID)
+    }
+    #endif
 }

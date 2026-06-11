@@ -23,7 +23,9 @@ struct MarkdownContentView: View, Equatable {
             ForEach(blocks) { block in
                 switch block {
                 case .codeBlock(let language, let code):
-                    if MarkdownParser.isDiagramLanguage(language) {
+                    if MarkdownParser.isChartLanguage(language) {
+                        NativeChartView(json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isDiagramLanguage(language) {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
                         HTMLBlockView(html: code)
@@ -338,11 +340,15 @@ struct MarkdownParser {
         "mermaid", "flowchart", "sequence", "sequencediagram", "statediagram",
         "classdiagram", "erdiagram", "er", "gantt", "pie", "mindmap",
         "timeline", "gitgraph", "sankey", "block", "quadrant", "radar",
-        "treemap", "xychart", "journey",
+        "treemap", "xychart", "journey", "kanban", "architecture",
     ]
 
     static func isDiagramLanguage(_ language: String) -> Bool {
         diagramLanguages.contains(language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    static func isChartLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "chart"
     }
 
     private static func isHorizontalRule(_ s: String) -> Bool {
@@ -637,11 +643,23 @@ struct DiagramPreviewBlock: View {
     let language: String
     let isStreaming: Bool
     @State private var isOpen = false
+    @State private var isExploring = false
+
+    private var typeLabel: String {
+        MermaidDiagramView.diagramTypeLabel(for: mermaidCode)
+    }
+
+    private var canExplore: Bool {
+        !isStreaming && MermaidGraphParser.canExplore(mermaidCode)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
-                .frame(minHeight: 300, idealHeight: 550)
+            // Preview adapts to the diagram's aspect ratio (ZoomableDiagram
+            // sizes itself to the image); cap the inline height and rely on
+            // tap-to-open for the full view.
+            MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
+                .frame(minHeight: 120, maxHeight: 600)
                 .clipped()
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -651,9 +669,22 @@ MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
             HStack(spacing: 6) {
                 Image(systemName: "chart.bar.doc.horizontal")
                     .font(.system(size: 10, weight: .semibold))
-                Text("Open Diagram")
+                Text("\(typeLabel) — open")
                     .font(.system(size: 11, weight: .semibold))
                 Spacer()
+                if canExplore {
+                    Button {
+                        isExploring = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "point.3.connected.trianglepath.dotted")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("Explore")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 9, weight: .bold))
             }
@@ -672,6 +703,11 @@ MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
         .fullScreenCover(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: mermaidCode)
         }
+        .fullScreenCover(isPresented: $isExploring) {
+            if let explorer = DiagramExplorerView(mermaidSource: mermaidCode, title: "\(typeLabel) — Explorer") {
+                explorer
+            }
+        }
         #else
         .sheet(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: mermaidCode)
@@ -679,6 +715,15 @@ MermaidDiagramView(mermaidCode: mermaidCode, isStreaming: isStreaming)
                     width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.85, 1400),
                     height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.85, 900)
                 )
+        }
+        .sheet(isPresented: $isExploring) {
+            if let explorer = DiagramExplorerView(mermaidSource: mermaidCode, title: "\(typeLabel) — Explorer") {
+                explorer
+                    .frame(
+                        width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.85, 1400),
+                        height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.85, 900)
+                    )
+            }
         }
         #endif
     }
@@ -1104,6 +1149,14 @@ struct OpenableBlockSheet: View {
     let content: String
     @Environment(\.dismiss) private var dismiss
 
+    private var isDiagram: Bool {
+        MarkdownParser.isDiagramLanguage(language)
+    }
+
+    private var title: String {
+        isDiagram ? MermaidDiagramView.diagramTypeLabel(for: content) : "Page"
+    }
+
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -1111,11 +1164,11 @@ struct OpenableBlockSheet: View {
             VStack(spacing: 0) {
                 // Title bar
                 HStack(spacing: 10) {
-                    Image(systemName: MarkdownParser.isDiagramLanguage(language) ? "chart.bar.doc.horizontal" : "globe")
+                    Image(systemName: isDiagram ? "chart.bar.doc.horizontal" : "globe")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(Theme.accent)
 
-                    Text(MarkdownParser.isDiagramLanguage(language) ? "Diagram" : "Page")
+                    Text(title)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(Theme.primary)
 
@@ -1140,7 +1193,7 @@ struct OpenableBlockSheet: View {
 
                 // Content — diagram or HTML
                 Group {
-                    if MarkdownParser.isDiagramLanguage(language) {
+                    if isDiagram {
                         MermaidDiagramView(mermaidCode: content, isStreaming: false)
                     } else {
                         InlineHTMLView(html: content)

@@ -32,7 +32,7 @@ struct SpawnCallGraphView: View {
                 }
 
                 // Nodes
-                for (id, pos) in layout.positions.sorted(by: { $0.value.y < $1.value.y }) {
+                for (id, pos) in layout.drawOrder {
                     let node = layout.nodeMap[id]!
                     let sel = selectedNodeID == id
                     let hov = hoveredNodeID == id
@@ -128,6 +128,9 @@ struct SpawnCallGraphView: View {
         var positions: [String: CGPoint] = [:]
         var edges: [(String, String)] = []
         var nodeMap: [String: SpawnNode] = [:]
+        /// Positions pre-sorted by y so the Canvas draw closure doesn't
+        /// re-sort on every frame.
+        var drawOrder: [(key: String, value: CGPoint)] = []
     }
 
     private func computeLayout(width: CGFloat) -> LayoutResult {
@@ -165,6 +168,7 @@ struct SpawnCallGraphView: View {
         }
 
         positionNode(root, x: max(nodeRadius, 0), y: startY, available: width - nodeRadius * 2)
+        result.drawOrder = result.positions.sorted { $0.value.y < $1.value.y }
         return result
     }
 

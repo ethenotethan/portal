@@ -2,6 +2,9 @@ import SwiftUI
 import BeautifulMermaid
 import WebKit
 import os
+#if canImport(UIKit)
+import UIKit
+#endif
 
 private let log = Logger(
     subsystem: "com.researchoors.HermesNative",
@@ -28,7 +31,7 @@ private let knownDiagramKeywords: Set<String> = [
     "sankey", "block", "block-beta", "quadrantChart",
     "radar", "treemap", "xychart", "xychart-beta", "journey",
     "requirementDiagram", "c4Context", "c4Container", "c4Deployment",
-    "c4Dynamic", "packet",
+    "c4Dynamic", "packet", "kanban", "architecture-beta", "architecture",
 ]
 
 struct MermaidDiagramView: View {
@@ -37,6 +40,48 @@ struct MermaidDiagramView: View {
 
     var body: some View {
         MermaidRendererCoordinator(source: mermaidCode, isStreaming: isStreaming)
+    }
+
+    /// Human-readable label for the diagram type declared on the first line
+    /// of `source` (fences tolerated). Falls back to "Diagram".
+    static func diagramTypeLabel(for source: String) -> String {
+        let cleaned = source
+            .replacingOccurrences(of: "```mermaid", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstLine = cleaned.split(separator: "\n").first?
+            .trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+        // Longer prefixes first so e.g. "sequenceDiagram" wins over "sequence".
+        let labels: [(prefix: String, label: String)] = [
+            ("sequencediagram", "Sequence Diagram"),
+            ("sequence", "Sequence Diagram"),
+            ("statediagram", "State Diagram"),
+            ("classdiagram", "Class Diagram"),
+            ("erdiagram", "ER Diagram"),
+            ("flowchart", "Flowchart"),
+            ("graph", "Flowchart"),
+            ("mindmap", "Mind Map"),
+            ("quadrantchart", "Quadrant Chart"),
+            ("gantt", "Gantt Chart"),
+            ("pie", "Pie Chart"),
+            ("timeline", "Timeline"),
+            ("gitgraph", "Git Graph"),
+            ("sankey", "Sankey Diagram"),
+            ("journey", "User Journey"),
+            ("xychart", "XY Chart"),
+            ("radar", "Radar Chart"),
+            ("treemap", "Treemap"),
+            ("block", "Block Diagram"),
+            ("packet", "Packet Diagram"),
+            ("kanban", "Kanban Board"),
+            ("architecture", "Architecture Diagram"),
+            ("c4", "C4 Diagram"),
+            ("requirementdiagram", "Requirement Diagram"),
+        ]
+        for (prefix, label) in labels where firstLine.hasPrefix(prefix) {
+            return label
+        }
+        return "Diagram"
     }
 }
 
@@ -87,11 +132,11 @@ private struct MermaidRendererCoordinator: View {
         let looksComplete = trimmed.hasSuffix("```") || !isStreaming
 
         if looksComplete {
-            return "done-\\(cleanedSource.hashValue)"
+            return "done-\(cleanedSource.hashValue)"
         }
         // Streaming — stable identity on first line (diagram type)
-        let _ = cleanedSource.split(separator: "\n").first ?? "diagram"
-        return "streaming-\\(firstLine)"
+        let firstLine = cleanedSource.split(separator: "\n").first ?? "diagram"
+        return "streaming-\(firstLine)"
     }
 
     private var diagramType: String? {
@@ -191,6 +236,8 @@ private struct NativeMermaidRenderer: View {
             width: max(1, positioned.width),
             height: max(1, positioned.height)
         )
+
+        #if os(macOS)
         let pixelSize = CGSize(
             width: bounds.width * scale,
             height: bounds.height * scale
@@ -218,10 +265,28 @@ private struct NativeMermaidRenderer: View {
 
         guard let cgImage = ctx.makeImage() else { return nil }
 
-        #if os(macOS)
         return NSImage(cgImage: cgImage, size: bounds.size)
         #else
-        return UIImage(cgImage: cgImage)
+        // iOS: BeautifulMermaid's LabelRenderer draws text via UIKit string
+        // drawing (`NSAttributedString.draw(in:)`), which renders into the
+        // *current UIKit graphics context* — not into the CGContext passed to
+        // DiagramRenderer.render. With a raw CGContext (and no
+        // UIGraphicsPushContext), text silently draws nowhere, leaving empty
+        // boxes. UIGraphicsImageRenderer fixes both requirements at once: it
+        // installs its context as the current UIKit context, and that context
+        // is already UIKit-flipped (top-left origin) — the same effective
+        // coordinate space the manual translate/flip produces on macOS — so no
+        // additional y-flip is needed (matching the package's own
+        // MermaidImageRenderer iOS path).
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
+        return renderer.image { rendererContext in
+            let ctx = rendererContext.cgContext
+            ctx.setFillColor(nativeTheme.background.cgColor)
+            ctx.fill(bounds)
+            DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+        }
         #endif
     }
 }
@@ -231,13 +296,28 @@ private struct NativeMermaidRenderer: View {
 nonisolated(unsafe) private var mermaidImageCache: [String: PlatformImage] = [:]
 private let mermaidCacheLock = NSLock()
 
+/// JS expression polled after `didFinish`. Returns "pending" until mermaid.run
+/// settles, "error" on render failure, or "x,y,w,h" of the rendered content.
+private let mermaidStatusJS = """
+window.__mermaidDone === true \
+? (window.__mermaidError === true \
+? 'error' \
+: [window.__mermaidRect.x, window.__mermaidRect.y, window.__mermaidRect.w, window.__mermaidRect.h].join(',')) \
+: 'pending'
+"""
+
+private let mermaidPollInterval: TimeInterval = 0.125
+private let mermaidMaxPollAttempts = 40  // ~5s total
+
 #if os(macOS)
 private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
     @available(macOS, deprecated: 12.0)
     @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
+    private let window: NSWindow
     private var pendingCompletion: ((PlatformImage?) -> Void)?
+    private var currentNavigation: WKNavigation?
     private var isBusy = false
     private var activeRenderCount = 0
     private let maxActiveRenders = 2
@@ -248,18 +328,17 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         config.processPool = Self.processPool
         // Disable features that trigger sandbox errors
         config.preferences.isTextInteractionEnabled = false
-        webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+        webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
+        // Place off-screen in a hidden window so it can render
+        window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1600, height: 1200),
+                          styleMask: .borderless, backing: .buffered, defer: true)
         super.init()
         webView.navigationDelegate = self
-        // Pre-warm with a blank page to spin up the WebContent process once
-        webView.loadHTMLString("<html><body></body></html>", baseURL: nil)
-        // Place off-screen in a hidden window so it can render
-        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1200, height: 800),
-                             styleMask: .borderless, backing: .buffered, defer: true)
         window.isReleasedWhenClosed = false
         window.contentView?.addSubview(webView)
-        webView.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+        // Pre-warm with a blank page to spin up the WebContent process once
+        webView.loadHTMLString("<html><body></body></html>", baseURL: nil)
     }
 
     func render(source: String, completion: @escaping (PlatformImage?) -> Void) {
@@ -274,7 +353,8 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         activeRenderCount += 1
         isBusy = true
         pendingCompletion = completion
-        webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
+        webView.frame = NSRect(x: 0, y: 0, width: 1600, height: 1200)
+        currentNavigation = webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
     }
 
     private func processQueue() {
@@ -285,24 +365,73 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        // Ignore the pre-warm (and any stale) navigation.
+        guard pendingCompletion != nil, navigation === currentNavigation else { return }
+        pollForCompletion(attempt: 0)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard pendingCompletion != nil, navigation === currentNavigation else { return }
+        finish(with: nil)
+    }
+
+    private func pollForCompletion(attempt: Int) {
+        webView.evaluateJavaScript(mermaidStatusJS) { [weak self] result, _ in
+            guard let self else { return }
+            let status = result as? String ?? "pending"
+            if status == "pending" {
+                guard attempt < mermaidMaxPollAttempts else {
+                    log.warning("Mermaid render timed out waiting for completion marker")
+                    self.finish(with: nil)
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + mermaidPollInterval) { [weak self] in
+                    self?.pollForCompletion(attempt: attempt + 1)
+                }
+                return
+            }
+            let parts = status.split(separator: ",").compactMap { Double($0) }
+            guard status != "error", parts.count == 4, parts[2] > 1, parts[3] > 1 else {
+                self.finish(with: nil)
+                return
+            }
+            self.snapshotContent(rect: CGRect(x: parts[0], y: parts[1], width: parts[2], height: parts[3]))
+        }
+    }
+
+    private func snapshotContent(rect: CGRect) {
+        let padding: CGFloat = 8
+        let target = CGRect(
+            x: max(0, rect.minX - padding),
+            y: max(0, rect.minY - padding),
+            width: rect.width + padding * 2,
+            height: rect.height + padding * 2
+        )
+        // The webview (and host window) must cover the snapshot rect,
+        // otherwise large diagrams get clipped at the old frame edge.
+        let viewSize = NSSize(width: max(target.maxX, 64), height: max(target.maxY, 64))
+        window.setContentSize(viewSize)
+        webView.frame = NSRect(origin: .zero, size: viewSize)
+        // Give WebKit one paint pass at the new size before snapshotting,
+        // or newly exposed regions come back blank.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self else { return }
             let config = WKSnapshotConfiguration()
+            config.rect = target
+            // 2x the content width (in points) for retina-quality zooming.
+            config.snapshotWidth = NSNumber(value: Double(target.width) * 2)
             self.webView.takeSnapshot(with: config) { [weak self] image, error in
                 guard let self else { return }
                 if let error {
                     log.warning("Mermaid snapshot failed: \(error.localizedDescription)")
                 }
-                self.pendingCompletion?(image)
-                self.pendingCompletion = nil
-                self.activeRenderCount -= 1
-                self.processQueue()
+                self.finish(with: image)
             }
         }
     }
 
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        pendingCompletion?(nil)
+    private func finish(with image: PlatformImage?) {
+        pendingCompletion?(image)
         pendingCompletion = nil
         activeRenderCount -= 1
         processQueue()
@@ -313,7 +442,13 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
     @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
+    /// Hidden host window: WKWebView on iOS suspends rendering when it is not
+    /// attached to any window, so `takeSnapshot` returns blank/partial images.
+    /// The window sits below the app's main window (which fully covers it) and
+    /// never becomes key, so it is invisible and steals no input.
+    private let window: UIWindow
     private var pendingCompletion: ((PlatformImage?) -> Void)?
+    private var currentNavigation: WKNavigation?
     private var isBusy = false
     private var activeRenderCount = 0
     private let maxActiveRenders = 2
@@ -322,14 +457,38 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     override init() {
         let config = WKWebViewConfiguration()
         config.processPool = Self.processPool
-        webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+        webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200))
         super.init()
         webView.navigationDelegate = self
+        window.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.normal.rawValue - 1)
+        window.isUserInteractionEnabled = false
+        let host = UIViewController()
+        host.view.backgroundColor = .clear
+        window.rootViewController = host
+        host.view.addSubview(webView)
+        // isHidden flips to false in attachToSceneIfNeeded() once a
+        // UIWindowScene is available (scene-based apps require windows to be
+        // parented to a scene before they participate in rendering).
+    }
+
+    /// Adopt a connected UIWindowScene (required on iOS 13+ for the window —
+    /// and therefore the webview — to be composited). Done lazily at render
+    /// time because no scene exists yet when the singleton is first created.
+    @MainActor private func attachToSceneIfNeeded() {
+        guard window.windowScene == nil else { return }
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive })
+                ?? scenes.first else { return }
+        window.windowScene = scene
+        window.isHidden = false  // visible to the compositor; covered by the app window
     }
 
     func render(source: String, completion: @escaping (PlatformImage?) -> Void) {
+        attachToSceneIfNeeded()
         if activeRenderCount >= maxActiveRenders {
             queue.append((source, completion))
             return
@@ -341,7 +500,8 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         activeRenderCount += 1
         isBusy = true
         pendingCompletion = completion
-        webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
+        webView.frame = CGRect(x: 0, y: 0, width: 1600, height: 1200)
+        currentNavigation = webView.loadHTMLString(makeMermaidHTML(source: source), baseURL: nil)
     }
 
     private func processQueue() {
@@ -352,24 +512,74 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        guard pendingCompletion != nil, navigation === currentNavigation else { return }
+        pollForCompletion(attempt: 0)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard pendingCompletion != nil, navigation === currentNavigation else { return }
+        finish(with: nil)
+    }
+
+    private func pollForCompletion(attempt: Int) {
+        webView.evaluateJavaScript(mermaidStatusJS) { [weak self] result, _ in
+            guard let self else { return }
+            let status = result as? String ?? "pending"
+            if status == "pending" {
+                guard attempt < mermaidMaxPollAttempts else {
+                    log.warning("Mermaid render timed out waiting for completion marker")
+                    self.finish(with: nil)
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + mermaidPollInterval) { [weak self] in
+                    self?.pollForCompletion(attempt: attempt + 1)
+                }
+                return
+            }
+            let parts = status.split(separator: ",").compactMap { Double($0) }
+            guard status != "error", parts.count == 4, parts[2] > 1, parts[3] > 1 else {
+                self.finish(with: nil)
+                return
+            }
+            self.snapshotContent(rect: CGRect(x: parts[0], y: parts[1], width: parts[2], height: parts[3]))
+        }
+    }
+
+    private func snapshotContent(rect: CGRect) {
+        let padding: CGFloat = 8
+        let target = CGRect(
+            x: max(0, rect.minX - padding),
+            y: max(0, rect.minY - padding),
+            width: rect.width + padding * 2,
+            height: rect.height + padding * 2
+        )
+        // The webview (and host window) must cover the snapshot rect,
+        // otherwise large diagrams get clipped at the old frame edge.
+        let viewFrame = CGRect(x: 0, y: 0,
+                               width: max(target.maxX, 64),
+                               height: max(target.maxY, 64))
+        window.frame = viewFrame
+        webView.frame = viewFrame
+        // Give WebKit one paint pass at the new size before snapshotting,
+        // or newly exposed regions come back blank.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self else { return }
             let config = WKSnapshotConfiguration()
+            config.rect = target
+            // 2x the content width (in points) for retina-quality zooming.
+            config.snapshotWidth = NSNumber(value: Double(target.width) * 2)
             self.webView.takeSnapshot(with: config) { [weak self] image, error in
                 guard let self else { return }
                 if let error {
                     log.warning("Mermaid snapshot failed: \(error.localizedDescription)")
                 }
-                self.pendingCompletion?(image)
-                self.pendingCompletion = nil
-                self.activeRenderCount -= 1
-                self.processQueue()
+                self.finish(with: image)
             }
         }
     }
 
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        pendingCompletion?(nil)
+    private func finish(with image: PlatformImage?) {
+        pendingCompletion?(image)
         pendingCompletion = nil
         activeRenderCount -= 1
         processQueue()
@@ -447,6 +657,8 @@ private func makeMermaidHTML(source: String) -> String {
         .replacingOccurrences(of: "'", with: "\\'")
         .replacingOccurrences(of: "</", with: "<\\/")
 
+    // overflow: visible + inline-block container so the SVG defines the
+    // content size; native code measures it and snapshots exactly that rect.
     return """
     <!DOCTYPE html>
     <html>
@@ -456,8 +668,9 @@ private func makeMermaidHTML(source: String) -> String {
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { background: #1a1a1a; width: 100%; height: 100%; overflow: hidden; }
-      .mermaid-container { display: flex; justify-content: center; padding: 16px; }
+      html, body { background: #1a1a1a; overflow: visible; }
+      .mermaid-container { display: inline-block; padding: 16px; }
+      .mermaid { display: inline-block; }
     </style>
     </head>
     <body>
@@ -468,8 +681,9 @@ private func makeMermaidHTML(source: String) -> String {
     </div>
     <script>
       mermaid.initialize({
-        startOnLoad: true,
+        startOnLoad: false,
         theme: 'dark',
+        fontSize: 16,
         themeVariables: {
           primaryColor: '#7c7cff',
           primaryTextColor: '#f0f0f0',
@@ -483,7 +697,39 @@ private func makeMermaidHTML(source: String) -> String {
           textColor: '#f0f0f0',
         },
         fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+        flowchart: { useMaxWidth: false },
+        sequence: { useMaxWidth: false },
+        mindmap: { useMaxWidth: false },
+        quadrantChart: {
+          chartWidth: 700,
+          chartHeight: 700,
+          pointLabelFontSize: 14,
+          quadrantLabelFontSize: 18,
+        },
       });
+      window.__mermaidDone = false;
+      window.__mermaidError = false;
+      window.__mermaidRect = { x: 0, y: 0, w: 0, h: 0 };
+      mermaid.run({ nodes: [document.getElementById('diagram')] })
+        .then(function () {
+          var svg = document.querySelector('#diagram svg');
+          if (!svg) {
+            window.__mermaidError = true;
+          } else {
+            var r = svg.getBoundingClientRect();
+            window.__mermaidRect = {
+              x: r.x + window.scrollX,
+              y: r.y + window.scrollY,
+              w: r.width,
+              h: r.height,
+            };
+          }
+          window.__mermaidDone = true;
+        })
+        .catch(function () {
+          window.__mermaidError = true;
+          window.__mermaidDone = true;
+        });
     </script>
     </body>
     </html>
@@ -504,57 +750,57 @@ private struct ZoomableDiagram: View {
     private let maxScale: CGFloat = 8.0
 
     var body: some View {
-        GeometryReader { _ in
-            platformImageView(for: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .scaleEffect(scale)
-                .offset(offset)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-                .clipped()
-                .onTapGesture(count: 2) {
-                    withAnimation(.spring(response: 0.3)) {
-                        scale = 1.0
-                        offset = .zero
-                        lastScale = 1.0
-                        lastOffset = .zero
-                    }
+        // Sized by the image's own aspect ratio so the fitted diagram defines
+        // the view height (no fixed letterbox band around wide diagrams).
+        platformImageView(for: image)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(image.size, contentMode: .fit)
+            .scaleEffect(scale)
+            .offset(offset)
+            .contentShape(Rectangle())
+            .clipped()
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(response: 0.3)) {
+                    scale = 1.0
+                    offset = .zero
+                    lastScale = 1.0
+                    lastOffset = .zero
                 }
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            let newScale = lastScale * value
-                            scale = min(max(newScale, minScale), maxScale)
-                        }
-                        .onEnded { _ in
-                            lastScale = scale
-                        }
-                )
-                .simultaneousGesture(
-                    DragGesture()
-                        .onChanged { value in
-                            offset = CGSize(
-                                width: lastOffset.width + value.translation.width,
-                                height: lastOffset.height + value.translation.height
-                            )
-                        }
-                        .onEnded { _ in
-                            lastOffset = offset
-                        }
-                )
-                .overlay(alignment: .bottomTrailing) {
-                    if scale != 1.0 || offset != .zero {
-                        Text("\(Int(scale * 100))%")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(Theme.tertiary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Theme.surface.opacity(0.9), in: Capsule())
-                            .padding(8)
+            }
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        let newScale = lastScale * value
+                        scale = min(max(newScale, minScale), maxScale)
                     }
+                    .onEnded { _ in
+                        lastScale = scale
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture()
+                    .onChanged { value in
+                        offset = CGSize(
+                            width: lastOffset.width + value.translation.width,
+                            height: lastOffset.height + value.translation.height
+                        )
+                    }
+                    .onEnded { _ in
+                        lastOffset = offset
+                    }
+            )
+            .overlay(alignment: .bottomTrailing) {
+                if scale != 1.0 || offset != .zero {
+                    Text("\(Int(scale * 100))%")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(Theme.tertiary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Theme.surface.opacity(0.9), in: Capsule())
+                        .padding(8)
                 }
-        }
+            }
     }
 }
 

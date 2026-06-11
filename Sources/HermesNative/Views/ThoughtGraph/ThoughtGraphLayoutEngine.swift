@@ -324,16 +324,20 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
         }
         let maxDepth = depthGroups.keys.max() ?? 0
 
-        // Strategy 2: depth-based inference
+        // Strategy 2: depth-based inference.
+        // Connect each child to a single representative parent via
+        // proportional index mapping — an all-parents × all-children cross
+        // product generates O(n²) edges that are each bezier-stroked per
+        // frame. Positions aren't computed yet at this point, so "nearest"
+        // is approximated by relative position within each depth layer.
         if maxDepth > 0 {
             var result: [(String, String)] = []
             for depth in 0 ..< maxDepth {
                 guard let parents = depthGroups[depth],
                       let children = depthGroups[depth + 1] else { continue }
-                for child in children {
-                    for parent in parents {
-                        result.append((parent.id, child.id))
-                    }
+                for (i, child) in children.enumerated() {
+                    let parentIdx = min(i * parents.count / children.count, parents.count - 1)
+                    result.append((parents[parentIdx].id, child.id))
                 }
             }
             return result

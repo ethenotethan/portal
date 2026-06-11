@@ -61,6 +61,7 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var simNodes: [SimNode] = []
     @Published var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     private(set) var degrees: [Int] = []
+    private(set) var adjacency: [Set<Int>] = []
 
     private let friction: CGFloat = 0.92
     private let springLength: CGFloat = 120
@@ -79,8 +80,10 @@ final class WikiGraphViewModel: ObservableObject {
     var is3D = false
 
     private let springLength3D: Float = 160
+    private let chargeConstant3D: Float = 20000
     private let centerPull3D: Float = 0.0008
     private let maxVelocity3D: Float = 30
+    private let seedSpacing3D: Float = 50
 
     @Published var zoom: CGFloat = 1.0
     @Published var panOffset: CGSize = .zero
@@ -110,13 +113,21 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var selectedWikiPath: String?
     @Published var availableWikis: [String] = []
 
+    private var loadGeneration = 0
+
     func load(client: GatewayClient, wiki: String? = nil) async {
-        isLoading = true; error = nil; defer { isLoading = false }
+        loadGeneration += 1
+        let generation = loadGeneration
+        isLoading = true; error = nil
+        defer { if generation == loadGeneration { isLoading = false } }
         do {
             let newGraph = try await client.wikiScan(wiki: wiki)
+            // Drop stale responses if a newer load was started meanwhile.
+            guard generation == loadGeneration else { return }
             self.graph = newGraph
             if canvasSize != .zero { setupSimulation() }
         } catch {
+            guard generation == loadGeneration else { return }
             log.error("wiki.scan failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
@@ -150,10 +161,12 @@ final class WikiGraphViewModel: ObservableObject {
 
     private func setup3D() {
         var rng = SystemRandomNumberGenerator()
+        // Seed radius grows with cbrt(n) so node density stays roughly constant.
+        let spread = Float(cbrt(Double(max(graph.pages.count, 1)))) * seedSpacing3D
         simNodes = graph.pages.map { page in
             let phi = Float.random(in: 0...(2 * .pi), using: &rng)
-            let theta = Float.random(in: (-Float.pi / 3)...(Float.pi / 3), using: &rng)
-            let r = Float.random(in: 60...180, using: &rng)
+            let theta = Float.random(in: (-Float.pi / 2)...(Float.pi / 2), using: &rng)
+            let r = Float.random(in: (spread * 0.4)...spread, using: &rng)
             return SimNode(id: page.id, position: .zero, position3D: SIMD3(r * cos(theta) * cos(phi), r * cos(theta) * sin(phi), r * sin(theta)), type: page.type, label: page.title)
         }
         finishSetup()
@@ -168,7 +181,11 @@ final class WikiGraphViewModel: ObservableObject {
             return (si, ti)
         }
         degrees = Array(repeating: 0, count: simNodes.count)
-        for (si, ti) in simLinks { if degrees.indices.contains(si) { degrees[si] += 1 }; if degrees.indices.contains(ti) { degrees[ti] += 1 } }
+        adjacency = Array(repeating: Set<Int>(), count: simNodes.count)
+        for (si, ti) in simLinks {
+            if degrees.indices.contains(si) { degrees[si] += 1; adjacency[si].insert(ti) }
+            if degrees.indices.contains(ti) { degrees[ti] += 1; adjacency[ti].insert(si) }
+        }
         alpha = 1.0
         updateFilteredNodes()
     }
@@ -179,13 +196,15 @@ final class WikiGraphViewModel: ObservableObject {
         guard canvasSize != .zero, simNodes.count > 1 else { return }
         let anyDragging = simNodes.contains { $0.isDragging }
         guard alpha > alphaMin || anyDragging else { return }
+        // Simulate into a local copy so the @Published publisher fires once per tick.
+        var nodes = simNodes
         for _ in 0..<iterationsPerFrame {
-            var forces = Array(repeating: CGVector.zero, count: simNodes.count)
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
-                for j in (i + 1)..<simNodes.count {
-                    let dx = simNodes[i].position.x - simNodes[j].position.x
-                    let dy = simNodes[i].position.y - simNodes[j].position.y
+            var forces = Array(repeating: CGVector.zero, count: nodes.count)
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                for j in (i + 1)..<nodes.count {
+                    let dx = nodes[i].position.x - nodes[j].position.x
+                    let dy = nodes[i].position.y - nodes[j].position.y
                     let distSq = dx * dx + dy * dy
                     guard distSq > 0.01 else { continue }
                     let rawForce = chargeConstant / distSq
@@ -197,8 +216,8 @@ final class WikiGraphViewModel: ObservableObject {
                 }
             }
             for (si, ti) in simLinks {
-                let dx = simNodes[ti].position.x - simNodes[si].position.x
-                let dy = simNodes[ti].position.y - simNodes[si].position.y
+                let dx = nodes[ti].position.x - nodes[si].position.x
+                let dy = nodes[ti].position.y - nodes[si].position.y
                 let dist = sqrt(dx * dx + dy * dy)
                 guard dist > 0 else { continue }
                 let force = (dist - springLength) * springConstant
@@ -206,25 +225,26 @@ final class WikiGraphViewModel: ObservableObject {
                 forces[si].dx += fx; forces[si].dy += fy
                 forces[ti].dx -= fx; forces[ti].dy -= fy
             }
-            let meanX = simNodes.reduce(0) { $0 + $1.position.x } / CGFloat(simNodes.count)
-            let meanY = simNodes.reduce(0) { $0 + $1.position.y } / CGFloat(simNodes.count)
+            let meanX = nodes.reduce(0) { $0 + $1.position.x } / CGFloat(nodes.count)
+            let meanY = nodes.reduce(0) { $0 + $1.position.y } / CGFloat(nodes.count)
             let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
                 forces[i].dx += (center.x - meanX) * centerPull
                 forces[i].dy += (center.y - meanY) * centerPull
             }
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
-                var v = simNodes[i].velocity
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                var v = nodes[i].velocity
                 v.dx = (v.dx + forces[i].dx * alpha) * friction
                 v.dy = (v.dy + forces[i].dy * alpha) * friction
                 let speed = sqrt(v.dx * v.dx + v.dy * v.dy)
                 if speed > maxVelocity { let scale = maxVelocity / speed; v.dx *= scale; v.dy *= scale }
-                simNodes[i].velocity = v
-                simNodes[i].position.x += v.dx; simNodes[i].position.y += v.dy
+                nodes[i].velocity = v
+                nodes[i].position.x += v.dx; nodes[i].position.y += v.dy
             }
         }
+        simNodes = nodes
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
@@ -232,15 +252,17 @@ final class WikiGraphViewModel: ObservableObject {
         guard simNodes.count > 1 else { return }
         let anyDragging = simNodes.contains { $0.isDragging }
         guard alpha > alphaMin || anyDragging else { return }
-        let charge: Float = Float(chargeConstant)
+        let charge: Float = chargeConstant3D
         let maxForce: Float = Float(maxRepulsionForce)
         let springK: Float = Float(springConstant)
+        // Simulate into a local copy so the @Published publisher fires once per tick.
+        var nodes = simNodes
         for _ in 0..<iterationsPerFrame {
-            var forces = Array(repeating: SIMD3<Float>.zero, count: simNodes.count)
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
-                for j in (i + 1)..<simNodes.count {
-                    let d = simNodes[i].position3D - simNodes[j].position3D
+            var forces = Array(repeating: SIMD3<Float>.zero, count: nodes.count)
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                for j in (i + 1)..<nodes.count {
+                    let d = nodes[i].position3D - nodes[j].position3D
                     let distSq = simd_length_squared(d)
                     guard distSq > 0.01 else { continue }
                     let raw = charge / distSq
@@ -250,31 +272,31 @@ final class WikiGraphViewModel: ObservableObject {
                 }
             }
             for (si, ti) in simLinks {
-                let d = simNodes[ti].position3D - simNodes[si].position3D
+                let d = nodes[ti].position3D - nodes[si].position3D
                 let dist = simd_length(d)
                 guard dist > 0 else { continue }
                 let f = (dist - springLength3D) * springK
                 let dir = d / dist
                 forces[si] += dir * f; forces[ti] -= dir * f
             }
-            var mean = SIMD3<Float>.zero
-            for n in simNodes { mean += n.position3D }
-            mean /= Float(simNodes.count)
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
-                forces[i] -= mean * centerPull3D
+            // d3 forceX/Y/Z-style centering: pull each node toward the origin so
+            // disconnected components stay bounded (the old uniform -mean shift didn't).
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                forces[i] -= nodes[i].position3D * centerPull3D
             }
             let fAlpha = Float(CGFloat(alpha))
-            for i in 0..<simNodes.count {
-                guard !simNodes[i].isDragging else { continue }
-                var v = simNodes[i].velocity3D
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                var v = nodes[i].velocity3D
                 v = (v + forces[i] * fAlpha) * Float(friction)
                 let speed = simd_length(v)
                 if speed > maxVelocity3D { v *= maxVelocity3D / speed }
-                simNodes[i].velocity3D = v
-                simNodes[i].position3D += v
+                nodes[i].velocity3D = v
+                nodes[i].position3D += v
             }
         }
+        simNodes = nodes
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
@@ -319,21 +341,18 @@ final class WikiGraphViewModel: ObservableObject {
 
     func selectedNodeNeighbors() -> [Int] {
         guard let sel = selectedNodeIndex else { return [] }
-        var result = Set<Int>()
-        for (si, ti) in simLinks { if si == sel { result.insert(ti) }; if ti == sel { result.insert(si) } }
-        return Array(result)
+        return Array(neighbors(of: sel))
     }
 
-    private func neighbors(of anchor: Int) -> Set<Int> {
-        var result = Set<Int>()
-        for (si, ti) in simLinks { if si == anchor { result.insert(ti) }; if ti == anchor { result.insert(si) } }
-        return result
+    func neighbors(of anchor: Int) -> Set<Int> {
+        guard adjacency.indices.contains(anchor) else { return [] }
+        return adjacency[anchor]
     }
 
     func isNodeConnectedToSelection(_ index: Int) -> Bool {
         guard let anchor = highlightAnchor else { return true }
         if index == anchor { return true }
-        return neighbors(of: anchor).contains(index)
+        return adjacency.indices.contains(anchor) && adjacency[anchor].contains(index)
     }
 
     func linkIsConnectedToSelection(_ source: Int, _ target: Int) -> Bool {
