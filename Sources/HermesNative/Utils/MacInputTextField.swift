@@ -26,7 +26,7 @@ struct MacInputTextField: NSViewRepresentable {
     var onConfirm: (() -> Void)?
     var maxLines: Int = 8
 
-    func makeNSView(context: Context) -> FocusableTextView {
+    func makeNSView(context: Context) -> NSScrollView {
         let tv = FocusableTextView()
         tv.placeholder = placeholder
         tv.maxLines = maxLines
@@ -48,21 +48,34 @@ struct MacInputTextField: NSViewRepresentable {
         tv.backgroundColor = .clear
         tv.textContainerInset = NSSize(width: 4, height: 4)
         tv.textContainer?.lineFragmentPadding = 2
-        tv.autoresizingMask = .none
+        // Inside the scroll view the text view must grow vertically with its
+        // content; the scroll view shows a scroller once the SwiftUI frame
+        // (capped at maxLines) is smaller than the document.
+        tv.autoresizingMask = [.width]
         tv.isHorizontallyResizable = false
-        tv.isVerticallyResizable = false
+        tv.isVerticallyResizable = true
+        tv.minSize = NSSize(width: 0, height: 0)
+        tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         tv.textContainer?.widthTracksTextView = true
-        tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        tv.setContentHuggingPriority(.defaultHigh, for: .vertical)
+
+        let scroll = NSScrollView()
+        scroll.documentView = tv
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.borderType = .noBorder
+        scroll.verticalScrollElasticity = .automatic
 
         context.coordinator.textView = tv
         DispatchQueue.main.async {
             fieldRef = tv
         }
-        return tv
+        return scroll
     }
 
-    func updateNSView(_ nsView: FocusableTextView, context: Context) {
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let nsView = scrollView.documentView as? FocusableTextView else { return }
         if nsView.string != text {
             let selectedRanges = nsView.selectedRanges
             nsView.string = text
@@ -70,6 +83,7 @@ struct MacInputTextField: NSViewRepresentable {
                range.location <= nsView.string.count {
                 nsView.setSelectedRange(range)
             }
+            nsView.scrollRangeToVisible(nsView.selectedRange())
         }
         nsView.placeholder = placeholder
         nsView.onSubmit = onSubmit
@@ -96,14 +110,56 @@ struct MacInputTextField: NSViewRepresentable {
         context.coordinator.wasFocused = nowFocused
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusableTextView, context: Context) -> CGSize? {
-        let width = proposal.width ?? 300
-        // Update text container width to match the proposed width
-        if nsView.textContainer?.containerSize.width != width {
-            nsView.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView scrollView: NSScrollView, context: Context) -> CGSize? {
+        // This must be PURE: mutating the live NSTextView here invalidates
+        // its layout mid-pass, which schedules another SwiftUI transaction
+        // with a slightly different proposed width — an infinite layout loop
+        // that hangs the main thread. Measure with an offscreen TextKit
+        // stack instead; the live view's container tracks its frame width
+        // on its own (widthTracksTextView).
+        guard let nsView = scrollView.documentView as? FocusableTextView else { return nil }
+        let coordinator = context.coordinator
+        let width: CGFloat
+        if let w = proposal.width, w.isFinite, w > 0 {
+            width = w.rounded(.down)
+        } else {
+            width = coordinator.lastMeasuredWidth ?? 300
         }
-        let size = nsView.intrinsicContentSize
-        return CGSize(width: width, height: size.height)
+
+        let font = nsView.font ?? .systemFont(ofSize: 15, weight: .regular)
+        let lineHeight = font.boundingRectForFont.height
+        let maxHeight = lineHeight * CGFloat(nsView.maxLines)
+        let text = nsView.string
+
+        // Huge pastes: once the text can't possibly fit under maxLines the
+        // height is the cap regardless — skip the O(n) layout measurement.
+        let minPossibleLines = (text.count / 600) + text.lazy.filter { $0 == "\n" }.count
+        if minPossibleLines > nsView.maxLines * 4 {
+            coordinator.lastMeasuredWidth = width
+            return CGSize(width: width, height: maxHeight)
+        }
+
+        let key = Coordinator.MeasureKey(
+            width: width,
+            textHash: text.hashValue,
+            maxLines: nsView.maxLines
+        )
+        if let cached = coordinator.cachedSize, coordinator.cachedKey == key {
+            return cached
+        }
+
+        let inset = nsView.textContainerInset
+        let textHeight = coordinator.measurer.height(
+            for: text,
+            font: font,
+            width: max(width - inset.width * 2, 50)
+        )
+        let cappedHeight = min(max(textHeight, lineHeight) + 12, maxHeight)
+        let result = CGSize(width: width, height: cappedHeight)
+        coordinator.lastMeasuredWidth = width
+        coordinator.cachedKey = key
+        coordinator.cachedSize = result
+        return result
     }
 
     private func makeFirstResponder(_ nsView: FocusableTextView) {
@@ -122,10 +178,20 @@ struct MacInputTextField: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
+        struct MeasureKey: Equatable {
+            let width: CGFloat
+            let textHash: Int
+            let maxLines: Int
+        }
+
         var parent: MacInputTextField
         weak var textView: FocusableTextView?
         var wasFocused: Bool = false
         var parentHeight: CGFloat = 0
+        var lastMeasuredWidth: CGFloat?
+        var cachedKey: MeasureKey?
+        var cachedSize: CGSize?
+        let measurer = TextHeightMeasurer()
 
         init(_ parent: MacInputTextField) {
             self.parent = parent
@@ -143,6 +209,31 @@ struct MacInputTextField: NSViewRepresentable {
         func textDidEndEditing(_ notification: Notification) {
             parent.isFocused.wrappedValue = false
         }
+    }
+}
+
+// MARK: - TextHeightMeasurer
+
+/// Offscreen TextKit stack for measuring wrapped text height without
+/// touching the live NSTextView (whose mutation mid-layout loops SwiftUI).
+final class TextHeightMeasurer {
+    private let layoutManager = NSLayoutManager()
+    private let textContainer = NSTextContainer(size: .zero)
+    private let textStorage = NSTextStorage()
+
+    init() {
+        textContainer.lineFragmentPadding = 2
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+    }
+
+    func height(for text: String, font: NSFont, width: CGFloat) -> CGFloat {
+        textContainer.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
+        textStorage.setAttributedString(
+            NSAttributedString(string: text.isEmpty ? " " : text, attributes: [.font: font])
+        )
+        layoutManager.ensureLayout(for: textContainer)
+        return layoutManager.usedRect(for: textContainer).height
     }
 }
 
@@ -239,26 +330,33 @@ final class FocusableTextView: NSTextView {
         }
 
         super.keyDown(with: event)
+    }
 
-        if !event.modifierFlags.contains(.shift) {
-            invalidateIntrinsicContentSize()
-        }
+    // Force plain text on paste — rich pastes (from browsers, PDFs, terminals)
+    // otherwise carry foreign fonts/colors even with isRichText = false.
+    override func paste(_ sender: Any?) {
+        pasteAsPlainText(sender)
     }
 
     override func didChangeText() {
         super.didChangeText()
+        // Covers typing, paste, cut, undo — keyDown alone misses paste,
+        // leaving the field at its stale height after a large paste.
+        invalidateIntrinsicContentSize()
         onTextChange?(string)
+        scrollRangeToVisible(selectedRange())
     }
 
+    // Full content height — the visible cap (maxLines) is applied by the
+    // enclosing scroll view's SwiftUI frame, so the document must not clamp
+    // itself or the scroller would have nothing to scroll.
     override var intrinsicContentSize: NSSize {
         guard let layoutManager, let textContainer else {
             return super.intrinsicContentSize
         }
         layoutManager.ensureLayout(for: textContainer)
         let usedRect = layoutManager.usedRect(for: textContainer)
-        let lineHeight = font?.boundingRectForFont.height ?? 18
-        let cappedHeight = min(usedRect.height + 12, lineHeight * CGFloat(maxLines))
-        return NSSize(width: NSView.noIntrinsicMetric, height: cappedHeight)
+        return NSSize(width: NSView.noIntrinsicMetric, height: usedRect.height + 12)
     }
 
     override func draw(_ dirtyRect: NSRect) {

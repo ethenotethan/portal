@@ -16,6 +16,7 @@ final class SkillsViewModel {
     var searchQuery = ""
     var searchError: String?
     var installStatus: [String: String] = [:]
+    var skillSummaries: [String: SkillSummaryService.SummaryState] = [:]
     private var hasLoaded = false
 
     private var gatewayClient: GatewayClient?
@@ -146,6 +147,35 @@ final class SkillsViewModel {
             output += "❌ Error: \(error.localizedDescription)\n"
         }
         diagnosticResult = output
+    }
+
+    func requestSummary(for skill: SkillInfo) async {
+        switch skillSummaries[skill.name] {
+        case .ready, .generating: return
+        default: break
+        }
+
+        var markdown = skill.skillMdFullContent ?? skill.skillMdPreview
+        if markdown == nil || markdown?.isEmpty == true {
+            markdown = await readSkillMarkdown(name: skill.name)
+        }
+        guard let markdown, !markdown.isEmpty else {
+            skillSummaries[skill.name] = .failed("No skill content")
+            return
+        }
+
+        if let cached = SkillSummaryService.shared.cachedSummary(name: skill.name, markdown: markdown) {
+            skillSummaries[skill.name] = .ready(cached)
+            return
+        }
+
+        skillSummaries[skill.name] = .generating
+        switch await SkillSummaryService.shared.summarize(name: skill.name, markdown: markdown) {
+        case .success(let summary):
+            skillSummaries[skill.name] = .ready(summary)
+        case .failure(let error):
+            skillSummaries[skill.name] = .failed(error.localizedDescription)
+        }
     }
 
     func readSkillMarkdown(name: String) async -> String? {

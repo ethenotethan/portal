@@ -140,7 +140,7 @@ final class HeuristicReasoningSummarizer: ReasoningSummarizing {
 import HuggingFace
 import Tokenizers
 
-private struct HFHubDownloader: MLXLMCommon.Downloader {
+struct HFHubDownloader: MLXLMCommon.Downloader {
     private let upstream = HubClient()
 
     func download(
@@ -157,7 +157,7 @@ private struct HFHubDownloader: MLXLMCommon.Downloader {
     }
 }
 
-private struct HFTokenizerWrapper: MLXLMCommon.Tokenizer, @unchecked Sendable {
+struct HFTokenizerWrapper: MLXLMCommon.Tokenizer, @unchecked Sendable {
     let tokenizer: Tokenizers.Tokenizer
 
     func encode(text: String, addSpecialTokens: Bool) -> [Int] {
@@ -185,9 +185,12 @@ private struct HFTokenizerWrapper: MLXLMCommon.Tokenizer, @unchecked Sendable {
     }
 }
 
-private struct HFTokenizerLoaderWrapper: MLXLMCommon.TokenizerLoader {
+struct HFTokenizerLoaderWrapper: MLXLMCommon.TokenizerLoader {
     func load(from directory: URL) async throws -> any MLXLMCommon.Tokenizer {
-        let tk = try await AutoTokenizer.from(pretrained: directory.path)
+        // from(pretrained:) treats the string as a Hub model ID and resolves
+        // the "main" revision against it, which fails for a local path with
+        // "File not found: main". from(modelFolder:) is the local-dir loader.
+        let tk = try await AutoTokenizer.from(modelFolder: directory)
         return HFTokenizerWrapper(tokenizer: tk)
     }
 }

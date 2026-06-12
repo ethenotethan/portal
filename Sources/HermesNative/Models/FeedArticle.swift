@@ -10,9 +10,15 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     let imageUrl: String
     let ts: String
 
-    /// Clean summary ready for MarkdownText rendering — strips HTML, preserves markdown.
+    /// Clean summary ready for markdown rendering — strips HTML tags and
+    /// image markup (shown separately as the hero image), preserves the
+    /// block structure (paragraph breaks, list indentation) that the full
+    /// markdown renderer needs.
     var displaySummary: String {
         var text = summary
+        // Markdown images render as the hero image, not inline text
+        text = text.replacingOccurrences(
+            of: #"!\[[^\]]*\]\([^)]*\)"#, with: "", options: .regularExpression)
         // Strip HTML tags
         while let range = text.range(of: "<[^>]+>", options: .regularExpression) {
             text.removeSubrange(range)
@@ -22,11 +28,45 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         text = text.replacingOccurrences(of: "&lt;", with: "<")
         text = text.replacingOccurrences(of: "&gt;", with: ">")
         text = text.replacingOccurrences(of: "&quot;", with: "\"")
-        // Normalize newlines and whitespace
+        text = text.replacingOccurrences(of: "&#39;", with: "'")
+        // Normalize newlines: literal \n sequences, trailing per-line spaces,
+        // runs of blank lines — but KEEP blank lines (paragraph breaks) and
+        // leading indentation (nested lists / code blocks).
         text = text.replacingOccurrences(of: "\\n", with: "\n")
+        text = text.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
-        text = text.replacingOccurrences(of: #"\s*\n\s*"#, with: "\n", options: .regularExpression)
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Compact single-paragraph preview for the collapsed card.
+    var previewSummary: String {
+        let text = displaySummary
+            .replacingOccurrences(of: #"^#{1,6}\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\n#{1,6}\s+"#, with: "\n", options: .regularExpression)
+        return text
+    }
+
+    /// Best available image: the pipeline's image_url, else the first image
+    /// embedded in the raw summary (markdown or HTML — common in GitHub
+    /// release notes, where screenshots are part of the body).
+    var heroImageURL: URL? {
+        if !imageUrl.isEmpty, let url = URL(string: imageUrl), url.scheme?.hasPrefix("http") == true {
+            return url
+        }
+        let patterns = [
+            #"!\[[^\]]*\]\((https?://[^)\s]+)"#,
+            #"<img[^>]+src=["']([^"']+)["']"#,
+        ]
+        for pattern in patterns {
+            if let match = summary.range(of: pattern, options: .regularExpression) {
+                let fragment = String(summary[match])
+                if let urlRange = fragment.range(of: #"https?://[^)"'\s]+"#, options: .regularExpression),
+                   let url = URL(string: String(fragment[urlRange])) {
+                    return url
+                }
+            }
+        }
+        return nil
     }
 
     var sourceIcon: String {

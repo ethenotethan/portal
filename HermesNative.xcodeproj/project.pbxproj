@@ -16,6 +16,7 @@
 		0A5ED4D2B4B0DA8E1883CA48 /* HermesNativeGatewayConnectionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C633B4D795C9824FB4B54E5 /* HermesNativeGatewayConnectionUITests.swift */; };
 		0A80650931890E78EB2A78DF /* ChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742C42FB4508D2508FF94A82 /* ChatSkin.swift */; };
 		0AF3C057F785086D624F6286 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC871CF4533AE44104E0C11A /* OnboardingView.swift */; };
+		0B27CA77A483C937DE7D11F5 /* SkillSummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */; };
 		0B5306F4E5BC2E3D7AC114CB /* GatewayDebugPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6DCDA4383E8AB84CFB90AE /* GatewayDebugPanelView.swift */; };
 		0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */; };
 		0C3ADFFCF9CBFD8E9B0D89F4 /* WikiGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201F95763EBE727F2961B603 /* WikiGraph.swift */; };
@@ -185,6 +186,7 @@
 		B4C8AD263E87573995FC2518 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = FA354F81CE5E1F32F3D3FE79 /* Lottie */; };
 		B4DA9E350E5426C6650152D3 /* CronDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBE7F6C318B11174A754F38A /* CronDashboardView.swift */; };
 		B5327CFB026788C047E6C4D7 /* HermesNativeVisionDemoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82587B61F3E0F931D857D35F /* HermesNativeVisionDemoUITests.swift */; };
+		B5A6C41F300D2EBF559F07CD /* SkillSummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */; };
 		B6A29D66D4C44BC31B0E4EF6 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
 		B6BAF397AEF4B6231A3F4865 /* HermesProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5947E5D1704228B981F401BD /* HermesProgressView.swift */; };
 		B6CD7C750A37A6EC4E5B41A5 /* PromptBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98EAA5520C82637C026B91DB /* PromptBreakdown.swift */; };
@@ -281,6 +283,7 @@
 		04413B7162C8D0EAA432920E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
+		111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSummaryService.swift; sourceTree = "<group>"; };
 		1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPanel.swift; sourceTree = "<group>"; };
 		1CBC71ED91AC512E21E65282 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillGraph3DView.swift; sourceTree = "<group>"; };
@@ -733,6 +736,7 @@
 				91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */,
 				85E50848877F195F3F5628E4 /* SkillCache.swift */,
 				FEB8209DAE21C0F0337FA525 /* SkillStore.swift */,
+				111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */,
 				9A014710FF545F86CB656E53 /* TTSService.swift */,
 			);
 			path = Services;
@@ -991,6 +995,7 @@
 				7F929003380381379ED1B1B9 /* SkillMarkdownEditor.swift in Sources */,
 				F17CA871D2D2C04861369BB1 /* SkillModels.swift in Sources */,
 				326FB76DD8343B9E2EC44D48 /* SkillStore.swift in Sources */,
+				B5A6C41F300D2EBF559F07CD /* SkillSummaryService.swift in Sources */,
 				5EB57F8E47A6B9CC7AC6296B /* SkillsView.swift in Sources */,
 				854DA8E57545F5379A0F4C54 /* SkillsViewModel.swift in Sources */,
 				897AD04F4B12A894FAA45687 /* SpawnCallGraphView.swift in Sources */,
@@ -1123,6 +1128,7 @@
 				ECDB9FCE5CDDDD0D51744373 /* SkillMarkdownEditor.swift in Sources */,
 				394ECDFFE9B4F77F8DF0A43C /* SkillModels.swift in Sources */,
 				501380ACF4E3059E3985CB33 /* SkillStore.swift in Sources */,
+				0B27CA77A483C937DE7D11F5 /* SkillSummaryService.swift in Sources */,
 				617F9169FBE1B5C9439009B3 /* SkillsView.swift in Sources */,
 				6FF03CBBC5F7ACE0D5AB2C74 /* SkillsViewModel.swift in Sources */,
 				55DAA09EAE2684C7EA0C6A3B /* SpawnCallGraphView.swift in Sources */,

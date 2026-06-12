@@ -191,6 +191,45 @@ struct SourcePill: View {
     }
 }
 
+// MARK: - Hero Image
+
+/// Async-loaded article/release image with rounded social-card styling.
+/// Collapses to nothing on failure so broken URLs never leave a gap.
+struct FeedHeroImage: View {
+    let url: URL
+    @State private var failed = false
+
+    var body: some View {
+        if !failed {
+            AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.2))) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(maxHeight: 280)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
+                        )
+                case .empty:
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.secondary.opacity(0.08))
+                        .frame(height: 160)
+                        .overlay(ProgressView().controlSize(.small))
+                case .failure:
+                    Color.clear.frame(height: 0)
+                        .onAppear { failed = true }
+                @unknown default:
+                    Color.clear.frame(height: 0)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Feed Card
 
 struct FeedCard: View {
@@ -236,12 +275,26 @@ struct FeedCard: View {
                 .lineLimit(isExpanded ? nil : 2)
                 .padding(.top, 10)
 
-            // Summary — full text, cleaned by displaySummary
+            // Hero image — screenshots from release notes / article image
+            if let heroURL = article.heroImageURL {
+                FeedHeroImage(url: heroURL)
+                    .padding(.top, 10)
+            }
+
+            // Summary. Collapsed: compact text preview. Expanded: the full
+            // block-level markdown renderer (headings, lists, code blocks) so
+            // release notes read as formatted prose, not a flattened string.
             if !article.displaySummary.isEmpty {
-                MarkdownText(text: article.displaySummary)
-                    .font(.subheadline).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 6)
+                if isExpanded {
+                    MarkdownContentView(text: article.displaySummary)
+                        .padding(.top, 8)
+                } else {
+                    MarkdownText(text: article.previewSummary)
+                        .font(.subheadline).foregroundColor(.secondary)
+                        .lineLimit(5)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 6)
+                }
             }
 
             // Tags

@@ -33,6 +33,9 @@ struct SkillsView: View {
         .background(Theme.background)
         .task {
             viewModel.setGatewayClient(gatewayClientWrapper.client)
+            // Start the local summarization model loading (downloads on first
+            // use) so summaries are ready by the time a card is expanded.
+            SkillSummaryService.shared.warmUp()
             if gatewayClientWrapper.isConnected {
                 await viewModel.refreshIfNeeded()
             }
@@ -252,11 +255,19 @@ struct SkillsView: View {
                     skill: skill,
                     isExpanded: expandedSkill == skill.id,
                     installStatus: viewModel.installStatus[skill.name] ?? nil,
+                    summaryState: viewModel.skillSummaries[skill.name],
                     confirmUninstall: confirmUninstall == skill.name,
                     onToggle: {
+                        let expanding = expandedSkill != skill.id
                         withAnimation(.easeInOut(duration: 0.18)) {
-                            expandedSkill = expandedSkill == skill.id ? nil : skill.id
+                            expandedSkill = expanding ? skill.id : nil
                         }
+                        if expanding {
+                            Task { await viewModel.requestSummary(for: skill) }
+                        }
+                    },
+                    onRequestSummary: {
+                        Task { await viewModel.requestSummary(for: skill) }
                     },
                     onUninstall: {
                         if confirmUninstall == skill.name {
@@ -345,8 +356,10 @@ struct SkillCard: View {
     let skill: SkillInfo
     let isExpanded: Bool
     let installStatus: String?
+    let summaryState: SkillSummaryService.SummaryState?
     let confirmUninstall: Bool
     let onToggle: () -> Void
+    let onRequestSummary: () -> Void
     let onUninstall: () -> Void
     let onCancelUninstall: () -> Void
     let onViewMarkdown: () -> Void
@@ -360,6 +373,7 @@ struct SkillCard: View {
                 if isExpanded {
                     VStack(alignment: .leading, spacing: 10) {
                         Divider().background(Theme.border)
+                        aboutSection
                         if skill.description.isEmpty {
                             Text("No description available")
                                 .font(.system(.caption, design: .monospaced))
@@ -402,6 +416,83 @@ struct SkillCard: View {
         }
         .padding(10)
         .background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var extractiveFallback: String? {
+        guard let markdown = skill.skillMdFullContent ?? skill.skillMdPreview, !markdown.isEmpty else {
+            return nil
+        }
+        return SkillSummaryService.extractiveFallback(markdown: markdown)
+    }
+
+    @ViewBuilder
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("About this skill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.secondary)
+
+            switch summaryState {
+            case .ready(let summary):
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(Theme.accent)
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                Text("AI summary · on-device")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiary)
+            case .generating:
+                if let fallback = extractiveFallback {
+                    fallbackText(fallback)
+                }
+                HStack(spacing: 6) {
+                    HermesProgressView().scaleEffect(0.5)
+                    Text(SkillSummaryService.shared.isModelReady
+                         ? "Summarizing with local model…"
+                         : "Preparing local model (downloads ~600MB on first use)…")
+                        .font(.caption)
+                        .foregroundStyle(Theme.tertiary)
+                }
+            case .failed(let message):
+                if let fallback = extractiveFallback {
+                    fallbackText(fallback)
+                }
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.warning)
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                        .lineLimit(3)
+                        .textSelection(.enabled)
+                }
+                Button("Retry summary") {
+                    onRequestSummary()
+                }
+                .font(.caption2)
+                .buttonStyle(.borderless)
+                .foregroundStyle(Theme.accent)
+            case .idle, nil:
+                if let fallback = extractiveFallback {
+                    fallbackText(fallback)
+                }
+            }
+        }
+    }
+
+    private func fallbackText(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(Theme.secondary)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var headerRow: some View {
