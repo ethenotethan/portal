@@ -179,7 +179,9 @@ enum MermaidGraphParser {
                 created: nil,
                 updated: nil,
                 confidence: nil,
-                contested: false
+                contested: false,
+                tagPath: [],
+                integrationLinks: []
             )
         }
         let links = edges.map { WikiLink(source: $0.source, target: $0.target, type: "edge") }
@@ -310,7 +312,9 @@ enum MermaidGraphParser {
                 created: nil,
                 updated: nil,
                 confidence: nil,
-                contested: false
+                contested: false,
+                tagPath: [],
+                integrationLinks: []
             )
         }
         let links = edges.map { WikiLink(source: $0.source, target: $0.target, type: "edge") }

@@ -24,27 +24,64 @@ final class WikiGraphViewModel: ObservableObject {
         didSet { updateFilteredNodes() }
     }
 
-    /// Node indices that match the current search query. Empty = show all.
+    /// Node indices that match the current search query OR taxonomy filter. Empty = show all.
     var filteredNodeIndices: Set<Int> = []
     private var cachedQuery: String = ""
+    private var cachedTaxonomyPath: String?
 
-    var isFiltering: Bool { !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// Whether filtering is active (search or taxonomy)
+    var isFiltering: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty || selectedTaxonomyPath != nil
+    }
+
+    /// Taxonomy tree built from the graph's tag_path values.
+    var taxonomyTree: TaxonomyNode { graph.tagPathTree }
 
     private func updateFilteredNodes() {
         let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
-        guard cachedQuery != q else { return }
+        let tp = selectedTaxonomyPath
+        guard cachedQuery != q || cachedTaxonomyPath != tp else { return }
         cachedQuery = q
-        if q.isEmpty {
+        cachedTaxonomyPath = tp
+
+        if q.isEmpty && tp == nil {
             filteredNodeIndices.removeAll()
             return
         }
+
         let terms = q.split(separator: " ").map(String.init)
+
         filteredNodeIndices = Set(simNodes.indices.filter { idx in
             guard simNodes.indices.contains(idx) else { return false }
-            let node = simNodes[idx]
-            let haystack = "\(node.label.lowercased()) \(node.type.lowercased())"
-            return terms.allSatisfy { haystack.contains($0) }
+            let pageIdx = indexLookup[simNodes[idx].id]
+            guard let pi = pageIdx, graph.pages.indices.contains(pi) else { return true }
+
+            let page = graph.pages[pi]
+
+            // Taxonomy filter: must have a tag_path matching the selected prefix
+            if let tp = tp, !tp.isEmpty {
+                let matches = page.tagPath.contains { $0.hasPrefix(tp) }
+                if !matches { return false }
+            }
+
+            // Search filter: must match label or type
+            if !terms.isEmpty {
+                let node = simNodes[idx]
+                let haystack = "\(node.label.lowercased()) \(node.type.lowercased())"
+                return terms.allSatisfy { haystack.contains($0) }
+            }
+
+            return true
         })
+    }
+
+    /// Maps node IDs to page indices for quick lookup
+    private var indexLookup: [String: Int] {
+        var lookup: [String: Int] = [:]
+        for (i, page) in graph.pages.enumerated() {
+            lookup[page.id] = i
+        }
+        return lookup
     }
 
     struct SimNode: Identifiable {
@@ -112,6 +149,12 @@ final class WikiGraphViewModel: ObservableObject {
 
     @Published var selectedWikiPath: String?
     @Published var availableWikis: [String] = []
+
+    /// Currently selected taxonomy path for hierarchical filtering.
+    /// When set, only nodes whose tag_path starts with this prefix are shown.
+    @Published var selectedTaxonomyPath: String? {
+        didSet { updateFilteredNodes() }
+    }
 
     private var loadGeneration = 0
 

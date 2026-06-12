@@ -8,6 +8,12 @@ struct WikiInfo: Codable, Hashable {
     let path: String
 }
 
+/// Taxonomy tree returned by wiki.taxonomy RPC.
+struct WikiTaxonomyResponse: Codable {
+    let taxonomy: [String: AnyCodable]
+    let flatPaths: [String]
+}
+
 @MainActor
 extension GatewayClient {
 
@@ -32,6 +38,21 @@ extension GatewayClient {
 
         let pages: [WikiPage] = pagesArray.compactMap { item -> WikiPage? in
             guard let d = item.dictionaryValue else { return nil }
+
+            // Parse tag_path (hierarchical) — new field
+            let tagPath: [String] = d["tag_path"]?.arrayValue?.compactMap { $0.stringValue } ?? []
+
+            // Parse integration_links — new field
+            let integrationLinks: [IntegrationLink] = (d["integration_links"]?.arrayValue ?? []).compactMap { linkItem -> IntegrationLink? in
+                guard let linkStr = linkItem.stringValue, linkStr.contains(":") else { return nil }
+                let parts = linkStr.split(separator: ":", maxSplits: 1)
+                guard parts.count == 2 else { return nil }
+                return IntegrationLink(
+                    prefix: String(parts[0]),
+                    identifier: String(parts[1])
+                )
+            }
+
             return WikiPage(
                 id: d["id"]?.stringValue ?? "",
                 title: d["title"]?.stringValue ?? "",
@@ -41,7 +62,9 @@ extension GatewayClient {
                 created: d["created"]?.stringValue,
                 updated: d["updated"]?.stringValue,
                 confidence: d["confidence"]?.stringValue,
-                contested: d["contested"]?.boolValue ?? false
+                contested: d["contested"]?.boolValue ?? false,
+                tagPath: tagPath,
+                integrationLinks: integrationLinks
             )
         }
 
@@ -74,19 +97,66 @@ extension GatewayClient {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
         guard let dict = response.result?.dictionaryValue else {
-            throw GatewayError.invalidResponse("wiki.page missing result dictionary")
+            throw GatewayError.invalidResponse("wiki.page missing result")
         }
-        guard let pathStr = dict["path"]?.stringValue else {
-            throw GatewayError.invalidResponse("wiki.page missing path in result")
-        }
-        return WikiPageContent(
-            frontmatter: dict["frontmatter"]?.dictionaryValue?.compactMapValues { $0.stringValue } ?? [:],
-            body: dict["body"]?.stringValue ?? "",
-            path: pathStr
-        )
+        let frontmatter = dict["frontmatter"]?.dictionaryValue?.mapValues { $0.stringValue ?? "" } ?? [:]
+        let body = dict["body"]?.stringValue ?? ""
+        let pagePath = dict["path"]?.stringValue ?? path
+
+        return WikiPageContent(frontmatter: frontmatter, body: body, path: pagePath)
     }
 
-    /// List available wikis from the server's ~/.hermes/wikis.yaml registry.
+    /// Fetch the hierarchical taxonomy tree from the gateway.
+    /// - Parameter wiki: Wiki name from ~/.hermes/wikis.yaml (optional).
+    /// - Returns: Flat list of all valid taxonomy paths.
+    func wikiTaxonomy(wiki: String? = nil) async throws -> [String] {
+        var params: [String: AnyCodable] = [:]
+        if let w = wiki {
+            params["wiki"] = AnyCodable(w)
+        }
+        let response = try await call("wiki.taxonomy", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let dict = response.result?.dictionaryValue,
+              let flatPaths = dict["flat_paths"]?.arrayValue?.compactMap({ $0.stringValue }) else {
+            throw GatewayError.invalidResponse("wiki.taxonomy missing flat_paths array")
+        }
+        return flatPaths
+    }
+
+    /// Expand integration links for a wiki page into live status objects.
+    /// - Parameters:
+    ///   - slug: The page slug (e.g. "dflash-mlx").
+    ///   - wiki: Wiki name from ~/.hermes/wikis.yaml (optional).
+    /// - Returns: Dictionary mapping link strings to expanded status.
+    func wikiExpandLinks(slug: String, wiki: String? = nil) async throws -> [String: ExpandedLinkStatus] {
+        var params: [String: AnyCodable] = ["slug": AnyCodable(slug)]
+        if let w = wiki {
+            params["wiki"] = AnyCodable(w)
+        }
+        let response = try await call("wiki.expand_links", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let resultDict = response.result?.dictionaryValue else {
+            return [:]
+        }
+        var expanded: [String: ExpandedLinkStatus] = [:]
+        for (key, value) in resultDict {
+            guard let entry = value.dictionaryValue else { continue }
+            expanded[key] = ExpandedLinkStatus(
+                key: key,
+                type: entry["type"]?.stringValue ?? "unknown",
+                status: entry["status"]?.stringValue ?? "unknown",
+                title: entry["title"]?.stringValue ?? key,
+                url: entry["url"]?.stringValue
+            )
+        }
+        return expanded
+    }
+
+    /// List available wikis from the gateway.
     func wikiList() async throws -> [WikiInfo] {
         let response = try await call("wiki.list", params: [:])
         if let error = response.error {
