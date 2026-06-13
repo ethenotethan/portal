@@ -477,6 +477,18 @@ struct ChatView: View {
             #endif
 
             if chatViewModel.isStreaming {
+                if chatViewModel.isRemoteTurn {
+                    HStack(spacing: 4) {
+                        Image(systemName: "laptopcomputer.and.iphone")
+                            .font(.caption2)
+                        Text("Live from another device")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.accent.opacity(0.1), in: Capsule())
+                }
                 Button {
                     Task { await chatViewModel.interrupt() }
                 } label: {

@@ -66,6 +66,11 @@ struct MacInputTextField: NSViewRepresentable {
         scroll.drawsBackground = false
         scroll.borderType = .noBorder
         scroll.verticalScrollElasticity = .automatic
+        // Overlay scrollers MUST be forced here: with a mouse attached macOS
+        // defaults to legacy scrollers, which consume content width. Near the
+        // max-line cap that feeds back (scroller shows → text rewraps → height
+        // drops → scroller hides → …) into an infinite layout oscillation.
+        scroll.scrollerStyle = .overlay
 
         context.coordinator.textView = tv
         DispatchQueue.main.async {

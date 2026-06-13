@@ -34,6 +34,12 @@ final class SessionListViewModel: ObservableObject {
     /// Wired up by ContentView — refreshes cron jobs alongside sessions.
     var cronViewModel: CronListViewModel?
 
+    /// Cross-device sync of titles/pins/archives/tags via the gateway KV store.
+    private let metaSync = SessionMetaSyncService()
+    /// Per-session last-modified stamps for sync merge (session ID → date).
+    private var metaUpdatedAt: [String: Date] = [:]
+    private static let metaUpdatedAtKey = "hermes.sessionMetaUpdatedAt"
+
     // MARK: - Local Storage (Coalesced UserDefaults)
 
     /// All UserDefaults writes are batched through a 500ms coalesced flush
@@ -103,6 +109,9 @@ final class SessionListViewModel: ObservableObject {
         _archivedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? [])
         _pinnedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? [])
         _sessionTags = (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:]
+        if let stamps = UserDefaults.standard.dictionary(forKey: Self.metaUpdatedAtKey) as? [String: Double] {
+            metaUpdatedAt = stamps.mapValues { Date(timeIntervalSince1970: $0) }
+        }
     }
 
     private func scheduleDefaultsFlush() {
@@ -125,6 +134,76 @@ final class SessionListViewModel: ObservableObject {
         UserDefaults.standard.set(Array(_archivedIDs), forKey: Self.archivedIDsKey)
         UserDefaults.standard.set(Array(_pinnedIDs), forKey: Self.pinnedIDsKey)
         UserDefaults.standard.set(_sessionTags, forKey: Self.tagsKey)
+        UserDefaults.standard.set(
+            metaUpdatedAt.mapValues { $0.timeIntervalSince1970 },
+            forKey: Self.metaUpdatedAtKey
+        )
+    }
+
+    // MARK: - Cross-Device Metadata Sync
+
+    /// Stamp a session as locally modified and schedule a debounced push.
+    private func touchMeta(_ sessionID: String) {
+        metaUpdatedAt[sessionID] = Date()
+        scheduleDefaultsFlush()
+        metaSync.schedulePush { [weak self] in
+            self?.buildMetaDocument() ?? SessionMetaSyncService.Document()
+        }
+    }
+
+    private func buildMetaDocument() -> SessionMetaSyncService.Document {
+        var doc = SessionMetaSyncService.Document()
+        doc.deviceID = SessionMetaSyncService.deviceID
+        var ids = Set(_localTitles.keys)
+        ids.formUnion(_pinnedIDs)
+        ids.formUnion(_archivedIDs)
+        ids.formUnion(_sessionTags.keys)
+        for id in ids {
+            doc.entries[id] = SessionMetaSyncService.Entry(
+                customTitle: _localTitles[id],
+                pinned: _pinnedIDs.contains(id),
+                archived: _archivedIDs.contains(id),
+                tags: _sessionTags[id] ?? [],
+                updatedAt: metaUpdatedAt[id] ?? .distantPast
+            )
+        }
+        return doc
+    }
+
+    /// Pull the remote metadata document (throttled) and merge: newer entry
+    /// per session wins. Pushes back when local entries were newer.
+    private func syncMetaIfDue() async {
+        guard let remote = await metaSync.pullIfDue() else { return }
+        let (merged, localHadNewer) = SessionMetaSyncService.merge(
+            local: buildMetaDocument(), remote: remote)
+
+        var changed = false
+        for (id, entry) in merged.entries {
+            let remoteWon = remote.entries[id].map { $0.updatedAt > (metaUpdatedAt[id] ?? .distantPast) } ?? false
+            guard remoteWon else { continue }
+            changed = true
+            metaUpdatedAt[id] = entry.updatedAt
+            if let title = entry.customTitle, !title.isEmpty {
+                _localTitles[id] = title
+            } else {
+                _localTitles.removeValue(forKey: id)
+            }
+            if entry.pinned { _pinnedIDs.insert(id) } else { _pinnedIDs.remove(id) }
+            if entry.archived { _archivedIDs.insert(id) } else { _archivedIDs.remove(id) }
+            if entry.tags.isEmpty {
+                _sessionTags.removeValue(forKey: id)
+            } else {
+                _sessionTags[id] = entry.tags
+            }
+            if let idx = sessions.firstIndex(where: { $0.id == id }) {
+                sessions[idx].localTitle = entry.customTitle
+                sessions[idx].isPinned = entry.pinned
+                sessions[idx].isArchived = entry.archived
+                sessions[idx].tags = entry.tags
+            }
+        }
+        if changed { scheduleDefaultsFlush() }
+        if localHadNewer { await metaSync.push(buildMetaDocument()) }
     }
 
     /// Get the display title for a session.
@@ -207,12 +286,14 @@ final class SessionListViewModel: ObservableObject {
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
             sessions[idx].localTitle = title
         }
+        touchMeta(id)
     }
 
     // MARK: - Gateway
 
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
+        metaSync.setClient(client)
     }
 
     /// Refresh the session list from the gateway, merging local data.
@@ -237,6 +318,14 @@ final class SessionListViewModel: ObservableObject {
             var fetched = try await client.listSessions()
             // Stale-completion guard: a newer refresh committed while this one
             // was awaiting — don't overwrite its result.
+            guard generation == refreshGeneration else {
+                isLoading = false
+                return
+            }
+            // Merge cross-device metadata before applying local overlays, so
+            // a rename/pin made on another device lands in this refresh.
+            // Throttled internally to one pull per ~10s despite the 3s poll.
+            await syncMetaIfDue()
             guard generation == refreshGeneration else {
                 isLoading = false
                 return
@@ -481,6 +570,7 @@ final class SessionListViewModel: ObservableObject {
             pinned.remove(id)
         }
         pinnedIDs = pinned
+        touchMeta(id)
 
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
             sessions[idx].isPinned = isPinned
@@ -505,6 +595,7 @@ final class SessionListViewModel: ObservableObject {
             allTags[id] = Array(normalized)
         }
         sessionTags = allTags
+        touchMeta(id)
 
         if let idx = sessions.firstIndex(where: { $0.id == id }) {
             sessions[idx].tags = Array(normalized)
@@ -568,6 +659,7 @@ final class SessionListViewModel: ObservableObject {
         var archived = archivedIDs
         archived.insert(id)
         archivedIDs = archived
+        touchMeta(id)
 
         withAnimation {
             if let idx = sessions.firstIndex(where: { $0.id == id }) {
@@ -581,6 +673,7 @@ final class SessionListViewModel: ObservableObject {
         var archived = archivedIDs
         archived.remove(id)
         archivedIDs = archived
+        touchMeta(id)
 
         withAnimation {
             if let idx = sessions.firstIndex(where: { $0.id == id }) {

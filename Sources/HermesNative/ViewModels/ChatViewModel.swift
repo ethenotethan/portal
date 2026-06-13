@@ -81,6 +81,8 @@ final class ChatViewModel: ObservableObject {
     @Published var error: String?
     @Published var avatarState: AvatarState = .idle
     @Published var sessionTitle: String = "New Chat"
+    /// The visible session's current turn was started on another device.
+    @Published private(set) var isRemoteTurn: Bool = false
     @Published private(set) var createGeneration: Int = 0
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
@@ -110,6 +112,8 @@ final class ChatViewModel: ObservableObject {
         var avatarState: AvatarState = .idle
         var sessionTitle: String = "New Chat"
         var streamingMessageID: UUID?
+        /// Turn was started by another device/client on the same session.
+        var isRemoteTurn: Bool = false
     }
 
 
@@ -369,7 +373,8 @@ client.eventStream
             error: error,
             avatarState: avatarState,
             sessionTitle: sessionTitle,
-            streamingMessageID: streamingMessageID
+            streamingMessageID: streamingMessageID,
+            isRemoteTurn: isRemoteTurn
         )
     }
 
@@ -386,6 +391,7 @@ client.eventStream
         avatarState = state.avatarState
         sessionTitle = state.sessionTitle
         streamingMessageID = state.streamingMessageID
+        isRemoteTurn = state.isRemoteTurn
         if state.messages.isEmpty && !state.isStreaming,
            ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
             Task {
@@ -709,6 +715,25 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    /// Reconcile with gateway history without losing an in-flight streaming
+    /// message. Used when another device starts a turn on this session: the
+    /// remote user prompt only exists in server history, while the streaming
+    /// assistant placeholder only exists locally.
+    func loadSessionHistoryPreservingStream() async {
+        guard let client = gatewayClient, let sid = sessionID else { return }
+        do {
+            let historyMessages = try await client.sessionHistory(sessionID: sid)
+            let parsed = Self.parseHistoryMessages(historyMessages)
+            guard !parsed.isEmpty else { return }
+            let streaming = messages.filter { $0.isStreaming }
+            self.messages = parsed + streaming
+            snapshotCurrentSessionState()
+        } catch {
+            // Non-critical — the stream still renders, only the remote user
+            // prompt may be missing until the next resume.
+        }
+    }
+
     /// Parse gateway history messages into ChatMessage array.
     /// Gateway format: {"role": "user"|"assistant"|"tool", "text": "...", "name": "...", "context": "..."}
     static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
@@ -942,11 +967,16 @@ if restoreSessionState(displayID: key) {
         }
         activeToolCalls = [:]
         isStreaming = false
+        isRemoteTurn = false
         streamingMessageID = nil
         let duration = streamStartDate.map { Date().timeIntervalSince($0) } ?? 0
         streamStartDate = nil
         avatarState = .idle
         saveHistory()
+        // Keep sessionStates consistent: the late-event drop guard in
+        // applySessionEvent reads state.isStreaming from the snapshot, and a
+        // remote messageStart is distinguished from late local frames by it.
+        snapshotCurrentSessionState()
 
         // Positive reinforcement celebration
         if status == nil || status == "complete" {
@@ -1318,6 +1348,17 @@ if restoreSessionState(displayID: key) {
             state.isSessionReady = true
 
         case .messageStart:
+            // A turn we didn't submit locally — another device/client started
+            // it on this shared session. Mirror it: the local user prompt is
+            // missing, so pull history (which includes the just-submitted
+            // user message) before streaming content arrives.
+            let isRemoteStart = !state.isStreaming && !isStopping
+            if isRemoteStart {
+                state.isRemoteTurn = true
+                if displaySessionID(for: sessionID ?? "") == displayID {
+                    Task { await loadSessionHistoryPreservingStream() }
+                }
+            }
             state.isStreaming = true
             state.avatarState = .speaking
             if state.streamingMessageID == nil {
@@ -1368,6 +1409,7 @@ if restoreSessionState(displayID: key) {
             state.isStreaming = false
             state.streamingMessageID = nil
             state.avatarState = .idle
+            state.isRemoteTurn = false
             if let sid = sessionID ?? currentSessionID {
                 let runStatus: SessionRunEvent.RunStatus = payload.status == "error" ? .failed : .completed
                 SessionRunHistoryStore.shared.recordRunEnd(
@@ -1432,6 +1474,7 @@ if restoreSessionState(displayID: key) {
         case .error(let message):
             state.error = message
             state.isStreaming = false
+            state.isRemoteTurn = false
             state.avatarState = .error
             // Finalize the last streaming assistant message so it doesn't appear stuck
             if let msgID = state.streamingMessageID,
