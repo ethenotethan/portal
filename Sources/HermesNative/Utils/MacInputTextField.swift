@@ -345,23 +345,16 @@ final class FocusableTextView: NSTextView {
 
     override func didChangeText() {
         super.didChangeText()
-        // Covers typing, paste, cut, undo — keyDown alone misses paste,
-        // leaving the field at its stale height after a large paste.
-        invalidateIntrinsicContentSize()
+        // NOTE: do NOT call invalidateIntrinsicContentSize() and do NOT
+        // override intrinsicContentSize. Height is owned solely by the
+        // SwiftUI representable's sizeThatFits (offscreen measurement). A
+        // second AppKit-side height authority here fights it: the live
+        // intrinsic size nudges the scroll view, SwiftUI re-proposes a
+        // width, the two never converge, and the main thread spins in
+        // layout forever. The NSTextView still grows to fit its content
+        // inside the scroll view via isVerticallyResizable + width tracking.
         onTextChange?(string)
         scrollRangeToVisible(selectedRange())
-    }
-
-    // Full content height — the visible cap (maxLines) is applied by the
-    // enclosing scroll view's SwiftUI frame, so the document must not clamp
-    // itself or the scroller would have nothing to scroll.
-    override var intrinsicContentSize: NSSize {
-        guard let layoutManager, let textContainer else {
-            return super.intrinsicContentSize
-        }
-        layoutManager.ensureLayout(for: textContainer)
-        let usedRect = layoutManager.usedRect(for: textContainer)
-        return NSSize(width: NSView.noIntrinsicMetric, height: usedRect.height + 12)
     }
 
     override func draw(_ dirtyRect: NSRect) {
