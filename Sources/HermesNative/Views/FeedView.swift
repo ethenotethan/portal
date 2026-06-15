@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 // MARK: - Feed View
 
@@ -47,13 +48,18 @@ struct FeedView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(vm.articles) { article in
-                    FeedCard(article: article)
-                        .padding(.horizontal, 12)
-                        .onAppear {
-                            if article.id == vm.articles.last?.id {
-                                Task { await vm.loadMore(client: gatewayClientWrapper.client) }
+                    if article.hasVideo {
+                        VideoFeedCard(article: article)
+                            .padding(.horizontal, 12)
+                    } else {
+                        FeedCard(article: article)
+                            .padding(.horizontal, 12)
+                            .onAppear {
+                                if article.id == vm.articles.last?.id {
+                                    Task { await vm.loadMore(client: gatewayClientWrapper.client) }
+                                }
                             }
-                        }
+                    }
                 }
 
                 if vm.isLoadingMore {
@@ -127,7 +133,7 @@ struct SourceFilterBar: View {
     let onSelect: (String?) -> Void
 
     private var orderedSources: [(String, Int)] {
-        let order = ["arxiv", "github", "blog", "twitter"]
+        let order = ["arxiv", "github", "blog", "twitter", "digest_video"]
         var result: [(String, Int)] = []
         for key in order { if let count = sources[key], count > 0 { result.append((key, count)) } }
         for (key, count) in sources.sorted(by: { $0.value > $1.value }) where !order.contains(key) {
@@ -162,6 +168,7 @@ struct SourceFilterBar: View {
         case "github": return "Releases"
         case "blog": return "Blogs"
         case "twitter": return "X"
+        case "digest_video": return "Video"
         default: return s.capitalized
         }
     }
@@ -171,6 +178,7 @@ struct SourceFilterBar: View {
         case "github": return "chevron.left.slash.chevron.right"
         case "blog": return "text.bubble"
         case "twitter": return "bird"
+        case "digest_video": return "play.rectangle"
         default: return "newspaper"
         }
     }
@@ -238,9 +246,7 @@ struct FeedCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header row — source avatar + name + time
             HStack(spacing: 10) {
-                // Source avatar circle
                 ZStack {
                     Circle()
                         .fill(sourceColor(article.source).opacity(0.15))
@@ -260,7 +266,6 @@ struct FeedCard: View {
 
                 Spacer()
 
-                // Expand/collapse indicator
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -268,22 +273,17 @@ struct FeedCard: View {
                     .background(Circle().fill(Color.secondary.opacity(0.08)))
             }
 
-            // Title — markdown-aware
             MarkdownText(text: article.title)
                 .font(.body).fontWeight(.semibold)
                 .foregroundColor(.primary)
                 .lineLimit(isExpanded ? nil : 2)
                 .padding(.top, 10)
 
-            // Hero image — screenshots from release notes / article image
             if let heroURL = article.heroImageURL {
                 FeedHeroImage(url: heroURL)
                     .padding(.top, 10)
             }
 
-            // Summary. Collapsed: compact text preview. Expanded: the full
-            // block-level markdown renderer (headings, lists, code blocks) so
-            // release notes read as formatted prose, not a flattened string.
             if !article.displaySummary.isEmpty {
                 if isExpanded {
                     MarkdownContentView(text: article.displaySummary)
@@ -297,7 +297,6 @@ struct FeedCard: View {
                 }
             }
 
-            // Tags
             if !article.tags.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -314,12 +313,9 @@ struct FeedCard: View {
                 .padding(.top, 8)
             }
 
-            // Expanded content
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Divider()
-
-                    // URL button — safe unwrap
                     if let validURL = URL(string: article.url), !article.url.isEmpty {
                         Button {
                             #if os(macOS)
@@ -330,21 +326,14 @@ struct FeedCard: View {
                         } label: {
                             HStack {
                                 Image(systemName: "safari")
-                                Text(article.url)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
+                                Text(article.url).lineLimit(1).truncationMode(.middle)
                                 Spacer()
                                 Image(systemName: "arrow.up.forward")
                             }
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .font(.caption).padding(.horizontal, 12).padding(.vertical, 8)
                             .background(sourceColor(article.source).opacity(0.1))
                             .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(sourceColor(article.source).opacity(0.2), lineWidth: 0.5)
-                            )
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(sourceColor(article.source).opacity(0.2), lineWidth: 0.5))
                         }
                         .buttonStyle(.plain)
                     }
@@ -352,9 +341,7 @@ struct FeedCard: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Bottom action bar
             HStack(spacing: 24) {
-                // Read / Open link — safe URL
                 if let validURL = URL(string: article.url), !article.url.isEmpty {
                     Button {
                         #if os(macOS)
@@ -372,13 +359,11 @@ struct FeedCard: View {
                     .foregroundColor(sourceColor(article.source))
                 }
 
-                // Expand/collapse
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: isExpanded ? "chevron.up" : "text.justify.leading")
-                            .font(.caption2)
+                        Image(systemName: isExpanded ? "chevron.up" : "text.justify.leading").font(.caption2)
                         Text(isExpanded ? "Less" : "More").font(.caption2)
                     }
                 }
@@ -390,19 +375,11 @@ struct FeedCard: View {
             .padding(.top, article.displaySummary.isEmpty && article.tags.isEmpty ? 6 : 10)
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.secondary.opacity(0.08), lineWidth: 0.5)
-        )
+        .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.secondary.opacity(0.08), lineWidth: 0.5))
         .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() }
-        }
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() } }
     }
 
     private func sourceColor(_ s: String) -> Color {
@@ -411,7 +388,166 @@ struct FeedCard: View {
         case "github": return .purple
         case "blog": return .orange
         case "twitter": return .cyan
+        case "digest_video": return .red
         default: return .gray
         }
     }
 }
+
+// MARK: - Video Feed Card
+
+/// Feed card variant with inline video player via AVKit.
+struct VideoFeedCard: View {
+    let article: FeedArticle
+    @State private var isExpanded = false
+    @State private var isPlaying = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(sourceColor(article.source).opacity(0.15)).frame(width: 36, height: 36)
+                    Image(systemName: article.sourceIcon).font(.system(size: 14, weight: .medium)).foregroundColor(sourceColor(article.source))
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(article.sourceLabel).font(.subheadline).fontWeight(.semibold)
+                    Text(article.relativeTime).font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2).foregroundColor(.secondary).padding(6)
+                    .background(Circle().fill(Color.secondary.opacity(0.08)))
+            }
+            MarkdownText(text: article.title).font(.body).fontWeight(.semibold).lineLimit(isExpanded ? nil : 2).padding(.top, 10)
+            if !article.displaySummary.isEmpty {
+                MarkdownText(text: article.previewSummary).font(.subheadline).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+            }
+            if isExpanded {
+                VideoPlayerView(videoURL: article.videoUrl, thumbnailURL: article.thumbnailUrl, isPlaying: $isPlaying)
+                    .frame(height: 220).cornerRadius(12).padding(.top, 10)
+            } else {
+                ZStack {
+                    if let url = URL(string: article.thumbnailUrl), !article.thumbnailUrl.isEmpty {
+                        AsyncImage(url: url) { phase in
+                            if case .success(let image) = phase {
+                                image.resizable().aspectRatio(16/9, contentMode: .fill)
+                            } else { thumbnailPlaceholder }
+                        }
+                    } else { thumbnailPlaceholder }
+                }
+                .frame(height: 180).clipped().cornerRadius(12)
+                .overlay(ZStack {
+                    Circle().fill(.ultraThinMaterial).frame(width: 52, height: 52)
+                    Image(systemName: "play.fill").font(.title2).foregroundColor(.white).offset(x: 1)
+                }).padding(.top, 10)
+            }
+            if !article.tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(article.tags.prefix(5), id: \.self) { tag in
+                            Text(tag).font(.caption2).padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(sourceColor(article.source).opacity(0.08)).foregroundColor(sourceColor(article.source)).cornerRadius(6)
+                        }
+                    }
+                }.padding(.top, 8)
+            }
+            HStack(spacing: 24) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle(); isPlaying = isExpanded }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill").font(.caption2)
+                        Text(isExpanded ? "Collapse" : "Watch").font(.caption2)
+                    }
+                }.buttonStyle(.plain).foregroundColor(sourceColor(article.source))
+                Spacer()
+            }.padding(.top, 10)
+        }
+        .padding(16).background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.secondary.opacity(0.08), lineWidth: 0.5))
+        .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle(); isPlaying = isExpanded } }
+    }
+    private var thumbnailPlaceholder: some View {
+        ZStack {
+            Rectangle().fill(sourceColor(article.source).opacity(0.12))
+            Image(systemName: "play.rectangle").font(.largeTitle).foregroundColor(sourceColor(article.source).opacity(0.4))
+        }
+    }
+    private func sourceColor(_ s: String) -> Color {
+        switch s {
+        case "arxiv": return .blue
+        case "github": return .purple
+        case "blog": return .orange
+        case "twitter": return .cyan
+        case "digest_video": return .red
+        default: return .gray
+        }
+    }
+}
+
+// MARK: - Video Player (Inline)
+
+/// Inline video player — uses native AVPlayerView (macOS) or VideoPlayer (iOS).
+struct VideoPlayerView: View {
+    let videoURL: String; let thumbnailURL: String
+    @Binding var isPlaying: Bool
+    @State private var player: AVPlayer?
+    @State private var playerItem: AVPlayerItem?
+
+    var body: some View {
+        #if os(macOS)
+        NativeVideoPlayer(player: player)
+            .onAppear { setupPlayer() }
+            .onDisappear { teardownPlayer() }
+            .onChange(of: isPlaying) { _, playing in
+                if playing { player?.play() } else { player?.pause() }
+            }
+        #else
+        VideoPlayer(player: player)
+            .onAppear { setupPlayer() }
+            .onDisappear { teardownPlayer() }
+            .onChange(of: isPlaying) { _, playing in
+                if playing { player?.play() } else { player?.pause() }
+            }
+        #endif
+    }
+
+    private func setupPlayer() {
+        guard let url = URL(string: videoURL) else { return }
+        let item = AVPlayerItem(url: url)
+        self.playerItem = item
+        let p = AVPlayer(playerItem: item)
+        self.player = p
+        if isPlaying { p.play() }
+    }
+
+    private func teardownPlayer() {
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
+        player = nil
+        playerItem = nil
+    }
+}
+
+#if os(macOS)
+import AppKit
+
+/// Native AVPlayerView wrapper for macOS (much more reliable than SwiftUI VideoPlayer).
+struct NativeVideoPlayer: NSViewRepresentable {
+    let player: AVPlayer?
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.controlsStyle = .inline
+        view.showsFullScreenToggleButton = true
+        view.allowsPictureInPicturePlayback = true
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        nsView.player = player
+    }
+}
+#endif
