@@ -9,6 +9,29 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     let tags: [String]
     let imageUrl: String
     let ts: String
+    /// Optional video media (e.g. digest_video source). Empty when absent.
+    let videoUrl: String
+    let thumbnailUrl: String
+
+    /// True when this article carries a playable video.
+    var hasVideo: Bool {
+        !videoUrl.isEmpty
+    }
+
+    init(id: String, title: String, url: String, summary: String, source: String,
+         tags: [String], imageUrl: String, ts: String,
+         videoUrl: String = "", thumbnailUrl: String = "") {
+        self.id = id
+        self.title = title
+        self.url = url
+        self.summary = summary
+        self.source = source
+        self.tags = tags
+        self.imageUrl = imageUrl
+        self.ts = ts
+        self.videoUrl = videoUrl
+        self.thumbnailUrl = thumbnailUrl
+    }
 
     /// Clean summary ready for markdown rendering — strips HTML tags and
     /// image markup (shown separately as the hero image), preserves the
@@ -104,6 +127,23 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, title, url, summary, source, tags, ts
         case imageUrl = "image_url"
+        case videoUrl = "video_url"
+        case thumbnailUrl = "thumbnail_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        url = try c.decode(String.self, forKey: .url)
+        summary = try c.decode(String.self, forKey: .summary)
+        source = try c.decode(String.self, forKey: .source)
+        tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
+        imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl) ?? ""
+        ts = try c.decodeIfPresent(String.self, forKey: .ts) ?? ""
+        // Optional video fields — absent on non-video feed sources.
+        videoUrl = try c.decodeIfPresent(String.self, forKey: .videoUrl) ?? ""
+        thumbnailUrl = try c.decodeIfPresent(String.self, forKey: .thumbnailUrl) ?? ""
     }
 }
 
