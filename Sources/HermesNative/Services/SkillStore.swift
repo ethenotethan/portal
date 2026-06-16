@@ -113,6 +113,10 @@ final class SkillStore: ObservableObject {
     private var preFetchTask: Task<Void, Never>?
     private var syncTimer: Timer?
     private var previousSkillNames: Set<String> = []
+    /// One-shot guard: summary pregeneration runs once per app launch.
+    /// setGatewayClient is called repeatedly (launch, reconnects, wire-ups);
+    /// without this each call spawns another all-skills model sweep.
+    private var pregenerationTask: Task<Void, Never>?
 
     init() {
         if let cached = SkillStoreDisk.load() {
@@ -126,17 +130,25 @@ final class SkillStore: ObservableObject {
     func setGatewayClient(_ client: GatewayClient?) {
         self.gatewayClient = client
         guard client != nil else { return }
-        // Start the local summarization model loading immediately (downloads
-        // on first launch, cached after) so background pregeneration can run.
-        SkillSummaryService.shared.warmUp()
         let shouldRefresh = skills.isEmpty || needsRefresh
-        Task.detached(priority: .background) { [weak self] in
+        // Start the local model load + a one-shot refresh-then-pregenerate
+        // pass. setGatewayClient is called repeatedly (launch, reconnects,
+        // wire-ups); without the task guard each call stacks another
+        // concurrent all-skills model sweep and pins the CPU.
+        guard pregenerationTask == nil else {
+            if shouldRefresh {
+                Task.detached(priority: .background) { [weak self] in
+                    await self?.refreshSkillList()
+                }
+            }
+            return
+        }
+        SkillSummaryService.shared.warmUp()
+        pregenerationTask = Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             if shouldRefresh {
                 await self.refreshSkillList()
             }
-            // Once the skill list is known, pre-generate all summaries so
-            // expanding a card resolves from cache instead of on demand.
             await self.pregenerateSummaries()
         }
     }
