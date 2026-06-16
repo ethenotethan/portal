@@ -57,6 +57,21 @@ final class SkillSummaryService {
 #endif
     }
 
+    /// Await the local model being loaded (downloading on first use). On
+    /// platforms/builds without MLX this returns immediately. Used by
+    /// background pregeneration so it doesn't fire many generations before
+    /// the model is ready.
+    func prepareModel() async {
+#if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers)
+        await ensureLoaded()
+#endif
+    }
+
+    /// True when a summary for this skill+content is already on disk.
+    func hasCachedSummary(name: String, markdown: String) -> Bool {
+        cachedSummary(name: name, markdown: markdown) != nil
+    }
+
     // MARK: - Cache
 
     private static var cacheURL: URL {

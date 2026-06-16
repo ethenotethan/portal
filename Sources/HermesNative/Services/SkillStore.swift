@@ -125,10 +125,19 @@ final class SkillStore: ObservableObject {
 
     func setGatewayClient(_ client: GatewayClient?) {
         self.gatewayClient = client
-        if client != nil, skills.isEmpty || needsRefresh {
-            Task.detached(priority: .background) { [weak self] in
-                await self?.refreshSkillList()
+        guard client != nil else { return }
+        // Start the local summarization model loading immediately (downloads
+        // on first launch, cached after) so background pregeneration can run.
+        SkillSummaryService.shared.warmUp()
+        let shouldRefresh = skills.isEmpty || needsRefresh
+        Task.detached(priority: .background) { [weak self] in
+            guard let self else { return }
+            if shouldRefresh {
+                await self.refreshSkillList()
             }
+            // Once the skill list is known, pre-generate all summaries so
+            // expanding a card resolves from cache instead of on demand.
+            await self.pregenerateSummaries()
         }
     }
 
@@ -302,6 +311,22 @@ final class SkillStore: ObservableObject {
             skills[i].skillMdPreview = String(content.prefix(500))
         }
         persistToDisk()
+    }
+
+    /// Background-generate AI summaries for every skill into the on-disk
+    /// summary cache, so expanding a card resolves instantly instead of
+    /// kicking off generation on demand. Warms the local model first; each
+    /// uncached skill queues through the service's serialized generation
+    /// (one model call at a time). Idempotent: cached skills are skipped.
+    func pregenerateSummaries() async {
+        await SkillSummaryService.shared.prepareModel()
+        let names = skills.map { $0.name }
+        for name in names {
+            // Resolve content (cached field or RPC fetch) for the cache-key hash.
+            guard let markdown = await readSkillContent(name: name), !markdown.isEmpty else { continue }
+            if SkillSummaryService.shared.hasCachedSummary(name: name, markdown: markdown) { continue }
+            _ = await SkillSummaryService.shared.summarize(name: name, markdown: markdown)
+        }
     }
 
     func syncWithGateway() async {
