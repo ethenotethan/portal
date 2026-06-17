@@ -494,60 +494,44 @@ struct VideoPlayerView: View {
     let videoURL: String; let thumbnailURL: String
     @Binding var isPlaying: Bool
     @State private var player: AVPlayer?
-    @State private var playerItem: AVPlayerItem?
 
     var body: some View {
         #if os(macOS)
-        NativeVideoPlayer(player: player)
-            .onAppear { setupPlayer() }
-            .onDisappear { teardownPlayer() }
-            .onChange(of: isPlaying) { _, playing in
-                if playing { player?.play() } else { player?.pause() }
-            }
+        NativeVideoPlayer(player: player, videoURL: videoURL)
+            .onAppear { if let url = URL(string: videoURL) { player = AVPlayer(url: url) } }
+            .onDisappear { player?.pause(); player = nil }
         #else
         VideoPlayer(player: player)
-            .onAppear { setupPlayer() }
-            .onDisappear { teardownPlayer() }
-            .onChange(of: isPlaying) { _, playing in
-                if playing { player?.play() } else { player?.pause() }
-            }
+            .onAppear { if let url = URL(string: videoURL) { player = AVPlayer(url: url) } }
+            .onDisappear { player?.pause(); player = nil }
         #endif
-    }
-
-    private func setupPlayer() {
-        guard let url = URL(string: videoURL) else { return }
-        let item = AVPlayerItem(url: url)
-        self.playerItem = item
-        let p = AVPlayer(playerItem: item)
-        self.player = p
-        if isPlaying { p.play() }
-    }
-
-    private func teardownPlayer() {
-        player?.pause()
-        player?.replaceCurrentItem(with: nil)
-        player = nil
-        playerItem = nil
     }
 }
 
 #if os(macOS)
 import AppKit
+import WebKit
 
-/// Native AVPlayerView wrapper for macOS (much more reliable than SwiftUI VideoPlayer).
+/// WKWebView video player for macOS — HTML5 <video> is the most reliable playback method.
 struct NativeVideoPlayer: NSViewRepresentable {
     let player: AVPlayer?
+    let videoURL: String
 
-    func makeNSView(context: Context) -> AVPlayerView {
-        let view = AVPlayerView()
-        view.controlsStyle = .inline
-        view.showsFullScreenToggleButton = true
-        view.allowsPictureInPicturePlayback = true
-        return view
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.setValue(false, forKey: "drawsBackground")
+        // Navigate directly to video URL — WKWebView plays video natively
+        if let url = URL(string: videoURL) {
+            webView.load(URLRequest(url: url))
+        }
+        return webView
     }
 
-    func updateNSView(_ nsView: AVPlayerView, context: Context) {
-        nsView.player = player
+    func updateNSView(_ nsView: WKWebView, context: Context) {}
+
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: ()) {
+        nsView.stopLoading()
     }
 }
 #endif
