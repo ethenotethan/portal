@@ -381,10 +381,7 @@ struct SkillCard: View {
                                 .italic()
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
-                            Text(skill.description)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(Theme.secondary)
-                                .textSelection(.enabled)
+                            MarkdownContentView(text: skill.description)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         Button {
@@ -438,10 +435,10 @@ struct SkillCard: View {
                     Image(systemName: "sparkles")
                         .font(.caption)
                         .foregroundStyle(Theme.accent)
-                    Text(summary)
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
-                        .textSelection(.enabled)
+                    // Full block renderer: summaries contain headings, tables,
+                    // and lists. MarkdownText is inline-only and leaves ### etc.
+                    // as raw text.
+                    MarkdownContentView(text: summary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Text("AI summary · on-device")
@@ -488,11 +485,24 @@ struct SkillCard: View {
     }
 
     private func fallbackText(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(Theme.secondary)
-            .textSelection(.enabled)
+        MarkdownContentView(text: text)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Flatten markdown to a single line of plain text for the collapsed
+    /// card preview: drop heading/blockquote/list markers and emphasis so a
+    /// truncated one-liner doesn't show raw `###`, `**`, `` ` ``.
+    static func plainPreview(_ markdown: String) -> String {
+        var line = markdown
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .first.map(String.init) ?? markdown
+        line = line.replacingOccurrences(
+            of: #"^\s{0,3}(#{1,6}\s+|>\s+|[-*+]\s+|\d+\.\s+)"#,
+            with: "", options: .regularExpression)
+        for token in ["**", "__", "`", "*", "_", "~~"] {
+            line = line.replacingOccurrences(of: token, with: "")
+        }
+        return line.trimmingCharacters(in: .whitespaces)
     }
 
     private var headerRow: some View {
@@ -534,7 +544,9 @@ struct SkillCard: View {
                 }
 
                 if !skill.description.isEmpty && !isExpanded {
-                    Text(skill.description)
+                    // Collapsed one-liner: strip markdown syntax to plain text
+                    // rather than render blocks in a single truncated line.
+                    Text(Self.plainPreview(skill.description))
                         .font(.caption2)
                         .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
