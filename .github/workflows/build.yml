@@ -18,6 +18,18 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Select an available iPhone simulator
+        run: |
+          # Runner images roll simulators forward (iPhone 16 -> 17 -> …); a
+          # hardcoded name fails with "Unable to find a device matching the
+          # destination". Resolve the newest available iPhone by UDID.
+          SIM_ID=$(xcrun simctl list devices available | grep -oE 'iPhone [0-9].*\([0-9A-F-]{36}\)' | grep -oE '[0-9A-F-]{36}' | tail -1)
+          if [ -z "$SIM_ID" ]; then
+            echo "No available iPhone simulator found"; xcrun simctl list devices available; exit 1
+          fi
+          echo "Using simulator UDID: $SIM_ID"
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+
       - name: Build macOS
         run: |
           set -o pipefail
@@ -34,7 +46,7 @@ jobs:
           xcodebuild build \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee build-ios-simulator.log | xcpretty
@@ -44,13 +56,13 @@ jobs:
           set -o pipefail
           RESULT_BUNDLE="${RUNNER_TEMP}/HermesNativeOfflineUITests.xcresult"
 
-          xcrun simctl boot "iPhone 16" 2>/dev/null || true
-          xcrun simctl bootstatus "iPhone 16" -b
+          xcrun simctl boot "$SIM_ID" 2>/dev/null || true
+          xcrun simctl bootstatus "$SIM_ID" -b
 
           xcodebuild test \
             -project HermesNative.xcodeproj \
             -scheme HermesNative-iOS \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
             -only-testing:HermesNativeUITests/HermesNativeOfflineSmokeUITests/testOnboardingRendersWithoutGatewaySecrets \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath "$RESULT_BUNDLE" \
