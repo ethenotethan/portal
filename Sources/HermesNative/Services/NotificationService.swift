@@ -256,25 +256,26 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         Task { @MainActor in
             Self.activateAppForUserInteraction()
 
-            if let urlString, let url = URL(string: urlString) {
-                #if os(macOS)
-                // Launch Services routes this to the app's .onOpenURL handler
-                // in the existing process if running, or on first launch if not.
-                NSWorkspace.shared.open(url)
-                #else
-                // iOS already activates the app and delivers .onOpenURL when
-                // a notification is tapped, so this is a no-op fallback for
-                // any custom deep-link path we might add later.
-                UIApplication.shared.open(url)
-                #endif
-            } else if let sessionID {
-                // Backwards-compat: notifications posted before the URL
-                // scheme was wired up still carry only a session_id. Fall
-                // back to the in-process post so we don't break those.
+            // This delegate already runs inside the live app process (the
+            // system reuses/launches the running instance to deliver the
+            // tap). Route the session switch IN-PROCESS. Calling
+            // NSWorkspace.open(hermesnative://…) here on macOS bounces the
+            // URL back out through Launch Services, which spawns a second
+            // app instance instead of reusing this one — the exact bug we
+            // saw. Post directly to the running UI instead.
+            if let sessionID {
                 NotificationCenter.default.post(
                     name: .hermesSwitchToSession,
                     object: nil,
                     userInfo: ["session_id": sessionID]
+                )
+            } else if let urlString, let url = URL(string: urlString) {
+                // No session_id (e.g. a generic deep link) — hand the URL to
+                // the in-process router rather than reopening via the OS.
+                NotificationCenter.default.post(
+                    name: .hermesOpenDeepLink,
+                    object: nil,
+                    userInfo: ["url": url.absoluteString]
                 )
             }
         }
@@ -300,4 +301,5 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 
 extension Notification.Name {
     static let hermesSwitchToSession = Notification.Name("hermes.switchToSession")
+    static let hermesOpenDeepLink = Notification.Name("hermes.openDeepLink")
 }

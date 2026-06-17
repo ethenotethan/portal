@@ -232,6 +232,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
             switchToSession(from: notification)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesOpenDeepLink)) { notification in
+            if let urlString = notification.userInfo?["url"] as? String,
+               let url = URL(string: urlString) {
+                handleDeepLink(url)
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
         }
@@ -347,6 +353,12 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .hermesSwitchToSession)) { notification in
             switchToSession(from: notification)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesOpenDeepLink)) { notification in
+            if let urlString = notification.userInfo?["url"] as? String,
+               let url = URL(string: urlString) {
+                handleDeepLink(url)
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
