@@ -355,6 +355,19 @@ struct ChatView: View {
                 .frame(minWidth: 560, minHeight: 620)
                 #endif
         }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showThoughtGraph) {
+            thoughtGraphFullScreen
+        }
+        #else
+        .sheet(isPresented: $showThoughtGraph) {
+            thoughtGraphFullScreen
+                .frame(
+                    width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.9, 1600),
+                    height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.9, 1000)
+                )
+        }
+        #endif
         .onAppear {
             // no-op: persona is read-only from gateway
             #if os(macOS)
@@ -570,16 +583,15 @@ struct ChatView: View {
     @ViewBuilder
     private var thoughtGraphSection: some View {
         VStack(spacing: 0) {
-            // ── Toggle button ──
+            // ── Open button — presents the graph full-screen so it's
+            // actually traversable instead of a cramped inline strip. ──
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showThoughtGraph.toggle()
-                }
+                showThoughtGraph = true
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.caption)
-                    Text(showThoughtGraph ? "Hide Thought Graph" : "Show Thought Graph")
+                    Text("Show Thought Graph")
                         .font(.caption)
                     Spacer()
                     if chatViewModel.isStreaming {
@@ -591,7 +603,7 @@ struct ChatView: View {
                             .font(.caption2)
                             .foregroundStyle(.green)
                     }
-                    Image(systemName: showThoughtGraph ? "chevron.up" : "chevron.down")
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -602,20 +614,39 @@ struct ChatView: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.top, 6)
-
-            // ── Graph content ──
-            if showThoughtGraph {
-                ThoughtGraphView(
-                    engine: thoughtGraphEngine,
-                    nodes: thoughtGraphNodes,
-                    isStreaming: chatViewModel.isStreaming
-                )
-                .frame(height: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-            }
         }
+    }
+
+    @ViewBuilder
+    private var thoughtGraphFullScreen: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Agent Thought Graph")
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                Spacer()
+                Button {
+                    showThoughtGraph = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Theme.surface, in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            ThoughtGraphView(
+                engine: thoughtGraphEngine,
+                nodes: thoughtGraphNodes,
+                isStreaming: chatViewModel.isStreaming
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(Theme.background)
     }
 
     private func scheduleScrollToBottom(proxy: ScrollViewProxy, reason: String) {

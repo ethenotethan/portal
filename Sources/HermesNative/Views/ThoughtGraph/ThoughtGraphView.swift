@@ -67,7 +67,6 @@ struct ThoughtGraphView: View {
     @State private var selectedNodeID: String?
     @State private var hoveredNodeID: String?
     @State private var showInferredEdges: Bool = true
-    @State private var isFullScreen = false
     @State private var mode: GraphMode = .tools
 
     enum GraphMode: String, CaseIterable { case tools = "Tools", reasoning = "Reasoning" }
@@ -187,9 +186,10 @@ struct ThoughtGraphView: View {
         }
 
         // ── Controls overlay ──
-        .overlay(alignment: .topTrailing) {
-            VStack(spacing: 8) {
-                // Inferred edges toggle
+        // Bottom-trailing so the Edges toggle and zoom controls don't overlap
+        // the Tools/Reasoning picker in the top-trailing of the header bar.
+        .overlay(alignment: .bottomTrailing) {
+            HStack(alignment: .bottom, spacing: 8) {
                 inferredEdgesToggle
                 zoomControls
             }
@@ -219,14 +219,6 @@ struct ThoughtGraphView: View {
             for id in appeared { invalidateSnapshots(for: id) }
             previousNodeIDs = newIDs
         }
-        .onChange(of: isFullScreen) { _, fullScreen in
-            if fullScreen {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    zoom = 1.0
-                    panOffset = .zero
-                }
-            }
-        }
         .onChange(of: selectedNodeID) { oldID, newID in
             // Cache keys encode selection state, so only the two affected
             // nodes' snapshot variants need pruning.
@@ -247,58 +239,6 @@ struct ThoughtGraphView: View {
                 pulsePhase = now.timeIntervalSinceReferenceDate
             }
         }
-
-        // Full-screen overlay
-        .overlay {
-            if isFullScreen {
-                graphContent
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var graphContent: some View {
-        GeometryReader { geo in
-            HStack(spacing: 0) {
-                ZStack {
-                    Theme.background
-                        .ignoresSafeArea()
-
-                    graphCanvas
-
-                    if activeNodes.isEmpty {
-                        emptyState
-                    }
-
-                    #if os(macOS)
-                    GraphMouseInterceptor(
-                        onMouseDown: { pt in handleMouseDown(at: pt) },
-                        onMouseDragged: { pt in handleMouseDragged(to: pt) },
-                        onMouseUp: { pt in handleMouseUp(at: pt) },
-                        onScrollWheel: { delta in
-                            panOffset.width += delta.width
-                            panOffset.height += delta.height
-                        },
-                        onMouseMoved: { pt in
-                            if mouseState == .idle {
-                                hoveredNodeID = hitTest(point: pt)
-                            }
-                        },
-                        onMouseExited: { hoveredNodeID = nil }
-                    )
-                    #endif
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if let selID = selectedNodeID,
-                   let node = nodeIndex[selID] {
-                    detailPopover(node: node)
-                        .frame(width: 280)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
-        }
-        .background(.ultraThinMaterial)
     }
 
     // MARK: - Graph Canvas
@@ -520,18 +460,6 @@ struct ThoughtGraphView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 160)
-
-                // Expand
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        isFullScreen.toggle()
-                    }
-                } label: {
-                    Image(systemName: isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
-                }
-                .buttonStyle(.borderless)
             }
 
             // Legend
