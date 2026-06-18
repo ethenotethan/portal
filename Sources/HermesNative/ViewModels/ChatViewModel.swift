@@ -96,6 +96,18 @@ final class ChatViewModel: ObservableObject {
     @Published var refocusInput: Int = 0
     private var pendingResumeKey: String?
 
+    // MARK: - Quiz Mode
+    /// When non-nil, quiz questions are available and the QuizSheet should be shown.
+    @Published var quizQuestions: [QuizQuestion]?
+    /// The topic the quiz was generated for (displayed in the sheet header).
+    @Published var quizTopic: String = ""
+    /// True while waiting for the agent to return quiz JSON.
+    private var awaitingQuizResponse = false
+    /// The quiz-related prompt that was sent (for tracking).
+    private var lastQuizPrompt: String = ""
+    /// Error message when quiz JSON parsing fails (displayed in the quiz sheet).
+    @Published var errorMessageForQuiz: String?
+
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
     /// slower first resume can overwrite the newer selected session after rapid
@@ -701,6 +713,45 @@ if restoreSessionState(displayID: key) {
         attachSkill(slashSuggestions[slashSelectedIndex])
     }
 
+    // MARK: - Quiz Actions
+
+    /// Clear quiz state (called when the quiz sheet is dismissed).
+    func clearQuiz() {
+        quizQuestions = nil
+        quizTopic = ""
+        errorMessageForQuiz = nil
+        awaitingQuizResponse = false
+    }
+
+    /// Send a review prompt to the agent and close the quiz.
+    func reviewQuizWithAgent(prompt: String) async {
+        quizQuestions = nil
+        quizTopic = ""
+        errorMessageForQuiz = nil
+        awaitingQuizResponse = false
+
+        // Set the prompt text and submit
+        inputText = prompt
+        await submitPrompt()
+    }
+
+    /// Agent embedded [[QUIZ:topic]] — fire a quiz generation prompt.
+    func autoGenerateQuiz(topic: String, questionCount: Int = 5) async {
+        guard let client = gatewayClient, let sid = sessionID else { return }
+        let prompt = """
+        Generate a \(questionCount)-question multiple choice quiz about "\(topic)".
+        Questions should test understanding, not trivia. Each with 4 plausible options.
+        Return ONLY valid JSON with format:
+        {"questions":[{"q":"question text","options":["A) ...","B) ...","C) ...","D) ..."],"correct":"A","explanation":"brief explanation"}]}
+        """
+        do {
+            try await client.submitPrompt(sessionID: sid, text: prompt)
+        } catch {
+            log.error("Auto quiz generation failed: \(error.localizedDescription)")
+            awaitingQuizResponse = false
+        }
+    }
+
     /// Load history for the current session (for reconnects where resume isn't used).
     func loadSessionHistory() async {
         guard let client = gatewayClient, let sid = sessionID else { return }
@@ -819,6 +870,70 @@ if restoreSessionState(displayID: key) {
               let client = gatewayClient, let sid = sessionID else { return }
         guard !isStreaming && !isStopping else {
             log.info("ChatViewModel submitPrompt ignored while streaming/stopping")
+            return
+        }
+
+        // ── Quiz Mode Detection ──
+        if text.hasPrefix("/quiz") {
+            let quizParts = text.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            guard !quizParts.isEmpty else {
+                self.error = "Usage: /quiz <topic> [questionCount]"
+                return
+            }
+            // Parse optional question count: /quiz ML 10
+            let components = quizParts.split(separator: " ", omittingEmptySubsequences: true)
+            let questionCount: Int
+            let topic: String
+            if let last = components.last, let count = Int(last), count > 0 {
+                questionCount = count
+                topic = components.dropLast().joined(separator: " ")
+            } else {
+                questionCount = 5
+                topic = quizParts
+            }
+            guard !topic.isEmpty else {
+                self.error = "Usage: /quiz <topic> [questionCount]"
+                return
+            }
+
+            inputText = ""
+            pendingAttachments = []
+            isStreaming = true
+            awaitingQuizResponse = true
+            quizTopic = topic
+            lastQuizPrompt = """
+                Generate a \(questionCount)-question multiple choice quiz about \(topic).
+                Return ONLY valid JSON: {"questions":[{"q":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":"A","explanation":"..."}]}
+                """
+
+            // Add user message
+            let userMessage = ChatMessage(role: .user, content: "/quiz \(topic)")
+            messages.append(userMessage)
+
+            let isFirstMessage = messages.filter({ $0.role == .user }).count == 1
+            if isFirstMessage {
+                sessionTitle = "Quiz: \(String(topic.prefix(40)))"
+            }
+
+            saveHistory()
+            snapshotCurrentSessionState()
+
+            // Prepare streaming assistant message
+            let assistantMessage = ChatMessage(role: .assistant, content: "", isStreaming: true)
+            streamingMessageID = assistantMessage.id
+            streamStartDate = Date()
+            messages.append(assistantMessage)
+            snapshotCurrentSessionState()
+
+            // Send the quiz prompt instead of the raw user text
+            do {
+                try await client.submitPrompt(sessionID: sid, text: lastQuizPrompt)
+            } catch {
+                log.error("Quiz prompt submission failed: \(error.localizedDescription)")
+                self.error = error.localizedDescription
+                finishStreaming(status: "error")
+                awaitingQuizResponse = false
+            }
             return
         }
 
@@ -1422,6 +1537,34 @@ if restoreSessionState(displayID: key) {
                 )
             }
 
+            // ── Quiz Response Handling (session-scoped) ──
+            // Always check for quiz JSON — not just when user typed /quiz.
+            // The agent can initiate quizzes by embedding quiz JSON directly.
+            if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
+                log.info("Quiz parsed (session auto-detect): \(questions.count) questions")
+                // Infer topic from the first question text
+                let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
+                quizTopic = String(inferredTopic)
+                quizQuestions = questions
+            } else {
+                // Also check for [[QUIZ:topic]] markers — agent wants to offer a quiz
+                if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
+                    let matchText = String(payload.text[quizMatch])
+                    if let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) {
+                        let topic = String(matchText[topicRange]).trimmingCharacters(in: .whitespaces)
+                        if !topic.isEmpty {
+                            log.info("Quiz marker detected: \(topic)")
+                            quizTopic = topic
+                            awaitingQuizResponse = true
+                            // Fire off a quiz generation prompt
+                            Task {
+                                await autoGenerateQuiz(topic: topic, questionCount: 5)
+                            }
+                        }
+                    }
+                }
+            }
+
         case .toolStart(payload: let payload):
             state.avatarState = .toolUse
             state.activeToolCalls[payload.toolID] = ToolCallRecord(
@@ -1670,6 +1813,28 @@ if restoreSessionState(displayID: key) {
             }
 
             Task { await reasoningGraph.finalize() }
+
+            // ── Quiz Response Handling ──
+            // Always check for quiz JSON and [[QUIZ:topic]] markers
+            if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
+                log.info("Quiz parsed (auto-detect): \(questions.count) questions")
+                let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
+                quizTopic = String(inferredTopic)
+                quizQuestions = questions
+            } else if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
+                let matchText = String(payload.text[quizMatch])
+                if let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) {
+                    let topic = String(matchText[topicRange]).trimmingCharacters(in: .whitespaces)
+                    if !topic.isEmpty {
+                        log.info("Quiz marker detected: \(topic)")
+                        quizTopic = topic
+                        awaitingQuizResponse = true
+                        Task {
+                            await autoGenerateQuiz(topic: topic, questionCount: 5)
+                        }
+                    }
+                }
+            }
 
         case .toolStart(payload: let payload):
             recordPerfEvent("toolStart")

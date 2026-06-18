@@ -25,6 +25,10 @@ struct ChatView: View {
     @State private var showThoughtGraph = false
     @StateObject private var thoughtGraphEngine = ThoughtGraphLayoutEngine()
 
+    // ── Quiz Mode ──
+    @State private var showQuizSheet = false
+    @State private var quizVM = QuizViewModel()
+
     /// On macOS, owns the chat input focus state at the ChatView level so that
     /// a click anywhere in the detail pane (messages, padding, input card) can
     /// On macOS, owns the chat input focus state at the ChatView level so that
@@ -368,6 +372,19 @@ struct ChatView: View {
                 )
         }
         #endif
+        .sheet(isPresented: $showQuizSheet) {
+            QuizSheet(
+                viewModel: quizVM,
+                onClose: {
+                    showQuizSheet = false
+                    chatViewModel.clearQuiz()
+                },
+                onReviewWithAgent: { prompt in
+                    showQuizSheet = false
+                    Task { await chatViewModel.reviewQuizWithAgent(prompt: prompt) }
+                }
+            )
+        }
         .onAppear {
             // no-op: persona is read-only from gateway
             #if os(macOS)
@@ -386,6 +403,18 @@ struct ChatView: View {
         .onChange(of: chatViewModel.refocusInput) { _, _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 isInputFocused = true
+            }
+        }
+        .onChange(of: chatViewModel.quizQuestions) { _, questions in
+            if let questions {
+                quizVM.load(questions: questions, topic: chatViewModel.quizTopic)
+                showQuizSheet = true
+            }
+        }
+        .onChange(of: chatViewModel.errorMessageForQuiz) { _, errorMsg in
+            if let errorMsg {
+                quizVM.errorMessage = errorMsg
+                showQuizSheet = true
             }
         }
         .navigationTitle("")
