@@ -18,6 +18,14 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         !videoUrl.isEmpty
     }
 
+    /// Returns a copy with a different `id`, used to de-collide duplicate IDs
+    /// the backend may emit for a batch of title-less items (e.g. tweets).
+    func withID(_ newID: String) -> FeedArticle {
+        FeedArticle(id: newID, title: title, url: url, summary: summary,
+                    source: source, tags: tags, imageUrl: imageUrl, ts: ts,
+                    videoUrl: videoUrl, thumbnailUrl: thumbnailUrl)
+    }
+
     init(id: String, title: String, url: String, summary: String, source: String,
          tags: [String], imageUrl: String, ts: String,
          videoUrl: String = "", thumbnailUrl: String = "") {
@@ -67,6 +75,29 @@ struct FeedArticle: Codable, Identifiable, Hashable {
             .replacingOccurrences(of: #"^#{1,6}\s+"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\n#{1,6}\s+"#, with: "\n", options: .regularExpression)
         return text
+    }
+
+    var isTwitter: Bool { source == "twitter" }
+
+    /// The tweet's author/handle, when the backend encodes it as the title
+    /// (tweets have no real headline). Shown as the card subtitle so you can
+    /// see who posted without opening the link.
+    var twitterAuthor: String? {
+        guard isTwitter else { return nil }
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
+    /// The text to show as the card body. Tweets often carry their content in
+    /// `summary` with the handle in `title`; if `summary` is empty we fall back
+    /// to the title so the card is never blank. Non-twitter sources keep using
+    /// the summary as before.
+    var cardBody: String {
+        let body = previewSummary
+        if body.isEmpty, isTwitter {
+            return title.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return body
     }
 
     /// Best available image: the pipeline's image_url, else the first image

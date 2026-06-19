@@ -26,6 +26,11 @@ struct MacInputTextField: NSViewRepresentable {
     var onConfirm: (() -> Void)?
     var maxLines: Int = 8
 
+    /// Width grid (pt) for quantizing layout proposals. Neighboring proposed
+    /// widths snap to the same bucket so `sizeThatFits` returns a stable height
+    /// and SwiftUI's layout reaches a fixed point instead of oscillating.
+    private static let widthQuantum: CGFloat = 8
+
     func makeNSView(context: Context) -> NSScrollView {
         let tv = FocusableTextView()
         tv.placeholder = placeholder
@@ -124,9 +129,36 @@ struct MacInputTextField: NSViewRepresentable {
         // on its own (widthTracksTextView).
         guard let nsView = scrollView.documentView as? FocusableTextView else { return nil }
         let coordinator = context.coordinator
+
+        // Backstop: if sizeThatFits is hammered many times in one runloop tick,
+        // width quantization didn't converge for this content — stop measuring
+        // and return the last/empty height so the main thread can't spin. The
+        // counter resets at the end of the tick.
+        coordinator.passCount += 1
+        if !coordinator.passResetScheduled {
+            coordinator.passResetScheduled = true
+            DispatchQueue.main.async {
+                coordinator.passCount = 0
+                coordinator.passResetScheduled = false
+            }
+        }
+        if coordinator.passCount > 32, let last = coordinator.cachedSize {
+            return last
+        }
+
         let width: CGFloat
         if let w = proposal.width, w.isFinite, w > 0 {
-            width = w.rounded(.down)
+            // Quantize the width into coarse buckets so height is a STEP
+            // function of width. SwiftUI re-proposes widths that drift by a
+            // fraction or a point between passes; without bucketing every pass
+            // is a new MeasureKey → a fresh O(n) measurement → a slightly
+            // different height → an ancestor reflow → another width → an
+            // infinite layout loop pegging the main thread (the recurring
+            // beachball). Snapping to an 8pt grid makes neighboring widths
+            // collapse to one cache entry, so fixed-point layout converges in
+            // a single step. This is the convergence guarantee the earlier
+            // "single height authority" fixes lacked.
+            width = (w / Self.widthQuantum).rounded(.down) * Self.widthQuantum
         } else {
             width = coordinator.lastMeasuredWidth ?? 300
         }
@@ -197,6 +229,11 @@ struct MacInputTextField: NSViewRepresentable {
         var cachedKey: MeasureKey?
         var cachedSize: CGSize?
         let measurer = TextHeightMeasurer()
+        /// Backstop against a runaway layout pass: counts sizeThatFits calls
+        /// within a single runloop tick. If width quantization ever fails to
+        /// converge, this caps the damage at a fixed height instead of a hang.
+        var passCount = 0
+        var passResetScheduled = false
 
         init(_ parent: MacInputTextField) {
             self.parent = parent

@@ -257,10 +257,11 @@ struct FeedCard: View {
                 }
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(article.sourceLabel)
+                    Text(article.twitterAuthor ?? article.sourceLabel)
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundColor(.primary)
-                    Text(article.relativeTime)
+                        .lineLimit(1)
+                    Text(article.twitterAuthor != nil ? "\(article.sourceLabel) · \(article.relativeTime)" : article.relativeTime)
                         .font(.caption2).foregroundColor(.secondary)
                 }
 
@@ -273,27 +274,33 @@ struct FeedCard: View {
                     .background(Circle().fill(Color.secondary.opacity(0.08)))
             }
 
-            MarkdownText(text: article.title)
-                .font(.body).fontWeight(.semibold)
-                .foregroundColor(.primary)
-                .lineLimit(isExpanded ? nil : 2)
-                .padding(.top, 10)
+            // Tweets carry their content in the body, not a headline, so skip
+            // the bold title (it's just the handle, already shown in the header)
+            // and lead with the tweet text. Other sources keep the headline.
+            if !article.isTwitter {
+                MarkdownText(text: article.title)
+                    .font(.body).fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .lineLimit(isExpanded ? nil : 2)
+                    .padding(.top, 10)
+            }
 
             if let heroURL = article.heroImageURL {
                 FeedHeroImage(url: heroURL)
                     .padding(.top, 10)
             }
 
-            if !article.displaySummary.isEmpty {
+            if !article.cardBody.isEmpty {
                 if isExpanded {
-                    MarkdownContentView(text: article.displaySummary)
+                    MarkdownContentView(text: article.isTwitter ? article.cardBody : article.displaySummary)
                         .padding(.top, 8)
                 } else {
-                    MarkdownText(text: article.previewSummary)
-                        .font(.subheadline).foregroundColor(.secondary)
-                        .lineLimit(5)
+                    MarkdownText(text: article.cardBody)
+                        .font(article.isTwitter ? .body : .subheadline)
+                        .foregroundColor(article.isTwitter ? .primary : .secondary)
+                        .lineLimit(article.isTwitter ? 8 : 5)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 6)
+                        .padding(.top, article.isTwitter ? 10 : 6)
                 }
             }
 
