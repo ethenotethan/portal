@@ -110,6 +110,10 @@ struct ChatView: View {
     }
 
     var body: some View {
+        chatContent
+    }
+
+    private var chatContent: some View {
         VStack(spacing: 0) {
             #if os(iOS)
             chatToolbar
@@ -142,180 +146,8 @@ struct ChatView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Message list
-            ScrollViewReader { proxy in
-                ZStack(alignment: .bottom) {
-                    ScrollView(showsIndicators: false) {
-                        GeometryReader { viewport in
-                            Color.clear.preference(
-                                key: ChatViewportHeightKey.self,
-                                value: viewport.size.height
-                            )
-                        }
-                        .frame(height: 0)
-
-                        ZStack(alignment: .topLeading) {
-                            LazyVStack(alignment: .leading, spacing: 2) {
-                                let msgs = chatViewModel.messages
-                                ForEach(renderedMessages, id: \.element.id) { index, message in
-                                    // Index is into renderedMessages, NOT msgs. Use the
-                                    // actual offset into msgs for next-is-same-role check.
-                                    let msgIndex = msgs.firstIndex(where: { $0.id == message.id }) ?? index
-                                    let nextIsSameRole = msgIndex < msgs.count - 1 &&
-                                        msgs[msgIndex + 1].role == message.role
-                                    let isLastInGroup = !nextIsSameRole
-                                    let showTimestamp = isLastInGroup
-
-                                    skinProvider.messageBubble(
-                                        message: {
-                                            var m = message
-                                            m.showAvatar = false
-                                            m.showTimestamp = showTimestamp
-                                            return m
-                                        }(),
-                                        persona: personaManager.activePersona
-                                    )
-                                    .id(message.id)
-                                }
-
-                            // Streaming panel — skin-provided
-                            if chatViewModel.isStreaming {
-                                skinProvider.streamingPanel(
-                                    state: chatViewModel.avatarState,
-                                    activeToolCalls: chatViewModel.activeToolCalls,
-                                    personaName: personaManager.activePersona.name,
-                                    accentColor: personaManager.activePersona.accentColor
-                                )
-                                .id("streaming-status")
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                            }
-                        }
-                        .padding(.leading, messageLeadingPadding)
-                        .padding(.trailing, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, chatBottomContentPadding)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        // Track the latest assistant turn once at the stack level.
-                        // Per-row preferences can emit multiple values in the same frame
-                        // while streaming/interrupting and trigger SwiftUI preference
-                        // warnings/crashes.
-                        latestAssistantTurnProbe
-
-                        // ── Singleton traveling avatar ──
-                        // Exactly one avatar element. Animated Y tracks the latest bot turn,
-                        // matching Claude Code's bottom-left traveling assistant marker.
-                        // The avatar is part of the Dark Manga presentation only; TUI skin
-                        // should stay terminal-native and sprite-free.
-                        if activeSkin == .darkManga && hasBotContent {
-                            FloatingAvatarView(
-                                expression: currentAvatarExpression,
-                                persona: personaManager.activePersona
-                            )
-                            .offset(y: avatarY)
-                            .padding(.leading, 16)
-                        }
-                    }
-                    .coordinateSpace(name: "chatContent")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                    #if os(macOS)
-                    VStack(spacing: 8) {
-                        if chatViewModel.pendingApproval != nil {
-                            ApprovalBanner()
-                                .environmentObject(chatViewModel)
-                                .padding(.horizontal, 24)
-                        }
-
-                        if !chatViewModel.isSessionReady {
-                            DebugLogPanel(wrapper: gatewayClientWrapper)
-                                .padding(.horizontal, 24)
-                        }
-
-                        ChatInputBar(isFocused: $isInputFocused, inputFieldRef: $inputFieldRef)
-                            .environmentObject(chatViewModel)
-                            .frame(maxWidth: 840, alignment: .center)
-                            .id(chatViewModel.currentSessionID ?? "no-session")
-                        if let error = chatViewModel.error {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.red)
-                                Text(error)
-                                    .font(.caption2)
-                                    .foregroundStyle(.red.opacity(0.9))
-                                    .lineLimit(2)
-                                Spacer()
-                                Button {
-                                    chatViewModel.error = nil
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.caption2)
-                                        .foregroundStyle(.red.opacity(0.6))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
-                            .background(.red.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 4)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 18)
-                    // Keep the macOS composer overlay's hit-test region tight to
-                    // the visible form. A full-width transparent frame here can
-                    // continue intercepting clicks after NSTextField resigns
-                    // focus, making the sidebar/session list feel dead.
-                    .frame(maxWidth: 808, alignment: .bottom)
-                    #endif
-                }
-                .background(activeSkin.background)
-                #if os(macOS)
-                .scrollIndicators(.hidden, axes: .horizontal)
-                #else
-                .scrollDismissesKeyboard(.interactively)
-                #endif
-                .onPreferenceChange(LatestBotTurnYKey.self) { y in
-                    if let y = y {
-                        Task { @MainActor in
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                avatarY = y
-                            }
-                        }
-                    }
-                }
-                .onPreferenceChange(ChatViewportHeightKey.self) { height in
-                    if !hasBotContent {
-                        Task { @MainActor in
-                            await Task.yield()
-                            avatarY = max(0, height - 72)
-                        }
-                    }
-                }
-                .onChange(of: chatViewModel.messages.count) { _, _ in
-                    scheduleScrollToBottom(proxy: proxy, reason: "message-count")
-                }
-                .onChange(of: latestMessageRenderKey) { _, _ in
-                    scheduleScrollToBottom(proxy: proxy, reason: "message-content")
-                }
-                .onChange(of: activeToolCallRenderKey) { _, _ in
-                    scheduleScrollToBottom(proxy: proxy, reason: "tool-state")
-                }
-                .onChange(of: chatViewModel.isStreaming) { _, streaming in
-                    if streaming { scheduleScrollToBottom(proxy: proxy, reason: "streaming") }
-                }
-                .onChange(of: chatViewModel.avatarState) { _, _ in
-                    scheduleScrollToBottom(proxy: proxy, reason: "avatar-state")
-                }
-                .onDisappear {
-                    pendingScrollTask?.cancel()
-                    pendingScrollTask = nil
-                }
-            }
+// Message list
+            messageListArea
 
             #if os(iOS)
             Divider()
@@ -342,6 +174,7 @@ struct ChatView: View {
             ChatPaneClickMonitor(textFieldRef: inputFieldRef)
         )
         #endif
+        .eraseToAnyView()
         #if os(iOS)
         .sheet(isPresented: $showSettings) {
             settingsSheet
@@ -359,17 +192,15 @@ struct ChatView: View {
                 .frame(minWidth: 560, minHeight: 620)
                 #endif
         }
+        .eraseToAnyView()
         #if os(iOS)
         .fullScreenCover(isPresented: $showThoughtGraph) {
             thoughtGraphFullScreen
         }
         #else
         .sheet(isPresented: $showThoughtGraph) {
-            thoughtGraphFullScreen
-                .frame(
-                    width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.9, 1600),
-                    height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.9, 1000)
-                )
+                thoughtGraphFullScreen
+                    .frame(width: thoughtGraphWidth, height: thoughtGraphHeight)
         }
         #endif
         .sheet(isPresented: $showQuizSheet) {
@@ -380,8 +211,9 @@ struct ChatView: View {
                     chatViewModel.clearQuiz()
                 },
                 onReviewWithAgent: { prompt in
+                    let reviewPrompt: String = prompt
                     showQuizSheet = false
-                    Task { await chatViewModel.reviewQuizWithAgent(prompt: prompt) }
+                    let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: reviewPrompt) }
                 }
             )
         }
@@ -408,6 +240,12 @@ struct ChatView: View {
         .onChange(of: chatViewModel.quizQuestions) { _, questions in
             if let questions {
                 quizVM.load(questions: questions, topic: chatViewModel.quizTopic)
+                showQuizSheet = true
+            }
+        }
+        .onChange(of: chatViewModel.flashcardDeckReady) { _, deck in
+            if let deck {
+                quizVM.load(deck: deck)
                 showQuizSheet = true
             }
         }
@@ -577,6 +415,139 @@ struct ChatView: View {
     }
     #endif
 
+    private var messageListArea: some View {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+                ScrollView(showsIndicators: false) {
+                    GeometryReader { viewport in
+                        Color.clear.preference(
+                            key: ChatViewportHeightKey.self,
+                            value: viewport.size.height
+                        )
+                    }
+                    .frame(height: 0)
+
+                    ZStack(alignment: .topLeading) {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            let msgs = chatViewModel.messages
+                            ForEach(renderedMessages, id: \.element.id) { index, message in
+                                let isLastInGroup: Bool = Self.isLastMessageInGroup(
+                                    message: message,
+                                    msgs: msgs
+                                )
+                                let showTimestamp: Bool = isLastInGroup
+                                let preparedMessage: ChatMessage = Self.prepareBubbleMessage(
+                                    message, showTimestamp: showTimestamp
+                                )
+                                skinProvider.messageBubble(
+                                    message: preparedMessage,
+                                    persona: personaManager.activePersona
+                                )
+                                .id(message.id)
+                            }
+
+                            if chatViewModel.isStreaming {
+                                skinProvider.streamingPanel(
+                                    state: chatViewModel.avatarState,
+                                    activeToolCalls: chatViewModel.activeToolCalls,
+                                    personaName: personaManager.activePersona.name,
+                                    accentColor: personaManager.activePersona.accentColor
+                                )
+                                .id("streaming-status")
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
+                        }
+                        .padding(.leading, messageLeadingPadding)
+                        .padding(.trailing, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, chatBottomContentPadding)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        latestAssistantTurnProbe
+
+                        if activeSkin == .darkManga && hasBotContent {
+                            FloatingAvatarView(
+                                expression: currentAvatarExpression,
+                                persona: personaManager.activePersona
+                            )
+                            .offset(y: avatarY)
+                            .padding(.leading, 16)
+                        }
+                    }
+                    .coordinateSpace(name: "chatContent")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            #if os(macOS)
+                VStack(spacing: 8) {
+                    if chatViewModel.pendingApproval != nil {
+                        ApprovalBanner()
+                            .environmentObject(chatViewModel)
+                            .padding(.horizontal, 24)
+                    }
+
+                    if !chatViewModel.isSessionReady {
+                        DebugLogPanel(wrapper: gatewayClientWrapper)
+                            .padding(.horizontal, 24)
+                    }
+
+                    ChatInputBar(isFocused: $isInputFocused, inputFieldRef: $inputFieldRef)
+                        .environmentObject(chatViewModel)
+                        .frame(maxWidth: 840, alignment: .center)
+                        .id(chatViewModel.currentSessionID ?? "no-session")
+                    if let error = chatViewModel.error {
+                        ErrorBannerView(error: error) {
+                            chatViewModel.error = nil
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 18)
+                .frame(maxWidth: 808, alignment: .bottom)
+            #endif
+            }
+            .background(activeSkin.background)
+            #if os(macOS)
+            .scrollIndicators(.hidden, axes: .horizontal)
+            #else
+            .scrollDismissesKeyboard(.interactively)
+            #endif
+            .onPreferenceChange(LatestBotTurnYKey.self) { y in
+                if let y = y {
+                    Task { @MainActor in
+                        avatarY = y
+                    }
+                }
+            }
+            .onPreferenceChange(ChatViewportHeightKey.self) { height in
+                if !hasBotContent {
+                    Task { @MainActor in
+                        await Task.yield()
+                        avatarY = max(0, height - 72)
+                    }
+                }
+            }
+            .onChange(of: chatViewModel.messages.count) { _, _ in
+                scheduleScrollToBottom(proxy: proxy, reason: "message-count")
+            }
+            .onChange(of: latestMessageRenderKey) { _, _ in
+                scheduleScrollToBottom(proxy: proxy, reason: "message-content")
+            }
+            .onChange(of: activeToolCallRenderKey) { _, _ in
+                scheduleScrollToBottom(proxy: proxy, reason: "tool-state")
+            }
+            .onChange(of: chatViewModel.isStreaming) { _, streaming in
+                if streaming { scheduleScrollToBottom(proxy: proxy, reason: "streaming") }
+            }
+            .onChange(of: chatViewModel.avatarState) { _, _ in
+                scheduleScrollToBottom(proxy: proxy, reason: "avatar-state")
+            }
+            .onDisappear {
+                pendingScrollTask?.cancel()
+                pendingScrollTask = nil
+            }
+        }
+    }
+
     private var renderedMessages: [(offset: Int, element: ChatMessage)] {
         let enumerated = Array(chatViewModel.messages.enumerated())
         guard ProcessInfo.processInfo.arguments.contains("--virtualize-transcript") else {
@@ -645,6 +616,16 @@ struct ChatView: View {
             .padding(.top, 6)
         }
     }
+
+    #if os(macOS)
+    private var thoughtGraphWidth: CGFloat {
+        min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.9, 1600)
+    }
+
+    private var thoughtGraphHeight: CGFloat {
+        min((NSScreen.main?.visibleFrame.height ?? 800) * 0.9, 1000)
+    }
+    #endif
 
     @ViewBuilder
     private var thoughtGraphFullScreen: some View {
@@ -1455,6 +1436,32 @@ struct ApprovalBanner: View {
     }
 }
 
+// MARK: - Message grouping helpers
+
+extension ChatView {
+    /// Returns `true` if `message` is the last in a consecutive same-role group.
+    /// We look up `message.id` in `msgs` to get the array position, then check the next message's role.
+    static func isLastMessageInGroup(message: ChatMessage, msgs: [ChatMessage]) -> Bool {
+        guard let msgIndex = msgs.firstIndex(where: { $0.id == message.id }) else {
+            return true // if not found, treat as group boundary for safety
+        }
+        let nextIdx = msgIndex + 1
+        guard nextIdx < msgs.count else {
+            return true // last message overall
+        }
+        let nextRole = msgs[nextIdx].role
+        return nextRole != message.role
+    }
+
+    /// Creates a variant of `message` with avatar hidden and timestamp set for bubble rendering.
+    static func prepareBubbleMessage(_ message: ChatMessage, showTimestamp: Bool) -> ChatMessage {
+        var m = message
+        m.showAvatar = false
+        m.showTimestamp = showTimestamp
+        return m
+    }
+}
+
 // MARK: - Keyboard Dismissal (iOS)
 
 #if os(iOS)
@@ -1462,3 +1469,36 @@ private func dismissKeyboard() {
     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
 }
 #endif
+
+// MARK: - Error Banner
+
+private struct ErrorBannerView: View {
+    let error: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+                .foregroundStyle(.red)
+            Text(error)
+                .font(.caption2)
+                .foregroundStyle(.red.opacity(0.9))
+                .lineLimit(2)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(.red.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(.red.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 24)
+        .padding(.bottom, 4)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}

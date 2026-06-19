@@ -18,20 +18,21 @@ struct QuizSheet: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
 
+                // Mode picker
+                modePicker
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
                 Divider()
                     .background(Theme.border)
                     .padding(.top, 12)
                     .padding(.horizontal, 20)
 
-                // Content
-                if viewModel.isComplete {
-                    finalScreen
-                } else if let question = viewModel.currentQuestion {
-                    questionScreen(question)
-                } else if viewModel.errorMessage != nil {
-                    errorScreen
+                // Content — switch based on mode
+                if viewModel.quizMode == .flashcards {
+                    flashcardContent
                 } else {
-                    loadingScreen
+                    quizContent
                 }
 
                 Spacer(minLength: 0)
@@ -526,5 +527,84 @@ struct QuizSheet: View {
         if isCorrect { return Theme.success }
         if isSelected { return .red }
         return Theme.border.opacity(0.4)
+    }
+
+    // MARK: - Mode Picker
+
+    private var modePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(QuizMode.allCases, id: \.self) { mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.switchMode(to: mode)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: mode.icon)
+                            .font(.caption)
+                        Text(mode.rawValue)
+                            .font(.caption.weight(.medium))
+                    }
+                    .foregroundStyle(viewModel.quizMode == mode ? Theme.primary : Theme.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(
+                        viewModel.quizMode == mode
+                            ? Theme.accent.opacity(0.15)
+                            : Color.clear
+                    )
+                }
+                .buttonStyle(.plain)
+
+                if mode != QuizMode.allCases.last {
+                    Rectangle()
+                        .fill(Theme.border)
+                        .frame(width: 1, height: 16)
+                }
+            }
+        }
+        .padding(2)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Theme.border.opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Quiz Content (Original)
+
+    @ViewBuilder
+    private var quizContent: some View {
+        if viewModel.isComplete {
+            finalScreen
+        } else if let question = viewModel.currentQuestion {
+            questionScreen(question)
+        } else if viewModel.errorMessage != nil {
+            errorScreen
+        } else {
+            loadingScreen
+        }
+    }
+
+    // MARK: - Flashcard Content
+
+    @ViewBuilder
+    private var flashcardContent: some View {
+        if let deck = viewModel.flashcardDeck {
+            FlashcardDeckView(
+                deck: deck,
+                onClose: {
+                    viewModel.close()
+                    onClose()
+                },
+                onDeckUpdated: { updatedDeck in
+                    viewModel.updateDeck(updatedDeck)
+                }
+            )
+        } else if viewModel.errorMessage != nil {
+            errorScreen
+        } else {
+            loadingScreen
+        }
     }
 }

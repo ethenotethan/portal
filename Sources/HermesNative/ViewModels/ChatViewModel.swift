@@ -108,6 +108,10 @@ final class ChatViewModel: ObservableObject {
     /// Error message when quiz JSON parsing fails (displayed in the quiz sheet).
     @Published var errorMessageForQuiz: String?
 
+    // MARK: - Flashcard Mode
+    /// When non-nil, a flashcard deck is available and the QuizSheet should show it.
+    @Published var flashcardDeckReady: FlashcardDeck?
+
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
     /// slower first resume can overwrite the newer selected session after rapid
@@ -721,6 +725,7 @@ if restoreSessionState(displayID: key) {
         quizTopic = ""
         errorMessageForQuiz = nil
         awaitingQuizResponse = false
+        flashcardDeckReady = nil
     }
 
     /// Send a review prompt to the agent and close the quiz.
@@ -1546,6 +1551,10 @@ if restoreSessionState(displayID: key) {
                 let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
                 quizTopic = String(inferredTopic)
                 quizQuestions = questions
+            } else if let deck = FlashcardResponse.extract(from: payload.text), deck.cards.count >= 3 {
+                log.info("Flashcard deck parsed (session auto-detect): \(deck.cards.count) cards on \"\(deck.topic)\"")
+                quizTopic = deck.topic
+                flashcardDeckReady = deck
             } else {
                 // Also check for [[QUIZ:topic]] markers — agent wants to offer a quiz
                 if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
@@ -1821,6 +1830,10 @@ if restoreSessionState(displayID: key) {
                 let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
                 quizTopic = String(inferredTopic)
                 quizQuestions = questions
+            } else if let deck = FlashcardResponse.extract(from: payload.text), deck.cards.count >= 3 {
+                log.info("Flashcard deck parsed (auto-detect): \(deck.cards.count) cards on \"\(deck.topic)\"")
+                quizTopic = deck.topic
+                flashcardDeckReady = deck
             } else if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
                 let matchText = String(payload.text[quizMatch])
                 if let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) {

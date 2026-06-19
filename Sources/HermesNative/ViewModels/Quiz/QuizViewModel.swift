@@ -6,9 +6,18 @@ private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "
 /// ViewModel for the Quiz Mode feature. Manages quiz state, answer evaluation,
 /// and progression through questions. All evaluation is local — no further
 /// agent calls are made during the quiz.
+///
+/// Supports two modes: multiple-choice quiz and flashcard study with SM-2 SRS.
 @MainActor
 @Observable
 final class QuizViewModel {
+    // MARK: - Mode
+
+    /// Which study mode is currently active.
+    var quizMode: QuizMode = .quiz
+
+    // MARK: - Quiz State (MC)
+
     var state: QuizState?
     var currentQuestion: QuizQuestion? { state?.currentQuestion }
     var isComplete: Bool { state?.isComplete ?? false }
@@ -22,8 +31,13 @@ final class QuizViewModel {
     var showResult: Bool = false
     /// Whether the last answer was correct (for color feedback).
     var lastAnswerCorrect: Bool = false
-    /// Error message if quiz generation fails.
+    /// Error message if quiz/flashcard generation fails.
     var errorMessage: String?
+
+    // MARK: - Flashcard State
+
+    /// The active flashcard deck being studied.
+    var flashcardDeck: FlashcardDeck?
 
     /// Topic to send to chat when user taps "Review with Agent".
     var reviewPrompt: String {
@@ -74,5 +88,42 @@ final class QuizViewModel {
         showResult = false
         lastAnswerCorrect = false
         errorMessage = nil
+        flashcardDeck = nil
+        quizMode = .quiz
+    }
+
+    // MARK: - Flashcard Methods
+
+    /// Load a flashcard deck and switch to flashcard mode.
+    func load(deck: FlashcardDeck) {
+        flashcardDeck = deck
+        quizMode = .flashcards
+        errorMessage = nil
+    }
+
+    /// Update the deck after a study session (persisted SRS state).
+    func updateDeck(_ deck: FlashcardDeck) {
+        flashcardDeck = deck
+        SRSStore.shared.saveDeck(deck)
+    }
+
+    /// Switch between quiz and flashcard modes.
+    func switchMode(to mode: QuizMode) {
+        quizMode = mode
+    }
+}
+
+// MARK: - Quiz Mode
+
+/// The type of study session to display.
+enum QuizMode: String, CaseIterable {
+    case quiz = "Quiz"
+    case flashcards = "Flashcards"
+
+    var icon: String {
+        switch self {
+        case .quiz: return "questionmark.circle"
+        case .flashcards: return "rectangle.on.rectangle"
+        }
     }
 }
