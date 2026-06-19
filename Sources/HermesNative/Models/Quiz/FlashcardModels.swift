@@ -71,7 +71,7 @@ struct SRSState: Codable, Equatable {
     /// When this card should be reviewed again
     var nextReviewDate: Date = Date()
     /// When this card was last reviewed
-    var lastReviewedAt: Date? = nil
+    var lastReviewedAt: Date?
     /// Quality score from last review
     var lastQuality: Int = 0
     /// Total number of reviews for this card
@@ -108,8 +108,8 @@ struct FlashcardDeck: Identifiable, Codable, Equatable {
     /// Total number of cards in this deck.
     var totalCount: Int { cards.count }
 
-    /// Number of cards with strong mastery (3+ correct reps and healthy ease factor).
-    var masteredCount: Int {
+    /// Number of cards with strong recall (3+ correct reps and healthy ease factor).
+    var learnedCount: Int {
         cards.filter { card in
             guard let state = srsStates[card.id] else { return false }
             return state.repetitions >= 3 && state.easeFactor >= 2.5

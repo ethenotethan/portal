@@ -122,8 +122,8 @@ struct SRSDashboardView: View {
                 color: Theme.primary
             )
             summaryStat(
-                value: "\(decks.reduce(0) { $0 + $1.masteredCount })",
-                label: "Mastered",
+                value: "\(decks.reduce(0) { $0 + $1.learnedCount })",
+                label: "Learned",
                 color: Theme.success
             )
             summaryStat(
@@ -180,7 +180,7 @@ struct SRSDashboardView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "brain.head.profile")
                                 .font(.caption2)
-                            Text("\(deck.masteredCount)/\(deck.totalCount) mastered")
+                            Text("\(deck.learnedCount)/\(deck.totalCount) learned")
                                 .font(.caption2)
                                 .foregroundStyle(Theme.secondary)
                         }

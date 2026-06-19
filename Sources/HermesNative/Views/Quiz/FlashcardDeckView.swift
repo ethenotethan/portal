@@ -97,7 +97,7 @@ struct FlashcardDeckView: View {
                     Image(systemName: "brain.head.profile")
                         .font(.caption)
                         .foregroundStyle(Theme.accent)
-                    Text("\(updatedDeck.masteredCount)/\(updatedDeck.totalCount) mastered")
+                    Text("\(updatedDeck.learnedCount)/\(updatedDeck.totalCount) learned")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Theme.primary)
                 }
@@ -230,8 +230,8 @@ struct FlashcardDeckView: View {
                         color: Theme.warning
                     )
                     statBox(
-                        value: "\(updatedDeck.masteredCount)",
-                        label: "Mastered",
+                        value: "\(updatedDeck.learnedCount)",
+                        label: "Learned",
                         color: Theme.success
                     )
                 }
@@ -331,7 +331,12 @@ struct FlashcardDeckView_Previews: PreviewProvider {
                 topic: "Sample Deck",
                 cards: [
                     Flashcard(front: "What is SwiftUI?", back: "Apple's declarative UI framework.", explanation: "Introduced at WWDC 2019.", category: "iOS"),
-                    Flashcard(front: "What is @State?", back: "A property wrapper for local view state.", explanation: "SwiftUI recreates the view when @State changes.", category: "SwiftUI")
+                    Flashcard(
+                        front: "What is @State?",
+                        back: "A property wrapper for local view state.",
+                        explanation: "SwiftUI recreates the view when @State changes.",
+                        category: "SwiftUI"
+                    )
                 ]
             ),
             onClose: {},
