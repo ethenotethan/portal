@@ -88,8 +88,13 @@ final class QuizViewModel {
         showResult = false
         lastAnswerCorrect = false
         errorMessage = nil
-        flashcardDeck = nil
+        // Keep flashcardDeck alive so user can reopen
         quizMode = .quiz
+    }
+
+    /// True when there's an active flashcard deck that can be reopened.
+    var hasFlashcardDeck: Bool {
+        flashcardDeck != nil
     }
 
     // MARK: - Flashcard Methods

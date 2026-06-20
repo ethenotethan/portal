@@ -61,14 +61,16 @@ struct FlashcardView: View {
 
     private var cardBody: some View {
         ZStack {
-            if isFlipped {
-                backSide
-                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-            } else {
-                frontSide
-            }
+            // Front is visible when angle is near 0°
+            frontSide
+                .opacity(isFlipped ? 0 : 1)
+
+            // Back is rotated 180° so when container flips, text is right-reading
+            backSide
+                .opacity(isFlipped ? 1 : 0)
+                .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
         }
-        .frame(minHeight: 220)
+        .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .onTapGesture {
             guard !hasGraded else { return }
             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
@@ -167,7 +169,7 @@ struct FlashcardView: View {
                     }
                 }
             }
-            .frame(maxHeight: 180)
+            .frame(maxHeight: 240)
         }
         .padding(24)
         .frame(maxWidth: .infinity, minHeight: 220, alignment: .topLeading)

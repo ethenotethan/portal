@@ -336,6 +336,20 @@ struct ChatView: View {
 
             Spacer()
 
+            // Reopen flashcards button
+            if quizVM.hasFlashcardDeck {
+                Button {
+                    quizVM.switchMode(to: .flashcards)
+                    showQuizSheet = true
+                } label: {
+                    Label("Flashcards", systemImage: "rectangle.on.rectangle")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .accessibilityLabel("Reopen Flashcards")
+            }
+
             Button {
                 showGatewayDebug = true
             } label: {
