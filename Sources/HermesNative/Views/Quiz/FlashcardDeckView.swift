@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Full flashcard study session view.
-/// Cycles through cards in a deck one at a time, tracks self-grades,
-/// applies SM-2 spaced repetition, and shows completion stats.
+/// Cycles through cards in a deck, supports swipe, keyboard, and button navigation.
+/// Tracks self-grades, applies SM-2 spaced repetition, and shows completion stats.
 struct FlashcardDeckView: View {
     let deck: FlashcardDeck
     let onClose: () -> Void
@@ -12,6 +12,7 @@ struct FlashcardDeckView: View {
     @State private var updatedDeck: FlashcardDeck
     @State private var isComplete: Bool = false
     @State private var grades: [UUID: SRSQuality] = [:]
+    @State private var dragOffset: CGFloat = 0
 
     init(deck: FlashcardDeck, onClose: @escaping () -> Void, onDeckUpdated: @escaping (FlashcardDeck) -> Void) {
         self.deck = deck
@@ -34,7 +35,6 @@ struct FlashcardDeckView: View {
             Theme.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header
                 flashcardHeader
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
@@ -44,34 +44,110 @@ struct FlashcardDeckView: View {
                     .padding(.top, 12)
                     .padding(.horizontal, 20)
 
-                // Content
                 if isComplete {
                     completionScreen
                 } else if let card = currentCard {
-                    FlashcardView(
-                        card: card,
-                        cardIndex: currentIndex,
-                        totalCount: dueCards.count,
-                        onGrade: { quality in
-                            handleGrade(card: card, quality: quality)
-                        }
-                    )
-                    .padding(.top, 16)
+                    // Card with swipe support
+                    HStack(spacing: 0) {
+                        // Prev button
+                        navButton(direction: -1)
+
+                        FlashcardView(
+                            card: card,
+                            cardIndex: currentIndex,
+                            totalCount: dueCards.count,
+                            onGrade: { quality in
+                                handleGrade(card: card, quality: quality)
+                            }
+                        )
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    dragOffset = value.translation.width
+                                }
+                                .onEnded { value in
+                                    let threshold: CGFloat = 60
+                                    if value.translation.width < -threshold {
+                                        advanceCard()
+                                    } else if value.translation.width > threshold {
+                                        previousCard()
+                                    }
+                                    withAnimation(.spring(response: 0.3)) {
+                                        dragOffset = 0
+                                    }
+                                }
+                        )
+                        .offset(x: dragOffset)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+
+                        // Next button
+                        navButton(direction: 1)
+                    }
+                    .padding(.horizontal, 8)
                 } else {
                     emptyDeckScreen
                 }
 
                 Spacer(minLength: 0)
             }
+            // ── Keyboard navigation (macOS) ──
+            .focusable()
+            .focusEffectDisabled()
+            .onKeyPress(.leftArrow) {
+                previousCard()
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                advanceCard()
+                return .handled
+            }
+            .onKeyPress(.space) {
+                // Space flips the card — handled inside FlashcardView via accessibility
+                return .ignored
+            }
         }
-        .frame(minWidth: 520, minHeight: 460)
+        .frame(minWidth: 560, minHeight: 480)
         .background(Theme.background)
         #if os(macOS)
         .frame(
-            width: min((NSScreen.main?.visibleFrame.width ?? 800) * 0.65, 640),
-            height: min((NSScreen.main?.visibleFrame.height ?? 700) * 0.75, 600)
+            width: min((NSScreen.main?.visibleFrame.width ?? 800) * 0.7, 700),
+            height: min((NSScreen.main?.visibleFrame.height ?? 700) * 0.8, 650)
         )
         #endif
+    }
+
+    // MARK: - Navigation buttons
+
+    private func navButton(direction: Int) -> some View {
+        let isFirst = direction == -1 && currentIndex == 0
+        let isLast = direction == 1 && currentIndex >= dueCards.count - 1
+        return Button {
+            if direction == -1 { previousCard() }
+            else { advanceCard() }
+        } label: {
+            Image(systemName: direction == -1 ? "chevron.left" : "chevron.right")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle((isFirst && direction == -1) || (isLast && direction == 1) ? Theme.tertiary.opacity(0.3) : Theme.secondary)
+                .frame(width: 32, height: 60)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled((isFirst && direction == -1) || (isLast && direction == 1))
+    }
+
+    private func previousCard() {
+        guard currentIndex > 0 else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentIndex -= 1
+        }
+    }
+
+    private func advanceCard() {
+        guard currentIndex + 1 < dueCards.count else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentIndex += 1
+        }
     }
 
     // MARK: - Header

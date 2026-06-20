@@ -27,6 +27,7 @@ struct ChatView: View {
 
     // ── Quiz Mode ──
     @State private var showQuizSheet = false
+    @State private var showDecksSheet = false
     @State private var quizVM = QuizViewModel()
 
     /// On macOS, owns the chat input focus state at the ChatView level so that
@@ -217,6 +218,18 @@ struct ChatView: View {
                 }
             )
         }
+        .sheet(isPresented: $showDecksSheet) {
+            SRSDashboardView(
+                onClose: {
+                    showDecksSheet = false
+                },
+                onStudyDeck: { deck in
+                    showDecksSheet = false
+                    quizVM.load(deck: deck)
+                    showQuizSheet = true
+                }
+            )
+        }
         .onAppear {
             // no-op: persona is read-only from gateway
             #if os(macOS)
@@ -349,6 +362,17 @@ struct ChatView: View {
                 .foregroundStyle(Theme.accent)
                 .accessibilityLabel("Reopen Flashcards")
             }
+
+            // Saved decks dashboard
+            Button {
+                showDecksSheet = true
+            } label: {
+                Label("Decks", systemImage: "tray.full")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.accent)
+            .accessibilityLabel("Flashcard Decks Dashboard")
 
             Button {
                 showGatewayDebug = true

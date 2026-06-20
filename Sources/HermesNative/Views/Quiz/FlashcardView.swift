@@ -169,10 +169,10 @@ struct FlashcardView: View {
                     }
                 }
             }
-            .frame(maxHeight: 240)
+            .frame(maxHeight: 280)
         }
         .padding(24)
-        .frame(maxWidth: .infinity, minHeight: 220, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 200, alignment: .topLeading)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
