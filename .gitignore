@@ -9,3 +9,4 @@ HermesNative.xcodeproj/project.xcworkspace/xcuserdata/
 *.pyc
 google-cloud-sdk/
 .build-xcode/
+Signing.local.xcconfig

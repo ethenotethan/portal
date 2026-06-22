@@ -1,0 +1,16 @@
+// Template for local developer signing. Copy this to `Signing.local.xcconfig`
+// (which is git-ignored) and set your own Apple Development Team ID.
+// The committed Local.xcconfig pulls it in automatically via `#include?`.
+//
+// Find your Team ID:
+//   security find-certificate -c "Apple Development" -p \
+//     | openssl x509 -noout -subject | grep -oE 'OU=[A-Z0-9]+'
+//
+// Signing with a stable team identity keeps the macOS Keychain access-control
+// owner consistent across rebuilds, so the app stops re-prompting for your
+// login/keychain password on every launch. Without it the app is ad-hoc
+// signed (no Team ID) and each rebuilt copy looks like a different app to the
+// Keychain.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development

@@ -48,6 +48,9 @@ targets:
         product: Tokenizers
     entitlements:
       path: HermesNative-macOS.entitlements
+    configFiles:
+      Debug: Local.xcconfig
+      Release: Local.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS
@@ -80,6 +83,9 @@ targets:
         product: Tokenizers
     entitlements:
       path: HermesNative-iOS.entitlements
+    configFiles:
+      Debug: Local.xcconfig
+      Release: Local.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.iOS

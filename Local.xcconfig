@@ -1,0 +1,15 @@
+// Committed, CI-safe signing config. This file MUST exist for xcodegen
+// (configFiles paths are validated at generate time), so it is checked in.
+//
+// It optionally pulls in a developer-private override, `Signing.local.xcconfig`
+// (git-ignored), which sets DEVELOPMENT_TEAM to a stable Apple Development team
+// identity. That keeps the macOS Keychain access-control owner consistent
+// across rebuilds, so the app stops re-prompting for your login/keychain
+// password on every launch. Without the override the build falls back to the
+// project's default ($(DEVELOPMENT_TEAM) / ad-hoc), exactly as before — so CI
+// and contributors without the file are unaffected.
+//
+// To enable locally:
+//   cp Signing.local.xcconfig.template Signing.local.xcconfig
+//   # then set DEVELOPMENT_TEAM to your team id
+#include? "Signing.local.xcconfig"
