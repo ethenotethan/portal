@@ -7,6 +7,7 @@ struct QuizSheet: View {
     @Bindable var viewModel: QuizViewModel
     let onClose: () -> Void
     let onReviewWithAgent: (String) -> Void
+    let onOpenLearning: () -> Void
 
     var body: some View {
         ZStack {
@@ -81,6 +82,20 @@ struct QuizSheet: View {
                     .background(Theme.surface, in: Capsule())
                 }
 
+                // Learning button
+                Button {
+                    onOpenLearning()
+                } label: {
+                    Image(systemName: "books.vertical.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 28, height: 28)
+                        .background(Theme.surface, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open flashcard library")
+                .help("Flashcard Library (⌘L)")
+
                 // Close button
                 Button {
                     onClose()
@@ -134,31 +149,31 @@ struct QuizSheet: View {
 
     private func questionScreen(_ question: QuizQuestion) -> some View {
         VStack(spacing: 0) {
-            // Question card
-            questionCard(question)
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+            // Scrollable content area
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Question card
+                    questionCard(question)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
 
-            // Answer buttons
-            answerButtons(question)
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
+                    // Answer buttons
+                    answerButtons(question)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
 
-            // Result reveal
-            if viewModel.showResult {
-                resultReveal(question)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
+                    // Result reveal
+                    if viewModel.showResult {
+                        resultReveal(question)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                            .padding(.bottom, 16)
+                    }
+                }
             }
 
-            Spacer(minLength: 0)
-
-            // Next button
-            if viewModel.showResult {
-                nextButton
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 16)
-            }
+            // Persistent bottom bar
+            bottomBar
         }
     }
 
@@ -272,26 +287,66 @@ struct QuizSheet: View {
             in: RoundedRectangle(cornerRadius: 10))
     }
 
-    // MARK: - Next Button
+    // MARK: - Bottom Bar
 
-    private var nextButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                viewModel.nextQuestion()
+    private var bottomBar: some View {
+        HStack(spacing: 12) {
+            // Exit button — always visible during quiz
+            Button {
+                onClose()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Exit Quiz")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(Theme.secondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.border.opacity(0.5), lineWidth: 1)
+                )
             }
-        } label: {
-            HStack(spacing: 6) {
-                Text(viewModel.isComplete ? "See Results" : "Next")
-                    .font(.system(size: 14, weight: .semibold))
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 12, weight: .bold))
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Next / See Results button
+            if viewModel.showResult {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        viewModel.nextQuestion()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(viewModel.isComplete ? "See Results" : "Next Question")
+                            .font(.system(size: 13, weight: .semibold))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            } else {
+                // Placeholder hint while user hasn't answered yet
+                Text("Select an answer above")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.tertiary)
             }
-            .foregroundStyle(Theme.primary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Theme.accent, in: RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(Theme.background.opacity(0.95))
+        .overlay(alignment: .top) {
+            Divider()
+                .background(Theme.border.opacity(0.4))
+        }
     }
 
     // MARK: - Final Screen
@@ -359,6 +414,26 @@ struct QuizSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(Theme.accent, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onOpenLearning()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "books.vertical.fill")
+                            .font(.system(size: 14))
+                        Text("Flashcard Library")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Theme.border, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
 

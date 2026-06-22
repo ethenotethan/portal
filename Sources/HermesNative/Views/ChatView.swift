@@ -215,6 +215,21 @@ struct ChatView: View {
                     let reviewPrompt: String = prompt
                     showQuizSheet = false
                     let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: reviewPrompt) }
+                },
+                onOpenLearning: {
+                    showDecksSheet = true
+                }
+            )
+        }
+        .sheet(isPresented: $showDecksSheet) {
+            SRSDashboardView(
+                onClose: {
+                    showDecksSheet = false
+                },
+                onStudyDeck: { deck in
+                    showDecksSheet = false
+                    quizVM.load(deck: deck)
+                    showQuizSheet = true
                 }
             )
         }
