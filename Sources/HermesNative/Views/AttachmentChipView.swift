@@ -45,7 +45,7 @@ struct AttachmentChipView: View {
             )
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $isPreviewVisible) {
+        .fullScreenCover(isPresented: $isPreviewVisible) {
             FilePreviewView(attachment: attachment)
         }
         .onAppear {
@@ -248,7 +248,7 @@ struct FilePreviewView: View {
                 }
             }
         }
-        .frame(minWidth: 600, minHeight: 500)
+        .frame(minWidth: 800, minHeight: 600)
         .background(Theme.background)
     }
 
