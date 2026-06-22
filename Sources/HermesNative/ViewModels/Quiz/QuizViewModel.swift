@@ -81,8 +81,19 @@ final class QuizViewModel {
         }
     }
 
-    /// Close the quiz and clear all state.
-    func close() {
+    /// Close the quiz and clear all state. Auto-saves completed quizzes to QuizStore.
+    func close(sessionID: String? = nil) {
+        // Save completed quizzes before clearing
+        if let state, state.isComplete {
+            let persisted = PersistedQuizSession(
+                questions: state.questions,
+                topic: state.topic,
+                selectedAnswers: state.selectedAnswers,
+                score: state.score,
+                sourceSessionID: sessionID
+            )
+            QuizStore.shared.saveQuiz(persisted)
+        }
         state = nil
         selectedAnswer = nil
         showResult = false

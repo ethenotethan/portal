@@ -52,6 +52,7 @@ struct AttachmentChipView: View {
         #else
         .sheet(isPresented: $isPreviewVisible) {
             FilePreviewView(attachment: attachment)
+                .frame(minWidth: 560, minHeight: 400)
         }
         #endif
         .onAppear {

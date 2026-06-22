@@ -209,27 +209,17 @@ struct ChatView: View {
                 viewModel: quizVM,
                 onClose: {
                     showQuizSheet = false
+                    quizVM.close(sessionID: chatViewModel.currentSessionID)
                     chatViewModel.clearQuiz()
                 },
                 onReviewWithAgent: { prompt in
                     let reviewPrompt: String = prompt
                     showQuizSheet = false
+                    quizVM.close(sessionID: chatViewModel.currentSessionID)
                     let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: reviewPrompt) }
                 },
                 onOpenLearning: {
                     showDecksSheet = true
-                }
-            )
-        }
-        .sheet(isPresented: $showDecksSheet) {
-            SRSDashboardView(
-                onClose: {
-                    showDecksSheet = false
-                },
-                onStudyDeck: { deck in
-                    showDecksSheet = false
-                    quizVM.load(deck: deck)
-                    showQuizSheet = true
                 }
             )
         }
@@ -252,6 +242,23 @@ struct ChatView: View {
                 isInputFocused = true
             }
             #endif
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesStudyDeck)) { notification in
+            if let deck = notification.userInfo?["deck"] as? FlashcardDeck {
+                showDecksSheet = false
+                showQuizSheet = false
+                quizVM.load(deck: deck)
+                showQuizSheet = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesRetakeQuiz)) { notification in
+            if let questions = notification.userInfo?["questions"] as? [QuizQuestion],
+               let topic = notification.userInfo?["topic"] as? String {
+                showDecksSheet = false
+                showQuizSheet = false
+                quizVM.load(questions: questions, topic: topic)
+                showQuizSheet = true
+            }
         }
         .onChange(of: chatViewModel.currentSessionID) { _, _ in
             // Close the thought graph when switching sessions

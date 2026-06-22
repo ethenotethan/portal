@@ -302,4 +302,8 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 extension Notification.Name {
     static let hermesSwitchToSession = Notification.Name("hermes.switchToSession")
     static let hermesOpenDeepLink = Notification.Name("hermes.openDeepLink")
+    /// Posted when the user taps "Study" on a flashcard deck from Learning Dashboard.
+    static let hermesStudyDeck = Notification.Name("hermes.studyDeck")
+    /// Posted when the user taps "Retake" on a quiz from Learning Dashboard.
+    static let hermesRetakeQuiz = Notification.Name("hermes.retakeQuiz")
 }

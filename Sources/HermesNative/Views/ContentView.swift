@@ -37,6 +37,7 @@ struct ContentView: View {
     @State private var showSkills = false
     @State private var showWikiGraph = false
     @State private var showFeedSheet = false
+    @State private var showLearning = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
@@ -157,6 +158,16 @@ struct ContentView: View {
                 Label("Feed", systemImage: "newspaper")
             }
             .tag(4)
+
+            LearningDashboardView(
+                onClose: { },
+                onStudyDeck: { _ in },
+                onRetakeQuiz: { _, _ in }
+            )
+            .tabItem {
+                Label("Learning", systemImage: "books.vertical.fill")
+            }
+            .tag(5)
         }
     }
 
@@ -378,7 +389,7 @@ struct ContentView: View {
     }
 
     private var isOverlayActive: Bool {
-        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showFeedSheet || showSkills || showWikiGraph
+        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showFeedSheet || showSkills || showWikiGraph || showLearning
     }
 
     private var overlayTitle: String {
@@ -388,6 +399,7 @@ struct ContentView: View {
         if showLiveSessions { return "Sessions" }
         if showCronDashboard { return "Cron Activity" }
         if showActivitySheet { return "Activity" }
+        if showLearning { return "Learning" }
         if missionControlSessionID != nil { return "Mission Control" }
         return ""
     }
@@ -454,6 +466,7 @@ struct ContentView: View {
                 showSkills = false
                 showWikiGraph = false
                 showFeedSheet = false
+                showLearning = false
                 chatViewModel.refocusInput += 1
             } label: {
                 HStack(spacing: 6) {
@@ -610,6 +623,16 @@ struct ContentView: View {
             .accessibilityLabel("Feed")
 
             Button {
+                showLearning = true
+            } label: {
+                Label("Learning", systemImage: "books.vertical.fill")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("e", modifiers: .command)
+            .accessibilityLabel("Learning")
+
+            Button {
                 showWikiGraph = true
             } label: {
                 Label("Wiki", systemImage: "network")
@@ -706,6 +729,36 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
+            }
+
+            if showLearning {
+                LearningDashboardView(
+                    onClose: {
+                        showLearning = false
+                        chatViewModel.refocusInput += 1
+                    },
+                    onStudyDeck: { deck in
+                        showLearning = false
+                        chatViewModel.refocusInput += 1
+                        NotificationCenter.default.post(
+                            name: .hermesStudyDeck,
+                            object: nil,
+                            userInfo: ["deck": deck]
+                        )
+                    },
+                    onRetakeQuiz: { questions, topic in
+                        showLearning = false
+                        chatViewModel.refocusInput += 1
+                        NotificationCenter.default.post(
+                            name: .hermesRetakeQuiz,
+                            object: nil,
+                            userInfo: ["questions": questions, "topic": topic]
+                        )
+                    }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.background)
+                .transition(.opacity)
             }
 
             if showWikiGraph {

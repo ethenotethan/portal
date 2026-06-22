@@ -160,3 +160,51 @@ extension QuizResponse {
         return String(text[start...end])
     }
 }
+
+// MARK: - Persisted Quiz Session
+
+/// A completed quiz session saved to disk for the Learning Dashboard.
+/// Stores the questions, answers, score, and metadata so users can retake
+/// or review past quizzes from the home page.
+struct PersistedQuizSession: Identifiable, Codable, Equatable {
+    let id: UUID
+    let topic: String
+    let questions: [QuizQuestion]
+    let selectedAnswers: [UUID: String]
+    let score: Int
+    let completedAt: Date
+    let sourceSessionID: String?
+
+    /// Number of questions in this quiz.
+    var totalCount: Int { questions.count }
+
+    /// Wrong answers with question + selected option for review.
+    var wrongAnswers: [(question: QuizQuestion, selected: String)] {
+        questions.compactMap { question in
+            guard let selected = selectedAnswers[question.id],
+                  selected != question.correct else { return nil }
+            return (question, selected)
+        }
+    }
+
+    /// Score as a percentage (0-100).
+    var scorePercent: Int {
+        guard totalCount > 0 else { return 0 }
+        return Int(round(Double(score) / Double(totalCount) * 100))
+    }
+
+/// Human-readable score label (e.g. "4/5 · 80%").
+    var scoreLabel: String {
+        "\(score)/\(totalCount) · \(scorePercent)%"
+    }
+
+    init(questions: [QuizQuestion], topic: String, selectedAnswers: [UUID: String], score: Int, sourceSessionID: String?) {
+        self.id = UUID()
+        self.topic = topic
+        self.questions = questions
+        self.selectedAnswers = selectedAnswers
+        self.score = score
+        self.completedAt = Date()
+        self.sourceSessionID = sourceSessionID
+    }
+}
