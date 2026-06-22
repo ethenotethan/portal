@@ -129,6 +129,10 @@ final class FileDownloadManager: NSObject, ObservableObject, URLSessionDownloadD
                 self.progress[attachmentID] = 1.0
                 self.taskToAttachmentID.removeValue(forKey: downloadTask.taskIdentifier)
 
+                // Persist to disk cache so file survives app restarts
+                let fileExtension = downloadTask.originalRequest?.url?.pathExtension ?? downloadTask.currentRequest?.url?.pathExtension ?? "dat"
+                FileAttachment.persistToCache(id: attachmentID, data: data, fileExtension: fileExtension)
+
                 if let continuation = self.continuations.removeValue(forKey: attachmentID) {
                     continuation.resume(returning: data)
                 }

@@ -45,9 +45,15 @@ struct AttachmentChipView: View {
             )
         }
         .buttonStyle(.plain)
+        #if os(iOS)
         .fullScreenCover(isPresented: $isPreviewVisible) {
             FilePreviewView(attachment: attachment)
         }
+        #else
+        .sheet(isPresented: $isPreviewVisible) {
+            FilePreviewView(attachment: attachment)
+        }
+        #endif
         .onAppear {
             // Trigger pre-fetch for remote attachments on appear
             if attachment.isRemote, case .notStarted = attachment.downloadState {

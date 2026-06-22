@@ -1135,6 +1135,8 @@ if restoreSessionState(displayID: key) {
                     if let msgIdx = self.messages.lastIndex(where: { $0.role == .assistant }),
                        let attIdx = self.messages[msgIdx].attachments.firstIndex(where: { $0.id == attachmentID }) {
                         self.messages[msgIdx].attachments[attIdx].downloadState = .ready(data: data)
+                        // Persist to disk cache so file survives app restarts
+                        self.messages[msgIdx].attachments[attIdx].persistToDisk(data: data)
                     }
                 } catch {
                     log.error("Pre-fetch failed for \(attachment.fileName): \(error)")

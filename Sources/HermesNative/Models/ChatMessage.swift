@@ -310,6 +310,44 @@ struct FileAttachment: Identifiable, Codable {
         self.downloadState = .notStarted
     }
 
+    // MARK: - Disk Cache
+
+    /// Base directory for persisted remote attachment downloads.
+    /// Files survive app restarts so downloaded attachments stay ready.
+    static var cacheDirectory: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return base.appendingPathComponent("com.researchoors.HermesNative/attachments", isDirectory: true)
+    }
+
+    /// Deterministic cache URL for this attachment's downloaded data.
+    var cacheFileURL: URL {
+        let ext = fileExtension.isEmpty ? "dat" : fileExtension
+        return Self.cacheDirectory.appendingPathComponent("\(id.uuidString).\(ext)")
+    }
+
+    /// Persist downloaded data to the disk cache so it survives app restarts.
+    func persistToDisk(data: Data) {
+        Self.persistToCache(id: id, data: data, fileExtension: fileExtension)
+    }
+
+    /// Persist data for a specific attachment ID (static, usable before attachment is fully constructed).
+    static func persistToCache(id: UUID, data: Data, fileExtension: String) {
+        let fm = FileManager.default
+        let ext = fileExtension.isEmpty ? "dat" : fileExtension
+        let url = cacheDirectory.appendingPathComponent("\(id.uuidString).\(ext)")
+        do {
+            try fm.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            print("[FileAttachment] Failed to persist attachment \(id) to cache: \(error)")
+        }
+    }
+
+    /// Remove cached file for this attachment (cleanup after failed download, etc).
+    func clearDiskCache() {
+        try? FileManager.default.removeItem(at: cacheFileURL)
+    }
+
     // MARK: - Codable
 
     enum CodingKeys: String, CodingKey {
@@ -321,7 +359,29 @@ struct FileAttachment: Identifiable, Codable {
         self.id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         self.source = try container.decode(Source.self, forKey: .source)
         self.mimeType = try container.decodeIfPresent(String.self, forKey: .mimeType)
-        self.downloadState = .notStarted
+
+        // Restore from disk cache if previously downloaded
+        if case .remote = source, !Self.isLocalCacheOnly {
+            let cacheURL = Self.cacheDirectory.appendingPathComponent("\(id.uuidString).\(fileExtension.isEmpty ? "dat" : fileExtension)")
+            if let data = try? Data(contentsOf: cacheURL) {
+                self.downloadState = .ready(data: data)
+            } else {
+                self.downloadState = .notStarted
+            }
+        } else {
+            self.downloadState = .notStarted
+        }
+    }
+
+    /// True when running in a context where the disk cache is unavailable
+    /// (unit tests, etc). Override in tests to prevent cache access.
+    static var isLocalCacheOnly: Bool {
+        let cached = objc_getAssociatedObject(Self.self, &cacheKey) as? Bool
+        return cached ?? false
+    }
+
+    static func setLocalCacheOnly(_ value: Bool) {
+        objc_setAssociatedObject(Self.self, &cacheKey, value, .OBJC_ASSOCIATION_RETAIN)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -331,6 +391,8 @@ struct FileAttachment: Identifiable, Codable {
         try container.encodeIfPresent(mimeType, forKey: .mimeType)
     }
 }
+
+private nonisolated(unsafe) var cacheKey: UInt8 = 0
 
 // MARK: - MEDIA: Parser
 
