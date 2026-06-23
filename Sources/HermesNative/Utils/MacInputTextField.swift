@@ -263,6 +263,25 @@ final class TextHeightMeasurer {
     private let textContainer = NSTextContainer(size: .zero)
     private let textStorage = NSTextStorage()
 
+    // PROCESS-WIDE measurement cache, keyed by (text, quantized width, font
+    // size). The per-Coordinator cache is not enough: SwiftUI can rebuild the
+    // NSViewRepresentable (and thus its Coordinator) on every layout pass, so a
+    // coordinator-local cache resets to empty each iteration and the expensive
+    // O(n) TextKit measurement re-runs forever — the recurring beachball. A
+    // static cache survives coordinator churn, so a given (text,width) is
+    // measured at most once and every later pass returns instantly, which is
+    // what actually breaks the layout loop.
+    private struct Key: Hashable {
+        let textHash: Int
+        let width: Int
+        let fontSize: Int
+    }
+    private static let cacheLock = NSLock()
+    // nonisolated(unsafe): access is hand-synchronized via cacheLock below, so
+    // the compiler's Swift 6 global-mutable-state check (which the SwiftPM CI
+    // build enforces strictly) is satisfied manually.
+    nonisolated(unsafe) private static var cache: [Key: CGFloat] = [:]
+
     init() {
         textContainer.lineFragmentPadding = 2
         layoutManager.addTextContainer(textContainer)
@@ -270,12 +289,30 @@ final class TextHeightMeasurer {
     }
 
     func height(for text: String, font: NSFont, width: CGFloat) -> CGFloat {
+        let key = Key(textHash: text.hashValue,
+                      width: Int(width.rounded()),
+                      fontSize: Int(font.pointSize.rounded()))
+        Self.cacheLock.lock()
+        if let hit = Self.cache[key] {
+            Self.cacheLock.unlock()
+            return hit
+        }
+        Self.cacheLock.unlock()
+
         textContainer.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
         textStorage.setAttributedString(
             NSAttributedString(string: text.isEmpty ? " " : text, attributes: [.font: font])
         )
         layoutManager.ensureLayout(for: textContainer)
-        return layoutManager.usedRect(for: textContainer).height
+        let measured = layoutManager.usedRect(for: textContainer).height
+
+        Self.cacheLock.lock()
+        // Bound the cache so a long session of distinct inputs can't grow it
+        // without limit; the working set per field is tiny.
+        if Self.cache.count > 512 { Self.cache.removeAll(keepingCapacity: true) }
+        Self.cache[key] = measured
+        Self.cacheLock.unlock()
+        return measured
     }
 }
 
