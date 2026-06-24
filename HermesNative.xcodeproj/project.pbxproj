@@ -154,6 +154,7 @@
 		81F35CECDF184270505E77CB /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 6F0058522539F20E74EE6346 /* Highlightr */; };
 		82DD829EDC65638DC04ED1BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
 		854DA8E57545F5379A0F4C54 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */; };
+		86840130D03445C9B796DE72 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */; };
 		8791E134B94C61EC9D11EFB5 /* FeedArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F06C5C01DCABB3A27961F1 /* FeedArticle.swift */; };
 		87955D6459C1CF9D37CBD5C2 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57621A872836514CD5BC0F5B /* ChatView.swift */; };
 		879AC9C0FB803E3EB32AE3B1 /* ThoughtGraphNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A82A8B0386F71280851A8F /* ThoughtGraphNodeView.swift */; };
@@ -274,6 +275,7 @@
 		F08EDD0F5D435E5CBE00F9A5 /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */; };
 		F094DC32731644D93CBAD59A /* CronListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2350443FCFD79CA0CC60484 /* CronListView.swift */; };
 		F17CA871D2D2C04861369BB1 /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CD7D282D79F69DD027BFE /* SkillModels.swift */; };
+		F26D4B11BF3CE66850CAF3F0 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */; };
 		F2B713AEA0BB1C5242CB1873 /* PromptBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6AE9BC7BFA54E190252B742 /* PromptBreakdownView.swift */; };
 		F3D2BF917B9730AF3E996E5C /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 1DDB54E4692D6A49CA6B1DD0 /* HuggingFace */; };
 		F49E9B9BBC80BBD77656D4DD /* CronPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F428854475FA67BF7A39BF19 /* CronPoller.swift */; };
@@ -315,6 +317,7 @@
 		1CBC71ED91AC512E21E65282 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillGraph3DView.swift; sourceTree = "<group>"; };
 		1DD634738EDA588BA9B5EDDE /* PlaybackTimelineChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTimelineChart.swift; sourceTree = "<group>"; };
+		1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
 		201F95763EBE727F2961B603 /* WikiGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph.swift; sourceTree = "<group>"; };
 		22A7665D966524A9EA9F3483 /* ToolPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolPillView.swift; sourceTree = "<group>"; };
 		27374A7B4A7BD262BB9312D1 /* HermesNativeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HermesNativeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -666,6 +669,7 @@
 			isa = PBXGroup;
 			children = (
 				34DE48DC34DE5ECC63525DDC /* Constants.swift */,
+				1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */,
 				4B2F649BE0F12B966FAF6C47 /* Extensions.swift */,
 				38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */,
 			);
@@ -1028,6 +1032,7 @@
 				F7BDD355C6FFA1D4ADDA7F2D /* CronRunHistory.swift in Sources */,
 				084F93081436CDBE85BDB6D3 /* DarkMangaSkin.swift in Sources */,
 				E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */,
+				86840130D03445C9B796DE72 /* DocumentTextExtractor.swift in Sources */,
 				96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */,
 				8791E134B94C61EC9D11EFB5 /* FeedArticle.swift in Sources */,
 				5A7D744A47A70A419C281E51 /* FeedView.swift in Sources */,
@@ -1174,6 +1179,7 @@
 				568AF4824A43A644F6CEF7A5 /* CronRunHistory.swift in Sources */,
 				216EE5D31DBCF0FE68E54F21 /* DarkMangaSkin.swift in Sources */,
 				8E73DDBEAC18F9750DAFD198 /* DiagramExplorerView.swift in Sources */,
+				F26D4B11BF3CE66850CAF3F0 /* DocumentTextExtractor.swift in Sources */,
 				44517A6F6B0BA4238E47FA4E /* Extensions.swift in Sources */,
 				5436608260EA37EB008B7A1A /* FeedArticle.swift in Sources */,
 				4AA2077D00079EA7A06729A6 /* FeedView.swift in Sources */,

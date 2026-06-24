@@ -26,7 +26,17 @@ final class VideoCache {
     private init() {
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .returnCacheDataElseLoad
-        config.waitsForConnectivity = true
+        // Do NOT wait for connectivity: a dead/unreachable media host (e.g. a
+        // localhost gateway that isn't running) would otherwise leave the
+        // download — and the player's "Loading…" spinner — hanging forever.
+        // Fail fast so the UI can show an error instead.
+        config.waitsForConnectivity = false
+        // Digest videos can be tens of MB and must download in full before
+        // playback (the gateway's broken HTTP ranges rule out streaming). The
+        // default 60s resource timeout can expire mid-download on a slow link,
+        // leaving the player blank — give the whole transfer a generous budget.
+        config.timeoutIntervalForRequest = 30       // per-chunk / connect stall
+        config.timeoutIntervalForResource = 600      // whole-file budget (10 min)
         self.session = URLSession(configuration: config)
     }
 

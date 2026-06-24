@@ -24,9 +24,9 @@ extension GatewayClient {
             return FeedArticle(id: id, title: title,
                 url: d["url"]?.stringValue ?? "", summary: d["summary"]?.stringValue ?? "",
                 source: source, tags: d["tags"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
-                imageUrl: d["image_url"]?.stringValue ?? "", ts: d["ts"]?.stringValue ?? "",
-                videoUrl: d["video_url"]?.stringValue ?? "",
-                thumbnailUrl: d["thumbnail_url"]?.stringValue ?? "")
+                imageUrl: resolvedMediaURL(d["image_url"]?.stringValue ?? ""), ts: d["ts"]?.stringValue ?? "",
+                videoUrl: resolvedMediaURL(d["video_url"]?.stringValue ?? ""),
+                thumbnailUrl: resolvedMediaURL(d["thumbnail_url"]?.stringValue ?? ""))
         }
         return FeedResponse(articles: articles, total: dict["total"]?.intValue ?? articles.count,
                            hasMore: dict["has_more"]?.boolValue ?? false)

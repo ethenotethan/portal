@@ -1181,6 +1181,30 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         ))
     }
 
+    /// Rewrites a server-provided media/asset URL to use THIS gateway's host
+    /// when the server handed back a loopback address.
+    ///
+    /// The digest pipeline builds video_url with a hardcoded `localhost:8642`
+    /// base instead of the request's public host, so a client connected to a
+    /// remote gateway gets an unreachable `http://localhost:8642/v1/media/…`
+    /// URL (connection refused → the player hangs forever). Swap the host/port
+    /// for the gateway we're actually connected to; the path is preserved.
+    /// Non-loopback URLs are returned unchanged.
+    func resolvedMediaURL(_ raw: String) -> String {
+        guard let comps = URLComponents(string: raw),
+              let host = comps.host,
+              host == "localhost" || host == "127.0.0.1" || host == "::1",
+              let base = httpBaseURL,
+              let baseComps = URLComponents(url: base, resolvingAgainstBaseURL: false)
+        else { return raw }
+
+        var rewritten = comps
+        rewritten.scheme = baseComps.scheme
+        rewritten.host = baseComps.host
+        rewritten.port = baseComps.port
+        return rewritten.string ?? raw
+    }
+
     /// Download a file from the gateway HTTP endpoint.
     /// - Parameters:
     ///   - url: The full URL to download (e.g. http://gateway:8642/v1/files/{session}/{file}.ext)

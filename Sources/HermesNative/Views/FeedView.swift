@@ -409,6 +409,7 @@ struct VideoFeedCard: View {
     let article: FeedArticle
     @State private var isExpanded = false
     @State private var isPlaying = false
+    @State private var isFullScreen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -433,6 +434,25 @@ struct VideoFeedCard: View {
             if isExpanded {
                 VideoPlayerView(videoURL: article.videoUrl, thumbnailURL: article.thumbnailUrl, isPlaying: $isPlaying)
                     .frame(height: 220).cornerRadius(12).padding(.top, 10)
+                    // App-controlled expand — the native AVPlayerView full-screen
+                    // toggle is unreliable embedded in SwiftUI, so present the
+                    // player full-window in a sheet ourselves.
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            isFullScreen = true
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(7)
+                                .background(.black.opacity(0.5), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(10).padding(.top, 10)
+                    }
+                    // Swallow taps so clicks on the player's controls don't
+                    // bubble up to the card's collapse gesture below.
+                    .onTapGesture {}
             } else {
                 ZStack {
                     if let url = URL(string: article.thumbnailUrl), !article.thumbnailUrl.isEmpty {
@@ -476,6 +496,11 @@ struct VideoFeedCard: View {
         .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.3)) { isExpanded.toggle(); isPlaying = isExpanded } }
+        .sheet(isPresented: $isFullScreen) {
+            FullScreenVideoView(videoURL: article.videoUrl, thumbnailURL: article.thumbnailUrl) {
+                isFullScreen = false
+            }
+        }
     }
     private var thumbnailPlaceholder: some View {
         ZStack {
@@ -505,17 +530,49 @@ struct VideoPlayerView: View {
     @State private var player: AVPlayer?
     @State private var statusObserver: NSKeyValueObservation?
     @State private var downloadTask: Task<Void, Never>?
+    @State private var isPreparing = false
+    @State private var loadError: String?
+    /// Human-readable stage shown under the spinner — turns an invisible
+    /// download into a visible breadcrumb (downloading → starting playback).
+    @State private var stage = ""
 
     var body: some View {
-        #if os(macOS)
-        NativeVideoPlayer(player: player)
-            .onAppear { startPlayback() }
-            .onDisappear { stopPlayback() }
-        #else
-        VideoPlayer(player: player)
-            .onAppear { startPlayback() }
-            .onDisappear { stopPlayback() }
-        #endif
+        ZStack {
+            #if os(macOS)
+            NativeVideoPlayer(player: player)
+            #else
+            VideoPlayer(player: player)
+            #endif
+
+            // Digest videos download in full before playback (the gateway
+            // can't stream — broken HTTP ranges). Without a visible state a
+            // multi-MB fetch just looks like a dead player.
+            if isPreparing {
+                ZStack {
+                    Color.black.opacity(0.35)
+                    VStack(spacing: 8) {
+                        ProgressView().controlSize(.large)
+                        Text(stage.isEmpty ? "Loading video…" : stage)
+                            .font(.caption).foregroundColor(.white)
+                    }
+                }
+            } else if let loadError {
+                ZStack {
+                    Color.black.opacity(0.45)
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.title2).foregroundColor(.yellow)
+                        Text("Couldn't load video").font(.caption).foregroundColor(.white)
+                        Text(loadError).font(.caption2).foregroundColor(.white.opacity(0.7))
+                            .lineLimit(2).multilineTextAlignment(.center).padding(.horizontal, 16)
+                        Button("Retry") { startPlayback() }
+                            .font(.caption).buttonStyle(.borderedProminent)
+                    }
+                }
+            }
+        }
+        .onAppear { startPlayback() }
+        .onDisappear { stopPlayback() }
     }
 
     private func startPlayback() {
@@ -533,8 +590,11 @@ struct VideoPlayerView: View {
         }
         guard let url else {
             VideoLog.shared.error("video_url did not parse to a URL: \(videoURL, privacy: .public)")
+            loadError = "Invalid video URL"
             return
         }
+
+        loadError = nil
 
         // The gateway's /v1/media route has a broken HTTP Range implementation
         // (returns one byte too few; bytes=0-0 → 416), so AVPlayer's streaming
@@ -545,13 +605,19 @@ struct VideoPlayerView: View {
             attachPlayer(playing: url)
         } else {
             VideoLog.shared.debug("fetching video for local playback: \(url.absoluteString, privacy: .public)")
+            isPreparing = true
+            stage = "Downloading…"
             downloadTask = Task { @MainActor in
                 do {
                     let localURL = try await VideoCache.shared.localFile(for: url)
                     guard !Task.isCancelled else { return }
+                    stage = "Starting playback…"
+                    isPreparing = false
                     attachPlayer(playing: localURL)
                 } catch {
                     guard !Task.isCancelled else { return }
+                    isPreparing = false
+                    loadError = error.localizedDescription
                     VideoLog.shared.error("video download failed: \(error.localizedDescription, privacy: .public)")
                 }
             }
@@ -634,6 +700,7 @@ struct VideoPlayerView: View {
     private func stopPlayback() {
         downloadTask?.cancel()
         downloadTask = nil
+        isPreparing = false
         player?.pause()
         statusObserver?.invalidate()
         statusObserver = nil
@@ -645,6 +712,41 @@ struct VideoPlayerView: View {
 /// `category == "video"` to trace URL resolution and AVPlayerItem status.
 enum VideoLog {
     static let shared = Logger(subsystem: "com.researchoors.HermesNative", category: "video")
+}
+
+/// Large, window-filling video player presented as a sheet — our reliable
+/// substitute for the flaky native AVPlayerView full-screen toggle inside
+/// SwiftUI. Sized to most of the screen on macOS; fills the sheet on iOS.
+struct FullScreenVideoView: View {
+    let videoURL: String
+    let thumbnailURL: String
+    let onClose: () -> Void
+    @State private var isPlaying = true
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            VideoPlayerView(videoURL: videoURL, thumbnailURL: thumbnailURL, isPlaying: $isPlaying)
+                .ignoresSafeArea()
+            Button {
+                onClose()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(10)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(16)
+        }
+        #if os(macOS)
+        .frame(
+            width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.9, 1600),
+            height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.9, 1000)
+        )
+        #endif
+    }
 }
 
 #if os(macOS)
@@ -665,8 +767,10 @@ struct NativeVideoPlayer: NSViewRepresentable {
 
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
+        // .inline controls include the native full-screen toggle on macOS.
         view.controlsStyle = .inline
         view.videoGravity = .resizeAspect
+        view.allowsPictureInPicturePlayback = true
         view.player = player
         return view
     }
