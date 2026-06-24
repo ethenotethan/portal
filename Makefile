@@ -17,8 +17,11 @@ DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 generate:
 	xcodegen generate
 
-# Build the macOS app (Debug).
-build:
+# Build the macOS app (Debug). Regenerates the project first so newly-added
+# source files are always picked up — the checked-in .xcodeproj can lag behind
+# project.yml / the Sources tree, and xcodebuild then fails with "cannot find
+# <Type> in scope" even though `swift build` (which globs the dir) succeeds.
+build: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration $(CONFIG) \
 		-destination 'platform=macOS' build
 
