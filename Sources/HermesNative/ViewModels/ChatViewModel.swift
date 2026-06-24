@@ -993,41 +993,12 @@ if restoreSessionState(displayID: key) {
             var promptParts: [String] = []
 
             for attachment in attachments {
-                // Read off the main actor — attachments can be tens of MB and
-                // synchronous file I/O here beachballs the UI.
-                let path = attachment.path
-                let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in
-                    guard FileManager.default.fileExists(atPath: path) else { return nil }
-                    return FileManager.default.contents(atPath: path)
-                }.value
-                guard let fileData, !fileData.isEmpty else {
-                    log.warning("Attachment file missing or empty, skipping: \(attachment.path)")
-                    continue
-                }
-
-                if attachment.category == .image {
-                    let ext = attachment.fileExtension.lowercased()
-                    let mime = ext == "jpg" || ext == "jpeg" ? "image/jpeg" : "image/\(ext)"
-                    let serverPath = try await client.uploadFile(
-                        data: fileData, filename: attachment.fileName,
-                        mimeType: mime, sessionID: sid
-                    )
-                    try await client.attachImage(path: serverPath, sessionID: sid)
-                    promptParts.append("[Image: \(attachment.fileName)]")
-                } else {
-                    if let content = String(data: fileData, encoding: .utf8) {
-                        log.info("Embedding document inline: \(attachment.fileName), \(content.count) chars")
-                        promptParts.append("Attached document: \(attachment.fileName)\n\n\(content)")
-                    } else {
-                        let ext = attachment.fileExtension.lowercased()
-                        let mime = MIMETypeMap[ext] ?? "application/octet-stream"
-                        let serverPath = try await client.uploadFile(
-                            data: fileData, filename: attachment.fileName,
-                            mimeType: mime, sessionID: sid
-                        )
-                        try await client.attachImage(path: serverPath, sessionID: sid)
-                        promptParts.append("[File: \(attachment.fileName)]")
-                    }
+                // Each attachment is best-effort: a single failure must never
+                // abort the whole message send (it used to throw out of the
+                // loop and the prompt was lost). Failures are logged and the
+                // attachment is skipped instead.
+                if let part = await ingestAttachment(attachment, client: client, sessionID: sid) {
+                    promptParts.append(part)
                 }
             }
 
@@ -1047,6 +1018,73 @@ if restoreSessionState(displayID: key) {
             log.error("Submit failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
             finishStreaming(status: "error")
+        }
+    }
+
+    /// Ingest one attachment and return the prompt fragment representing it, or
+    /// nil if the attachment couldn't be ingested (missing/empty/failed upload).
+    /// Best-effort by contract: this never throws, so one bad attachment can't
+    /// sink the whole message send.
+    ///
+    /// Routing by type:
+    ///   • image    → upload + image.attach (vision analysis on the gateway)
+    ///   • document → extract text on-device and embed it inline
+    ///   • fallback → upload and reference the server-side path so the agent
+    ///                can read it with its own file tools
+    private func ingestAttachment(_ attachment: MediaAttachment,
+                                  client: GatewayClient,
+                                  sessionID sid: String) async -> String? {
+        let path = attachment.path
+        let ext = attachment.fileExtension.lowercased()
+
+        // Read off the main actor — attachments can be tens of MB and
+        // synchronous file I/O here would beachball the UI.
+        let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in
+            guard FileManager.default.fileExists(atPath: path) else { return nil }
+            return FileManager.default.contents(atPath: path)
+        }.value
+        guard let fileData, !fileData.isEmpty else {
+            log.warning("Attachment file missing or empty, skipping: \(attachment.fileName)")
+            return nil
+        }
+
+        // Images: existing vision path. image.attach is image-only on the
+        // gateway, so only real images go through it.
+        if attachment.category == .image {
+            let mime = (ext == "jpg" || ext == "jpeg") ? "image/jpeg" : "image/\(ext)"
+            do {
+                let serverPath = try await client.uploadFile(
+                    data: fileData, filename: attachment.fileName, mimeType: mime, sessionID: sid)
+                try await client.attachImage(path: serverPath, sessionID: sid)
+                return "[Image: \(attachment.fileName)]"
+            } catch {
+                log.error("Image attach failed for \(attachment.fileName): \(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        // Documents: try on-device text extraction first so the model gets the
+        // content directly (no server file-format support required).
+        if DocumentTextExtractor.isLikelyExtractable(ext) {
+            let extracted = await Task.detached(priority: .userInitiated) { () -> String? in
+                DocumentTextExtractor.extractText(path: path, fileExtension: ext)
+            }.value
+            if let extracted, !extracted.isEmpty {
+                log.info("Embedding document inline: \(attachment.fileName), \(extracted.count) chars")
+                return "Attached document \"\(attachment.fileName)\":\n\n\(extracted)"
+            }
+            log.info("On-device extraction yielded nothing for \(attachment.fileName); uploading instead")
+        }
+
+        // Fallback: upload the bytes and hand the agent a readable server path.
+        let mime = MIMETypeMap[ext] ?? "application/octet-stream"
+        do {
+            let serverPath = try await client.uploadFile(
+                data: fileData, filename: attachment.fileName, mimeType: mime, sessionID: sid)
+            return "[The user attached a file \"\(attachment.fileName)\" at \(serverPath) — read it with your file tools if relevant.]"
+        } catch {
+            log.error("File upload failed for \(attachment.fileName): \(error.localizedDescription)")
+            return nil
         }
     }
 

@@ -1247,9 +1247,8 @@ struct ChatInputBar: View {
             } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     if let url = item as? URL {
-                        let ext = url.pathExtension.lowercased()
-                        let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
-                        guard imageExts.contains(ext) else { return }
+                        // Accept any file type — documents are extracted/uploaded
+                        // by ChatViewModel.ingestAttachment, not just images.
                         let cachedPath = Self.copyToCache(url: url)
                         guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in
@@ -1311,9 +1310,8 @@ struct ChatInputBar: View {
                 handled = true
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     if let url = item as? URL {
-                        let ext = url.pathExtension.lowercased()
-                        let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
-                        guard imageExts.contains(ext) else { return }
+                        // Accept any dropped file type — documents are handled
+                        // downstream, not just images.
                         let cachedPath = Self.copyToCache(url: url)
                         guard !cachedPath.isEmpty else { return }
                         Task { @MainActor in

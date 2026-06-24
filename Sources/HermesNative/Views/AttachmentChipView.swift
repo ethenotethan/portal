@@ -247,8 +247,21 @@ struct FilePreviewView: View {
                         downloadStateView
                     }
                 default:
-                    if case .local(let path) = attachment.source {
-                        FallbackPreview(path: path, fileName: attachment.fileName, fileExtension: attachment.fileExtension)
+                    // Show downloaded/text content inline when we can decode it
+                    // as text (json, csv, txt, code, logs…); otherwise fall back
+                    // to a filename card with "open in default app".
+                    if case .ready(let data) = attachment.downloadState {
+                        if let text = Self.decodeText(data) {
+                            TextFilePreview(text: text)
+                        } else {
+                            FallbackPreview(attachment: attachment)
+                        }
+                    } else if case .local(let path) = attachment.source {
+                        if let data = try? Data(contentsOf: URL(fileURLWithPath: path)), let text = Self.decodeText(data) {
+                            TextFilePreview(text: text)
+                        } else {
+                            FallbackPreview(path: path, fileName: attachment.fileName, fileExtension: attachment.fileExtension)
+                        }
                     } else {
                         downloadStateView
                     }
@@ -257,6 +270,17 @@ struct FilePreviewView: View {
         }
         .frame(minWidth: 800, minHeight: 600)
         .background(Theme.background)
+    }
+
+    /// Decode raw bytes as human-readable text, or nil if it looks binary.
+    /// Mirrors the send-side plain-text detection.
+    static func decodeText(_ data: Data) -> String? {
+        guard !data.isEmpty else { return nil }
+        // A NUL byte in the first chunk is a strong binary signal.
+        if data.prefix(8000).contains(0) { return nil }
+        return String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .utf16)
+            ?? String(data: data, encoding: .isoLatin1)
     }
 
     @ViewBuilder
@@ -506,6 +530,25 @@ struct FallbackPreview: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Scrollable monospaced preview for downloaded text-like files (json, csv,
+/// logs, source code, etc.) that have no dedicated viewer.
+struct TextFilePreview: View {
+    let text: String
+
+    var body: some View {
+        ScrollView([.vertical, .horizontal]) {
+            Text(text)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(Theme.primary)
+                .textSelection(.enabled)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background)
     }
 }
 

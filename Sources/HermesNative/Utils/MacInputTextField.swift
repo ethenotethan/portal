@@ -357,8 +357,9 @@ final class FocusableTextView: NSTextView {
 
                 if let urls = pb.readObjects(forClasses: [NSURL.self],
                                              options: [.urlReadingFileURLsOnly: true]) as? [URL] {
-                    let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
-                    for url in urls where imageExts.contains(url.pathExtension.lowercased()) {
+                    // Accept any pasted file type — documents are extracted or
+                    // uploaded downstream, not just images.
+                    for url in urls {
                         if let provider = NSItemProvider(contentsOf: url) {
                             providers.append(provider)
                         }
