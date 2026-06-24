@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		016936A4BC04606CB097B862 /* PerfOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */; };
 		01C0D3BFF2F128184740757C /* happy.json in Resources */ = {isa = PBXBuildFile; fileRef = E1CB9DFBFC6F7CC67D8359F5 /* happy.json */; };
 		02CBD3C18F1C08B3AC95B2AC /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DE48DC34DE5ECC63525DDC /* Constants.swift */; };
 		03AAEAC08629D75C76094B59 /* HermesCapabilitiesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA8C6586DF32B80252EBABD8 /* HermesCapabilitiesStore.swift */; };
@@ -26,6 +27,7 @@
 		11015CE9F95C252B0BF0F96A /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDB000F6D0C975615D7F80F /* LottieCharacterView.swift */; };
 		111BDEF808D7FCA543608D5B /* MermaidGraphParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9A8A572E9114E307299653F /* MermaidGraphParser.swift */; };
 		149895F42959FF4DDCB34938 /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846CAD9657C0ED6872929714 /* QuizViewModel.swift */; };
+		14F49EC0C31EC8EFC2B3DB2D /* PerfInstrumentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */; };
 		1537D87915C7E8AE247C6B9C /* SkillCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E50848877F195F3F5628E4 /* SkillCache.swift */; };
 		16CF0971757A9F133AB0420B /* PlaybackEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66EEB8C56477DC447D5E1D0 /* PlaybackEventRow.swift */; };
 		191C589E0978E720D150DD6E /* GatewayClient+Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5A40190C6BD33F951711B9 /* GatewayClient+Feed.swift */; };
@@ -256,6 +258,7 @@
 		E18E4CAC79D565554493CA83 /* WikiGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */; };
 		E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */; };
 		E3925E2282187B1CE14879C3 /* SessionRunTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ED7E5FCE51907EC21E5388 /* SessionRunTimelineView.swift */; };
+		E3C036E42FFD817B3C59D14C /* PerfOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */; };
 		E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
 		E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F630297EBA7625D0FCE142 /* VideoCache.swift */; };
 		E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */; };
@@ -276,6 +279,7 @@
 		F094DC32731644D93CBAD59A /* CronListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2350443FCFD79CA0CC60484 /* CronListView.swift */; };
 		F17CA871D2D2C04861369BB1 /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CD7D282D79F69DD027BFE /* SkillModels.swift */; };
 		F26D4B11BF3CE66850CAF3F0 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */; };
+		F2A435534BB377DC9C1BD59A /* PerfInstrumentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */; };
 		F2B713AEA0BB1C5242CB1873 /* PromptBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6AE9BC7BFA54E190252B742 /* PromptBreakdownView.swift */; };
 		F3D2BF917B9730AF3E996E5C /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 1DDB54E4692D6A49CA6B1DD0 /* HuggingFace */; };
 		F49E9B9BBC80BBD77656D4DD /* CronPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F428854475FA67BF7A39BF19 /* CronPoller.swift */; };
@@ -363,6 +367,7 @@
 		6BD22626EF26E6FC0FBA9589 /* SpawnTreeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeStore.swift; sourceTree = "<group>"; };
 		6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesCapabilities.swift; sourceTree = "<group>"; };
 		6C633B4D795C9824FB4B54E5 /* HermesNativeGatewayConnectionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeGatewayConnectionUITests.swift; sourceTree = "<group>"; };
+		71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfOverlayView.swift; sourceTree = "<group>"; };
 		74241583599C1664DB6A4B94 /* SRSDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSDashboardView.swift; sourceTree = "<group>"; };
 		742C42FB4508D2508FF94A82 /* ChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSkin.swift; sourceTree = "<group>"; };
 		75B77D558002A72140D541A3 /* SessionMetaSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMetaSyncService.swift; sourceTree = "<group>"; };
@@ -431,6 +436,7 @@
 		E996AFDAC3ACF6290E04567F /* HermesNative-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "HermesNative-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFolder.swift; sourceTree = "<group>"; };
 		EA3B85B277F45FC12C34E028 /* SessionsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDashboard.swift; sourceTree = "<group>"; };
+		EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfInstrumentation.swift; sourceTree = "<group>"; };
 		EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionObserverView.swift; sourceTree = "<group>"; };
 		EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HermesNative-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF6C83FB177D450056599E65 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
@@ -533,6 +539,7 @@
 				CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */,
 				A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */,
 				CC871CF4533AE44104E0C11A /* OnboardingView.swift */,
+				71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */,
 				4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */,
 				04413B7162C8D0EAA432920E /* SettingsView.swift */,
 				A4B9D264CE64D63FED48E990 /* SkillMarkdownEditor.swift */,
@@ -672,6 +679,7 @@
 				1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */,
 				4B2F649BE0F12B966FAF6C47 /* Extensions.swift */,
 				38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */,
+				EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -1071,6 +1079,8 @@
 				04EEF20FCD60B878169ED0CD /* NativeChartView.swift in Sources */,
 				C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */,
 				5010A2C2C363186736053DD8 /* OnboardingView.swift in Sources */,
+				14F49EC0C31EC8EFC2B3DB2D /* PerfInstrumentation.swift in Sources */,
+				016936A4BC04606CB097B862 /* PerfOverlayView.swift in Sources */,
 				EEAD4FC2619E6186D3509AC6 /* Persona.swift in Sources */,
 				499EF1DCD0A4F6C104F366BF /* PersonaManager.swift in Sources */,
 				EEC145FE1D23E050DA758B61 /* PlatformCompat.swift in Sources */,
@@ -1218,6 +1228,8 @@
 				B070B9746CD795F55091EFB8 /* NativeChartView.swift in Sources */,
 				226DE9A575F85078B7D49421 /* NotificationService.swift in Sources */,
 				0AF3C057F785086D624F6286 /* OnboardingView.swift in Sources */,
+				F2A435534BB377DC9C1BD59A /* PerfInstrumentation.swift in Sources */,
+				E3C036E42FFD817B3C59D14C /* PerfOverlayView.swift in Sources */,
 				DC83AA4EBCD584E9E3A42199 /* Persona.swift in Sources */,
 				19D14A47BB043496A58D17F5 /* PersonaManager.swift in Sources */,
 				2C2418F5793DA0B4A3E57690 /* PlatformCompat.swift in Sources */,

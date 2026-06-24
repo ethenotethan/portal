@@ -16,6 +16,7 @@ struct HermesNativeAppMac: App {
     init() {
         configureHermesNativeMacApplication()
         requestHermesNativeNotificationAuthorization()
+        startHermesNativePerfInstrumentation()
     }
 
     var body: some Scene {
@@ -30,6 +31,7 @@ struct HermesNativeAppMac: App {
                 .environmentObject(celebrationManager)
                 .environmentObject(ttsService)
                 .background(MacWindowConfigurator())
+                .perfOverlay()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 700)

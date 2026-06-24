@@ -19,11 +19,19 @@ final class FeedViewModel: ObservableObject {
     /// duplicate article IDs from the backend (see uniquified(_:)).
     private var seenIDs: Set<String> = []
 
+    init() {
+        LeakTracker.track(self)
+    }
+
     var hasMore: Bool { articles.count < totalCount }
 
     func loadFeed(client: GatewayClient) async {
         guard !isLoading else { return }
         isLoading = true; error = nil; defer { isLoading = false }
+        // Manual begin/end rather than the closure form: wrapping an async,
+        // non-Sendable-returning closure trips Swift 6 strict concurrency.
+        let signpost = PerfSignposter.begin("feed.loadFeed")
+        defer { PerfSignposter.end("feed.loadFeed", signpost) }
         do {
             let srcResp = try await client.feedSources()
             sourceCounts = srcResp.sources

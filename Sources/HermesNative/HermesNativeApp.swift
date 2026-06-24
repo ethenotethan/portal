@@ -15,6 +15,13 @@ func requestHermesNativeNotificationAuthorization() {
     }
 }
 
+/// Starts debug-only perf instrumentation (memory/CPU sampler, MetricKit).
+/// No-op in release builds and unless `--perf` is passed for live sampling.
+@MainActor
+func startHermesNativePerfInstrumentation() {
+    PerfInstrumentation.bootstrap()
+}
+
 #if os(macOS)
 import AppKit
 

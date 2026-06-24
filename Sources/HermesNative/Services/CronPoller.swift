@@ -13,6 +13,10 @@ final class CronPoller: ObservableObject {
         didSet { oldValue?.invalidate() }
     }
 
+    init() {
+        LeakTracker.track(self)
+    }
+
     func setGatewayClient(_ client: GatewayClient) {
         guard self.client !== client else { return }
         self.client = client

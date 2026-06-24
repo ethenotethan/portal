@@ -236,6 +236,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         self.apiKey = ""
         super.init()
         refreshDebugSnapshot()
+        LeakTracker.track(self)
     }
 
     init(gatewayURL: URL, apiKey: String) {
@@ -243,6 +244,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         self.apiKey = apiKey
         super.init()
         refreshDebugSnapshot()
+        LeakTracker.track(self)
     }
 
     // MARK: - Debug Telemetry
@@ -1495,6 +1497,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 // events/sec, payloads up to hundreds of KB) don't stall the
                 // UI. Awaited inline so per-connection event ordering is
                 // preserved — do NOT parallelize parsing across messages.
+                // (No PerfSignposter wrap here: the parsed value is non-Sendable
+                // and crossing it back out of a signpost closure trips Swift 6
+                // strict concurrency. The detached parse is the measured work
+                // anyway; signposts cover the higher-level feed/video paths.)
                 let parsed = await Task.detached(priority: .userInitiated) {
                     Self.parseMessage(data)
                 }.value

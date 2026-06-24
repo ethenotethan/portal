@@ -218,6 +218,10 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Setup
 
+    init() {
+        LeakTracker.track(self)
+    }
+
     func setGatewayClient(_ client: GatewayClient) {
         // ContentView can wire the same app-level client repeatedly during
         // connect/session-create flows. Avoid stacking duplicate Combine

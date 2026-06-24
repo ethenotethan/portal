@@ -13,6 +13,7 @@ struct HermesNativeAppIOS: App {
 
     init() {
         requestHermesNativeNotificationAuthorization()
+        startHermesNativePerfInstrumentation()
     }
 
     var body: some Scene {
@@ -26,6 +27,7 @@ struct HermesNativeAppIOS: App {
                 .environmentObject(capabilitiesStore)
                 .environmentObject(celebrationManager)
                 .environmentObject(ttsService)
+                .perfOverlay()
         }
     }
 }

@@ -535,6 +535,7 @@ struct VideoPlayerView: View {
     /// Human-readable stage shown under the spinner — turns an invisible
     /// download into a visible breadcrumb (downloading → starting playback).
     @State private var stage = ""
+    @State private var videoLifetime: OSSignpostIntervalState?
 
     var body: some View {
         ZStack {
@@ -595,6 +596,7 @@ struct VideoPlayerView: View {
         }
 
         loadError = nil
+        videoLifetime = PerfSignposter.begin("video.playerLifetime")
 
         // The gateway's /v1/media route has a broken HTTP Range implementation
         // (returns one byte too few; bytes=0-0 → 416), so AVPlayer's streaming
@@ -637,6 +639,11 @@ struct VideoPlayerView: View {
         // Guard against a muted / zero-volume player swallowing the audio track.
         p.isMuted = false
         p.volume = 1.0
+        // Track the player + item so the LeakTracker/overlay surface any
+        // AVPlayer that survives dismissal — a classic source of retained
+        // decode buffers.
+        LeakTracker.track(p)
+        LeakTracker.track(item)
         // Observe item status so a playback failure produces a clear log line
         // instead of a silent blank frame. On failure dump the FULL error
         // chain + AVFoundation's access/error logs — "Operation Stopped" alone
@@ -704,6 +711,10 @@ struct VideoPlayerView: View {
         player?.pause()
         statusObserver?.invalidate()
         statusObserver = nil
+        // Assert the player is actually released after teardown — if it isn't,
+        // something (an observer, a Combine sink) is retaining it.
+        if let p = player { LeakTracker.assertDeallocated(p, after: 2) }
+        if let state = videoLifetime { PerfSignposter.end("video.playerLifetime", state); videoLifetime = nil }
         player = nil
     }
 }
