@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import os
 
 // MARK: - Feed View
 
@@ -496,49 +497,191 @@ struct VideoFeedCard: View {
 
 // MARK: - Video Player (Inline)
 
-/// Inline video player — uses native AVPlayerView (macOS) or VideoPlayer (iOS).
+/// Inline video player — native AVPlayerView (macOS) / VideoPlayer (iOS),
+/// fed a downloaded local file (see startPlayback / VideoCache).
 struct VideoPlayerView: View {
     let videoURL: String; let thumbnailURL: String
     @Binding var isPlaying: Bool
     @State private var player: AVPlayer?
+    @State private var statusObserver: NSKeyValueObservation?
+    @State private var downloadTask: Task<Void, Never>?
 
     var body: some View {
         #if os(macOS)
-        NativeVideoPlayer(player: player, videoURL: videoURL)
-            .onAppear { if let url = URL(string: videoURL) { player = AVPlayer(url: url) } }
-            .onDisappear { player?.pause(); player = nil }
+        NativeVideoPlayer(player: player)
+            .onAppear { startPlayback() }
+            .onDisappear { stopPlayback() }
         #else
         VideoPlayer(player: player)
-            .onAppear { if let url = URL(string: videoURL) { player = AVPlayer(url: url) } }
-            .onDisappear { player?.pause(); player = nil }
+            .onAppear { startPlayback() }
+            .onDisappear { stopPlayback() }
         #endif
     }
+
+    private func startPlayback() {
+        guard player == nil else { player?.play(); return }
+        // Resolve the backend video field. hermes-agent's video_gen_provider
+        // documents it as "an HTTP URL or an absolute filesystem path", so we
+        // handle a bare "/Users/.../foo.mp4" rather than feeding URL(string:) a
+        // schemeless string that silently fails.
+        let url: URL?
+        if videoURL.hasPrefix("/") {
+            url = URL(fileURLWithPath: videoURL)
+            VideoLog.shared.warning("video_url is a filesystem path, not an HTTP URL: \(videoURL, privacy: .public)")
+        } else {
+            url = URL(string: videoURL)
+        }
+        guard let url else {
+            VideoLog.shared.error("video_url did not parse to a URL: \(videoURL, privacy: .public)")
+            return
+        }
+
+        // The gateway's /v1/media route has a broken HTTP Range implementation
+        // (returns one byte too few; bytes=0-0 → 416), so AVPlayer's streaming
+        // fails with CoreMedia -12939. Work around it by downloading the full
+        // file (a plain non-ranged GET succeeds) and playing the local copy.
+        // Local file:// URLs need no ranges, so play them directly.
+        if url.isFileURL {
+            attachPlayer(playing: url)
+        } else {
+            VideoLog.shared.debug("fetching video for local playback: \(url.absoluteString, privacy: .public)")
+            downloadTask = Task { @MainActor in
+                do {
+                    let localURL = try await VideoCache.shared.localFile(for: url)
+                    guard !Task.isCancelled else { return }
+                    attachPlayer(playing: localURL)
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    VideoLog.shared.error("video download failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+    }
+
+    /// Builds the AVPlayer for a ready-to-play (local or direct) URL and starts it.
+    private func attachPlayer(playing url: URL) {
+        VideoLog.shared.debug("playing video: \(url.absoluteString, privacy: .public)")
+        // iOS defaults to the soloAmbient audio session category, which plays
+        // video silently and honors the hardware mute switch. Switch to
+        // .playback so digest videos have sound.
+        Self.configureAudioSessionForPlayback()
+        let asset = AVURLAsset(url: url)
+        let item = AVPlayerItem(asset: asset)
+        let p = AVPlayer(playerItem: item)
+        // Guard against a muted / zero-volume player swallowing the audio track.
+        p.isMuted = false
+        p.volume = 1.0
+        // Observe item status so a playback failure produces a clear log line
+        // instead of a silent blank frame. On failure dump the FULL error
+        // chain + AVFoundation's access/error logs — "Operation Stopped" alone
+        // is just localizedDescription and tells us nothing actionable.
+        statusObserver = item.observe(\.status, options: [.new]) { item, _ in
+            switch item.status {
+            case .failed:
+                Self.logItemFailure(item)
+            case .readyToPlay:
+                VideoLog.shared.debug("AVPlayerItem ready to play")
+            default:
+                break
+            }
+        }
+        player = p
+        p.play()
+    }
+
+    /// Routes audio to the speaker for video playback. On iOS the default
+    /// session category (soloAmbient) renders video silently and obeys the
+    /// mute switch; .playback fixes both. No-op on macOS, which has no
+    /// AVAudioSession.
+    private static func configureAudioSessionForPlayback() {
+        #if os(iOS)
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback)
+            try session.setActive(true)
+        } catch {
+            VideoLog.shared.error("audio session setup failed: \(error.localizedDescription, privacy: .public)")
+        }
+        #endif
+    }
+
+    /// Dumps the full diagnostic picture for a failed item: the NSError chain
+    /// (domain/code/underlying) and AVFoundation's own error-log events, which
+    /// carry the real HTTP status / CoreMedia reason behind "Operation Stopped".
+    private static func logItemFailure(_ item: AVPlayerItem) {
+        if let err = item.error as NSError? {
+            VideoLog.shared.error("AVPlayerItem failed: \(err.domain, privacy: .public) code=\(err.code) — \(err.localizedDescription, privacy: .public)")
+            if let underlying = err.userInfo[NSUnderlyingErrorKey] as? NSError {
+                VideoLog.shared.error("  underlying: \(underlying.domain, privacy: .public) code=\(underlying.code) — \(underlying.localizedDescription, privacy: .public)")
+            }
+        } else {
+            VideoLog.shared.error("AVPlayerItem failed with no error object")
+        }
+        if let errorLog = item.errorLog() {
+            for event in errorLog.events {
+                let comment = event.errorComment ?? "nil"
+                VideoLog.shared.error("  errorLog: status=\(event.errorStatusCode) domain=\(event.errorDomain, privacy: .public) comment=\(comment, privacy: .public)")
+            }
+        }
+        if let accessLog = item.accessLog() {
+            for event in accessLog.events {
+                let bytes = event.numberOfBytesTransferred
+                VideoLog.shared.debug("  accessLog: indicatedBitrate=\(event.indicatedBitrate) bytesTransferred=\(bytes) uri=\(event.uri ?? "nil", privacy: .public)")
+            }
+        }
+    }
+
+    private func stopPlayback() {
+        downloadTask?.cancel()
+        downloadTask = nil
+        player?.pause()
+        statusObserver?.invalidate()
+        statusObserver = nil
+        player = nil
+    }
+}
+
+/// Logger for digest video playback. Filter the console with
+/// `category == "video"` to trace URL resolution and AVPlayerItem status.
+enum VideoLog {
+    static let shared = Logger(subsystem: "com.researchoors.HermesNative", category: "video")
 }
 
 #if os(macOS)
 import AppKit
-import WebKit
 
-/// WKWebView video player for macOS — HTML5 <video> is the most reliable playback method.
+/// AVKit player view for macOS.
+///
+/// We deliberately do NOT use WKWebView here. Pointing a WKWebView at a bare
+/// .mp4 makes WebKit synthesize a "media document" and route playback through
+/// its media plug-in in the sandboxed WebContent process — which fails on
+/// macOS with "Plug-in handled load" (WebKitErrorDomain 204) and a cascade of
+/// sandbox/launchservicesd denials, showing the slashed-out play button.
+/// AVPlayer does its own (un-sandboxed) networking and decodes the H.264 mp4
+/// directly. The player is created eagerly by the parent and passed in, so the
+/// view always has a real player by the time makeNSView/updateNSView run.
 struct NativeVideoPlayer: NSViewRepresentable {
     let player: AVPlayer?
-    let videoURL: String
 
-    func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.setValue(false, forKey: "drawsBackground")
-        // Navigate directly to video URL — WKWebView plays video natively
-        if let url = URL(string: videoURL) {
-            webView.load(URLRequest(url: url))
-        }
-        return webView
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.controlsStyle = .inline
+        view.videoGravity = .resizeAspect
+        view.player = player
+        return view
     }
 
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        // The player is nil on first construction and set once startPlayback
+        // runs; reflect changes here so playback actually attaches.
+        if nsView.player !== player {
+            nsView.player = player
+        }
+    }
 
-    static func dismantleNSView(_ nsView: WKWebView, coordinator: ()) {
-        nsView.stopLoading()
+    static func dismantleNSView(_ nsView: AVPlayerView, coordinator: ()) {
+        nsView.player?.pause()
+        nsView.player = nil
     }
 }
 #endif

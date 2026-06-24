@@ -48,6 +48,7 @@
 		2C3618331E3F2AA253AC1699 /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
 		2F71D7EEECD7514BB70EE5B0 /* ActivityItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C19CE5657AD3FD6547FC3D /* ActivityItem.swift */; };
 		2FFA54A3E449C6085EF0E55A /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A014710FF545F86CB656E53 /* TTSService.swift */; };
+		3190ED167BC76A42CFCEC6E5 /* VideoCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F630297EBA7625D0FCE142 /* VideoCache.swift */; };
 		31D12D614277EDA4B02B87F3 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
 		326FB76DD8343B9E2EC44D48 /* SkillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEB8209DAE21C0F0337FA525 /* SkillStore.swift */; };
 		32C5144C3A885BC6692EED6C /* SessionExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */; };
@@ -255,6 +256,7 @@
 		E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */; };
 		E3925E2282187B1CE14879C3 /* SessionRunTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ED7E5FCE51907EC21E5388 /* SessionRunTimelineView.swift */; };
 		E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
+		E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F630297EBA7625D0FCE142 /* VideoCache.swift */; };
 		E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */; };
 		E697505FAC0F5C89AF1A0CBC /* CronListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2350443FCFD79CA0CC60484 /* CronListView.swift */; };
 		E6A7169F51FA048FB9DCB1C0 /* SRSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F13E499A3D62F15C5F4F02 /* SRSStore.swift */; };
@@ -370,6 +372,7 @@
 		82587B61F3E0F931D857D35F /* HermesNativeVisionDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeVisionDemoUITests.swift; sourceTree = "<group>"; };
 		846CAD9657C0ED6872929714 /* QuizViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizViewModel.swift; sourceTree = "<group>"; };
 		85E50848877F195F3F5628E4 /* SkillCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCache.swift; sourceTree = "<group>"; };
+		86F630297EBA7625D0FCE142 /* VideoCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCache.swift; sourceTree = "<group>"; };
 		88A82A8B0386F71280851A8F /* ThoughtGraphNodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphNodeView.swift; sourceTree = "<group>"; };
 		89DF820435B5D88C97CF7888 /* CronJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJob.swift; sourceTree = "<group>"; };
 		8DFAC2BEE7A7000345BFEE4B /* TUISkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUISkin.swift; sourceTree = "<group>"; };
@@ -821,6 +824,7 @@
 				9B2AB0CFDB8A13FCF88213B5 /* SRSEngine.swift */,
 				67F13E499A3D62F15C5F4F02 /* SRSStore.swift */,
 				9A014710FF545F86CB656E53 /* TTSService.swift */,
+				86F630297EBA7625D0FCE142 /* VideoCache.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1118,6 +1122,7 @@
 				24CA7775DE2F52CF366C5485 /* ToolCallView.swift in Sources */,
 				9D846F746180F16291C70E15 /* ToolPillView.swift in Sources */,
 				56ACF05DAC83D02819DED0B0 /* TreeNodeView.swift in Sources */,
+				E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */,
 				733C85D5266CB0B5163D4025 /* WikiBrowserView.swift in Sources */,
 				EFD35A75F8CC6C60DB244A9B /* WikiGraph.swift in Sources */,
 				72702471AFD1438083841D2F /* WikiGraph3DView.swift in Sources */,
@@ -1263,6 +1268,7 @@
 				931B84E5C3C6E084C355F5F9 /* ToolCallView.swift in Sources */,
 				FA1C5B2A19F7A20073A78341 /* ToolPillView.swift in Sources */,
 				3F132ED582BFB260BD55D500 /* TreeNodeView.swift in Sources */,
+				3190ED167BC76A42CFCEC6E5 /* VideoCache.swift in Sources */,
 				5FAEEF9FEE061DDABE38A1E2 /* WikiBrowserView.swift in Sources */,
 				0C3ADFFCF9CBFD8E9B0D89F4 /* WikiGraph.swift in Sources */,
 				E18E4CAC79D565554493CA83 /* WikiGraph3DView.swift in Sources */,
