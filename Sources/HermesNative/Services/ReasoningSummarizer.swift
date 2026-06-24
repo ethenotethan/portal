@@ -248,7 +248,11 @@ Reasoning:
         let prompt = extractionPrompt + input
 
         do {
-            let response = try await session.respond(to: prompt)
+            // Off the main actor — this type is @MainActor, so running MLX
+            // inference inline would block the UI (see SkillSummaryService).
+            let response = try await Task.detached(priority: .utility) { [session] in
+                try await session.respond(to: prompt)
+            }.value
             guard let jsonStart = response.firstIndex(of: "{"),
                   let jsonEnd = response.lastIndex(of: "}"), jsonStart < jsonEnd else {
                 return nil

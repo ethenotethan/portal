@@ -207,8 +207,17 @@ Skill definition:
             return .failure(SkillSummaryError.modelLoadFailed(detail ?? "Local summarization model is unavailable"))
         }
         let body = String(Self.stripFrontmatter(markdown).prefix(3000))
+        let prompt = Self.summaryPrompt + body
         do {
-            let response = try await session.respond(to: Self.summaryPrompt + body)
+            // Run MLX inference OFF the main actor. This service is @MainActor,
+            // so `await session.respond(...)` would otherwise execute the heavy
+            // tensor/Metal compute on the main thread and beachball the UI
+            // (observed: thousands of mlx::core frames on the main thread,
+            // ~150% CPU). Detaching moves the work to a background thread; the
+            // ChatSession is a reference type so it's safe to use there.
+            let response = try await Task.detached(priority: .utility) { [session] in
+                try await session.respond(to: prompt)
+            }.value
             let cleaned = Self.cleanResponse(response)
             guard !cleaned.isEmpty else { return .failure(SkillSummaryError.emptyResponse) }
             return .success(cleaned)
