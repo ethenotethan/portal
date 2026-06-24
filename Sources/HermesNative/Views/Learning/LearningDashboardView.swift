@@ -9,9 +9,17 @@ struct LearningDashboardView: View {
     @State private var decks: [FlashcardDeck] = []
     @State private var selectedTab: LearningTab = .quizzes
 
+    /// Quiz/flashcard player presented INLINE, on the Learning page itself.
+    /// Previously tapping a row closed this view and routed the session
+    /// through chat (via onStudyDeck/onRetakeQuiz); now it stays here.
+    @State private var quizVM = QuizViewModel()
+    @State private var showPlayer = false
+
     let onClose: () -> Void
-    let onStudyDeck: (FlashcardDeck) -> Void
-    let onRetakeQuiz: ([QuizQuestion], String) -> Void
+    /// Optional hook to continue review in a chat session ("Review with
+    /// Agent"). When nil, that affordance is hidden and everything stays
+    /// inline on the Learning page.
+    var onReviewWithAgent: ((String) -> Void)?
 
     enum LearningTab: String, CaseIterable {
         case quizzes = "Quizzes"
@@ -62,6 +70,29 @@ struct LearningDashboardView: View {
         .onAppear {
             refresh()
         }
+        .sheet(isPresented: $showPlayer, onDismiss: refresh, content: {
+            QuizSheet(
+                viewModel: quizVM,
+                onClose: { showPlayer = false },
+                onReviewWithAgent: { prompt in
+                    showPlayer = false
+                    onReviewWithAgent?(prompt)
+                },
+                onOpenLearning: { showPlayer = false }
+            )
+        })
+    }
+
+    // MARK: - Inline launch
+
+    private func startQuiz(_ quiz: PersistedQuizSession) {
+        quizVM.load(questions: quiz.questions, topic: quiz.topic)
+        showPlayer = true
+    }
+
+    private func studyDeck(_ deck: FlashcardDeck) {
+        quizVM.load(deck: deck)
+        showPlayer = true
     }
 
     // MARK: - Header
@@ -328,10 +359,9 @@ struct LearningDashboardView: View {
 
                 Spacer()
 
-                // Retake button
+                // Retake button — opens the quiz inline on this page.
                 Button {
-                    onRetakeQuiz(quiz.questions, quiz.topic)
-                    onClose()
+                    startQuiz(quiz)
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.counterclockwise")
@@ -418,8 +448,7 @@ struct LearningDashboardView: View {
 
                 if deck.dueCount > 0 {
                     Button {
-                        onStudyDeck(deck)
-                        onClose()
+                        studyDeck(deck)
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "play.fill")
@@ -500,11 +529,7 @@ struct LearningDashboardView: View {
 #if DEBUG
 struct LearningDashboardView_Previews: PreviewProvider {
     static var previews: some View {
-        LearningDashboardView(
-            onClose: {},
-            onStudyDeck: { _ in },
-            onRetakeQuiz: { _, _ in }
-        )
+        LearningDashboardView(onClose: {})
         .background(Theme.background)
     }
 }

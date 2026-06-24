@@ -159,11 +159,7 @@ struct ContentView: View {
             }
             .tag(4)
 
-            LearningDashboardView(
-                onClose: { },
-                onStudyDeck: { _ in },
-                onRetakeQuiz: { _, _ in }
-            )
+            LearningDashboardView(onClose: { })
             .tabItem {
                 Label("Learning", systemImage: "books.vertical.fill")
             }
@@ -737,22 +733,17 @@ struct ContentView: View {
                         showLearning = false
                         chatViewModel.refocusInput += 1
                     },
-                    onStudyDeck: { deck in
+                    // Quizzes/flashcards now play INLINE inside the Learning
+                    // view. This hook only fires if the user explicitly chooses
+                    // "Review with Agent" from the results screen — that's the
+                    // one case where routing into a chat session is intended.
+                    onReviewWithAgent: { prompt in
                         showLearning = false
                         chatViewModel.refocusInput += 1
                         NotificationCenter.default.post(
-                            name: .hermesStudyDeck,
+                            name: .hermesReviewQuiz,
                             object: nil,
-                            userInfo: ["deck": deck]
-                        )
-                    },
-                    onRetakeQuiz: { questions, topic in
-                        showLearning = false
-                        chatViewModel.refocusInput += 1
-                        NotificationCenter.default.post(
-                            name: .hermesRetakeQuiz,
-                            object: nil,
-                            userInfo: ["questions": questions, "topic": topic]
+                            userInfo: ["reviewPrompt": prompt]
                         )
                     }
                 )

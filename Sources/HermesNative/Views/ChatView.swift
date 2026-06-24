@@ -243,21 +243,12 @@ struct ChatView: View {
             }
             #endif
         }
-        .onReceive(NotificationCenter.default.publisher(for: .hermesStudyDeck)) { notification in
-            if let deck = notification.userInfo?["deck"] as? FlashcardDeck {
-                showDecksSheet = false
+        .onReceive(NotificationCenter.default.publisher(for: .hermesReviewQuiz)) { notification in
+            // "Review with Agent" from an inline Learning-view quiz — send the
+            // review prompt to the current chat session.
+            if let prompt = notification.userInfo?["reviewPrompt"] as? String {
                 showQuizSheet = false
-                quizVM.load(deck: deck)
-                showQuizSheet = true
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .hermesRetakeQuiz)) { notification in
-            if let questions = notification.userInfo?["questions"] as? [QuizQuestion],
-               let topic = notification.userInfo?["topic"] as? String {
-                showDecksSheet = false
-                showQuizSheet = false
-                quizVM.load(questions: questions, topic: topic)
-                showQuizSheet = true
+                let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: prompt) }
             }
         }
         .onChange(of: chatViewModel.currentSessionID) { _, _ in
