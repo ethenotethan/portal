@@ -126,11 +126,15 @@ struct WikiGraphView: View {
         case idle, deciding, panning, draggingNode
     }
 
-    private enum GraphViewMode { case twoD, threeD, files }
+    private enum GraphViewMode { case twoD, threeD, files, timeline }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     @State private var viewMode: GraphViewMode = .twoD
+
+    /// True for the force-directed graph modes (2D/3D), where the canvas,
+    /// floating overlays, and physics timer apply. False for files/timeline.
+    private var isGraphMode: Bool { viewMode == .twoD || viewMode == .threeD }
 
     var body: some View {
         GeometryReader { geometry in
@@ -143,6 +147,16 @@ struct WikiGraphView: View {
                             filesToolbar
                             Divider()
                             WikiBrowserView(viewModel: viewModel)
+                        }
+                    } else if viewMode == .timeline {
+                        // Timeline mode reuses the in-flow toolbar pattern.
+                        VStack(spacing: 0) {
+                            filesToolbar
+                            Divider()
+                            WikiTimelineView(
+                                wiki: viewModel.selectedWikiPath,
+                                onOpenPage: { path in openPageFromTimeline(path) }
+                            )
                         }
                     } else if viewMode == .threeD {
                         WikiGraph3DView(viewModel: viewModel)
@@ -169,7 +183,7 @@ struct WikiGraphView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onReceive(timer) { _ in
-                    guard viewMode != .files else { return }
+                    guard isGraphMode else { return }
                     guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
                     viewModel.tick()
                 }
@@ -189,7 +203,7 @@ struct WikiGraphView: View {
                         }
                 )
 
-                if viewMode != .files,
+                if isGraphMode,
                    let selIdx = viewModel.selectedNodeIndex,
                    viewModel.simNodes.indices.contains(selIdx) {
                     nodeDetailPanel(nodeIndex: selIdx)
@@ -205,7 +219,7 @@ struct WikiGraphView: View {
             lastPinchScale = viewModel.zoom
         }
         .overlay(alignment: .topLeading) {
-            if viewMode != .files {
+            if isGraphMode {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text("Wiki Graph")
@@ -272,7 +286,7 @@ struct WikiGraphView: View {
             )
         }
         .overlay(alignment: .topTrailing) {
-            if viewMode != .files {
+            if isGraphMode {
                 controlsOverlay
             }
         }
@@ -750,6 +764,7 @@ struct WikiGraphView: View {
             modeButton(.twoD, icon: "square.grid.2x2", help: "2D graph")
             modeButton(.threeD, icon: "cube.transparent", help: "3D graph")
             modeButton(.files, icon: "list.bullet", help: "File browser")
+            modeButton(.timeline, icon: "clock.arrow.circlepath", help: "Timeline")
 
             Divider().frame(height: 14)
 
@@ -811,6 +826,7 @@ struct WikiGraphView: View {
             modeButton(.twoD, icon: "square.grid.2x2", help: "2D graph")
             modeButton(.threeD, icon: "cube.transparent", help: "3D graph")
             modeButton(.files, icon: "list.bullet", help: "File browser")
+            modeButton(.timeline, icon: "clock.arrow.circlepath", help: "Timeline")
 
             Divider().frame(height: 14)
 
@@ -831,7 +847,7 @@ struct WikiGraphView: View {
         Button {
             guard viewMode != mode else { return }
             viewMode = mode
-            if mode != .files {
+            if mode == .twoD || mode == .threeD {
                 viewModel.is3D = mode == .threeD
                 viewModel.setupSimulation()
             }
@@ -842,5 +858,40 @@ struct WikiGraphView: View {
         }
         .buttonStyle(.borderless)
         .help(help)
+    }
+
+    /// Open a wiki page from a timeline row tap. Resolves the changeset's
+    /// relative path to a graph page when present (so backlinks/detail work),
+    /// otherwise loads it on demand and shows the page detail sheet.
+    private func openPageFromTimeline(_ path: String) {
+        if let page = viewModel.graph.pages.first(where: { $0.path == path }) {
+            viewModel.selectedPage = page
+            viewModel.showPageDetail = true
+            return
+        }
+        Task {
+            guard let content = await viewModel.loadPage(
+                client: gatewayClientWrapper.client,
+                path: path,
+                wiki: viewModel.selectedWikiPath
+            ) else { return }
+            // Synthesize a minimal WikiPage so the detail sheet can present.
+            let slug = (path as NSString).lastPathComponent
+                .replacingOccurrences(of: ".md", with: "")
+            viewModel.selectedPage = WikiPage(
+                id: slug,
+                title: content.frontmatter["title"] ?? slug,
+                type: content.frontmatter["type"] ?? "concept",
+                tags: [],
+                path: path,
+                created: content.frontmatter["created"],
+                updated: content.frontmatter["updated"],
+                confidence: content.frontmatter["confidence"],
+                contested: false,
+                tagPath: [],
+                integrationLinks: []
+            )
+            viewModel.showPageDetail = true
+        }
     }
 }
