@@ -64,6 +64,11 @@ struct SettingsView: View {
                             .font(.body)
                     }
 
+                    if settings.savedGateways.count > 1 {
+                        Divider()
+                        iosGatewaySwitcher
+                    }
+
                     Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -122,6 +127,40 @@ struct SettingsView: View {
     }
     #endif
 
+    #if os(iOS)
+    private var iosGatewaySwitcher: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Gateways")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            ForEach(settings.savedGateways) { gateway in
+                Button {
+                    settings.selectGateway(gateway)
+                } label: {
+                    HStack {
+                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : .secondary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(gateway.displayName)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Text(gateway.url)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+    #endif
+
     private var capabilitiesSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -149,6 +188,8 @@ struct SettingsView: View {
     // MARK: - Shared Tab Content (macOS)
 
     #if os(macOS)
+    @State private var showAddGateway = false
+
     private var connectionTab: some View {
         Form {
             Section("Gateway Connection") {
@@ -156,6 +197,49 @@ struct SettingsView: View {
                     .textFieldStyle(.roundedBorder)
                 SecureField("API Key", text: $settings.apiKey)
                     .textFieldStyle(.roundedBorder)
+            }
+
+            Section {
+                ForEach(settings.savedGateways) { gateway in
+                    HStack {
+                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(gateway.displayName)
+                                .lineLimit(1)
+                            Text(gateway.url)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        if !settings.isActive(gateway) {
+                            Button("Switch") { settings.selectGateway(gateway) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                        Button(role: .destructive) {
+                            settings.removeGateway(gateway)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(settings.savedGateways.count <= 1)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { settings.selectGateway(gateway) }
+                }
+            } header: {
+                HStack {
+                    Text("Saved Gateways")
+                    Spacer()
+                    Button {
+                        showAddGateway = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
 
             if settings.needsCFAuth {
@@ -214,6 +298,14 @@ struct SettingsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showAddGateway) {
+            AddGatewaySheet { name, url, key in
+                settings.addGateway(name: name, url: url, apiKey: key)
+                showAddGateway = false
+            } onCancel: {
+                showAddGateway = false
+            }
+        }
     }
 
     private var personaTab: some View {
@@ -245,6 +337,57 @@ struct SettingsView: View {
     }
     #endif
 }
+
+#if os(macOS)
+/// Sheet for adding a new saved gateway.
+private struct AddGatewaySheet: View {
+    let onAdd: (_ name: String, _ url: String, _ apiKey: String) -> Void
+    let onCancel: () -> Void
+
+    @State private var name = ""
+    @State private var url = ""
+    @State private var apiKey = ""
+
+    private var canAdd: Bool {
+        !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section("New Gateway") {
+                    TextField("Name (optional)", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Gateway URL", text: $url)
+                        .textFieldStyle(.roundedBorder)
+                    SecureField("API Key", text: $apiKey)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Add") {
+                    onAdd(
+                        name.trimmingCharacters(in: .whitespacesAndNewlines),
+                        url.trimmingCharacters(in: .whitespacesAndNewlines),
+                        apiKey
+                    )
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canAdd)
+            }
+            .padding(12)
+        }
+        .frame(width: 420, height: 320)
+    }
+}
+#endif
 
 private struct CapabilityPill: View {
     let title: String

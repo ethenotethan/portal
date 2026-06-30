@@ -114,6 +114,35 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: settings.activeGatewayID) { oldID, newID in
+            // User switched gateways: tear down all in-memory state tied to the
+            // previous gateway, reconnect the shared client to the new one, and
+            // repopulate. Guard against the initial nil→value resolution at
+            // launch (no actual switch).
+            guard oldID != nil, newID != nil, settings.isConfigured else { return }
+            handleGatewaySwitch()
+        }
+    }
+
+    /// Reset state and reconnect after the active gateway changes.
+    @MainActor
+    private func handleGatewaySwitch() {
+        log.info("handleGatewaySwitch: switching to \(settings.gatewayURL)")
+        // Drop all conversation/session state belonging to the old gateway.
+        chatViewModel.saveHistory()
+        chatViewModel.resetForGatewaySwitch()
+        sessionList.resetForGatewaySwitch()
+        activityInbox.clearAll()
+
+        Task {
+            // force: the URL/key changed, so the existing signature check must
+            // be bypassed to actually recreate the transport.
+            await gatewayClientWrapper.connectWithRetry(using: settings)
+            wireUpClient()
+            if gatewayClientWrapper.isConnected {
+                await sessionList.refreshSessions()
+            }
+        }
     }
 
     // MARK: - iOS Layout (TabView)
@@ -543,8 +572,44 @@ struct ContentView: View {
     }
 
     #if os(macOS)
+    @ViewBuilder
+    private var gatewaySwitcher: some View {
+        if settings.savedGateways.count > 1 {
+            Menu {
+                ForEach(settings.savedGateways) { gateway in
+                    Button {
+                        settings.selectGateway(gateway)
+                    } label: {
+                        if settings.isActive(gateway) {
+                            Label(gateway.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(gateway.displayName)
+                        }
+                    }
+                }
+                Divider()
+                Button("Manage Gateways…") { showSettings = true }
+            } label: {
+                Label(activeGatewayLabel, systemImage: "server.rack")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Switch Hermes gateway")
+            .accessibilityIdentifier("gatewaySwitcher")
+        }
+    }
+
+    private var activeGatewayLabel: String {
+        settings.savedGateways.first { settings.isActive($0) }?.displayName ?? "Gateway"
+    }
+
     private var macOverlayIcons: some View {
         HStack(spacing: 8) {
+            gatewaySwitcher
+
             Button {
                 showSettings = true
             } label: {

@@ -261,10 +261,12 @@
 		E3C036E42FFD817B3C59D14C /* PerfOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */; };
 		E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
 		E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86F630297EBA7625D0FCE142 /* VideoCache.swift */; };
+		E5ECADE4C4CECD0BB4809D33 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */; };
 		E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */; };
 		E697505FAC0F5C89AF1A0CBC /* CronListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2350443FCFD79CA0CC60484 /* CronListView.swift */; };
 		E6A7169F51FA048FB9DCB1C0 /* SRSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F13E499A3D62F15C5F4F02 /* SRSStore.swift */; };
 		E6D44D68797BD55FD6B1128D /* SessionPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585DA7FCBAB60B91E45207CD /* SessionPlaybackView.swift */; };
+		E7F5A3F87B57B14A61911CA3 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */; };
 		E8E9840D183EB7DB712F61E2 /* ThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5636A29AD5AB638D64191A0 /* ThoughtGraphView.swift */; };
 		EABE1088D83BEFBB0CAB94E7 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */; };
 		EAF2F54F452E73FFCFF76E10 /* HermesCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */; };
@@ -439,6 +441,7 @@
 		EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfInstrumentation.swift; sourceTree = "<group>"; };
 		EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionObserverView.swift; sourceTree = "<group>"; };
 		EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HermesNative-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedGateway.swift; sourceTree = "<group>"; };
 		EF6C83FB177D450056599E65 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
 		F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardView.swift; sourceTree = "<group>"; };
 		F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -700,6 +703,7 @@
 				A1669F694E957B7E101B2C51 /* MediaAttachment.swift */,
 				C8510CDBA7652A23723C1FA1 /* Persona.swift */,
 				98EAA5520C82637C026B91DB /* PromptBreakdown.swift */,
+				EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */,
 				1CBC71ED91AC512E21E65282 /* Session.swift */,
 				EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */,
 				A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */,
@@ -1097,6 +1101,7 @@
 				CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */,
 				732500FBB99598638E21A1D6 /* SRSEngine.swift in Sources */,
 				E6A7169F51FA048FB9DCB1C0 /* SRSStore.swift in Sources */,
+				E5ECADE4C4CECD0BB4809D33 /* SavedGateway.swift in Sources */,
 				5F74549973CC40C2FD192577 /* Session.swift in Sources */,
 				32C5144C3A885BC6692EED6C /* SessionExplorerView.swift in Sources */,
 				4CA8D9311CDAA8AC48639844 /* SessionFolder.swift in Sources */,
@@ -1246,6 +1251,7 @@
 				9C157AA3FB3DBB7D8A6D0AB7 /* SRSDashboardView.swift in Sources */,
 				24F0470B945EA86E4BF2E387 /* SRSEngine.swift in Sources */,
 				1E53A9AD621BB08CCA78B3DA /* SRSStore.swift in Sources */,
+				E7F5A3F87B57B14A61911CA3 /* SavedGateway.swift in Sources */,
 				FF074D7A7E2E409BECFDA744 /* Session.swift in Sources */,
 				74D78F006607330660628F4F /* SessionExplorerView.swift in Sources */,
 				1A8A679079EBFA6B36C70C2C /* SessionFolder.swift in Sources */,

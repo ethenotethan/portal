@@ -296,6 +296,20 @@ final class SessionListViewModel: ObservableObject {
         metaSync.setClient(client)
     }
 
+    /// Clear the in-memory session list when switching gateways. The new
+    /// gateway has its own sessions; a `refreshSessions()` after reconnect
+    /// repopulates the list.
+    func resetForGatewaySwitch() {
+        cancellables.removeAll()
+        gatewayClient = nil
+        sessions = []
+        activeSessionID = nil
+        isLoading = false
+        localRunStates.removeAll()
+        refreshGeneration += 1
+        isRefreshInFlight = false
+    }
+
     /// Refresh the session list from the gateway, merging local data.
     /// Preserves sessions that are owned (have gatewayID) but haven't been
     /// discovered in the gateway's session.list yet (their short hex ID

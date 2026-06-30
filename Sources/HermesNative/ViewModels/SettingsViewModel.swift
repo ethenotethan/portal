@@ -11,15 +11,36 @@ final class SettingsViewModel: ObservableObject {
 
     @Published var gatewayURL: String {
         didSet {
-            if didCompleteInit { KeychainStore.shared.saveGatewayURL(gatewayURL) }
+            if didCompleteInit {
+                KeychainStore.shared.saveGatewayURL(gatewayURL)
+                syncActiveGateway()
+            }
         }
     }
     @Published var apiKey: String {
         didSet {
-            if didCompleteInit { KeychainStore.shared.saveAPIKey(apiKey) }
+            if didCompleteInit {
+                KeychainStore.shared.saveAPIKey(apiKey)
+                syncActiveGateway()
+            }
         }
     }
     @Published var isConfigured: Bool = false
+
+    /// Saved gateways the user can switch between. The active one's
+    /// `url`/`apiKey` are mirrored into `gatewayURL`/`apiKey` above so the
+    /// existing connect path keeps working. Persisted to the Keychain.
+    @Published private(set) var savedGateways: [SavedGateway] = []
+
+    /// ID of the currently-active saved gateway (persisted in UserDefaults).
+    @Published private(set) var activeGatewayID: UUID? {
+        didSet {
+            if didCompleteInit {
+                UserDefaults.standard.set(activeGatewayID?.uuidString, forKey: Self.activeGatewayIDKey)
+            }
+        }
+    }
+    private static let activeGatewayIDKey = "hermes.activeGatewayID"
     @Published var responseCompleteNotificationsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(responseCompleteNotificationsEnabled, forKey: Self.responseCompleteNotificationsKey)
@@ -64,11 +85,132 @@ final class SettingsViewModel: ObservableObject {
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)
         self.isConfigured = onboarded || (isUITest && !(uiTestGatewayURL?.isEmpty ?? true))
+
+        // Load saved gateways. Migrate the existing single gateway into the
+        // list on first launch so users who already configured a gateway keep
+        // it as a switchable entry.
+        var loadedGateways = KeychainStore.shared.loadGateways()
+        let restoredActiveID = UserDefaults.standard.string(forKey: Self.activeGatewayIDKey)
+            .flatMap(UUID.init(uuidString:))
+        if loadedGateways.isEmpty, onboarded || !self.apiKey.isEmpty {
+            let migrated = SavedGateway(
+                name: URL(string: resolvedGatewayURL)?.host ?? "Gateway",
+                url: resolvedGatewayURL,
+                apiKey: self.apiKey
+            )
+            loadedGateways = [migrated]
+            self.savedGateways = loadedGateways
+            self.activeGatewayID = migrated.id
+            KeychainStore.shared.saveGateways(loadedGateways)
+            UserDefaults.standard.set(migrated.id.uuidString, forKey: Self.activeGatewayIDKey)
+        } else {
+            self.savedGateways = loadedGateways
+            // Resolve the active entry: prefer the persisted ID, else the entry
+            // whose URL matches the active gateway URL.
+            self.activeGatewayID = restoredActiveID.flatMap { id in
+                loadedGateways.first { $0.id == id }?.id
+            } ?? loadedGateways.first { $0.url == resolvedGatewayURL }?.id
+        }
+
         didCompleteInit = true
 
         if isUITest {
             log.info("UITest settings gatewayURL=\(self.gatewayURL) apiKeySet=\(!self.apiKey.isEmpty)")
         }
+    }
+
+    // MARK: - Multi-Gateway Management
+
+    /// Whether the given gateway is the currently-active one.
+    func isActive(_ gateway: SavedGateway) -> Bool {
+        gateway.id == activeGatewayID
+    }
+
+    /// Switch the active gateway. Writes the chosen gateway's URL/API key into
+    /// the active settings (which triggers the existing reconnect path observed
+    /// in ContentView) and clears the in-memory CF Access cookie so a CF-gated
+    /// gateway re-auths. No-op if already active.
+    func selectGateway(_ gateway: SavedGateway) {
+        guard gateway.id != activeGatewayID else { return }
+        guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
+
+        activeGatewayID = gateway.id
+        // The CF cookie is host-specific; drop it so the new host re-auths.
+        cfAuthCookie = nil
+        cfAuthEmail = nil
+        // Setting these mirrors into the Keychain via didSet and triggers the
+        // reconnect observers. Set apiKey first so the URL change (which the
+        // connect path keys on) sees the new key already in place.
+        apiKey = gateway.apiKey
+        gatewayURL = gateway.url
+    }
+
+    /// Add a new saved gateway. Returns the created entry.
+    @discardableResult
+    func addGateway(name: String, url: String, apiKey: String, makeActive: Bool = true) -> SavedGateway {
+        let gateway = SavedGateway(name: name, url: url, apiKey: apiKey)
+        savedGateways.append(gateway)
+        persistGateways()
+        if makeActive { selectGateway(gateway) }
+        return gateway
+    }
+
+    /// Update an existing saved gateway's fields. If it is the active gateway,
+    /// the live connection settings are updated too.
+    func updateGateway(_ gateway: SavedGateway) {
+        guard let index = savedGateways.firstIndex(where: { $0.id == gateway.id }) else { return }
+        savedGateways[index] = gateway
+        persistGateways()
+        if gateway.id == activeGatewayID {
+            if apiKey != gateway.apiKey { apiKey = gateway.apiKey }
+            if gatewayURL != gateway.url { gatewayURL = gateway.url }
+        }
+    }
+
+    /// Remove a saved gateway. If it was active, falls back to the first
+    /// remaining gateway (if any).
+    func removeGateway(_ gateway: SavedGateway) {
+        savedGateways.removeAll { $0.id == gateway.id }
+        persistGateways()
+        if gateway.id == activeGatewayID {
+            if let next = savedGateways.first {
+                activeGatewayID = nil  // force selectGateway to run
+                selectGateway(next)
+            } else {
+                activeGatewayID = nil
+            }
+        }
+    }
+
+    /// Keep the active saved-gateway entry in sync when the user edits the live
+    /// URL/API key fields directly (e.g. in Settings or Onboarding).
+    private func syncActiveGateway() {
+        guard let id = activeGatewayID,
+              let index = savedGateways.firstIndex(where: { $0.id == id }) else {
+            // No active entry yet (fresh onboarding) — create one once a URL
+            // and key exist so the picker has something to show.
+            if !gatewayURL.isEmpty, savedGateways.isEmpty {
+                let gateway = SavedGateway(
+                    name: URL(string: gatewayURL)?.host ?? "Gateway",
+                    url: gatewayURL,
+                    apiKey: apiKey
+                )
+                savedGateways = [gateway]
+                activeGatewayID = gateway.id
+                persistGateways()
+            }
+            return
+        }
+        var updated = savedGateways[index]
+        guard updated.url != gatewayURL || updated.apiKey != apiKey else { return }
+        updated.url = gatewayURL
+        updated.apiKey = apiKey
+        savedGateways[index] = updated
+        persistGateways()
+    }
+
+    private func persistGateways() {
+        KeychainStore.shared.saveGateways(savedGateways)
     }
 
     /// Validate and update the configured state.

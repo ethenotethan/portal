@@ -323,6 +323,38 @@ client.eventStream
     /// The session ID currently active in this chat view.
     var currentSessionID: String? { sessionID }
 
+    /// Reset all in-memory conversation state when switching to a different
+    /// gateway. The previous gateway's sessions/messages do not belong to the
+    /// new one, so clear everything and force a fresh resume on the new client.
+    /// Persisted history is keyed per session ID, so nothing is lost on disk.
+    func resetForGatewaySwitch() {
+        cancellables.removeAll()
+        pendingVisibleEventFlush?.cancel()
+        pendingVisibleEventFlush = nil
+        gatewayClient = nil
+        sessionSwitchGeneration += 1
+        sessionStates.removeAll()
+        stableSessionByGatewayID.removeAll()
+        gatewayIDByStableSession.removeAll()
+        sessionID = nil
+        streamingMessageID = nil
+        needsGatewayResume = false
+        messages = []
+        isStreaming = false
+        isSessionReady = false
+        currentModel = ""
+        pendingApproval = nil
+        activeToolCalls = [:]
+        error = nil
+        avatarState = .idle
+        sessionTitle = "New Chat"
+        isRemoteTurn = false
+        pendingAttachments = []
+        activeSkills = []
+        slashSuggestions = []
+        slashMode = false
+    }
+
     /// Test/debug hook for applying a gateway event exactly as the shared
     /// WebSocket subscriber would receive it.
     func receiveGatewayEventForTesting(_ event: GatewayEvent, sessionID: String?) {
