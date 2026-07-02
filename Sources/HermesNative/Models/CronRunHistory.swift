@@ -52,7 +52,32 @@ final class CronRunHistoryStore: ObservableObject {
             guard let lastRun = job.lastRunAt else { continue }
             let prev = previousLastRuns[job.id]
 
-            if let prev, lastRun > prev {
+            // First sighting of this job: record the current lastRun as the
+            // baseline WITHOUT notifying (it happened before we were
+            // watching). Previously nothing seeded the baseline outside the
+            // cron UI (seedFromJobs only runs when the cron tab loads), so
+            // `prev` stayed nil, this branch never fired, and background
+            // polling never produced a single notification — they only
+            // appeared after the user opened the cron view.
+            guard let prev else {
+                previousLastRuns[job.id] = lastRun
+                let alreadyRecorded = records.contains { $0.jobID == job.id && $0.firedAt == lastRun }
+                if !alreadyRecorded {
+                    records.append(CronRunRecord(
+                        id: UUID(),
+                        jobID: job.id,
+                        jobName: job.name,
+                        firedAt: lastRun,
+                        status: job.lastStatus ?? "unknown",
+                        duration: nil
+                    ))
+                    trim(jobID: job.id)
+                    didChange = true
+                }
+                continue
+            }
+
+            if lastRun > prev {
                 let alreadyRecorded = records.contains { $0.jobID == job.id && $0.firedAt == lastRun }
                 if !alreadyRecorded {
                     let record = CronRunRecord(
@@ -66,16 +91,12 @@ final class CronRunHistoryStore: ObservableObject {
                     records.append(record)
                     trim(jobID: job.id)
                     didChange = true
-                    if prev != nil {
-                        NotificationService.shared.notifyCronComplete(
-                            jobName: job.name,
-                            status: job.lastStatus ?? "unknown",
-                            jobID: job.id
-                        )
-                    }
-                    if prev != nil {
-                        unreadCronRunCount += 1
-                    }
+                    NotificationService.shared.notifyCronComplete(
+                        jobName: job.name,
+                        status: job.lastStatus ?? "unknown",
+                        jobID: job.id
+                    )
+                    unreadCronRunCount += 1
                 }
                 previousLastRuns[job.id] = lastRun
             }

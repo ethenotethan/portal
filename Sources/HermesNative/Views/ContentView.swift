@@ -1044,9 +1044,32 @@ spawnTreeStore.subscribe(to: client)
     }
 
     private func switchToSession(from notification: Notification) {
-        if let sessionID = notification.userInfo?["session_id"] as? String {
-            sessionList.selectSession(id: sessionID)
+        guard let sessionID = notification.userInfo?["session_id"] as? String else { return }
+        // Notifications carry whatever ID the gateway event had — usually the
+        // runtime short-hex ID, while the sidebar list is keyed by stable
+        // database IDs. selectSession(id:) with an unknown ID is a silent
+        // no-op (handleSessionSelection can't find the row), which made
+        // notification taps land in the app but never open the session.
+        // Resolve either form to the list row before selecting; if the list
+        // hasn't loaded yet (cold launch from a tap), refresh and retry.
+        Task { @MainActor in
+            if resolveAndSelectSession(sessionID) { return }
+            await sessionList.refreshSessions()
+            if !resolveAndSelectSession(sessionID) {
+                log.warning("notification tap: session \(sessionID) not found in list")
+            }
         }
+    }
+
+    /// Select the sidebar row matching a stable DB id OR a runtime gateway id.
+    /// Returns false when no row matches.
+    @discardableResult
+    private func resolveAndSelectSession(_ sessionID: String) -> Bool {
+        guard let session = sessionList.sessions.first(where: {
+            $0.id == sessionID || $0.gatewayID == sessionID
+        }) else { return false }
+        sessionList.selectSession(id: session.id)
+        return true
     }
 
     /// Dispatch `hermesnative://` URLs to the right in-app action. Both
@@ -1063,7 +1086,13 @@ spawnTreeStore.subscribe(to: client)
             Task { await createAndSwitchToNewSession() }
         case .session(let id):
             log.info("handleDeepLink: switching to session \(id)")
-            sessionList.selectSession(id: id)
+            // Same ID-resolution as notification taps: the URL may carry a
+            // runtime gateway ID while the list is keyed by DB IDs.
+            Task { @MainActor in
+                if resolveAndSelectSession(id) { return }
+                await sessionList.refreshSessions()
+                resolveAndSelectSession(id)
+            }
         case .activity:
             showActivitySheet = true
         }
