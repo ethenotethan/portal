@@ -22,6 +22,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var showSettings = false
+    @State private var showAddGateway = false
     @State private var isMacSidebarVisible = true
     private let macSidebarWidth: CGFloat = 352
     @State private var missionControlSessionID: String?
@@ -383,6 +384,21 @@ struct ContentView: View {
                 .environmentObject(capabilitiesStore)
                 .frame(minWidth: 500, minHeight: 450)
         }
+        .sheet(isPresented: $showAddGateway) {
+            // AddGatewaySheet is macOS-only (the toolbar switcher that
+            // presents it is too); give iOS an inert branch so the shared
+            // modifier chain compiles on both platforms.
+            #if os(macOS)
+            AddGatewaySheet { name, url, key in
+                settings.addGateway(name: name, url: url, apiKey: key)
+                showAddGateway = false
+            } onCancel: {
+                showAddGateway = false
+            }
+            #else
+            EmptyView()
+            #endif
+        }
         .sheet(item: $observerSession, onDismiss: {
             isObserverDismissing = true
             let prev = previousActiveSessionID
@@ -590,32 +606,35 @@ struct ContentView: View {
     #if os(macOS)
     @ViewBuilder
     private var gatewaySwitcher: some View {
-        if settings.savedGateways.count > 1 {
-            Menu {
-                ForEach(settings.savedGateways) { gateway in
-                    Button {
-                        settings.selectGateway(gateway)
-                    } label: {
-                        if settings.isActive(gateway) {
-                            Label(gateway.displayName, systemImage: "checkmark")
-                        } else {
-                            Text(gateway.displayName)
-                        }
+        // Always visible (even with a single saved gateway) so adding a second
+        // gateway is discoverable from the toolbar, not buried in Settings.
+        Menu {
+            ForEach(settings.savedGateways) { gateway in
+                Button {
+                    settings.selectGateway(gateway)
+                } label: {
+                    if settings.isActive(gateway) {
+                        Label(gateway.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(gateway.displayName)
                     }
                 }
-                Divider()
-                Button("Manage Gateways…") { showSettings = true }
-            } label: {
-                Label(activeGatewayLabel, systemImage: "server.rack")
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption)
-                    .lineLimit(1)
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Switch Hermes gateway")
-            .accessibilityIdentifier("gatewaySwitcher")
+            if !settings.savedGateways.isEmpty {
+                Divider()
+            }
+            Button("Add Gateway…") { showAddGateway = true }
+            Button("Manage Gateways…") { showSettings = true }
+        } label: {
+            Label(activeGatewayLabel, systemImage: "server.rack")
+                .labelStyle(.titleAndIcon)
+                .font(.caption)
+                .lineLimit(1)
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Switch Hermes gateway")
+        .accessibilityIdentifier("gatewaySwitcher")
     }
 
     private var activeGatewayLabel: String {

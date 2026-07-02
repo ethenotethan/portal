@@ -189,6 +189,7 @@ struct SettingsView: View {
 
     #if os(macOS)
     @State private var showAddGateway = false
+    @State private var editingGateway: SavedGateway?
 
     private var connectionTab: some View {
         Form {
@@ -202,22 +203,44 @@ struct SettingsView: View {
             Section {
                 ForEach(settings.savedGateways) { gateway in
                     HStack {
-                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(gateway.displayName)
-                                .lineLimit(1)
-                            Text(gateway.url)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                        // The row itself is a button — a bare .onTapGesture on a
+                        // macOS Form row loses to the Form's own hit-testing, which
+                        // made gateways look unclickable.
+                        Button {
+                            settings.selectGateway(gateway)
+                        } label: {
+                            HStack {
+                                Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                                    .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(gateway.displayName)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    Text(gateway.url)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
+
                         if !settings.isActive(gateway) {
                             Button("Switch") { settings.selectGateway(gateway) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                         }
+                        Button {
+                            editingGateway = gateway
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Rename or edit this gateway")
+                        .accessibilityIdentifier("editGateway-\(gateway.displayName)")
                         Button(role: .destructive) {
                             settings.removeGateway(gateway)
                         } label: {
@@ -226,8 +249,6 @@ struct SettingsView: View {
                         .buttonStyle(.borderless)
                         .disabled(settings.savedGateways.count <= 1)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { settings.selectGateway(gateway) }
                 }
             } header: {
                 HStack {
@@ -306,6 +327,18 @@ struct SettingsView: View {
                 showAddGateway = false
             }
         }
+        .sheet(item: $editingGateway) { gateway in
+            AddGatewaySheet(editing: gateway) { name, url, key in
+                var updated = gateway
+                updated.name = name
+                updated.url = url
+                updated.apiKey = key
+                settings.updateGateway(updated)
+                editingGateway = nil
+            } onCancel: {
+                editingGateway = nil
+            }
+        }
     }
 
     private var personaTab: some View {
@@ -339,8 +372,11 @@ struct SettingsView: View {
 }
 
 #if os(macOS)
-/// Sheet for adding a new saved gateway.
-private struct AddGatewaySheet: View {
+/// Sheet for adding a new saved gateway or editing an existing one (rename,
+/// change URL/key). Presented from Settings and the toolbar gateway switcher.
+struct AddGatewaySheet: View {
+    /// When set, the sheet edits this gateway in place instead of adding.
+    var editing: SavedGateway?
     let onAdd: (_ name: String, _ url: String, _ apiKey: String) -> Void
     let onCancel: () -> Void
 
@@ -348,16 +384,17 @@ private struct AddGatewaySheet: View {
     @State private var url = ""
     @State private var apiKey = ""
 
-    private var canAdd: Bool {
+    private var canSave: Bool {
         !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("New Gateway") {
+                Section(editing == nil ? "New Gateway" : "Edit Gateway") {
                     TextField("Name (optional)", text: $name)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("gatewayNameField")
                     TextField("Gateway URL", text: $url)
                         .textFieldStyle(.roundedBorder)
                     SecureField("API Key", text: $apiKey)
@@ -372,7 +409,7 @@ private struct AddGatewaySheet: View {
                 Spacer()
                 Button("Cancel") { onCancel() }
                     .keyboardShortcut(.cancelAction)
-                Button("Add") {
+                Button(editing == nil ? "Add" : "Save") {
                     onAdd(
                         name.trimmingCharacters(in: .whitespacesAndNewlines),
                         url.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -380,11 +417,18 @@ private struct AddGatewaySheet: View {
                     )
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canAdd)
+                .disabled(!canSave)
             }
             .padding(12)
         }
         .frame(width: 420, height: 320)
+        .onAppear {
+            if let gateway = editing {
+                name = gateway.name
+                url = gateway.url
+                apiKey = gateway.apiKey
+            }
+        }
     }
 }
 #endif
