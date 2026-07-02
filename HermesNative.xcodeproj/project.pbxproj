@@ -76,6 +76,7 @@
 		41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		41B11A07A04322A628F4DE3D /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */; };
 		44517A6F6B0BA4238E47FA4E /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2F649BE0F12B966FAF6C47 /* Extensions.swift */; };
+		4575B2845BBF7BB8C1B1929D /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */; };
 		4620080AB323A2D15D1D842D /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */; };
 		46F14365DAA565AEC59D5F99 /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA16F415470C4A20A1155A3 /* SessionListViewModel.swift */; };
 		48E2F0B696FBAE1CA8D89745 /* HermesCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */; };
@@ -168,6 +169,7 @@
 		8A7BC7EEB81C032238A02420 /* QuizSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64C419357E72FE3B8BFCAE7 /* QuizSheet.swift */; };
 		8ACAEB144EAF1FE5B9BE9F49 /* SpawnTreeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD22626EF26E6FC0FBA9589 /* SpawnTreeStore.swift */; };
 		8B8E8ACA1D442FE6695072BD /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */; };
+		8CAB903B9E3E620139C34916 /* PushRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134ACC11883A4F913264353A /* PushRegistrationService.swift */; };
 		8E61677B7DD1CF7C7F613C01 /* PromptBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6AE9BC7BFA54E190252B742 /* PromptBreakdownView.swift */; };
 		8E73DDBEAC18F9750DAFD198 /* DiagramExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */; };
 		8E74DC3A495E0BBA739D1664 /* ActivityItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C19CE5657AD3FD6547FC3D /* ActivityItem.swift */; };
@@ -201,6 +203,7 @@
 		AD140C8B8A12AC67BF370F9E /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = FE55711F07D88DCBCA72F824 /* MLXLMCommon */; };
 		AD25BB03261A6956C0A45285 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
 		AD61DDE2588D762FF1CE882C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
+		AE3A9B13D1A962581BF68790 /* PushRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134ACC11883A4F913264353A /* PushRegistrationService.swift */; };
 		AEBEC273DC598A14283BB649 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */; };
 		AEE89C90CB4C0B26ECEBA30E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30743804431E0415F8F6D1F8 /* ContentView.swift */; };
 		B070B9746CD795F55091EFB8 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */; };
@@ -280,6 +283,7 @@
 		EEC145FE1D23E050DA758B61 /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFB378412449B68B78A4511 /* PlatformCompat.swift */; };
 		EEE533A6664268A419D73884 /* Skill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE5DF772697EFC0D7F9F1 /* Skill.swift */; };
 		EFD35A75F8CC6C60DB244A9B /* WikiGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201F95763EBE727F2961B603 /* WikiGraph.swift */; };
+		F04A3C0658EEFC61A80C04AD /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */; };
 		F07A9C9323E8246CB1728EFA /* GatewayEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6772AAD454D58CA9064AE58D /* GatewayEvent.swift */; };
 		F08EDD0F5D435E5CBE00F9A5 /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */; };
 		F094DC32731644D93CBAD59A /* CronListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2350443FCFD79CA0CC60484 /* CronListView.swift */; };
@@ -322,6 +326,7 @@
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
 		111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSummaryService.swift; sourceTree = "<group>"; };
+		134ACC11883A4F913264353A /* PushRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRegistrationService.swift; sourceTree = "<group>"; };
 		16F426AEEEE5AE599528DBFA /* FlashcardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardModels.swift; sourceTree = "<group>"; };
 		1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPanel.swift; sourceTree = "<group>"; };
 		1CBC71ED91AC512E21E65282 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
@@ -347,6 +352,7 @@
 		3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
 		3D01C62D7F9E9F4482310FA5 /* ToolCallFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallFlowView.swift; sourceTree = "<group>"; };
 		3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Push.swift"; sourceTree = "<group>"; };
 		438F3AF894E195EF4007BAE9 /* confused.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = confused.json; sourceTree = "<group>"; };
 		4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		4A69884F119471D33D25E7E4 /* ThoughtGraphLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphLayoutEngine.swift; sourceTree = "<group>"; };
@@ -834,10 +840,12 @@
 				2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */,
 				3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */,
 				BD5A40190C6BD33F951711B9 /* GatewayClient+Feed.swift */,
+				3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */,
 				CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */,
 				CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */,
 				2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */,
 				E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */,
+				134ACC11883A4F913264353A /* PushRegistrationService.swift */,
 				63E27F73CC5FD8B101BBEEB2 /* QuizStore.swift */,
 				9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */,
 				91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */,
@@ -1062,6 +1070,7 @@
 				5C9065AA097506709DD9BFD9 /* FlashcardModels.swift in Sources */,
 				B20E904C579FD5ECFD0F0F67 /* FlashcardView.swift in Sources */,
 				191C589E0978E720D150DD6E /* GatewayClient+Feed.swift in Sources */,
+				4575B2845BBF7BB8C1B1929D /* GatewayClient+Push.swift in Sources */,
 				7F7E9984E8457B5BC402254F /* GatewayClient+Wiki.swift in Sources */,
 				0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */,
 				638EBF9A517E26DC5A5EA397 /* GatewayClientWrapper.swift in Sources */,
@@ -1100,6 +1109,7 @@
 				5347445720717189092F6B88 /* PlaybackTimelineChart.swift in Sources */,
 				B6CD7C750A37A6EC4E5B41A5 /* PromptBreakdown.swift in Sources */,
 				F2B713AEA0BB1C5242CB1873 /* PromptBreakdownView.swift in Sources */,
+				AE3A9B13D1A962581BF68790 /* PushRegistrationService.swift in Sources */,
 				7FB4F578C486529EDB8F95F7 /* QuizModels.swift in Sources */,
 				B28DCF534727606B1D2248AE /* QuizSheet.swift in Sources */,
 				7B3AEED11C020B993203E2E9 /* QuizStore.swift in Sources */,
@@ -1214,6 +1224,7 @@
 				D0C5C6F2A0E5440626F5386D /* FlashcardModels.swift in Sources */,
 				34EF999CDB8F55165AA5B0C1 /* FlashcardView.swift in Sources */,
 				25119660670A3458307716FA /* GatewayClient+Feed.swift in Sources */,
+				F04A3C0658EEFC61A80C04AD /* GatewayClient+Push.swift in Sources */,
 				7DDD74B3B3868AD3CEEF5786 /* GatewayClient+Wiki.swift in Sources */,
 				AEBEC273DC598A14283BB649 /* GatewayClient.swift in Sources */,
 				0FD4BEE9B35811AC3F5D405C /* GatewayClientWrapper.swift in Sources */,
@@ -1252,6 +1263,7 @@
 				62227BB29F7C4B3F07AFBE5C /* PlaybackTimelineChart.swift in Sources */,
 				D7548B7CAB279AA4893E45A3 /* PromptBreakdown.swift in Sources */,
 				8E61677B7DD1CF7C7F613C01 /* PromptBreakdownView.swift in Sources */,
+				8CAB903B9E3E620139C34916 /* PushRegistrationService.swift in Sources */,
 				FDA5911129F556FB29B289B4 /* QuizModels.swift in Sources */,
 				8A7BC7EEB81C032238A02420 /* QuizSheet.swift in Sources */,
 				726510D6CE98AC366EE90BB9 /* QuizStore.swift in Sources */,

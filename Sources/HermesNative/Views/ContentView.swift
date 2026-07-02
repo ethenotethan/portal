@@ -96,6 +96,13 @@ struct ContentView: View {
         .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
             if connected {
                 Task { await sessionList.refreshSessions() }
+                // Register this device's APNs token with whichever gateway we
+                // just connected to (no-op until the OS grants a token, and
+                // once per gateway+token thereafter).
+                PushRegistrationService.shared.syncIfNeeded(
+                    client: gatewayClientWrapper.client,
+                    gatewayURL: settings.gatewayURL
+                )
             }
         }
         .onChange(of: settings.isConfigured) { _, configured in
@@ -121,6 +128,15 @@ struct ContentView: View {
             // launch (no actual switch).
             guard oldID != nil, newID != nil, settings.isConfigured else { return }
             handleGatewaySwitch()
+        }
+        .onReceive(PushRegistrationService.shared.$deviceTokenHex) { token in
+            // The OS usually grants the APNs token AFTER the first connect
+            // completes — re-sync when it lands so cold launch registers too.
+            guard token != nil, gatewayClientWrapper.isConnected else { return }
+            PushRegistrationService.shared.syncIfNeeded(
+                client: gatewayClientWrapper.client,
+                gatewayURL: settings.gatewayURL
+            )
         }
     }
 

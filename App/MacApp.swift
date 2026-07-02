@@ -62,6 +62,21 @@ struct HermesNativeAppMac: App {
 ///      but having the delegate in place keeps the activation flow reliable
 ///      across the whole app lifecycle.
 final class HermesNativeAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Ask the OS for an APNs device token. Silently unavailable when the
+        // build lacks the push entitlement/provisioning (e.g. unsigned CI
+        // builds) — local notifications keep working either way.
+        PushRegistrationService.requestDeviceToken()
+    }
+
+    func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushRegistrationService.shared.store(deviceToken: deviceToken)
+    }
+
+    func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        PushRegistrationService.shared.registrationFailed(error)
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag {
             // Reopen the main window group if every window was closed.
