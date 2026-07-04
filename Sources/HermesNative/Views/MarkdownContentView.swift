@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import Highlightr
+import os
 
 /// Parses and renders markdown content in a SwiftUI view.
 /// Uses Apple's built-in AttributedString(markdown:) for inline formatting
@@ -1107,7 +1108,11 @@ struct OpenableBlockChip: View {
 
     var body: some View {
         Button {
+            #if os(macOS)
+            HTMLPreviewPresenter.shared.showBlock(language: language, content: content)
+            #else
             isOpen = true
+            #endif
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: MarkdownParser.isDiagramLanguage(language) ? "arrow.up.left.and.arrow.down.right" : "safari")
@@ -1127,26 +1132,75 @@ struct OpenableBlockChip: View {
         }
         .buttonStyle(.plain)
         #if os(iOS)
+        // macOS routes through HTMLPreviewPresenter (full-window SwiftUI overlay).
         .fullScreenCover(isPresented: $isOpen) {
             OpenableBlockSheet(language: language, content: content)
-        }
-        #else
-        .sheet(isPresented: $isOpen) {
-            OpenableBlockSheet(language: language, content: content)
-                .frame(
-                    width: min((NSScreen.main?.visibleFrame.width ?? 1200) * 0.85, 1400),
-                    height: min((NSScreen.main?.visibleFrame.height ?? 800) * 0.85, 900)
-                )
         }
         #endif
     }
 }
+
+#if os(macOS)
+/// Shared presenter for the full-window HTML/file preview overlay.
+///
+/// Injecting an AppKit subview into SwiftUI's window contentView "succeeded"
+/// (presentOverlay ran, host found) but rendered nothing — SwiftUI owns that
+/// hierarchy and the subview sat behind/ignored. So drive the overlay through
+/// SwiftUI instead: this observable holds the content, and ContentView renders
+/// it as a top-level .overlay (the same pattern Wiki/Feed full-window overlays
+/// use, which work).
+@MainActor
+final class HTMLPreviewPresenter: ObservableObject {
+    static let shared = HTMLPreviewPresenter()
+    enum Payload: Equatable {
+        case block(language: String, content: String)
+        case attachment(FileAttachment)
+        static func == (a: Payload, b: Payload) -> Bool {
+            switch (a, b) {
+            case let (.block(l1, c1), .block(l2, c2)): return l1 == l2 && c1 == c2
+            case let (.attachment(x), .attachment(y)): return x.id == y.id
+            default: return false
+            }
+        }
+    }
+    @Published var payload: Payload?
+
+    func showBlock(language: String, content: String) { payload = .block(language: language, content: content) }
+    func showAttachment(_ attachment: FileAttachment) { payload = .attachment(attachment) }
+    func close() { payload = nil }
+}
+
+/// The full-window overlay view, mounted once at the app root by ContentView.
+struct HTMLPreviewOverlay: View {
+    @ObservedObject private var presenter = HTMLPreviewPresenter.shared
+
+    var body: some View {
+        if let payload = presenter.payload {
+            Group {
+                switch payload {
+                case let .block(language, content):
+                    OpenableBlockSheet(language: language, content: content, onClose: { presenter.close() })
+                case let .attachment(attachment):
+                    FilePreviewView(attachment: attachment, onClose: { presenter.close() })
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
+            .transition(.opacity)
+        }
+    }
+}
+
+#endif
 
 // MARK: - Openable Block Sheet
 
 struct OpenableBlockSheet: View {
     let language: String
     let content: String
+    /// When hosted in a standalone NSWindow (macOS), @Environment(\.dismiss)
+    /// doesn't apply — the host passes a close action instead.
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     private var isDiagram: Bool {
@@ -1175,7 +1229,7 @@ struct OpenableBlockSheet: View {
                     Spacer()
 
                     Button {
-                        dismiss()
+                        if let onClose { onClose() } else { dismiss() }
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 10, weight: .bold))
@@ -1191,7 +1245,8 @@ struct OpenableBlockSheet: View {
 
                 Divider().overlay(Theme.border)
 
-                // Content — diagram or HTML
+                // Content — diagram or HTML. Fill all available sheet space so
+                // an opened HTML page uses the whole window, not a small box.
                 Group {
                     if isDiagram {
                         MermaidDiagramView(mermaidCode: content, isStreaming: false)
@@ -1199,6 +1254,7 @@ struct OpenableBlockSheet: View {
                         InlineHTMLView(html: content)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(12)
             }
         }

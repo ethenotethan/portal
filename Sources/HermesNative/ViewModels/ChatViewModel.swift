@@ -596,7 +596,15 @@ if restoreSessionState(displayID: key) {
             stableSessionByGatewayID[result.sessionID] = key
             gatewayIDByStableSession[key] = result.sessionID
 
-            let parsedMessages = Self.parseHistoryMessages(result.messages)
+            var parsedMessages = Self.parseHistoryMessages(result.messages)
+            // Restore richer local content (e.g. full HTML blocks the gateway
+            // preview dropped) over the resumed history. The local on-disk
+            // cache keeps the full original message bodies.
+            if !parsedMessages.isEmpty,
+               ChatHistoryStore.shared.hasLocalMessages(forSession: key),
+               let localMessages = await ChatHistoryStore.shared.loadMessagesBackground(forSession: key) {
+                parsedMessages = Self.mergeHistory(gateway: parsedMessages, local: localMessages)
+            }
             if !parsedMessages.isEmpty {
                 if var liveState = sessionStates[key], liveState.isStreaming {
                     // The gateway history returned by session.resume is a persisted
@@ -828,6 +836,43 @@ if restoreSessionState(displayID: key) {
 
     /// Parse gateway history messages into ChatMessage array.
     /// Gateway format: {"role": "user"|"assistant"|"tool", "text": "...", "name": "...", "context": "..."}
+    /// Merge gateway-resumed history with locally-cached messages, preferring
+    /// local content when it is richer.
+    ///
+    /// Why: the gateway's session.resume history can return assistant messages
+    /// with truncated/preview text that drops fenced blocks (e.g. ```html```),
+    /// so blindly replacing the local cache with gateway history loses the HTML
+    /// "Open Page" content after a restart. The local on-disk cache stores the
+    /// full original message text. We use the gateway list as the structural
+    /// baseline (it may contain newer turns from other devices) but, for each
+    /// aligned assistant message, keep whichever content is longer — which
+    /// restores the full HTML the user already had.
+    static func mergeHistory(gateway: [ChatMessage], local: [ChatMessage]) -> [ChatMessage] {
+        guard !local.isEmpty else { return gateway }
+        guard !gateway.isEmpty else { return local }
+
+        // Align same-role messages by their order of appearance. Build a
+        // per-role queue of local contents to draw from.
+        var localByRole: [ChatMessage.Role: [String]] = [:]
+        for m in local { localByRole[m.role, default: []].append(m.content) }
+        var cursor: [ChatMessage.Role: Int] = [:]
+
+        var merged = gateway
+        for i in merged.indices {
+            let role = merged[i].role
+            let idx = cursor[role, default: 0]
+            cursor[role] = idx + 1
+            guard let contents = localByRole[role], idx < contents.count else { continue }
+            let localContent = contents[idx]
+            // Keep the longer text — the local full body beats a gateway preview
+            // that dropped the fenced HTML/code block.
+            if localContent.count > merged[i].content.count {
+                merged[i].content = localContent
+            }
+        }
+        return merged
+    }
+
     static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
@@ -850,7 +895,10 @@ if restoreSessionState(displayID: key) {
                     currentToolCalls = []
                 }
 
-                let text = raw["text"]?.stringValue ?? ""
+                // Fall back to a preview field if the gateway omitted full text
+                // (some history responses are preview-only). mergeHistory then
+                // upgrades this to the full local content when available.
+                let text = raw["text"]?.stringValue ?? raw["preview"]?.stringValue ?? ""
                 guard !text.isEmpty else { continue }
                 messages.append(ChatMessage(role: .assistant, content: text, status: "complete"))
 

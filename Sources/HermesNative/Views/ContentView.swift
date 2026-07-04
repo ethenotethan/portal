@@ -859,6 +859,12 @@ struct ContentView: View {
                     .background(Theme.background)
                     .transition(.opacity)
             }
+
+            #if os(macOS)
+            // Full-window HTML/file preview overlay (driven by HTMLPreviewPresenter).
+            // Top of the stack so it covers everything when active.
+            HTMLPreviewOverlay()
+            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)

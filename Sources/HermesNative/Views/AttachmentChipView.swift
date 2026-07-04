@@ -46,13 +46,9 @@ struct AttachmentChipView: View {
         }
         .buttonStyle(.plain)
         #if os(iOS)
+        // macOS opens a full-window overlay directly from handleTap()/openPreview().
         .fullScreenCover(isPresented: $isPreviewVisible) {
             FilePreviewView(attachment: attachment)
-        }
-        #else
-        .sheet(isPresented: $isPreviewVisible) {
-            FilePreviewView(attachment: attachment)
-                .frame(minWidth: 560, minHeight: 400)
         }
         #endif
         .onAppear {
@@ -145,15 +141,25 @@ struct AttachmentChipView: View {
             // No-op — already downloading
             break
         case .ready:
-            isPreviewVisible = true
+            openPreview()
         case .failed:
             // Retry
             Task {
                 await prefetchRemoteAttachment()
             }
         default:
-            isPreviewVisible = true
+            openPreview()
         }
+    }
+
+    private func openPreview() {
+        #if os(macOS)
+        // Full-window SwiftUI overlay via the shared presenter (mounted at the
+        // app root). Injecting an AppKit subview rendered nothing.
+        HTMLPreviewPresenter.shared.showAttachment(attachment)
+        #else
+        isPreviewVisible = true
+        #endif
     }
 
     private func prefetchRemoteAttachment() async {
@@ -187,6 +193,9 @@ extension FileAttachment {
 /// Supports both local files and remote (downloaded) data.
 struct FilePreviewView: View {
     let attachment: FileAttachment
+    /// When hosted as a full-window overlay (macOS), there's no sheet to
+    /// dismiss — the host passes a close action.
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -201,7 +210,7 @@ struct FilePreviewView: View {
                 Spacer()
 
                 Button {
-                    dismiss()
+                    if let onClose { onClose() } else { dismiss() }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 18))
