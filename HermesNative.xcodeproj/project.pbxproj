@@ -129,6 +129,7 @@
 		671C44A8273230CAC312A014 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57621A872836514CD5BC0F5B /* ChatView.swift */; };
 		69A0E3956A26BC85F0BA10F1 /* WikiTimelineViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F924BA7C739D8BF1220EC89 /* WikiTimelineViewModel.swift */; };
 		6A125FB74D9B1C28E38E3666 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 769BBB3BE6C0F8FD9A10A6CF /* JSONRPCResponse.swift */; };
+		6B87CD50DFA7FE36658C165A /* WikiChangesetDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */; };
 		6BFBE750DA484A614091AF61 /* LearningDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44EE6606D791985BA836876 /* LearningDashboardView.swift */; };
 		6D8F077BD1970B00393604FC /* CronJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DF820435B5D88C97CF7888 /* CronJob.swift */; };
 		6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */; };
@@ -138,6 +139,7 @@
 		70FD7FD4E0F0D785741DAE24 /* MermaidGraphParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9A8A572E9114E307299653F /* MermaidGraphParser.swift */; };
 		71D6DCD896DD343FFA4BE0C7 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 292A20D0397566BF1454F5E4 /* SettingsViewModel.swift */; };
 		726510D6CE98AC366EE90BB9 /* QuizStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27F73CC5FD8B101BBEEB2 /* QuizStore.swift */; };
+		726B55C1C79D120D8D4BF749 /* WikiChangesetDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */; };
 		72702471AFD1438083841D2F /* WikiGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */; };
 		732500FBB99598638E21A1D6 /* SRSEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2AB0CFDB8A13FCF88213B5 /* SRSEngine.swift */; };
 		733C85D5266CB0B5163D4025 /* WikiBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF8106491981F489EBC1AAF /* WikiBrowserView.swift */; };
@@ -420,6 +422,7 @@
 		ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChartView.swift; sourceTree = "<group>"; };
 		AFB387E7528E2CB1156D8314 /* MacInputTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacInputTextField.swift; sourceTree = "<group>"; };
 		B3485571962535F17DD9D1AA /* ThoughtGraphNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphNode.swift; sourceTree = "<group>"; };
+		B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetDiffView.swift; sourceTree = "<group>"; };
 		B41979884D456FA9522F47D6 /* MacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacApp.swift; sourceTree = "<group>"; };
 		B9A8A572E9114E307299653F /* MermaidGraphParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidGraphParser.swift; sourceTree = "<group>"; };
 		BD5A40190C6BD33F951711B9 /* GatewayClient+Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Feed.swift"; sourceTree = "<group>"; };
@@ -737,6 +740,7 @@
 			isa = PBXGroup;
 			children = (
 				7CF8106491981F489EBC1AAF /* WikiBrowserView.swift */,
+				B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */,
 				036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */,
 				34BD6CA191B834A64926DFE6 /* WikiGraphView.swift */,
 				60E6A9686B2761BE8EB687B1 /* WikiPageDetailView.swift */,
@@ -1162,6 +1166,7 @@
 				56ACF05DAC83D02819DED0B0 /* TreeNodeView.swift in Sources */,
 				E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */,
 				733C85D5266CB0B5163D4025 /* WikiBrowserView.swift in Sources */,
+				726B55C1C79D120D8D4BF749 /* WikiChangesetDiffView.swift in Sources */,
 				EFD35A75F8CC6C60DB244A9B /* WikiGraph.swift in Sources */,
 				72702471AFD1438083841D2F /* WikiGraph3DView.swift in Sources */,
 				9EE702EAF77D6AF23836B9B0 /* WikiGraphView.swift in Sources */,
@@ -1316,6 +1321,7 @@
 				3F132ED582BFB260BD55D500 /* TreeNodeView.swift in Sources */,
 				3190ED167BC76A42CFCEC6E5 /* VideoCache.swift in Sources */,
 				5FAEEF9FEE061DDABE38A1E2 /* WikiBrowserView.swift in Sources */,
+				6B87CD50DFA7FE36658C165A /* WikiChangesetDiffView.swift in Sources */,
 				0C3ADFFCF9CBFD8E9B0D89F4 /* WikiGraph.swift in Sources */,
 				E18E4CAC79D565554493CA83 /* WikiGraph3DView.swift in Sources */,
 				0C89EF117C26BD3BA7635637 /* WikiGraphView.swift in Sources */,

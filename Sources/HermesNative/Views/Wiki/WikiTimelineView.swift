@@ -13,6 +13,9 @@ struct WikiTimelineView: View {
     /// Called when a row is tapped, with the changeset's page path.
     var onOpenPage: ((String) -> Void)?
 
+    /// Changeset whose git-style diff is being viewed (sheet).
+    @State private var diffChangeset: WikiChangeset?
+
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .abbreviated
@@ -36,6 +39,17 @@ struct WikiTimelineView: View {
         .task(id: pageFilter) {
             viewModel.configure(wiki: wiki, page: pageFilter)
             await viewModel.start(client: gatewayClientWrapper.client)
+        }
+        .sheet(item: $diffChangeset) { changeset in
+            WikiChangesetDiffView(
+                changeset: changeset,
+                wiki: wiki,
+                onOpenPage: onOpenPage
+            )
+            .environmentObject(gatewayClientWrapper)
+            #if os(macOS)
+            .frame(minWidth: 700, minHeight: 520)
+            #endif
         }
     }
 
@@ -141,7 +155,13 @@ struct WikiTimelineView: View {
                                 relativeText: relativeText(for: changeset)
                             )
                             .contentShape(Rectangle())
-                            .onTapGesture { onOpenPage?(changeset.page) }
+                            // Tap = show what changed (git-style diff); the
+                            // sheet's "Open Page" button navigates onward.
+                            .onTapGesture { diffChangeset = changeset }
+                            .contextMenu {
+                                Button("View Diff") { diffChangeset = changeset }
+                                Button("Open Page") { onOpenPage?(changeset.page) }
+                            }
                             Divider().padding(.leading, 44)
                         }
                     } header: {

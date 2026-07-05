@@ -323,4 +323,20 @@ extension GatewayClient {
             offset: dict["offset"]?.intValue ?? offset
         )
     }
+
+    /// Fetch the unified git diff for a single changeset (timeline detail).
+    /// Throws `.rpcError` with code 5057 when the wiki wasn't git-initialized
+    /// at capture time — surface the message rather than treating it as fatal.
+    func wikiChangesetDiff(id: String, wiki: String? = nil) async throws -> String {
+        var params: [String: AnyCodable] = ["id": AnyCodable(id)]
+        if let wiki { params["wiki"] = AnyCodable(wiki) }
+        let response = try await call("wiki.changeset_diff", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let diff = response.result?.dictionaryValue?["diff"]?.stringValue else {
+            throw GatewayError.invalidResponse("wiki.changeset_diff missing diff")
+        }
+        return diff
+    }
 }
