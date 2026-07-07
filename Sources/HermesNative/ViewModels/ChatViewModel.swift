@@ -428,6 +428,27 @@ client.eventStream
             streamingMessageID: streamingMessageID,
             isRemoteTurn: isRemoteTurn
         )
+        evictColdSessionMessages(keeping: displayID)
+    }
+
+    /// Cap in-memory session state: each cached session holds its full
+    /// messages array, so heavy switching accumulates multi-MB state per
+    /// session. macOS shrugs; iOS jetsam kills the app (perceived as random
+    /// crashes). Keep full messages only for the most recent sessions and
+    /// drop message arrays (not the whole state) for the rest — history is
+    /// persisted per session and lazily reloaded on restore.
+    private static let maxWarmSessionStates = 6
+
+    private func evictColdSessionMessages(keeping activeDisplayID: String) {
+        var warmIDs = sessionStates.filter { !$0.value.messages.isEmpty }.map(\.key)
+        guard warmIDs.count > Self.maxWarmSessionStates else { return }
+        warmIDs.removeAll { $0 == activeDisplayID }
+        // Restore lazily reloads from ChatHistoryStore, so eviction only
+        // costs a disk read on the next switch back to that session.
+        let excess = warmIDs.count + 1 - Self.maxWarmSessionStates
+        for id in warmIDs.prefix(max(0, excess)) {
+            sessionStates[id]?.messages = []
+        }
     }
 
     private func restoreSessionState(displayID: String, runtimeID: String? = nil) -> Bool {

@@ -53,7 +53,12 @@ struct DiagramExplorerView: View {
             }
         }
         .background(Theme.background)
+        // Minimum size is macOS-only: 640pt exceeds an iPhone's portrait
+        // width, and an unsatisfiable minWidth makes the fullScreenCover
+        // content lay out wrong (blank/clipped explorer on iOS).
+        #if os(macOS)
         .frame(minWidth: 640, minHeight: 480)
+        #endif
         .onReceive(timer) { _ in
             guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
             viewModel.tick()

@@ -1321,6 +1321,12 @@ struct InlineHTMLUIView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.websiteDataStore = .nonPersistent()
+        // Match macOS: embedded media plays inline instead of hijacking the
+        // screen with the system fullscreen player, and element-fullscreen
+        // requests (charts, embeds) are honored instead of silently ignored.
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+        config.preferences.isElementFullscreenEnabled = true
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false

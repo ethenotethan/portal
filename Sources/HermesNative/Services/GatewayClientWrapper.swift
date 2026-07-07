@@ -221,11 +221,30 @@ final class GatewayClientWrapper: ObservableObject {
     /// post its completion notification before the socket is torn down.
     func beginBackgroundGracePeriod() {
         guard backgroundTaskID == .invalid else { return }
-        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "hermes.finishTurn") { [weak self] in
+        // Capture the granted ID inside the expiration handler rather than
+        // reading self.backgroundTaskID: if a new grace period starts before
+        // the old one's expiration fires, the stale handler would otherwise
+        // end the NEW task (wrong ID) and iOS kills apps that leak expired
+        // background tasks.
+        var grantedID: UIBackgroundTaskIdentifier = .invalid
+        grantedID = UIApplication.shared.beginBackgroundTask(withName: "hermes.finishTurn") { [weak self] in
             Task { @MainActor in
-                self?.endBackgroundGracePeriod()
+                guard let self else {
+                    // Wrapper gone — still must end the task or iOS terminates us.
+                    if grantedID != .invalid {
+                        UIApplication.shared.endBackgroundTask(grantedID)
+                    }
+                    return
+                }
+                if self.backgroundTaskID == grantedID {
+                    self.endBackgroundGracePeriod()
+                } else if grantedID != .invalid {
+                    // A newer grace period replaced us; end only OUR task.
+                    UIApplication.shared.endBackgroundTask(grantedID)
+                }
             }
         }
+        backgroundTaskID = grantedID
         logger.info("began background grace period task=\(self.backgroundTaskID.rawValue)")
     }
 

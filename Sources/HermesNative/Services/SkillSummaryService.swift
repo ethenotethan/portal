@@ -51,8 +51,13 @@ final class SkillSummaryService {
 
     /// Begin loading the local model in the background (download on first
     /// use, then cached on disk). Safe to call repeatedly.
+    ///
+    /// macOS only: mlx-swift-lm compiles for iOS too (canImport passes), but
+    /// keeping a ~600MB model resident blows through iOS's jetsam budget and
+    /// gets the app killed mid-session — which reads as random crashes. iOS
+    /// uses the extractive fallback instead.
     func warmUp() {
-#if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers)
+#if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers) && os(macOS)
         Task { await ensureLoaded() }
 #endif
     }
@@ -62,7 +67,7 @@ final class SkillSummaryService {
     /// background pregeneration so it doesn't fire many generations before
     /// the model is ready.
     func prepareModel() async {
-#if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers)
+#if canImport(MLXLLM) && canImport(MLXLMCommon) && canImport(HuggingFace) && canImport(Tokenizers) && os(macOS)
         await ensureLoaded()
 #endif
     }
@@ -228,6 +233,13 @@ Skill definition:
     }
 
     private func ensureLoaded() async {
+        #if os(iOS)
+        // Never load the ~600MB MLX model on iOS — it blows the jetsam budget
+        // and gets the app killed (reads as random crashes). generate() then
+        // fails over to the extractive summary path.
+        modelLoadError = "On-device model disabled on iOS (memory budget)"
+        return
+        #else
         if isModelReady { return }
         if loadTask != nil { await loadTask?.value; return }
 
@@ -250,6 +262,7 @@ Skill definition:
             self.loadTask = nil
         }
         await loadTask?.value
+        #endif
     }
 
 #else

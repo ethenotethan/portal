@@ -902,7 +902,12 @@ struct ContentView: View {
 
     private func pushOwnedSessionOnIOS(_ sessionID: String) {
         #if os(iOS)
-        if iOSNavigationPath.last != sessionID {
+        // Check CONTAINMENT, not just .last: the createGeneration observer and
+        // createAndSwitchToNewSession can both push the same session in one
+        // runloop turn, before SwiftUI commits the first append — .last still
+        // reads the old value, so the same destination lands twice and the
+        // NavigationStack crashes or breaks back-navigation.
+        if !iOSNavigationPath.contains(sessionID) {
             log.info("push iOS session \(sessionID)")
             iOSNavigationPath.append(sessionID)
         }
@@ -998,6 +1003,12 @@ struct ContentView: View {
         sessionCreationError = nil
         defer { isCreatingSession = false }
 
+        // connectWithRetry, not a single connectIfNeeded: on iOS the socket
+        // dies on every backgrounding, and the first reconnect attempt after
+        // foregrounding often races the network path coming back up (radio
+        // wake). A failed first connect is terminal without retry, which made
+        // "New Session" right after foregrounding reliably fail on iOS.
+        await gatewayClientWrapper.connectWithRetry(using: settings)
         guard let connectedClient = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) else {
             log.error("createAndSwitchToNewSession failed: gateway not connected")
             sessionCreationError = "Gateway is not connected"

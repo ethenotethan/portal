@@ -716,6 +716,15 @@ struct VideoPlayerView: View {
         if let p = player { LeakTracker.assertDeallocated(p, after: 2) }
         if let state = videoLifetime { PerfSignposter.end("video.playerLifetime", state); videoLifetime = nil }
         player = nil
+        #if os(iOS)
+        // Release the audio session claimed for playback; holding it active
+        // keeps other apps' audio ducked and accrues zombie sessions across
+        // repeated video views. notifyOthersOnDeactivation lets background
+        // audio (music/podcasts) resume.
+        try? AVAudioSession.sharedInstance().setActive(
+            false, options: .notifyOthersOnDeactivation
+        )
+        #endif
     }
 }
 
