@@ -17,8 +17,13 @@ final class GatewayClientWrapper: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var isConnecting: Bool = false
     @Published var log: [LogEntry] = []
+    /// Mirrors the current client's keepalive RTT so views observing the
+    /// wrapper (not the inner client, which is swapped on reconnect) can
+    /// show live latency.
+    @Published private(set) var lastPingRTT: TimeInterval?
     private(set) var client: GatewayClient
 
+    private var pingRTTCancellable: AnyCancellable?
     private var connectionCancellable: AnyCancellable?
     private var connectTask: Task<Void, Never>?
     private var currentSignature: ConnectionSignature?
@@ -183,6 +188,12 @@ final class GatewayClientWrapper: ObservableObject {
     }
 
     private func observeConnectionState(of observedClient: GatewayClient) {
+        pingRTTCancellable = observedClient.$lastPingRTT
+            .receive(on: RunLoop.main)
+            .sink { [weak self, weak observedClient] rtt in
+                guard let self, observedClient === self.client else { return }
+                self.lastPingRTT = rtt
+            }
         connectionCancellable = observedClient.$connectionState
             .receive(on: RunLoop.main)
             .sink { [weak self, weak observedClient] state in

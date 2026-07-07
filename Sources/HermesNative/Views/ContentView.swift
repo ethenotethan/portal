@@ -623,18 +623,62 @@ struct ContentView: View {
             if !settings.savedGateways.isEmpty {
                 Divider()
             }
+            if !gatewayClientWrapper.isConnected && !gatewayClientWrapper.isConnecting {
+                Button("Reconnect") {
+                    Task {
+                        await gatewayClientWrapper.connectWithRetry(using: settings)
+                        wireUpClient()
+                    }
+                }
+            }
             Button("Add Gateway…") { showAddGateway = true }
             Button("Manage Gateways…") { showSettings = true }
         } label: {
-            Label(activeGatewayLabel, systemImage: "server.rack")
-                .labelStyle(.titleAndIcon)
-                .font(.caption)
-                .lineLimit(1)
+            HStack(spacing: 5) {
+                gatewayHealthDot
+                Image(systemName: "server.rack")
+                    .font(.caption)
+                Text(activeGatewayLabel)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("Switch Hermes gateway")
+        .help(gatewayHealthHelp)
         .accessibilityIdentifier("gatewaySwitcher")
+    }
+
+    /// Health dot: green = connected (pulsing amber if RTT is degraded),
+    /// amber = connecting, red = disconnected.
+    private var gatewayHealthDot: some View {
+        Circle()
+            .fill(gatewayHealthColor)
+            .frame(width: 7, height: 7)
+    }
+
+    private var gatewayHealthColor: Color {
+        if gatewayClientWrapper.isConnected {
+            // Degraded when the keepalive RTT crosses 750ms.
+            if let rtt = gatewayClientWrapper.lastPingRTT, rtt > 0.75 {
+                return .yellow
+            }
+            return .green
+        }
+        return gatewayClientWrapper.isConnecting ? .yellow : .red
+    }
+
+    private var gatewayHealthHelp: String {
+        if gatewayClientWrapper.isConnected {
+            if let rtt = gatewayClientWrapper.lastPingRTT {
+                return String(format: "Connected — %.0fms round-trip. Click to switch gateway.", rtt * 1000)
+            }
+            return "Connected. Click to switch gateway."
+        }
+        if gatewayClientWrapper.isConnecting {
+            return "Connecting…"
+        }
+        return "Disconnected — open the menu to reconnect or switch gateway."
     }
 
     private var activeGatewayLabel: String {

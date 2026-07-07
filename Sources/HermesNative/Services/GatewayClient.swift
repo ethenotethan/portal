@@ -18,6 +18,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     @Published var connectionState: ConnectionState = .disconnected
     @Published var sessionInfo: SessionInfo?
+    /// Last WebSocket ping round-trip time (updated every ~15s while
+    /// connected; nil until the first pong or after a ping failure).
+    @Published private(set) var lastPingRTT: TimeInterval?
     private var debugSnapshot: GatewayDebugSnapshot = GatewayDebugSnapshot()
     var onDebugSnapshotChange: (() -> Void)?
     var snapshotForDebug: GatewayDebugSnapshot {
@@ -565,11 +568,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     private func sendPing() async {
         guard let task = webSocketTask else { return }
+        let start = Date()
         task.sendPing { [weak self] error in
             if let error = error {
                 log.debug("Ping failed: \(error)")
                 Task { @MainActor in
+                    self?.lastPingRTT = nil
                     self?.handleDisconnect(reason: "Ping failed: \(error.localizedDescription)")
+                }
+            } else {
+                // Pong round-trip time — the toolbar status pill's health signal.
+                let rtt = Date().timeIntervalSince(start)
+                Task { @MainActor in
+                    self?.lastPingRTT = rtt
                 }
             }
         }

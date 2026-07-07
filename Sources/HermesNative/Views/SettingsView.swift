@@ -81,6 +81,9 @@ struct SettingsView: View {
                         Text("Notify when a response finishes while the app is in the background or another session is active.")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+
+                        APNsStatusRow()
+                            .padding(.top, 4)
                     }
 
                     Divider()
@@ -295,6 +298,8 @@ struct SettingsView: View {
                 Text("Notify when a response finishes while the app is in the background or another session is active.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                APNsStatusRow()
             }
 
             Section("Gateway Capabilities") {
@@ -432,6 +437,76 @@ struct AddGatewaySheet: View {
     }
 }
 #endif
+
+/// Remote-push (APNs) status: whether this device has an OS-granted push
+/// token and whether the connected gateway has APNs credentials. The plumbing
+/// is dormant until both are true (see docs/apns-setup.md), and nothing else
+/// in the UI says which half is missing — this row does.
+struct APNsStatusRow: View {
+    @ObservedObject private var push = PushRegistrationService.shared
+
+    private enum PushState {
+        case active
+        case gatewayUnconfigured
+        case noDeviceToken
+
+        var icon: String {
+            switch self {
+            case .active: return "checkmark.circle.fill"
+            case .gatewayUnconfigured: return "exclamationmark.circle"
+            case .noDeviceToken: return "bell.slash"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .active: return Theme.success
+            case .gatewayUnconfigured: return Theme.warning
+            case .noDeviceToken: return Theme.secondary
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .active: return "Remote push active"
+            case .gatewayUnconfigured: return "Remote push: gateway not configured"
+            case .noDeviceToken: return "Remote push off (no device token)"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .active:
+                return "Approvals, turn completions, and cron results are pushed via APNs even when the app is closed."
+            case .gatewayUnconfigured:
+                return "This device registered its token, but the gateway has no APNs credentials (APNS_* env vars). See docs/apns-setup.md."
+            case .noDeviceToken:
+                return "The OS hasn't granted a push token — expected without the push entitlement. "
+                    + "Local notifications still work while the app runs. See docs/apns-setup.md."
+            }
+        }
+    }
+
+    private var state: PushState {
+        guard push.deviceTokenHex != nil else { return .noDeviceToken }
+        // Registered with the gateway; configured unless it told us otherwise.
+        return push.gatewayAPNsConfigured == true ? .active : .gatewayUnconfigured
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: state.icon)
+                    .foregroundStyle(state.color)
+                Text(state.label)
+            }
+            Text(state.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityIdentifier("apnsStatusRow")
+    }
+}
 
 private struct CapabilityPill: View {
     let title: String
