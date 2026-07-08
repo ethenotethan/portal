@@ -1,6 +1,8 @@
 import SwiftUI
 
 /// Canvas-based call graph showing the spawn tree as a node-edge hierarchy.
+/// Supports pan (drag), zoom (pinch / scroll-modifier), and double-tap reset —
+/// large delegation trees no longer clip at the viewport edge.
 struct SpawnCallGraphView: View {
     let root: SpawnNode
     @Binding var selectedNodeID: String?
@@ -12,10 +14,21 @@ struct SpawnCallGraphView: View {
 
     @State private var hoveredNodeID: String?
 
+    // ── Pan / zoom ──
+    @State private var panOffset: CGSize = .zero
+    @State private var zoom: CGFloat = 1.0
+    @State private var dragStartPan: CGSize = .zero
+    @State private var isDraggingCanvas = false
+    @State private var lastPinchScale: CGFloat = 1.0
+
     var body: some View {
         GeometryReader { proxy in
             let layout = computeLayout(width: proxy.size.width)
-            Canvas { context, size in
+            Canvas { context, _ in
+                // World transform: pan then zoom. Hit-testing inverts this.
+                context.translateBy(x: panOffset.width, y: panOffset.height)
+                context.scaleBy(x: zoom, y: zoom)
+
                 // Edges
                 let edgeColor = Color.secondary.opacity(0.35)
                 for (from, to) in layout.edges {
@@ -87,10 +100,30 @@ struct SpawnCallGraphView: View {
                     )
                 }
             }
+            .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // Distinguish tap from pan: start panning once the
+                        // finger/cursor moves past a small slop.
+                        let dx = value.translation.width
+                        let dy = value.translation.height
+                        if !isDraggingCanvas, hypot(dx, dy) > 4 {
+                            isDraggingCanvas = true
+                            dragStartPan = panOffset
+                        }
+                        if isDraggingCanvas {
+                            panOffset = CGSize(
+                                width: dragStartPan.width + dx,
+                                height: dragStartPan.height + dy
+                            )
+                        }
+                    }
                     .onEnded { value in
-                        let pt = value.location
+                        defer { isDraggingCanvas = false }
+                        guard !isDraggingCanvas else { return }
+                        // Tap: hit-test in world space (invert pan+zoom).
+                        let pt = worldPoint(from: value.location)
                         for (id, pos) in layout.positions {
                             let dist = hypot(pt.x - pos.x, pt.y - pos.y)
                             if dist <= nodeRadius + 8 {
@@ -104,10 +137,27 @@ struct SpawnCallGraphView: View {
                         selectedNodeID = nil
                     }
             )
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        zoom = min(3.0, max(0.3, lastPinchScale * value))
+                    }
+                    .onEnded { _ in
+                        lastPinchScale = zoom
+                    }
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    panOffset = .zero
+                    zoom = 1.0
+                    lastPinchScale = 1.0
+                }
+            }
             #if os(macOS)
             .onContinuousHover { phase in
                 switch phase {
-                case .active(let pt):
+                case .active(let screenPt):
+                    let pt = worldPoint(from: screenPt)
                     for (id, pos) in layout.positions where hypot(pt.x - pos.x, pt.y - pos.y) <= nodeRadius + 8 {
                             hoveredNodeID = id
                             return
@@ -118,8 +168,30 @@ struct SpawnCallGraphView: View {
                 }
             }
             #endif
+            .overlay(alignment: .bottomTrailing) {
+                if zoom != 1.0 || panOffset != .zero {
+                    Text("\(Int(zoom * 100))% — double-tap to reset")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(8)
+                        .allowsHitTesting(false)
+                }
+            }
         }
         .frame(minHeight: max(CGFloat(maxLeafCount(root) * 60), 400))
+        .clipped()
+    }
+
+    /// Convert a screen-space gesture location into the graph's world space
+    /// (inverse of the Canvas pan+zoom transform).
+    private func worldPoint(from screen: CGPoint) -> CGPoint {
+        CGPoint(
+            x: (screen.x - panOffset.width) / zoom,
+            y: (screen.y - panOffset.height) / zoom
+        )
     }
 
     // MARK: - Layout computation

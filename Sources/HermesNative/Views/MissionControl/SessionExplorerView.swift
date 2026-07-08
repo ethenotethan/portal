@@ -437,12 +437,19 @@ struct SessionExplorerView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Row 2: cost + duration + model
+            // Row 2: cost + tokens + duration + model
             HStack(spacing: 12) {
                 if tree.totalCost > 0 {
                     Label(String(format: "$%.4f", tree.totalCost), systemImage: "dollarsign.circle")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                if tree.totalTokens > 0 {
+                    Label(formatTokens(tree.totalTokens), systemImage: "number.circle")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .help("Total tokens across all agents (input + output)")
                 }
 
                 Label(tree.root.durationString, systemImage: "clock")
@@ -495,6 +502,16 @@ struct SessionExplorerView: View {
             .replacingOccurrences(of: "openai/", with: "")
             .replacingOccurrences(of: "openrouter/", with: "")
         return String(trimmed.prefix(20))
+    }
+
+    private func formatTokens(_ tokens: Int) -> String {
+        if tokens >= 1_000_000 {
+            return String(format: "%.1fM tok", Double(tokens) / 1_000_000)
+        }
+        if tokens >= 1000 {
+            return String(format: "%.1fk tok", Double(tokens) / 1000)
+        }
+        return "\(tokens) tok"
     }
 
     // MARK: - Usage Tab

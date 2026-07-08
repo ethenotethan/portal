@@ -147,6 +147,10 @@ final class ChatViewModel: ObservableObject {
     lazy var reasoningGraph = ReasoningGraphIntegrator(
         summarizer: HeuristicReasoningSummarizer()
     )
+    /// Live subagent dispatch tracking — folds subagent.* events into agent
+    /// subtrees rendered inside the ThoughtGraphView. Turn-scoped like
+    /// reasoningGraph.
+    let subagentGraph = SubagentGraphIntegrator()
     private var sessionStates: [String: SessionRuntimeState] = [:]
     private var streamingMessageID: UUID?
     private var streamStartDate: Date?
@@ -1603,6 +1607,18 @@ if restoreSessionState(displayID: key) {
             if displaySessionID(for: sessionID ?? "") != displayID {
                 return
             }
+        case .subagentSpawnRequested, .subagentStart, .subagentComplete,
+             .subagentTool, .subagentThinking, .subagentProgress:
+            // Subagent events never mutate chat state — they feed the
+            // thought-graph integrator (which debounces token-rate thinking
+            // publishes itself). Bail before the @Published reassignment and
+            // state-clone machinery below: running that per event fires
+            // objectWillChange on the whole ChatView and pins the main
+            // thread in layout (spinning wheel).
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                applySubagentEvent(event, toolCalls: state.activeToolCalls)
+            }
+            return
         default:
             break
         }
@@ -1634,6 +1650,7 @@ if restoreSessionState(displayID: key) {
             if displaySessionID(for: sessionID ?? "") == displayID {
                 streamingMessageID = state.streamingMessageID
                 reasoningGraph.reset()
+                subagentGraph.reset()
             }
             if let sid = sessionID ?? currentSessionID {
                 SessionRunHistoryStore.shared.recordRunStart(sessionID: sid)
@@ -1724,7 +1741,8 @@ if restoreSessionState(displayID: key) {
             state.activeToolCalls[payload.toolID] = ToolCallRecord(
                 id: payload.toolID,
                 name: payload.name,
-                context: payload.context
+                context: payload.context,
+                startedAt: Date()
             )
 
         case .toolComplete(payload: let payload):
@@ -1733,6 +1751,7 @@ if restoreSessionState(displayID: key) {
                 record.durationSeconds = payload.durationSeconds
                 record.inlineDiff = payload.inlineDiff
                 record.isComplete = true
+                record.completedAt = Date()
                 state.activeToolCalls[payload.toolID] = record
             }
 
@@ -1782,13 +1801,17 @@ if restoreSessionState(displayID: key) {
             }
             state.activeToolCalls = [:]
 
+        case .subagentSpawnRequested, .subagentStart, .subagentComplete,
+             .subagentTool, .subagentProgress, .subagentThinking:
+            // Already fed to the thought graph by the early-exit above;
+            // unreachable here, kept only for switch exhaustiveness.
+            break
+
         case .statusUpdate, .toolGenerating, .reasoningAvailable,
              .gatewayReady, .skinChanged, .backgroundComplete,
              .clarifyRequest, .sudoRequest, .secretRequest,
              .voiceTranscript, .voiceStatus,
              .activityCreated, .activityUpdated,
-             .subagentSpawnRequested, .subagentStart, .subagentComplete,
-.subagentTool, .subagentProgress, .subagentThinking,
               .reviewSummary:
             break
         }
@@ -1881,6 +1904,48 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    /// The main-chain tool call a subagent spawn should attach to: the
+    /// currently-running delegate/dispatch tool, falling back to the most
+    /// recently started running tool (spawns only ever occur inside one).
+    private func delegatingToolID(in toolCalls: [String: ToolCallRecord]) -> String? {
+        let running = toolCalls.values.filter { !$0.isComplete }
+        let delegates = running.filter {
+            ThoughtGraphLayoutEngine.ToolCategory.classify(name: $0.name) == .agent
+        }
+        let pool = delegates.isEmpty ? running : delegates
+        return pool.max(by: {
+            ($0.startedAt ?? .distantPast) < ($1.startedAt ?? .distantPast)
+        })?.id
+    }
+
+    /// Feed a subagent.* event into the thought-graph integrator.
+    /// Only the visible session's turn is tracked (the graph is turn-scoped).
+    private func applySubagentEvent(_ event: GatewayEvent, toolCalls: [String: ToolCallRecord]) {
+        switch event {
+        case .subagentSpawnRequested(let payload):
+            subagentGraph.upsertAgent(
+                payload: payload,
+                running: false,
+                delegatingToolID: delegatingToolID(in: toolCalls)
+            )
+        case .subagentStart(let payload):
+            subagentGraph.upsertAgent(
+                payload: payload,
+                running: true,
+                delegatingToolID: delegatingToolID(in: toolCalls)
+            )
+        case .subagentComplete(let payload):
+            subagentGraph.completeAgent(payload: payload)
+        case .subagentTool(let payload):
+            subagentGraph.recordTool(payload: payload)
+        case .subagentThinking(let text, let subagentID),
+             .subagentProgress(let text, let subagentID):
+            subagentGraph.appendThinking(text, subagentID: subagentID)
+        default:
+            break
+        }
+    }
+
     private func handleEvent(_ event: GatewayEvent, eventSessionID: String?) {
         if let eventSessionID, !eventSessionID.isEmpty {
             applySessionEvent(event, to: eventSessionID)
@@ -1906,6 +1971,7 @@ if restoreSessionState(displayID: key) {
             guard isStreaming else { break }
             avatarState = .speaking
             reasoningGraph.reset()
+            subagentGraph.reset()
 
         case .messageDelta(let text, _):
             recordPerfEvent("messageDelta", bytes: text.count)
@@ -2001,7 +2067,8 @@ if restoreSessionState(displayID: key) {
             activeToolCalls[payload.toolID] = ToolCallRecord(
                 id: payload.toolID,
                 name: payload.name,
-                context: payload.context
+                context: payload.context,
+                startedAt: Date()
             )
 
         case .toolComplete(payload: let payload):
@@ -2012,6 +2079,7 @@ if restoreSessionState(displayID: key) {
                 record.durationSeconds = payload.durationSeconds
                 record.inlineDiff = payload.inlineDiff
                 record.isComplete = true
+                record.completedAt = Date()
                 activeToolCalls[payload.toolID] = record
             }
 
@@ -2069,8 +2137,9 @@ if restoreSessionState(displayID: key) {
             break
 
         case .subagentSpawnRequested, .subagentStart, .subagentComplete, .subagentTool, .subagentProgress, .subagentThinking:
-            // Subagent delegation events — handled by SpawnTreeStore
-            break
+            // Spawn-tree bookkeeping lives in SpawnTreeStore; feed the
+            // thought graph's agent subtrees here.
+            applySubagentEvent(event, toolCalls: activeToolCalls)
 
         case .backgroundComplete(let taskID, let _):
             break

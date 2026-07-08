@@ -166,6 +166,10 @@ struct ToolCallRecord: Identifiable, Codable {
     var durationSeconds: Double?
     var inlineDiff: String?
     var isComplete: Bool
+    /// Wall-clock arrival of tool.start / tool.complete. Optional so history
+    /// entries (which have no timing data) and old persisted turns decode fine.
+    var startedAt: Date?
+    var completedAt: Date?
 
     init(
         id: String,
@@ -174,7 +178,9 @@ struct ToolCallRecord: Identifiable, Codable {
         summary: String? = nil,
         durationSeconds: Double? = nil,
         inlineDiff: String? = nil,
-        isComplete: Bool = false
+        isComplete: Bool = false,
+        startedAt: Date? = nil,
+        completedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -183,6 +189,8 @@ struct ToolCallRecord: Identifiable, Codable {
         self.durationSeconds = durationSeconds
         self.inlineDiff = inlineDiff
         self.isComplete = isComplete
+        self.startedAt = startedAt
+        self.completedAt = completedAt
     }
 }
 

@@ -19,6 +19,18 @@ enum Theme {
     static let accent = Color(hex: "7c7cff")!         // soft purple-blue
     static let success = Color(hex: "5cb85c")!        // green for ✓
     static let warning = Color(hex: "e8a838")!        // amber
+    static let agentAccent = Color(hex: "ff6ac1")!    // hot pink — subagent nodes
+
+    // MARK: - Thought Graph Ramp
+    // One family: mid-saturation jewel tones that sit together on the dark
+    // canvas instead of mixing Theme colors with raw SwiftUI system colors.
+    static let graphSearch = Color(hex: "e8a838")!    // amber — looking
+    static let graphRead = Color(hex: "5aa9e6")!      // sky — taking in
+    static let graphWrite = Color(hex: "5cb87a")!     // jade — producing
+    static let graphPatch = Color(hex: "e07a5f")!     // terracotta — changing
+    static let graphTerminal = Color(hex: "9d7cff")!  // violet — executing
+    static let graphReasoning = Color(hex: "8a8f98")! // slate — thinking
+    static let graphOther = Color(hex: "7d8597")!     // gray-blue — misc
 
     // MARK: - Borders
     static let border = Color(hex: "3a3a3a")!

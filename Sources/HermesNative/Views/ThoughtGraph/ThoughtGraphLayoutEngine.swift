@@ -1,64 +1,72 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Graph Edge
+
+/// A directed edge in the thought graph, tagged with how it should render.
+struct ThoughtGraphEdge: Equatable {
+    enum Kind: Equatable {
+        /// Sequential step in the main loop (inferred order) — dashed.
+        case main
+        /// Dispatch from a delegating tool call to a subagent — solid, bold.
+        case spawn
+        /// Sequential step inside a subagent's loop — solid, quiet.
+        case loop
+    }
+
+    let from: String
+    let to: String
+    let kind: Kind
+}
+
+// MARK: - Lane Info
+
+/// One vertical swimlane: the main loop or a single subagent's loop.
+struct ThoughtGraphLane: Identifiable {
+    let id: String          // "main" or the subagent_id
+    let index: Int
+    let x: Double           // lane center in world space
+    let title: String       // "main loop" or the agent goal prefix
+    let isAgent: Bool
+    var minY: Double
+    var maxY: Double
+}
+
 // MARK: - ThoughtGraphLayoutEngine
 
-/// Layered DAG layout engine for the live agent thought graph visualization.
+/// Swimlane/timeline layout engine for the live agent thought graph.
 ///
-/// The engine takes an array of `ThoughtGraphNode` objects and computes
-/// positions for rendering them as a directed acyclic graph in a SwiftUI
-/// `Canvas`. The layout uses a top-to-bottom layered (Sugiyama-style)
-/// approach:
+/// The graph reads as a story rather than an inferred dependency DAG:
 ///
-/// - **Root nodes** (depth 0, no parents) form the top layer, evenly spaced
-///   horizontally and centered around x = 0.
-/// - **Each subsequent depth** is positioned below the previous layer, with
-///   nodes centered under the average x of their parent nodes.
-/// - **Minimum gaps** are enforced between sibling nodes at the same depth
-///   (horizontal: 80 pts) and between depth levels (vertical: 120 pts).
-/// - **The entire graph is centered around the origin** (0,0) so the Canvas
-///   `translate`/`scale` handles pan and zoom positioning.
+/// - **Lanes (x-axis)** — one column per actor. The main react loop owns the
+///   first lane; every spawned subagent gets its own lane to the right, in
+///   spawn order. Recursion reads as lanes spawning lanes.
+/// - **Time (y-axis)** — every node (tool call, reasoning beat, agent spawn)
+///   occupies its own chronological row, ordered by `startedAt` (falling back
+///   to arrival order). Parallel work shows as adjacent lanes advancing
+///   through the same time band.
+/// - **Edges** — consecutive nodes within a lane chain vertically (`main` /
+///   `loop` kinds); a subagent's lane connects back to the delegating tool
+///   call with a `spawn` edge. No cross-lane dependency inference: every edge
+///   drawn is real.
 ///
-/// Edges are **inferred** rather than explicitly tracked, and the engine
-/// returns raw `Path` objects for quadratic bezier curves connecting parent
-/// bottom-centers to child top-centers. The owning view is expected to stroke
-/// these paths with a dashed style to indicate inferred edges.
-///
-/// ## Usage (from a SwiftUI `Canvas`):
-/// ```swift
-/// Canvas { context, size in
-///     engine.layout(nodes: thoughtGraph.nodes)
-///     context.translateBy(x: panOffset.width, y: panOffset.height)
-///     context.scaleBy(x: zoom, y: zoom)
-///
-///     // Draw dashed edges
-///     for (from, to) in engine.edges {
-///         let path = engine.edgePath(from: from, to: to)
-///         context.stroke(
-///             path,
-///             with: .color(edgeColor),
-///             style: StrokeStyle(lineWidth: 1.0, dash: [6, 4])
-///         )
-///     }
-///
-///     // Draw nodes …
-/// }
-/// ```
+/// The engine is pure geometry: filtering (collapsed agents, hidden
+/// reasoning) happens in the view before `layout(nodes:)` is called.
 @MainActor
 final class ThoughtGraphLayoutEngine: ObservableObject {
 
     // MARK: - Published State
 
     /// Computed layout positions for every node, keyed by node ID.
-    /// The owning `ThoughtGraphView` observes this array to reactively
-    /// update the Canvas when positions change.
     @Published var layouts: [ThoughtGraphLayout] = []
 
-    /// Inferred parent → child edge pairs.
-    @Published var edges: [(from: String, to: String)] = []
+    /// Typed edges (lane chains + spawn edges).
+    @Published var edges: [ThoughtGraphEdge] = []
+
+    /// Swimlanes, main first, then agents in spawn order.
+    @Published var lanes: [ThoughtGraphLane] = []
 
     /// Total bounding size of the laid-out graph (including padding).
-    /// Useful for sizing the Canvas or clamping scroll extents.
     @Published var totalSize: CGSize = .zero
 
     // MARK: - Layout Constants
@@ -66,188 +74,197 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     /// Width × height of every node rectangle.
     static let nodeSize = CGSize(width: 150, height: 52)
 
-    /// Minimum horizontal distance between sibling nodes at the same depth.
-    static let minHorizontalGap: Double = 80
+    /// Horizontal distance between lane centers.
+    static let lanePitch: Double = 220
 
-    /// Minimum vertical distance between consecutive depth levels.
-    static let minVerticalGap: Double = 120
+    /// Vertical distance between consecutive chronological rows.
+    static let rowPitch: Double = 76
 
     // MARK: - Private Storage
 
-    /// The nodes most recently passed to `layout(nodes:)`.
-    private var nodes: [ThoughtGraphNode] = []
-
-    /// Lookup from node ID → `ThoughtGraphNode`.
     private var nodeIndex: [String: ThoughtGraphNode] = [:]
-
-    /// Lookup from node ID → `ThoughtGraphLayout` for fast edge-path queries.
     private var layoutIndex: [String: ThoughtGraphLayout] = [:]
-
-    // MARK: - Initializer
 
     init() {}
 
     // MARK: - Layout Computation
 
-    /// Run the full DAG layout pipeline on the given nodes.
-    ///
-    /// - Parameter nodes: The tool-call nodes to lay out. An empty array
-    ///   produces an empty layout with zero total size.
+    /// Run the swimlane/timeline layout on the given nodes.
     func layout(nodes: [ThoughtGraphNode]) {
-        self.nodes = nodes
-        self.nodeIndex = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+        nodeIndex = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
 
         guard !nodes.isEmpty else {
             layouts = []
             edges = []
+            lanes = []
             totalSize = .zero
             return
         }
 
-        // ---- 1. Infer edges (or use explicit parentIDs) ----
-        let computedEdges = inferEdges(from: nodes)
-        self.edges = computedEdges
+        // ---- 1. Chronological order ----
+        // startedAt when present; otherwise keep arrival order by synthesizing
+        // an epoch-offset key from the array index (history entries have no
+        // timestamps).
+        let ordered = nodes.enumerated().sorted { a, b in
+            let ta = a.element.startedAt?.timeIntervalSinceReferenceDate
+                ?? Double(a.offset) * 0.001
+            let tb = b.element.startedAt?.timeIntervalSinceReferenceDate
+                ?? Double(b.offset) * 0.001
+            if ta != tb { return ta < tb }
+            return a.offset < b.offset
+        }.map(\.element)
 
-        // ---- 2. Group nodes by depth ----
-        var depthGroups: [Int: [ThoughtGraphNode]] = [:]
-        for node in nodes {
-            depthGroups[node.depth, default: []].append(node)
-        }
-        let depths = depthGroups.keys.sorted()
-
-        guard !depths.isEmpty else {
-            layouts = []
-            edges = []
-            totalSize = .zero
-            return
-        }
-
-        // ---- 3. Position nodes depth by depth ----
-        var positionIndex: [String: CGPoint] = [:]
-        var maxX: Double = -.infinity
-        var minX: Double = .infinity
-        var maxY: Double = -.infinity
-        var minY: Double = .infinity
-
-        for depth in depths {
-            guard let depthNodes = depthGroups[depth] else { continue }
-            let y = Double(depth) * (Self.nodeSize.height + Self.minVerticalGap)
-
-            // ---- 3a. Compute desired x (center under average parent x) ----
-            var desired: [(node: ThoughtGraphNode, desiredX: Double)] = depthNodes.map { node in
-                let parentXs = node.parentIDs.compactMap { positionIndex[$0]?.x }
-                if parentXs.isEmpty {
-                    // Root node or node with parents not yet positioned — will
-                    // be evenly spaced below.
-                    return (node, 0)
-                }
-                let avgX = parentXs.reduce(0, +) / Double(parentXs.count)
-                return (node, avgX)
-            }
-
-            // ---- 3b. Sort by desired x for stable sweep ----
-            desired.sort { $0.desiredX < $1.desiredX }
-
-            // ---- 3c. Sweep: enforce minimum horizontal gap ----
-            var swept: [(node: ThoughtGraphNode, x: Double)] = []
-            for item in desired {
-                var x = item.desiredX
-                if let last = swept.last {
-                    let minAllowed = last.x + Self.nodeSize.width + Self.minHorizontalGap
-                    if x < minAllowed {
-                        x = minAllowed
-                    }
-                }
-                swept.append((item.node, x))
-            }
-
-            // ---- 3d. Center the layer around x = 0 ----
-            if let firstX = swept.first?.x, let lastX = swept.last?.x {
-                let layerCenter = (firstX + lastX) / 2
-                swept = swept.map { ($0.node, $0.x - layerCenter) }
-            }
-
-            // ---- 3e. Store positions and update bounding box ----
-            for (node, x) in swept {
-                positionIndex[node.id] = CGPoint(x: x, y: y)
-
-                let halfW = Self.nodeSize.width / 2
-                if x - halfW < minX { minX = x - halfW }
-                if x + halfW > maxX { maxX = x + halfW }
-                if y < minY { minY = y }
-                if y + Self.nodeSize.height > maxY { maxY = y + Self.nodeSize.height }
+        // ---- 2. Lane assignment ----
+        // Main lane first, then one lane per agent in first-appearance order.
+        var laneOrder: [String] = ["main"]
+        var laneIndexByKey: [String: Int] = ["main": 0]
+        for node in ordered {
+            guard let key = node.agentID ?? node.ownerAgentID else { continue }
+            if laneIndexByKey[key] == nil {
+                laneIndexByKey[key] = laneOrder.count
+                laneOrder.append(key)
             }
         }
+        let laneCount = laneOrder.count
+        let laneCenterOffset = Double(laneCount - 1) * Self.lanePitch / 2
 
-        // ---- 4. Build layout array ----
+        func laneX(_ index: Int) -> Double {
+            Double(index) * Self.lanePitch - laneCenterOffset
+        }
+
+        // ---- 3. Rows: one per node, chronological ----
         var layoutResults: [ThoughtGraphLayout] = []
-        for node in nodes {
-            guard let pos = positionIndex[node.id] else { continue }
+        var lastNodeIDInLane: [Int: String] = [:]
+        var laneMinY: [Int: Double] = [:]
+        var laneMaxY: [Int: Double] = [:]
+        var computedEdges: [ThoughtGraphEdge] = []
+        var lastMainNodeID: String?
+        var rowByID: [String: Int] = [:]
+
+        for (row, node) in ordered.enumerated() {
+            let laneKey = node.agentID ?? node.ownerAgentID ?? "main"
+            let laneIdx = laneIndexByKey[laneKey] ?? 0
+            let x = laneX(laneIdx)
+            let y = Double(row) * Self.rowPitch
+
             layoutResults.append(ThoughtGraphLayout(
                 nodeID: node.id,
-                x: pos.x,
-                y: pos.y,
+                x: x, y: y,
                 width: Self.nodeSize.width,
                 height: Self.nodeSize.height
             ))
-        }
-        self.layouts = layoutResults
-        self.layoutIndex = Dictionary(uniqueKeysWithValues: layoutResults.map { ($0.nodeID, $0) })
+            rowByID[node.id] = row
+            laneMinY[laneIdx] = min(laneMinY[laneIdx] ?? y, y)
+            laneMaxY[laneIdx] = max(laneMaxY[laneIdx] ?? y, y)
 
-        // ---- 5. Compute total graph bounds (with padding) ----
-        let padding: Double = Self.nodeSize.height // generous padding
-        if maxX.isFinite && minX.isFinite && maxY.isFinite && minY.isFinite {
-            totalSize = CGSize(
-                width: max(maxX - minX + padding * 2, 200),
-                height: max(maxY - minY + padding * 2, 200)
-            )
-        } else {
-            totalSize = .zero
+            // ---- Edges ----
+            if node.isAgent {
+                // Spawn edge: explicit delegating parent when it exists in
+                // this node set, else the most recent main-lane node so the
+                // dispatch still reads as "spawned from the loop here".
+                if let pid = node.parentIDs.first(where: { nodeIndex[$0] != nil }) {
+                    computedEdges.append(.init(from: pid, to: node.id, kind: .spawn))
+                } else if let fallback = lastMainNodeID {
+                    computedEdges.append(.init(from: fallback, to: node.id, kind: .spawn))
+                }
+            } else if let prev = lastNodeIDInLane[laneIdx] {
+                computedEdges.append(.init(
+                    from: prev, to: node.id,
+                    kind: laneIdx == 0 ? .main : .loop
+                ))
+            }
+
+            lastNodeIDInLane[laneIdx] = node.id
+            if laneIdx == 0 { lastMainNodeID = node.id }
         }
+
+        // Persist row into the node's depth field for callers that inspect it.
+        for i in layoutResults.indices {
+            if var node = nodeIndex[layoutResults[i].nodeID] {
+                node.depth = rowByID[node.id] ?? 0
+                nodeIndex[node.id] = node
+            }
+        }
+
+        // ---- 4. Lane metadata (for backgrounds + headers) ----
+        var laneInfos: [ThoughtGraphLane] = []
+        for (idx, key) in laneOrder.enumerated() {
+            guard let minY = laneMinY[idx], let maxY = laneMaxY[idx] else { continue }
+            let title: String
+            let isAgent = key != "main"
+            if isAgent {
+                let goal = nodeIndex[SubagentGraphIntegrator.agentNodeID(for: key)]?.context ?? ""
+                title = goal.isEmpty ? "agent" : String(goal.prefix(28))
+            } else {
+                title = "main loop"
+            }
+            laneInfos.append(ThoughtGraphLane(
+                id: key, index: idx, x: laneX(idx),
+                title: title, isAgent: isAgent,
+                minY: minY, maxY: maxY
+            ))
+        }
+
+        // ---- 5. Publish ----
+        layouts = layoutResults
+        layoutIndex = Dictionary(uniqueKeysWithValues: layoutResults.map { ($0.nodeID, $0) })
+        edges = computedEdges
+        lanes = laneInfos
+
+        let width = Double(laneCount) * Self.lanePitch + Self.nodeSize.width
+        let height = Double(ordered.count) * Self.rowPitch + Self.nodeSize.height * 2
+        totalSize = CGSize(width: max(width, 200), height: max(height, 200))
     }
 
-    // MARK: - Edge Path
+    // MARK: - Edge Geometry
 
-    /// Compute a curved edge path from a parent node's **bottom-center** to a
-    /// child node's **top-center**.
-    ///
-    /// The curve uses a quadratic bezier with a gentle perpendicular bow,
-    /// matching the organic aesthetic of `WikiGraphView`. The owning view
-    /// is expected to stroke the path with a dashed style (since all edges
-    /// in the current implementation are inferred).
-    ///
-    /// - Parameters:
-    ///   - parentID: The node ID of the source (parent) node.
-    ///   - childID:  The node ID of the destination (child) node.
-    /// - Returns: A `Path` from the parent's bottom-center to the child's
-    ///   top-center, or an empty path if either node is missing.
-    func edgePath(from parentID: String, to childID: String) -> Path {
-        guard let parentLayout = layoutIndex[parentID],
-              let childLayout = layoutIndex[childID] else {
-            return Path()
+    /// Control points for the quadratic bezier connecting two nodes.
+    /// Within-lane edges run bottom-center → top-center; cross-lane spawn
+    /// edges leave the parent's side toward the child lane for a clean fan-out.
+    func edgeControlPoints(from parentID: String, to childID: String)
+        -> (start: CGPoint, control: CGPoint, end: CGPoint)? {
+        guard let p = layoutIndex[parentID], let c = layoutIndex[childID] else { return nil }
+
+        let sameLane = abs(p.x - c.x) < 1
+        let start: CGPoint
+        let end: CGPoint
+        if sameLane {
+            start = CGPoint(x: p.x, y: p.y + p.height / 2)
+            end = CGPoint(x: c.x, y: c.y - c.height / 2)
+        } else {
+            // Leave the parent from the side facing the child's lane.
+            let dir: CGFloat = c.x > p.x ? 1 : -1
+            start = CGPoint(x: p.x + dir * p.width / 2, y: p.y)
+            end = CGPoint(x: c.x, y: c.y - c.height / 2)
         }
 
-        let start = CGPoint(
-            x: parentLayout.x,
-            y: parentLayout.y + parentLayout.height / 2
-        )
-        let end = CGPoint(
-            x: childLayout.x,
-            y: childLayout.y - childLayout.height / 2
-        )
-
-        // Build a gentle bezier bow, identical in spirit to WikiGraphView.
         let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let dx = end.x - start.x
         let dy = end.y - start.y
         let len = max(hypot(dx, dy), 1)
-        let bow: CGFloat = min(len * 0.12, 26)
+        // Cross-lane edges bow harder so they arc around lane contents.
+        let bow: CGFloat = sameLane ? min(len * 0.12, 26) : min(len * 0.25, 60)
         let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
+        return (start, ctrl, end)
+    }
 
+    /// Curved edge path between two nodes.
+    func edgePath(from parentID: String, to childID: String) -> Path {
+        guard let pts = edgeControlPoints(from: parentID, to: childID) else { return Path() }
         var path = Path()
-        path.move(to: start)
-        path.addQuadCurve(to: end, control: ctrl)
+        path.move(to: pts.start)
+        path.addQuadCurve(to: pts.end, control: pts.control)
         return path
+    }
+
+    /// Point at parameter `t` (0...1) along an edge's quadratic bezier —
+    /// used for flow particles.
+    func edgePoint(from parentID: String, to childID: String, t: CGFloat) -> CGPoint? {
+        guard let pts = edgeControlPoints(from: parentID, to: childID) else { return nil }
+        let u = 1 - t
+        let x = u * u * pts.start.x + 2 * u * t * pts.control.x + t * t * pts.end.x
+        let y = u * u * pts.start.y + 2 * u * t * pts.control.y + t * t * pts.end.y
+        return CGPoint(x: x, y: y)
     }
 
     // MARK: - Helpers
@@ -257,114 +274,44 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
         layoutIndex[nodeID]
     }
 
-    // MARK: - Static Convenience
+    // MARK: - Timeline Composition
 
-    /// Convert an array of `ToolCallRecord` into a fully inferred and laid-out
-    /// array of `ThoughtGraphNode`. Performs category-based dependency
-    /// inference (search→read, read→patch/write, terminal→patch), parallel
-    /// detection via overlapping execution windows, and depth assignment
-    /// before layout.
-    static func inferAndLayout(
+    /// Compose the full node timeline for one turn: main-loop tool calls,
+    /// subagent subtrees, and reasoning beats, all interleaved
+    /// chronologically by `layout(nodes:)`.
+    static func composeTimeline(
         tools: [ToolCallRecord],
-        canvasSize _: CGSize  // reserved for future canvas-relative sizing
+        agentNodes: [ThoughtGraphNode] = [],
+        reasoningNodes: [ThoughtGraphNode] = []
     ) -> [ThoughtGraphNode] {
         var nodes = tools.map { ThoughtGraphNode.from(toolCall: $0) }
-        guard nodes.count > 1 else {
-            // Single node: it's just a root
-            if var solo = nodes.first {
-                solo.depth = 0
-                nodes[0] = solo
-            }
-            return nodes
-        }
-
-        // ── Infer dependencies using category patterns + parallel detection ──
-        nodes = Self.inferCategoryDependencies(nodes)
-
-        // ── Build layout through a throwaway engine ──
-        let engine = ThoughtGraphLayoutEngine()
-        engine.layout(nodes: nodes)
+        nodes.append(contentsOf: agentNodes)
+        nodes.append(contentsOf: reasoningNodes)
         return nodes
     }
 
-    // MARK: - Dependency Inference
+    // MARK: - Category Classification
 
-    /// Infer parent→child edges from the given nodes.
-    ///
-    /// Strategy (in priority order):
-    /// 1. If **any node has explicit `parentIDs`**, use those as-is. This
-    ///    allows callers to pre-populate dependency data when available.
-    /// 2. If **depth values are present** (max depth > 0), assume that tools
-    ///    at depth N+1 depend on *all* tools at depth N. This is a coarse
-    ///    but useful heuristic for typical agent reasoning chains.
-    /// 3. If **no depth information is available** (all nodes at depth 0),
-    ///    fall back to a **sequential chain** where each tool depends on the
-    ///    previous one in array order.
-    ///
-    /// All edges are considered "inferred" and should be rendered with a
-    /// dashed stroke in the visualization.
-    private func inferEdges(from nodes: [ThoughtGraphNode]) -> [(from: String, to: String)] {
-        // Strategy 1: explicit parentIDs
-        let hasExplicit = nodes.contains { !$0.parentIDs.isEmpty }
-        if hasExplicit {
-            let validIDs = Set(nodes.map(\.id))
-            var result: [(String, String)] = []
-            for node in nodes {
-                for pid in node.parentIDs where validIDs.contains(pid) {
-                    result.append((pid, node.id))
-                }
-            }
-            return result
-        }
-
-        // Group by depth
-        var depthGroups: [Int: [ThoughtGraphNode]] = [:]
-        for node in nodes {
-            depthGroups[node.depth, default: []].append(node)
-        }
-        let maxDepth = depthGroups.keys.max() ?? 0
-
-        // Strategy 2: depth-based inference.
-        // Connect each child to a single representative parent via
-        // proportional index mapping — an all-parents × all-children cross
-        // product generates O(n²) edges that are each bezier-stroked per
-        // frame. Positions aren't computed yet at this point, so "nearest"
-        // is approximated by relative position within each depth layer.
-        if maxDepth > 0 {
-            var result: [(String, String)] = []
-            for depth in 0 ..< maxDepth {
-                guard let parents = depthGroups[depth],
-                      let children = depthGroups[depth + 1] else { continue }
-                for (i, child) in children.enumerated() {
-                    let parentIdx = min(i * parents.count / children.count, parents.count - 1)
-                    result.append((parents[parentIdx].id, child.id))
-                }
-            }
-            return result
-        }
-
-        // Strategy 3: sequential chain
-        var result: [(String, String)] = []
-        for i in 0 ..< (nodes.count - 1) {
-            result.append((nodes[i].id, nodes[i + 1].id))
-        }
-        return result
-    }
-
-    // MARK: - Category-Based Inference
-
-    /// Tool category used for dependency inference and color coding.
+    /// Tool category used for color coding.
     enum ToolCategory: String {
         case search  // search_files, web_search, grep, find
         case read    // read_file, cat, open
         case write   // write_file, create, save
         case patch   // patch, edit, replace, diff
         case terminal // terminal, shell, exec, bash, run
+        case agent   // delegate/spawn/subagent dispatch tools + agent nodes
+        case reasoning // interleaved thought beats
         case other   // everything else
 
         /// Classify a tool by its name.
         static func classify(name: String) -> ToolCategory {
             let lower = name.lowercased()
+            if lower == "reasoning" {
+                return .reasoning
+            }
+            if lower.contains("delegate") || lower.contains("subagent") || lower.contains("spawn") {
+                return .agent
+            }
             if lower.contains("search") || lower.contains("web") || lower.contains("grep") || lower.contains("find") || lower.contains("list_files") {
                 return .search
             }
@@ -382,115 +329,19 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
             }
             return .other
         }
-    }
 
-    /// Infer dependencies using tool-category patterns (search→read→patch/write,
-    /// terminal→patch) and detect parallel siblings via overlapping execution
-    /// windows.
-    ///
-    /// ## Algorithm
-    /// 1. Classify every node by tool name.
-    /// 2. Walk the array in order (assumed chronological by start time).
-    /// 3. A **search** node starts a new root chain at depth 0.
-    /// 4. A **read** node depends on the most recent search at its depth.
-    /// 5. A **write** or **patch** node depends on the most recent read at depth-1
-    ///    (or search if no reads are present).
-    /// 6. A **terminal** node depends on the most recent node before it (any category)
-    ///    and produces a result that downstream patch nodes can consume.
-    /// 7. **Parallel detection**: two nodes of the same category that start before
-    ///    the previous one completes are siblings (same depth + same parents).
-    private static func inferCategoryDependencies(_ nodes: [ThoughtGraphNode]) -> [ThoughtGraphNode] {
-        var result = nodes
-
-        // Build a mutable lookup of the most recent node ID at each depth, per category.
-        var mostRecentByDepth: [Int: [ToolCategory: String]] = [:]
-
-        for i in result.indices {
-            let cat = ToolCategory.classify(name: result[i].name)
-
-            switch cat {
-            case .search:
-                // Search nodes are roots (depth 0)
-                result[i].depth = 0
-                result[i].parentIDs = []
-                mostRecentByDepth[0, default: [:]][cat] = result[i].id
-
-            case .read:
-                // Reads depend on the most recent search, or become roots
-                if let searchID = mostRecentByDepth[0]?[.search] {
-                    result[i].depth = 1
-                    result[i].parentIDs = [searchID]
-                } else {
-                    result[i].depth = 0
-                    result[i].parentIDs = []
-                }
-                mostRecentByDepth[result[i].depth, default: [:]][cat] = result[i].id
-
-            case .write, .patch:
-                // write/patch depend on the most recent read at depth 1,
-                // or search if no reads exist, or become roots
-                if let readID = mostRecentByDepth[1]?[.read] {
-                    result[i].depth = 2
-                    result[i].parentIDs = [readID]
-                } else if let searchID = mostRecentByDepth[0]?[.search] {
-                    result[i].depth = 1
-                    result[i].parentIDs = [searchID]
-                } else {
-                    result[i].depth = 0
-                    result[i].parentIDs = []
-                }
-                mostRecentByDepth[result[i].depth, default: [:]][cat] = result[i].id
-
-            case .terminal:
-                // Terminal nodes depend on whatever was most recent before them,
-                // and act as a bridge: downstream patches can depend on terminals.
-                let prevIdx = i > 0 ? i - 1 : 0
-                if i > 0 {
-                    result[i].depth = result[prevIdx].depth + 1
-                    result[i].parentIDs = [result[prevIdx].id]
-                } else {
-                    result[i].depth = 0
-                    result[i].parentIDs = []
-                }
-                mostRecentByDepth[result[i].depth, default: [:]][cat] = result[i].id
-
-            case .other:
-                // Others chain sequentially: depend on the immediately previous node
-                if i > 0 {
-                    result[i].depth = result[i - 1].depth + 1
-                    result[i].parentIDs = [result[i - 1].id]
-                } else {
-                    result[i].depth = 0
-                    result[i].parentIDs = []
-                }
+        /// Cohesive graph color ramp (see Theme).
+        var color: Color {
+            switch self {
+            case .search:    Theme.graphSearch
+            case .read:      Theme.graphRead
+            case .write:     Theme.graphWrite
+            case .patch:     Theme.graphPatch
+            case .terminal:  Theme.graphTerminal
+            case .agent:     Theme.agentAccent
+            case .reasoning: Theme.graphReasoning
+            case .other:     Theme.graphOther
             }
         }
-
-        // ── Parallel detection: nodes with overlapping execution windows ──
-        // If two adjacent nodes at the same depth share the same parent(s)
-        // and their execution windows overlap, they are siblings.
-        for i in 1 ..< result.count {
-            let prev = result[i - 1]
-            var cur = result[i]
-
-            // Only adjust if they could plausibly be siblings
-            guard cur.depth == prev.depth,
-                  cur.parentIDs == prev.parentIDs,
-                  let curStart = cur.startedAt,
-                  prev.startedAt != nil else { continue }
-
-            // If cur started before prev completed, they overlap → siblings
-            if let prevEnd = prev.completedAt {
-                if curStart < prevEnd {
-                    // Same depth, same parents = sibling
-                    // No change needed; they're already at the same depth with same parents.
-                    // Just ensure depth consistency.
-                    cur.depth = prev.depth
-                    result[i] = cur
-                }
-            }
-        }
-
-        return result
     }
 }

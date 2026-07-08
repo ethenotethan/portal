@@ -39,7 +39,34 @@ struct ThoughtGraphNode: Identifiable, Codable {
     /// Timestamp when the tool.complete event arrived.
     var completedAt: Date?
 
+    // MARK: - Subagent Identity
+    //
+    // Two disjoint roles: a node with `agentID` IS a spawned subagent (its
+    // react loop rendered as a subtree); a node with `ownerAgentID` is a tool
+    // call executed INSIDE that subagent's loop. Plain parent-session tool
+    // calls have neither.
+
+    /// The `subagent_id` when this node represents a spawned subagent.
+    var agentID: String?
+
+    /// The owning subagent's `subagent_id` when this node is a tool call
+    /// made from within that subagent's loop.
+    var ownerAgentID: String?
+
+    /// Model the subagent runs on (agent nodes only).
+    var modelName: String?
+
+    /// Cost/token rollup from subagent.complete (agent nodes only).
+    var costUSD: Double?
+    var tokenTotal: Int?
+
+    /// Tail of the subagent's live thinking stream, for the detail panel.
+    var agentThinking: String?
+
     // MARK: - Computed
+
+    /// Whether this node represents a spawned subagent (vs. a tool call).
+    var isAgent: Bool { agentID != nil }
 
     /// Derived node status for rendering.
     var status: ThoughtNodeStatus {
@@ -57,7 +84,8 @@ struct ThoughtGraphNode: Identifiable, Codable {
 
     /// Tool category derived from the tool name, used for color coding in the graph.
     var category: ThoughtGraphLayoutEngine.ToolCategory {
-        ThoughtGraphLayoutEngine.ToolCategory.classify(name: name)
+        if isAgent { return .agent }
+        return ThoughtGraphLayoutEngine.ToolCategory.classify(name: name)
     }
 
     /// Extract the file path or target from the tool's context string.
@@ -97,7 +125,13 @@ struct ThoughtGraphNode: Identifiable, Codable {
         depth: Int = 0,
         parentIDs: [String] = [],
         startedAt: Date? = nil,
-        completedAt: Date? = nil
+        completedAt: Date? = nil,
+        agentID: String? = nil,
+        ownerAgentID: String? = nil,
+        modelName: String? = nil,
+        costUSD: Double? = nil,
+        tokenTotal: Int? = nil,
+        agentThinking: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -110,6 +144,12 @@ struct ThoughtGraphNode: Identifiable, Codable {
         self.parentIDs = parentIDs
         self.startedAt = startedAt
         self.completedAt = completedAt
+        self.agentID = agentID
+        self.ownerAgentID = ownerAgentID
+        self.modelName = modelName
+        self.costUSD = costUSD
+        self.tokenTotal = tokenTotal
+        self.agentThinking = agentThinking
     }
 
     // MARK: - Factory
@@ -128,8 +168,8 @@ struct ThoughtGraphNode: Identifiable, Codable {
             durationSeconds: toolCall.durationSeconds,
             depth: 0,
             parentIDs: [],
-            startedAt: nil,
-            completedAt: nil
+            startedAt: toolCall.startedAt,
+            completedAt: toolCall.completedAt
         )
     }
 }

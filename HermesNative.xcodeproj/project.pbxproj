@@ -79,6 +79,7 @@
 		4575B2845BBF7BB8C1B1929D /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */; };
 		4620080AB323A2D15D1D842D /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */; };
 		46F14365DAA565AEC59D5F99 /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA16F415470C4A20A1155A3 /* SessionListViewModel.swift */; };
+		47FF52AB1AFCD924D0DE589B /* SubagentGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */; };
 		48E2F0B696FBAE1CA8D89745 /* HermesCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */; };
 		499EF1DCD0A4F6C104F366BF /* PersonaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C83FB177D450056599E65 /* PersonaManager.swift */; };
 		4A00FBB33D13F56A1012DEE2 /* ThoughtGraphNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3485571962535F17DD9D1AA /* ThoughtGraphNode.swift */; };
@@ -302,6 +303,7 @@
 		FB36647CC221C486A87A10AA /* GatewayEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6772AAD454D58CA9064AE58D /* GatewayEvent.swift */; };
 		FB4986462ACE3845B47DD8C8 /* CelebrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A703BA8AB5B196807AE254A /* CelebrationManager.swift */; };
 		FC630866E5003CEF3DB435B2 /* WikiPathPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */; };
+		FCBCCD98C0F42F94C0D65940 /* SubagentGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */; };
 		FD3E7899A19A2676755CEC08 /* ActivityInboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBB3395C7A05FE0F19D8BFA /* ActivityInboxViewModel.swift */; };
 		FDA5911129F556FB29B289B4 /* QuizModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C507ADF4D946E8F07EE41174 /* QuizModels.swift */; };
 		FDB5583AC9395AAD7A316F62 /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
@@ -442,6 +444,7 @@
 		D94BA7BB0578A446C7882922 /* IOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSApp.swift; sourceTree = "<group>"; };
 		DBDB000F6D0C975615D7F80F /* LottieCharacterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieCharacterView.swift; sourceTree = "<group>"; };
 		DBE7F6C318B11174A754F38A /* CronDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardView.swift; sourceTree = "<group>"; };
+		DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubagentGraphIntegrator.swift; sourceTree = "<group>"; };
 		E1110949F66962E0E6B6DF6E /* thinking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = thinking.json; sourceTree = "<group>"; };
 		E1CB9DFBFC6F7CC67D8359F5 /* happy.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = happy.json; sourceTree = "<group>"; };
 		E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiTimelineView.swift; sourceTree = "<group>"; };
@@ -859,6 +862,7 @@
 				111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */,
 				9B2AB0CFDB8A13FCF88213B5 /* SRSEngine.swift */,
 				67F13E499A3D62F15C5F4F02 /* SRSStore.swift */,
+				DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */,
 				9A014710FF545F86CB656E53 /* TTSService.swift */,
 				86F630297EBA7625D0FCE142 /* VideoCache.swift */,
 			);
@@ -1152,6 +1156,7 @@
 				31D12D614277EDA4B02B87F3 /* SpawnTreeModels.swift in Sources */,
 				8ACAEB144EAF1FE5B9BE9F49 /* SpawnTreeStore.swift in Sources */,
 				B2C70DF3A50F76A54C2D971B /* StreamingStatusBar.swift in Sources */,
+				47FF52AB1AFCD924D0DE589B /* SubagentGraphIntegrator.swift in Sources */,
 				FFD48AC30A6BE64DF3CEA22C /* TTSService.swift in Sources */,
 				DB7EB95BF30CB12EAF516CEF /* TUISkin.swift in Sources */,
 				82DD829EDC65638DC04ED1BD /* Theme.swift in Sources */,
@@ -1307,6 +1312,7 @@
 				AD25BB03261A6956C0A45285 /* SpawnTreeModels.swift in Sources */,
 				B232BC5B3F11E779E0B7BED7 /* SpawnTreeStore.swift in Sources */,
 				280980593A775D9E5BAC9139 /* StreamingStatusBar.swift in Sources */,
+				FCBCCD98C0F42F94C0D65940 /* SubagentGraphIntegrator.swift in Sources */,
 				2FFA54A3E449C6085EF0E55A /* TTSService.swift in Sources */,
 				A138D267E2459FDFFF6068AA /* TUISkin.swift in Sources */,
 				AD61DDE2588D762FF1CE882C /* Theme.swift in Sources */,

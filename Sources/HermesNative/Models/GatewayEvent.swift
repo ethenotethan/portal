@@ -88,8 +88,8 @@ enum GatewayEvent {
     case subagentStart(payload: SubagentPayload)
     case subagentComplete(payload: SubagentCompletePayload)
     case subagentTool(payload: SubagentToolPayload)
-    case subagentProgress(text: String)
-    case subagentThinking(text: String)
+    case subagentProgress(text: String, subagentID: String?)
+    case subagentThinking(text: String, subagentID: String?)
 
     // Background tasks
     case backgroundComplete(taskID: String, text: String)
@@ -179,10 +179,16 @@ enum GatewayEvent {
             return .subagentTool(payload: SubagentToolPayload.from(p))
 
         case "subagent.progress":
-            return .subagentProgress(text: p["text"]?.stringValue ?? "")
+            return .subagentProgress(
+                text: p["text"]?.stringValue ?? "",
+                subagentID: p["subagent_id"]?.stringValue
+            )
 
         case "subagent.thinking":
-            return .subagentThinking(text: p["text"]?.stringValue ?? "")
+            return .subagentThinking(
+                text: p["text"]?.stringValue ?? "",
+                subagentID: p["subagent_id"]?.stringValue
+            )
 
         case "background.complete":
             return .backgroundComplete(
