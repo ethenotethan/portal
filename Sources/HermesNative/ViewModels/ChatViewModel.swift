@@ -77,6 +77,8 @@ final class ChatViewModel: ObservableObject {
     @Published var isSessionReady: Bool = false
     @Published var currentModel: String = ""
     @Published var pendingApproval: ApprovalPayload?
+    /// Blocking clarify question awaiting an answer (clarify.request).
+    @Published var pendingClarify: ClarifyPayload?
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
     @Published var error: String?
     @Published var avatarState: AvatarState = .idle
@@ -123,6 +125,7 @@ final class ChatViewModel: ObservableObject {
         var isStreaming: Bool = false
         var isSessionReady: Bool = false
         var pendingApproval: ApprovalPayload?
+        var pendingClarify: ClarifyPayload?
         var activeToolCalls: [String: ToolCallRecord] = [:]
         var error: String?
         var avatarState: AvatarState = .idle
@@ -348,6 +351,7 @@ client.eventStream
         isSessionReady = false
         currentModel = ""
         pendingApproval = nil
+        pendingClarify = nil
         activeToolCalls = [:]
         error = nil
         avatarState = .idle
@@ -400,6 +404,7 @@ client.eventStream
                 displayState.isStreaming = runtimeState.isStreaming
                 displayState.streamingMessageID = runtimeState.streamingMessageID
                 displayState.pendingApproval = runtimeState.pendingApproval
+                displayState.pendingClarify = runtimeState.pendingClarify
                 displayState.activeToolCalls = runtimeState.activeToolCalls
                 displayState.avatarState = runtimeState.avatarState
                 displayState.error = runtimeState.error
@@ -425,6 +430,7 @@ client.eventStream
             isStreaming: isStreaming,
             isSessionReady: isSessionReady,
             pendingApproval: pendingApproval,
+            pendingClarify: pendingClarify,
             activeToolCalls: activeToolCalls,
             error: error,
             avatarState: avatarState,
@@ -463,6 +469,7 @@ client.eventStream
         isStreaming = state.isStreaming
         isSessionReady = state.isSessionReady
         pendingApproval = state.pendingApproval
+        pendingClarify = state.pendingClarify
         activeToolCalls = state.activeToolCalls
         error = state.error
         avatarState = state.avatarState
@@ -516,6 +523,8 @@ client.eventStream
             self.messages = []
             self.activeToolCalls = [:]
             self.pendingApproval = nil
+        self.pendingClarify = nil
+            self.pendingClarify = nil
             self.streamingMessageID = nil
             self.isStreaming = false
             self.avatarState = .idle
@@ -561,6 +570,7 @@ if restoreSessionState(displayID: key) {
         self.streamingMessageID = nil
         self.activeToolCalls = [:]
         self.pendingApproval = nil
+        self.pendingClarify = nil
         self.avatarState = .idle
         self.error = nil
         snapshotCurrentSessionState()
@@ -675,6 +685,8 @@ if restoreSessionState(displayID: key) {
                 self.messages = []
                 self.activeToolCalls = [:]
                 self.pendingApproval = nil
+        self.pendingClarify = nil
+            self.pendingClarify = nil
                 self.isStreaming = false
                 self.streamingMessageID = nil
                 self.avatarState = .idle
@@ -1307,6 +1319,19 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    /// Answer a pending clarify question. An empty answer cancels the
+    /// prompt (the gateway treats "" as no answer and the agent proceeds).
+    func respondClarify(answer: String) async {
+        guard let client = gatewayClient, let clarify = pendingClarify else { return }
+        pendingClarify = nil
+        snapshotCurrentSessionState()
+        do {
+            try await client.respondClarify(requestID: clarify.requestID, answer: answer)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
     /// Switch the model.
     func switchModel(_ model: String) async {
         guard let client = gatewayClient, let sid = sessionID else { return }
@@ -1378,6 +1403,7 @@ if restoreSessionState(displayID: key) {
         isStreaming = false
         isSessionReady = true
         pendingApproval = nil
+        pendingClarify = nil
         activeToolCalls = [:]
         error = nil
         avatarState = .idle
@@ -1787,6 +1813,9 @@ if restoreSessionState(displayID: key) {
         case .approvalRequest(payload: let payload):
             state.pendingApproval = payload
 
+        case .clarifyRequest(payload: let payload):
+            state.pendingClarify = payload
+
         case .error(let message):
             state.error = message
             state.isStreaming = false
@@ -1809,7 +1838,7 @@ if restoreSessionState(displayID: key) {
 
         case .statusUpdate, .toolGenerating, .reasoningAvailable,
              .gatewayReady, .skinChanged, .backgroundComplete,
-             .clarifyRequest, .sudoRequest, .secretRequest,
+             .sudoRequest, .secretRequest,
              .voiceTranscript, .voiceStatus,
              .activityCreated, .activityUpdated,
               .reviewSummary:
@@ -1838,6 +1867,7 @@ if restoreSessionState(displayID: key) {
                 slimState.isStreaming = state.isStreaming
                 slimState.isSessionReady = state.isSessionReady
                 slimState.pendingApproval = state.pendingApproval
+                slimState.pendingClarify = state.pendingClarify
                 slimState.activeToolCalls = state.activeToolCalls
                 slimState.error = state.error
                 slimState.avatarState = state.avatarState
@@ -1871,6 +1901,7 @@ if restoreSessionState(displayID: key) {
                     isStreaming = state.isStreaming
                     isSessionReady = state.isSessionReady
                     pendingApproval = state.pendingApproval
+                    pendingClarify = state.pendingClarify
                     activeToolCalls = state.activeToolCalls
                     avatarState = state.avatarState
                     streamingMessageID = state.streamingMessageID
@@ -2144,8 +2175,8 @@ if restoreSessionState(displayID: key) {
         case .backgroundComplete(let taskID, let _):
             break
 
-        case .clarifyRequest:
-            break
+        case .clarifyRequest(payload: let payload):
+            pendingClarify = payload
 
         case .sudoRequest:
             // TODO: Present sudo password dialog

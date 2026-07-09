@@ -74,7 +74,7 @@ struct ActivityInboxViewModelTests {
     @Test("handle clarify request creates info item")
     func handleClarifyRequest() {
         let vm = ActivityInboxViewModel()
-        vm.handle(.clarifyRequest(question: "Which file?", choices: ["a", "b"]), eventSessionID: "s1")
+        vm.handle(.clarifyRequest(payload: ClarifyPayload(question: "Which file?", choices: ["a", "b"], requestID: "req1")), eventSessionID: "s1")
 
         #expect(vm.items.contains { $0.kind == "clarify.request" && $0.summary == "Which file?" })
     }

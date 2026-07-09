@@ -172,6 +172,12 @@ struct ChatView: View {
                     .environmentObject(chatViewModel)
             }
 
+            // Clarify question (if pending)
+            if chatViewModel.pendingClarify != nil {
+                ClarifyBanner()
+                    .environmentObject(chatViewModel)
+            }
+
             // Input bar
             ChatInputBar()
                 .environmentObject(chatViewModel)
@@ -545,6 +551,12 @@ struct ChatView: View {
                 VStack(spacing: 8) {
                     if chatViewModel.pendingApproval != nil {
                         ApprovalBanner()
+                            .environmentObject(chatViewModel)
+                            .padding(.horizontal, 24)
+                    }
+
+                    if chatViewModel.pendingClarify != nil {
+                        ClarifyBanner()
                             .environmentObject(chatViewModel)
                             .padding(.horizontal, 24)
                     }
@@ -1546,6 +1558,120 @@ struct ApprovalBanner: View {
             }
             .padding(10)
             .background(.yellow.opacity(0.1))
+        }
+    }
+}
+
+/// Banner for a blocking clarify.request: the agent thread is parked on the
+/// gateway until clarify.respond arrives (or its 300s timeout lapses), so
+/// this must always be answerable — choice chips when the agent offered
+/// options, free-text otherwise, and Skip to release the agent immediately.
+struct ClarifyBanner: View {
+    @EnvironmentObject var chatViewModel: ChatViewModel
+    @State private var answerText = ""
+
+    var body: some View {
+        if let clarify = chatViewModel.pendingClarify {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.bubble.fill")
+                        .foregroundStyle(Theme.accent)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Agent Question")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                        Text(clarify.question)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                            .textSelection(.enabled)
+                    }
+
+                    Spacer()
+
+                    Button("Skip") {
+                        Task { await chatViewModel.respondClarify(answer: "") }
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .foregroundStyle(.secondary)
+                    .help("Continue without answering")
+                }
+
+                if clarify.choices.isEmpty {
+                    HStack(spacing: 6) {
+                        TextField("Type your answer…", text: $answerText)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.caption)
+                            .onSubmit { submitText() }
+
+                        Button("Answer") { submitText() }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Theme.accent)
+                            .controlSize(.small)
+                            .disabled(answerText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                } else {
+                    // Choice chips — wraps on narrow widths
+                    FlowLayoutCompat(spacing: 6) {
+                        ForEach(clarify.choices, id: \.self) { choice in
+                            Button(choice) {
+                                Task { await chatViewModel.respondClarify(answer: choice) }
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(Theme.accent)
+                            .controlSize(.small)
+                        }
+                    }
+                }
+            }
+            .padding(10)
+            .background(Theme.accent.opacity(0.08))
+            .onDisappear { answerText = "" }
+        }
+    }
+
+    private func submitText() {
+        let answer = answerText.trimmingCharacters(in: .whitespaces)
+        guard !answer.isEmpty else { return }
+        answerText = ""
+        Task { await chatViewModel.respondClarify(answer: answer) }
+    }
+}
+
+/// Minimal wrapping HStack for clarify choice chips.
+struct FlowLayoutCompat: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: maxWidth == .infinity ? x : maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            view.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
         }
     }
 }

@@ -96,7 +96,7 @@ enum GatewayEvent {
 
     // Approvals / blocking requests
     case approvalRequest(payload: ApprovalPayload)
-    case clarifyRequest(question: String, choices: [String])
+    case clarifyRequest(payload: ClarifyPayload)
     case sudoRequest
     case secretRequest(prompt: String, envVar: String)
 
@@ -200,11 +200,7 @@ enum GatewayEvent {
             return .approvalRequest(payload: ApprovalPayload.from(p))
 
         case "clarify.request":
-            let choices = p["choices"]?.arrayValue?.map { $0.stringValue ?? "" } ?? []
-            return .clarifyRequest(
-                question: p["question"]?.stringValue ?? "",
-                choices: choices
-            )
+            return .clarifyRequest(payload: ClarifyPayload.from(p))
 
         case "sudo.request":
             return .sudoRequest
@@ -403,6 +399,23 @@ struct ApprovalPayload {
             sessionKey: p["session_key"]?.stringValue ?? "",
             toolName: p["tool_name"]?.stringValue,
             rawArgs: p["raw_args"]?.stringValue
+        )
+    }
+}
+
+/// Payload for the blocking clarify.request prompt. `requestID` is the
+/// gateway's pending-prompt key — clarify.respond must echo it back or the
+/// agent thread waits out its full 300s timeout (the "infinite hang").
+struct ClarifyPayload {
+    let question: String
+    let choices: [String]
+    let requestID: String
+
+    static func from(_ p: [String: AnyCodable]) -> ClarifyPayload {
+        ClarifyPayload(
+            question: p["question"]?.stringValue ?? "",
+            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
+            requestID: p["request_id"]?.stringValue ?? ""
         )
     }
 }

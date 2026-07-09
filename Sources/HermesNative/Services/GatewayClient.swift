@@ -1345,6 +1345,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// Answer a blocking clarify.request prompt. `requestID` must be the
+    /// request_id from the clarify.request event; the gateway resolves the
+    /// waiting agent thread by that key.
+    func respondClarify(requestID: String, answer: String) async throws {
+        let response = try await call("clarify.respond", params: [
+            "request_id": AnyCodable(requestID),
+            "answer": AnyCodable(answer),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     func closeSession(sessionID: String) async throws {
         let response = try await call("session.close", params: [
             "session_id": AnyCodable(sessionID),

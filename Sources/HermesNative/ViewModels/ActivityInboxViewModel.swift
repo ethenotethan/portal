@@ -140,9 +140,10 @@ final class ActivityInboxViewModel: ObservableObject {
             items = store.items
             NotificationService.shared.notifyActivity(item)
 
-        case .clarifyRequest(let question, _):
+        case .clarifyRequest(let payload):
+            let question = payload.question
             let item = ActivityItem(
-                id: "clarify-\(UUID().uuidString.prefix(8))",
+                id: "clarify-\(payload.requestID.isEmpty ? String(UUID().uuidString.prefix(8)) : payload.requestID)",
                 createdAt: Date(),
                 kind: "clarify.request",
                 severity: .info,
