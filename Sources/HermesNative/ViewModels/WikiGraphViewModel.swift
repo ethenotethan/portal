@@ -133,11 +133,18 @@ final class WikiGraphViewModel: ObservableObject {
         case "comparison": return Color(hex: "e8a838")!
         case "query": return Color(hex: "ff6b9d")!
         case "raw": return Color(hex: "888888")!
+        case "meta", "index", "log": return Color(hex: "5ad4e6")!  // root pages (index.md, log.md)
         default: return Color(hex: "aaaaaa")!
         }
     }
 
-    func nodeRadius(for type: String) -> CGFloat { type == "entity" ? 7 : 5 }
+    func nodeRadius(for type: String) -> CGFloat {
+        switch type {
+        case "entity": return 7
+        case "meta", "index", "log": return 8  // hub pages read slightly larger
+        default: return 5
+        }
+    }
 
     func nodeRadius(at index: Int) -> CGFloat {
         guard simNodes.indices.contains(index) else { return 5 }
