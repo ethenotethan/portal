@@ -293,6 +293,25 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Centaur Backend") {
+                Toggle("Use Centaur for new sessions", isOn: $settings.centaurEnabled)
+                if settings.centaurEnabled {
+                    TextField("Centaur URL (https://…)", text: $settings.centaurURL)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+                    SecureField("API key / console JWT", text: $settings.centaurAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                    Text("New sessions run in a Centaur sandbox (REST + SSE). Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if settings.centaurEnabled && settings.buildCentaurURL() == nil && !settings.centaurURL.isEmpty {
+                        Label("Invalid URL — include the scheme (https://)", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+
             Section("Notifications") {
                 Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                 Text("Notify when a response finishes while the app is in the background or another session is active.")

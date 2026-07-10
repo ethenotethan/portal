@@ -63,6 +63,46 @@ final class SettingsViewModel: ObservableObject {
                !host.hasPrefix("10.")
     }
 
+    // MARK: - Centaur Backend
+
+    /// When enabled, New Session creates a Centaur session (REST + SSE)
+    /// instead of a Hermes gateway session.
+    @Published var centaurEnabled: Bool {
+        didSet {
+            if didCompleteInit {
+                UserDefaults.standard.set(centaurEnabled, forKey: Self.centaurEnabledKey)
+            }
+        }
+    }
+
+    /// Centaur control-plane base URL (e.g. https://centaur.example.com).
+    @Published var centaurURL: String {
+        didSet {
+            if didCompleteInit {
+                UserDefaults.standard.set(centaurURL, forKey: Self.centaurURLKey)
+            }
+        }
+    }
+
+    /// Centaur console JWT or API key (stored in the Keychain).
+    @Published var centaurAPIKey: String {
+        didSet {
+            if didCompleteInit {
+                KeychainStore.shared.saveCentaurAPIKey(centaurAPIKey)
+            }
+        }
+    }
+
+    private static let centaurEnabledKey = "hermes.centaurEnabled"
+    private static let centaurURLKey = "hermes.centaurURL"
+
+    /// Parsed Centaur base URL, nil when unset/invalid.
+    func buildCentaurURL() -> URL? {
+        let trimmed = centaurURL.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), url.scheme != nil else { return nil }
+        return url
+    }
+
     /// The captured CF_Authorization cookie (not persisted — re-auth on app launch).
     @Published var cfAuthCookie: HTTPCookie?
 
@@ -81,6 +121,9 @@ final class SettingsViewModel: ObservableObject {
         self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
+        self.centaurEnabled = UserDefaults.standard.bool(forKey: Self.centaurEnabledKey)
+        self.centaurURL = UserDefaults.standard.string(forKey: Self.centaurURLKey) ?? ""
+        self.centaurAPIKey = KeychainStore.shared.loadCentaurAPIKey() ?? ""
 
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)

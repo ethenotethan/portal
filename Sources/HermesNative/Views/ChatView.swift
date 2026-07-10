@@ -959,7 +959,9 @@ struct ChatInputBar: View {
                     .padding(.top, 6)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                attachButton
+                if chatViewModel.backendCapabilities.supportsAttachments {
+                    attachButton
+                }
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
                 sendButton
@@ -992,7 +994,9 @@ struct ChatInputBar: View {
                     .padding(.top, 6)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                attachButton
+                if chatViewModel.backendCapabilities.supportsAttachments {
+                    attachButton
+                }
                 inputField
                 sendButton
             }

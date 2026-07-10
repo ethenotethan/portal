@@ -128,6 +128,7 @@
 		63E4CC3663F96C4B4D392455 /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */; };
 		67130AAEA71842A5F830CDAF /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342D787380CE678F4DDFEB8F /* ChatViewModel.swift */; };
 		671C44A8273230CAC312A014 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57621A872836514CD5BC0F5B /* ChatView.swift */; };
+		68713018547FA75B9AD4D6AB /* AgentBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E189B48EA1AAFB00B67C209F /* AgentBackend.swift */; };
 		69A0E3956A26BC85F0BA10F1 /* WikiTimelineViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F924BA7C739D8BF1220EC89 /* WikiTimelineViewModel.swift */; };
 		6A125FB74D9B1C28E38E3666 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 769BBB3BE6C0F8FD9A10A6CF /* JSONRPCResponse.swift */; };
 		6B87CD50DFA7FE36658C165A /* WikiChangesetDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */; };
@@ -162,6 +163,7 @@
 		800DE74CC13CFCDAB5420029 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 7ABDD72800FF9093DC07B9C8 /* Lottie */; };
 		8060C4164F4FA40B50846E7D /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */; };
 		81F35CECDF184270505E77CB /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 6F0058522539F20E74EE6346 /* Highlightr */; };
+		8293B793A25F73E2DCD6E076 /* CentaurClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3608E6772F9A16E94183B21 /* CentaurClient.swift */; };
 		82DD829EDC65638DC04ED1BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
 		854DA8E57545F5379A0F4C54 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */; };
 		86840130D03445C9B796DE72 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */; };
@@ -185,6 +187,7 @@
 		949710C0980DCAAF18C1BD89 /* HermesNativeSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1B098714AA8CADED2118F6 /* HermesNativeSmokeUITests.swift */; };
 		95006EACD8FAE6B2373C7E9D /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */; };
 		95678EA6F547C8AB0F9ED9B8 /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */; };
+		962ABD885734DC91B5BB75CF /* CentaurClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3608E6772F9A16E94183B21 /* CentaurClient.swift */; };
 		96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B2F649BE0F12B966FAF6C47 /* Extensions.swift */; };
 		976ADC4A1BA0363F681A6C0F /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = F19F60780D55F06B71895705 /* HuggingFace */; };
 		9771D8420E9A40ABB54DD732 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 732289EF5858884F6B2019DF /* MLXLMCommon */; };
@@ -203,6 +206,7 @@
 		A3043705F5A86394FE492ED9 /* idle.json in Resources */ = {isa = PBXBuildFile; fileRef = E75C11A7DC7195F4353C93DA /* idle.json */; };
 		A53723E8CA76B5D576505DD9 /* happy.json in Resources */ = {isa = PBXBuildFile; fileRef = E1CB9DFBFC6F7CC67D8359F5 /* happy.json */; };
 		AA22CB30D10808E7ECA86070 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3179815C2A0EC7D43C9213AC /* CFAuthView.swift */; };
+		AC56A7DBF82D9913A8B0220B /* AgentBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E189B48EA1AAFB00B67C209F /* AgentBackend.swift */; };
 		AD140C8B8A12AC67BF370F9E /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = FE55711F07D88DCBCA72F824 /* MLXLMCommon */; };
 		AD25BB03261A6956C0A45285 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
 		AD61DDE2588D762FF1CE882C /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
@@ -446,6 +450,7 @@
 		DBE7F6C318B11174A754F38A /* CronDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardView.swift; sourceTree = "<group>"; };
 		DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubagentGraphIntegrator.swift; sourceTree = "<group>"; };
 		E1110949F66962E0E6B6DF6E /* thinking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = thinking.json; sourceTree = "<group>"; };
+		E189B48EA1AAFB00B67C209F /* AgentBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBackend.swift; sourceTree = "<group>"; };
 		E1CB9DFBFC6F7CC67D8359F5 /* happy.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = happy.json; sourceTree = "<group>"; };
 		E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiTimelineView.swift; sourceTree = "<group>"; };
 		E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -463,6 +468,7 @@
 		EF6C83FB177D450056599E65 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
 		F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardView.swift; sourceTree = "<group>"; };
 		F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F3608E6772F9A16E94183B21 /* CentaurClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurClient.swift; sourceTree = "<group>"; };
 		F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
 		F428854475FA67BF7A39BF19 /* CronPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronPoller.swift; sourceTree = "<group>"; };
 		F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExplorerView.swift; sourceTree = "<group>"; };
@@ -842,6 +848,8 @@
 		ECC6B15B37293F039253AB94 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				E189B48EA1AAFB00B67C209F /* AgentBackend.swift */,
+				F3608E6772F9A16E94183B21 /* CentaurClient.swift */,
 				D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */,
 				F428854475FA67BF7A39BF19 /* CronPoller.swift */,
 				2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */,
@@ -1047,11 +1055,13 @@
 				FD3E7899A19A2676755CEC08 /* ActivityInboxViewModel.swift in Sources */,
 				8E74DC3A495E0BBA739D1664 /* ActivityItem.swift in Sources */,
 				C98EECAF481BF8D1D742664C /* ActivityStore.swift in Sources */,
+				AC56A7DBF82D9913A8B0220B /* AgentBackend.swift in Sources */,
 				4620080AB323A2D15D1D842D /* AgentPanel.swift in Sources */,
 				8B8E8ACA1D442FE6695072BD /* AttachmentChipView.swift in Sources */,
 				9173E4A3FBF0AD9AE57E9F26 /* CFAuthView.swift in Sources */,
 				FB4986462ACE3845B47DD8C8 /* CelebrationManager.swift in Sources */,
 				D538C39D1A64CAD02E2CCF3A /* CelebrationOverlay.swift in Sources */,
+				8293B793A25F73E2DCD6E076 /* CentaurClient.swift in Sources */,
 				1BF54C22DCEC8F5EE5304F57 /* ChartSpec.swift in Sources */,
 				3FF80DFEDB9ABFB1CFFACDA9 /* ChatHistoryStore.swift in Sources */,
 				D4BB9EEC5648965C25C00461 /* ChatMessage.swift in Sources */,
@@ -1203,11 +1213,13 @@
 				53E6BA68FD7C86E55FAFC804 /* ActivityInboxViewModel.swift in Sources */,
 				2F71D7EEECD7514BB70EE5B0 /* ActivityItem.swift in Sources */,
 				EC07855BC490EEE7FB98C920 /* ActivityStore.swift in Sources */,
+				68713018547FA75B9AD4D6AB /* AgentBackend.swift in Sources */,
 				F08EDD0F5D435E5CBE00F9A5 /* AgentPanel.swift in Sources */,
 				9BEF3885B4A263FBDAC9F1B3 /* AttachmentChipView.swift in Sources */,
 				AA22CB30D10808E7ECA86070 /* CFAuthView.swift in Sources */,
 				CC10B7453EBD118DA7064E32 /* CelebrationManager.swift in Sources */,
 				CBF547E9F64DB1BF606F17D9 /* CelebrationOverlay.swift in Sources */,
+				962ABD885734DC91B5BB75CF /* CentaurClient.swift in Sources */,
 				520D46E7440756784B2DABBB /* ChartSpec.swift in Sources */,
 				EABE1088D83BEFBB0CAB94E7 /* ChatHistoryStore.swift in Sources */,
 				DEC17FA02D6B7CEDBAFA3EFA /* ChatMessage.swift in Sources */,

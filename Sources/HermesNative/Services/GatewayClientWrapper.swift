@@ -28,6 +28,31 @@ final class GatewayClientWrapper: ObservableObject {
     private var connectTask: Task<Void, Never>?
     private var currentSignature: ConnectionSignature?
 
+    /// Lazily-created Centaur backend, keyed by (url, apiKey) so settings
+    /// changes rebuild it. Independent of the WebSocket lifecycle above —
+    /// Centaur is stateless REST until a session opens its SSE stream.
+    private var centaurClient: CentaurClient?
+    private var centaurSignature: String?
+
+    /// Returns the Centaur backend for the current settings, or nil when
+    /// Centaur mode is disabled or misconfigured.
+    func centaurBackend(using settings: SettingsViewModel) -> CentaurClient? {
+        guard settings.centaurEnabled, let url = settings.buildCentaurURL() else {
+            centaurClient = nil
+            centaurSignature = nil
+            return nil
+        }
+        let signature = "\(url.absoluteString)|\(settings.centaurAPIKey)"
+        if let existing = centaurClient, centaurSignature == signature {
+            return existing
+        }
+        let client = CentaurClient(baseURL: url, apiKey: settings.centaurAPIKey)
+        centaurClient = client
+        centaurSignature = signature
+        appendLog("Centaur backend: \(url.absoluteString)")
+        return client
+    }
+
     struct LogEntry: Identifiable {
         let id = UUID()
         let text: String

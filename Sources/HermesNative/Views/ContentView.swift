@@ -1040,12 +1040,43 @@ struct ContentView: View {
         #endif
     }
 
+    /// Create a new session on the Centaur backend (REST + SSE) instead of
+    /// the Hermes gateway. Session lists/mission-control stay on the Hermes
+    /// path; only the chat pipeline switches backends.
+    @MainActor
+    private func createCentaurSession(_ backend: CentaurClient) async {
+        chatViewModel.setGatewayClient(backend)
+        await chatViewModel.createSession()
+        if let error = chatViewModel.error {
+            sessionCreationError = "Centaur session failed: \(error)"
+            return
+        }
+        if let sid = chatViewModel.currentSessionID {
+            log.info("created centaur session \(sid)")
+            // Register in the sidebar so the session is selectable; the
+            // hermes session.list poll won't know it, so mark it owned.
+            sessionList.registerOwnedSession(shortHexID: sid)
+            sessionList.selectSession(id: sid)
+            pushOwnedSessionOnIOS(sid)
+        }
+    }
+
     @MainActor
     private func createAndSwitchToNewSession() async {
         guard !isCreatingSession else { return }
         isCreatingSession = true
         sessionCreationError = nil
         defer { isCreatingSession = false }
+
+        // Centaur mode: skip the WebSocket entirely — REST + SSE per session.
+        if settings.centaurEnabled {
+            if let backend = gatewayClientWrapper.centaurBackend(using: settings) {
+                await createCentaurSession(backend)
+            } else {
+                sessionCreationError = "Centaur URL not configured (Settings → Centaur)"
+            }
+            return
+        }
 
         // connectWithRetry, not a single connectIfNeeded: on iOS the socket
         // dies on every backgrounding, and the first reconnect attempt after
