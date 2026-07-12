@@ -63,44 +63,18 @@ final class SettingsViewModel: ObservableObject {
                !host.hasPrefix("10.")
     }
 
-    // MARK: - Centaur Backend
+    // MARK: - Centaur Backends
 
-    /// When enabled, New Session creates a Centaur session (REST + SSE)
-    /// instead of a Hermes gateway session.
-    @Published var centaurEnabled: Bool {
-        didSet {
-            if didCompleteInit {
-                UserDefaults.standard.set(centaurEnabled, forKey: Self.centaurEnabledKey)
-            }
-        }
+    /// Centaur entries in the unified backend list. Centaur backends are
+    /// per-session targets (chosen at session create), never the app-level
+    /// active gateway — the ambient services (session list, wiki, skills,
+    /// cron) always ride the active Hermes entry.
+    var centaurBackends: [SavedGateway] {
+        savedGateways.filter { $0.kind == .centaur }
     }
 
-    /// Centaur control-plane base URL (e.g. https://centaur.example.com).
-    @Published var centaurURL: String {
-        didSet {
-            if didCompleteInit {
-                UserDefaults.standard.set(centaurURL, forKey: Self.centaurURLKey)
-            }
-        }
-    }
-
-    /// Centaur console JWT or API key (stored in the Keychain).
-    @Published var centaurAPIKey: String {
-        didSet {
-            if didCompleteInit {
-                KeychainStore.shared.saveCentaurAPIKey(centaurAPIKey)
-            }
-        }
-    }
-
-    private static let centaurEnabledKey = "hermes.centaurEnabled"
-    private static let centaurURLKey = "hermes.centaurURL"
-
-    /// Parsed Centaur base URL, nil when unset/invalid.
-    func buildCentaurURL() -> URL? {
-        let trimmed = centaurURL.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, let url = URL(string: trimmed), url.scheme != nil else { return nil }
-        return url
+    var hermesBackends: [SavedGateway] {
+        savedGateways.filter { $0.kind == .hermes }
     }
 
     /// The captured CF_Authorization cookie (not persisted — re-auth on app launch).
@@ -121,9 +95,6 @@ final class SettingsViewModel: ObservableObject {
         self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
-        self.centaurEnabled = UserDefaults.standard.bool(forKey: Self.centaurEnabledKey)
-        self.centaurURL = UserDefaults.standard.string(forKey: Self.centaurURLKey) ?? ""
-        self.centaurAPIKey = KeychainStore.shared.loadCentaurAPIKey() ?? ""
 
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)
@@ -176,6 +147,10 @@ final class SettingsViewModel: ObservableObject {
     func selectGateway(_ gateway: SavedGateway) {
         guard gateway.id != activeGatewayID else { return }
         guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
+        // Centaur backends are session-create targets, not the app gateway:
+        // activating one would tear down the WebSocket that powers the
+        // session list, wiki, skills, and cron with nothing to replace it.
+        guard gateway.kind == .hermes else { return }
 
         activeGatewayID = gateway.id
         // The CF cookie is host-specific; drop it so the new host re-auths.
@@ -190,11 +165,11 @@ final class SettingsViewModel: ObservableObject {
 
     /// Add a new saved gateway. Returns the created entry.
     @discardableResult
-    func addGateway(name: String, url: String, apiKey: String, makeActive: Bool = true) -> SavedGateway {
-        let gateway = SavedGateway(name: name, url: url, apiKey: apiKey)
+    func addGateway(name: String, url: String, apiKey: String, kind: BackendKind = .hermes, makeActive: Bool = true) -> SavedGateway {
+        let gateway = SavedGateway(name: name, url: url, apiKey: apiKey, kind: kind)
         savedGateways.append(gateway)
         persistGateways()
-        if makeActive { selectGateway(gateway) }
+        if makeActive && kind == .hermes { selectGateway(gateway) }
         return gateway
     }
 
@@ -216,7 +191,7 @@ final class SettingsViewModel: ObservableObject {
         savedGateways.removeAll { $0.id == gateway.id }
         persistGateways()
         if gateway.id == activeGatewayID {
-            if let next = savedGateways.first {
+            if let next = savedGateways.first(where: { $0.kind == .hermes }) {
                 activeGatewayID = nil  // force selectGateway to run
                 selectGateway(next)
             } else {

@@ -25,7 +25,12 @@ private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "
 @MainActor
 final class CentaurClient: ObservableObject {
 
-    @Published var connectionState: GatewayClient.ConnectionState = .disconnected
+    /// REST has no transport to establish: the client is usable the moment
+    /// it exists, so it reports `.connected` until a request/stream actually
+    /// fails. Starting `.disconnected` deadlocks ChatViewModel.resumeSession,
+    /// whose connected-guard runs BEFORE the resume call that would have
+    /// flipped the state.
+    @Published var connectionState: GatewayClient.ConnectionState = .connected
     @Published var sessionInfo: SessionInfo?
 
     let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()
@@ -255,15 +260,30 @@ final class CentaurClient: ObservableObject {
                 attempt = 0
                 connectionState = .connected
 
+                // Manual line framing: AsyncBytes.lines SKIPS empty lines,
+                // and the empty line is exactly what terminates an SSE frame —
+                // using it means no frame ever completes and no event is
+                // delivered. Split on \n ourselves.
                 var parser = SSEParser()
-                for try await line in bytes.lines {
+                var lineBuffer: [UInt8] = []
+                for try await byte in bytes {
                     guard !Task.isCancelled else { return }
-                    guard let frame = parser.consume(line: line) else { continue }
-                    if let id = frame.id, let numeric = Int64(id) {
-                        lastEventID[threadKey] = numeric
-                    }
-                    for event in adapter.adapt(frame: frame) {
-                        eventStream.send((event, threadKey))
+                    if byte == UInt8(ascii: "\n") {
+                        var lineBytes = lineBuffer
+                        lineBuffer.removeAll(keepingCapacity: true)
+                        if lineBytes.last == UInt8(ascii: "\r") {
+                            lineBytes.removeLast()
+                        }
+                        guard let line = String(bytes: lineBytes, encoding: .utf8) else { continue }
+                        guard let frame = parser.consume(line: line) else { continue }
+                        if let id = frame.id, let numeric = Int64(id) {
+                            lastEventID[threadKey] = numeric
+                        }
+                        for event in adapter.adapt(frame: frame) {
+                            eventStream.send((event, threadKey))
+                        }
+                    } else {
+                        lineBuffer.append(byte)
                     }
                 }
             } catch {

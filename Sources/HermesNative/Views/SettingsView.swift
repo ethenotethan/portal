@@ -213,12 +213,29 @@ struct SettingsView: View {
                             settings.selectGateway(gateway)
                         } label: {
                             HStack {
-                                Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                                    .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
+                                if gateway.kind == .hermes {
+                                    Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                                        .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
+                                } else {
+                                    // Centaur entries are per-session targets,
+                                    // never the app-level active gateway.
+                                    Image(systemName: "shippingbox")
+                                        .foregroundStyle(Theme.secondary)
+                                }
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(gateway.displayName)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
+                                    HStack(spacing: 5) {
+                                        Text(gateway.displayName)
+                                            .foregroundStyle(.primary)
+                                            .lineLimit(1)
+                                        if gateway.kind == .centaur {
+                                            Text("Centaur")
+                                                .font(.system(size: 9, weight: .semibold))
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 1)
+                                                .background(Theme.accent.opacity(0.15), in: Capsule())
+                                                .foregroundStyle(Theme.accent)
+                                        }
+                                    }
                                     Text(gateway.url)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
@@ -231,7 +248,7 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
 
-                        if !settings.isActive(gateway) {
+                        if gateway.kind == .hermes, !settings.isActive(gateway) {
                             Button("Switch") { settings.selectGateway(gateway) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
@@ -250,7 +267,7 @@ struct SettingsView: View {
                             Image(systemName: "trash")
                         }
                         .buttonStyle(.borderless)
-                        .disabled(settings.savedGateways.count <= 1)
+                        .disabled(gateway.kind == .hermes && settings.hermesBackends.count <= 1)
                     }
                 }
             } header: {
@@ -293,25 +310,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Centaur Backend") {
-                Toggle("Use Centaur for new sessions", isOn: $settings.centaurEnabled)
-                if settings.centaurEnabled {
-                    TextField("Centaur URL (https://…)", text: $settings.centaurURL)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-                    SecureField("API key / console JWT", text: $settings.centaurAPIKey)
-                        .textFieldStyle(.roundedBorder)
-                    Text("New sessions run in a Centaur sandbox (REST + SSE). Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if settings.centaurEnabled && settings.buildCentaurURL() == nil && !settings.centaurURL.isEmpty {
-                        Label("Invalid URL — include the scheme (https://)", systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-
             Section("Notifications") {
                 Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                 Text("Notify when a response finishes while the app is in the background or another session is active.")
@@ -344,15 +342,15 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showAddGateway) {
-            AddGatewaySheet { name, url, key in
-                settings.addGateway(name: name, url: url, apiKey: key)
+            AddGatewaySheet { name, url, key, kind in
+                settings.addGateway(name: name, url: url, apiKey: key, kind: kind)
                 showAddGateway = false
             } onCancel: {
                 showAddGateway = false
             }
         }
         .sheet(item: $editingGateway) { gateway in
-            AddGatewaySheet(editing: gateway) { name, url, key in
+            AddGatewaySheet(editing: gateway) { name, url, key, _ in
                 var updated = gateway
                 updated.name = name
                 updated.url = url
@@ -401,12 +399,13 @@ struct SettingsView: View {
 struct AddGatewaySheet: View {
     /// When set, the sheet edits this gateway in place instead of adding.
     var editing: SavedGateway?
-    let onAdd: (_ name: String, _ url: String, _ apiKey: String) -> Void
+    let onAdd: (_ name: String, _ url: String, _ apiKey: String, _ kind: BackendKind) -> Void
     let onCancel: () -> Void
 
     @State private var name = ""
     @State private var url = ""
     @State private var apiKey = ""
+    @State private var kind: BackendKind = .hermes
 
     private var canSave: Bool {
         !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -415,14 +414,31 @@ struct AddGatewaySheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section(editing == nil ? "New Gateway" : "Edit Gateway") {
+                Section(editing == nil ? "New Backend" : "Edit Backend") {
+                    Picker("Type", selection: $kind) {
+                        ForEach(BackendKind.allCases, id: \.self) { k in
+                            Text(k.displayName).tag(k)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    // Kind is identity: a hermes URL isn't a centaur URL, so
+                    // editing an existing entry keeps its kind fixed.
+                    .disabled(editing != nil)
                     TextField("Name (optional)", text: $name)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("gatewayNameField")
-                    TextField("Gateway URL", text: $url)
+                    TextField(kind == .centaur ? "Centaur URL (https://…)" : "Gateway URL", text: $url)
                         .textFieldStyle(.roundedBorder)
-                    SecureField("API Key", text: $apiKey)
+                    SecureField(kind == .centaur ? "API key / console JWT" : "API Key", text: $apiKey)
                         .textFieldStyle(.roundedBorder)
+                    if kind == .centaur {
+                        Text(
+                            "Centaur backends host individual sessions (chosen from the New Session menu). " +
+                            "Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions."
+                        )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -437,7 +453,8 @@ struct AddGatewaySheet: View {
                     onAdd(
                         name.trimmingCharacters(in: .whitespacesAndNewlines),
                         url.trimmingCharacters(in: .whitespacesAndNewlines),
-                        apiKey
+                        apiKey,
+                        kind
                     )
                 }
                 .keyboardShortcut(.defaultAction)
@@ -451,6 +468,7 @@ struct AddGatewaySheet: View {
                 name = gateway.name
                 url = gateway.url
                 apiKey = gateway.apiKey
+                kind = gateway.kind
             }
         }
     }

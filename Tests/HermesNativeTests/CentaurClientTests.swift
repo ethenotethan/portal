@@ -42,6 +42,25 @@ struct SSEParserTests {
     }
 }
 
+@Suite("Centaur Client State")
+@MainActor
+struct CentaurClientStateTests {
+
+    @Test("client reports connected immediately — REST has no transport handshake")
+    func startsConnected() {
+        let client = CentaurClient(
+            baseURL: URL(string: "https://centaur.example.com")!,
+            apiKey: "k"
+        )
+        // ChatViewModel.resumeSession guards on .connected BEFORE calling
+        // resume; a .disconnected initial state deadlocks session selection.
+        guard case .connected = client.connectionState else {
+            Issue.record("expected .connected, got \(client.connectionState)")
+            return
+        }
+    }
+}
+
 @Suite("Centaur Event Adapter")
 struct CentaurEventAdapterTests {
 

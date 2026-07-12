@@ -11,6 +11,10 @@ struct SessionListView: View {
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
+    /// Create a session on a specific saved backend (Centaur entries).
+    /// nil / absent = only the home gateway is configured.
+    var onCreateSessionOnBackend: ((SavedGateway) -> Void)?
+    var centaurBackends: [SavedGateway] = []
     var onOpenPanel: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
@@ -304,14 +308,40 @@ struct SessionListView: View {
                 .foregroundStyle(Theme.tertiary)
 
             HStack(spacing: 8) {
-                sidebarHeaderButton(
-                    icon: "plus",
-                    title: "New Session",
-                    accessibilityLabel: "New Session",
-                    accessibilityID: "newSessionButton",
-                    isPrimary: true,
-                    action: { onCreateSession?() }
-                )
+                if centaurBackends.isEmpty {
+                    sidebarHeaderButton(
+                        icon: "plus",
+                        title: "New Session",
+                        accessibilityLabel: "New Session",
+                        accessibilityID: "newSessionButton",
+                        isPrimary: true,
+                        action: { onCreateSession?() }
+                    )
+                } else {
+                    Menu {
+                        Button {
+                            onCreateSession?()
+                        } label: {
+                            Label("Hermes (home gateway)", systemImage: "server.rack")
+                        }
+                        ForEach(centaurBackends) { entry in
+                            Button {
+                                onCreateSessionOnBackend?(entry)
+                            } label: {
+                                Label(entry.displayName, systemImage: "shippingbox")
+                            }
+                        }
+                    } label: {
+                        Label("New Session", systemImage: "plus")
+                            .font(.caption)
+                    } primaryAction: {
+                        onCreateSession?()
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("newSessionButton")
+                }
             }
         }
         .padding(.horizontal, 12)

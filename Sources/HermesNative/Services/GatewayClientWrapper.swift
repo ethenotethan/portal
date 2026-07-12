@@ -28,28 +28,26 @@ final class GatewayClientWrapper: ObservableObject {
     private var connectTask: Task<Void, Never>?
     private var currentSignature: ConnectionSignature?
 
-    /// Lazily-created Centaur backend, keyed by (url, apiKey) so settings
-    /// changes rebuild it. Independent of the WebSocket lifecycle above —
-    /// Centaur is stateless REST until a session opens its SSE stream.
-    private var centaurClient: CentaurClient?
-    private var centaurSignature: String?
+    /// Lazily-created Centaur clients, keyed by backend entry ID. Independent
+    /// of the WebSocket lifecycle above — Centaur is stateless REST until a
+    /// session opens its SSE stream. Rebuilt when the entry's url/key change.
+    private var centaurClients: [UUID: (signature: String, client: CentaurClient)] = [:]
 
-    /// Returns the Centaur backend for the current settings, or nil when
-    /// Centaur mode is disabled or misconfigured.
-    func centaurBackend(using settings: SettingsViewModel) -> CentaurClient? {
-        guard settings.centaurEnabled, let url = settings.buildCentaurURL() else {
-            centaurClient = nil
-            centaurSignature = nil
+    /// Returns the client for a saved Centaur backend entry, or nil when the
+    /// entry isn't centaur-kind or has an invalid URL.
+    func centaurBackend(for entry: SavedGateway) -> CentaurClient? {
+        guard entry.kind == .centaur,
+              let url = URL(string: entry.url.trimmingCharacters(in: .whitespaces)),
+              url.scheme != nil else {
             return nil
         }
-        let signature = "\(url.absoluteString)|\(settings.centaurAPIKey)"
-        if let existing = centaurClient, centaurSignature == signature {
-            return existing
+        let signature = "\(url.absoluteString)|\(entry.apiKey)"
+        if let existing = centaurClients[entry.id], existing.signature == signature {
+            return existing.client
         }
-        let client = CentaurClient(baseURL: url, apiKey: settings.centaurAPIKey)
-        centaurClient = client
-        centaurSignature = signature
-        appendLog("Centaur backend: \(url.absoluteString)")
+        let client = CentaurClient(baseURL: url, apiKey: entry.apiKey)
+        centaurClients[entry.id] = (signature, client)
+        appendLog("Centaur backend: \(entry.displayName) (\(url.absoluteString))")
         return client
     }
 

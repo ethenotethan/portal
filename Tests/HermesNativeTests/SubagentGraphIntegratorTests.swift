@@ -88,9 +88,12 @@ struct SubagentGraphIntegratorTests {
         integrator.upsertAgent(payload: spawnPayload(id: "s1"), running: true, delegatingToolID: nil)
         integrator.appendThinking("pondering...", subagentID: nil)
 
-        // Thinking publishes are debounced (250ms) to avoid per-token
-        // graph re-renders; wait for the flush.
-        try await Task.sleep(nanoseconds: 400_000_000)
+        // Thinking publishes are debounced (250ms) to avoid per-token graph
+        // re-renders. Poll rather than a single fixed sleep — under parallel
+        // test load a one-shot 400ms wait races the debounce timer.
+        for _ in 0..<40 where integrator.agentNodes[0].agentThinking == nil {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
         #expect(integrator.agentNodes[0].agentThinking == "pondering...")
     }
 
