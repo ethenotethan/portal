@@ -14,6 +14,51 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
         case .centaur: return "Centaur"
         }
     }
+
+    /// Session-scoped backends host individual sessions (picked at session
+    /// create) and can never be the app-level active gateway. Views branch on
+    /// this — never on concrete kinds — so new platforms only touch this file.
+    var isSessionScoped: Bool {
+        switch self {
+        case .hermes: return false
+        case .centaur: return true
+        }
+    }
+
+    /// SF Symbol for menu/list rows.
+    var iconName: String {
+        switch self {
+        case .hermes: return "server.rack"
+        case .centaur: return "shippingbox"
+        }
+    }
+
+    // MARK: - Field labels (Add/Edit sheet)
+
+    var urlFieldLabel: String {
+        switch self {
+        case .hermes: return "Gateway URL"
+        case .centaur: return "Centaur URL (https://…)"
+        }
+    }
+
+    var keyFieldLabel: String {
+        switch self {
+        case .hermes: return "API Key"
+        case .centaur: return "API key / console JWT"
+        }
+    }
+
+    /// Footnote shown in the Add/Edit sheet for session-scoped kinds.
+    var sessionScopedFootnote: String? {
+        switch self {
+        case .hermes:
+            return nil
+        case .centaur:
+            return "Centaur backends host individual sessions (chosen from the New Session menu). "
+                + "Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions."
+        }
+    }
 }
 
 /// A saved agent backend the user can switch between.

@@ -79,8 +79,8 @@ struct CentaurEventAdapterTests {
         }
     }
 
-    @Test("output lines stream as messageDelta and accumulate into completion")
-    func outputLinesAccumulate() {
+    @Test("plain-text output lines stream as messageDelta and accumulate")
+    func plainTextLinesAccumulate() {
         var adapter = CentaurEventAdapter()
         _ = adapter.adapt(frame: frame(event: "session.execution_started"))
         let d1 = adapter.adapt(frame: frame(event: "session.output.line", data: "Checking tests..."))
@@ -100,6 +100,93 @@ struct CentaurEventAdapterTests {
         }
         #expect(payload.status == "complete")
         #expect(payload.text == "Checking tests...\nAll green.\n")
+    }
+
+    @Test("harness NDJSON: agent deltas stream, protocol noise is dropped, final text wins")
+    func harnessFramesParse() {
+        var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: frame(event: "session.execution_started"))
+
+        // Protocol frames that must NOT render as chat text
+        let noise = [
+            #"{"method":"thread/started","params":{"thread":{"id":"t1"}}}"#,
+            #"{"method":"turn/started","params":{"threadId":"t1","turn":{"id":"turn-1"}}}"#,
+            #"{"method":"item/started","params":{"item":{"id":"u1","type":"userMessage","content":[{"text":"hello","type":"text"}]}}}"#,
+            #"{"method":"item/completed","params":{"item":{"id":"u1","type":"userMessage"}}}"#,
+        ]
+        for line in noise {
+            #expect(adapter.adapt(frame: frame(event: "session.output.line", data: line)).isEmpty)
+        }
+
+        // Agent message deltas stream as messageDelta
+        let d1 = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/agentMessage/delta","params":{"delta":"Hello! I'm Cent","itemId":"m1"}}"#
+        ))
+        guard case .messageDelta(let t1, _) = d1[0] else {
+            Issue.record("expected messageDelta")
+            return
+        }
+        #expect(t1 == "Hello! I'm Cent")
+
+        _ = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/agentMessage/delta","params":{"delta":"aur.","itemId":"m1"}}"#
+        ))
+
+        // item/completed with authoritative final text
+        _ = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/completed","params":{"item":{"id":"m1","type":"agentMessage","text":"Hello! I'm Centaur, the full text."}}}"#
+        ))
+
+        let done = adapter.adapt(frame: frame(event: "session.execution_completed"))
+        guard case .messageComplete(let payload) = done[0] else {
+            Issue.record("expected messageComplete")
+            return
+        }
+        // Final text from item/completed wins over accumulated deltas.
+        #expect(payload.text == "Hello! I'm Centaur, the full text.")
+    }
+
+    @Test("harness NDJSON: tool-ish items render as tool start/complete")
+    func harnessToolItems() {
+        var adapter = CentaurEventAdapter()
+        let started = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/started","params":{"item":{"id":"tc1","type":"commandExecution","command":"swift build"}}}"#
+        ))
+        guard case .toolStart(let start) = started[0] else {
+            Issue.record("expected toolStart")
+            return
+        }
+        #expect(start.toolID == "tc1")
+        #expect(start.name == "commandExecution")
+        #expect(start.context == "swift build")
+
+        let completed = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/completed","params":{"item":{"id":"tc1","type":"commandExecution","command":"swift build"}}}"#
+        ))
+        guard case .toolComplete(let done) = completed[0] else {
+            Issue.record("expected toolComplete")
+            return
+        }
+        #expect(done.toolID == "tc1")
+    }
+
+    @Test("harness NDJSON: error frames surface as error events")
+    func harnessErrorFrames() {
+        var adapter = CentaurEventAdapter()
+        let events = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"error","params":{"error":{"message":"invalid blocks-mode input"}}}"#
+        ))
+        guard case .error(let message) = events[0] else {
+            Issue.record("expected error event")
+            return
+        }
+        #expect(message == "invalid blocks-mode input")
     }
 
     @Test("execution_failed maps to error-status completion plus error event")

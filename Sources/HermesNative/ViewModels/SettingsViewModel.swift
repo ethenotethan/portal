@@ -63,14 +63,13 @@ final class SettingsViewModel: ObservableObject {
                !host.hasPrefix("10.")
     }
 
-    // MARK: - Centaur Backends
+    // MARK: - Session-Scoped Backends
 
-    /// Centaur entries in the unified backend list. Centaur backends are
-    /// per-session targets (chosen at session create), never the app-level
-    /// active gateway — the ambient services (session list, wiki, skills,
-    /// cron) always ride the active Hermes entry.
-    var centaurBackends: [SavedGateway] {
-        savedGateways.filter { $0.kind == .centaur }
+    /// Backends that host individual sessions (chosen at session create),
+    /// never the app-level active gateway — the ambient services (session
+    /// list, wiki, skills, cron) always ride the active Hermes entry.
+    var sessionScopedBackends: [SavedGateway] {
+        savedGateways.filter { $0.kind.isSessionScoped }
     }
 
     var hermesBackends: [SavedGateway] {
@@ -147,10 +146,10 @@ final class SettingsViewModel: ObservableObject {
     func selectGateway(_ gateway: SavedGateway) {
         guard gateway.id != activeGatewayID else { return }
         guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
-        // Centaur backends are session-create targets, not the app gateway:
-        // activating one would tear down the WebSocket that powers the
-        // session list, wiki, skills, and cron with nothing to replace it.
-        guard gateway.kind == .hermes else { return }
+        // Session-scoped backends are session-create targets, not the app
+        // gateway: activating one would tear down the WebSocket that powers
+        // the session list, wiki, skills, and cron with nothing to replace it.
+        guard !gateway.kind.isSessionScoped else { return }
 
         activeGatewayID = gateway.id
         // The CF cookie is host-specific; drop it so the new host re-auths.

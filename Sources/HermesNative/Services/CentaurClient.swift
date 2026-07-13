@@ -53,18 +53,28 @@ final class CentaurClient: ObservableObject {
     private var lastEventID: [String: Int64] = [:]
     private var adapter = CentaurEventAdapter()
 
-    private let session: URLSession
+    /// Short-timeout session for REST calls. The long SSE timeout must NOT
+    /// apply here: a create/execute POST against an unreachable host would
+    /// otherwise hang the "creating session" state for up to an hour.
+    private let restSession: URLSession
+    /// Long-lived session for the SSE stream (never idle-timeout mid-stream).
+    private let sseSession: URLSession
 
-    init(baseURL: URL, apiKey: String, harnessType: String = "claude_code") {
+    /// Valid harness types per centaur-session-core's HarnessType enum
+    /// (serde lowercase): "codex" | "amp" | "claudecode".
+    init(baseURL: URL, apiKey: String, harnessType: String = "claudecode") {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.harnessType = harnessType
 
-        let config = URLSessionConfiguration.default
-        // SSE is a long poll; never let the request idle-timeout mid-stream.
-        config.timeoutIntervalForRequest = 3600
-        config.timeoutIntervalForResource = .infinity
-        self.session = URLSession(configuration: config)
+        let restConfig = URLSessionConfiguration.default
+        restConfig.timeoutIntervalForRequest = 15
+        self.restSession = URLSession(configuration: restConfig)
+
+        let sseConfig = URLSessionConfiguration.default
+        sseConfig.timeoutIntervalForRequest = 3600
+        sseConfig.timeoutIntervalForResource = .infinity
+        self.sseSession = URLSession(configuration: sseConfig)
     }
 
     deinit {
@@ -87,8 +97,20 @@ final class CentaurClient: ObservableObject {
 
     // MARK: - Requests
 
+    /// Percent-encode one path segment (thread keys contain ":").
+    private func encodeSegment(_ segment: String) -> String {
+        segment.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(.init(charactersIn: "-_."))) ?? segment
+    }
+
+    private func sessionPath(_ threadKey: String, _ suffix: String = "") -> String {
+        "api/session/\(encodeSegment(threadKey))\(suffix)"
+    }
+
     private func request(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw GatewayError.invalidResponse("invalid Centaur URL path: \(path)")
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue(apiKey, forHTTPHeaderField: "x-centaur-api-key")
@@ -96,7 +118,7 @@ final class CentaurClient: ObservableObject {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
-        let (data, response) = try await session.data(for: req)
+        let (data, response) = try await restSession.data(for: req)
         guard let http = response as? HTTPURLResponse else {
             throw GatewayError.invalidResponse("non-HTTP response from Centaur")
         }
@@ -120,9 +142,11 @@ final class CentaurClient: ObservableObject {
     /// session ID everywhere in the app.
     func createSession(cols: Int = 120) async throws -> String {
         connectionState = .connecting
-        let threadKey = "native-\(UUID().uuidString.prefix(12).lowercased())"
+        // validate_thread_key requires "<source>:<id>" namespacing — the
+        // same convention as slack thread keys ("slack:C…:ts").
+        let threadKey = "hermesnative:\(UUID().uuidString.prefix(12).lowercased())"
         do {
-            _ = try await request("POST", "api/session/\(threadKey)", body: [
+            _ = try await request("POST", sessionPath(threadKey), body: [
                 "harness_type": harnessType,
             ])
         } catch {
@@ -143,7 +167,7 @@ final class CentaurClient: ObservableObject {
     func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {
         connectionState = .connecting
         do {
-            _ = try await request("POST", "api/session/\(key)", body: [
+            _ = try await request("POST", sessionPath(key), body: [
                 "harness_type": harnessType,
             ])
         } catch {
@@ -165,7 +189,7 @@ final class CentaurClient: ObservableObject {
     }
 
     func interrupt(sessionID: String) async throws {
-        _ = try await request("POST", "api/session/\(sessionID)/interrupt", body: [
+        _ = try await request("POST", sessionPath(sessionID, "/interrupt"), body: [
             "reason": "user interrupt from HermesNative",
         ])
     }
@@ -173,12 +197,34 @@ final class CentaurClient: ObservableObject {
     // MARK: - Conversation
 
     func submitPrompt(sessionID: String, text: String) async throws {
-        _ = try await request("POST", "api/session/\(sessionID)/messages", body: [
-            "messages": [["role": "user", "content": text]],
+        // SessionMessageInput: role + parts (Vec<Value>). Parts follow the
+        // convention centaur's own bots use: [{type: "text", text: …}].
+        _ = try await request("POST", sessionPath(sessionID, "/messages"), body: [
+            "messages": [[
+                "client_message_id": UUID().uuidString,
+                "role": "user",
+                "parts": [["type": "text", "text": text]],
+            ]],
         ])
-        let data = try await request("POST", "api/session/\(sessionID)/execute", body: [
+        // input_lines feed the harness adapter's stdin in "blocks mode":
+        // each line is a JSON envelope (type/thread_key/message with content
+        // blocks) — raw text is rejected with "invalid blocks-mode input".
+        // Mirrors slackbotv2's toCodexInputLine.
+        let envelope: [String: Any] = [
+            "type": "user",
+            "thread_key": sessionID,
+            "message": [
+                "role": "user",
+                "content": [["type": "text", "text": text]],
+            ],
+        ]
+        let envelopeData = try JSONSerialization.data(withJSONObject: envelope)
+        guard let envelopeLine = String(bytes: envelopeData, encoding: .utf8) else {
+            throw GatewayError.invalidResponse("failed to encode input line")
+        }
+        let data = try await request("POST", sessionPath(sessionID, "/execute"), body: [
             "idempotency_key": UUID().uuidString,
-            "input_lines": [text],
+            "input_lines": [envelopeLine],
         ])
         let result = try json(data)
         adapter.beginExecution(id: result["execution_id"] as? String)
@@ -215,7 +261,7 @@ final class CentaurClient: ObservableObject {
     }
 
     func downloadFile(from url: URL, token: String? = nil) async throws -> Data {
-        let (data, _) = try await session.data(from: url)
+        let (data, _) = try await restSession.data(from: url)
         return data
     }
 
@@ -246,13 +292,14 @@ final class CentaurClient: ObservableObject {
         while !Task.isCancelled {
             do {
                 let after = lastEventID[threadKey] ?? 0
-                var req = URLRequest(url: baseURL.appendingPathComponent("api/session/\(threadKey)/events")
+                guard let base = URL(string: sessionPath(threadKey, "/events"), relativeTo: baseURL) else { return }
+                var req = URLRequest(url: base
                     .appending(queryItems: [URLQueryItem(name: "after_event_id", value: String(after))]))
                 req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
                 req.setValue(apiKey, forHTTPHeaderField: "x-centaur-api-key")
                 req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
 
-                let (bytes, response) = try await session.bytes(for: req)
+                let (bytes, response) = try await sseSession.bytes(for: req)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                     throw GatewayError.invalidResponse("SSE connect failed")
                 }
@@ -363,18 +410,26 @@ struct SSEParser {
 /// renders Centaur sessions unchanged.
 ///
 ///   session.execution_started    → messageStart
-///   session.output.line          → messageDelta (line + \n)
+///   session.output.line          → parsed as a harness NDJSON frame
 ///   session.execution_completed  → messageComplete(status: complete)
 ///   session.execution_failed     → messageComplete(status: error) + error
 ///   session.execution_cancelled  → messageComplete(status: interrupted)
 ///   session.stream_error         → statusUpdate (non-fatal; SSE loop retries)
+///
+/// Output lines from CLI harnesses (Claude Code app-server, codex) are an
+/// NDJSON protocol stream — {"method": "item/agentMessage/delta", …} — not
+/// prose. Each JSON line routes through `adaptHarnessFrame`; non-JSON lines
+/// fall back to raw text passthrough for plain-text harnesses.
 ///
 /// Unknown event names (SessionEventName::Other passthrough) are checked for
 /// a `hermes_event` envelope — the future path for a hermes-agent harness in
 /// the sandbox to tunnel its full typed vocabulary through Centaur.
 struct CentaurEventAdapter {
 
+    /// Accumulated assistant text (deltas), replaced by the authoritative
+    /// final text from item/completed when the harness provides it.
     private var accumulated = ""
+    private var finalText: String?
     private var executionID: String?
 
     mutating func beginExecution(id: String?) {
@@ -385,12 +440,11 @@ struct CentaurEventAdapter {
         switch frame.event {
         case "session.execution_started":
             accumulated = ""
+            finalText = nil
             return [.messageStart]
 
         case "session.output.line":
-            let line = frame.data + "\n"
-            accumulated += line
-            return [.messageDelta(text: line, rendered: nil)]
+            return adaptOutputLine(frame.data)
 
         case "session.execution_completed":
             return [finish(status: "complete")]
@@ -419,9 +473,100 @@ struct CentaurEventAdapter {
         }
     }
 
+    // MARK: - Harness NDJSON
+
+    private mutating func adaptOutputLine(_ line: String) -> [GatewayEvent] {
+        guard let data = line.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let method = obj["method"] as? String else {
+            // Plain-text harness output: stream the line verbatim.
+            let text = line + "\n"
+            accumulated += text
+            return [.messageDelta(text: text, rendered: nil)]
+        }
+        let params = obj["params"] as? [String: Any] ?? [:]
+        return adaptHarnessFrame(method: method, params: params)
+    }
+
+    private mutating func adaptHarnessFrame(method: String, params: [String: Any]) -> [GatewayEvent] {
+        switch method {
+        case "item/agentMessage/delta":
+            guard let delta = params["delta"] as? String, !delta.isEmpty else { return [] }
+            accumulated += delta
+            return [.messageDelta(text: delta, rendered: nil)]
+
+        case "item/reasoning/delta", "item/thinking/delta":
+            guard let delta = params["delta"] as? String, !delta.isEmpty else { return [] }
+            return [.thinkingDelta(text: delta)]
+
+        case "item/started", "item/completed", "item/updated":
+            return adaptItemLifecycle(method: method, params: params)
+
+        case "turn/completed":
+            // The SSE-level execution_completed follows and produces the
+            // messageComplete; here we only capture the turn's final status.
+            return []
+
+        case "error":
+            let detail = (params["error"] as? [String: Any])?["message"] as? String
+                ?? "harness error"
+            return [.error(message: detail)]
+
+        case "thread/started", "turn/started":
+            return []
+
+        default:
+            return []
+        }
+    }
+
+    /// Item lifecycle: agent messages carry the final text; user echoes are
+    /// dropped; anything else (tool calls, command executions, file edits)
+    /// renders as a tool row so the existing tool UI works on Centaur.
+    private mutating func adaptItemLifecycle(method: String, params: [String: Any]) -> [GatewayEvent] {
+        guard let item = params["item"] as? [String: Any],
+              let type = item["type"] as? String else { return [] }
+        let itemID = item["id"] as? String ?? UUID().uuidString
+
+        switch type {
+        case "userMessage":
+            return []  // echo of our own input
+
+        case "agentMessage":
+            if method == "item/completed", let text = item["text"] as? String, !text.isEmpty {
+                finalText = text
+            }
+            return []
+
+        default:
+            // Tool-ish item (toolCall / commandExecution / fileEdit / …).
+            let name = item["name"] as? String ?? item["title"] as? String ?? type
+            let preview = item["command"] as? String
+                ?? item["text"] as? String
+                ?? item["path"] as? String
+                ?? ""
+            if method == "item/started" {
+                return [.toolStart(payload: ToolStartPayload(
+                    toolID: itemID, name: name, context: preview
+                ))]
+            }
+            if method == "item/completed" {
+                return [.toolComplete(payload: ToolCompletePayload(
+                    toolID: itemID, name: name,
+                    summary: preview, durationSeconds: nil, inlineDiff: nil,
+                    todos: nil
+                ))]
+            }
+            return []
+        }
+    }
+
     private mutating func finish(status: String) -> GatewayEvent {
-        let text = accumulated
+        // Prefer the harness's authoritative final text over accumulated
+        // deltas (deltas can be lossy across an SSE reconnect).
+        let text = finalText ?? accumulated
         accumulated = ""
+        finalText = nil
         return .messageComplete(payload: MessageCompletePayload(
             text: text,
             status: status,

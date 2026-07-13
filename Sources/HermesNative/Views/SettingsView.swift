@@ -213,22 +213,22 @@ struct SettingsView: View {
                             settings.selectGateway(gateway)
                         } label: {
                             HStack {
-                                if gateway.kind == .hermes {
+                                if gateway.kind.isSessionScoped {
+                                    // Session-scoped entries are per-session
+                                    // targets, never the app-level gateway.
+                                    Image(systemName: gateway.kind.iconName)
+                                        .foregroundStyle(Theme.secondary)
+                                } else {
                                     Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
                                         .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
-                                } else {
-                                    // Centaur entries are per-session targets,
-                                    // never the app-level active gateway.
-                                    Image(systemName: "shippingbox")
-                                        .foregroundStyle(Theme.secondary)
                                 }
                                 VStack(alignment: .leading, spacing: 1) {
                                     HStack(spacing: 5) {
                                         Text(gateway.displayName)
                                             .foregroundStyle(.primary)
                                             .lineLimit(1)
-                                        if gateway.kind == .centaur {
-                                            Text("Centaur")
+                                        if gateway.kind.isSessionScoped {
+                                            Text(gateway.kind.displayName)
                                                 .font(.system(size: 9, weight: .semibold))
                                                 .padding(.horizontal, 4)
                                                 .padding(.vertical, 1)
@@ -248,7 +248,7 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
 
-                        if gateway.kind == .hermes, !settings.isActive(gateway) {
+                        if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
                             Button("Switch") { settings.selectGateway(gateway) }
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
@@ -267,7 +267,7 @@ struct SettingsView: View {
                             Image(systemName: "trash")
                         }
                         .buttonStyle(.borderless)
-                        .disabled(gateway.kind == .hermes && settings.hermesBackends.count <= 1)
+                        .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
                     }
                 }
             } header: {
@@ -421,21 +421,18 @@ struct AddGatewaySheet: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    // Kind is identity: a hermes URL isn't a centaur URL, so
-                    // editing an existing entry keeps its kind fixed.
+                    // Kind is identity: URLs aren't portable across backend
+                    // platforms, so editing keeps the kind fixed.
                     .disabled(editing != nil)
                     TextField("Name (optional)", text: $name)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("gatewayNameField")
-                    TextField(kind == .centaur ? "Centaur URL (https://…)" : "Gateway URL", text: $url)
+                    TextField(kind.urlFieldLabel, text: $url)
                         .textFieldStyle(.roundedBorder)
-                    SecureField(kind == .centaur ? "API key / console JWT" : "API Key", text: $apiKey)
+                    SecureField(kind.keyFieldLabel, text: $apiKey)
                         .textFieldStyle(.roundedBorder)
-                    if kind == .centaur {
-                        Text(
-                            "Centaur backends host individual sessions (chosen from the New Session menu). " +
-                            "Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions."
-                        )
+                    if let footnote = kind.sessionScopedFootnote {
+                        Text(footnote)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

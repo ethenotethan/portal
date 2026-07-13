@@ -225,7 +225,7 @@ struct ContentView: View {
                 onCreateSessionOnBackend: { entry in
                     Task { await createAndSwitchToNewSession(on: entry) }
                 },
-                centaurBackends: settings.centaurBackends,
+                sessionScopedBackends: settings.sessionScopedBackends,
                 onOpenPanel: {
                     showCronSheet = true
                 }
@@ -801,7 +801,7 @@ struct ContentView: View {
                         onCreateSessionOnBackend: { entry in
                             Task { await createAndSwitchToNewSession(on: entry) }
                         },
-                        centaurBackends: settings.centaurBackends,
+                        sessionScopedBackends: settings.sessionScopedBackends,
                         onOpenPanel: {
                             showCronDashboard = true
                         }
@@ -971,13 +971,13 @@ struct ContentView: View {
         let rpcID = session.rpcID
 
         // Route the chat pipeline to the backend this session lives on.
-        // Centaur-bound sessions swap ChatViewModel's client to the entry's
-        // CentaurClient; everything else (re)wires the home Hermes gateway
+        // Session-scoped sessions swap ChatViewModel's client to the entry's
+        // backend client; everything else (re)wires the home Hermes gateway
         // (setGatewayClient is identity-guarded, so re-setting the same
         // client is a no-op).
         if let backendID = SessionBackendRegistry.shared.backendID(for: newID),
            let entry = settings.savedGateways.first(where: { $0.id == backendID }),
-           entry.kind == .centaur {
+           entry.kind.isSessionScoped {
             // Same create-race sentinel as the hermes branch: registering the
             // freshly created session flips the list selection, and this
             // handler must not re-resume (re-POST + re-subscribe SSE) on top
@@ -986,7 +986,7 @@ struct ContentView: View {
                 return
             }
             pendingCreatedSessionID = nil
-            if let backend = gatewayClientWrapper.centaurBackend(for: entry) {
+            if let backend = gatewayClientWrapper.sessionScopedBackend(for: entry) {
                 chatViewModel.setGatewayClient(backend)
                 pushOwnedSessionOnIOS(newID)
                 let generation = chatViewModel.beginSwitchToSession(key: newID)
@@ -1075,19 +1075,19 @@ struct ContentView: View {
         #endif
     }
 
-    /// Create a new session on the Centaur backend (REST + SSE) instead of
-    /// the Hermes gateway. Session lists/mission-control stay on the Hermes
+    /// Create a new session on a session-scoped backend instead of the
+    /// Hermes gateway. Session lists/mission-control stay on the Hermes
     /// path; only the chat pipeline switches backends.
     @MainActor
-    private func createCentaurSession(_ backend: CentaurClient, entry: SavedGateway) async {
+    private func createSessionOnScopedBackend(_ backend: any AgentBackend, entry: SavedGateway) async {
         chatViewModel.setGatewayClient(backend)
         await chatViewModel.createSession()
         if let error = chatViewModel.error {
-            sessionCreationError = "Centaur session failed: \(error)"
+            sessionCreationError = "\(entry.displayName) session failed: \(error)"
             return
         }
         if let sid = chatViewModel.currentSessionID {
-            log.info("created centaur session \(sid) on \(entry.displayName)")
+            log.info("created session \(sid) on \(entry.displayName)")
             pendingCreatedSessionID = sid
             SessionBackendRegistry.shared.bind(sessionID: sid, backendID: entry.id)
             // Register in the sidebar so the session is selectable; the
@@ -1099,7 +1099,7 @@ struct ContentView: View {
     }
 
     /// Create a session on a specific saved backend entry (nil = home
-    /// Hermes gateway). Centaur entries skip the WebSocket entirely.
+    /// Hermes gateway). Session-scoped entries skip the WebSocket entirely.
     @MainActor
     private func createAndSwitchToNewSession(on backendEntry: SavedGateway? = nil) async {
         guard !isCreatingSession else { return }
@@ -1107,12 +1107,17 @@ struct ContentView: View {
         sessionCreationError = nil
         defer { isCreatingSession = false }
 
-        if let entry = backendEntry, entry.kind == .centaur {
-            if let backend = gatewayClientWrapper.centaurBackend(for: entry) {
+        if let entry = backendEntry, entry.kind.isSessionScoped {
+            if let backend = gatewayClientWrapper.sessionScopedBackend(for: entry) {
                 pendingCreatedSessionID = "__creating__"
-                await createCentaurSession(backend, entry: entry)
+                await createSessionOnScopedBackend(backend, entry: entry)
+                // A failed create must release the sentinel, or it swallows
+                // every subsequent session selection (app looks frozen).
+                if sessionCreationError != nil {
+                    pendingCreatedSessionID = nil
+                }
             } else {
-                sessionCreationError = "Centaur backend '\(entry.displayName)' has an invalid URL"
+                sessionCreationError = "Backend '\(entry.displayName)' has an invalid URL"
             }
             return
         }
@@ -1172,10 +1177,11 @@ struct ContentView: View {
     // MARK: - Wiring
 
     /// New Session control: a plain button when only the home gateway
-    /// exists; a menu offering each backend when Centaur entries are saved.
+    /// exists; a menu offering each backend when session-scoped entries
+    /// are saved.
     @ViewBuilder
     private var newSessionControl: some View {
-        if settings.centaurBackends.isEmpty {
+        if settings.sessionScopedBackends.isEmpty {
             Button("New Session") {
                 Task { await createAndSwitchToNewSession() }
             }
@@ -1185,13 +1191,13 @@ struct ContentView: View {
                 Button {
                     Task { await createAndSwitchToNewSession() }
                 } label: {
-                    Label("Hermes (home gateway)", systemImage: "server.rack")
+                    Label("Hermes (home gateway)", systemImage: BackendKind.hermes.iconName)
                 }
-                ForEach(settings.centaurBackends) { entry in
+                ForEach(settings.sessionScopedBackends) { entry in
                     Button {
                         Task { await createAndSwitchToNewSession(on: entry) }
                     } label: {
-                        Label(entry.displayName, systemImage: "shippingbox")
+                        Label(entry.displayName, systemImage: entry.kind.iconName)
                     }
                 }
             } label: {

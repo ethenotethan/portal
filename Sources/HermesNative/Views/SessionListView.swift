@@ -11,10 +11,10 @@ struct SessionListView: View {
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
-    /// Create a session on a specific saved backend (Centaur entries).
-    /// nil / absent = only the home gateway is configured.
+    /// Create a session on a specific session-scoped backend.
+    /// Empty = only the home gateway is configured (plain button).
     var onCreateSessionOnBackend: ((SavedGateway) -> Void)?
-    var centaurBackends: [SavedGateway] = []
+    var sessionScopedBackends: [SavedGateway] = []
     var onOpenPanel: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
@@ -308,7 +308,7 @@ struct SessionListView: View {
                 .foregroundStyle(Theme.tertiary)
 
             HStack(spacing: 8) {
-                if centaurBackends.isEmpty {
+                if sessionScopedBackends.isEmpty {
                     sidebarHeaderButton(
                         icon: "plus",
                         title: "New Session",
@@ -324,11 +324,11 @@ struct SessionListView: View {
                         } label: {
                             Label("Hermes (home gateway)", systemImage: "server.rack")
                         }
-                        ForEach(centaurBackends) { entry in
+                        ForEach(sessionScopedBackends) { entry in
                             Button {
                                 onCreateSessionOnBackend?(entry)
                             } label: {
-                                Label(entry.displayName, systemImage: "shippingbox")
+                                Label(entry.displayName, systemImage: entry.kind.iconName)
                             }
                         }
                     } label: {

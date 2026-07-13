@@ -39,17 +39,25 @@ struct BackendKindTests {
         settings.removeGateway(centaur)
     }
 
-    @Test("centaurBackends filters by kind")
+    @Test("sessionScopedBackends filters by kind")
     @MainActor
-    func centaurBackendsFilter() {
+    func sessionScopedBackendsFilter() {
         let settings = SettingsViewModel()
         let centaur = settings.addGateway(
             name: "Sandbox", url: "https://c.example.com", apiKey: "k",
             kind: .centaur
         )
-        #expect(settings.centaurBackends.contains { $0.id == centaur.id })
+        #expect(settings.sessionScopedBackends.contains { $0.id == centaur.id })
         #expect(!settings.hermesBackends.contains { $0.id == centaur.id })
         settings.removeGateway(centaur)
+    }
+
+    @Test("kind presentation lives on the model, not in views")
+    func kindPresentation() {
+        #expect(BackendKind.hermes.isSessionScoped == false)
+        #expect(BackendKind.centaur.isSessionScoped == true)
+        #expect(BackendKind.centaur.sessionScopedFootnote != nil)
+        #expect(BackendKind.hermes.sessionScopedFootnote == nil)
     }
 
     @Test("session backend registry binds and persists lookups")

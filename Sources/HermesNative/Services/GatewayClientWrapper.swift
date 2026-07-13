@@ -28,26 +28,34 @@ final class GatewayClientWrapper: ObservableObject {
     private var connectTask: Task<Void, Never>?
     private var currentSignature: ConnectionSignature?
 
-    /// Lazily-created Centaur clients, keyed by backend entry ID. Independent
-    /// of the WebSocket lifecycle above — Centaur is stateless REST until a
-    /// session opens its SSE stream. Rebuilt when the entry's url/key change.
-    private var centaurClients: [UUID: (signature: String, client: CentaurClient)] = [:]
+    /// Lazily-created session-scoped clients, keyed by backend entry ID.
+    /// Independent of the WebSocket lifecycle above — these backends are
+    /// stateless until a session opens its stream. Rebuilt when the entry's
+    /// url/key change.
+    private var scopedClients: [UUID: (signature: String, client: any AgentBackend)] = [:]
 
-    /// Returns the client for a saved Centaur backend entry, or nil when the
-    /// entry isn't centaur-kind or has an invalid URL.
-    func centaurBackend(for entry: SavedGateway) -> CentaurClient? {
-        guard entry.kind == .centaur,
+    /// Returns the client for a saved session-scoped backend entry, or nil
+    /// when the entry isn't session-scoped or has an invalid URL. Dispatches
+    /// on kind — the only place that maps kinds to client types.
+    func sessionScopedBackend(for entry: SavedGateway) -> (any AgentBackend)? {
+        guard entry.kind.isSessionScoped,
               let url = URL(string: entry.url.trimmingCharacters(in: .whitespaces)),
               url.scheme != nil else {
             return nil
         }
         let signature = "\(url.absoluteString)|\(entry.apiKey)"
-        if let existing = centaurClients[entry.id], existing.signature == signature {
+        if let existing = scopedClients[entry.id], existing.signature == signature {
             return existing.client
         }
-        let client = CentaurClient(baseURL: url, apiKey: entry.apiKey)
-        centaurClients[entry.id] = (signature, client)
-        appendLog("Centaur backend: \(entry.displayName) (\(url.absoluteString))")
+        let client: any AgentBackend
+        switch entry.kind {
+        case .hermes:
+            return nil  // hermes is the app-level gateway, never session-scoped
+        case .centaur:
+            client = CentaurClient(baseURL: url, apiKey: entry.apiKey)
+        }
+        scopedClients[entry.id] = (signature, client)
+        appendLog("Session backend: \(entry.displayName) (\(url.absoluteString))")
         return client
     }
 
