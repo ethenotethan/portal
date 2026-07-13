@@ -26,11 +26,6 @@ struct MacInputTextField: NSViewRepresentable {
     var onConfirm: (() -> Void)?
     var maxLines: Int = 8
 
-    /// Width grid (pt) for quantizing layout proposals. Neighboring proposed
-    /// widths snap to the same bucket so `sizeThatFits` returns a stable height
-    /// and SwiftUI's layout reaches a fixed point instead of oscillating.
-    private static let widthQuantum: CGFloat = 8
-
     func makeNSView(context: Context) -> NSScrollView {
         let tv = FocusableTextView()
         tv.placeholder = placeholder
@@ -39,8 +34,13 @@ struct MacInputTextField: NSViewRepresentable {
         tv.delegate = context.coordinator
         tv.onSubmit = onSubmit
         tv.onImagePaste = onImagePaste
-        tv.onHeightChange = { height in
-            context.coordinator.parentHeight = height
+        tv.onHeightChange = { [weak coordinator = context.coordinator] height in
+            guard let coordinator else { return }
+            guard coordinator.reportedHeight != height else { return }
+            coordinator.reportedHeight = height
+            // Nudge SwiftUI to re-run sizeThatFits with the new height. The
+            // scroll view's own size invalidation is the supported hook.
+            coordinator.textView?.enclosingScrollView?.invalidateIntrinsicContentSize()
         }
         tv.onTextChange = onTextChange
         tv.onNavigateUp = onNavigateUp
@@ -94,12 +94,18 @@ struct MacInputTextField: NSViewRepresentable {
                 nsView.setSelectedRange(range)
             }
             nsView.scrollRangeToVisible(nsView.selectedRange())
+            // External text change (e.g. cleared after send, slash-insert) —
+            // recompute reported height so the field grows/shrinks to match.
+            nsView.reportContentHeight()
         }
         nsView.placeholder = placeholder
         nsView.onSubmit = onSubmit
         nsView.onImagePaste = onImagePaste
-        nsView.onHeightChange = { height in
-            context.coordinator.parentHeight = height
+        nsView.onHeightChange = { [weak coordinator = context.coordinator] height in
+            guard let coordinator else { return }
+            guard coordinator.reportedHeight != height else { return }
+            coordinator.reportedHeight = height
+            coordinator.textView?.enclosingScrollView?.invalidateIntrinsicContentSize()
         }
         nsView.onTextChange = onTextChange
         nsView.onNavigateUp = onNavigateUp
@@ -121,82 +127,31 @@ struct MacInputTextField: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView scrollView: NSScrollView, context: Context) -> CGSize? {
-        // This must be PURE: mutating the live NSTextView here invalidates
-        // its layout mid-pass, which schedules another SwiftUI transaction
-        // with a slightly different proposed width — an infinite layout loop
-        // that hangs the main thread. Measure with an offscreen TextKit
-        // stack instead; the live view's container tracks its frame width
-        // on its own (widthTracksTextView).
+        // DURABLE FIX for the recurring layout-loop beachball.
+        //
+        // The old design RETURNED a height computed from the proposed width.
+        // That is inherently self-referential: SwiftUI proposes a width →
+        // we return a height → the parent reflows → proposes a slightly
+        // different width → we return a slightly different height → … an
+        // infinite relayout that pegs the main thread. Quantization + caches
+        // only narrowed the window; under a ScrollView/LazyVStack host (which
+        // re-proposes aggressively) it still oscillated.
+        //
+        // Now: do NOT derive height from the proposal here. Accept SwiftUI's
+        // proposed width (return nil width) and report a height that the
+        // AppKit side already computed on the last *content* change
+        // (coordinator.reportedHeight) — a value that does NOT change when the
+        // proposed width jitters. With height no longer a function of the
+        // proposed width, the feedback loop cannot form.
         guard let nsView = scrollView.documentView as? FocusableTextView else { return nil }
         let coordinator = context.coordinator
-
-        // Backstop: if sizeThatFits is hammered many times in one runloop tick,
-        // width quantization didn't converge for this content — stop measuring
-        // and return the last/empty height so the main thread can't spin. The
-        // counter resets at the end of the tick.
-        coordinator.passCount += 1
-        if !coordinator.passResetScheduled {
-            coordinator.passResetScheduled = true
-            DispatchQueue.main.async {
-                coordinator.passCount = 0
-                coordinator.passResetScheduled = false
-            }
-        }
-        if coordinator.passCount > 32, let last = coordinator.cachedSize {
-            return last
-        }
-
-        let width: CGFloat
-        if let w = proposal.width, w.isFinite, w > 0 {
-            // Quantize the width into coarse buckets so height is a STEP
-            // function of width. SwiftUI re-proposes widths that drift by a
-            // fraction or a point between passes; without bucketing every pass
-            // is a new MeasureKey → a fresh O(n) measurement → a slightly
-            // different height → an ancestor reflow → another width → an
-            // infinite layout loop pegging the main thread (the recurring
-            // beachball). Snapping to an 8pt grid makes neighboring widths
-            // collapse to one cache entry, so fixed-point layout converges in
-            // a single step. This is the convergence guarantee the earlier
-            // "single height authority" fixes lacked.
-            width = (w / Self.widthQuantum).rounded(.down) * Self.widthQuantum
-        } else {
-            width = coordinator.lastMeasuredWidth ?? 300
-        }
-
-        let font = nsView.font ?? .systemFont(ofSize: 15, weight: .regular)
-        let lineHeight = font.boundingRectForFont.height
-        let maxHeight = lineHeight * CGFloat(nsView.maxLines)
-        let text = nsView.string
-
-        // Huge pastes: once the text can't possibly fit under maxLines the
-        // height is the cap regardless — skip the O(n) layout measurement.
-        let minPossibleLines = (text.count / 600) + text.lazy.filter { $0 == "\n" }.count
-        if minPossibleLines > nsView.maxLines * 4 {
-            coordinator.lastMeasuredWidth = width
-            return CGSize(width: width, height: maxHeight)
-        }
-
-        let key = Coordinator.MeasureKey(
-            width: width,
-            textHash: text.hashValue,
-            maxLines: nsView.maxLines
-        )
-        if let cached = coordinator.cachedSize, coordinator.cachedKey == key {
-            return cached
-        }
-
-        let inset = nsView.textContainerInset
-        let textHeight = coordinator.measurer.height(
-            for: text,
-            font: font,
-            width: max(width - inset.width * 2, 50)
-        )
-        let cappedHeight = min(max(textHeight, lineHeight) + 12, maxHeight)
-        let result = CGSize(width: width, height: cappedHeight)
-        coordinator.lastMeasuredWidth = width
-        coordinator.cachedKey = key
-        coordinator.cachedSize = result
-        return result
+        if let w = proposal.width, w.isFinite, w > 0 { coordinator.lastMeasuredWidth = w }
+        let width = proposal.width ?? coordinator.lastMeasuredWidth ?? 300
+        // Height comes from the AppKit view's reported content height (updated
+        // only on text changes), clamped to maxLines — NOT recomputed from the
+        // proposed width. This is what prevents the relayout feedback loop.
+        let height = coordinator.clampedReportedHeight(font: nsView.font, maxLines: nsView.maxLines)
+        return CGSize(width: width, height: height)
     }
 
     private func makeFirstResponder(_ nsView: FocusableTextView) {
@@ -215,28 +170,29 @@ struct MacInputTextField: NSViewRepresentable {
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
-        struct MeasureKey: Equatable {
-            let width: CGFloat
-            let textHash: Int
-            let maxLines: Int
-        }
-
         var parent: MacInputTextField
         weak var textView: FocusableTextView?
         var wasFocused: Bool = false
-        var parentHeight: CGFloat = 0
         var lastMeasuredWidth: CGFloat?
-        var cachedKey: MeasureKey?
-        var cachedSize: CGSize?
-        let measurer = TextHeightMeasurer()
-        /// Backstop against a runaway layout pass: counts sizeThatFits calls
-        /// within a single runloop tick. If width quantization ever fails to
-        /// converge, this caps the damage at a fixed height instead of a hang.
-        var passCount = 0
-        var passResetScheduled = false
+        /// Content height reported by the AppKit text view on its last text
+        /// change. This is the single source of truth for the field's height;
+        /// sizeThatFits returns it verbatim (clamped), so the height never
+        /// varies with the proposed width and the relayout loop can't form.
+        var reportedHeight: CGFloat?
 
         init(_ parent: MacInputTextField) {
             self.parent = parent
+        }
+
+        /// Reported height clamped to [1 line, maxLines]; falls back to a
+        /// single line before the first measurement arrives.
+        func clampedReportedHeight(font: NSFont?, maxLines: Int) -> CGFloat {
+            let f = font ?? .systemFont(ofSize: 15, weight: .regular)
+            let lineHeight = f.boundingRectForFont.height
+            let minH = lineHeight + 12
+            let maxH = lineHeight * CGFloat(maxLines) + 12
+            let h = reportedHeight ?? minH
+            return min(max(h, minH), maxH)
         }
 
         func textDidChange(_ notification: Notification) {
@@ -251,68 +207,6 @@ struct MacInputTextField: NSViewRepresentable {
         func textDidEndEditing(_ notification: Notification) {
             parent.isFocused.wrappedValue = false
         }
-    }
-}
-
-// MARK: - TextHeightMeasurer
-
-/// Offscreen TextKit stack for measuring wrapped text height without
-/// touching the live NSTextView (whose mutation mid-layout loops SwiftUI).
-final class TextHeightMeasurer {
-    private let layoutManager = NSLayoutManager()
-    private let textContainer = NSTextContainer(size: .zero)
-    private let textStorage = NSTextStorage()
-
-    // PROCESS-WIDE measurement cache, keyed by (text, quantized width, font
-    // size). The per-Coordinator cache is not enough: SwiftUI can rebuild the
-    // NSViewRepresentable (and thus its Coordinator) on every layout pass, so a
-    // coordinator-local cache resets to empty each iteration and the expensive
-    // O(n) TextKit measurement re-runs forever — the recurring beachball. A
-    // static cache survives coordinator churn, so a given (text,width) is
-    // measured at most once and every later pass returns instantly, which is
-    // what actually breaks the layout loop.
-    private struct Key: Hashable {
-        let textHash: Int
-        let width: Int
-        let fontSize: Int
-    }
-    private static let cacheLock = NSLock()
-    // nonisolated(unsafe): access is hand-synchronized via cacheLock below, so
-    // the compiler's Swift 6 global-mutable-state check (which the SwiftPM CI
-    // build enforces strictly) is satisfied manually.
-    nonisolated(unsafe) private static var cache: [Key: CGFloat] = [:]
-
-    init() {
-        textContainer.lineFragmentPadding = 2
-        layoutManager.addTextContainer(textContainer)
-        textStorage.addLayoutManager(layoutManager)
-    }
-
-    func height(for text: String, font: NSFont, width: CGFloat) -> CGFloat {
-        let key = Key(textHash: text.hashValue,
-                      width: Int(width.rounded()),
-                      fontSize: Int(font.pointSize.rounded()))
-        Self.cacheLock.lock()
-        if let hit = Self.cache[key] {
-            Self.cacheLock.unlock()
-            return hit
-        }
-        Self.cacheLock.unlock()
-
-        textContainer.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
-        textStorage.setAttributedString(
-            NSAttributedString(string: text.isEmpty ? " " : text, attributes: [.font: font])
-        )
-        layoutManager.ensureLayout(for: textContainer)
-        let measured = layoutManager.usedRect(for: textContainer).height
-
-        Self.cacheLock.lock()
-        // Bound the cache so a long session of distinct inputs can't grow it
-        // without limit; the working set per field is tiny.
-        if Self.cache.count > 512 { Self.cache.removeAll(keepingCapacity: true) }
-        Self.cache[key] = measured
-        Self.cacheLock.unlock()
-        return measured
     }
 }
 
@@ -420,16 +314,21 @@ final class FocusableTextView: NSTextView {
 
     override func didChangeText() {
         super.didChangeText()
-        // NOTE: do NOT call invalidateIntrinsicContentSize() and do NOT
-        // override intrinsicContentSize. Height is owned solely by the
-        // SwiftUI representable's sizeThatFits (offscreen measurement). A
-        // second AppKit-side height authority here fights it: the live
-        // intrinsic size nudges the scroll view, SwiftUI re-proposes a
-        // width, the two never converge, and the main thread spins in
-        // layout forever. The NSTextView still grows to fit its content
-        // inside the scroll view via isVerticallyResizable + width tracking.
         onTextChange?(string)
         scrollRangeToVisible(selectedRange())
+        reportContentHeight()
+    }
+
+    /// Compute the laid-out content height and report it upward. Called on
+    /// text change (and after the view is sized), NOT during SwiftUI's measure
+    /// pass — so the reported height is a function of *content*, not of the
+    /// proposed width, which is what keeps SwiftUI's layout from oscillating.
+    func reportContentHeight() {
+        guard let lm = layoutManager, let tc = textContainer else { return }
+        lm.ensureLayout(for: tc)
+        let used = lm.usedRect(for: tc).height
+        let inset = textContainerInset.height * 2
+        onHeightChange?(used + inset)
     }
 
     override func draw(_ dirtyRect: NSRect) {
