@@ -1525,6 +1525,12 @@ struct DebugLogPanel: View {
 
 // MARK: - Approval Banner
 
+/// Banner for a blocking dangerous-command approval. The gateway's choice
+/// vocabulary is "once" | "session" | "always" | "deny" (tools/approval.py):
+/// once = allow this single command; session = allowlist the command pattern
+/// for this session; always = persist the pattern to the permanent allowlist
+/// in config.yaml. Approve is a split control — primary tap is the safe
+/// "once", broader scopes are a deliberate second gesture in the menu.
 struct ApprovalBanner: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
 
@@ -1542,6 +1548,7 @@ struct ApprovalBanner: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .textSelection(.enabled)
                 }
 
                 Spacer()
@@ -1553,12 +1560,33 @@ struct ApprovalBanner: View {
                 .tint(.red)
                 .controlSize(.small)
 
-                Button("Approve") {
-                    Task { await chatViewModel.respondApproval(choice: "approve") }
+                Menu {
+                    Button {
+                        Task { await chatViewModel.respondApproval(choice: "once") }
+                    } label: {
+                        Label("Allow once", systemImage: "checkmark")
+                    }
+                    Button {
+                        Task { await chatViewModel.respondApproval(choice: "session") }
+                    } label: {
+                        Label("Allow for this session", systemImage: "clock")
+                    }
+                    Button {
+                        Task { await chatViewModel.respondApproval(choice: "always") }
+                    } label: {
+                        Label("Always allow this command", systemImage: "infinity")
+                    }
+                } label: {
+                    Text("Approve")
+                } primaryAction: {
+                    Task { await chatViewModel.respondApproval(choice: "once") }
                 }
+                .menuStyle(.button)
                 .buttonStyle(.bordered)
                 .tint(.green)
                 .controlSize(.small)
+                .fixedSize()
+                .help("Approve runs this once; hold for session/permanent scopes")
             }
             .padding(10)
             .background(.yellow.opacity(0.1))
