@@ -59,6 +59,7 @@
 		32C5144C3A885BC6692EED6C /* SessionExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */; };
 		34EF999CDB8F55165AA5B0C1 /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */; };
 		3513EE5A8E6D6262B500EB25 /* SessionMetaSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B77D558002A72140D541A3 /* SessionMetaSyncService.swift */; };
+		36BAC600849A11730C0F06D7 /* SessionPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */; };
 		388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */; };
 		394ECDFFE9B4F77F8DF0A43C /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CD7D282D79F69DD027BFE /* SkillModels.swift */; };
 		3956E831C7FF187440494534 /* SessionRunTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ED7E5FCE51907EC21E5388 /* SessionRunTimelineView.swift */; };
@@ -195,6 +196,7 @@
 		982CDFF6ACCAF4EF8B9FCAA9 /* HermesNativeE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03F119AA20F2FA922F50012C /* HermesNativeE2ETests.swift */; };
 		99B568E578154657238796E4 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC88E0CAA3C0BE61BF7D7EF /* MLXLLM */; };
 		9B4FAE7AD46C36480B9C7D2A /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */; };
+		9B99946C96597C1E47195AB7 /* SessionPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */; };
 		9BE0318E1407535425F5E48A /* PlaybackEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66EEB8C56477DC447D5E1D0 /* PlaybackEventRow.swift */; };
 		9BEF3885B4A263FBDAC9F1B3 /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */; };
 		9C157AA3FB3DBB7D8A6D0AB7 /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74241583599C1664DB6A4B94 /* SRSDashboardView.swift */; };
@@ -344,6 +346,7 @@
 		1DD634738EDA588BA9B5EDDE /* PlaybackTimelineChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTimelineChart.swift; sourceTree = "<group>"; };
 		1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
 		201F95763EBE727F2961B603 /* WikiGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph.swift; sourceTree = "<group>"; };
+		21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPDFExporter.swift; sourceTree = "<group>"; };
 		22A7665D966524A9EA9F3483 /* ToolPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolPillView.swift; sourceTree = "<group>"; };
 		27374A7B4A7BD262BB9312D1 /* HermesNativeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HermesNativeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C601BC4FC5AB9C1C81A777 /* FlashcardDeckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardDeckView.swift; sourceTree = "<group>"; };
@@ -869,6 +872,7 @@
 				91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */,
 				6A372EE19C0E643C86683288 /* SessionBackendRegistry.swift */,
 				75B77D558002A72140D541A3 /* SessionMetaSyncService.swift */,
+				21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */,
 				85E50848877F195F3F5628E4 /* SkillCache.swift */,
 				FEB8209DAE21C0F0337FA525 /* SkillStore.swift */,
 				111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */,
@@ -1150,6 +1154,7 @@
 				54ECBD8CA7F3F009351C063C /* SessionListViewModel.swift in Sources */,
 				3513EE5A8E6D6262B500EB25 /* SessionMetaSyncService.swift in Sources */,
 				CE0F6E7790EA5F02E274C029 /* SessionObserverView.swift in Sources */,
+				36BAC600849A11730C0F06D7 /* SessionPDFExporter.swift in Sources */,
 				CC3401353A17237D16CE3B81 /* SessionPlaybackView.swift in Sources */,
 				39A181E3B5C4BE94E11C595C /* SessionRunEvent.swift in Sources */,
 				3956E831C7FF187440494534 /* SessionRunTimelineView.swift in Sources */,
@@ -1309,6 +1314,7 @@
 				46F14365DAA565AEC59D5F99 /* SessionListViewModel.swift in Sources */,
 				D71955450F262367927A261D /* SessionMetaSyncService.swift in Sources */,
 				C94DA73F98B98B31367A2487 /* SessionObserverView.swift in Sources */,
+				9B99946C96597C1E47195AB7 /* SessionPDFExporter.swift in Sources */,
 				E6D44D68797BD55FD6B1128D /* SessionPlaybackView.swift in Sources */,
 				95678EA6F547C8AB0F9ED9B8 /* SessionRunEvent.swift in Sources */,
 				E3925E2282187B1CE14879C3 /* SessionRunTimelineView.swift in Sources */,

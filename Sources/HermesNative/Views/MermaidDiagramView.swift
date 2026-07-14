@@ -85,6 +85,55 @@ struct MermaidDiagramView: View {
     }
 }
 
+// MARK: - Source Cleaning
+
+/// Strips code fences and applies per-diagram-type workarounds. Shared by the
+/// live coordinator and the PDF-export renderer.
+func cleanMermaidSource(_ source: String) -> String {
+    var s = source
+        .replacingOccurrences(of: "```mermaid", with: "")
+        .replacingOccurrences(of: "```flowchart", with: "")
+        .replacingOccurrences(of: "```sequenceDiagram", with: "")
+        .replacingOccurrences(of: "```stateDiagram", with: "")
+        .replacingOccurrences(of: "```", with: "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    // Mermaid mindmap treats `() [] {}` as node shape markers
+    // and has no escaping mechanism. Strip them from node text
+    // so diagrams with parenthetical content don't fail to parse.
+    if s.lowercased().hasPrefix("mindmap") {
+        let shapeDelimiters = CharacterSet(charactersIn: "()[]{}")
+        s = s.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line in
+                // Don't strip from the root node definition line,
+                // which legitimately uses `(( ... ))` for circle shape.
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("root((") || trimmed.hasPrefix("root)") {
+                    return String(line)
+                }
+                return String(line.unicodeScalars.filter { !shapeDelimiters.contains($0) })
+            }
+            .joined(separator: "\n")
+    }
+
+    return s
+}
+
+/// Diagram type keyword declared on the first line of cleaned source, if known.
+private func mermaidDiagramType(of cleanedSource: String) -> String? {
+    let firstLine = cleanedSource.split(separator: "\n").first?
+        .trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+    for keyword in knownDiagramKeywords where firstLine.hasPrefix(keyword.lowercased()) {
+        return keyword
+    }
+    return nil
+}
+
+private func isNativelySupportedMermaid(_ cleanedSource: String) -> Bool {
+    guard let type = mermaidDiagramType(of: cleanedSource) else { return true }
+    return nativeDiagramTypes.contains(type)
+}
+
 // MARK: - Coordinator
 
 private struct MermaidRendererCoordinator: View {
@@ -93,33 +142,7 @@ private struct MermaidRendererCoordinator: View {
     @State private var useFallback = false
 
     private var cleanedSource: String {
-        var s = source
-            .replacingOccurrences(of: "```mermaid", with: "")
-            .replacingOccurrences(of: "```flowchart", with: "")
-            .replacingOccurrences(of: "```sequenceDiagram", with: "")
-            .replacingOccurrences(of: "```stateDiagram", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Mermaid mindmap treats `() [] {}` as node shape markers
-        // and has no escaping mechanism. Strip them from node text
-        // so diagrams with parenthetical content don't fail to parse.
-        if s.lowercased().hasPrefix("mindmap") {
-            let shapeDelimiters = CharacterSet(charactersIn: "()[]{}")
-            s = s.split(separator: "\n", omittingEmptySubsequences: false)
-                .map { line in
-                    // Don't strip from the root node definition line,
-                    // which legitimately uses `(( ... ))` for circle shape.
-                    let trimmed = line.trimmingCharacters(in: .whitespaces)
-                    if trimmed.hasPrefix("root((") || trimmed.hasPrefix("root)") {
-                        return String(line)
-                    }
-                    return String(line.unicodeScalars.filter { !shapeDelimiters.contains($0) })
-                }
-                .joined(separator: "\n")
-        }
-
-        return s
+        cleanMermaidSource(source)
     }
 
     /// Stable identity key that prevents SwiftUI from destroying/recreating
@@ -139,18 +162,8 @@ private struct MermaidRendererCoordinator: View {
         return "streaming-\(firstLine)"
     }
 
-    private var diagramType: String? {
-        let firstLine = cleanedSource.split(separator: "\n").first?
-            .trimmingCharacters(in: .whitespaces).lowercased() ?? ""
-        for keyword in knownDiagramKeywords where firstLine.hasPrefix(keyword.lowercased()) {
-            return keyword
-        }
-        return nil
-    }
-
     private var isNativeSupported: Bool {
-        guard let type = diagramType else { return true }
-        return nativeDiagramTypes.contains(type)
+        isNativelySupportedMermaid(cleanedSource)
     }
 
     var body: some View {
@@ -209,7 +222,7 @@ private struct NativeMermaidRenderer: View {
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let positioned = try MermaidRenderer.layout(code)
-                guard let img = renderPositioned(positioned, scale: 2.0) else {
+                guard let img = renderPositionedDiagramImage(positioned, scale: 2.0) else {
                     DispatchQueue.main.async {
                         errorText = "renderPositioned returned nil"
                     }
@@ -229,65 +242,115 @@ private struct NativeMermaidRenderer: View {
             }
         }
     }
+}
 
-    private nonisolated func renderPositioned(_ positioned: PositionedGraph, scale: CGFloat) -> PlatformImage? {
-        let bounds = CGRect(
-            x: 0, y: 0,
-            width: max(1, positioned.width),
-            height: max(1, positioned.height)
-        )
+/// Rasterizes a laid-out BeautifulMermaid graph. Callable off-main; shared by
+/// the live NativeMermaidRenderer and the PDF-export pipeline.
+nonisolated func renderPositionedDiagramImage(_ positioned: PositionedGraph, scale: CGFloat) -> PlatformImage? {
+    let bounds = CGRect(
+        x: 0, y: 0,
+        width: max(1, positioned.width),
+        height: max(1, positioned.height)
+    )
 
-        #if os(macOS)
-        let pixelSize = CGSize(
-            width: bounds.width * scale,
-            height: bounds.height * scale
-        )
-        let w = Int(pixelSize.width)
-        let h = Int(pixelSize.height)
-        guard w > 0, h > 0,
-              let ctx = CGContext(
-                  data: nil, width: w, height: h,
-                  bitsPerComponent: 8, bytesPerRow: 0,
-                  space: CGColorSpaceCreateDeviceRGB(),
-                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                        | CGBitmapInfo.byteOrder32Big.rawValue
-              ) else { return nil }
+    #if os(macOS)
+    let pixelSize = CGSize(
+        width: bounds.width * scale,
+        height: bounds.height * scale
+    )
+    let w = Int(pixelSize.width)
+    let h = Int(pixelSize.height)
+    guard w > 0, h > 0,
+          let ctx = CGContext(
+              data: nil, width: w, height: h,
+              bitsPerComponent: 8, bytesPerRow: 0,
+              space: CGColorSpaceCreateDeviceRGB(),
+              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                    | CGBitmapInfo.byteOrder32Big.rawValue
+          ) else { return nil }
 
+    ctx.setFillColor(nativeTheme.background.cgColor)
+    ctx.fill(CGRect(origin: .zero, size: pixelSize))
+
+    ctx.scaleBy(x: scale, y: scale)
+
+    ctx.translateBy(x: 0, y: bounds.height)
+    ctx.scaleBy(x: 1, y: -1)
+
+    DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+
+    guard let cgImage = ctx.makeImage() else { return nil }
+
+    return NSImage(cgImage: cgImage, size: bounds.size)
+    #else
+    // iOS: BeautifulMermaid's LabelRenderer draws text via UIKit string
+    // drawing (`NSAttributedString.draw(in:)`), which renders into the
+    // *current UIKit graphics context* — not into the CGContext passed to
+    // DiagramRenderer.render. With a raw CGContext (and no
+    // UIGraphicsPushContext), text silently draws nowhere, leaving empty
+    // boxes. UIGraphicsImageRenderer fixes both requirements at once: it
+    // installs its context as the current UIKit context, and that context
+    // is already UIKit-flipped (top-left origin) — the same effective
+    // coordinate space the manual translate/flip produces on macOS — so no
+    // additional y-flip is needed (matching the package's own
+    // MermaidImageRenderer iOS path).
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = scale
+    let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
+    return renderer.image { rendererContext in
+        let ctx = rendererContext.cgContext
         ctx.setFillColor(nativeTheme.background.cgColor)
-        ctx.fill(CGRect(origin: .zero, size: pixelSize))
-
-        ctx.scaleBy(x: scale, y: scale)
-
-        ctx.translateBy(x: 0, y: bounds.height)
-        ctx.scaleBy(x: 1, y: -1)
-
+        ctx.fill(bounds)
         DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+    }
+    #endif
+}
 
-        guard let cgImage = ctx.makeImage() else { return nil }
+// MARK: - Export Renderer
 
-        return NSImage(cgImage: cgImage, size: bounds.size)
-        #else
-        // iOS: BeautifulMermaid's LabelRenderer draws text via UIKit string
-        // drawing (`NSAttributedString.draw(in:)`), which renders into the
-        // *current UIKit graphics context* — not into the CGContext passed to
-        // DiagramRenderer.render. With a raw CGContext (and no
-        // UIGraphicsPushContext), text silently draws nowhere, leaving empty
-        // boxes. UIGraphicsImageRenderer fixes both requirements at once: it
-        // installs its context as the current UIKit context, and that context
-        // is already UIKit-flipped (top-left origin) — the same effective
-        // coordinate space the manual translate/flip produces on macOS — so no
-        // additional y-flip is needed (matching the package's own
-        // MermaidImageRenderer iOS path).
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
-        let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
-        return renderer.image { rendererContext in
-            let ctx = rendererContext.cgContext
-            ctx.setFillColor(nativeTheme.background.cgColor)
-            ctx.fill(bounds)
-            DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+/// Async one-shot mermaid rendering for PDF export: native BeautifulMermaid
+/// for supported types, WKWebView mermaid.js for the rest. Mirrors the
+/// live view's routing but returns an image instead of mounting a view.
+@MainActor
+enum MermaidExportRenderer {
+    static func renderImage(source: String) async -> PlatformImage? {
+        let cleaned = cleanMermaidSource(source)
+        guard !cleaned.isEmpty else { return nil }
+
+        if isNativelySupportedMermaid(cleaned) {
+            let ascii = cleaned.unicodeScalars.filter { $0.isASCII }.map(String.init).joined()
+            let native = await Task.detached(priority: .userInitiated) { () -> PlatformImage? in
+                guard let positioned = try? MermaidRenderer.layout(ascii) else { return nil }
+                return renderPositionedDiagramImage(positioned, scale: 2.0)
+            }.value
+            if let native { return native }
+            // Native layout failed — same fallback the live view takes.
         }
-        #endif
+
+        if let cached = cachedWebImage(for: cleaned) { return cached }
+
+        return await withCheckedContinuation { continuation in
+            MermaidSharedRenderer.shared.render(source: cleaned) { image in
+                if let image {
+                    cacheWebImage(image, for: cleaned)
+                }
+                continuation.resume(returning: image)
+            }
+        }
+    }
+
+    // NSLock.lock() is unavailable in async contexts; hop through
+    // nonisolated sync helpers to touch the shared web-render cache.
+    private nonisolated static func cachedWebImage(for key: String) -> PlatformImage? {
+        mermaidCacheLock.lock()
+        defer { mermaidCacheLock.unlock() }
+        return mermaidImageCache[key]
+    }
+
+    private nonisolated static func cacheWebImage(_ image: PlatformImage, for key: String) {
+        mermaidCacheLock.lock()
+        defer { mermaidCacheLock.unlock() }
+        mermaidImageCache[key] = image
     }
 }
 

@@ -38,6 +38,7 @@ struct ChatView: View {
     /// bridging issue where clicking the sidebar steals first-responder and
     /// subsequent clicks on transparent padding regions never return it.
     #if os(macOS)
+    @State private var isExportingPDF = false
     @FocusState private var isInputFocused: Bool
     /// Weak reference to the native NSTextField backing the input. Used by
     /// ChatPaneClickMonitor to call window.makeFirstResponder() directly.
@@ -97,6 +98,45 @@ struct ChatView: View {
         showThoughtGraph = false
     }
 
+    // MARK: - PDF Export
+
+    #if os(macOS)
+    /// Render the current session to PDF and prompt for a save location.
+    private func exportSessionToPDF() {
+        let messages = chatViewModel.messages.filter { !$0.isStreaming }
+        guard !messages.isEmpty else { return }
+        let title = chatViewModel.sessionTitle
+        let assistantName = personaManager.activePersona.name
+
+        isExportingPDF = true
+        Task { @MainActor in
+            defer { isExportingPDF = false }
+            guard let data = await SessionPDFExporter.export(
+                messages: messages,
+                title: title,
+                assistantName: assistantName
+            ) else { return }
+
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.pdf]
+            panel.canCreateDirectories = true
+            let safeTitle = title
+                .components(separatedBy: CharacterSet(charactersIn: "/:"))
+                .joined(separator: "-")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            panel.nameFieldStringValue = (safeTitle.isEmpty ? "Hermes Session" : safeTitle) + ".pdf"
+            guard panel.runModal() == .OK, let url = panel.url else { return }
+            do {
+                try data.write(to: url)
+            } catch {
+                let alert = NSAlert(error: error)
+                alert.messageText = "Could not save PDF"
+                alert.runModal()
+            }
+        }
+    }
+    #endif
+
     private var chatBottomContentPadding: CGFloat {
         #if os(macOS)
         if !chatViewModel.isSessionReady { return 260 }
@@ -137,6 +177,24 @@ struct ChatView: View {
             #if os(macOS)
             HStack {
                 Spacer()
+                // Export session to PDF
+                Button {
+                    exportSessionToPDF()
+                } label: {
+                    if isExportingPDF {
+                        HermesProgressView()
+                            .scaleEffect(0.5)
+                    } else {
+                        Label("Export PDF", systemImage: "arrow.down.doc")
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Theme.secondary)
+                .disabled(isExportingPDF || chatViewModel.messages.isEmpty || chatViewModel.isStreaming)
+                .help("Export this session (chat + agent output) as a PDF")
+                .padding(.horizontal, 8)
+
                 // TTS toggle
                 Button {
                     ttsService.toggle()
