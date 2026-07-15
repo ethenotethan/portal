@@ -216,6 +216,7 @@
 		AE3A9B13D1A962581BF68790 /* PushRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134ACC11883A4F913264353A /* PushRegistrationService.swift */; };
 		AEBEC273DC598A14283BB649 /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */; };
 		AEE89C90CB4C0B26ECEBA30E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30743804431E0415F8F6D1F8 /* ContentView.swift */; };
+		AF66C5481E71991EA2B1090F /* ResponseStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0507F41EEE70625CED6689E9 /* ResponseStyle.swift */; };
 		B070B9746CD795F55091EFB8 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */; };
 		B1192BB0C2D9608C14C562DC /* FlashcardDeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C601BC4FC5AB9C1C81A777 /* FlashcardDeckView.swift */; };
 		B1C72D03E5C09B3FF0D5095D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04413B7162C8D0EAA432920E /* SettingsView.swift */; };
@@ -241,6 +242,7 @@
 		C11D790B06A579042F5C6A37 /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */; };
 		C14E532CB0CE45CBB4B3EEA3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */; };
 		C1551C4EC0BA077469198667 /* BeautifulMermaid in Frameworks */ = {isa = PBXBuildFile; productRef = 3B1D253A1B6E0624203E28E4 /* BeautifulMermaid */; };
+		C18EC002DEDEFB4463D5B64D /* ResponseStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0507F41EEE70625CED6689E9 /* ResponseStyle.swift */; };
 		C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
 		C363CEDD15EF180248E0E3DD /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = D8E8A256BEBA815C53BE4C28 /* Tokenizers */; };
 		C5010057984A50A213B8790C /* ReasoningSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */; };
@@ -335,6 +337,7 @@
 		03A021FE1B6ED47B52648805 /* SpawnCallGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnCallGraphView.swift; sourceTree = "<group>"; };
 		03F119AA20F2FA922F50012C /* HermesNativeE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeE2ETests.swift; sourceTree = "<group>"; };
 		04413B7162C8D0EAA432920E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		0507F41EEE70625CED6689E9 /* ResponseStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseStyle.swift; sourceTree = "<group>"; };
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
 		111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSummaryService.swift; sourceTree = "<group>"; };
@@ -734,6 +737,7 @@
 				A1669F694E957B7E101B2C51 /* MediaAttachment.swift */,
 				C8510CDBA7652A23723C1FA1 /* Persona.swift */,
 				98EAA5520C82637C026B91DB /* PromptBreakdown.swift */,
+				0507F41EEE70625CED6689E9 /* ResponseStyle.swift */,
 				EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */,
 				1CBC71ED91AC512E21E65282 /* Session.swift */,
 				EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */,
@@ -1142,6 +1146,7 @@
 				92DBEEEA367A9CAEF513E78D /* QuizViewModel.swift in Sources */,
 				C11D790B06A579042F5C6A37 /* ReasoningGraphIntegrator.swift in Sources */,
 				C5010057984A50A213B8790C /* ReasoningSummarizer.swift in Sources */,
+				AF66C5481E71991EA2B1090F /* ResponseStyle.swift in Sources */,
 				CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */,
 				732500FBB99598638E21A1D6 /* SRSEngine.swift in Sources */,
 				E6A7169F51FA048FB9DCB1C0 /* SRSStore.swift in Sources */,
@@ -1302,6 +1307,7 @@
 				149895F42959FF4DDCB34938 /* QuizViewModel.swift in Sources */,
 				1C372FF7882368E6FF4A8BFD /* ReasoningGraphIntegrator.swift in Sources */,
 				0CFFE72C830B00F5FCA714D3 /* ReasoningSummarizer.swift in Sources */,
+				C18EC002DEDEFB4463D5B64D /* ResponseStyle.swift in Sources */,
 				9C157AA3FB3DBB7D8A6D0AB7 /* SRSDashboardView.swift in Sources */,
 				24F0470B945EA86E4BF2E387 /* SRSEngine.swift in Sources */,
 				1E53A9AD621BB08CCA78B3DA /* SRSStore.swift in Sources */,

@@ -68,8 +68,6 @@ final class ChatViewModel: ObservableObject {
     - **Ordered/unordered lists** for steps and enumerations
     - **Blockquotes** for important callouts
     - **Tables** for structured comparisons and data
-
-    Prefer diagram-first: when a visual explanation is possible, lead with the Mermaid diagram, then explain in prose.
     """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
@@ -93,6 +91,10 @@ final class ChatViewModel: ObservableObject {
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
     @Published var activeSkills: [SkillInfo] = []
+    /// How the agent shapes answers for this session (deep map / balanced / direct).
+    /// Composed into the ephemeral system prompt; per-session, sticky as the
+    /// default for new sessions.
+    @Published var responseStyle: ResponseStyle = .storedDefault
     /// Slash-command autocomplete suggestions.
     @Published var slashSuggestions: [SkillInfo] = []
     @Published var slashMode: Bool = false
@@ -136,6 +138,7 @@ final class ChatViewModel: ObservableObject {
         var streamingMessageID: UUID?
         /// Turn was started by another device/client on the same session.
         var isRemoteTurn: Bool = false
+        var responseStyle: ResponseStyle = .storedDefault
     }
 
 
@@ -363,6 +366,7 @@ client.eventStream
         isRemoteTurn = false
         pendingAttachments = []
         activeSkills = []
+        responseStyle = .storedDefault
         slashSuggestions = []
         slashMode = false
     }
@@ -440,7 +444,8 @@ client.eventStream
             avatarState: avatarState,
             sessionTitle: sessionTitle,
             streamingMessageID: streamingMessageID,
-            isRemoteTurn: isRemoteTurn
+            isRemoteTurn: isRemoteTurn,
+            responseStyle: responseStyle
         )
         evictColdSessionMessages(keeping: displayID)
     }
@@ -480,6 +485,7 @@ client.eventStream
         sessionTitle = state.sessionTitle
         streamingMessageID = state.streamingMessageID
         isRemoteTurn = state.isRemoteTurn
+        responseStyle = state.responseStyle
         if state.messages.isEmpty && !state.isStreaming,
            ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
             Task {
@@ -711,8 +717,22 @@ if restoreSessionState(displayID: key) {
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
-        let prompt = Self.appFormattingPrompt
+        let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
+    }
+
+    /// Change the response style for the active session and push the updated
+    /// ephemeral prompt to the gateway. The choice also becomes the default
+    /// for new sessions.
+    func setResponseStyle(_ style: ResponseStyle) {
+        guard style != responseStyle else { return }
+        responseStyle = style
+        ResponseStyle.storedDefault = style
+        snapshotCurrentSessionState()
+        guard let sid = sessionID, let client = gatewayClient else { return }
+        Task {
+            await applyEphemeralPrompt(for: sid, using: client)
+        }
     }
 
     private func applySessionSkills(for sessionID: String, using client: any AgentBackend) async {
@@ -993,8 +1013,21 @@ if restoreSessionState(displayID: key) {
 
     /// Send the current input text as a prompt.
     func submitPrompt() async {
-        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         let attachments = pendingAttachments
+
+        // ── /brief: one-message direct-style override ──
+        // Strips the command and appends a style note to just this prompt,
+        // leaving the session's response style untouched.
+        var briefOverride = false
+        if text.hasPrefix("/brief") {
+            briefOverride = true
+            text = text.dropFirst("/brief".count).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                self.error = "Usage: /brief <your question>"
+                return
+            }
+        }
         // Allow submit if there is text OR pending attachments
         guard (!text.isEmpty || !attachments.isEmpty),
               let client = gatewayClient, let sid = sessionID else { return }
@@ -1134,6 +1167,10 @@ if restoreSessionState(displayID: key) {
                 promptText = promptParts.joined(separator: "\n\n")
             } else {
                 promptText = text
+            }
+
+            if briefOverride {
+                promptText += "\n\n" + ResponseStyle.briefOverridePreamble
             }
 
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")

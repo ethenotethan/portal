@@ -177,6 +177,31 @@ struct ChatView: View {
             #if os(macOS)
             HStack {
                 Spacer()
+                // Response style (deep map / balanced / direct)
+                Menu {
+                    ForEach(ResponseStyle.allCases) { style in
+                        Button {
+                            chatViewModel.setResponseStyle(style)
+                        } label: {
+                            if style == chatViewModel.responseStyle {
+                                Label(style.label, systemImage: "checkmark")
+                            } else {
+                                Text(style.label)
+                            }
+                        }
+                        .help(style.help)
+                    }
+                } label: {
+                    Label(chatViewModel.responseStyle.label,
+                          systemImage: chatViewModel.responseStyle.icon)
+                        .font(.caption)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .foregroundStyle(Theme.secondary)
+                .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
+                .padding(.horizontal, 8)
+
                 // Export session to PDF
                 Button {
                     exportSessionToPDF()
@@ -436,6 +461,27 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
             .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
+
+            // Response style (deep map / balanced / direct)
+            Menu {
+                ForEach(ResponseStyle.allCases) { style in
+                    Button {
+                        chatViewModel.setResponseStyle(style)
+                    } label: {
+                        if style == chatViewModel.responseStyle {
+                            Label(style.label, systemImage: "checkmark")
+                        } else {
+                            Text(style.label)
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: chatViewModel.responseStyle.icon)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
 
             Spacer()
 
