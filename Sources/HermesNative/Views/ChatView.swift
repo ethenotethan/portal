@@ -442,13 +442,8 @@ struct ChatView: View {
                 SkinPickerView(activeSkin: $activeSkin)
             }
 
-            // Model badge
-            Text(chatViewModel.currentModel.isEmpty ? "No model" : chatViewModel.currentModel)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.quaternary.opacity(0.6), in: Capsule())
+            // Model picker — tap to switch this session's model
+            ModelPickerMenu()
 
             // TTS toggle
             Button {

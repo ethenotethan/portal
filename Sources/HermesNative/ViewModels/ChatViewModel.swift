@@ -139,6 +139,9 @@ final class ChatViewModel: ObservableObject {
         /// Turn was started by another device/client on the same session.
         var isRemoteTurn: Bool = false
         var responseStyle: ResponseStyle = .storedDefault
+        /// Model this session reported via session.info (or the user picked).
+        /// Per-session so switching sessions shows each one's actual model.
+        var currentModel: String = ""
     }
 
 
@@ -445,7 +448,8 @@ client.eventStream
             sessionTitle: sessionTitle,
             streamingMessageID: streamingMessageID,
             isRemoteTurn: isRemoteTurn,
-            responseStyle: responseStyle
+            responseStyle: responseStyle,
+            currentModel: currentModel
         )
         evictColdSessionMessages(keeping: displayID)
     }
@@ -486,6 +490,7 @@ client.eventStream
         streamingMessageID = state.streamingMessageID
         isRemoteTurn = state.isRemoteTurn
         responseStyle = state.responseStyle
+        currentModel = state.currentModel
         if state.messages.isEmpty && !state.isStreaming,
            ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
             Task {
@@ -544,6 +549,7 @@ client.eventStream
 
             await applyEphemeralPrompt(for: sid, using: client)
             await applySessionSkills(for: sid, using: client)
+            await applyDefaultModel(for: sid, using: client)
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
@@ -719,6 +725,16 @@ if restoreSessionState(displayID: key) {
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
         let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
+    }
+
+    /// Route a newly created session to the user's last-picked model. No-op
+    /// when the user never picked one (gateway default stays in charge) or
+    /// the backend can't switch models. Best-effort like the ephemeral
+    /// prompt: session.info remains the source of truth for the badge.
+    private func applyDefaultModel(for sessionID: String, using client: any AgentBackend) async {
+        guard backendCapabilities.supportsModelSwitching,
+              let model = AgentModel.storedDefaultID else { return }
+        try? await client.setConfig(key: "model", value: model, sessionID: sessionID)
     }
 
     /// Change the response style for the active session and push the updated
@@ -1373,13 +1389,23 @@ if restoreSessionState(displayID: key) {
         }
     }
 
-    /// Switch the model.
+    /// Switch the active session's model via config.set. Optimistic: the
+    /// badge updates immediately and session.info confirms (or corrects) it.
+    /// The choice also becomes the default for new sessions.
     func switchModel(_ model: String) async {
+        guard backendCapabilities.supportsModelSwitching else { return }
         guard let client = gatewayClient, let sid = sessionID else { return }
+        guard AgentModel.normalize(model) != AgentModel.normalize(currentModel) else { return }
+        let previousModel = currentModel
+        currentModel = model
+        AgentModel.storedDefaultID = model
+        snapshotCurrentSessionState()
         do {
             try await client.setConfig(key: "model", value: model, sessionID: sid)
         } catch {
-            self.error = error.localizedDescription
+            currentModel = previousModel
+            snapshotCurrentSessionState()
+            self.error = "Model switch failed: \(error.localizedDescription)"
         }
     }
 
@@ -1692,7 +1718,10 @@ if restoreSessionState(displayID: key) {
 
         switch event {
         case .sessionInfo(let info):
-            currentModel = info.model
+            state.currentModel = info.model
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                currentModel = info.model
+            }
             state.isSessionReady = true
 
         case .messageStart:
@@ -1914,6 +1943,7 @@ if restoreSessionState(displayID: key) {
                 slimState.avatarState = state.avatarState
                 slimState.sessionTitle = state.sessionTitle
                 slimState.streamingMessageID = state.streamingMessageID
+                slimState.currentModel = state.currentModel
                 sessionStates[displayID] = slimState
             }
         }

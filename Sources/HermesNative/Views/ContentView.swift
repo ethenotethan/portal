@@ -582,12 +582,8 @@ struct ContentView: View {
             .padding(.vertical, 4)
             .background(.quaternary, in: Capsule())
 
-            Text(chatViewModel.currentModel.isEmpty ? "No model" : chatViewModel.currentModel)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.quaternary.opacity(0.6), in: Capsule())
+            ModelPickerMenu()
+                .environmentObject(chatViewModel)
 
             if chatViewModel.isStreaming {
                 Button {
