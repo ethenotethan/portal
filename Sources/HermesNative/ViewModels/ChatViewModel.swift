@@ -298,15 +298,13 @@ client.eventStream
             }
             .store(in: &cancellables)
 
-        // Observe session info
-        client.sessionInfoPublisher
-            .receive(on: RunLoop.main)
-            .sink { [weak self] info in
-                if let info = info {
-                    self?.currentModel = info.model
-                }
-            }
-            .store(in: &cancellables)
+        // session.info is applied via the eventStream path (handleEvent /
+        // applySessionEvent), which routes by the event's session_id. Do NOT
+        // also subscribe to sessionInfoPublisher here: it carries no session
+        // ID, so a session.info from ANY session (peekSession observers,
+        // subagents, cron, another device) would clobber the active chat's
+        // model badge with that session's model — e.g. snapping back to the
+        // gateway default right after the user picked a different model.
 
         // Handle reconnection. Session creation is explicit from the Sessions UI;
         // reconnect should not implicitly create an invisible chat that races with

@@ -156,6 +156,10 @@ final class CentaurClient: ObservableObject {
         activeSessionID = threadKey
         connectionState = .connected
         sessionInfo = Self.makeSessionInfo(harness: harnessType)
+        // ChatViewModel consumes session info via the session-scoped
+        // eventStream (sessionInfoPublisher has no session ID and is no
+        // longer observed there), so emit it with the thread key.
+        eventStream.send((.sessionInfo(Self.makeSessionInfo(harness: harnessType)), threadKey))
         startEventStream(threadKey: threadKey)
         return threadKey
     }
@@ -177,6 +181,7 @@ final class CentaurClient: ObservableObject {
         activeSessionID = key
         connectionState = .connected
         sessionInfo = Self.makeSessionInfo(harness: harnessType)
+        eventStream.send((.sessionInfo(Self.makeSessionInfo(harness: harnessType)), key))
         startEventStream(threadKey: key)
         return (sessionID: key, messages: [])
     }
