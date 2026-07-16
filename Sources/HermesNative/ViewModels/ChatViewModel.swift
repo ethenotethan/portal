@@ -1401,11 +1401,19 @@ if restoreSessionState(displayID: key) {
     /// The choice also becomes the default for new sessions.
     func switchModel(_ model: String) async {
         guard backendCapabilities.supportsModelSwitching else { return }
-        guard let client = gatewayClient, let sid = sessionID else { return }
+        // Record the pick as the new-session default BEFORE any early return.
+        // If no session is wired yet (picker used from a fresh chat before
+        // session.create lands), the guard below bails — the pick must still
+        // stick so applyDefaultModel routes the upcoming session to it
+        // instead of silently dropping the user's choice.
+        AgentModel.storedDefaultID = model
+        guard let client = gatewayClient, let sid = sessionID else {
+            currentModel = model
+            return
+        }
         guard AgentModel.normalize(model) != AgentModel.normalize(currentModel) else { return }
         let previousModel = currentModel
         currentModel = model
-        AgentModel.storedDefaultID = model
         snapshotCurrentSessionState()
         do {
             try await client.setConfig(key: "model", value: model, sessionID: sid)
@@ -1551,6 +1559,14 @@ if restoreSessionState(displayID: key) {
     private func shouldApplyGlobalEvent(_ event: GatewayEvent) -> Bool {
         switch event {
         case .gatewayReady, .backgroundComplete, .skinChanged, .voiceTranscript, .voiceStatus:
+            return true
+        case .sessionInfo:
+            // The gateway emits a session-less session.info on connect that
+            // describes its current default model. It must populate the model
+            // badge even before any session exists — dropping it leaves the
+            // picker showing "No model" with nothing checked. Session-scoped
+            // session.info never reaches this path (it routes through
+            // applySessionEvent by session_id).
             return true
         default:
             return false
@@ -2073,7 +2089,12 @@ if restoreSessionState(displayID: key) {
 
         case .sessionInfo(let info):
             currentModel = info.model
-            isSessionReady = true
+            // A session-less session.info (gateway default announcement on
+            // connect) must not mark a nonexistent session ready — that would
+            // unlock the composer/picker before session.create succeeds.
+            if sessionID != nil {
+                isSessionReady = true
+            }
 
         case .messageStart:
             // Streaming begins — avatar is speaking

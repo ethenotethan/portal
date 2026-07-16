@@ -99,4 +99,21 @@ struct ChatViewModelModelRoutingTests {
         // session-scoped event for a session we're not looking at.
         #expect(vm.currentModel.isEmpty)
     }
+
+    @Test("session-less session.info announces the gateway default model")
+    func globalSessionInfoPopulatesModelBadge() {
+        let vm = ChatViewModel()
+        // The gateway sends session.info with no session_id on connect to
+        // announce its default model. It must reach the badge — this is the
+        // only source for "what model will a new session run".
+        vm.receiveGatewayEventForTesting(sessionInfoEvent(model: "minimax/minimax-m2.5"), sessionID: nil)
+        #expect(vm.currentModel == "minimax/minimax-m2.5")
+    }
+
+    @Test("session-less session.info does not mark a nonexistent session ready")
+    func globalSessionInfoDoesNotFakeReadiness() {
+        let vm = ChatViewModel()
+        vm.receiveGatewayEventForTesting(sessionInfoEvent(model: "minimax/minimax-m2.5"), sessionID: nil)
+        #expect(!vm.isSessionReady)
+    }
 }
