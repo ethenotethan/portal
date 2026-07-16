@@ -721,6 +721,7 @@ if restoreSessionState(displayID: key) {
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
+        guard client.capabilities.supportsResponseStyles else { return }
         let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
@@ -772,6 +773,14 @@ if restoreSessionState(displayID: key) {
     /// Call this whenever `inputText` changes to update slash suggestions.
     func updateSlashSuggestions() {
         let text = inputText
+        // Skills are Hermes gateway state; offering them on a harness
+        // backend would attach nothing (setSessionSkills is a no-op there).
+        guard backendCapabilities.supportsSkills else {
+            slashMode = false
+            slashSuggestions = []
+            slashSelectedIndex = 0
+            return
+        }
         guard text.hasPrefix("/") else {
             slashMode = false
             slashSuggestions = []

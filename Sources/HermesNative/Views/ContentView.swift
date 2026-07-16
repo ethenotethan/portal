@@ -555,11 +555,17 @@ struct ContentView: View {
     }
 
 
+    /// Identity the chat chrome presents — harness-fixed for session-scoped
+    /// backends (Centaur), persona-driven for Hermes.
+    private var displayPersona: Persona {
+        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+    }
+
     private var chatToolbarPills: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
-                personaManager.activePersona.bubbleAvatar(size: 22)
-                Text(personaManager.activePersona.name)
+                displayPersona.bubbleAvatar(size: 22)
+                Text(displayPersona.name)
                     .font(.caption)
                     .fontWeight(.medium)
                     .lineLimit(1)
@@ -706,78 +712,90 @@ struct ContentView: View {
             .keyboardShortcut("l", modifiers: .command)
             .accessibilityLabel("Sessions")
 
-            Button {
-                showCronDashboard = true
-                CronRunHistoryStore.shared.markAllCronRunsRead()
-            } label: {
-                Label("Cron", systemImage: "clock.badge.checkmark")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderless)
-            .overlay(alignment: .topTrailing) {
-                if cronRunStore.unreadCronRunCount > 0 {
-                    Text("\(cronRunStore.unreadCronRunCount)")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Circle().fill(.red))
-                        .offset(x: 6, y: -4)
+            // Hermes gateway services — hidden while a harness-backed
+            // session (Centaur) is front and center: cron/activity/feed/
+            // learning are home-gateway ontology, not part of the harness's
+            // presentation. Settings and Sessions stay — they're app chrome.
+            if chatViewModel.backendCapabilities.supportsGatewayServices {
+                Button {
+                    showCronDashboard = true
+                    CronRunHistoryStore.shared.markAllCronRunsRead()
+                } label: {
+                    Label("Cron", systemImage: "clock.badge.checkmark")
+                        .labelStyle(.iconOnly)
                 }
-            }
-            .keyboardShortcut("k", modifiers: .command)
-            .accessibilityLabel("Cron Dashboard")
+                .buttonStyle(.borderless)
+                .overlay(alignment: .topTrailing) {
+                    if cronRunStore.unreadCronRunCount > 0 {
+                        Text("\(cronRunStore.unreadCronRunCount)")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Circle().fill(.red))
+                            .offset(x: 6, y: -4)
+                    }
+                }
+                .keyboardShortcut("k", modifiers: .command)
+                .accessibilityLabel("Cron Dashboard")
 
-            Button {
-                showActivitySheet = true
-            } label: {
-                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
-                    .labelStyle(.iconOnly)
+                Button {
+                    showActivitySheet = true
+                } label: {
+                    Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Theme.primary)
+                .accessibilityLabel("Activity")
+                .accessibilityIdentifier("activityInboxButton")
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Theme.primary)
-            .accessibilityLabel("Activity")
-            .accessibilityIdentifier("activityInboxButton")
 
-            Button {
-                showSkills = true
-            } label: {
-                Label("Skills", systemImage: "sparkles")
-                    .labelStyle(.iconOnly)
+            if chatViewModel.backendCapabilities.supportsSkills {
+                Button {
+                    showSkills = true
+                } label: {
+                    Label("Skills", systemImage: "sparkles")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("j", modifiers: .command)
+                .accessibilityLabel("Skills")
             }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("j", modifiers: .command)
-            .accessibilityLabel("Skills")
 
-            Button {
-                showFeedSheet = true
-            } label: {
-                Label("Feed", systemImage: "newspaper")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("f", modifiers: .command)
-            .accessibilityLabel("Feed")
+            if chatViewModel.backendCapabilities.supportsGatewayServices {
+                Button {
+                    showFeedSheet = true
+                } label: {
+                    Label("Feed", systemImage: "newspaper")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("f", modifiers: .command)
+                .accessibilityLabel("Feed")
 
-            Button {
-                showLearning = true
-            } label: {
-                Label("Learning", systemImage: "books.vertical.fill")
-                    .labelStyle(.iconOnly)
+                Button {
+                    showLearning = true
+                } label: {
+                    Label("Learning", systemImage: "books.vertical.fill")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("e", modifiers: .command)
+                .accessibilityLabel("Learning")
             }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("e", modifiers: .command)
-            .accessibilityLabel("Learning")
 
-            Button {
-                showWikiGraph = true
-            } label: {
-                Label("Wiki", systemImage: "network")
-                    .labelStyle(.iconOnly)
+            if chatViewModel.backendCapabilities.supportsWiki {
+                Button {
+                    showWikiGraph = true
+                } label: {
+                    Label("Wiki", systemImage: "network")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("w", modifiers: .command)
+                .accessibilityLabel("Wiki Graph")
             }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("w", modifiers: .command)
-            .accessibilityLabel("Wiki Graph")
         }
         .foregroundStyle(Theme.primary)
     }

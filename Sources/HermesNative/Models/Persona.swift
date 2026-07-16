@@ -11,7 +11,7 @@ enum AvatarState: String, CaseIterable {
 
 /// A composable persona asset that gives the AI assistant a visual identity.
 /// Auto-derived from gateway PERSONA.md + config.
-struct Persona: Codable, Identifiable, Equatable {
+struct Persona: Codable, Identifiable, Equatable, Sendable {
     var id: String
     var name: String
     var tagline: String
@@ -41,6 +41,15 @@ struct Persona: Codable, Identifiable, Equatable {
     static let defaultPersona = Persona(
         id: "hermes", name: "Hermes", tagline: "Your AI agent",
         symbolName: "sparkles", accentColorHex: "#007AFF",
+        isBuiltIn: true
+    )
+
+    /// Fixed identity for Centaur-backed sessions. Centaur has no persona
+    /// sync (no config RPCs), so its presentation never comes from
+    /// PersonaManager — it is a different harness, not a Hermes persona.
+    static let centaurPersona = Persona(
+        id: "centaur", name: "Centaur", tagline: "Sandboxed harness",
+        symbolName: "shippingbox", accentColorHex: "#FF9500",
         isBuiltIn: true
     )
 }

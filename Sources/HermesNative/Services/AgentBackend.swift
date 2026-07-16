@@ -91,6 +91,17 @@ struct BackendCapabilities: Sendable {
     var supportsAttachments: Bool
     /// Model switching via config.set.
     var supportsModelSwitching: Bool
+    /// Ephemeral system-prompt injection (config-driven response styles).
+    var supportsResponseStyles: Bool
+    /// Home-gateway service surface beyond chat: cron, activity inbox,
+    /// feed, learning. These are Hermes gateway RPCs, not chat features —
+    /// harness backends never grow them.
+    var supportsGatewayServices: Bool
+    /// Fixed identity the chat chrome must present for this harness.
+    /// nil = presentation is persona-driven (PersonaManager / gateway
+    /// PERSONA.md sync). Non-nil harnesses are a different agent platform,
+    /// not a Hermes persona — the user is not "messaging Hermes".
+    var harnessPersona: Persona?
 
     static let hermes = BackendCapabilities(
         supportsInteractivePrompts: true,
@@ -98,7 +109,10 @@ struct BackendCapabilities: Sendable {
         supportsWiki: true,
         supportsSkills: true,
         supportsAttachments: true,
-        supportsModelSwitching: true
+        supportsModelSwitching: true,
+        supportsResponseStyles: true,
+        supportsGatewayServices: true,
+        harnessPersona: nil
     )
 
     /// Centaur relays harness stdout; structured features stay dark until the
@@ -109,7 +123,10 @@ struct BackendCapabilities: Sendable {
         supportsWiki: false,
         supportsSkills: false,
         supportsAttachments: false,
-        supportsModelSwitching: false
+        supportsModelSwitching: false,
+        supportsResponseStyles: false,
+        supportsGatewayServices: false,
+        harnessPersona: .centaurPersona
     )
 }
 

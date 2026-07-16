@@ -64,6 +64,13 @@ struct ChatView: View {
         chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
     }
 
+    /// The identity all chat chrome presents: harness-fixed for backends
+    /// like Centaur (the user is not messaging Hermes there), otherwise the
+    /// user's active Hermes persona.
+    private var displayPersona: Persona {
+        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+    }
+
     // MARK: - Thought Graph Helpers
 
     /// Whether to show the thought graph toggle button.
@@ -106,7 +113,7 @@ struct ChatView: View {
         let messages = chatViewModel.messages.filter { !$0.isStreaming }
         guard !messages.isEmpty else { return }
         let title = chatViewModel.sessionTitle
-        let assistantName = personaManager.activePersona.name
+        let assistantName = displayPersona.name
 
         isExportingPDF = true
         Task { @MainActor in
@@ -178,29 +185,31 @@ struct ChatView: View {
             HStack {
                 Spacer()
                 // Response style (deep map / balanced / direct)
-                Menu {
-                    ForEach(ResponseStyle.allCases) { style in
-                        Button {
-                            chatViewModel.setResponseStyle(style)
-                        } label: {
-                            if style == chatViewModel.responseStyle {
-                                Label(style.label, systemImage: "checkmark")
-                            } else {
-                                Text(style.label)
+                if chatViewModel.backendCapabilities.supportsResponseStyles {
+                    Menu {
+                        ForEach(ResponseStyle.allCases) { style in
+                            Button {
+                                chatViewModel.setResponseStyle(style)
+                            } label: {
+                                if style == chatViewModel.responseStyle {
+                                    Label(style.label, systemImage: "checkmark")
+                                } else {
+                                    Text(style.label)
+                                }
                             }
+                            .help(style.help)
                         }
-                        .help(style.help)
+                    } label: {
+                        Label(chatViewModel.responseStyle.label,
+                              systemImage: chatViewModel.responseStyle.icon)
+                            .font(.caption)
                     }
-                } label: {
-                    Label(chatViewModel.responseStyle.label,
-                          systemImage: chatViewModel.responseStyle.icon)
-                        .font(.caption)
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .foregroundStyle(Theme.secondary)
+                    .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
+                    .padding(.horizontal, 8)
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .foregroundStyle(Theme.secondary)
-                .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
-                .padding(.horizontal, 8)
 
                 // Export session to PDF
                 Button {
@@ -408,8 +417,8 @@ struct ChatView: View {
         HStack {
             // Persona badge — tap to switch persona
             HStack(spacing: 6) {
-                    personaManager.activePersona.bubbleAvatar(size: 22)
-                    Text(personaManager.activePersona.name)
+                    displayPersona.bubbleAvatar(size: 22)
+                    Text(displayPersona.name)
                         .font(.caption)
                         .fontWeight(.medium)
                         .lineLimit(1)
@@ -458,25 +467,27 @@ struct ChatView: View {
             .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
 
             // Response style (deep map / balanced / direct)
-            Menu {
-                ForEach(ResponseStyle.allCases) { style in
-                    Button {
-                        chatViewModel.setResponseStyle(style)
-                    } label: {
-                        if style == chatViewModel.responseStyle {
-                            Label(style.label, systemImage: "checkmark")
-                        } else {
-                            Text(style.label)
+            if chatViewModel.backendCapabilities.supportsResponseStyles {
+                Menu {
+                    ForEach(ResponseStyle.allCases) { style in
+                        Button {
+                            chatViewModel.setResponseStyle(style)
+                        } label: {
+                            if style == chatViewModel.responseStyle {
+                                Label(style.label, systemImage: "checkmark")
+                            } else {
+                                Text(style.label)
+                            }
                         }
                     }
+                } label: {
+                    Image(systemName: chatViewModel.responseStyle.icon)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
                 }
-            } label: {
-                Image(systemName: chatViewModel.responseStyle.icon)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
             Spacer()
 
@@ -610,7 +621,7 @@ struct ChatView: View {
                                 )
                                 skinProvider.messageBubble(
                                     message: preparedMessage,
-                                    persona: personaManager.activePersona
+                                    persona: displayPersona
                                 )
                                 .id(message.id)
                             }
@@ -619,8 +630,8 @@ struct ChatView: View {
                                 skinProvider.streamingPanel(
                                     state: chatViewModel.avatarState,
                                     activeToolCalls: chatViewModel.activeToolCalls,
-                                    personaName: personaManager.activePersona.name,
-                                    accentColor: personaManager.activePersona.accentColor
+                                    personaName: displayPersona.name,
+                                    accentColor: displayPersona.accentColor
                                 )
                                 .id("streaming-status")
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -637,7 +648,7 @@ struct ChatView: View {
                         if activeSkin == .darkManga && hasBotContent {
                             FloatingAvatarView(
                                 expression: currentAvatarExpression,
-                                persona: personaManager.activePersona
+                                persona: displayPersona
                             )
                             .offset(y: avatarY)
                             .padding(.leading, 16)
@@ -1022,6 +1033,12 @@ struct ChatInputBar: View {
     @EnvironmentObject var personaManager: PersonaManager
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
 
+    /// Harness-fixed identity (Centaur) beats the Hermes persona — the
+    /// placeholder must name who the user is actually messaging.
+    private var displayPersona: Persona {
+        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+    }
+
     /// On macOS, the focus binding is owned by ChatView so that clicks
     /// anywhere in the detail pane can restore focus. On iOS the binding
     /// is nil and ChatInputBar owns its own @FocusState internally.
@@ -1204,7 +1221,7 @@ struct ChatInputBar: View {
         ZStack(alignment: .topLeading) {
             MacInputTextField(
                 text: $chatViewModel.inputText,
-                placeholder: "Message \(personaManager.activePersona.name)…",
+                placeholder: "Message \(displayPersona.name)…",
                 isFocused: isFocused,
                 fieldRef: $inputFieldRef,
                 onSubmit: { Task { await chatViewModel.submitPrompt() } },
@@ -1228,7 +1245,7 @@ struct ChatInputBar: View {
             chatViewModel.updateSlashSuggestions()
         }
         #else
-        TextField("Message \(personaManager.activePersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
+        TextField("Message \(displayPersona.name)…", text: $chatViewModel.inputText, axis: .vertical)
             .accessibilityIdentifier("chatInput")
             .textFieldStyle(.plain)
             .font(.body)
