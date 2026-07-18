@@ -56,6 +56,7 @@ struct LongResponseView: View {
         VStack(alignment: .leading, spacing: 12) {
             LongResponseOverview(
                 document: document,
+                fullText: text,
                 showOverview: $showOverview,
                 compactMode: $compactMode,
                 expandAll: expandAll,
@@ -133,6 +134,8 @@ private struct StreamingPlainTextView: View {
 
 private struct LongResponseOverview: View {
     let document: LongResponseDocument
+    /// Full response text, for promoting to the artifact panel.
+    let fullText: String
     @Binding var showOverview: Bool
     @Binding var compactMode: Bool
     let expandAll: () -> Void
@@ -154,6 +157,14 @@ private struct LongResponseOverview: View {
                     .foregroundStyle(Theme.secondary)
 
                 Spacer(minLength: 8)
+
+                OpenInPanelButton {
+                    Artifact(
+                        kind: .markdown,
+                        title: document.headings.first?.title ?? "Document",
+                        content: fullText
+                    )
+                }
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) { showOverview.toggle() }

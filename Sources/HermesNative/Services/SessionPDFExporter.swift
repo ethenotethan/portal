@@ -1,6 +1,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import SwiftMath
 import os
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "SessionPDFExporter")
@@ -260,6 +261,14 @@ private struct ExportBlockView: View {
                 } else {
                     ExportCodeText(language: language, code: code)
                 }
+            } else if MarkdownParser.isDiffLanguage(language) {
+                // Static line list — DiffBlockView's horizontal ScrollView
+                // rasterizes as an empty box under ImageRenderer.
+                ExportDiffView(code: code)
+            } else if MarkdownParser.isTreeLanguage(language) {
+                // Trees keep their ASCII form in print; the interactive
+                // disclosure UI has no meaning on paper.
+                ExportCodeText(language: "", code: code)
             } else {
                 ExportCodeText(language: language, code: code)
             }
@@ -281,7 +290,85 @@ private struct ExportBlockView: View {
                 .foregroundStyle(Theme.primary)
                 .lineSpacing(3)
         case .mathBlock(let tex):
+            ExportMathView(tex: tex)
+        }
+    }
+}
+
+/// Typeset math for PDF export. MathView wraps MTMathUILabel — an
+/// NSViewRepresentable, which ImageRenderer rasterizes as an EMPTY box
+/// (same limitation as scroll views). SwiftMath's MTMathImage renders the
+/// same typesetting offscreen to a bitmap, which ImageRenderer embeds fine;
+/// unparseable TeX falls back to the monospaced source.
+private struct ExportMathView: View {
+    let tex: String
+
+    var body: some View {
+        if let image = Self.typeset(tex) {
+            // Half-size frame: typeset at 2x for print resolution.
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: image.size.width / 2, height: image.size.height / 2)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 6))
+        } else {
             ExportCodeText(language: "math", code: tex)
+        }
+    }
+
+    @MainActor
+    static func typeset(_ tex: String) -> PlatformImage? {
+        var renderer = MTMathImage(
+            latex: tex,
+            fontSize: 32,   // 2x the on-screen 16pt for print resolution
+            textColor: mtColor(Theme.primary),
+            labelMode: .display,
+            textAlignment: .left
+        )
+        renderer.contentInsets = MTEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+        let (error, image) = renderer.asImage()
+        guard error == nil, let image else { return nil }
+        return image
+    }
+}
+
+/// Static diff for PDF export: same line classification/tinting as
+/// DiffBlockView, laid out directly (no ScrollView) so lines wrap.
+private struct ExportDiffView: View {
+    let code: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(DiffLine.parse(code)) { line in
+                Text(line.text.isEmpty ? " " : line.text)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(color(for: line.kind))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(background(for: line.kind))
+            }
+        }
+        .padding(8)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    private func color(for kind: DiffLine.Kind) -> Color {
+        switch kind {
+        case .addition: return .green
+        case .deletion: return .red
+        case .hunk: return Theme.accent
+        case .fileHeader: return Theme.secondary
+        case .context: return Theme.primary.opacity(0.85)
+        }
+    }
+
+    private func background(for kind: DiffLine.Kind) -> Color {
+        switch kind {
+        case .addition: return .green.opacity(0.10)
+        case .deletion: return .red.opacity(0.10)
+        case .hunk: return Theme.accent.opacity(0.06)
+        case .fileHeader, .context: return .clear
         }
     }
 }

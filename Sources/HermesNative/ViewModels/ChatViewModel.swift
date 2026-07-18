@@ -81,6 +81,9 @@ final class ChatViewModel: ObservableObject {
     - **Ordered/unordered lists** for steps and enumerations
     - **Blockquotes** for important callouts
     - **Tables** for structured comparisons and data
+    - **Diffs** in ```diff blocks (unified format, -/+ prefixes) whenever you show code changes — never a plain code block of before/after
+    - **File trees** in ```tree blocks (box-drawing or indented, directories ending in /) for project structures
+    - **Math** in $$…$$ blocks (LaTeX) — rendered as typeset equations, so prefer real TeX over unicode approximations
     """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""

@@ -30,6 +30,10 @@ struct MarkdownContentView: View, Equatable {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
                         HTMLBlockView(html: code)
+                    } else if MarkdownParser.isDiffLanguage(language) {
+                        DiffBlockView(code: code)
+                    } else if MarkdownParser.isTreeLanguage(language) {
+                        FileTreeView(code: code)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -57,7 +61,7 @@ struct MarkdownContentView: View, Equatable {
                             .lineSpacing(3)
                     }
                 case .mathBlock(let tex):
-                    MathBlockView(tex: tex)
+                    MathView(tex: tex)
                 }
             }
         }
@@ -352,6 +356,15 @@ struct MarkdownParser {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "chart"
     }
 
+    static func isDiffLanguage(_ language: String) -> Bool {
+        let normalized = language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "diff" || normalized == "patch"
+    }
+
+    static func isTreeLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "tree"
+    }
+
     private static func isHorizontalRule(_ s: String) -> Bool {
         let dashes = s.filter { $0 == "-" }.count
         if dashes >= 3 && dashes == s.count { return true }
@@ -449,7 +462,10 @@ struct MarkdownText: View {
         let textColor: Color = baseColor ?? Theme.primary
         let font: Font = baseFont ?? .system(size: 14)
 
-        let normalized = Self.normalizeInlineCode(input)
+        // Inline $…$ TeX → Unicode ("coefficient of $x$" shows italic 𝑥,
+        // not a raw dollar span). Conservative: unconvertible spans and
+        // currency pass through untouched.
+        let normalized = Self.normalizeInlineCode(InlineMath.render(input))
 
         if var parsed = try? AttributedString(markdown: normalized, options: inlineOptions) {
             stripSystemColors(&parsed, to: textColor)
@@ -570,6 +586,13 @@ struct CodeBlockView: View {
                     }
                 }
                 Spacer()
+                OpenInPanelButton {
+                    Artifact(
+                        kind: .code(language: language),
+                        title: language.isEmpty ? "Code" : language.capitalized,
+                        content: code
+                    )
+                }
                 Button {
                     #if os(macOS)
                     NSPasteboard.general.clearContents()
@@ -1478,48 +1501,4 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
 }
 
 // MARK: - Math Block
-
-struct MathBlockView: View {
-    let tex: String
-    @State private var isCopied = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "function")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
-                Text("Math")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.secondary)
-                Spacer()
-                Button {
-                    #if os(macOS)
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(tex, forType: .string)
-                    #else
-                    UIPasteboard.general.string = tex
-                    #endif
-                    isCopied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        isCopied = false
-                    }
-                } label: {
-                    Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            Text(tex)
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundStyle(Theme.primary)
-                .textSelection(.enabled)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
-        }
-        .padding(10)
-        .background(Theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
-    }
-}
+// (Typeset rendering lives in Views/Blocks/MathView.swift — SwiftMath.)

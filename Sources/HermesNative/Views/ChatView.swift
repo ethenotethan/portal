@@ -15,6 +15,12 @@ struct ChatView: View {
     @EnvironmentObject var ttsService: TTSService
     @State private var showSkinPicker = false
     @State private var showGatewayDebug = false
+    #if os(macOS)
+    /// Content promoted out of the transcript into the side panel.
+    @State private var openArtifact: Artifact?
+    #else
+    @State private var artifactSheet: Artifact?
+    #endif
     #if os(iOS)
     @State private var showSettings = false
     #endif
@@ -171,8 +177,62 @@ struct ChatView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        // Artifact side panel: promoted blocks (code, diffs, documents)
+        // render full-height beside the transcript. HSplitView only when
+        // open — wrapping unconditionally costs divider chrome and layout.
+        if let artifact = openArtifact {
+            HSplitView {
+                chatContent
+                    .frame(minWidth: 480)
+                    .layoutPriority(1)
+                ArtifactPanelView(artifact: artifact) {
+                    openArtifact = nil
+                }
+                .frame(minWidth: 320, idealWidth: 460, maxWidth: 720)
+            }
+            .environment(\.openArtifact) { openArtifact = $0 }
+        } else {
+            chatContent
+                .environment(\.openArtifact) { openArtifact = $0 }
+        }
+        #else
+        // iOS: no side panel — artifacts open as a sheet.
         chatContent
+            .environment(\.openArtifact) { artifactSheet = $0 }
+            .sheet(item: $artifactSheet) { artifact in
+                NavigationStack {
+                    ScrollView {
+                        artifactSheetContent(artifact)
+                            .padding(16)
+                    }
+                    .background(Theme.background)
+                    .navigationTitle(artifact.title)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { artifactSheet = nil }
+                        }
+                    }
+                }
+            }
+        #endif
     }
+
+    #if os(iOS)
+    @ViewBuilder
+    private func artifactSheetContent(_ artifact: Artifact) -> some View {
+        switch artifact.kind {
+        case .code(let language):
+            CodeBlockView(language: language, code: artifact.content)
+        case .diff:
+            DiffBlockView(code: artifact.content)
+        case .markdown:
+            MarkdownContentView(text: artifact.content, isStreaming: false)
+                .equatable()
+        }
+    }
+    #endif
 
     private var chatContent: some View {
         VStack(spacing: 0) {

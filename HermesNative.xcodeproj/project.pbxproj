@@ -30,6 +30,7 @@
 		149895F42959FF4DDCB34938 /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846CAD9657C0ED6872929714 /* QuizViewModel.swift */; };
 		14F49EC0C31EC8EFC2B3DB2D /* PerfInstrumentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */; };
 		1537D87915C7E8AE247C6B9C /* SkillCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E50848877F195F3F5628E4 /* SkillCache.swift */; };
+		1663FE96C57C7365F45DA4CC /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = A3C752DB92AD505DAC051B45 /* SwiftMath */; };
 		16CF0971757A9F133AB0420B /* PlaybackEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66EEB8C56477DC447D5E1D0 /* PlaybackEventRow.swift */; };
 		191C589E0978E720D150DD6E /* GatewayClient+Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5A40190C6BD33F951711B9 /* GatewayClient+Feed.swift */; };
 		19D14A47BB043496A58D17F5 /* PersonaManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C83FB177D450056599E65 /* PersonaManager.swift */; };
@@ -38,6 +39,7 @@
 		1B9CFABF8EA2A0E659C80D9A /* ChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742C42FB4508D2508FF94A82 /* ChatSkin.swift */; };
 		1BF54C22DCEC8F5EE5304F57 /* ChartSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3C1AE5F7C59A935A9652E0 /* ChartSpec.swift */; };
 		1C372FF7882368E6FF4A8BFD /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */; };
+		1E1CE5D5631FCADD2AC07C2D /* DiffBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08D050F975F8D875A7FC930 /* DiffBlockView.swift */; };
 		1E53A9AD621BB08CCA78B3DA /* SRSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F13E499A3D62F15C5F4F02 /* SRSStore.swift */; };
 		1E9E3C269D95A38AC71C3D3F /* CronJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DF820435B5D88C97CF7888 /* CronJob.swift */; };
 		216EE5D31DBCF0FE68E54F21 /* DarkMangaSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581833B777AC84A1607DBD1F /* DarkMangaSkin.swift */; };
@@ -72,7 +74,9 @@
 		3CC74257A7F5B12CC65CE0D8 /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */; };
 		3D83490DD79DE8C63FAD28C3 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 066A8C773BEA50BCC352CF5A /* Highlightr */; };
 		3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
+		3E7408A9983342C4CD7675C7 /* FileTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */; };
 		3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
+		3F0511D7BFFD9F095F75A6A4 /* MathView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D6EDC73D991500193CD1A1 /* MathView.swift */; };
 		3F132ED582BFB260BD55D500 /* TreeNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCD3141656594B639005AAD /* TreeNodeView.swift */; };
 		3FF80DFEDB9ABFB1CFFACDA9 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */; };
 		41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
@@ -125,6 +129,7 @@
 		60EE1A52ECD0015AD4EB14F8 /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */; };
 		617F9169FBE1B5C9439009B3 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D926B2B3719706E1229C37 /* SkillsView.swift */; };
 		61A658AC225C0EB372BF3DA4 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
+		62170930C2501D086E3BCF90 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3911D2EEE42B27538613563C /* ModelCatalog.swift */; };
 		62227BB29F7C4B3F07AFBE5C /* PlaybackTimelineChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DD634738EDA588BA9B5EDDE /* PlaybackTimelineChart.swift */; };
 		636E6271A60453754BEC74F1 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */; };
 		638EBF9A517E26DC5A5EA397 /* GatewayClientWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */; };
@@ -187,6 +192,7 @@
 		9173E4A3FBF0AD9AE57E9F26 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3179815C2A0EC7D43C9213AC /* CFAuthView.swift */; };
 		92DBEEEA367A9CAEF513E78D /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846CAD9657C0ED6872929714 /* QuizViewModel.swift */; };
 		931B84E5C3C6E084C355F5F9 /* ToolCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AE31FDF73C19D9F3762143 /* ToolCallView.swift */; };
+		93D896A2085AE1C71CA67A11 /* MathView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D6EDC73D991500193CD1A1 /* MathView.swift */; };
 		949710C0980DCAAF18C1BD89 /* HermesNativeSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1B098714AA8CADED2118F6 /* HermesNativeSmokeUITests.swift */; };
 		95006EACD8FAE6B2373C7E9D /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */; };
 		95678EA6F547C8AB0F9ED9B8 /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */; };
@@ -210,6 +216,7 @@
 		A3043705F5A86394FE492ED9 /* idle.json in Resources */ = {isa = PBXBuildFile; fileRef = E75C11A7DC7195F4353C93DA /* idle.json */; };
 		A53723E8CA76B5D576505DD9 /* happy.json in Resources */ = {isa = PBXBuildFile; fileRef = E1CB9DFBFC6F7CC67D8359F5 /* happy.json */; };
 		AA22CB30D10808E7ECA86070 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3179815C2A0EC7D43C9213AC /* CFAuthView.swift */; };
+		AB5064E40312EDD35C69C467 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3911D2EEE42B27538613563C /* ModelCatalog.swift */; };
 		AC56A7DBF82D9913A8B0220B /* AgentBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E189B48EA1AAFB00B67C209F /* AgentBackend.swift */; };
 		AD140C8B8A12AC67BF370F9E /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = FE55711F07D88DCBCA72F824 /* MLXLMCommon */; };
 		AD25BB03261A6956C0A45285 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
@@ -239,6 +246,7 @@
 		BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
 		BCD27430404D7001FFF847CB /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 34CEED05A66980B463C2FAC3 /* MLXLLM */; };
 		BDC97F8DC661A548E1DFF2B5 /* HermesNativeDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */; };
+		BDEFD1C80F6AC34B0EF6660D /* FileTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */; };
 		BEB6F88789F30562EE7A8704 /* WikiGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F108D3D10510DF750A0CC06 /* WikiGraphViewModel.swift */; };
 		BF38ABA9B6F9DF39FE9E9766 /* MediaAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1669F694E957B7E101B2C51 /* MediaAttachment.swift */; };
 		C11D790B06A579042F5C6A37 /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */; };
@@ -251,6 +259,7 @@
 		C50238D57DB0F48A1064C65E /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7471C7C26357969AFAF4154 /* SpawnNode.swift */; };
 		C5D56CE85AB1DDC2A4945793 /* ModelPickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74165A16776B6E131CE895E1 /* ModelPickerMenu.swift */; };
 		C639B17446988C825619F345 /* SkillCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E50848877F195F3F5628E4 /* SkillCache.swift */; };
+		C644828537C310FF4356FC38 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 659975ED74F5BCB4755CA417 /* SwiftMath */; };
 		C94DA73F98B98B31367A2487 /* SessionObserverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */; };
 		C98EECAF481BF8D1D742664C /* ActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1C673C620872B0D6482C9E /* ActivityStore.swift */; };
 		CB50AE5766A010F57898099E /* SessionBackendRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A372EE19C0E643C86683288 /* SessionBackendRegistry.swift */; };
@@ -260,6 +269,7 @@
 		CC3401353A17237D16CE3B81 /* SessionPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585DA7FCBAB60B91E45207CD /* SessionPlaybackView.swift */; };
 		CD36367200E4AC47BEF6E9D4 /* HermesNativeOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */; };
 		CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74241583599C1664DB6A4B94 /* SRSDashboardView.swift */; };
+		CD58DF846C28EA00DD8182C5 /* DiffBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08D050F975F8D875A7FC930 /* DiffBlockView.swift */; };
 		CE0F6E7790EA5F02E274C029 /* SessionObserverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC89BDA9F965E178C495B02 /* SessionObserverView.swift */; };
 		CEEF97E31350F2523D53C4ED /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		CF1D256C6004FEBF4E172994 /* ActivityInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A49E74E10C41B44D3C49C8 /* ActivityInboxView.swift */; };
@@ -369,6 +379,7 @@
 		34BD6CA191B834A64926DFE6 /* WikiGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphView.swift; sourceTree = "<group>"; };
 		34DE48DC34DE5ECC63525DDC /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeDeepLink.swift; sourceTree = "<group>"; };
+		3911D2EEE42B27538613563C /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
 		3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
 		3D01C62D7F9E9F4482310FA5 /* ToolCallFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallFlowView.swift; sourceTree = "<group>"; };
 		3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
@@ -402,6 +413,7 @@
 		6C633B4D795C9824FB4B54E5 /* HermesNativeGatewayConnectionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeGatewayConnectionUITests.swift; sourceTree = "<group>"; };
 		6F924BA7C739D8BF1220EC89 /* WikiTimelineViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiTimelineViewModel.swift; sourceTree = "<group>"; };
 		71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfOverlayView.swift; sourceTree = "<group>"; };
+		73D6EDC73D991500193CD1A1 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
 		74165A16776B6E131CE895E1 /* ModelPickerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPickerMenu.swift; sourceTree = "<group>"; };
 		74241583599C1664DB6A4B94 /* SRSDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSDashboardView.swift; sourceTree = "<group>"; };
 		742C42FB4508D2508FF94A82 /* ChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSkin.swift; sourceTree = "<group>"; };
@@ -441,6 +453,7 @@
 		A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunEvent.swift; sourceTree = "<group>"; };
 		ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChartView.swift; sourceTree = "<group>"; };
 		AFB387E7528E2CB1156D8314 /* MacInputTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacInputTextField.swift; sourceTree = "<group>"; };
+		B08D050F975F8D875A7FC930 /* DiffBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffBlockView.swift; sourceTree = "<group>"; };
 		B3485571962535F17DD9D1AA /* ThoughtGraphNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphNode.swift; sourceTree = "<group>"; };
 		B3FC558B7E616C319F5AEC7A /* WikiChangesetDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetDiffView.swift; sourceTree = "<group>"; };
 		B41979884D456FA9522F47D6 /* MacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacApp.swift; sourceTree = "<group>"; };
@@ -453,6 +466,7 @@
 		C507ADF4D946E8F07EE41174 /* QuizModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModels.swift; sourceTree = "<group>"; };
 		C6F06C5C01DCABB3A27961F1 /* FeedArticle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedArticle.swift; sourceTree = "<group>"; };
 		C8510CDBA7652A23723C1FA1 /* Persona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persona.swift; sourceTree = "<group>"; };
+		C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTreeView.swift; sourceTree = "<group>"; };
 		CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidDiagramView.swift; sourceTree = "<group>"; };
 		CC871CF4533AE44104E0C11A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClientWrapper.swift; sourceTree = "<group>"; };
@@ -510,6 +524,7 @@
 				9771D8420E9A40ABB54DD732 /* MLXLMCommon in Frameworks */,
 				976ADC4A1BA0363F681A6C0F /* HuggingFace in Frameworks */,
 				C363CEDD15EF180248E0E3DD /* Tokenizers in Frameworks */,
+				C644828537C310FF4356FC38 /* SwiftMath in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -524,6 +539,7 @@
 				AD140C8B8A12AC67BF370F9E /* MLXLMCommon in Frameworks */,
 				F3D2BF917B9730AF3E996E5C /* HuggingFace in Frameworks */,
 				745DCFB89DEB136EF5A72AF1 /* Tokenizers in Frameworks */,
+				1663FE96C57C7365F45DA4CC /* SwiftMath in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -592,6 +608,7 @@
 				5CCAEA30C82BE9DEAAB6E59F /* ThumbnailImageView.swift */,
 				55AE31FDF73C19D9F3762143 /* ToolCallView.swift */,
 				22A7665D966524A9EA9F3483 /* ToolPillView.swift */,
+				A91472BDE496AE4ADF1DD59A /* Blocks */,
 				C1E87EA5B46FB138FB9B0FBA /* Charts */,
 				038C503F217FE31FCB0F652A /* Diagram */,
 				FB62C7089DFCFA102AA077F2 /* Learning */,
@@ -743,6 +760,7 @@
 				6772AAD454D58CA9064AE58D /* GatewayEvent.swift */,
 				6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */,
 				A1669F694E957B7E101B2C51 /* MediaAttachment.swift */,
+				3911D2EEE42B27538613563C /* ModelCatalog.swift */,
 				C8510CDBA7652A23723C1FA1 /* Persona.swift */,
 				98EAA5520C82637C026B91DB /* PromptBreakdown.swift */,
 				0507F41EEE70625CED6689E9 /* ResponseStyle.swift */,
@@ -784,6 +802,16 @@
 				B41979884D456FA9522F47D6 /* MacApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		A91472BDE496AE4ADF1DD59A /* Blocks */ = {
+			isa = PBXGroup;
+			children = (
+				B08D050F975F8D875A7FC930 /* DiffBlockView.swift */,
+				C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */,
+				73D6EDC73D991500193CD1A1 /* MathView.swift */,
+			);
+			path = Blocks;
 			sourceTree = "<group>";
 		};
 		ABD5E6FED74BB2193055231F /* ThoughtGraph */ = {
@@ -938,6 +966,7 @@
 				FE55711F07D88DCBCA72F824 /* MLXLMCommon */,
 				1DDB54E4692D6A49CA6B1DD0 /* HuggingFace */,
 				7F080CFCB98790A5A5B09488 /* Tokenizers */,
+				A3C752DB92AD505DAC051B45 /* SwiftMath */,
 			);
 			productName = "HermesNative-iOS";
 			productReference = E996AFDAC3ACF6290E04567F /* HermesNative-iOS.app */;
@@ -964,6 +993,7 @@
 				732289EF5858884F6B2019DF /* MLXLMCommon */,
 				F19F60780D55F06B71895705 /* HuggingFace */,
 				D8E8A256BEBA815C53BE4C28 /* Tokenizers */,
+				659975ED74F5BCB4755CA417 /* SwiftMath */,
 			);
 			productName = "HermesNative-macOS";
 			productReference = EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */;
@@ -1023,6 +1053,7 @@
 				5961CD81EC38B9F107CF82DC /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */,
 				41A94046CD428EDBB9967345 /* XCRemoteSwiftPackageReference "Highlightr" */,
 				327DBA77A65E00A1D8FA0229 /* XCRemoteSwiftPackageReference "lottie-spm" */,
+				54B0C567A00DD473677BBDBB /* XCRemoteSwiftPackageReference "SwiftMath" */,
 				0279E4A5727E90E4D888842A /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				66F831DE01C5F5939B464C8A /* XCRemoteSwiftPackageReference "swift-huggingface" */,
 				EBDC2707588DDB8AA31BE136 /* XCRemoteSwiftPackageReference "swift-transformers" */,
@@ -1099,12 +1130,14 @@
 				F7BDD355C6FFA1D4ADDA7F2D /* CronRunHistory.swift in Sources */,
 				084F93081436CDBE85BDB6D3 /* DarkMangaSkin.swift in Sources */,
 				E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */,
+				1E1CE5D5631FCADD2AC07C2D /* DiffBlockView.swift in Sources */,
 				86840130D03445C9B796DE72 /* DocumentTextExtractor.swift in Sources */,
 				96AE5EBED2A3EE2AA17626F9 /* Extensions.swift in Sources */,
 				8791E134B94C61EC9D11EFB5 /* FeedArticle.swift in Sources */,
 				5A7D744A47A70A419C281E51 /* FeedView.swift in Sources */,
 				4D149D4064D0C8D84D969DD3 /* FeedViewModel.swift in Sources */,
 				63E4CC3663F96C4B4D392455 /* FileDownloadManager.swift in Sources */,
+				BDEFD1C80F6AC34B0EF6660D /* FileTreeView.swift in Sources */,
 				B1192BB0C2D9608C14C562DC /* FlashcardDeckView.swift in Sources */,
 				5C9065AA097506709DD9BFD9 /* FlashcardModels.swift in Sources */,
 				B20E904C579FD5ECFD0F0F67 /* FlashcardView.swift in Sources */,
@@ -1132,10 +1165,12 @@
 				DA5DAF04C6DEAF8A64B48E8A /* MacInputTextField.swift in Sources */,
 				4B5A14E500239C1743BDAC53 /* MacScrollViewIntrospection.swift in Sources */,
 				D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */,
+				3F0511D7BFFD9F095F75A6A4 /* MathView.swift in Sources */,
 				5A1108897F9D615124D85957 /* MediaAttachment.swift in Sources */,
 				388A2B59C0CCFE3222DE5ACF /* MermaidDiagramView.swift in Sources */,
 				111BDEF808D7FCA543608D5B /* MermaidGraphParser.swift in Sources */,
 				E5F8FD99512633E3B8B9E226 /* MessageBubbleView.swift in Sources */,
+				62170930C2501D086E3BCF90 /* ModelCatalog.swift in Sources */,
 				CBA116339ECF4F8914C41C2A /* ModelPickerMenu.swift in Sources */,
 				04EEF20FCD60B878169ED0CD /* NativeChartView.swift in Sources */,
 				C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */,
@@ -1262,12 +1297,14 @@
 				568AF4824A43A644F6CEF7A5 /* CronRunHistory.swift in Sources */,
 				216EE5D31DBCF0FE68E54F21 /* DarkMangaSkin.swift in Sources */,
 				8E73DDBEAC18F9750DAFD198 /* DiagramExplorerView.swift in Sources */,
+				CD58DF846C28EA00DD8182C5 /* DiffBlockView.swift in Sources */,
 				F26D4B11BF3CE66850CAF3F0 /* DocumentTextExtractor.swift in Sources */,
 				44517A6F6B0BA4238E47FA4E /* Extensions.swift in Sources */,
 				5436608260EA37EB008B7A1A /* FeedArticle.swift in Sources */,
 				4AA2077D00079EA7A06729A6 /* FeedView.swift in Sources */,
 				24A9AFEED2C10A76632E9C1E /* FeedViewModel.swift in Sources */,
 				3CC74257A7F5B12CC65CE0D8 /* FileDownloadManager.swift in Sources */,
+				3E7408A9983342C4CD7675C7 /* FileTreeView.swift in Sources */,
 				70034FCE2143F1738A7A5403 /* FlashcardDeckView.swift in Sources */,
 				D0C5C6F2A0E5440626F5386D /* FlashcardModels.swift in Sources */,
 				34EF999CDB8F55165AA5B0C1 /* FlashcardView.swift in Sources */,
@@ -1295,10 +1332,12 @@
 				B75E70AA622F66F64A597DCF /* MacInputTextField.swift in Sources */,
 				3A56767854C15D8E0A04AA2C /* MacScrollViewIntrospection.swift in Sources */,
 				6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */,
+				93D896A2085AE1C71CA67A11 /* MathView.swift in Sources */,
 				BF38ABA9B6F9DF39FE9E9766 /* MediaAttachment.swift in Sources */,
 				E4961B3AA11114222ED72A2E /* MermaidDiagramView.swift in Sources */,
 				70FD7FD4E0F0D785741DAE24 /* MermaidGraphParser.swift in Sources */,
 				7E1BCCCADCFDD000491A7271 /* MessageBubbleView.swift in Sources */,
+				AB5064E40312EDD35C69C467 /* ModelCatalog.swift in Sources */,
 				C5D56CE85AB1DDC2A4945793 /* ModelPickerMenu.swift in Sources */,
 				B070B9746CD795F55091EFB8 /* NativeChartView.swift in Sources */,
 				226DE9A575F85078B7D49421 /* NotificationService.swift in Sources */,
@@ -1711,6 +1750,14 @@
 				minimumVersion = 2.3.0;
 			};
 		};
+		54B0C567A00DD473677BBDBB /* XCRemoteSwiftPackageReference "SwiftMath" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mgriebling/SwiftMath";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.0;
+			};
+		};
 		5961CD81EC38B9F107CF82DC /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/lukilabs/beautiful-mermaid-swift";
@@ -1768,6 +1815,11 @@
 			package = 5961CD81EC38B9F107CF82DC /* XCRemoteSwiftPackageReference "beautiful-mermaid-swift" */;
 			productName = BeautifulMermaid;
 		};
+		659975ED74F5BCB4755CA417 /* SwiftMath */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 54B0C567A00DD473677BBDBB /* XCRemoteSwiftPackageReference "SwiftMath" */;
+			productName = SwiftMath;
+		};
 		6F0058522539F20E74EE6346 /* Highlightr */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 41A94046CD428EDBB9967345 /* XCRemoteSwiftPackageReference "Highlightr" */;
@@ -1787,6 +1839,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = EBDC2707588DDB8AA31BE136 /* XCRemoteSwiftPackageReference "swift-transformers" */;
 			productName = Tokenizers;
+		};
+		A3C752DB92AD505DAC051B45 /* SwiftMath */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 54B0C567A00DD473677BBDBB /* XCRemoteSwiftPackageReference "SwiftMath" */;
+			productName = SwiftMath;
 		};
 		D8E8A256BEBA815C53BE4C28 /* Tokenizers */ = {
 			isa = XCSwiftPackageProductDependency;

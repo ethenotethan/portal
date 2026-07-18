@@ -92,6 +92,33 @@ struct SessionPDFExporterTests {
         #expect(text.contains("p95"))
     }
 
+    @Test("Math blocks export as typeset images, not empty boxes")
+    @MainActor
+    func mathExportsTypeset() async {
+        let messages = [
+            ChatMessage(role: .user, content: "derive it"),
+            ChatMessage(role: .assistant, content: """
+            The quadratic formula:
+
+            $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+
+            done.
+            """),
+        ]
+        let data = await SessionPDFExporter.export(
+            messages: messages, title: "Math", assistantName: "Hermes"
+        )
+        let unwrapped = try! #require(data)
+        let document = try! #require(PDFDocument(data: unwrapped))
+        // The typeset equation is an embedded image: the PDF must contain an
+        // XObject/image stream. A monospace-text fallback would not.
+        let raw = String(decoding: unwrapped, as: UTF8.self)
+        #expect(raw.contains("/Image") || raw.contains("/XObject"))
+        // Surrounding prose still lands in the text layer.
+        let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined()
+        #expect(text.contains("quadratic formula"))
+    }
+
     @Test("Empty session returns nil instead of an empty PDF")
     @MainActor
     func emptySessionReturnsNil() async {

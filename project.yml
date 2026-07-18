@@ -26,6 +26,9 @@ packages:
   swift-transformers:
     url: https://github.com/huggingface/swift-transformers
     from: "1.3.0"
+  SwiftMath:
+    url: https://github.com/mgriebling/SwiftMath
+    from: "1.7.0"
 
 targets:
   HermesNative-macOS:
@@ -46,6 +49,7 @@ targets:
         product: HuggingFace
       - package: swift-transformers
         product: Tokenizers
+      - package: SwiftMath
     entitlements:
       path: HermesNative-macOS.entitlements
     configFiles:
@@ -81,6 +85,7 @@ targets:
         product: HuggingFace
       - package: swift-transformers
         product: Tokenizers
+      - package: SwiftMath
     entitlements:
       path: HermesNative-iOS.entitlements
     configFiles:
