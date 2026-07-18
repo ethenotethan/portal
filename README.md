@@ -60,7 +60,7 @@ Connects directly to a Hermes Gateway via WebSocket JSON-RPC (`/v1/ws`), providi
 
 - macOS 14 (Sonoma) / iOS 17 or later
 - Xcode 16+ / Swift 6.1+
-- A running Hermes Gateway with API server enabled (`api_server` platform)
+- A running Hermes Gateway with API server enabled (`api_server` platform) — **requires the [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent) fork**, not stock hermes-agent; see [`docs/gateway-setup.md`](docs/gateway-setup.md)
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (for the Xcode project; `brew install xcodegen`)
 
 ## Build
@@ -90,6 +90,12 @@ Or open `HermesNative.xcodeproj` in Xcode, select a target (macOS or iOS), and h
 App entry points live in `App/MacApp.swift` and `App/IOSApp.swift`.
 
 ## Configuration
+
+> **No gateway yet?** HermesNative needs the WebSocket JSON-RPC endpoint (`/v1/ws`),
+> which only exists in the [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent)
+> fork. [`docs/gateway-setup.md`](docs/gateway-setup.md) walks through installing the
+> fork (or migrating an existing hermes-agent install), enabling the API server, and
+> connecting the app.
 
 On first launch, enter your gateway URL and API key:
 
