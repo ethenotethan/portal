@@ -1125,9 +1125,11 @@ struct ContentView: View {
             if let backend = gatewayClientWrapper.sessionScopedBackend(for: entry) {
                 pendingCreatedSessionID = "__creating__"
                 await createSessionOnScopedBackend(backend, entry: entry)
-                // A failed create must release the sentinel, or it swallows
-                // every subsequent session selection (app looks frozen).
-                if sessionCreationError != nil {
+                // Any create that didn't produce a real session ID must
+                // release the sentinel (failed RPC, cancellation, or a create
+                // that returned no ID), or it swallows every subsequent
+                // session selection (app looks frozen) (#178).
+                if pendingCreatedSessionID == "__creating__" {
                     pendingCreatedSessionID = nil
                 }
             } else {
@@ -1154,14 +1156,20 @@ struct ContentView: View {
         pendingCreatedSessionID = "__creating__"
         await chatViewModel.createSession()
 
+        // Every failure exit below MUST release the "__creating__" sentinel:
+        // handleSessionSelection early-returns while it is set, so a leaked
+        // sentinel swallows every subsequent session selection (new AND
+        // existing) until app restart (#178).
         if let error = chatViewModel.error {
             shouldSuppressNextCreateGenerationPush = false
+            pendingCreatedSessionID = nil
             sessionCreationError = error
             return
         }
 
         guard let sid = chatViewModel.currentSessionID else {
             shouldSuppressNextCreateGenerationPush = false
+            pendingCreatedSessionID = nil
             sessionCreationError = "Session create returned no session ID"
             return
         }
@@ -1333,11 +1341,21 @@ spawnTreeStore.subscribe(to: client)
             gatewayClientWrapper.endBackgroundGracePeriod()
             #endif
             if settings.isConfigured {
+                // Foregrounding grants a fresh auto-reconnect budget: iOS
+                // kills the socket on every backgrounding, so a flaky stretch
+                // can exhaust the retry cap and park the client in a terminal
+                // error state that otherwise survives until app restart (#178).
+                gatewayClientWrapper.resetReconnectBudget()
                 Task {
                     if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
                         await gatewayClientWrapper.connectWithRetry(using: settings)
                     } else if gatewayClientWrapper.isConnecting {
-                        _ = await gatewayClientWrapper.waitUntilConnected(timeout: 12)
+                        // A wedged in-flight connect must not make foregrounding
+                        // a no-op — retry through connectIfNeeded, which rebuilds
+                        // the transport when the in-flight wait times out (#178).
+                        if !(await gatewayClientWrapper.waitUntilConnected(timeout: 12)) {
+                            await gatewayClientWrapper.connectWithRetry(using: settings)
+                        }
                     }
                     // connectIfNeeded swaps the wrapper's inner GatewayClient
                     // when it recreates the transport, and an in-flight connect

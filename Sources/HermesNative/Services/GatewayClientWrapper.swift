@@ -104,12 +104,23 @@ final class GatewayClientWrapper: ObservableObject {
             cfCookieValue: settings.cfAuthCookie?.value
         )
 
+        // An explicit connection request grants auto-reconnect a fresh budget,
+        // so a client that exhausted its retries (terminal .error) resumes
+        // reconnecting instead of staying dead until app restart (#178).
+        resetReconnectBudget()
+
         if !force, currentSignature == signature {
             if isConnected { return true }
             if isConnecting || connectTask != nil {
                 let connected = await waitUntilConnected(timeout: 12)
                 logger.info("GatewayClientWrapper reused in-flight connection result=\(connected)")
-                return connected
+                if connected { return true }
+                // The in-flight connect is wedged (e.g. the client is stuck in
+                // .reconnecting after a failed attempt, so isConnecting never
+                // clears). Returning failure here would leave every later call
+                // queueing behind the same doomed 12s wait — fall through and
+                // rebuild the transport instead (#178).
+                logger.info("GatewayClientWrapper in-flight connection wedged; rebuilding transport")
             }
         }
 
@@ -187,6 +198,13 @@ final class GatewayClientWrapper: ObservableObject {
     /// Legacy name kept for callers that intentionally want to connect.
     func connect(using settings: SettingsViewModel) async {
         _ = await connectIfNeeded(using: settings)
+    }
+
+    /// Forward to the current client: give auto-reconnect a fresh attempt
+    /// budget. Called on app foreground and inside connectIfNeeded so an
+    /// exhausted retry cap never survives a user-visible trigger (#178).
+    func resetReconnectBudget() {
+        client.resetReconnectBudget()
     }
 
     func waitUntilConnected(timeout seconds: TimeInterval = 10) async -> Bool {

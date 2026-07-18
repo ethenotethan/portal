@@ -214,12 +214,16 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var reconnectTask: Task<Void, Never>?
     private var reconnectAttempt: Int = 0
     private var isHandlingDisconnect = false
-    private var isReconnecting: Bool {
-        if case .reconnecting = connectionState { return true }
-        return false
-    }
+    /// True from the moment a backoff timer is armed until it fires and
+    /// openWebSocket actually runs. Dedupes the multiple failure signals a
+    /// single dead socket emits (receiveLoop error + delegate close) without
+    /// blocking the NEXT attempt: guarding on `connectionState ==
+    /// .reconnecting` instead meant a failed reconnect attempt could never
+    /// schedule another one, wedging the client in `.reconnecting` forever
+    /// until app restart (#178).
+    private var isReconnectScheduled = false
     private static let maxReconnectDelay: TimeInterval = 30
-    private static let maxReconnectAttempts: Int = 10
+    static let maxReconnectAttempts: Int = 10
     private var isIntentionalDisconnect = false
 
     // MARK: - Session Resume
@@ -356,6 +360,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         isIntentionalDisconnect = false
         reconnectAttempt = 0
+        isReconnectScheduled = false
         connectionState = .connecting
         refreshDebugSnapshot()
         recordDebugEvent(.state, name: "connect", detail: "opening")
@@ -383,6 +388,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 openWebSocket()
             }
         }
+    }
+
+    /// Grant auto-reconnect a fresh budget. iOS tears the socket down on
+    /// every backgrounding, so a flaky stretch can exhaust
+    /// `maxReconnectAttempts` — after which `handleDisconnect` parks the
+    /// client in a terminal `.error` state and nothing ever reconnects until
+    /// process restart. Called on app foreground and on explicit user
+    /// connection requests so "max retries exceeded" is never a dead end (#178).
+    func resetReconnectBudget() {
+        guard reconnectAttempt != 0 else { return }
+        reconnectAttempt = 0
+        refreshDebugSnapshot()
+    }
+
+    /// Test seam: drive the private attempt counter without a live socket.
+    func setReconnectAttemptForTesting(_ attempt: Int) {
+        reconnectAttempt = attempt
+        refreshDebugSnapshot()
+    }
+
+    /// Test seam: run the disconnect/backoff state machine without a socket.
+    func handleDisconnectForTesting(reason: String) {
+        handleDisconnect(reason: reason)
     }
 
     /// Quick HTTP HEAD to the gateway host to confirm reachability.
@@ -514,6 +542,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         isIntentionalDisconnect = true
         reconnectTask?.cancel()
         reconnectTask = nil
+        // The armed backoff timer above never fires once cancelled; clear the
+        // flag or a later connect()'s disconnects would be treated as
+        // already-scheduled and never reconnect.
+        isReconnectScheduled = false
         stopPingTimer()
         stopConnection()
     }
@@ -604,7 +636,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         recordDebugEvent(.error, name: "disconnect", detail: reason)
 
         guard !isIntentionalDisconnect else { return }
-        guard !isReconnecting else { return }
+        guard !isReconnectScheduled else { return }
 
         if reconnectAttempt >= Self.maxReconnectAttempts {
             onLog?("✗ Max reconnect attempts reached", true)
@@ -614,6 +646,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
         reconnectAttempt += 1
         let delay = min(pow(2.0, Double(reconnectAttempt - 1)), Self.maxReconnectDelay)
+        isReconnectScheduled = true
         connectionState = .reconnecting(attempt: reconnectAttempt)
         refreshDebugSnapshot()
         onLog?("Reconnecting (attempt \(reconnectAttempt), \(String(format: "%.0f", delay))s)…", true)
@@ -622,7 +655,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            self?.openWebSocket()
+            guard let self else { return }
+            // Attempt in flight: clear the schedule flag so a failure of THIS
+            // attempt can schedule the next one (or hit the attempt cap).
+            self.isReconnectScheduled = false
+            self.openWebSocket()
         }
     }
 

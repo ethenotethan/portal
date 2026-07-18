@@ -1,0 +1,78 @@
+import Testing
+import Foundation
+@testable import HermesNative
+
+/// Regression tests for #178: after reconnect exhaustion the client parked in
+/// a terminal `.error` state, and nothing short of an app restart could bring
+/// the gateway connection back.
+@Suite("Gateway Reconnect Budget")
+@MainActor
+struct GatewayReconnectBudgetTests {
+
+    private func makeClient() -> GatewayClient {
+        // Port 9 (discard) — never dialed in these tests; every test tears the
+        // client down via disconnect() before any backoff timer can fire.
+        GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
+    }
+
+    @Test("exhausted retry cap is terminal until the budget is reset")
+    func exhaustedCapIsTerminalUntilReset() {
+        let client = makeClient()
+        client.setReconnectAttemptForTesting(GatewayClient.maxReconnectAttempts)
+
+        client.handleDisconnectForTesting(reason: "socket died")
+        guard case .error = client.connectionState else {
+            Issue.record("expected .error at the retry cap, got \(client.connectionState)")
+            return
+        }
+
+        // Foreground / explicit user action grants a fresh budget…
+        client.resetReconnectBudget()
+        #expect(client.snapshotForDebug.reconnectAttempt == 0)
+
+        // …so the next disconnect schedules attempt 1 instead of staying dead.
+        client.handleDisconnectForTesting(reason: "socket died again")
+        guard case .reconnecting(let attempt) = client.connectionState else {
+            Issue.record("expected .reconnecting after budget reset, got \(client.connectionState)")
+            return
+        }
+        #expect(attempt == 1)
+
+        client.disconnect()
+    }
+
+    @Test("duplicate failure signals for one dead socket burn a single attempt")
+    func duplicateDisconnectSignalsAreDeduped() {
+        let client = makeClient()
+
+        // One dead socket emits several failure signals (receiveLoop error,
+        // delegate close, ping failure) — only the first may schedule.
+        client.handleDisconnectForTesting(reason: "receiveLoop error")
+        client.handleDisconnectForTesting(reason: "delegate close")
+        client.handleDisconnectForTesting(reason: "ping failed")
+
+        #expect(client.snapshotForDebug.reconnectAttempt == 1)
+        guard case .reconnecting(let attempt) = client.connectionState else {
+            Issue.record("expected .reconnecting, got \(client.connectionState)")
+            return
+        }
+        #expect(attempt == 1)
+
+        client.disconnect()
+    }
+
+    @Test("resetting an already-zero budget is a no-op")
+    func resetIsIdempotent() {
+        let client = makeClient()
+        client.resetReconnectBudget()
+        #expect(client.snapshotForDebug.reconnectAttempt == 0)
+    }
+
+    @Test("wrapper forwards the budget reset to the current client")
+    func wrapperForwardsReset() {
+        let wrapper = GatewayClientWrapper()
+        wrapper.client.setReconnectAttemptForTesting(5)
+        wrapper.resetReconnectBudget()
+        #expect(wrapper.client.snapshotForDebug.reconnectAttempt == 0)
+    }
+}
