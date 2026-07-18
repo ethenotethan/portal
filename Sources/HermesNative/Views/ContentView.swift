@@ -1336,15 +1336,27 @@ spawnTreeStore.subscribe(to: client)
                 Task {
                     if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
                         await gatewayClientWrapper.connectWithRetry(using: settings)
-                        wireUpClient()
                     } else if gatewayClientWrapper.isConnecting {
                         _ = await gatewayClientWrapper.waitUntilConnected(timeout: 12)
                     }
+                    // connectIfNeeded swaps the wrapper's inner GatewayClient
+                    // when it recreates the transport, and an in-flight connect
+                    // we merely awaited was started by a caller that won't
+                    // re-wire for us — so the view models can be left
+                    // subscribed to the dead pre-background client. Re-wire on
+                    // every foreground; setGatewayClient targets are
+                    // identity-guarded, so this is a no-op when nothing changed.
+                    wireUpClient()
                     #if os(iOS)
                     // Sessions ran server-side while we were suspended; the
                     // launch task's refresh never re-runs, so resync here or
                     // the UI shows stale progress until the user pokes it.
-                    guard gatewayClientWrapper.isConnected else { return }
+                    // The socket can land moments after the 12s wait above
+                    // gives up (foreground radio wake, worst on cellular), so
+                    // keep polling instead of bailing — and re-wire once more
+                    // in case the transport was swapped while we waited.
+                    guard await gatewayClientWrapper.waitUntilConnected(timeout: 30) else { return }
+                    wireUpClient()
                     await sessionList.refreshSessions()
                     await resyncActiveChatSession()
                     #endif
