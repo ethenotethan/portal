@@ -49,7 +49,9 @@ struct ModelPickerMenu: View {
                 badge(withChevron: true)
             }
             .buttonStyle(.plain)
+            #if os(macOS)
             .fixedSize()
+            #endif
             .help("Model: \(currentModel.isEmpty ? "gateway default" : currentModel). Click to switch this session's model.")
             .task {
                 await chatViewModel.refreshModelCatalog()
@@ -135,6 +137,7 @@ struct ModelPickerMenu: View {
     private func badge(withChevron: Bool) -> some View {
         HStack(spacing: 3) {
             Text(badgeLabel)
+                .lineLimit(1)
             if withChevron {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 7, weight: .semibold))

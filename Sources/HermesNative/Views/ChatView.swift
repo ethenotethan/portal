@@ -473,23 +473,23 @@ struct ChatView: View {
         }
     }
 
+    /// Toolbar chrome above the transcript. macOS keeps the original
+    /// single-row layout; iOS collapses secondary actions into an overflow
+    /// menu so the persona, model, and streaming/stop/error state stay
+    /// legible at phone widths.
     private var chatToolbar: some View {
+        #if os(macOS)
+        macChatToolbar
+        #else
+        iosChatToolbar
+        #endif
+    }
+
+    #if os(macOS)
+    private var macChatToolbar: some View {
         HStack {
             // Persona badge — tap to switch persona
-            HStack(spacing: 6) {
-                    displayPersona.bubbleAvatar(size: 22)
-                    Text(displayPersona.name)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-
-                    Circle()
-                        .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
-                        .frame(width: 6, height: 6)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.quaternary, in: Capsule())
+            personaBadge
 
             // Skin badge — tap to switch skin
             Button {
@@ -529,17 +529,7 @@ struct ChatView: View {
             // Response style (deep map / balanced / direct)
             if chatViewModel.backendCapabilities.supportsResponseStyles {
                 Menu {
-                    ForEach(ResponseStyle.allCases) { style in
-                        Button {
-                            chatViewModel.setResponseStyle(style)
-                        } label: {
-                            if style == chatViewModel.responseStyle {
-                                Label(style.label, systemImage: "checkmark")
-                            } else {
-                                Text(style.label)
-                            }
-                        }
-                    }
+                    responseStyleMenuItems
                 } label: {
                     Image(systemName: chatViewModel.responseStyle.icon)
                         .font(.caption2)
@@ -586,47 +576,15 @@ struct ChatView: View {
             .foregroundStyle(Theme.accent)
             .accessibilityLabel("Debug Connection")
 
-            #if os(iOS)
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.caption)
-            }
-            .buttonStyle(.plain)
-            #endif
-
             if chatViewModel.isStreaming {
                 if chatViewModel.isRemoteTurn {
-                    HStack(spacing: 4) {
-                        Image(systemName: "laptopcomputer.and.iphone")
-                            .font(.caption2)
-                        Text("Live from another device")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Theme.accent.opacity(0.1), in: Capsule())
+                    remoteTurnBadge
                 }
-                Button {
-                    Task { await chatViewModel.interrupt() }
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
+                stopButton
             }
 
             if !chatViewModel.isSessionReady && chatViewModel.error == nil {
-                HStack(spacing: 4) {
-                    HermesProgressView()
-                        .scaleEffect(0.7)
-                    Text("Creating session…")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                creatingSessionIndicator
             }
 
             if let error = chatViewModel.error {
@@ -637,13 +595,206 @@ struct ChatView: View {
             }
         }
         .padding(.horizontal, 12)
-        #if os(macOS)
         .padding(.vertical, 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(activeSkin.background)
-        #else
+    }
+    #endif
+
+    #if os(iOS)
+    private var iosChatToolbar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                personaBadge
+
+                // Model picker outranks the persona badge so the model name
+                // truncates last.
+                ModelPickerMenu()
+                    .layoutPriority(1)
+
+                Spacer(minLength: 8)
+
+                if chatViewModel.isStreaming {
+                    if chatViewModel.isRemoteTurn {
+                        remoteTurnBadge
+                    }
+                    stopButton
+                }
+
+                if !chatViewModel.isSessionReady && chatViewModel.error == nil {
+                    creatingSessionIndicator
+                }
+
+                iosOverflowMenu
+            }
+
+            // Errors get a full-width row instead of a sliver of the toolbar.
+            if let error = chatViewModel.error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        #endif
+    }
+
+    /// Secondary actions collapsed behind an ellipsis so the primary row
+    /// stays legible on phone widths. Every control from the old flat row
+    /// remains reachable here.
+    private var iosOverflowMenu: some View {
+        Menu {
+            Section {
+                Menu {
+                    ForEach(ChatSkin.allCases) { skin in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                activeSkin = skin
+                            }
+                        } label: {
+                            if skin == activeSkin {
+                                Label(skin.displayName, systemImage: "checkmark")
+                            } else {
+                                Label(skin.displayName, systemImage: skin.icon)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Chat Style: \(activeSkin.displayName)", systemImage: activeSkin.icon)
+                }
+
+                if chatViewModel.backendCapabilities.supportsResponseStyles {
+                    Menu {
+                        responseStyleMenuItems
+                    } label: {
+                        Label("Response Style: \(chatViewModel.responseStyle.label)",
+                              systemImage: chatViewModel.responseStyle.icon)
+                    }
+                }
+
+                Button {
+                    ttsService.toggle()
+                } label: {
+                    Label(ttsService.isEnabled ? "Mute Speech" : "Speak Responses",
+                          systemImage: ttsService.isEnabled ? "speaker.slash" : "speaker.wave.3.fill")
+                }
+            }
+
+            Section {
+                if quizVM.hasFlashcardDeck {
+                    Button {
+                        quizVM.switchMode(to: .flashcards)
+                        showQuizSheet = true
+                    } label: {
+                        Label("Flashcards", systemImage: "rectangle.on.rectangle")
+                    }
+                }
+                Button {
+                    showDecksSheet = true
+                } label: {
+                    Label("Decks", systemImage: "tray.full")
+                }
+            }
+
+            Section {
+                Button {
+                    showGatewayDebug = true
+                } label: {
+                    Label("Debug Connection", systemImage: "wave.3.right.circle")
+                }
+                Button {
+                    showSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 28, height: 28)
+        }
+        .accessibilityLabel("More Actions")
+    }
+    #endif
+
+    // MARK: - Shared toolbar pieces
+
+    private var personaBadge: some View {
+        HStack(spacing: 6) {
+            displayPersona.bubbleAvatar(size: 22)
+            Text(displayPersona.name)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+
+            Circle()
+                .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
+                .frame(width: 6, height: 6)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.quaternary, in: Capsule())
+    }
+
+    @ViewBuilder
+    private var responseStyleMenuItems: some View {
+        ForEach(ResponseStyle.allCases) { style in
+            Button {
+                chatViewModel.setResponseStyle(style)
+            } label: {
+                if style == chatViewModel.responseStyle {
+                    Label(style.label, systemImage: "checkmark")
+                } else {
+                    Text(style.label)
+                }
+            }
+        }
+    }
+
+    private var remoteTurnBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "laptopcomputer.and.iphone")
+                .font(.caption2)
+            #if os(macOS)
+            Text("Live from another device")
+                .font(.caption2)
+            #else
+            // Short label on iOS — the full phrase eats the whole row.
+            Text("Live")
+                .font(.caption2)
+                .lineLimit(1)
+            #endif
+        }
+        .foregroundStyle(Theme.accent)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Theme.accent.opacity(0.1), in: Capsule())
+        .accessibilityLabel("Live from another device")
+    }
+
+    private var stopButton: some View {
+        Button {
+            Task { await chatViewModel.interrupt() }
+        } label: {
+            Label("Stop", systemImage: "stop.fill")
+                .font(.caption)
+        }
+        .buttonStyle(.bordered)
+        .tint(.red)
+    }
+
+    private var creatingSessionIndicator: some View {
+        HStack(spacing: 4) {
+            HermesProgressView()
+                .scaleEffect(0.7)
+            Text("Creating session…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
     }
 
     #if os(iOS)
