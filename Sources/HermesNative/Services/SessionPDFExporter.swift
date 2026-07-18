@@ -250,7 +250,10 @@ private struct ExportBlockView: View {
         switch block {
         case .codeBlock(let language, let code):
             if MarkdownParser.isChartLanguage(language) {
-                NativeChartView(json: code, isStreaming: false)
+                // interactive: false — the zoomed chart plot is a scroll view,
+                // which ImageRenderer rasterizes as an empty box; export always
+                // draws the full domain with all series visible.
+                NativeChartView(json: code, isStreaming: false, interactive: false)
             } else if MarkdownParser.isDiagramLanguage(language) {
                 if let image = diagramImages[code] {
                     ExportImageRow(image: image, caption: MermaidDiagramView.diagramTypeLabel(for: code))

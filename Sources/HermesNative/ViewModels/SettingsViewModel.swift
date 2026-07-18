@@ -118,14 +118,26 @@ final class SettingsViewModel: ObservableObject {
             UserDefaults.standard.set(migrated.id.uuidString, forKey: Self.activeGatewayIDKey)
         } else {
             self.savedGateways = loadedGateways
-            // Resolve the active entry: prefer the persisted ID, else the entry
-            // whose URL matches the active gateway URL.
-            self.activeGatewayID = restoredActiveID.flatMap { id in
-                loadedGateways.first { $0.id == id }?.id
-            } ?? loadedGateways.first { $0.url == resolvedGatewayURL }?.id
+            // Resolve the active entry. The persisted ID wins only while its
+            // entry's URL agrees with the live connect URL (the keychain
+            // `gateway-url` mirror, which is what we actually dial). When they
+            // disagree — stale migration entry, interrupted switch — prefer
+            // the entry matching the URL, so the toolbar label never names a
+            // gateway we are not connected to.
+            let byID = restoredActiveID.flatMap { id in loadedGateways.first { $0.id == id } }
+            let byURL = loadedGateways.first { $0.url == resolvedGatewayURL }
+            if let byID, byID.url == resolvedGatewayURL {
+                self.activeGatewayID = byID.id
+            } else {
+                self.activeGatewayID = (byURL ?? byID)?.id
+            }
         }
 
         didCompleteInit = true
+        // Heal a divergent active entry: mirror the live URL/key back into it
+        // (no-op when they already agree). Covers entries left stale by
+        // crashes mid-switch or by edits that predate name/url syncing.
+        syncActiveGateway()
 
         if isUITest {
             log.info("UITest settings gatewayURL=\(self.gatewayURL) apiKeySet=\(!self.apiKey.isEmpty)")
@@ -220,6 +232,15 @@ final class SettingsViewModel: ObservableObject {
         }
         var updated = savedGateways[index]
         guard updated.url != gatewayURL || updated.apiKey != apiKey else { return }
+        // Migration and onboarding auto-name entries after their URL's host
+        // ("127.0.0.1", "gateway.example.com"). If this entry still wears an
+        // auto-derived name, move it with the URL — otherwise the toolbar
+        // keeps showing the old host (displayName prefers name) long after
+        // the URL changed. A name the user typed is never touched.
+        let oldAutoNames = [URL(string: updated.url)?.host, "Gateway"].compactMap { $0 }
+        if oldAutoNames.contains(updated.name.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            updated.name = URL(string: gatewayURL)?.host ?? "Gateway"
+        }
         updated.url = gatewayURL
         updated.apiKey = apiKey
         savedGateways[index] = updated
