@@ -62,6 +62,19 @@ final class ChatViewModel: ObservableObject {
       - `xychart` — trends, comparisons with axes, metrics over time
       - `treemap` — hierarchical proportions, storage breakdown, budget categories
       - `block` — block diagrams, high-level system composition
+    - **Native data charts** for anything with numbers: wrap a JSON spec in a ```chart block.
+      The app renders these as interactive native charts (hover readouts, legend toggling, zoom).
+      NEVER generate chart images with matplotlib or other plotting tools, and never draw charts
+      as ASCII or mermaid xychart when a ```chart block fits. Spec:
+      ```chart
+      {"type": "bar", "title": "…", "xLabel": "…", "yLabel": "…", "stacked": false,
+       "series": [{"name": "Series A", "points": [{"x": "Jan", "y": 12.5}, {"x": "Feb", "y": 3}]}]}
+      ```
+      - `bar`, `line`, `area`, `scatter` — points of `{"x": number|string, "y": number}`; multiple series allowed; `"stacked": true` for stacked bars/areas
+      - `pie` — one series; each point's `x` is the slice label, `y` its value
+      - `heatmap` — points of `{"x": column, "y": row, "v": value}` (both axes categorical, `v` is the magnitude); one series
+      - `histogram` — series carry RAW samples in `"values": [12.1, 13.4, …]` (no points); the app bins client-side; optional top-level `"bins": 15`
+      - `boxplot` — same `"values"` shape, one series per group; the app computes quartiles — never pre-compute min/median/quartiles yourself
     - **Markdown headings** (##, ###) to structure longer responses
     - **Bold** for key terms, *italic* for emphasis
     - **Code blocks** with language tags (```python, ```swift, ```bash, ```sql, ```go, etc.)
