@@ -58,7 +58,14 @@ struct MacInputTextField: NSViewRepresentable {
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         tv.textContainer?.widthTracksTextView = true
 
-        let scroll = NSScrollView()
+        // OverlayLockedScrollView, not a plain NSScrollView with
+        // scrollerStyle set once: AppKit re-applies the system scroller
+        // style to every scroll view whenever it changes (attaching a
+        // mouse flips it to legacy), and legacy scrollers consume content
+        // width. Near the max-line cap that feeds back (scroller shows →
+        // text rewraps → height drops → scroller hides → …) into an
+        // infinite layout oscillation — the recurring beachball.
+        let scroll = OverlayLockedScrollView()
         scroll.documentView = tv
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = false
@@ -66,10 +73,6 @@ struct MacInputTextField: NSViewRepresentable {
         scroll.drawsBackground = false
         scroll.borderType = .noBorder
         scroll.verticalScrollElasticity = .automatic
-        // Overlay scrollers MUST be forced here: with a mouse attached macOS
-        // defaults to legacy scrollers, which consume content width. Near the
-        // max-line cap that feeds back (scroller shows → text rewraps → height
-        // drops → scroller hides → …) into an infinite layout oscillation.
         scroll.scrollerStyle = .overlay
 
         context.coordinator.textView = tv
@@ -238,6 +241,25 @@ struct MacInputTextField: NSViewRepresentable {
         func textDidEndEditing(_ notification: Notification) {
             parent.isFocused.wrappedValue = false
         }
+    }
+}
+
+// MARK: - OverlayLockedScrollView
+
+/// NSScrollView whose scroller style can never leave `.overlay`.
+///
+/// Setting `scrollerStyle = .overlay` once is not enough: AppKit pushes the
+/// system preferred style to every scroll view when it changes — plugging in
+/// a mouse flips the system to `.legacy` at runtime. Legacy scrollers consume
+/// content width, so near the max-line cap the input oscillates (scroller
+/// shows → text rewraps → height drops → scroller hides → text rewraps → …)
+/// entirely inside AppKit/SwiftUI layout — no app callback in the cycle —
+/// pegging the main thread. Locking the setter removes the oscillation's
+/// width delta at the source.
+final class OverlayLockedScrollView: NSScrollView {
+    override var scrollerStyle: NSScroller.Style {
+        get { .overlay }
+        set { _ = newValue; super.scrollerStyle = .overlay }
     }
 }
 
