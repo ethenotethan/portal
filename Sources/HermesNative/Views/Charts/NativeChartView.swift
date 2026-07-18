@@ -84,7 +84,10 @@ private struct ChartCard: View {
     }
 
     private var legendVisible: Bool {
-        spec.type == .pie || spec.series.count > 1
+        // Heatmap identity is the sequential color scale, not series —
+        // a toggling legend would be meaningless there.
+        if spec.type == .heatmap { return false }
+        return spec.type == .pie || spec.series.count > 1
     }
 
     /// Color per legend entry. Explicit hex wins when every series declares
@@ -138,9 +141,15 @@ private struct ChartCard: View {
 
     // MARK: Chart assembly
 
+    @ViewBuilder
     private var styledChart: some View {
-        zoomableChart
-            .chartForegroundStyleScale(domain: legendNames, range: legendColors)
+        if spec.type == .heatmap {
+            // Sequential scale: one hue, light→dark, magnitude only.
+            zoomableChart
+        } else {
+            zoomableChart
+                .chartForegroundStyleScale(domain: legendNames, range: legendColors)
+        }
     }
 
     /// Pinch-zoom applies only to numeric x-axes: chartXVisibleDomain needs a
@@ -171,7 +180,10 @@ private struct ChartCard: View {
             baseChart
         } else if spec.type == .pie {
             baseChart.chartAngleSelection(value: $selectedPieAngle)
-        } else if numericX {
+        } else if spec.type == .heatmap || spec.type == .boxplot {
+            // Heatmap x is categorical; boxplot x is the series name.
+            baseChart.chartXSelection(value: $selectedCategoryX)
+        } else if spec.type == .histogram || numericX {
             baseChart.chartXSelection(value: $selectedNumericX)
         } else {
             baseChart.chartXSelection(value: $selectedCategoryX)
@@ -215,7 +227,9 @@ private struct ChartCard: View {
     // MARK: Zoom
 
     /// Full numeric x extent across all series; nil when degenerate.
+    /// Distribution/heatmap types manage their own axes — never zoomable.
     private var fullXSpan: Double? {
+        guard !spec.isDistribution, spec.type != .heatmap else { return nil }
         let xs = spec.series.flatMap { $0.points.compactMap(\.x.numberValue) }
         guard let lo = xs.min(), let hi = xs.max(), hi > lo else { return nil }
         return hi - lo
@@ -237,9 +251,16 @@ private struct ChartCard: View {
 
     @ChartContentBuilder
     private var content: some ChartContent {
-        if spec.type == .pie {
+        switch spec.type {
+        case .pie:
             pieMarks
-        } else {
+        case .heatmap:
+            heatmapMarks
+        case .histogram:
+            histogramMarks
+        case .boxplot:
+            boxplotMarks
+        case .bar, .line, .area, .scatter:
             ForEach(spec.series.indices, id: \.self) { s in
                 let series = spec.series[s]
                 if !hiddenSeries.contains(series.name) {
@@ -252,12 +273,102 @@ private struct ChartCard: View {
         }
     }
 
+    // MARK: Heatmap
+
+    /// Sequential single-hue scale (dataviz rule: magnitude = one hue,
+    /// light→dark). Blue slot 1 of the categorical palette, ramped by value.
+    @ChartContentBuilder
+    private var heatmapMarks: some ChartContent {
+        let points = spec.series[0].points
+        let maxV = points.compactMap(\.value).max() ?? 1
+        let minV = points.compactMap(\.value).min() ?? 0
+        ForEach(points.indices, id: \.self) { i in
+            let point = points[i]
+            let v = point.value ?? 0
+            // Normalize to [0.15, 1] so "near zero" recedes but stays visible.
+            let t = maxV > minV ? 0.15 + 0.85 * (v - minV) / (maxV - minV) : 1
+            RectangleMark(
+                x: .value(xKey, point.x.labelValue),
+                y: .value(spec.yLabel ?? "Row", point.row ?? "")
+            )
+            .foregroundStyle(Self.heatBase.opacity(t))
+        }
+    }
+
+    /// Heatmap ramp hue — categorical slot 1 (blue) at full saturation.
+    private static let heatBase = Color(hex: "#3987e5") ?? .blue
+
+    // MARK: Histogram
+
+    /// Client-side equal-width binning (spec.bins or Sturges); multiple
+    /// series overlay at reduced opacity so both distributions stay legible.
+    @ChartContentBuilder
+    private var histogramMarks: some ChartContent {
+        let overlaid = visibleSeries.count > 1
+        ForEach(spec.series.indices, id: \.self) { s in
+            let series = spec.series[s]
+            if !hiddenSeries.contains(series.name) {
+                let bins = ChartDistribution.bins(for: series.values, count: spec.bins)
+                ForEach(bins) { bin in
+                    BarMark(
+                        x: .value(xKey, bin.midpoint),
+                        y: .value(yKey, bin.count),
+                        width: .automatic
+                    )
+                    .foregroundStyle(by: .value("Series", series.name))
+                    .opacity(overlaid ? 0.6 : 1)
+                }
+            }
+        }
+    }
+
+    // MARK: Box plot
+
+    /// Five-number summary per series: whisker rule, IQR box, median tick.
+    /// x is the series name (categorical), so each series is one glyph.
+    @ChartContentBuilder
+    private var boxplotMarks: some ChartContent {
+        ForEach(spec.series.indices, id: \.self) { s in
+            let series = spec.series[s]
+            if !hiddenSeries.contains(series.name),
+               let f = ChartDistribution.fiveNumber(for: series.values) {
+                // Whisker: min → max.
+                RuleMark(
+                    x: .value(xKey, series.name),
+                    yStart: .value(yKey, f.min),
+                    yEnd: .value(yKey, f.max)
+                )
+                .foregroundStyle(by: .value("Series", series.name))
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                // IQR box: q1 → q3.
+                BarMark(
+                    x: .value(xKey, series.name),
+                    yStart: .value(yKey, f.q1),
+                    yEnd: .value(yKey, f.q3),
+                    width: .ratio(0.5)
+                )
+                .foregroundStyle(by: .value("Series", series.name))
+                .opacity(0.55)
+                // Median tick.
+                RectangleMark(
+                    x: .value(xKey, series.name),
+                    y: .value(yKey, f.median),
+                    width: .ratio(0.5),
+                    height: .fixed(2.5)
+                )
+                .foregroundStyle(by: .value("Series", series.name))
+            }
+        }
+    }
+
     /// Vertical hairline at the selection so the reader sees which x the
-    /// readout describes. Lines/areas/scatter only — on bars the mark itself
-    /// is the hit target and a crosshair would just overpaint it.
+    /// readout describes. Lines/areas/scatter only — on bar-family marks
+    /// (bar, histogram, boxplot, heatmap cells) the mark itself is the hit
+    /// target and a crosshair would just overpaint it. (Only reachable from
+    /// the xy branch of `content`, but keep the guard honest.)
     @ChartContentBuilder
     private var crosshair: some ChartContent {
-        if interactive, spec.type != .bar {
+        if interactive, spec.type == .line || spec.type == .area || spec.type == .scatter {
             if numericX, let x = nearestNumericX {
                 RuleMark(x: .value(xKey, x))
                     .foregroundStyle(Theme.tertiary.opacity(0.7))
@@ -297,7 +408,8 @@ private struct ChartCard: View {
             lineMark(point, series: series)
         case .area:
             areaMarks(point, series: series)
-        case .scatter, .pie: // .pie unreachable, handled above
+        case .scatter, .pie, .heatmap, .histogram, .boxplot:
+            // Only .scatter reaches here; the others branch in `content`.
             pointMark(point, series: series)
         }
     }
@@ -383,11 +495,11 @@ private struct ChartCard: View {
     }
 
     /// Legend mirrors the mark: a line key for line/scatter, a filled rect
-    /// for bars, areas, and pie slices.
+    /// for bar-family fills (bars, areas, pie slices, bins, boxes).
     private var swatchShape: LegendChip.Swatch {
         switch spec.type {
         case .line, .scatter: return .line
-        case .bar, .area, .pie: return .rect
+        case .bar, .area, .pie, .heatmap, .histogram, .boxplot: return .rect
         }
     }
 
@@ -424,6 +536,42 @@ private struct ChartCard: View {
             let total = points.map(\.y).reduce(0, +)
             let share = total > 0 ? " (\((point.y / total).formatted(.percent.precision(.fractionLength(0...1)))))" : ""
             return ChartReadout(title: category, entries: [(category, fmt(point.y) + share)])
+        }
+        if spec.type == .heatmap {
+            // Column readout: every row's value at the hovered x.
+            guard let sel = selectedCategoryX else { return nil }
+            let entries = spec.series[0].points
+                .filter { $0.x.labelValue == sel }
+                .compactMap { p -> (String, String)? in
+                    guard let row = p.row, let v = p.value else { return nil }
+                    return (row, fmt(v))
+                }
+            guard !entries.isEmpty else { return nil }
+            return ChartReadout(title: sel, entries: entries)
+        }
+        if spec.type == .boxplot {
+            // Five-number summary of the hovered series.
+            guard let sel = selectedCategoryX,
+                  let series = visibleSeries.first(where: { $0.name == sel }),
+                  let f = ChartDistribution.fiveNumber(for: series.values) else { return nil }
+            return ChartReadout(title: sel, entries: [
+                (String(localized: "max"), fmt(f.max)),
+                (String(localized: "q3"), fmt(f.q3)),
+                (String(localized: "median"), fmt(f.median)),
+                (String(localized: "q1"), fmt(f.q1)),
+                (String(localized: "min"), fmt(f.min)),
+            ])
+        }
+        if spec.type == .histogram {
+            // Bin readout: count per visible series for the hovered bin.
+            guard let sel = selectedNumericX else { return nil }
+            let entries = visibleSeries.compactMap { series -> (String, String)? in
+                let bins = ChartDistribution.bins(for: series.values, count: spec.bins)
+                guard let bin = bins.first(where: { sel >= $0.lowerBound && sel <= $0.upperBound }) else { return nil }
+                return (series.name, "\(bin.count) in \(fmt(bin.lowerBound))–\(fmt(bin.upperBound))")
+            }
+            guard !entries.isEmpty else { return nil }
+            return ChartReadout(title: fmt(sel), entries: entries)
         }
         if numericX {
             guard let nearest = nearestNumericX else { return nil }

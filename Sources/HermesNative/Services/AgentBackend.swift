@@ -64,6 +64,15 @@ protocol AgentBackend: AnyObject {
     func setEphemeralPrompt(sessionID: String, prompt: String) async throws
     func setSessionSkills(sessionID: String, skillNames: [String]) async throws
 
+    // MARK: Models
+
+    /// Live model inventory; nil when the backend has no catalog RPC
+    /// (callers fall back to `AgentModel.catalog`).
+    func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog?
+    /// Model switch that surfaces the backend's verdict (warnings,
+    /// expensive-model confirmation gates).
+    func switchModel(_ model: String, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome
+
     // MARK: Attachments
 
     func uploadFile(data: Data, filename: String, mimeType: String, sessionID: String?) async throws -> String
@@ -128,6 +137,20 @@ struct BackendCapabilities: Sendable {
         supportsGatewayServices: false,
         harnessPersona: .centaurPersona
     )
+}
+
+// MARK: - Defaults for backends without a model catalog
+
+extension AgentBackend {
+    /// Backends without an inventory RPC (Centaur) report no catalog; the
+    /// picker falls back to the static list (or hides, per capabilities).
+    func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
+
+    /// Fallback switch path: plain config.set with no verdict surface.
+    func switchModel(_ model: String, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome {
+        try await setConfig(key: "model", value: model, sessionID: sessionID)
+        return ModelSwitchOutcome(value: model, warning: "", confirmRequired: false, confirmMessage: "")
+    }
 }
 
 // MARK: - GatewayClient Conformance

@@ -5,10 +5,12 @@ import Foundation
 /// selection lives in the session's runtime state so each session can run a
 /// different model, and the last pick becomes the default for new sessions.
 ///
-/// The gateway has no `models.list` RPC yet, so the catalog is curated
-/// client-side. `session.info` remains the source of truth for what the
-/// session is actually running — an unknown reported model still renders
-/// (and shows as checked) in the picker.
+/// The static `catalog` below is the FALLBACK for gateways that predate the
+/// `model.options` inventory RPC — when the live catalog loads, the picker
+/// shows the gateway's real provider/model lists instead (see ModelCatalog).
+/// `session.info` remains the source of truth for what the session is
+/// actually running — an unknown reported model still renders (and shows as
+/// checked) in the picker.
 struct AgentModel: Identifiable, Equatable, Hashable, Codable {
     /// Wire ID sent to the gateway (e.g. "deepseek/deepseek-v4-pro").
     let id: String

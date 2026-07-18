@@ -1482,6 +1482,48 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// Switch the session's model via config.set, surfacing the gateway's
+    /// verdict: it may accept with a warning, or gate an expensive model
+    /// behind confirmation (`confirmRequired` — resend with `confirm: true`
+    /// after the user agrees). Plain setConfig discards those fields.
+    func switchModel(_ model: String, sessionID: String, confirm: Bool = false) async throws -> ModelSwitchOutcome {
+        var params: [String: AnyCodable] = [
+            "key": AnyCodable("model"),
+            "value": AnyCodable(model),
+            "session_id": AnyCodable(sessionID),
+        ]
+        if confirm {
+            params["confirm_expensive_model"] = AnyCodable(true)
+        }
+        let response = try await call("config.set", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ModelSwitchOutcome.from(response.result?.dictionaryValue)
+    }
+
+    /// Fetch the gateway's model inventory (`model.options`) — providers with
+    /// curated model lists, auth state, and the current model. Returns nil on
+    /// gateways that predate the RPC so callers fall back to the static
+    /// catalog. `refresh` busts the gateway's 1h provider-catalog cache.
+    func modelOptions(sessionID: String? = nil, refresh: Bool = false) async throws -> ModelCatalog? {
+        var params: [String: AnyCodable] = [:]
+        if let sid = sessionID {
+            params["session_id"] = AnyCodable(sid)
+        }
+        if refresh {
+            params["refresh"] = AnyCodable(true)
+        }
+        let response = try await call("model.options", params: params)
+        if let error = response.error {
+            // Method-not-found on an older gateway is a fallback, not a failure.
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue else { return nil }
+        return ModelCatalog.from(result)
+    }
+
 
     // MARK: - Private
 

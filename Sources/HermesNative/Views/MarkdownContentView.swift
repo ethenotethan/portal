@@ -861,6 +861,10 @@ struct TableView: View {
     let headers: [String]
     let rows: [[String]]
     @State private var isExpanded = false
+    /// Column index the rows are sorted by; nil = source order.
+    @State private var sortColumn: Int?
+    @State private var sortAscending = true
+    @State private var copied = false
 
     var body: some View {
         let content = tableContent
@@ -885,26 +889,119 @@ struct TableView: View {
         }
     }
 
+    // MARK: Sorting
+
+    /// Rows in display order. Numeric columns sort numerically (an LLM table
+    /// column is numeric when every non-empty cell parses); otherwise
+    /// case-insensitive text. Empty cells always sink to the bottom.
+    private var displayRows: [[String]] {
+        guard let col = sortColumn else { return normalizedRows }
+        let numeric = columnIsNumeric(col)
+        return normalizedRows.sorted { a, b in
+            let x = col < a.count ? a[col] : ""
+            let y = col < b.count ? b[col] : ""
+            if x.isEmpty != y.isEmpty { return y.isEmpty }
+            let ordered: Bool
+            if numeric, let nx = Self.numericValue(x), let ny = Self.numericValue(y) {
+                ordered = nx < ny
+            } else {
+                ordered = x.localizedCaseInsensitiveCompare(y) == .orderedAscending
+            }
+            return sortAscending ? ordered : !ordered
+        }
+    }
+
+    private func columnIsNumeric(_ col: Int) -> Bool {
+        let cells = normalizedRows.compactMap { col < $0.count ? $0[col] : nil }
+            .filter { !$0.isEmpty }
+        return !cells.isEmpty && cells.allSatisfy { Self.numericValue($0) != nil }
+    }
+
+    /// Parse "1,234", "45%", "$12.50" — the units LLM tables actually carry.
+    private static func numericValue(_ s: String) -> Double? {
+        let cleaned = s.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "$€£%"))
+        return Double(cleaned)
+    }
+
+    private func toggleSort(column: Int) {
+        if sortColumn == column {
+            if sortAscending {
+                sortAscending = false
+            } else {
+                sortColumn = nil       // third click restores source order
+                sortAscending = true
+            }
+        } else {
+            sortColumn = column
+            sortAscending = true
+        }
+    }
+
+    // MARK: CSV export
+
+    private var csv: String {
+        func escape(_ cell: String) -> String {
+            if cell.contains(",") || cell.contains("\"") || cell.contains("\n") {
+                return "\"" + cell.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+            }
+            return cell
+        }
+        let lines = [headers.map(escape).joined(separator: ",")]
+            + displayRows.map { $0.map(escape).joined(separator: ",") }
+        return lines.joined(separator: "\n")
+    }
+
+    private func copyCSV() {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(csv, forType: .string)
+        #else
+        UIPasteboard.general.string = csv
+        #endif
+        copied = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            copied = false
+        }
+    }
+
     private var tableContent: some View {
         let widths = columnWidths
         let tableWidth = widths.reduce(0, +)
 
         return ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                // Header row
+                // Header row — click a column to sort (asc → desc → source order)
                 HStack(spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { index, header in
-                        tableCell(
-                            text: header,
-                            width: columnWidth(at: index, from: widths),
-                            isHeader: true
-                        )
+                        Button {
+                            toggleSort(column: index)
+                        } label: {
+                            HStack(spacing: 3) {
+                                tableCell(
+                                    text: header,
+                                    width: columnWidth(at: index, from: widths),
+                                    isHeader: true
+                                )
+                                if sortColumn == index {
+                                    Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundStyle(Theme.accent)
+                                        .padding(.trailing, 4)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help("Sort by \(header)")
                     }
+                    copyButton
                 }
                 .background(Theme.accent.opacity(0.08))
 
                 // Data rows
-                ForEach(Array(normalizedRows.enumerated()), id: \.offset) { rowIndex, row in
+                ForEach(Array(displayRows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { index, cell in
                             tableCell(
@@ -945,6 +1042,18 @@ struct TableView: View {
                 .stroke(Theme.border, lineWidth: 0.5)
         )
         .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var copyButton: some View {
+        Button(action: copyCSV) {
+            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 10))
+                .foregroundStyle(copied ? .green : Theme.secondary)
+                .padding(.horizontal, 8)
+        }
+        .buttonStyle(.plain)
+        .help("Copy table as CSV")
+        .accessibilityLabel("Copy table as CSV")
     }
 
     @ViewBuilder

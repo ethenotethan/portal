@@ -35,12 +35,7 @@ struct MacInputTextField: NSViewRepresentable {
         tv.onSubmit = onSubmit
         tv.onImagePaste = onImagePaste
         tv.onHeightChange = { [weak coordinator = context.coordinator] height in
-            guard let coordinator else { return }
-            guard coordinator.reportedHeight != height else { return }
-            coordinator.reportedHeight = height
-            // Nudge SwiftUI to re-run sizeThatFits with the new height. The
-            // scroll view's own size invalidation is the supported hook.
-            coordinator.textView?.enclosingScrollView?.invalidateIntrinsicContentSize()
+            coordinator?.applyReportedHeight(height)
         }
         tv.onTextChange = onTextChange
         tv.onNavigateUp = onNavigateUp
@@ -102,10 +97,7 @@ struct MacInputTextField: NSViewRepresentable {
         nsView.onSubmit = onSubmit
         nsView.onImagePaste = onImagePaste
         nsView.onHeightChange = { [weak coordinator = context.coordinator] height in
-            guard let coordinator else { return }
-            guard coordinator.reportedHeight != height else { return }
-            coordinator.reportedHeight = height
-            coordinator.textView?.enclosingScrollView?.invalidateIntrinsicContentSize()
+            coordinator?.applyReportedHeight(height)
         }
         nsView.onTextChange = onTextChange
         nsView.onNavigateUp = onNavigateUp
@@ -169,7 +161,11 @@ struct MacInputTextField: NSViewRepresentable {
         Coordinator(self)
     }
 
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    /// MainActor by construction — every caller is AppKit layout / text
+    /// delegate machinery on the main thread; the isolation makes the
+    /// deferred invalidation hop compile under strict concurrency.
+    @MainActor
+    final class Coordinator: NSObject, @preconcurrency NSTextViewDelegate {
         var parent: MacInputTextField
         weak var textView: FocusableTextView?
         var wasFocused: Bool = false
@@ -179,6 +175,41 @@ struct MacInputTextField: NSViewRepresentable {
         /// sizeThatFits returns it verbatim (clamped), so the height never
         /// varies with the proposed width and the relayout loop can't form.
         var reportedHeight: CGFloat?
+        /// Deferred invalidation scheduled for the next runloop turn.
+        private var pendingInvalidation = false
+        /// Height changes below this are absorbed, not propagated. AppKit
+        /// text layout is not width-stable at sub-point scale: relayout of
+        /// the SAME text at a jittering width can move usedRect by a
+        /// fraction of a point, and each propagated fraction re-enters
+        /// SwiftUI layout — which jitters the width again. Half a point is
+        /// invisible; a real line change is ~18pt.
+        private static let heightTolerance: CGFloat = 0.5
+
+        /// Absorb sub-point height noise and defer the SwiftUI invalidation
+        /// out of the current layout pass.
+        ///
+        /// reportContentHeight fires from didChangeText but ALSO after
+        /// AppKit resizes/relayouts the text view — which happens INSIDE
+        /// SwiftUI's own layout pass (sizeThatFits → NSScrollView layout →
+        /// usedRect shift → onHeightChange → invalidateIntrinsicContentSize
+        /// → new layout pass → …). Invalidating synchronously from within
+        /// layout is what re-arms the loop the sizeThatFits comment says
+        /// can't form; deferring to the next runloop turn coalesces the
+        /// storm to one invalidation, and the tolerance stops the fixed
+        /// point from oscillating between two sub-point heights.
+        ///
+        func applyReportedHeight(_ height: CGFloat) {
+            let current = reportedHeight
+            guard current == nil || abs(current! - height) > Self.heightTolerance else { return }
+            reportedHeight = height
+            guard !pendingInvalidation else { return }
+            pendingInvalidation = true
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.pendingInvalidation = false
+                self.textView?.enclosingScrollView?.invalidateIntrinsicContentSize()
+            }
+        }
 
         init(_ parent: MacInputTextField) {
             self.parent = parent

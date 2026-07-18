@@ -74,6 +74,13 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming: Bool = false
     @Published var isSessionReady: Bool = false
     @Published var currentModel: String = ""
+    /// Live model inventory from the gateway's model.options RPC. nil until
+    /// the first successful fetch (or forever, on gateways without the RPC) —
+    /// the picker then falls back to the static AgentModel.catalog.
+    @Published private(set) var modelCatalog: ModelCatalog?
+    /// Expensive-model confirmation gate from config.set: the switch did not
+    /// apply; the picker shows this and resends with confirm on approval.
+    @Published var pendingModelConfirmation: ModelSwitchConfirmation?
     @Published var pendingApproval: ApprovalPayload?
     /// Active backend's feature flags — views hide affordances the backend
     /// can't serve (attachments/skills pickers on Centaur sessions).
@@ -358,6 +365,8 @@ client.eventStream
         isStreaming = false
         isSessionReady = false
         currentModel = ""
+        modelCatalog = nil
+        pendingModelConfirmation = nil
         pendingApproval = nil
         pendingClarify = nil
         activeToolCalls = [:]
@@ -1399,7 +1408,11 @@ if restoreSessionState(displayID: key) {
     /// Switch the active session's model via config.set. Optimistic: the
     /// badge updates immediately and session.info confirms (or corrects) it.
     /// The choice also becomes the default for new sessions.
-    func switchModel(_ model: String) async {
+    ///
+    /// The gateway may veto instead of applying: an expensive model returns
+    /// confirm_required, published as `pendingModelConfirmation` for the UI
+    /// to show; confirming resends with the confirmation flag.
+    func switchModel(_ model: String, confirmed: Bool = false) async {
         guard backendCapabilities.supportsModelSwitching else { return }
         // Record the pick as the new-session default BEFORE any early return.
         // If no session is wired yet (picker used from a fresh chat before
@@ -1411,16 +1424,49 @@ if restoreSessionState(displayID: key) {
             currentModel = model
             return
         }
-        guard AgentModel.normalize(model) != AgentModel.normalize(currentModel) else { return }
+        guard confirmed || AgentModel.normalize(model) != AgentModel.normalize(currentModel) else { return }
         let previousModel = currentModel
         currentModel = model
         snapshotCurrentSessionState()
         do {
-            try await client.setConfig(key: "model", value: model, sessionID: sid)
+            let outcome = try await client.switchModel(model, sessionID: sid, confirm: confirmed)
+            if outcome.confirmRequired {
+                // Not applied — roll the badge back and surface the gate.
+                currentModel = previousModel
+                snapshotCurrentSessionState()
+                pendingModelConfirmation = ModelSwitchConfirmation(
+                    model: model,
+                    message: outcome.confirmMessage.isEmpty
+                        ? "Switching to \(AgentModel.displayName(for: model)) may be expensive. Continue?"
+                        : outcome.confirmMessage
+                )
+            } else if !outcome.warning.isEmpty {
+                self.error = outcome.warning
+            }
         } catch {
             currentModel = previousModel
             snapshotCurrentSessionState()
             self.error = "Model switch failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Fetch the live model inventory for the picker. Errors degrade to the
+    /// static catalog silently — the menu must never break over inventory.
+    func refreshModelCatalog(force: Bool = false) async {
+        guard backendCapabilities.supportsModelSwitching,
+              let client = gatewayClient else { return }
+        if modelCatalog != nil && !force { return }
+        do {
+            if let catalog = try await client.modelOptions(sessionID: sessionID, refresh: force) {
+                modelCatalog = catalog
+                // model.options names the actual current model (session's or
+                // gateway default). Fill the badge when session.info hasn't.
+                if currentModel.isEmpty, !catalog.currentModel.isEmpty {
+                    currentModel = catalog.currentModel
+                }
+            }
+        } catch {
+            log.info("model.options fetch failed (static catalog fallback): \(error.localizedDescription)")
         }
     }
 
