@@ -237,3 +237,79 @@ struct CentaurEventAdapterTests {
         #expect(events.isEmpty)
     }
 }
+
+// MARK: - Workflow model decoding
+
+@Suite("Centaur Workflow Models")
+struct CentaurWorkflowModelTests {
+
+    @Test("Run decodes the api-rs shape with RFC3339 timestamps")
+    func runDecodes() throws {
+        let json = """
+        {"run_id": "wr_1", "task_id": "t_1", "workflow_name": "daily-digest",
+         "status": "completed", "input": {"channel": "general"},
+         "result": {"posted": true}, "failure": null, "attempts": 1,
+         "created_at": "2026-07-19T09:00:00Z",
+         "updated_at": "2026-07-19T09:00:05.123456Z"}
+        """
+        let run = try JSONDecoder().decode(CentaurWorkflowRun.self, from: Data(json.utf8))
+        #expect(run.runID == "wr_1")
+        #expect(run.workflowName == "daily-digest")
+        #expect(!run.isActive)          // completed = terminal
+        #expect(run.failureSummary == nil)
+        #expect(run.createdAt != nil)
+        #expect(run.updatedAt != nil)   // fractional seconds parse too
+    }
+
+    @Test("Active statuses and failure summaries")
+    func activeAndFailure() throws {
+        let json = """
+        {"run_id": "wr_2", "task_id": "t", "workflow_name": "sync",
+         "status": "running", "attempts": 3,
+         "failure": {"message": "upstream 503"},
+         "created_at": "2026-07-19T09:00:00Z", "updated_at": "2026-07-19T09:00:00Z"}
+        """
+        let run = try JSONDecoder().decode(CentaurWorkflowRun.self, from: Data(json.utf8))
+        #expect(run.isActive)
+        #expect(run.failureSummary == "upstream 503")
+    }
+
+    @Test("Schedule kind flattens cron and interval forms")
+    func scheduleKinds() throws {
+        // Upstream source shape: {"cron": {"expr": …}} / {"interval": {"secs": …}}.
+        let cron = try JSONDecoder().decode(CentaurWorkflowSchedule.self, from: Data("""
+        {"schedule_id": "s1", "workflow_name": "digest",
+         "kind": {"cron": {"expr": "0 9 * * *"}}, "timezone": "America/New_York",
+         "enabled": true}
+        """.utf8))
+        #expect(cron.kindLabel == "cron 0 9 * * *")
+        #expect(cron.cronExpression == "0 9 * * *")
+        #expect(cron.enabled)
+
+        let interval = try JSONDecoder().decode(CentaurWorkflowSchedule.self, from: Data("""
+        {"schedule_id": "s2", "workflow_name": "sync",
+         "kind": {"interval": {"secs": 3600}}, "enabled": false}
+        """.utf8))
+        #expect(interval.kindLabel.hasPrefix("every "))
+        #expect(interval.intervalSeconds == 3600)
+        #expect(!interval.enabled)
+
+        // Live deployment shape (verified against slackbot.darkbloom.ai):
+        // {"type": "interval", "interval_seconds": N} / {"type": "cron", "cron": "expr"}.
+        let liveInterval = try JSONDecoder().decode(CentaurWorkflowSchedule.self, from: Data("""
+        {"schedule_id": "s3", "workflow_name": "postcall_watcher",
+         "kind": {"interval_seconds": 300, "type": "interval"},
+         "timezone": "America/Los_Angeles", "enabled": true}
+        """.utf8))
+        #expect(liveInterval.intervalSeconds == 300)
+        #expect(liveInterval.kindLabel == "every 5m")
+
+        let liveCron = try JSONDecoder().decode(CentaurWorkflowSchedule.self, from: Data("""
+        {"schedule_id": "s4", "workflow_name": "standup_digest",
+         "kind": {"cron": "0 9 * * 1-5", "type": "cron"},
+         "timezone": "America/Los_Angeles", "enabled": true}
+        """.utf8))
+        #expect(liveCron.cronExpression == "0 9 * * 1-5")
+        #expect(liveCron.kindLabel == "cron 0 9 * * 1-5")
+    }
+}

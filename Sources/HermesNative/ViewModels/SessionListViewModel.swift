@@ -393,6 +393,13 @@ final class SessionListViewModel: ObservableObject {
                 var session = Session(id: id, messageCount: 0)
                 if let gwID = gatewayIDMap[id] {
                     session.gatewayID = gwID
+                } else if SessionBackendRegistry.shared.backendID(for: id) != nil {
+                    // Session-scoped (Centaur) session restored from disk:
+                    // the thread key IS the runtime ID, and the registry
+                    // proves this app created it. Without this it demotes
+                    // to "not owned" after every restart and falls out of
+                    // My Sessions.
+                    session.gatewayID = id
                 }
                 if let local = titles[id], !local.isEmpty {
                     session.localTitle = local

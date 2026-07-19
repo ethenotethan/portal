@@ -106,6 +106,9 @@ struct BackendCapabilities: Sendable {
     /// feed, learning. These are Hermes gateway RPCs, not chat features —
     /// harness backends never grow them.
     var supportsGatewayServices: Bool
+    /// Centaur workflow runtime introspection (/api/workflows/*): schedules
+    /// + run history. The Centaur analogue of Hermes cron.
+    var supportsWorkflows: Bool
     /// Fixed identity the chat chrome must present for this harness.
     /// nil = presentation is persona-driven (PersonaManager / gateway
     /// PERSONA.md sync). Non-nil harnesses are a different agent platform,
@@ -121,6 +124,7 @@ struct BackendCapabilities: Sendable {
         supportsModelSwitching: true,
         supportsResponseStyles: true,
         supportsGatewayServices: true,
+        supportsWorkflows: false,
         harnessPersona: nil
     )
 
@@ -135,6 +139,7 @@ struct BackendCapabilities: Sendable {
         supportsModelSwitching: false,
         supportsResponseStyles: false,
         supportsGatewayServices: false,
+        supportsWorkflows: true,
         harnessPersona: .centaurPersona
     )
 }

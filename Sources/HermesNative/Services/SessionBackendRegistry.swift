@@ -32,6 +32,12 @@ final class SessionBackendRegistry {
         backendBySession[sessionID]
     }
 
+    /// All session IDs recorded on the given backend entry (unordered —
+    /// callers rank by their own recency data).
+    func sessionIDs(on backendID: UUID) -> [String] {
+        backendBySession.filter { $0.value == backendID }.map(\.key)
+    }
+
     func forget(sessionID: String) {
         guard backendBySession.removeValue(forKey: sessionID) != nil else { return }
         persist()

@@ -11,10 +11,6 @@ struct SessionListView: View {
     /// Called on long-press with the session ID to open Mission Control.
     var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
-    /// Create a session on a specific session-scoped backend.
-    /// Empty = only the home gateway is configured (plain button).
-    var onCreateSessionOnBackend: ((SavedGateway) -> Void)?
-    var sessionScopedBackends: [SavedGateway] = []
     var onOpenPanel: (() -> Void)?
 
     @State private var mySessionsCollapsed = false
@@ -308,40 +304,18 @@ struct SessionListView: View {
                 .foregroundStyle(Theme.tertiary)
 
             HStack(spacing: 8) {
-                if sessionScopedBackends.isEmpty {
-                    sidebarHeaderButton(
-                        icon: "plus",
-                        title: "New Session",
-                        accessibilityLabel: "New Session",
-                        accessibilityID: "newSessionButton",
-                        isPrimary: true,
-                        action: { onCreateSession?() }
-                    )
-                } else {
-                    Menu {
-                        Button {
-                            onCreateSession?()
-                        } label: {
-                            Label("Hermes (home gateway)", systemImage: "server.rack")
-                        }
-                        ForEach(sessionScopedBackends) { entry in
-                            Button {
-                                onCreateSessionOnBackend?(entry)
-                            } label: {
-                                Label(entry.displayName, systemImage: entry.kind.iconName)
-                            }
-                        }
-                    } label: {
-                        Label("New Session", systemImage: "plus")
-                            .font(.caption)
-                    } primaryAction: {
-                        onCreateSession?()
-                    }
-                    .menuStyle(.button)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .accessibilityIdentifier("newSessionButton")
-                }
+                // Always a plain button — the gateway switcher is the single
+                // place to choose a backend; onCreateSession targets the
+                // focused one. The per-backend dropdown this replaced
+                // duplicated the switcher.
+                sidebarHeaderButton(
+                    icon: "plus",
+                    title: "New Session",
+                    accessibilityLabel: "New Session",
+                    accessibilityID: "newSessionButton",
+                    isPrimary: true,
+                    action: { onCreateSession?() }
+                )
             }
         }
         .padding(.horizontal, 12)

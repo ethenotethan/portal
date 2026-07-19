@@ -23,20 +23,51 @@ struct BackendKindTests {
         #expect(decoded.kind == .centaur)
     }
 
-    @Test("selectGateway refuses centaur entries as the app-level gateway")
+    @Test("selectGateway focuses centaur without moving the app-level connection")
     @MainActor
-    func selectRefusesCentaur() {
+    func selectFocusesCentaur() {
         let settings = SettingsViewModel()
         let before = settings.activeGatewayID
         let centaur = settings.addGateway(
             name: "Sandbox", url: "https://c.example.com", apiKey: "k",
             kind: .centaur, makeActive: true
         )
-        // makeActive is ignored for centaur; explicit select is refused too.
         settings.selectGateway(centaur)
+        // Connection stays on Hermes…
         #expect(settings.activeGatewayID == before)
         #expect(settings.activeGatewayID != centaur.id)
+        // …but the selection is honored: centaur is focused, presented as
+        // selected, and the badge names it.
+        #expect(settings.focusedBackendID == centaur.id)
+        #expect(settings.isFocused(centaur))
+        #expect(settings.focusedGateway?.id == centaur.id)
         settings.removeGateway(centaur)
+        #expect(settings.focusedBackendID == nil)
+    }
+
+    @Test("Selecting a hermes entry clears session-scoped focus")
+    @MainActor
+    func hermesSelectionClearsFocus() {
+        let settings = SettingsViewModel()
+        let centaur = settings.addGateway(
+            name: "Sandbox", url: "https://c.example.com", apiKey: "k",
+            kind: .centaur
+        )
+        defer { settings.removeGateway(centaur) }
+        settings.selectGateway(centaur)
+        #expect(settings.focusedBackendID == centaur.id)
+
+        guard let hermes = settings.savedGateways.first(where: { $0.kind == .hermes }) else {
+            // No hermes entry configured in this test environment — the
+            // clear-on-hermes-select path is covered by focusedGateway
+            // falling back to activeGatewayID.
+            return
+        }
+        // Re-selecting the ALREADY-ACTIVE hermes entry must still clear
+        // focus (the click means "take me back to Hermes").
+        settings.selectGateway(hermes)
+        #expect(settings.focusedBackendID == nil)
+        #expect(settings.isFocused(hermes) == settings.isActive(hermes))
     }
 
     @Test("sessionScopedBackends filters by kind")

@@ -193,6 +193,47 @@ final class CentaurClient: ObservableObject {
         []
     }
 
+    // MARK: - Workflows
+
+    /// List workflow runs (most recent first, server-side limit).
+    /// 404/501 → empty: the deployment has no workflow runtime enabled.
+    func workflowRuns(limit: Int = 50) async throws -> [CentaurWorkflowRun] {
+        let data: Data
+        do {
+            data = try await request("GET", "api/workflows/runs?limit=\(limit)")
+        } catch let error as GatewayError {
+            if case .rpcError(let rpc) = error, rpc.code == 404 || rpc.code == 501 { return [] }
+            throw error
+        }
+        struct Envelope: Decodable { let runs: [CentaurWorkflowRun] }
+        return try JSONDecoder().decode(Envelope.self, from: data).runs
+    }
+
+    /// Registered workflow schedules (the standing definitions).
+    func workflowSchedules() async throws -> [CentaurWorkflowSchedule] {
+        let data: Data
+        do {
+            data = try await request("GET", "api/workflows/schedules")
+        } catch let error as GatewayError {
+            if case .rpcError(let rpc) = error, rpc.code == 404 || rpc.code == 501 { return [] }
+            throw error
+        }
+        struct Envelope: Decodable { let schedules: [CentaurWorkflowSchedule] }
+        return try JSONDecoder().decode(Envelope.self, from: data).schedules
+    }
+
+    /// Fetch one run's current state (poll target for active runs).
+    func workflowRun(runID: String) async throws -> CentaurWorkflowRun? {
+        let data = try await request("GET", "api/workflows/runs/\(encodeSegment(runID))")
+        struct Envelope: Decodable { let run: CentaurWorkflowRun }
+        return try? JSONDecoder().decode(Envelope.self, from: data).run
+    }
+
+    /// Cancel an active run.
+    func cancelWorkflowRun(runID: String) async throws {
+        _ = try await request("POST", "api/workflows/runs/\(encodeSegment(runID))/cancel")
+    }
+
     func interrupt(sessionID: String) async throws {
         _ = try await request("POST", sessionPath(sessionID, "/interrupt"), body: [
             "reason": "user interrupt from HermesNative",

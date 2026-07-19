@@ -39,6 +39,7 @@ struct ContentView: View {
     @State private var showWikiGraph = false
     @State private var showFeedSheet = false
     @State private var showLearning = false
+    @State private var showCentaurWorkflows = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
@@ -220,12 +221,13 @@ struct ContentView: View {
                     openMissionControl(sessionID: sessionID)
                 },
                 onCreateSession: {
-                    Task { await createAndSwitchToNewSession() }
+                    let focused = settings.focusedGateway
+                    Task {
+                        await createAndSwitchToNewSession(
+                            on: focused?.kind.isSessionScoped == true ? focused : nil
+                        )
+                    }
                 },
-                onCreateSessionOnBackend: { entry in
-                    Task { await createAndSwitchToNewSession(on: entry) }
-                },
-                sessionScopedBackends: settings.sessionScopedBackends,
                 onOpenPanel: {
                     showCronSheet = true
                 }
@@ -447,11 +449,13 @@ struct ContentView: View {
     }
 
     private var isOverlayActive: Bool {
-        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet || showFeedSheet || showSkills || showWikiGraph || showLearning
+        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet
+            || showFeedSheet || showSkills || showWikiGraph || showLearning || showCentaurWorkflows
     }
 
     private var overlayTitle: String {
         if showWikiGraph { return "Wiki Graph" }
+        if showCentaurWorkflows { return "Workflows" }
         if showFeedSheet { return "Feed" }
         if showSkills { return "Skills" }
         if showLiveSessions { return "Sessions" }
@@ -523,6 +527,7 @@ struct ContentView: View {
                 showActivitySheet = false
                 showSkills = false
                 showWikiGraph = false
+                showCentaurWorkflows = false
                 showFeedSheet = false
                 showLearning = false
                 chatViewModel.refocusInput += 1
@@ -607,6 +612,59 @@ struct ContentView: View {
     }
 
     #if os(macOS)
+    /// Switcher selection = "take me there", not just a checkmark move.
+    /// Hermes entries focus + reconnect via selectGateway as before. For a
+    /// session-scoped backend (Centaur), focus it AND put its chat on
+    /// screen: resume the most recent session recorded on that entry, or
+    /// create the first one — the switcher alone is enough to start
+    /// interacting, no detour through the New Session menu.
+    /// Workflows panel for the backend serving the visible chat. The client
+    /// resolves through the same registry/wrapper path the chat uses, so the
+    /// panel always talks to the deployment on screen; a non-Centaur state
+    /// (stale flag after switching away) shows a quiet notice.
+    @ViewBuilder
+    private var centaurWorkflowsOverlay: some View {
+        if let sid = chatViewModel.currentSessionID,
+           let backendID = SessionBackendRegistry.shared.backendID(for: sid),
+           let entry = settings.savedGateways.first(where: { $0.id == backendID }),
+           let client = gatewayClientWrapper.sessionScopedBackend(for: entry) as? CentaurClient {
+            CentaurWorkflowsView(client: client) {
+                showCentaurWorkflows = false
+            }
+        } else {
+            VStack(spacing: 8) {
+                Text("No Centaur session is active")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Theme.secondary)
+                Button("Close") { showCentaurWorkflows = false }
+                    .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func switchToGateway(_ gateway: SavedGateway) {
+        settings.selectGateway(gateway)
+        guard gateway.kind.isSessionScoped else { return }
+
+        let known = SessionBackendRegistry.shared.sessionIDs(on: gateway.id)
+        // Rank by the session list's recency where known; registry order
+        // is meaningless.
+        let mostRecent = sessionList.sessions
+            .filter { known.contains($0.id) }
+            .max { lhs, rhs in
+                let l = lhs.lastActive ?? lhs.startedAt ?? .distantPast
+                let r = rhs.lastActive ?? rhs.startedAt ?? .distantPast
+                return l < r
+            }?.id ?? known.first
+
+        if let sessionID = mostRecent {
+            sessionList.selectSession(id: sessionID)
+        } else {
+            Task { await createAndSwitchToNewSession(on: gateway) }
+        }
+    }
+
     @ViewBuilder
     private var gatewaySwitcher: some View {
         // Always visible (even with a single saved gateway) so adding a second
@@ -614,12 +672,15 @@ struct ContentView: View {
         Menu {
             ForEach(settings.savedGateways) { gateway in
                 Button {
-                    settings.selectGateway(gateway)
+                    switchToGateway(gateway)
                 } label: {
-                    if settings.isActive(gateway) {
+                    // Checkmark follows FOCUS (what the user selected), not
+                    // the underlying connection — selecting Centaur checks
+                    // Centaur even though the Hermes socket stays up.
+                    if settings.isFocused(gateway) {
                         Label(gateway.displayName, systemImage: "checkmark")
                     } else {
-                        Text(gateway.displayName)
+                        Label(gateway.displayName, systemImage: gateway.kind.iconName)
                     }
                 }
             }
@@ -685,7 +746,7 @@ struct ContentView: View {
     }
 
     private var activeGatewayLabel: String {
-        settings.savedGateways.first { settings.isActive($0) }?.displayName ?? "Gateway"
+        settings.focusedGateway?.displayName ?? "Gateway"
     }
 
     private var macOverlayIcons: some View {
@@ -796,6 +857,21 @@ struct ContentView: View {
                 .keyboardShortcut("w", modifiers: .command)
                 .accessibilityLabel("Wiki Graph")
             }
+
+            // Centaur workflow introspection — fills the chrome slot the
+            // Hermes cron button vacates when a Centaur session is front and
+            // center (same Cmd-K muscle memory).
+            if chatViewModel.backendCapabilities.supportsWorkflows {
+                Button {
+                    showCentaurWorkflows = true
+                } label: {
+                    Label("Workflows", systemImage: "point.3.connected.trianglepath.dotted")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("k", modifiers: .command)
+                .accessibilityLabel("Centaur Workflows")
+            }
         }
         .foregroundStyle(Theme.primary)
     }
@@ -810,12 +886,13 @@ struct ContentView: View {
                             openMissionControl(sessionID: sessionID)
                         },
                         onCreateSession: {
-                            Task { await createAndSwitchToNewSession() }
+                            let focused = settings.focusedGateway
+                            Task {
+                                await createAndSwitchToNewSession(
+                                    on: focused?.kind.isSessionScoped == true ? focused : nil
+                                )
+                            }
                         },
-                        onCreateSessionOnBackend: { entry in
-                            Task { await createAndSwitchToNewSession(on: entry) }
-                        },
-                        sessionScopedBackends: settings.sessionScopedBackends,
                         onOpenPanel: {
                             showCronDashboard = true
                         }
@@ -923,6 +1000,13 @@ struct ContentView: View {
                     .transition(.opacity)
             }
 
+            if showCentaurWorkflows {
+                centaurWorkflowsOverlay
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
             #if os(macOS)
             // Full-window HTML/file preview overlay (driven by HTMLPreviewPresenter).
             // Top of the stack so it covers everything when active.
@@ -992,6 +1076,10 @@ struct ContentView: View {
         if let backendID = SessionBackendRegistry.shared.backendID(for: newID),
            let entry = settings.savedGateways.first(where: { $0.id == backendID }),
            entry.kind.isSessionScoped {
+            // Keep the switcher in sync with the session actually on screen:
+            // opening a Centaur session focuses its entry, so the badge names
+            // the backend serving the visible chat.
+            settings.selectGateway(entry)
             // Same create-race sentinel as the hermes branch: registering the
             // freshly created session flips the list selection, and this
             // handler must not re-resume (re-POST + re-subscribe SSE) on top
@@ -1011,6 +1099,11 @@ struct ContentView: View {
                 sessionCreationError = "Backend for this session is gone (removed in Settings?)"
             }
             return
+        }
+        // Hermes session: clear any session-scoped focus so the badge names
+        // the gateway serving the visible chat again.
+        if let active = settings.savedGateways.first(where: { settings.isActive($0) }) {
+            settings.selectGateway(active)
         }
         chatViewModel.setGatewayClient(gatewayClientWrapper.client)
 
@@ -1094,6 +1187,9 @@ struct ContentView: View {
     /// path; only the chat pipeline switches backends.
     @MainActor
     private func createSessionOnScopedBackend(_ backend: any AgentBackend, entry: SavedGateway) async {
+        // Creating on a scoped backend focuses it — badge and New Session
+        // default follow the backend the user is now working on.
+        settings.selectGateway(entry)
         chatViewModel.setGatewayClient(backend)
         await chatViewModel.createSession()
         if let error = chatViewModel.error {
@@ -1203,33 +1299,26 @@ struct ContentView: View {
     /// are saved.
     @ViewBuilder
     private var newSessionControl: some View {
-        if settings.sessionScopedBackends.isEmpty {
-            Button("New Session") {
-                Task { await createAndSwitchToNewSession() }
+        // Plain button — no backend dropdown. The gateway switcher is the
+        // single place to choose a backend; New Session always targets the
+        // focused one. The old per-backend menu duplicated the switcher and
+        // made Centaur reachable only from here, which read as the switcher
+        // being broken.
+        Button("New Session") {
+            let focused = settings.focusedGateway
+            Task {
+                await createAndSwitchToNewSession(
+                    on: focused?.kind.isSessionScoped == true ? focused : nil
+                )
             }
-            .buttonStyle(.borderedProminent)
-        } else {
-            Menu {
-                Button {
-                    Task { await createAndSwitchToNewSession() }
-                } label: {
-                    Label("Hermes (home gateway)", systemImage: BackendKind.hermes.iconName)
-                }
-                ForEach(settings.sessionScopedBackends) { entry in
-                    Button {
-                        Task { await createAndSwitchToNewSession(on: entry) }
-                    } label: {
-                        Label(entry.displayName, systemImage: entry.kind.iconName)
-                    }
-                }
-            } label: {
-                Label("New Session", systemImage: "plus")
-            } primaryAction: {
-                Task { await createAndSwitchToNewSession() }
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderedProminent)
         }
+        .buttonStyle(.borderedProminent)
+        .help(newSessionHelp)
+    }
+
+    private var newSessionHelp: String {
+        guard let focused = settings.focusedGateway else { return "Create a new session" }
+        return "Create a new session on \(focused.displayName)"
     }
 
     private func wireUpClient(_ client: GatewayClient? = nil) {

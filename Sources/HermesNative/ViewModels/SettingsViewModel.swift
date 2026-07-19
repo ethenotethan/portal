@@ -41,6 +41,34 @@ final class SettingsViewModel: ObservableObject {
         }
     }
     private static let activeGatewayIDKey = "hermes.activeGatewayID"
+
+    /// Focused session-scoped backend (Centaur), nil = the active Hermes
+    /// entry is focused. Focus is the user-facing selection: the toolbar
+    /// badge, switcher checkmark, and New Session default all follow it.
+    /// It does NOT move the app-level connection — the Hermes WebSocket
+    /// (session list, wiki, skills, cron) stays wired underneath, because
+    /// session-scoped backends cannot serve those surfaces. This is what
+    /// makes Centaur selectable in the switcher like any Hermes entry
+    /// instead of a silent no-op.
+    @Published private(set) var focusedBackendID: UUID? {
+        didSet {
+            if didCompleteInit {
+                UserDefaults.standard.set(focusedBackendID?.uuidString, forKey: Self.focusedBackendIDKey)
+            }
+        }
+    }
+    private static let focusedBackendIDKey = "hermes.focusedBackendID"
+
+    /// The saved entry the UI should present as selected: the focused
+    /// session-scoped backend when one is focused, else the active Hermes
+    /// entry.
+    var focusedGateway: SavedGateway? {
+        if let id = focusedBackendID,
+           let entry = savedGateways.first(where: { $0.id == id }) {
+            return entry
+        }
+        return savedGateways.first { $0.id == activeGatewayID }
+    }
     @Published var responseCompleteNotificationsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(responseCompleteNotificationsEnabled, forKey: Self.responseCompleteNotificationsKey)
@@ -133,6 +161,14 @@ final class SettingsViewModel: ObservableObject {
             }
         }
 
+        // Restore session-scoped focus; drop it if the entry no longer
+        // exists or is no longer session-scoped (kind edited).
+        self.focusedBackendID = UserDefaults.standard.string(forKey: Self.focusedBackendIDKey)
+            .flatMap(UUID.init(uuidString:))
+            .flatMap { id in
+                loadedGateways.first { $0.id == id && $0.kind.isSessionScoped }?.id
+            }
+
         didCompleteInit = true
         // Heal a divergent active entry: mirror the live URL/key back into it
         // (no-op when they already agree). Covers entries left stale by
@@ -151,17 +187,39 @@ final class SettingsViewModel: ObservableObject {
         gateway.id == activeGatewayID
     }
 
+    /// Whether the given gateway is the one the UI presents as selected —
+    /// the focused Centaur entry, or the active Hermes entry when no
+    /// session-scoped backend is focused.
+    func isFocused(_ gateway: SavedGateway) -> Bool {
+        if let focused = focusedBackendID { return gateway.id == focused }
+        return gateway.id == activeGatewayID
+    }
+
     /// Switch the active gateway. Writes the chosen gateway's URL/API key into
     /// the active settings (which triggers the existing reconnect path observed
     /// in ContentView) and clears the in-memory CF Access cookie so a CF-gated
     /// gateway re-auths. No-op if already active.
+    ///
+    /// Session-scoped backends (Centaur) FOCUS instead of activating: the
+    /// selection is honored in the UI (badge, checkmark, New Session
+    /// default) while the Hermes WebSocket stays connected underneath —
+    /// those backends cannot serve the ambient surfaces (session list,
+    /// wiki, skills, cron), so tearing the socket down would gut the app.
+    /// Previously this was a silent `return`, which read as "clicking
+    /// Centaur does nothing and Hermes stays selected".
     func selectGateway(_ gateway: SavedGateway) {
-        guard gateway.id != activeGatewayID else { return }
         guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
-        // Session-scoped backends are session-create targets, not the app
-        // gateway: activating one would tear down the WebSocket that powers
-        // the session list, wiki, skills, and cron with nothing to replace it.
-        guard !gateway.kind.isSessionScoped else { return }
+
+        if gateway.kind.isSessionScoped {
+            focusedBackendID = gateway.id
+            return
+        }
+
+        // Selecting a Hermes entry always clears session-scoped focus —
+        // even when it's already the active connection (the click means
+        // "take me back to Hermes").
+        focusedBackendID = nil
+        guard gateway.id != activeGatewayID else { return }
 
         activeGatewayID = gateway.id
         // The CF cookie is host-specific; drop it so the new host re-auths.
@@ -201,6 +259,9 @@ final class SettingsViewModel: ObservableObject {
     func removeGateway(_ gateway: SavedGateway) {
         savedGateways.removeAll { $0.id == gateway.id }
         persistGateways()
+        if gateway.id == focusedBackendID {
+            focusedBackendID = nil
+        }
         if gateway.id == activeGatewayID {
             if let next = savedGateways.first(where: { $0.kind == .hermes }) {
                 activeGatewayID = nil  // force selectGateway to run
