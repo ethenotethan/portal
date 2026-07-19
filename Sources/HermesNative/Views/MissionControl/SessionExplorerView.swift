@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Drill-in view for a single session — shows spawn tree + usage tabs.
-/// Presented as a sheet on long-press of a session row.
+/// Drill-in view for a single session — the ONE adaptive session-detail
+/// surface. A running session leads with a Live tab (streaming transcript,
+/// lifted from the old SessionObserverView); an ended session leads with the
+/// Timeline tab (playback, the old standalone SessionPlaybackView sheet).
 struct SessionExplorerView: View {
     let sessionID: String
     var runtimeSessionID: String?
@@ -14,6 +16,11 @@ struct SessionExplorerView: View {
     @State private var showTranscriptFor: SpawnNode?
     private let maxTreeDepth: Int = 32
     @State private var selectedTab: ExplorerTab = .tree
+    /// Live tab stays available once shown, so it doesn't vanish mid-view
+    /// when the session ends while the Explorer is open.
+    @State private var showLiveTab = false
+    @State private var didConfigureTabs = false
+    @State private var showPromptBreakdown = false
 
     // Usage data
     @State private var usage: SessionUsage?
@@ -26,12 +33,18 @@ struct SessionExplorerView: View {
     @State private var chatError: String?
 
     enum ExplorerTab: String, CaseIterable {
+        case live = "Live"
+        case timeline = "Timeline"
         case tree = "Agents"
         case graph = "Graph"
         case toolCalls = "Tool Calls"
         case chat = "Chat"
         case history = "History"
         case usage = "Usage"
+    }
+
+    private var availableTabs: [ExplorerTab] {
+        showLiveTab ? ExplorerTab.allCases : ExplorerTab.allCases.filter { $0 != .live }
     }
 
     private var session: Session? {
@@ -51,7 +64,7 @@ struct SessionExplorerView: View {
             VStack(spacing: 0) {
                 // Tab picker
                 Picker("", selection: $selectedTab) {
-                    ForEach(ExplorerTab.allCases, id: \.self) { tab in
+                    ForEach(availableTabs, id: \.self) { tab in
                         Text(tab.rawValue).tag(tab)
                     }
                 }
@@ -62,6 +75,10 @@ struct SessionExplorerView: View {
                 // Content
                 Group {
                     switch selectedTab {
+                    case .live:
+                        liveContent
+                    case .timeline:
+                        timelineContent
                     case .tree:
                         treeOrEmpty
                     case .graph:
@@ -84,19 +101,63 @@ struct SessionExplorerView: View {
                         if let onDismiss { onDismiss() } else { dismiss() }
                     }
                 }
-                if selectedTab == .tree, let tree {
-                    ToolbarItem(placement: .primaryAction) {
-                        interruptButton(tree: tree)
+                ToolbarItem(placement: .primaryAction) {
+                    HStack(spacing: 12) {
+                        Button {
+                            showPromptBreakdown = true
+                        } label: {
+                            Image(systemName: "text.alignleft")
+                        }
+                        .help("Prompt Breakdown")
+                        if selectedTab == .tree, let tree {
+                            interruptButton(tree: tree)
+                        }
                     }
                 }
             }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .onAppear { configureInitialTab() }
             .sheet(item: $showTranscriptFor) { node in
                 NodeTranscriptSheet(node: node)
             }
+            .sheet(isPresented: $showPromptBreakdown) {
+                PromptBreakdownSheet(sessionID: sessionID)
+                    .environmentObject(gatewayClientWrapper)
+            }
         }
+    }
+
+    /// Running session → Live tab first and default; ended session → Timeline.
+    private func configureInitialTab() {
+        guard !didConfigureTabs else { return }
+        didConfigureTabs = true
+        if session?.isLive == true {
+            showLiveTab = true
+            selectedTab = .live
+        } else {
+            selectedTab = .timeline
+        }
+    }
+
+    // MARK: - Live Tab
+
+    private var liveContent: some View {
+        SessionLiveFeedView(
+            sessionID: sessionID,
+            runtimeSessionID: rpcSessionID,
+            isOwned: session?.isOwned == true,
+            isSessionLive: session?.isLive == true,
+            onViewTimeline: { selectedTab = .timeline }
+        )
+    }
+
+    // MARK: - Timeline Tab (playback)
+
+    private var timelineContent: some View {
+        SessionPlaybackView(sessionID: sessionID, isEmbedded: true)
+            .environmentObject(gatewayClientWrapper)
     }
 
     // MARK: - History Tab

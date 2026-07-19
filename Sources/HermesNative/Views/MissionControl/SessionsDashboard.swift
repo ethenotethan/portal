@@ -416,21 +416,6 @@ struct SessionsDashboard: View {
                 Label("Mission Control", systemImage: "network")
             }
 
-            if !session.isOwned {
-                Button {
-                    #if os(macOS)
-                    onOpenSession?(session.id)
-                    #else
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        onOpenSession?(session.id)
-                    }
-                    #endif
-                } label: {
-                    Label("Observe", systemImage: "eye")
-                }
-            }
-
             Divider()
 
             if session.isPinned {

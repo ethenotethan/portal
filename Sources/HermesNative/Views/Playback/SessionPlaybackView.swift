@@ -13,6 +13,9 @@ import SwiftUI
 ///   5. Detail card — slides up when an event is selected
 struct SessionPlaybackView: View {
     let sessionID: String
+    /// True when hosted as a tab inside SessionExplorerView — skips the
+    /// NavigationStack/Done chrome that the standalone sheet needed.
+    var isEmbedded = false
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
 
@@ -49,66 +52,93 @@ struct SessionPlaybackView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.background.ignoresSafeArea()
-
-                Group {
-                    if isLoading {
-                        loadingState
-                    } else if let error = errorMessage {
-                        errorState(message: error)
-                    } else if let timeline, !timeline.events.isEmpty {
-                        mainContent(timeline)
-                    } else {
-                        emptyState
-                    }
-                }
+        if isEmbedded {
+            // Tab inside SessionExplorerView — the Explorer owns the nav
+            // chrome, so render bare content with an inline control row.
+            VStack(spacing: 0) {
+                embeddedControlBar
+                playbackBody
             }
-            .navigationTitle("Session Playback")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 8) {
-                        // Export / Share
-                        Button {
-                            showExportSheet = true
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
+        } else {
+            NavigationStack {
+                playbackBody
+                    .navigationTitle("Session Playback")
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { dismiss() }
                         }
-                        .help("Export timeline as text")
-                        .disabled(timeline == nil)
-
-                        // Play / Pause
-                        Button {
-                            togglePlayback()
-                        } label: {
-                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        ToolbarItem(placement: .primaryAction) {
+                            playbackControls
                         }
-                        .help(isPlaying ? "Pause" : "Play at 2x speed")
-                        .disabled(visibleEvents.isEmpty)
                     }
-                }
             }
-            .task { await loadTimeline() }
-            .onReceive(playbackTimer) { _ in
-                guard isPlaying, !visibleEvents.isEmpty else { return }
-                playheadIndex = (playheadIndex + 1) % visibleEvents.count
-            }
-            .sheet(isPresented: $showExportSheet) {
-                if let timeline {
-                    ExportSheet(timeline: timeline) {
-                        showExportSheet = false
-                    }
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    private var playbackBody: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+
+            Group {
+                if isLoading {
+                    loadingState
+                } else if let error = errorMessage {
+                    errorState(message: error)
+                } else if let timeline, !timeline.events.isEmpty {
+                    mainContent(timeline)
+                } else {
+                    emptyState
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .task { await loadTimeline() }
+        .onReceive(playbackTimer) { _ in
+            guard isPlaying, !visibleEvents.isEmpty else { return }
+            playheadIndex = (playheadIndex + 1) % visibleEvents.count
+        }
+        .sheet(isPresented: $showExportSheet) {
+            if let timeline {
+                ExportSheet(timeline: timeline) {
+                    showExportSheet = false
+                }
+            }
+        }
+    }
+
+    private var playbackControls: some View {
+        HStack(spacing: 8) {
+            // Export / Share
+            Button {
+                showExportSheet = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .help("Export timeline as text")
+            .disabled(timeline == nil)
+
+            // Play / Pause
+            Button {
+                togglePlayback()
+            } label: {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+            }
+            .help(isPlaying ? "Pause" : "Play at 2x speed")
+            .disabled(visibleEvents.isEmpty)
+        }
+    }
+
+    private var embeddedControlBar: some View {
+        HStack {
+            Spacer()
+            playbackControls
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
     }
 
     // MARK: - Main Content

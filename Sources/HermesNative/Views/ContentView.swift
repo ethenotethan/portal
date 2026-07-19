@@ -27,9 +27,6 @@ struct ContentView: View {
     private let macSidebarWidth: CGFloat = 352
     @State private var missionControlSessionID: String?
     @State private var missionControlRuntimeSessionID: String?
-    @State private var observerSession: Session?
-    @State private var isObserverDismissing = false
-    @State private var previousActiveSessionID: String?  // Preserve List selection when opening observer
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
     @State private var showActivitySheet = false
@@ -279,8 +276,8 @@ struct ContentView: View {
                 handleDeepLink(url)
             }
         }
-        .onChange(of: sessionList.activeSessionID) { _, newID in
-            handleSelectionChangeAfterViewUpdate(newID)
+        .onChange(of: sessionList.activeSessionID) { oldID, newID in
+            handleSelectionChangeAfterViewUpdate(from: oldID, to: newID)
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
             handleTitleChangeAfterViewUpdate(oldTitle: oldTitle, newTitle: newTitle)
@@ -402,22 +399,8 @@ struct ContentView: View {
             EmptyView()
             #endif
         }
-        .sheet(item: $observerSession, onDismiss: {
-            isObserverDismissing = true
-            let prev = previousActiveSessionID
-            previousActiveSessionID = nil
-            if let prev {
-                sessionList.activeSessionID = prev
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isObserverDismissing = false
-            }
-        }, content: { session in
-            SessionObserverView(session: session)
-                .environmentObject(gatewayClientWrapper)
-        })
-        .onChange(of: sessionList.activeSessionID) { _, newID in
-            handleSelectionChangeAfterViewUpdate(newID)
+        .onChange(of: sessionList.activeSessionID) { oldID, newID in
+            handleSelectionChangeAfterViewUpdate(from: oldID, to: newID)
         }
         .onChange(of: chatViewModel.sessionTitle) { oldTitle, newTitle in
             handleTitleChangeAfterViewUpdate(oldTitle: oldTitle, newTitle: newTitle)
@@ -1027,8 +1010,7 @@ struct ContentView: View {
     /// “Publishing changes from within view updates” warning on macOS. Hop one
     /// main-actor turn before doing selection side effects so the list binding
     /// can finish its update transaction first.
-    private func handleSelectionChangeAfterViewUpdate(_ newID: String?) {
-        guard observerSession == nil, !isObserverDismissing else { return }
+    private func handleSelectionChangeAfterViewUpdate(from oldID: String?, to newID: String?) {
         guard newID != lastProcessedSelectionID else { return }
         if sessionList.isSuppressingSelectionHandler {
             sessionList.isSuppressingSelectionHandler = false
@@ -1037,7 +1019,7 @@ struct ContentView: View {
         lastProcessedSelectionID = newID
         Task { @MainActor in
             await Task.yield()
-            handleSessionSelection(newID)
+            handleSessionSelection(newID, previousID: oldID)
         }
     }
 
@@ -1062,7 +1044,7 @@ struct ContentView: View {
         #endif
     }
 
-    private func handleSessionSelection(_ newID: String?) {
+    private func handleSessionSelection(_ newID: String?, previousID: String? = nil) {
         guard let newID else { return }
 
         // Find the session and use its database ID for resume.
@@ -1109,8 +1091,6 @@ struct ContentView: View {
         chatViewModel.setGatewayClient(gatewayClientWrapper.client)
 
         if session.isOwned {
-            previousActiveSessionID = nil
-
             // Don't resume the session we just finished creating — the sentinel
             // is set before createSession and stays set until the user clicks a
             // different session, so all activeSessionID changes during creation
@@ -1140,13 +1120,21 @@ struct ContentView: View {
                 }
             }
         } else {
-            // Non-owned session — defer sheet presentation completely outside
-            // the current run loop to avoid AppKit layout recursion.
-            let sessionToObserve = session
-            let ownedSessionID = chatViewModel.currentSessionID
+            // Non-owned session — open the unified Explorer (deferred outside
+            // the current run loop to avoid AppKit layout recursion). Put the
+            // sidebar selection back on the row that was active so opening the
+            // detail view doesn't clobber it — the job the old observer-sheet
+            // dismissal bookkeeping (previousActiveSessionID) used to do.
+            let sessionID = session.id
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                self.previousActiveSessionID = ownedSessionID
-                self.observerSession = sessionToObserve
+                if sessionList.activeSessionID == sessionID {
+                    // Keep lastProcessedSelectionID in sync BEFORE the write so
+                    // the resulting onChange early-returns instead of re-running
+                    // this handler for the restored row.
+                    lastProcessedSelectionID = previousID
+                    sessionList.activeSessionID = previousID
+                }
+                openMissionControl(sessionID: sessionID)
             }
         }
     }

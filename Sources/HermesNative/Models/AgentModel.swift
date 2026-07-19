@@ -42,7 +42,7 @@ struct AgentModel: Identifiable, Equatable, Hashable, Codable {
 
     /// Menu/badge label for an arbitrary wire ID: the catalog label when
     /// known, otherwise the ID with router/vendor prefixes stripped
-    /// (the same compaction SessionObserverView applies to node chips).
+    /// (the same compaction SessionExplorerView applies to node chips).
     static func displayName(for modelID: String) -> String {
         let normalized = normalize(modelID)
         if let known = catalog.first(where: { normalize($0.id) == normalized }) {

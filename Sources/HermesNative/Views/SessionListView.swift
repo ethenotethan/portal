@@ -256,6 +256,11 @@ struct SessionListView: View {
                 Label(session.isPinned ? "Unpin Session" : "Pin Session",
                       systemImage: session.isPinned ? "pin.slash" : "pin")
             }
+            Button {
+                onMissionControl?(session.id)
+            } label: {
+                Label("Mission Control", systemImage: "network")
+            }
         }
     }
 
