@@ -611,13 +611,6 @@ struct ContentView: View {
         .frame(height: 40)
     }
 
-    #if os(macOS)
-    /// Switcher selection = "take me there", not just a checkmark move.
-    /// Hermes entries focus + reconnect via selectGateway as before. For a
-    /// session-scoped backend (Centaur), focus it AND put its chat on
-    /// screen: resume the most recent session recorded on that entry, or
-    /// create the first one — the switcher alone is enough to start
-    /// interacting, no detour through the New Session menu.
     /// Workflows panel for the backend serving the visible chat. The client
     /// resolves through the same registry/wrapper path the chat uses, so the
     /// panel always talks to the deployment on screen; a non-Centaur state
@@ -643,6 +636,14 @@ struct ContentView: View {
         }
     }
 
+
+    #if os(macOS)
+    /// Switcher selection = "take me there", not just a checkmark move.
+    /// Hermes entries focus + reconnect via selectGateway as before. For a
+    /// session-scoped backend (Centaur), focus it AND put its chat on
+    /// screen: resume the most recent session recorded on that entry, or
+    /// create the first one — the switcher alone is enough to start
+    /// interacting, no detour through the New Session menu.
     private func switchToGateway(_ gateway: SavedGateway) {
         settings.selectGateway(gateway)
         guard gateway.kind.isSessionScoped else { return }
