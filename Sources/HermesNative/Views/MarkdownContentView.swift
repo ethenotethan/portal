@@ -34,6 +34,10 @@ struct MarkdownContentView: View, Equatable {
                         DiffBlockView(code: code)
                     } else if MarkdownParser.isTreeLanguage(language) {
                         FileTreeView(code: code)
+                    } else if MarkdownParser.isStatsLanguage(language) {
+                        StatTilesView(json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isGraphLanguage(language) {
+                        NetworkGraphView(json: code, isStreaming: isStreaming)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -363,6 +367,17 @@ struct MarkdownParser {
 
     static func isTreeLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "tree"
+    }
+
+    static func isStatsLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "stats"
+    }
+
+    /// ```graph is the node-link fence. Bare "graph" without mermaid syntax
+    /// is safe: mermaid flowcharts arrive as ```mermaid (or the explicit
+    /// diagram languages), and MermaidGraphParser owns those.
+    static func isGraphLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "graph"
     }
 
     private static func isHorizontalRule(_ s: String) -> Bool {

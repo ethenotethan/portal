@@ -112,8 +112,11 @@ struct SessionPDFExporterTests {
         let document = try! #require(PDFDocument(data: unwrapped))
         // The typeset equation is an embedded image: the PDF must contain an
         // XObject/image stream. A monospace-text fallback would not.
-        let raw = String(decoding: unwrapped, as: UTF8.self)
-        #expect(raw.contains("/Image") || raw.contains("/XObject"))
+        // (PDF bytes aren't UTF-8; scan for the ASCII markers directly.)
+        func containsASCII(_ marker: String) -> Bool {
+            unwrapped.range(of: Data(marker.utf8)) != nil
+        }
+        #expect(containsASCII("/Image") || containsASCII("/XObject"))
         // Surrounding prose still lands in the text layer.
         let text = (0..<document.pageCount).compactMap { document.page(at: $0)?.string }.joined()
         #expect(text.contains("quadratic formula"))

@@ -269,6 +269,14 @@ private struct ExportBlockView: View {
                 // Trees keep their ASCII form in print; the interactive
                 // disclosure UI has no meaning on paper.
                 ExportCodeText(language: "", code: code)
+            } else if MarkdownParser.isStatsLanguage(language) {
+                // Tile grid + Path sparklines rasterize fine (no scroll
+                // views, no representables) — reuse the live view.
+                StatTilesView(json: code, isStreaming: false)
+            } else if MarkdownParser.isGraphLanguage(language) {
+                // Canvas + circles + text — no representables; the static
+                // layout is deterministic, so print matches screen.
+                NetworkGraphView(json: code, isStreaming: false)
             } else {
                 ExportCodeText(language: language, code: code)
             }
