@@ -402,12 +402,9 @@ private final class Coordinator: NSObject {
             guard let name = hit.node.name, !name.hasPrefix("label:") else { continue }
             guard let idx = indexByID[name], viewModel.simNodes.indices.contains(idx) else { continue }
             if viewModel.selectedNodeIndex == idx {
-                if let page = viewModel.graph.pages.first(where: { $0.id == name }) {
-                    viewModel.selectedPage = page
-                    viewModel.showPageDetail = true
-                }
+                viewModel.openReaderForSelection()
             } else {
-                viewModel.selectedNodeIndex = idx
+                viewModel.selectNode(idx)
             }
             #if os(macOS)
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)

@@ -5,14 +5,38 @@ import simd
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "WikiGraphViewModel")
 
+/// The four presentations of the wiki: force-directed 2D/3D graphs,
+/// the folder-tree file browser, and the changeset timeline.
+enum WikiViewMode {
+    case twoD, threeD, files, timeline
+}
+
 @MainActor
 final class WikiGraphViewModel: ObservableObject {
 
-    @Published var graph: WikiGraph = .empty
-    @Published var selectedPage: WikiPage?
+    @Published var graph: WikiGraph = .empty {
+        didSet { rebuildBacklinks() }
+    }
+    @Published var viewMode: WikiViewMode = .twoD
     @Published var showPageDetail = false
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
+
+    // MARK: - Shared page selection plane
+    // One "current page" across all four modes: the browser's reader, the
+    // graph's node selection, and the timeline all read and write this.
+
+    @Published var selectedPath: String?
+    @Published private(set) var backStack: [String] = []
+    @Published private(set) var forwardStack: [String] = []
+    @Published private(set) var contentCache: [String: WikiPageContent] = [:]
+    @Published var failedPath: String?
+    private(set) var backlinkIndex: [String: [WikiPage]] = [:]
+
+    var selectedPage: WikiPage? {
+        guard let path = selectedPath else { return nil }
+        return graph.pages.first { $0.path == path }
+    }
 
     var selectedNodeTitle: String? {
         guard let idx = selectedNodeIndex, simNodes.indices.contains(idx) else { return nil }
@@ -164,8 +188,11 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     private var loadGeneration = 0
+    private var loadedWiki: String?
+    private var hasLoadedOnce = false
 
     func load(client: GatewayClient, wiki: String? = nil) async {
+        prepareForLoad(wiki: wiki)
         loadGeneration += 1
         let generation = loadGeneration
         isLoading = true; error = nil
@@ -191,6 +218,169 @@ final class WikiGraphViewModel: ObservableObject {
     func loadPage(client: GatewayClient, path: String, wiki: String? = nil) async -> WikiPageContent? {
         do { return try await client.wikiPage(path: path, wiki: wiki) }
         catch { log.error("wiki.page failed: \(error.localizedDescription)"); return nil }
+    }
+
+    // MARK: - Shared navigation (history + content cache)
+
+    /// Selection and history are wiki-scoped: switching wikis invalidates
+    /// paths, cache, and stacks. Any reload drops the content cache so the
+    /// reader picks up fresh page bodies. Internal for tests.
+    func prepareForLoad(wiki: String?) {
+        contentCache.removeAll()
+        if hasLoadedOnce && wiki != loadedWiki {
+            clearPageSelection()
+        }
+        loadedWiki = wiki
+        hasLoadedOnce = true
+    }
+
+    func clearPageSelection() {
+        selectedPath = nil
+        backStack.removeAll()
+        forwardStack.removeAll()
+        contentCache.removeAll()
+        failedPath = nil
+        showPageDetail = false
+        selectedNodeIndex = nil
+    }
+
+    /// Navigates the shared reader to a page, pushing the current page onto
+    /// the back stack. Also mirrors the selection into the graph node.
+    func navigate(to path: String) {
+        guard path != selectedPath else { return }
+        if let current = selectedPath { backStack.append(current) }
+        forwardStack.removeAll()
+        select(path)
+    }
+
+    func goBack() {
+        guard let previous = backStack.popLast() else { return }
+        if let current = selectedPath { forwardStack.append(current) }
+        select(previous)
+    }
+
+    func goForward() {
+        guard let next = forwardStack.popLast() else { return }
+        if let current = selectedPath { backStack.append(current) }
+        select(next)
+    }
+
+    var canGoBack: Bool { !backStack.isEmpty }
+    var canGoForward: Bool { !forwardStack.isEmpty }
+
+    func closePage() {
+        selectedPath = nil
+        backStack.removeAll()
+        forwardStack.removeAll()
+        showPageDetail = false
+        selectedNodeIndex = nil
+    }
+
+    private func select(_ path: String) {
+        selectedPath = path
+        if failedPath == path { failedPath = nil }
+        syncNodeSelection(toPath: path)
+    }
+
+    func cachedContent(for path: String) -> WikiPageContent? { contentCache[path] }
+
+    func storeContent(_ content: WikiPageContent?, for path: String) {
+        if let content {
+            contentCache[path] = content
+            if failedPath == path { failedPath = nil }
+        } else if selectedPath == path {
+            failedPath = path
+        }
+    }
+
+    /// Single load seam for every reader surface: fetches from the same
+    /// source the graph loaded from (the selected wiki) and fills the cache.
+    func ensureContentLoaded(client: GatewayClient, path: String) async {
+        guard contentCache[path] == nil else { return }
+        let content = await loadPage(client: client, path: path, wiki: loadedWiki)
+        storeContent(content, for: path)
+    }
+
+    // MARK: - Selection sync (graph node <-> page path)
+
+    /// Mirrors a page selection into the corresponding sim node, if the page
+    /// exists in the loaded graph.
+    func syncNodeSelection(toPath path: String?) {
+        guard let path,
+              let page = graph.pages.first(where: { $0.path == path }),
+              let idx = simNodes.firstIndex(where: { $0.id == page.id }) else {
+            selectedNodeIndex = nil
+            return
+        }
+        selectedNodeIndex = idx
+    }
+
+    /// Selects the graph node AND makes its page the shared current page,
+    /// pushing the previous page onto the reader's back stack.
+    func selectNode(_ index: Int) {
+        guard simNodes.indices.contains(index) else { return }
+        selectedNodeIndex = index
+        if let page = graph.pages.first(where: { $0.id == simNodes[index].id }) {
+            navigate(to: page.path)
+        }
+    }
+
+    /// Centers the 2D viewport on a node at the current zoom.
+    func centerOnNode(_ index: Int) {
+        guard simNodes.indices.contains(index), canvasSize != .zero else { return }
+        let pos = simNodes[index].position
+        panOffset = CGSize(
+            width: canvasSize.width / 2 - pos.x * zoom,
+            height: canvasSize.height / 2 - pos.y * zoom
+        )
+    }
+
+    /// Opens the reader for the currently selected page: on the graph modes
+    /// this presents the reader sheet, elsewhere the inline reader shows it.
+    func openReaderForSelection() {
+        guard selectedPath != nil else { return }
+        showPageDetail = true
+    }
+
+    // MARK: - Cross-mode affordances
+
+    /// "Show in Graph": jump to the 2D graph with the current page's node
+    /// selected and centered.
+    func showCurrentPageInGraph() {
+        showPageDetail = false
+        if viewMode != .twoD {
+            viewMode = .twoD
+            if is3D { is3D = false; setupSimulation() }
+        }
+        syncNodeSelection(toPath: selectedPath)
+        if let idx = selectedNodeIndex { centerOnNode(idx) }
+    }
+
+    /// "Open in Files": jump to the file browser with a page open.
+    func openInFiles(path: String) {
+        showPageDetail = false
+        viewMode = .files
+        navigate(to: path)
+    }
+
+    private func rebuildBacklinks() {
+        let byId = Dictionary(graph.pages.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var index: [String: [WikiPage]] = [:]
+        var seen: [String: Set<String>] = [:]
+        for link in graph.links {
+            guard let source = byId[link.source] else { continue }
+            if seen[link.target, default: []].insert(source.id).inserted {
+                index[link.target, default: []].append(source)
+            }
+        }
+        for key in index.keys {
+            index[key]?.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
+        backlinkIndex = index
+    }
+
+    func backlinks(for page: WikiPage?) -> [WikiPage] {
+        page.flatMap { backlinkIndex[$0.id] } ?? []
     }
 
     func setupSimulation() {
@@ -238,6 +428,9 @@ final class WikiGraphViewModel: ObservableObject {
         }
         alpha = 1.0
         updateFilteredNodes()
+        // Rebuilding invalidates node indices; carry the shared page
+        // selection back into the fresh sim so mode switches keep context.
+        syncNodeSelection(toPath: selectedPath)
     }
 
     func tick() { if is3D { tick3D() } else { tick2D() } }
@@ -382,8 +575,7 @@ final class WikiGraphViewModel: ObservableObject {
 
     func handleTap(at point: CGPoint) {
         if let index = hitTest(point: point) {
-            if selectedNodeIndex == index { if let page = graph.pages.first(where: { $0.id == simNodes[index].id }) { selectedPage = page; showPageDetail = true } }
-            else { selectedNodeIndex = index }
+            if selectedNodeIndex == index { openReaderForSelection() } else { selectNode(index) }
         } else { selectedNodeIndex = nil }
     }
 

@@ -126,15 +126,35 @@ struct WikiGraphView: View {
         case idle, deciding, panning, draggingNode
     }
 
-    private enum GraphViewMode { case twoD, threeD, files, timeline }
-
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
-    @State private var viewMode: GraphViewMode = .twoD
+    private var viewMode: WikiViewMode { viewModel.viewMode }
 
     /// True for the force-directed graph modes (2D/3D), where the canvas,
     /// floating overlays, and physics timer apply. False for files/timeline.
     private var isGraphMode: Bool { viewMode == .twoD || viewMode == .threeD }
+
+    /// Presents the shared reader as a sheet only where it is not already
+    /// inline: files mode hosts it in the browser pane and macOS graph modes
+    /// host it as a trailing side panel.
+    private var readerSheetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                guard viewModel.showPageDetail, viewModel.selectedPath != nil else { return false }
+                switch viewMode {
+                case .files: return false
+                case .timeline: return true
+                case .twoD, .threeD:
+                    #if os(macOS)
+                    return false
+                    #else
+                    return true
+                    #endif
+                }
+            },
+            set: { viewModel.showPageDetail = $0 }
+        )
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -203,13 +223,34 @@ struct WikiGraphView: View {
                         }
                 )
 
-                if isGraphMode,
-                   let selIdx = viewModel.selectedNodeIndex,
-                   viewModel.simNodes.indices.contains(selIdx) {
-                    nodeDetailPanel(nodeIndex: selIdx)
-                        .frame(width: 260)
-                        .background(Theme.background)
+                if isGraphMode {
+                    // macOS: the reader replaces the node-detail side panel
+                    // inline; iOS presents it as a sheet instead.
+                    #if os(macOS)
+                    if viewModel.showPageDetail, viewModel.selectedPath != nil {
+                        WikiReaderPane(
+                            viewModel: viewModel,
+                            onClose: { viewModel.showPageDetail = false },
+                            showsShowInGraph: false
+                        )
+                        .frame(width: 400)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
+                    } else if let selIdx = viewModel.selectedNodeIndex,
+                              viewModel.simNodes.indices.contains(selIdx) {
+                        nodeDetailPanel(nodeIndex: selIdx)
+                            .frame(width: 260)
+                            .background(Theme.background)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                    #else
+                    if let selIdx = viewModel.selectedNodeIndex,
+                       viewModel.simNodes.indices.contains(selIdx) {
+                        nodeDetailPanel(nodeIndex: selIdx)
+                            .frame(width: 260)
+                            .background(Theme.background)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                    #endif
                 }
             }
         }
@@ -290,11 +331,12 @@ struct WikiGraphView: View {
                 controlsOverlay
             }
         }
-        .sheet(isPresented: $viewModel.showPageDetail) {
-            if let page = viewModel.selectedPage {
-                WikiPageDetailView(page: page, viewModel: viewModel)
-                    .frame(minWidth: 560, minHeight: 620)
-            }
+        .sheet(isPresented: readerSheetBinding) {
+            WikiReaderPane(
+                viewModel: viewModel,
+                onClose: { viewModel.showPageDetail = false }
+            )
+            .frame(minWidth: 560, minHeight: 620)
         }
         .onAppear {
                 Task {
@@ -653,15 +695,25 @@ struct WikiGraphView: View {
 
             Spacer()
 
-            if page != nil {
-                Button {
-                    viewModel.selectedPage = page
-                    viewModel.showPageDetail = true
-                } label: {
-                    Label("Open Page Detail", systemImage: "arrow.up.right.square")
-                        .font(.subheadline.weight(.medium))
+            if let page = page {
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        viewModel.navigate(to: page.path)
+                        viewModel.openReaderForSelection()
+                    } label: {
+                        Label("Read Page", systemImage: "arrow.up.right.square")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        viewModel.openInFiles(path: page.path)
+                    } label: {
+                        Label("Open in Files", systemImage: "list.bullet")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -843,13 +895,18 @@ struct WikiGraphView: View {
     }
 
     @ViewBuilder
-    private func modeButton(_ mode: GraphViewMode, icon: String, help: String) -> some View {
+    private func modeButton(_ mode: WikiViewMode, icon: String, help: String) -> some View {
         Button {
             guard viewMode != mode else { return }
-            viewMode = mode
+            viewModel.viewMode = mode
             if mode == .twoD || mode == .threeD {
                 viewModel.is3D = mode == .threeD
                 viewModel.setupSimulation()
+                // Carry the shared page selection into the graph.
+                viewModel.syncNodeSelection(toPath: viewModel.selectedPath)
+                if mode == .twoD, let idx = viewModel.selectedNodeIndex {
+                    viewModel.centerOnNode(idx)
+                }
             }
         } label: {
             Image(systemName: icon)
@@ -860,38 +917,12 @@ struct WikiGraphView: View {
         .help(help)
     }
 
-    /// Open a wiki page from a timeline row tap. Resolves the changeset's
-    /// relative path to a graph page when present (so backlinks/detail work),
-    /// otherwise loads it on demand and shows the page detail sheet.
+    /// Open a wiki page from a timeline row tap through the shared selection
+    /// plane: the page becomes the current page (history included) and the
+    /// shared reader presents it. Pages not in the graph still load — the
+    /// reader fetches by path.
     private func openPageFromTimeline(_ path: String) {
-        if let page = viewModel.graph.pages.first(where: { $0.path == path }) {
-            viewModel.selectedPage = page
-            viewModel.showPageDetail = true
-            return
-        }
-        Task {
-            guard let content = await viewModel.loadPage(
-                client: gatewayClientWrapper.client,
-                path: path,
-                wiki: viewModel.selectedWikiPath
-            ) else { return }
-            // Synthesize a minimal WikiPage so the detail sheet can present.
-            let slug = (path as NSString).lastPathComponent
-                .replacingOccurrences(of: ".md", with: "")
-            viewModel.selectedPage = WikiPage(
-                id: slug,
-                title: content.frontmatter["title"] ?? slug,
-                type: content.frontmatter["type"] ?? "concept",
-                tags: [],
-                path: path,
-                created: content.frontmatter["created"],
-                updated: content.frontmatter["updated"],
-                confidence: content.frontmatter["confidence"],
-                contested: false,
-                tagPath: [],
-                integrationLinks: []
-            )
-            viewModel.showPageDetail = true
-        }
+        viewModel.navigate(to: path)
+        viewModel.openReaderForSelection()
     }
 }
