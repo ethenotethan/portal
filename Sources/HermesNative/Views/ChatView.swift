@@ -150,6 +150,56 @@ struct ChatView: View {
     }
     #endif
 
+    #if os(macOS)
+    /// Saved living-artifacts picker: opens any stored model (the BKK map,
+    /// a long-running comparison) in the side panel, from any session.
+    @ViewBuilder
+    private var savedArtifactsMenu: some View {
+        let saved = ArtifactStore.shared.sortedArtifacts
+        if !saved.isEmpty {
+            Menu {
+                ForEach(saved) { artifact in
+                    Button {
+                        openArtifact = Artifact(
+                            kind: .living(kind: artifact.kind, artifactID: artifact.id),
+                            title: artifact.displayName,
+                            content: artifact.content
+                        )
+                    } label: {
+                        Label(artifact.displayName, systemImage: iconForKind(artifact.kind))
+                    }
+                }
+                Divider()
+                Menu("Remove") {
+                    ForEach(saved) { artifact in
+                        Button(role: .destructive) {
+                            ArtifactStore.shared.remove(id: artifact.id)
+                        } label: {
+                            Text(artifact.displayName)
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "internaldrive")
+                    .font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Saved artifacts — living models the agent maintains across sessions")
+        }
+    }
+
+    private func iconForKind(_ kind: String) -> String {
+        switch kind {
+        case "map": return "map"
+        case "chart": return "chart.bar"
+        case "graph": return "point.3.connected.trianglepath.dotted"
+        case "stats": return "gauge.medium"
+        default: return "doc.richtext"
+        }
+    }
+    #endif
+
     private var chatBottomContentPadding: CGFloat {
         #if os(macOS)
         if !chatViewModel.isSessionReady { return 260 }
@@ -230,6 +280,23 @@ struct ChatView: View {
         case .markdown:
             MarkdownContentView(text: artifact.content, isStreaming: false)
                 .equatable()
+        case .living(let kind, let artifactID):
+            let content = ArtifactStore.shared.artifacts[artifactID]?.content ?? artifact.content
+            switch kind {
+            case "map":
+                MapBlockView(json: content, isStreaming: false)
+            case "chart":
+                NativeChartView(json: content, isStreaming: false, interactive: true)
+            case "graph":
+                NetworkGraphView(json: content, isStreaming: false)
+            case "stats":
+                StatTilesView(json: content, isStreaming: false)
+            case "dataset":
+                DatasetBlockView(json: content, isStreaming: false)
+            default:
+                MarkdownContentView(text: content, isStreaming: false)
+                    .equatable()
+            }
         }
     }
     #endif
@@ -611,6 +678,10 @@ struct ChatView: View {
                 // truncates last.
                 ModelPickerMenu()
                     .layoutPriority(1)
+
+                #if os(macOS)
+                savedArtifactsMenu
+                #endif
 
                 Spacer(minLength: 8)
 

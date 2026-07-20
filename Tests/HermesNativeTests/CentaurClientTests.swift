@@ -152,6 +152,7 @@ struct CentaurEventAdapterTests {
     @Test("harness NDJSON: tool-ish items render as tool start/complete")
     func harnessToolItems() {
         var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: frame(event: "session.execution_started"))
         let started = adapter.adapt(frame: frame(
             event: "session.output.line",
             data: #"{"method":"item/started","params":{"item":{"id":"tc1","type":"commandExecution","command":"swift build"}}}"#
@@ -178,6 +179,7 @@ struct CentaurEventAdapterTests {
     @Test("harness NDJSON: error frames surface as error events")
     func harnessErrorFrames() {
         var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: frame(event: "session.execution_started"))
         let events = adapter.adapt(frame: frame(
             event: "session.output.line",
             data: #"{"method":"error","params":{"error":{"message":"invalid blocks-mode input"}}}"#
@@ -311,5 +313,180 @@ struct CentaurWorkflowModelTests {
         """.utf8))
         #expect(liveCron.cronExpression == "0 9 * * 1-5")
         #expect(liveCron.kindLabel == "cron 0 9 * * 1-5")
+    }
+}
+
+@Suite("Centaur Workflow Activity Chart")
+struct CentaurWorkflowActivityChartTests {
+
+    @Test("Duration axis labels scale s → m → h")
+    func durationLabels() {
+        #expect(CentaurWorkflowActivityChart.durationLabel(45) == "45s")
+        #expect(CentaurWorkflowActivityChart.durationLabel(90) == "1m")
+        #expect(CentaurWorkflowActivityChart.durationLabel(3600) == "1h")
+        #expect(CentaurWorkflowActivityChart.durationLabel(7500) == "2h")
+    }
+}
+
+@Suite("Centaur Reasoning Frames")
+struct CentaurReasoningFrameTests {
+
+    private func frame(data: String) -> SSEParser.Frame {
+        SSEParser.Frame(id: nil, event: "session.output.line", data: data)
+    }
+
+    @Test("reasoning textDelta and summaryTextDelta stream as thinkingDelta")
+    func reasoningDeltas() {
+        var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: SSEParser.Frame(id: nil, event: "session.execution_started", data: "{}"))
+        let body = adapter.adapt(frame: frame(
+            data: #"{"method":"item/reasoning/textDelta","params":{"delta":"Considering the tradeoffs…","itemId":"r1","contentIndex":0}}"#
+        ))
+        guard case .thinkingDelta(let t1) = body[0] else {
+            Issue.record("expected thinkingDelta, got \(body.first?.debugName ?? "none")")
+            return
+        }
+        #expect(t1 == "Considering the tradeoffs…")
+
+        let summary = adapter.adapt(frame: frame(
+            data: #"{"method":"item/reasoning/summaryTextDelta","params":{"delta":"Weighing options","itemId":"r1","summaryIndex":0}}"#
+        ))
+        guard case .thinkingDelta = summary[0] else {
+            Issue.record("expected thinkingDelta for summary")
+            return
+        }
+    }
+
+    @Test("reasoning items do not render phantom tool rows")
+    func reasoningItemLifecycle() {
+        var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: SSEParser.Frame(id: nil, event: "session.execution_started", data: "{}"))
+        let started = adapter.adapt(frame: frame(
+            data: #"{"method":"item/started","params":{"item":{"id":"r1","type":"reasoning","summary":[],"content":[]}}}"#
+        ))
+        #expect(started.isEmpty)   // was a toolStart("reasoning") before
+
+        // Completion with content but no prior deltas surfaces the text.
+        let completed = adapter.adapt(frame: frame(
+            data: #"{"method":"item/completed","params":{"item":{"id":"r1","type":"reasoning","summary":["s"],"content":["thought a","thought b"]}}}"#
+        ))
+        guard case .thinkingDelta(let text) = completed[0] else {
+            Issue.record("expected thinkingDelta from completed reasoning item")
+            return
+        }
+        #expect(text == "thought a\nthought b")
+    }
+
+    @Test("plan deltas read as thinking")
+    func planDeltas() {
+        var adapter = CentaurEventAdapter()
+        _ = adapter.adapt(frame: SSEParser.Frame(id: nil, event: "session.execution_started", data: "{}"))
+        let events = adapter.adapt(frame: frame(
+            data: #"{"method":"item/plan/delta","params":{"delta":"1. Inspect the failing test","itemId":"p1"}}"#
+        ))
+        guard case .thinkingDelta = events[0] else {
+            Issue.record("expected thinkingDelta for plan delta")
+            return
+        }
+    }
+}
+
+@Suite("Centaur Wiki Client Mapping")
+struct CentaurWikiMappingTests {
+
+    @Test("Graph payload maps to WikiGraph — document ids as paths, kind as tagPath")
+    func graphMapping() {
+        // Shape verified against live wiki-api /wiki/graph.
+        let payload: [String: Any] = [
+            "node_count": 2, "edge_count": 1,
+            "nodes": [
+                ["id": "wiki:entity:person-greg", "title": "Greg", "type": "entity",
+                 "degree": 2, "updated_at": "2026-06-29T12:33:56Z", "backlinks": []],
+                ["id": "wiki:topic:glossary-mcp", "title": "MCP (glossary)", "type": "topic"],
+                ["title": "no id — dropped"],
+            ],
+            "edges": [
+                ["source": "wiki:entity:person-greg", "target": "wiki:topic:glossary-mcp"],
+                ["source": "dangling"],
+            ],
+        ]
+        let graph = CentaurWikiClient.mapGraph(payload)
+        #expect(graph.pages.count == 2)          // id-less node dropped
+        #expect(graph.links.count == 1)          // target-less edge dropped
+        let greg = graph.pages[0]
+        #expect(greg.path == "wiki:entity:person-greg")  // id doubles as fetch path
+        #expect(greg.tagPath == ["entity"])              // kind drives taxonomy
+        #expect(greg.updated == "2026-06-29T12:33:56Z")
+        #expect(graph.links[0].source == "wiki:entity:person-greg")
+    }
+
+    @Test("glossary-prefixed topics reclassify as taxonomy definitions")
+    func glossaryReclassification() {
+        let payload: [String: Any] = [
+            "nodes": [
+                ["id": "wiki:topic:glossary-mcp", "title": "MCP (glossary)", "type": "topic"],
+                ["id": "wiki:topic:429-shed", "title": "429 Shed", "type": "topic"],
+            ],
+            "edges": [],
+        ]
+        let graph = CentaurWikiClient.mapGraph(payload)
+        #expect(graph.pages[0].type == "glossary")
+        #expect(graph.pages[0].tagPath == ["glossary"])
+        #expect(graph.pages[1].type == "topic")   // plain topics untouched
+    }
+}
+
+@Suite("Centaur Mid-Turn Resume")
+struct CentaurMidTurnResumeTests {
+
+    private func frame(event: String, data: String = "{}") -> SSEParser.Frame {
+        SSEParser.Frame(id: nil, event: event, data: data)
+    }
+
+    @Test("output arriving with no execution_started synthesizes messageStart")
+    func synthesizesStart() {
+        // Fresh adapter (app just restarted); the persisted SSE cursor sits
+        // PAST execution_started, so the first frames are mid-turn deltas.
+        var adapter = CentaurEventAdapter()
+        let events = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/agentMessage/delta","params":{"delta":"resuming…","itemId":"m1"}}"#
+        ))
+        #expect(events.count == 2)
+        guard case .messageStart = events[0], case .messageDelta(let text, _) = events[1] else {
+            Issue.record("expected [messageStart, messageDelta], got \(events.map(\.debugName))")
+            return
+        }
+        #expect(text == "resuming…")
+
+        // Subsequent deltas must NOT re-synthesize.
+        let more = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"item/agentMessage/delta","params":{"delta":" still going","itemId":"m1"}}"#
+        ))
+        #expect(more.count == 1)
+
+        // Completion closes the synthesized turn normally.
+        let done = adapter.adapt(frame: frame(event: "session.execution_completed"))
+        guard case .messageComplete(let payload) = done[0] else {
+            Issue.record("expected messageComplete")
+            return
+        }
+        #expect(payload.text == "resuming… still going")
+    }
+
+    @Test("protocol noise mid-resume does not fabricate a turn")
+    func noiseDoesNotFabricate() {
+        var adapter = CentaurEventAdapter()
+        // thread/started adapts to nothing — must not synthesize a start.
+        let noise = adapter.adapt(frame: frame(
+            event: "session.output.line",
+            data: #"{"method":"thread/started","params":{"thread":{"id":"t1"}}}"#
+        ))
+        #expect(noise.isEmpty)
+
+        // A normal execution afterward starts exactly one turn.
+        let started = adapter.adapt(frame: frame(event: "session.execution_started"))
+        #expect(started.count == 1)
     }
 }

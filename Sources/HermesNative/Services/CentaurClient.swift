@@ -50,7 +50,36 @@ final class CentaurClient: ObservableObject {
 
     private var sseTask: Task<Void, Never>?
     /// Last SSE event id per thread_key, for ?after_event_id replay.
-    private var lastEventID: [String: Int64] = [:]
+    /// PERSISTED across launches (debounced to UserDefaults): Centaur has no
+    /// transcript-fetch endpoint — the SSE cursor is the only "where was I"
+    /// marker. In-memory only, an app restart replayed every event from 0 on
+    /// resume, duplicating the disk-restored transcript turn-for-turn.
+    private var lastEventID: [String: Int64]
+    private var cursorFlushTask: Task<Void, Never>?
+
+    private static let cursorsKey = "hermes.centaurSSECursors"
+
+    private static func loadCursors() -> [String: Int64] {
+        let raw = UserDefaults.standard.dictionary(forKey: cursorsKey) as? [String: String] ?? [:]
+        return raw.compactMapValues(Int64.init)
+    }
+
+    /// Record a cursor advance; flushes at most once per second — cursors
+    /// advance on every SSE event, and losing the tail of a second on a
+    /// crash only costs a few duplicate-replayed events.
+    private func advanceCursor(threadKey: String, to id: Int64) {
+        lastEventID[threadKey] = id
+        guard cursorFlushTask == nil else { return }
+        cursorFlushTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard let self else { return }
+            self.cursorFlushTask = nil
+            // Strings keep the plist unambiguous for large Int64 values.
+            UserDefaults.standard.set(
+                self.lastEventID.mapValues(String.init), forKey: Self.cursorsKey
+            )
+        }
+    }
     private var adapter = CentaurEventAdapter()
 
     /// Short-timeout session for REST calls. The long SSE timeout must NOT
@@ -66,6 +95,7 @@ final class CentaurClient: ObservableObject {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.harnessType = harnessType
+        self.lastEventID = Self.loadCursors()
 
         let restConfig = URLSessionConfiguration.default
         restConfig.timeoutIntervalForRequest = 15
@@ -370,7 +400,7 @@ final class CentaurClient: ObservableObject {
                         guard let line = String(bytes: lineBytes, encoding: .utf8) else { continue }
                         guard let frame = parser.consume(line: line) else { continue }
                         if let id = frame.id, let numeric = Int64(id) {
-                            lastEventID[threadKey] = numeric
+                            advanceCursor(threadKey: threadKey, to: numeric)
                         }
                         for event in adapter.adapt(frame: frame) {
                             eventStream.send((event, threadKey))
@@ -477,6 +507,12 @@ struct CentaurEventAdapter {
     private var accumulated = ""
     private var finalText: String?
     private var executionID: String?
+    /// Whether this adapter has seen execution_started on this connection.
+    /// False + output arriving = resuming mid-turn (the persisted SSE cursor
+    /// sits past the start event), so a messageStart must be synthesized —
+    /// ChatViewModel drops live-turn deltas for non-streaming sessions, which
+    /// otherwise blanks the live view until the turn completes.
+    private var inExecution = false
 
     mutating func beginExecution(id: String?) {
         executionID = id
@@ -487,10 +523,19 @@ struct CentaurEventAdapter {
         case "session.execution_started":
             accumulated = ""
             finalText = nil
+            inExecution = true
             return [.messageStart]
 
         case "session.output.line":
-            return adaptOutputLine(frame.data)
+            let events = adaptOutputLine(frame.data)
+            // Mid-turn resume: output with no start seen on this connection.
+            // Only synthesize for events that imply a running turn — protocol
+            // noise (empty adapt results) must not fabricate a turn.
+            if !inExecution, !events.isEmpty {
+                inExecution = true
+                return [.messageStart] + events
+            }
+            return events
 
         case "session.execution_completed":
             return [finish(status: "complete")]
@@ -541,7 +586,18 @@ struct CentaurEventAdapter {
             accumulated += delta
             return [.messageDelta(text: delta, rendered: nil)]
 
-        case "item/reasoning/delta", "item/thinking/delta":
+        // Harness protocol reasoning methods (packages/harness-events):
+        // item/reasoning/textDelta carries the reasoning body,
+        // summaryTextDelta the model's summary headers. The first two names
+        // were a wrong guess kept for tolerance of older harnesses.
+        case "item/reasoning/textDelta", "item/reasoning/summaryTextDelta",
+             "item/reasoning/delta", "item/thinking/delta":
+            guard let delta = params["delta"] as? String, !delta.isEmpty else { return [] }
+            return [.thinkingDelta(text: delta)]
+
+        case "item/plan/delta":
+            // Plan text reads as reasoning in the chat UI (it is the agent
+            // deliberating, not answering).
             guard let delta = params["delta"] as? String, !delta.isEmpty else { return [] }
             return [.thinkingDelta(text: delta)]
 
@@ -584,6 +640,18 @@ struct CentaurEventAdapter {
             }
             return []
 
+        case "reasoning":
+            // Reasoning item lifecycle — the text arrives via
+            // item/reasoning/textDelta; without this case the item falls
+            // into the tool-ish branch and draws a phantom "reasoning" tool
+            // row. On completion, harnesses that skipped deltas still get
+            // their reasoning surfaced from the item's content array.
+            if method == "item/completed",
+               let content = item["content"] as? [String], !content.isEmpty {
+                return [.thinkingDelta(text: content.joined(separator: "\n"))]
+            }
+            return []
+
         default:
             // Tool-ish item (toolCall / commandExecution / fileEdit / …).
             let name = item["name"] as? String ?? item["title"] as? String ?? type
@@ -613,6 +681,7 @@ struct CentaurEventAdapter {
         let text = finalText ?? accumulated
         accumulated = ""
         finalText = nil
+        inExecution = false
         return .messageComplete(payload: MessageCompletePayload(
             text: text,
             status: status,

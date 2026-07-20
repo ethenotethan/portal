@@ -1,0 +1,153 @@
+import Foundation
+
+/// A named, persistent artifact the agent maintains across turns and
+/// sessions — an arbitrary model, not a message. Any fenced block carrying
+/// an `"id"` upserts into the store: a Bangkok apartment map, a comparison
+/// table refined over days, an infra graph, a decision doc.
+///
+/// `kind` is the fence language (map/chart/graph/stats/table/markdown/…);
+/// rendering dispatches on it exactly like the chat renderer, and merge
+/// behavior is per-kind (ArtifactMerge) — maps merge markers by label,
+/// everything else replaces content wholesale (models re-emit full blocks).
+struct LivingArtifact: Codable, Equatable, Identifiable {
+    let id: String
+    var kind: String
+    var title: String
+    /// The raw fence body (JSON for map/chart/graph/stats, markdown for docs).
+    var content: String
+    var updatedAt: Date
+    /// Device that last wrote it (sync conflict visibility, not resolution).
+    var updatedBy: String
+
+    /// Server revision number (0 for purely-local artifacts that have
+    /// never round-tripped through the gateway).
+    var rev: Int = 0
+
+    /// Human label for pickers: title if present, else the id.
+    var displayName: String { title.isEmpty ? id : title }
+
+    /// Decode from a gateway artifact.* result payload.
+    static func from(_ d: [String: AnyCodable]?) -> LivingArtifact? {
+        guard let d, let id = d["id"]?.stringValue, !id.isEmpty else { return nil }
+        return LivingArtifact(
+            id: id,
+            kind: d["kind"]?.stringValue ?? "markdown",
+            title: d["title"]?.stringValue ?? "",
+            content: d["content"]?.stringValue ?? "",
+            updatedAt: d["updated_at"]?.stringValue.flatMap(Self.parseISO) ?? Date(),
+            updatedBy: d["updated_by"]?.stringValue ?? "",
+            rev: d["rev"]?.intValue ?? 0
+        )
+    }
+
+    static func parseISO(_ s: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: s) ?? ISO8601DateFormatter().date(from: s)
+    }
+}
+
+/// One entry in an artifact's revision history (audit trail).
+struct ArtifactRevision: Identifiable, Equatable {
+    let rev: Int
+    let updatedAt: Date?
+    let updatedBy: String
+    /// Present only from artifact.revision (single fetch); the list RPC
+    /// omits content.
+    let content: String?
+
+    var id: Int { rev }
+
+    static func from(_ d: [String: AnyCodable]?) -> ArtifactRevision? {
+        guard let d, let rev = d["rev"]?.intValue else { return nil }
+        return ArtifactRevision(
+            rev: rev,
+            updatedAt: d["updated_at"]?.stringValue.flatMap(LivingArtifact.parseISO),
+            updatedBy: d["updated_by"]?.stringValue ?? "",
+            content: d["content"]?.stringValue
+        )
+    }
+}
+
+// MARK: - Per-kind merge
+
+/// Merge an incoming fence body into an existing artifact's content.
+/// Default is replace — correct for kinds the model re-emits in full.
+/// Structured kinds can do better: maps union markers keyed by label, so
+/// the agent may emit only the NEW listing and the pins accumulate.
+enum ArtifactMerge {
+
+    static func merge(kind: String, existing: String, incoming: String) -> String {
+        switch kind {
+        case "map":
+            return mergeMap(existing: existing, incoming: incoming)
+        case "dataset":
+            return mergeDataset(existing: existing, incoming: incoming)
+        default:
+            return incoming
+        }
+    }
+
+    /// Union rows by the dataset's declared key field (mirror of the
+    /// gateway's _merge_dataset so offline captures converge identically).
+    static func mergeDataset(existing: String, incoming: String) -> String {
+        guard let old = parse(existing), let new = parse(incoming) else { return incoming }
+        var merged = old.merging(new) { _, n in n }
+        let keyField = (new["key"] as? String) ?? (old["key"] as? String) ?? "id"
+        merged["key"] = keyField
+
+        var byKey: [String: [String: Any]] = [:]
+        var order: [String] = []
+        let oldRows = (old["rows"] as? [[String: Any]]) ?? []
+        let newRows = (new["rows"] as? [[String: Any]]) ?? []
+        for row in oldRows + newRows {
+            let keyValue = String(describing: row[keyField] ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            guard !keyValue.isEmpty, keyValue != "nil" else { continue }
+            if byKey[keyValue] == nil { order.append(keyValue) }
+            byKey[keyValue] = row
+        }
+        merged["rows"] = order.compactMap { byKey[$0] }
+
+        guard JSONSerialization.isValidJSONObject(merged),
+              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else {
+            return incoming
+        }
+        return json
+    }
+
+    /// Union markers by label (case-insensitive); incoming wins on conflict.
+    /// Top-level fields (title/region/…) come from the incoming block when
+    /// present, else carry over. Unparseable JSON on either side → incoming
+    /// (never brick the artifact on a malformed update).
+    static func mergeMap(existing: String, incoming: String) -> String {
+        guard let existingObj = parse(existing) else { return incoming }
+        guard let incomingObj = parse(incoming) else { return incoming }
+
+        var merged = existingObj.merging(incomingObj) { _, new in new }
+
+        let existingMarkers = (existingObj["markers"] as? [[String: Any]]) ?? []
+        let incomingMarkers = (incomingObj["markers"] as? [[String: Any]]) ?? []
+        var byLabel: [String: [String: Any]] = [:]
+        var order: [String] = []
+        for marker in existingMarkers + incomingMarkers {
+            let label = ((marker["label"] as? String) ?? "").lowercased()
+            guard !label.isEmpty else { continue }
+            if byLabel[label] == nil { order.append(label) }
+            byLabel[label] = marker   // later (incoming) wins
+        }
+        merged["markers"] = order.compactMap { byLabel[$0] }
+
+        guard JSONSerialization.isValidJSONObject(merged),
+              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else {
+            return incoming
+        }
+        return json
+    }
+
+    private static func parse(_ s: String) -> [String: Any]? {
+        guard let data = s.data(using: .utf8) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}

@@ -38,6 +38,7 @@ enum GatewayEvent {
         case .activityCreated: "activity.created"
         case .activityUpdated: "activity.updated"
         case .reviewSummary: "review.summary"
+        case .artifactChanged: "artifact.changed"
         }
     }
 
@@ -117,6 +118,10 @@ enum GatewayEvent {
 
     // Review
     case reviewSummary(text: String)
+
+    // Living artifacts (gateway store mutations — id + summary fields;
+    // clients refetch content via artifact.get when they care)
+    case artifactChanged(id: String, deleted: Bool)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -243,6 +248,12 @@ enum GatewayEvent {
                 return .activityUpdated(activity)
             }
             return .error(message: "invalid activity.updated payload")
+
+        case "artifact.changed":
+            return .artifactChanged(
+                id: p["id"]?.stringValue ?? "",
+                deleted: p["deleted"]?.boolValue ?? false
+            )
 
         case "review.summary":
             return .reviewSummary(text: p["text"]?.stringValue ?? "")

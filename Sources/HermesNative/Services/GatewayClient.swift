@@ -1561,6 +1561,78 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return ModelCatalog.from(result)
     }
 
+    // MARK: - Living Artifact RPCs
+
+    /// Upsert a living artifact (server merges per kind; revisioned).
+    func artifactSet(
+        id: String, kind: String, content: String,
+        title: String? = nil, replace: Bool = false
+    ) async throws -> LivingArtifact? {
+        var params: [String: AnyCodable] = [
+            "id": AnyCodable(id),
+            "kind": AnyCodable(kind),
+            "content": AnyCodable(content),
+            "updated_by": AnyCodable("app:\(SessionMetaSyncService.deviceID.prefix(8))"),
+        ]
+        if let title { params["title"] = AnyCodable(title) }
+        if replace { params["replace"] = AnyCodable(true) }
+        let response = try await call("artifact.set", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return LivingArtifact.from(response.result?.dictionaryValue?["artifact"]?.dictionaryValue)
+    }
+
+    /// Fetch one artifact with content; nil when not found.
+    func artifactGet(id: String) async throws -> LivingArtifact? {
+        let response = try await call("artifact.get", params: ["id": AnyCodable(id)])
+        if let error = response.error {
+            if error.code == 4004 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return LivingArtifact.from(response.result?.dictionaryValue?["artifact"]?.dictionaryValue)
+    }
+
+    /// All artifacts without content, newest first. nil = gateway predates
+    /// the artifact surface (method not found) — callers stay local-only.
+    func artifactList() async throws -> [LivingArtifact]? {
+        let response = try await call("artifact.list")
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        let rows = response.result?.dictionaryValue?["artifacts"]?.arrayValue ?? []
+        return rows.compactMap { LivingArtifact.from($0.dictionaryValue) }
+    }
+
+    func artifactDelete(id: String) async throws {
+        let response = try await call("artifact.delete", params: ["id": AnyCodable(id)])
+        if let error = response.error, error.code != 4004 {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
+    /// Revision metadata (no content), newest first.
+    func artifactRevisions(id: String) async throws -> [ArtifactRevision] {
+        let response = try await call("artifact.revisions", params: ["id": AnyCodable(id)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        let rows = response.result?.dictionaryValue?["revisions"]?.arrayValue ?? []
+        return rows.compactMap { ArtifactRevision.from($0.dictionaryValue) }
+    }
+
+    /// One revision's full content.
+    func artifactRevision(id: String, rev: Int) async throws -> ArtifactRevision? {
+        let response = try await call("artifact.revision", params: [
+            "id": AnyCodable(id), "rev": AnyCodable(rev),
+        ])
+        if let error = response.error {
+            if error.code == 4004 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactRevision.from(response.result?.dictionaryValue?["revision"]?.dictionaryValue)
+    }
 
     // MARK: - Private
 

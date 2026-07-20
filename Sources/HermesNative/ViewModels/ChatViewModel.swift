@@ -88,6 +88,22 @@ final class ChatViewModel: ObservableObject {
       ```stats
       {"tiles": [{"label": "Requests", "value": 128400, "unit": "/day", "delta": 12.5, "deltaLabel": "vs last week", "upIsGood": true, "trend": [98, 102, 110, 108, 121, 128]}]}
       ```
+    - **Maps** in ```map blocks for spatial data — locations, listings, geographic comparisons (native MapKit, pins colored by group, tap for the note):
+      ```map
+      {"title": "BKK Apartments", "markers": [{"lat": 13.7248, "lon": 100.5847, "label": "Ekkamai loft", "group": "shortlist", "note": "38k/mo, 2BR"}]}
+      ```
+    - **Datasets** in ```dataset blocks for row-keyed records — contributor tables, client lists, spend
+      entries (renders as a sortable table; rows merge by the declared key so partial updates are safe):
+      ```dataset
+      {"id": "clients", "key": "name", "columns": ["name", "tier", "arr"],
+       "rows": [{"name": "Acme", "tier": "enterprise", "arr": 120000}]}
+      ```
+    - **Living artifacts**: add an "id" field to any map/chart/graph/stats/dataset block to make it a
+      PERSISTENT model the user keeps across sessions. When the user adds or changes items, re-emit the
+      block with the SAME id — maps merge markers by label and datasets merge rows by key (emit only
+      new/changed entries or the full set; both work), other kinds replace wholesale so emit the
+      complete block. Example: a ```map block with "id": "bkk-apartments" updated as the user
+      evaluates listings.
     - **Network graphs** in ```graph blocks for node-link structures — dependency graphs, service topologies,
       entity networks (interactive force-directed diagram; prefer over mermaid flowchart when the story is
       the CONNECTIVITY, not a sequence):
@@ -763,6 +779,25 @@ if restoreSessionState(displayID: key) {
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
+    /// Sessions that already received the formatting prompt inline (backends
+    /// with no system-prompt channel). In-memory: harness threads have
+    /// conversational memory, so once per session per launch is enough — a
+    /// re-send after app restart is redundant but harmless.
+    private var inlineFormattingPromptSent: Set<String> = []
+
+    /// The formatting contract for backends that can't take an ephemeral
+    /// system prompt (Centaur): folded into the FIRST user message of the
+    /// session instead. Without this the harness model never learns the
+    /// app's native fences (```chart/graph/stats/tree, typeset math, diff
+    /// rendering) and answers in plain markdown — "Centaur doesn't support
+    /// the pretty viz" was exactly this gap, not a renderer limitation.
+    private func inlineFormattingPreamble(for sessionID: String) -> String {
+        guard !backendCapabilities.supportsResponseStyles,
+              !inlineFormattingPromptSent.contains(sessionID) else { return "" }
+        inlineFormattingPromptSent.insert(sessionID)
+        return Self.appFormattingPrompt + "\n\n---\n\n"
+    }
+
     /// Route a newly created session to the user's last-picked model. No-op
     /// when the user never picked one (gateway default stays in charge) or
     /// the backend can't switch models. Best-effort like the ephemeral
@@ -1234,7 +1269,7 @@ if restoreSessionState(displayID: key) {
             }
 
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
-            let promptWithSkills = skillPreamble() + promptText
+            let promptWithSkills = inlineFormattingPreamble(for: sid) + skillPreamble() + promptText
             try await client.submitPrompt(sessionID: sid, text: promptWithSkills)
         } catch {
             log.error("Submit failed: \(error.localizedDescription)")
@@ -1814,6 +1849,10 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
+        case .artifactChanged:
+            // Store-level concern; ArtifactStore subscribes directly.
+            break
+
         case .sessionInfo(let info):
             state.currentModel = info.model
             if displaySessionID(for: sessionID ?? "") == displayID {
@@ -2158,7 +2197,7 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
-        case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary:
+        case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged:
             break
 
         case .sessionInfo(let info):

@@ -112,8 +112,17 @@ struct GraphMouseInterceptor: NSViewRepresentable {
 // MARK: - WikiGraphView
 
 struct WikiGraphView: View {
+    /// Knowledge-base source override. nil = the Hermes home gateway
+    /// (existing behavior); a Centaur session passes its wiki-api client so
+    /// the same graph/browser/detail UI renders the Darkbloom KB.
+    var overrideSource: (any WikiSource)?
+
     @StateObject private var viewModel = WikiGraphViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+
+    /// Hermes-only chrome (wiki picker, taxonomy from wiki.list) hides when
+    /// browsing an override source — those RPCs don't exist there.
+    private var isOverride: Bool { overrideSource != nil }
 
     @State private var mouseState = MouseState.idle
     @State private var dragStartPan: CGSize = .zero
@@ -127,6 +136,16 @@ struct WikiGraphView: View {
     }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
+    /// Load through the override source when present, else the home gateway.
+    /// `wiki` (multi-wiki selection) is Hermes-only and ignored on overrides.
+    private func loadGraph(wiki: String?) async {
+        if let overrideSource {
+            await viewModel.load(source: overrideSource)
+        } else {
+            await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki)
+        }
+    }
 
     private var viewMode: WikiViewMode { viewModel.viewMode }
 
@@ -267,7 +286,7 @@ struct WikiGraphView: View {
                             .font(.headline)
                             .foregroundStyle(Theme.primary)
 
-                        wikiPickerMenu
+                        if !isOverride { wikiPickerMenu }
                     }
                     Text("\(viewModel.graph.pages.count) pages · \(viewModel.graph.links.count) links")
                         .font(.caption)
@@ -322,7 +341,7 @@ struct WikiGraphView: View {
             WikiPathPickerSheet(
                 selectedPath: $viewModel.selectedWikiPath,
                 onSelect: { path in
-                    Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: path) }
+                    Task { await loadGraph(wiki: path) }
                 }
             )
         }
@@ -341,7 +360,7 @@ struct WikiGraphView: View {
         .onAppear {
                 Task {
                     await viewModel.discoverWikis(client: gatewayClientWrapper.client)
-                    await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath)
+                    await loadGraph(wiki: viewModel.selectedWikiPath)
                 }
         }
     }
@@ -762,13 +781,13 @@ struct WikiGraphView: View {
         Menu {
             Button("Default wiki") {
                 viewModel.selectedWikiPath = nil
-                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: nil) }
+                Task { await loadGraph(wiki: nil) }
             }
             Divider()
             ForEach(viewModel.availableWikis, id: \.self) { wiki in
                 Button(wiki) {
                     viewModel.selectedWikiPath = wiki
-                    Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki) }
+                    Task { await loadGraph(wiki: wiki) }
                 }
             }
             if viewModel.availableWikis.isEmpty {
@@ -805,7 +824,7 @@ struct WikiGraphView: View {
                 .font(.headline)
                 .foregroundStyle(Theme.primary)
 
-            wikiPickerMenu
+            if !isOverride { wikiPickerMenu }
 
             Text("\(viewModel.graph.pages.count) pages")
                 .font(.caption)
@@ -821,7 +840,7 @@ struct WikiGraphView: View {
             Divider().frame(height: 14)
 
             Button {
-                Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
+                Task { await loadGraph(wiki: viewModel.selectedWikiPath) }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 12, weight: .medium))
@@ -883,7 +902,7 @@ struct WikiGraphView: View {
             Divider().frame(height: 14)
 
             Button {
-            Task { await viewModel.load(client: gatewayClientWrapper.client, wiki: viewModel.selectedWikiPath) }
+            Task { await loadGraph(wiki: viewModel.selectedWikiPath) }
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 12, weight: .medium))

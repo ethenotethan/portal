@@ -242,3 +242,152 @@ struct NetworkGraphSpecTests {
         #expect(!NetworkGraphView.looksLikeMermaid("{\"nodes\": []}"))
     }
 }
+
+@Suite("Living Artifacts")
+struct LivingArtifactTests {
+
+    @Test("Map merge unions markers by label; incoming wins conflicts")
+    func mapMerge() {
+        let existing = """
+        {"id": "bkk", "title": "BKK Apartments", "markers": [
+          {"lat": 13.72, "lon": 100.58, "label": "Ekkamai loft", "group": "shortlist", "note": "38k"},
+          {"lat": 13.73, "lon": 100.56, "label": "Thonglor 2BR", "group": "viewed"}
+        ]}
+        """
+        let incoming = """
+        {"id": "bkk", "markers": [
+          {"lat": 13.72, "lon": 100.58, "label": "Ekkamai loft", "group": "rejected", "note": "too loud"},
+          {"lat": 13.74, "lon": 100.54, "label": "Ari studio", "group": "shortlist"}
+        ]}
+        """
+        let merged = ArtifactMerge.merge(kind: "map", existing: existing, incoming: incoming)
+        let obj = try! JSONSerialization.jsonObject(with: Data(merged.utf8)) as! [String: Any]
+        let markers = obj["markers"] as! [[String: Any]]
+        #expect(markers.count == 3)  // union: ekkamai (updated) + thonglor (kept) + ari (new)
+        let ekkamai = markers.first { ($0["label"] as? String) == "Ekkamai loft" }!
+        #expect(ekkamai["group"] as? String == "rejected")   // incoming wins
+        #expect(obj["title"] as? String == "BKK Apartments") // carried over
+    }
+
+    @Test("Non-map kinds replace wholesale; malformed JSON never bricks")
+    func replaceAndResilience() {
+        #expect(ArtifactMerge.merge(kind: "chart", existing: "{\"a\":1}", incoming: "{\"b\":2}") == "{\"b\":2}")
+        // Malformed incoming on a map: incoming passes through (no crash, no brick).
+        let out = ArtifactMerge.merge(kind: "map", existing: "{\"markers\":[]}", incoming: "not json")
+        #expect(out == "not json")
+    }
+
+    @Test("Store upsert merges by id and preserves titles")
+    @MainActor
+    func storeUpsert() {
+        let store = ArtifactStore.shared
+        let testID = "test-artifact-\(UUID().uuidString.prefix(8))"
+        defer { store.remove(id: testID) }
+
+        store.upsert(id: testID, kind: "map", title: "Test Map",
+                     content: "{\"markers\": [{\"lat\": 1, \"lon\": 2, \"label\": \"a\"}]}")
+        // Second upsert with no title must keep the original.
+        let updated = store.upsert(id: testID, kind: "map", title: nil,
+                     content: "{\"markers\": [{\"lat\": 3, \"lon\": 4, \"label\": \"b\"}]}")
+        #expect(updated.title == "Test Map")
+        let obj = try! JSONSerialization.jsonObject(with: Data(updated.content.utf8)) as! [String: Any]
+        #expect((obj["markers"] as! [[String: Any]]).count == 2)  // merged, not replaced
+    }
+
+    @Test("MapSpec parses markers and groups")
+    func mapSpec() {
+        let spec = MapSpec.parse("""
+        {"id": "bkk", "title": "BKK", "markers": [
+          {"lat": 13.72, "lon": 100.58, "label": "A", "group": "shortlist"},
+          {"lat": 13.73, "lon": 100.56, "label": "B", "group": "viewed", "note": "n"},
+          {"lat": 13.74, "lon": 100.55, "label": "C", "group": "shortlist"}
+        ]}
+        """)
+        #expect(spec?.markers.count == 3)
+        #expect(spec?.groups == ["shortlist", "viewed"])
+        #expect(spec?.id == "bkk")
+        #expect(MapSpec.parse("{\"markers\": []}") == nil)  // empty → nil
+    }
+}
+
+@Suite("Artifact Diff")
+struct ArtifactDiffTests {
+
+    @Test("Map diff summarizes added/removed/regrouped markers")
+    func mapDiff() {
+        let old = """
+        {"markers": [
+          {"lat": 1, "lon": 2, "label": "Ekkamai loft", "group": "shortlist", "note": "38k"},
+          {"lat": 3, "lon": 4, "label": "Old place", "group": "viewed"}
+        ]}
+        """
+        let new = """
+        {"markers": [
+          {"lat": 1, "lon": 2, "label": "Ekkamai loft", "group": "rejected", "note": "38k"},
+          {"lat": 5, "lon": 6, "label": "Ari studio", "group": "shortlist"}
+        ]}
+        """
+        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        #expect(lines.contains("Added Ari studio"))
+        #expect(lines.contains("Removed Old place"))
+        #expect(lines.contains("Ekkamai loft: shortlist → rejected"))
+    }
+
+    @Test("Identical content yields no diff; non-map kinds get a size note")
+    func fallbacks() {
+        #expect(ArtifactDiff.describe(kind: "map", old: "{}", new: "{}") == nil)
+        let lines = ArtifactDiff.describe(kind: "chart", old: "{\"a\":1}", new: "{\"a\":1,\"b\":2}")!
+        #expect(lines.count == 1)
+        #expect(lines[0].contains("+6 chars"))
+    }
+
+    @Test("Note-only changes are called out without group noise")
+    func noteChange() {
+        let old = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"x\"}]}"
+        let new = "{\"markers\": [{\"lat\":1,\"lon\":2,\"label\":\"A\",\"group\":\"g\",\"note\":\"y\"}]}"
+        let lines = ArtifactDiff.describe(kind: "map", old: old, new: new)!
+        #expect(lines == ["A: note updated"])
+    }
+}
+
+@Suite("Dataset Kind")
+struct DatasetKindTests {
+
+    @Test("Spec parses rows, derives columns with key first, stringifies values")
+    func specParsing() {
+        let spec = DatasetSpec.parse("""
+        {"key": "login", "rows": [
+          {"login": "greg", "commits": 44, "active": true},
+          {"login": "amy", "name": "Amy"}
+        ]}
+        """)!
+        #expect(spec.key == "login")
+        #expect(spec.columns.first == "login")           // key leads derived columns
+        #expect(spec.columns.contains("commits"))
+        #expect(spec.rows[0]["commits"] == "44")          // numbers stringified
+        #expect(DatasetSpec.parse("{\"rows\": []}") == nil)
+    }
+
+    @Test("App-side dataset merge mirrors the gateway: union by key, incoming wins")
+    func merge() {
+        let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"amy\", \"commits\": 7}]}"
+        let new = "{\"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"new\", \"commits\": 1}]}"
+        let merged = ArtifactMerge.merge(kind: "dataset", existing: old, incoming: new)
+        let obj = try! JSONSerialization.jsonObject(with: Data(merged.utf8)) as! [String: Any]
+        let rows = (obj["rows"] as! [[String: Any]])
+        #expect(rows.count == 3)
+        let greg = rows.first { ($0["login"] as? String) == "greg" }!
+        #expect((greg["commits"] as? Int) == 44)
+        #expect(obj["key"] as? String == "login")
+    }
+
+    @Test("Dataset diff reports added/removed/changed rows by key")
+    func diff() {
+        let old = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 41}, {\"login\": \"gone\", \"commits\": 2}]}"
+        let new = "{\"key\": \"login\", \"rows\": [{\"login\": \"greg\", \"commits\": 44}, {\"login\": \"fresh\", \"commits\": 1}]}"
+        let lines = ArtifactDiff.describe(kind: "dataset", old: old, new: new)!
+        #expect(lines.contains("Added fresh"))
+        #expect(lines.contains("Removed gone"))
+        #expect(lines.contains("greg: commits changed"))
+    }
+}

@@ -26,6 +26,7 @@ struct MarkdownContentView: View, Equatable {
                 case .codeBlock(let language, let code):
                     if MarkdownParser.isChartLanguage(language) {
                         NativeChartView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "chart", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isDiagramLanguage(language) {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
@@ -36,8 +37,16 @@ struct MarkdownContentView: View, Equatable {
                         FileTreeView(code: code)
                     } else if MarkdownParser.isStatsLanguage(language) {
                         StatTilesView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "stats", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isGraphLanguage(language) {
                         NetworkGraphView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "graph", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isMapLanguage(language) {
+                        MapBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "map", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isDatasetLanguage(language) {
+                        DatasetBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "dataset", json: code, isStreaming: isStreaming)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -371,6 +380,14 @@ struct MarkdownParser {
 
     static func isStatsLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "stats"
+    }
+
+    static func isMapLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "map"
+    }
+
+    static func isDatasetLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "dataset"
     }
 
     /// ```graph is the node-link fence. Bare "graph" without mermaid syntax

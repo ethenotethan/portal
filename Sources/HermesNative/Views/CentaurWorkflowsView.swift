@@ -188,16 +188,19 @@ struct CentaurWorkflowsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(groups) { group in
-                        WorkflowGroupRow(
-                            group: group,
-                            isExpanded: expandedWorkflows.contains(group.name),
-                            cancellingRunIDs: cancellingRunIDs,
-                            onToggle: { toggleExpanded(group.name) },
-                            onSelectRun: { selectedRun = $0 },
-                            onCancelRun: { run in Task { await cancel(run) } }
-                        )
+                VStack(alignment: .leading, spacing: 12) {
+                    CentaurWorkflowActivityChart(runs: runs)
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(groups) { group in
+                            WorkflowGroupRow(
+                                group: group,
+                                isExpanded: expandedWorkflows.contains(group.name),
+                                cancellingRunIDs: cancellingRunIDs,
+                                onToggle: { toggleExpanded(group.name) },
+                                onSelectRun: { selectedRun = $0 },
+                                onCancelRun: { run in Task { await cancel(run) } }
+                            )
+                        }
                     }
                 }
                 .padding(16)

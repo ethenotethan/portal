@@ -153,11 +153,15 @@ final class WikiGraphViewModel: ObservableObject {
     func color(for type: String) -> Color {
         switch type {
         case "entity": return Color(hex: "7c7cff")!
-        case "concept": return Color(hex: "5cb85c")!
+        case "concept", "topic": return Color(hex: "5cb85c")!
         case "comparison": return Color(hex: "e8a838")!
         case "query": return Color(hex: "ff6b9d")!
         case "raw": return Color(hex: "888888")!
         case "meta", "index", "log": return Color(hex: "5ad4e6")!  // root pages (index.md, log.md)
+        // Centaur wiki-api kinds beyond the hermes set.
+        case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
+        case "project": return Color(hex: "e8a838")!
+        case "goal": return Color(hex: "ff6b9d")!
         default: return Color(hex: "aaaaaa")!
         }
     }
@@ -165,17 +169,36 @@ final class WikiGraphViewModel: ObservableObject {
     func nodeRadius(for type: String) -> CGFloat {
         switch type {
         case "entity": return 7
-        case "meta", "index", "log": return 8  // hub pages read slightly larger
+        case "meta", "index", "log", "glossary": return 8  // hub/definition pages read larger
         default: return 5
         }
     }
 
+    /// Per-node radii, PRECOMPUTED when degrees change. nodeRadius(at:) is
+    /// on the Canvas draw path (every node, every frame at 30fps); computing
+    /// sqrt-normalized sizing there — with an O(n) degrees.max() inside —
+    /// cost ~16M comparisons/sec on a 747-node graph and dragged the whole
+    /// canvas (the choppy-navigation regression).
+    private var cachedRadii: [CGFloat] = []
+
+    /// Node radius scales with connectivity RELATIVE to the graph's hub —
+    /// sqrt-normalized so a degree-248 hub visibly dwarfs a degree-6 median
+    /// node (the old log-with-cap formula rendered them near-identical),
+    /// while sqrt keeps mid-degree nodes distinguishable instead of letting
+    /// one hub flatten everything else. Matches the docs-site frontend's
+    /// presentation (size ∝ ingress+egress).
+    func recomputeRadii() {
+        let maxDegree = degrees.max() ?? 0
+        cachedRadii = simNodes.indices.map { index in
+            let base = nodeRadius(for: simNodes[index].type)
+            let degree = degrees.indices.contains(index) ? degrees[index] : 0
+            guard maxDegree > 0, degree > 0 else { return base }
+            return base + sqrt(CGFloat(degree) / CGFloat(maxDegree)) * 16
+        }
+    }
+
     func nodeRadius(at index: Int) -> CGFloat {
-        guard simNodes.indices.contains(index) else { return 5 }
-        let base = nodeRadius(for: simNodes[index].type)
-        let degree = degrees.indices.contains(index) ? degrees[index] : 0
-        let bonus = min(CGFloat(degree) * 0.9, 10)
-        return base + log2(CGFloat(degree) + 1) * 1.4 + bonus * 0.15
+        cachedRadii.indices.contains(index) ? cachedRadii[index] : 5
     }
 
     @Published var selectedWikiPath: String?
@@ -190,15 +213,31 @@ final class WikiGraphViewModel: ObservableObject {
     private var loadGeneration = 0
     private var loadedWiki: String?
     private var hasLoadedOnce = false
+    /// The source the current graph was loaded from; the reader fetches page
+    /// bodies through it so override wikis (Centaur) don't hit the home gateway.
+    private weak var loadedSource: (any WikiSource)?
 
     func load(client: GatewayClient, wiki: String? = nil) async {
+        await load(source: client, wiki: wiki)
+    }
+
+    /// Source-generic load: Hermes (GatewayClient) and Centaur
+    /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
+    /// Hermes-only (multi-wiki gateways); other sources ignore it.
+    func load(source: any WikiSource, wiki: String? = nil) async {
         prepareForLoad(wiki: wiki)
+        loadedSource = source
         loadGeneration += 1
         let generation = loadGeneration
         isLoading = true; error = nil
         defer { if generation == loadGeneration { isLoading = false } }
         do {
-            let newGraph = try await client.wikiScan(wiki: wiki)
+            let newGraph: WikiGraph
+            if let gateway = source as? GatewayClient {
+                newGraph = try await gateway.wikiScan(wiki: wiki)
+            } else {
+                newGraph = try await source.fetchGraph()
+            }
             // Drop stale responses if a newer load was started meanwhile.
             guard generation == loadGeneration else { return }
             self.graph = newGraph
@@ -297,7 +336,14 @@ final class WikiGraphViewModel: ObservableObject {
     /// source the graph loaded from (the selected wiki) and fills the cache.
     func ensureContentLoaded(client: GatewayClient, path: String) async {
         guard contentCache[path] == nil else { return }
-        let content = await loadPage(client: client, path: path, wiki: loadedWiki)
+        let content: WikiPageContent?
+        if let source = loadedSource, !(source is GatewayClient) {
+            // Override wiki (Centaur): page bodies come from the same source
+            // the graph did, never the home gateway.
+            content = await loadPage(source: source, path: path)
+        } else {
+            content = await loadPage(client: client, path: path, wiki: loadedWiki)
+        }
         storeContent(content, for: path)
     }
 
@@ -383,6 +429,11 @@ final class WikiGraphViewModel: ObservableObject {
         page.flatMap { backlinkIndex[$0.id] } ?? []
     }
 
+    func loadPage(source: any WikiSource, path: String) async -> WikiPageContent? {
+        do { return try await source.fetchPage(path: path) }
+        catch { log.error("wiki page fetch failed: \(error.localizedDescription)"); return nil }
+    }
+
     func setupSimulation() {
         guard canvasSize != .zero, !graph.pages.isEmpty else { return }
         if is3D { setup3D() } else { setup2D() }
@@ -426,6 +477,7 @@ final class WikiGraphViewModel: ObservableObject {
             if degrees.indices.contains(si) { degrees[si] += 1; adjacency[si].insert(ti) }
             if degrees.indices.contains(ti) { degrees[ti] += 1; adjacency[ti].insert(si) }
         }
+        recomputeRadii()
         alpha = 1.0
         updateFilteredNodes()
         // Rebuilding invalidates node indices; carry the shared page

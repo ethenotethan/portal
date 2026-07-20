@@ -14,6 +14,9 @@ struct Artifact: Identifiable, Equatable {
         case code(language: String)
         case diff
         case markdown
+        /// A living artifact rendered by its fence kind (map/chart/graph/stats).
+        /// artifactID keys the store so the panel reads live updates.
+        case living(kind: String, artifactID: String)
     }
 
     let kind: Kind
@@ -41,6 +44,8 @@ struct Artifact: Identifiable, Equatable {
             return "\(stem).patch"
         case .markdown:
             return "\(stem).md"
+        case .living:
+            return "\(stem).json"
         }
     }
 
@@ -118,6 +123,7 @@ struct ArtifactPanelView: View {
     let artifact: Artifact
     let onClose: () -> Void
     @State private var isCopied = false
+    @ObservedObject private var store = ArtifactStore.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -141,6 +147,28 @@ struct ArtifactPanelView: View {
             DiffBlockView(code: artifact.content)
         case .markdown:
             MarkdownContentView(text: artifact.content, isStreaming: false)
+                .equatable()
+        case .living(let kind, let artifactID):
+            livingContent(kind: kind, artifactID: artifactID)
+        }
+    }
+
+    /// Living artifacts render with the same block views as chat, reading
+    /// LIVE from the store so agent updates appear while the panel is open.
+    @ViewBuilder
+    private func livingContent(kind: String, artifactID: String) -> some View {
+        let content = store.artifacts[artifactID]?.content ?? artifact.content
+        switch kind {
+        case "map":
+            MapBlockView(json: content, isStreaming: false)
+        case "chart":
+            NativeChartView(json: content, isStreaming: false, interactive: true)
+        case "graph":
+            NetworkGraphView(json: content, isStreaming: false)
+        case "stats":
+            StatTilesView(json: content, isStreaming: false)
+        default:
+            MarkdownContentView(text: content, isStreaming: false)
                 .equatable()
         }
     }
@@ -197,6 +225,14 @@ struct ArtifactPanelView: View {
         case .code: return "chevron.left.forwardslash.chevron.right"
         case .diff: return "plus.forwardslash.minus"
         case .markdown: return "doc.richtext"
+        case .living(let kind, _):
+            switch kind {
+            case "map": return "map"
+            case "chart": return "chart.bar"
+            case "graph": return "point.3.connected.trianglepath.dotted"
+            case "stats": return "gauge.medium"
+            default: return "internaldrive"
+            }
         }
     }
 

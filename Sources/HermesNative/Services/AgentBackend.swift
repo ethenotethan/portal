@@ -133,7 +133,9 @@ struct BackendCapabilities: Sendable {
     static let centaur = BackendCapabilities(
         supportsInteractivePrompts: false,
         supportsSubagentEvents: false,
-        supportsWiki: false,
+        // Wiki reads route through Darkbloom's public wiki-api REST
+        // endpoints (CentaurWikiClient), not the hermes wiki.* RPCs.
+        supportsWiki: true,
         supportsSkills: false,
         supportsAttachments: false,
         supportsModelSwitching: false,
