@@ -1784,6 +1784,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 sessionInfo = info
             }
 
+            // Unrecognized gateway events are logged, not forwarded — no
+            // consumer can act on them, and forwarding risks a future
+            // consumer misrendering them (they used to surface as .error).
+            if case .unknown(let unknownType) = event {
+                log.info("ignoring unknown gateway event type: \(unknownType)")
+                return
+            }
+
             eventStream.send((event, sessionID))
 
         case .ignored:

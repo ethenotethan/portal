@@ -33,6 +33,7 @@ enum GatewayEvent {
         case .secretRequest: "secret.request"
         case .statusUpdate: "status.update"
         case .error: "error"
+        case .unknown(let type): "unknown(\(type))"
         case .skinChanged: "skin.changed"
         case .voiceTranscript: "voice.transcript"
         case .voiceStatus: "voice.status"
@@ -108,6 +109,9 @@ enum GatewayEvent {
     // Status
     case statusUpdate(kind: String, text: String)
     case error(message: String)
+    /// Event type the app doesn't (yet) understand. Benign: logged, never
+    /// rendered. Keeps the app forward-compatible with gateway additions.
+    case unknown(type: String)
 
     // Skin
     case skinChanged(skin: String?)
@@ -269,7 +273,11 @@ enum GatewayEvent {
             return .reviewSummary(text: p["text"]?.stringValue ?? "")
 
         default:
-            return .error(message: "unknown event type: \(type)")
+            // Tolerance, not error: the gateway grows event types faster than
+            // the app learns them (agent.terminal.output, pet.*, moa.*, …).
+            // Surfacing them as .error painted a red banner in chat for
+            // benign pushes. Consumers ignore .unknown; GatewayClient logs it.
+            return .unknown(type: type)
         }
     }
 }

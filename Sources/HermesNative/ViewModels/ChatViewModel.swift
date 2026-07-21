@@ -1849,8 +1849,9 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
-        case .artifactChanged:
+        case .artifactChanged, .unknown:
             // Store-level concern; ArtifactStore subscribes directly.
+            // .unknown never reaches consumers (GatewayClient drops it).
             break
 
         case .sessionTitle:
@@ -2202,7 +2203,7 @@ if restoreSessionState(displayID: key) {
 
         switch event {
         case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
-             .sessionTitle:
+             .sessionTitle, .unknown:
             break
 
         case .sessionInfo(let info):
