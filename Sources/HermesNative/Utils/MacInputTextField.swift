@@ -140,11 +140,19 @@ struct MacInputTextField: NSViewRepresentable {
         // proposed width, the feedback loop cannot form.
         guard let nsView = scrollView.documentView as? FocusableTextView else { return nil }
         let coordinator = context.coordinator
-        if let w = proposal.width, w.isFinite, w > 0 { coordinator.lastMeasuredWidth = w }
+        // Record the width fallback only on a meaningful change — sub-point
+        // proposal churn is the loop re-proposing, not a real resize, and
+        // the stored value must not drift with it.
+        if let w = proposal.width, w.isFinite, w > 0,
+           ChatLayoutMath.widthMeaningfullyChanged(current: coordinator.lastMeasuredWidth, proposed: w) {
+            coordinator.lastMeasuredWidth = w
+        }
         let width = proposal.width ?? coordinator.lastMeasuredWidth ?? 300
         // Height comes from the AppKit view's reported content height (updated
-        // only on text changes), clamped to maxLines — NOT recomputed from the
-        // proposed width. This is what prevents the relayout feedback loop.
+        // only on text changes), clamped to maxLines and rounded to whole
+        // points — NOT recomputed from the proposed width. Identical content
+        // therefore always returns the identical size, which is what prevents
+        // the relayout feedback loop.
         let height = coordinator.clampedReportedHeight(font: nsView.font, maxLines: nsView.maxLines)
         return CGSize(width: width, height: height)
     }
@@ -180,13 +188,6 @@ struct MacInputTextField: NSViewRepresentable {
         var reportedHeight: CGFloat?
         /// Deferred invalidation scheduled for the next runloop turn.
         private var pendingInvalidation = false
-        /// Height changes below this are absorbed, not propagated. AppKit
-        /// text layout is not width-stable at sub-point scale: relayout of
-        /// the SAME text at a jittering width can move usedRect by a
-        /// fraction of a point, and each propagated fraction re-enters
-        /// SwiftUI layout — which jitters the width again. Half a point is
-        /// invisible; a real line change is ~18pt.
-        private static let heightTolerance: CGFloat = 0.5
 
         /// Absorb sub-point height noise and defer the SwiftUI invalidation
         /// out of the current layout pass.
@@ -198,12 +199,13 @@ struct MacInputTextField: NSViewRepresentable {
         /// → new layout pass → …). Invalidating synchronously from within
         /// layout is what re-arms the loop the sizeThatFits comment says
         /// can't form; deferring to the next runloop turn coalesces the
-        /// storm to one invalidation, and the tolerance stops the fixed
+        /// storm to one invalidation, and the tolerance (ChatLayoutMath.
+        /// shouldAdoptInputHeight — sub-point deltas are relayout noise of
+        /// the same text, a real line change is ~18pt) stops the fixed
         /// point from oscillating between two sub-point heights.
         ///
         func applyReportedHeight(_ height: CGFloat) {
-            let current = reportedHeight
-            guard current == nil || abs(current! - height) > Self.heightTolerance else { return }
+            guard ChatLayoutMath.shouldAdoptInputHeight(current: reportedHeight, proposed: height) else { return }
             reportedHeight = height
             guard !pendingInvalidation else { return }
             pendingInvalidation = true
@@ -218,15 +220,18 @@ struct MacInputTextField: NSViewRepresentable {
             self.parent = parent
         }
 
-        /// Reported height clamped to [1 line, maxLines]; falls back to a
-        /// single line before the first measurement arrives.
+        /// Reported height clamped to [1 line, maxLines] and rounded to whole
+        /// points; falls back to a single line before the first measurement
+        /// arrives. Rounding means identical content always returns the
+        /// identical size to SwiftUI even if the measurement drifted by a
+        /// fraction of a point.
         func clampedReportedHeight(font: NSFont?, maxLines: Int) -> CGFloat {
             let f = font ?? .systemFont(ofSize: 15, weight: .regular)
-            let lineHeight = f.boundingRectForFont.height
-            let minH = lineHeight + 12
-            let maxH = lineHeight * CGFloat(maxLines) + 12
-            let h = reportedHeight ?? minH
-            return min(max(h, minH), maxH)
+            return ChatLayoutMath.clampedInputHeight(
+                reported: reportedHeight,
+                lineHeight: f.boundingRectForFont.height,
+                maxLines: maxLines
+            )
         }
 
         func textDidChange(_ notification: Notification) {

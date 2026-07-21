@@ -529,11 +529,18 @@ struct ChatView: View {
 
     @ViewBuilder
     private var latestAssistantTurnProbe: some View {
-        if hasBotContent {
+        // Only the darkManga floating avatar consumes this Y — don't run a
+        // per-layout-pass GeometryReader (and its preference traffic) for
+        // skins that never read it. The value is rounded to whole points so
+        // sub-pixel layout jitter cannot mint a "new" preference value every
+        // pass; see ChatLayoutMath for why that loops.
+        if activeSkin == .darkManga && hasBotContent {
             GeometryReader { geo in
                 Color.clear.preference(
                     key: LatestBotTurnYKey.self,
-                    value: max(0, geo.frame(in: .named("chatContent")).maxY - 60)
+                    value: ChatLayoutMath.avatarY(
+                        fromProbeMaxY: geo.frame(in: .named("chatContent")).maxY
+                    )
                 )
             }
             .frame(height: 0)
@@ -982,6 +989,11 @@ struct ChatView: View {
             .onPreferenceChange(LatestBotTurnYKey.self) { y in
                 if let y = y {
                     Task { @MainActor in
+                        // Hysteresis: adopting Y writes @State → body → new
+                        // layout pass → probe re-measures. Without a dead
+                        // band the measure/adopt pair can ping-pong forever
+                        // (the beachball); a sub-4pt move is invisible.
+                        guard ChatLayoutMath.shouldMoveAvatar(from: avatarY, to: y) else { return }
                         avatarY = y
                     }
                 }
