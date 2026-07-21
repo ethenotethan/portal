@@ -184,6 +184,7 @@ struct SessionListView: View {
             } label: {
                 Label("Mission Control", systemImage: "network")
             }
+            exportMarkdownButton(session: session)
             Divider()
             Button(role: .destructive) {
                 sessionList.archiveSession(id: session.id)
@@ -191,6 +192,25 @@ struct SessionListView: View {
                 Label("Archive", systemImage: "archivebox")
             }
         }
+    }
+
+    /// "Export Markdown" for any session with persisted local history —
+    /// works without opening the session (macOS save panel only).
+    @ViewBuilder
+    private func exportMarkdownButton(session: Session) -> some View {
+        #if os(macOS)
+        if SessionListExport.canExport(sessionID: session.id) {
+            Button {
+                SessionListExport.exportMarkdown(
+                    session: session,
+                    title: sessionList.titleForSession(session),
+                    gatewayName: nil
+                )
+            } label: {
+                Label("Export Markdown", systemImage: "doc.plaintext")
+            }
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -223,6 +243,7 @@ struct SessionListView: View {
             } label: {
                 Label("Unarchive", systemImage: "arrow.up.archive")
             }
+            exportMarkdownButton(session: session)
             Divider()
             Button(role: .destructive) {
                 Task { try? await sessionList.deleteArchivedSession(id: session.id) }
@@ -261,6 +282,7 @@ struct SessionListView: View {
             } label: {
                 Label("Mission Control", systemImage: "network")
             }
+            exportMarkdownButton(session: session)
         }
     }
 
