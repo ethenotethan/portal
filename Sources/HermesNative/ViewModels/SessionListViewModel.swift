@@ -294,6 +294,26 @@ final class SessionListViewModel: ObservableObject {
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
         metaSync.setClient(client)
+
+        // Live sidebar rename: the gateway's async titler pushes
+        // session.title after the turn's list refresh already fired.
+        cancellables.removeAll()
+        client.eventStream
+            .receive(on: RunLoop.main)
+            .sink { [weak self] event, _ in
+                guard case .sessionTitle(let key, let title) = event,
+                      !title.isEmpty else { return }
+                self?.applyGatewayTitle(title, forSessionKey: key)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Update a session's gateway title in place. The event carries the
+    /// db-format session key, which is the list's `id` for owned and
+    /// gateway-listed sessions alike.
+    private func applyGatewayTitle(_ title: String, forSessionKey key: String) {
+        guard let idx = sessions.firstIndex(where: { $0.id == key }) else { return }
+        sessions[idx].title = title
     }
 
     /// Clear the in-memory session list when switching gateways. The new

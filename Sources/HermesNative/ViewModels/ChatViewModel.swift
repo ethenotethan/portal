@@ -1853,6 +1853,10 @@ if restoreSessionState(displayID: key) {
             // Store-level concern; ArtifactStore subscribes directly.
             break
 
+        case .sessionTitle:
+            // Sidebar concern; SessionListViewModel subscribes directly.
+            break
+
         case .sessionInfo(let info):
             state.currentModel = info.model
             if displaySessionID(for: sessionID ?? "") == displayID {
@@ -2197,7 +2201,8 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
-        case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged:
+        case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
+             .sessionTitle:
             break
 
         case .sessionInfo(let info):

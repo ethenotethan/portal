@@ -9,6 +9,7 @@ enum GatewayEvent {
         switch self {
         case .gatewayReady: "gateway.ready"
         case .sessionInfo: "session.info"
+        case .sessionTitle: "session.title"
         case .messageStart: "message.start"
         case .messageDelta: "message.delta"
         case .messageComplete: "message.complete"
@@ -67,6 +68,9 @@ enum GatewayEvent {
 
     // Session
     case sessionInfo(SessionInfo)
+    /// Async titler result — the gateway pushes the generated title so the
+    /// sidebar renames without waiting for the next session.list refresh.
+    case sessionTitle(sessionKey: String, title: String)
 
     // Chat streaming
     case messageStart
@@ -134,6 +138,12 @@ enum GatewayEvent {
 
         case "session.info":
             return .sessionInfo(SessionInfo.from(p))
+
+        case "session.title":
+            return .sessionTitle(
+                sessionKey: p["session_id"]?.stringValue ?? "",
+                title: p["title"]?.stringValue ?? ""
+            )
 
         case "message.start":
             return .messageStart
