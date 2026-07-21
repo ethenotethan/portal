@@ -17,6 +17,10 @@ enum GatewayEvent {
         case .toolComplete: "tool.complete"
         case .toolProgress: "tool.progress"
         case .toolGenerating: "tool.generating"
+        case .toolOutputRisk: "tool.output_risk"
+        case .moaReference: "moa.reference"
+        case .moaAggregating: "moa.aggregating"
+        case .reaction: "reaction"
         case .reasoningDelta: "reasoning.delta"
         case .reasoningAvailable: "reasoning.available"
         case .thinkingDelta: "thinking.delta"
@@ -46,8 +50,12 @@ enum GatewayEvent {
 
     var isLiveTurnEvent: Bool {
         switch self {
+        // toolOutputRisk is deliberately not live-turn: the output scanner is
+        // async and its verdict may trail messageComplete — dropping it as a
+        // "late live event" would lose the risk badge on the finished turn.
         case .messageStart, .messageDelta, .messageComplete,
              .toolStart, .toolComplete, .toolProgress, .toolGenerating,
+             .moaReference, .moaAggregating,
              .reasoningDelta, .reasoningAvailable, .thinkingDelta:
             true
         default:
@@ -83,6 +91,17 @@ enum GatewayEvent {
     case toolComplete(payload: ToolCompletePayload)
     case toolProgress(name: String, preview: String)
     case toolGenerating(name: String)
+    /// Output-security scanner verdict for a completed tool call.
+    case toolOutputRisk(payload: ToolOutputRiskPayload)
+
+    // Mixture-of-Agents intermediate outputs
+    /// A discrete labelled reference answer from one MoA slot — lands whole,
+    /// not as deltas.
+    case moaReference(label: String, text: String, count: Int?)
+    case moaAggregating(aggregator: String)
+
+    // Affection detection (hearts etc.)
+    case reaction(kind: String)
 
     // Reasoning / thinking
     case reasoningDelta(text: String)
@@ -175,6 +194,36 @@ enum GatewayEvent {
 
         case "tool.generating":
             return .toolGenerating(name: p["name"]?.stringValue ?? "")
+
+        case "tool.output_risk":
+            return .toolOutputRisk(payload: ToolOutputRiskPayload.from(p))
+
+        case "moa.reference":
+            return .moaReference(
+                label: p["label"]?.stringValue ?? "",
+                text: p["text"]?.stringValue ?? p["preview"]?.stringValue ?? "",
+                count: p["count"]?.intValue
+            )
+
+        case "moa.aggregating":
+            return .moaAggregating(aggregator: p["aggregator"]?.stringValue ?? "")
+
+        case "reaction":
+            return .reaction(kind: p["kind"]?.stringValue ?? "")
+
+        // Progress pushes with no dedicated UI — fold into the generic
+        // status line rather than growing three near-identical cases.
+        case "browser.progress":
+            return .statusUpdate(
+                kind: "browser",
+                text: p["message"]?.stringValue ?? ""
+            )
+
+        case "preview.restart.progress", "preview.restart.complete":
+            return .statusUpdate(
+                kind: "preview",
+                text: p["text"]?.stringValue ?? ""
+            )
 
         case "reasoning.delta":
             return .reasoningDelta(text: p["text"]?.stringValue ?? "")
@@ -274,7 +323,7 @@ enum GatewayEvent {
 
         default:
             // Tolerance, not error: the gateway grows event types faster than
-            // the app learns them (agent.terminal.output, pet.*, moa.*, …).
+            // the app learns them (agent.terminal.output, pet.*, …).
             // Surfacing them as .error painted a red banner in chat for
             // benign pushes. Consumers ignore .unknown; GatewayClient logs it.
             return .unknown(type: type)
@@ -414,6 +463,33 @@ struct TodoItem {
     let id: String
     let content: String
     let status: String
+}
+
+/// Output-security scanner verdict for a tool call (tool.output_risk).
+struct ToolOutputRiskPayload {
+    let toolID: String
+    let name: String
+    let risk: ToolRiskLevel
+    let findings: [String]
+    let redacted: Bool
+
+    static func from(_ p: [String: AnyCodable]) -> ToolOutputRiskPayload {
+        ToolOutputRiskPayload(
+            toolID: p["tool_id"]?.stringValue ?? "",
+            name: p["name"]?.stringValue ?? "",
+            risk: ToolRiskLevel(rawValue: p["risk"]?.stringValue ?? "") ?? .low,
+            findings: p["findings"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
+            redacted: p["redacted"]?.boolValue ?? false
+        )
+    }
+}
+
+/// Risk level the gateway's output scanner assigns to a tool call's output.
+/// Codable so it persists on ToolCallRecord with chat history.
+enum ToolRiskLevel: String, Codable {
+    case low
+    case medium
+    case high
 }
 
 struct ApprovalPayload {

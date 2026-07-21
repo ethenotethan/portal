@@ -239,7 +239,7 @@ private struct ThinkingTraceSection: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(trace.blocks) { block in
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(block.kind.label)
+                            Text(block.headerLabel)
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(Theme.accent.opacity(0.85))
                             Text(block.text)
@@ -264,7 +264,19 @@ private extension ThinkingBlock.Kind {
         case .thinking: "Thinking"
         case .reasoning: "Reasoning"
         case .toolStatus: "Tool status"
+        case .moaReference: "Reference"
         }
+    }
+}
+
+private extension ThinkingBlock {
+    /// Header text: kind label, plus the slot/model label for discrete
+    /// blocks ("Reference — gpt-4o").
+    var headerLabel: String {
+        if let label, !label.isEmpty {
+            return "\(kind.label) — \(label)"
+        }
+        return kind.label
     }
 }
 

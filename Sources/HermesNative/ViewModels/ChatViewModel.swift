@@ -134,6 +134,10 @@ final class ChatViewModel: ObservableObject {
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
     @Published var error: String?
     @Published var avatarState: AvatarState = .idle
+    /// Short-lived status line (status.update / moa.aggregating) shown under
+    /// the streaming panel; auto-clears so stale text never lingers.
+    @Published private(set) var transientStatus: String?
+    private var transientStatusClearTask: Task<Void, Never>?
     @Published var sessionTitle: String = "New Chat"
     /// The visible session's current turn was started on another device.
     @Published private(set) var isRemoteTurn: Bool = false
@@ -1639,6 +1643,66 @@ if restoreSessionState(displayID: key) {
 #endif
 
 
+    /// Show a short-lived status line ("aggregating via …"); auto-clears.
+    private func showTransientStatus(_ text: String) {
+        guard !text.isEmpty else { return }
+        transientStatus = text
+        transientStatusClearTask?.cancel()
+        transientStatusClearTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.transientStatus = nil
+        }
+    }
+
+    /// Land a whole MoA reference answer as a labelled discrete thinking
+    /// block on the streaming assistant message.
+    private func appendMoAReference(label: String, text: String, to messages: inout [ChatMessage]) {
+        guard !text.isEmpty,
+              let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) else { return }
+        if messages[idx].thinkingTrace == nil {
+            messages[idx].thinkingTrace = ThinkingTrace(isStreaming: true)
+        }
+        let header = label.isEmpty ? "reference" : label
+        messages[idx].thinkingTrace?.appendDiscreteBlock(text, kind: .moaReference, label: header)
+    }
+
+    /// Attach an output-risk verdict to the matching tool record. The scanner
+    /// is async, so the verdict may land while the tool is active or after
+    /// the turn completed (record already merged into a message).
+    private func applyToolRisk(
+        _ payload: ToolOutputRiskPayload,
+        activeToolCalls: inout [String: ToolCallRecord],
+        messages: inout [ChatMessage]
+    ) {
+        guard !payload.toolID.isEmpty else { return }
+        if var record = activeToolCalls[payload.toolID] {
+            record.applyRisk(payload)
+            activeToolCalls[payload.toolID] = record
+            return
+        }
+        for msgIdx in messages.indices.reversed() {
+            if let toolIdx = messages[msgIdx].toolCalls.firstIndex(where: { $0.id == payload.toolID }) {
+                messages[msgIdx].toolCalls[toolIdx].applyRisk(payload)
+                return
+            }
+        }
+    }
+
+    /// Affection-detection reaction → celebration. Unknown kinds stay safe.
+    private func handleReaction(kind: String) {
+        switch kind {
+        case "hearts":
+            CelebrationManager.shared.onReaction(occasion: "Hearts received!")
+        case "":
+            break
+        default:
+            // Unknown kinds are benign — celebrate generically rather than
+            // dropping the gateway's affection signal.
+            CelebrationManager.shared.onReaction(occasion: "Reaction: \(kind)")
+        }
+    }
+
     private func appendThinkingTrace(_ text: String, kind: ThinkingBlock.Kind, to message: inout ChatMessage) {
         if message.thinkingTrace == nil {
             message.thinkingTrace = ThinkingTrace(isStreaming: message.isStreaming)
@@ -1647,11 +1711,17 @@ if restoreSessionState(displayID: key) {
     }
 
     private func finishThinkingTrace(on message: inout ChatMessage, finalReasoning: String?) {
-        if let finalReasoning, !finalReasoning.isEmpty, message.thinkingTrace == nil {
-            message.thinkingTrace = ThinkingTrace(
-                blocks: [ThinkingBlock(kind: .reasoning, text: finalReasoning)],
-                isStreaming: false
-            )
+        if let finalReasoning, !finalReasoning.isEmpty {
+            if message.thinkingTrace == nil {
+                message.thinkingTrace = ThinkingTrace(
+                    blocks: [ThinkingBlock(kind: .reasoning, text: finalReasoning)],
+                    isStreaming: false
+                )
+            } else if message.thinkingTrace?.blocks.contains(where: { $0.kind == .reasoning }) == false {
+                // Trace already exists mid-stream (MoA reference blocks) —
+                // the final reasoning must still land or it's lost.
+                message.thinkingTrace?.append(finalReasoning, kind: .reasoning)
+            }
         }
         message.thinkingTrace?.finish()
         // Keep the legacy reasoning field populated for persistence/search and
@@ -1998,6 +2068,30 @@ if restoreSessionState(displayID: key) {
                 state.activeToolCalls[key] = record
             }
 
+        case .toolOutputRisk(let payload):
+            applyToolRisk(payload, activeToolCalls: &state.activeToolCalls, messages: &state.messages)
+            // Non-lifecycle events don't republish messages below — apply to
+            // the published copies too so a post-turn verdict shows at once.
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                applyToolRisk(payload, activeToolCalls: &activeToolCalls, messages: &messages)
+            }
+
+        case .moaReference(let label, let text, _):
+            appendMoAReference(label: label, text: text, to: &state.messages)
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                appendMoAReference(label: label, text: text, to: &messages)
+            }
+
+        case .moaAggregating(let aggregator):
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                showTransientStatus(aggregator.isEmpty ? "aggregating" : "aggregating via \(aggregator)")
+            }
+
+        case .reaction(let kind):
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                handleReaction(kind: kind)
+            }
+
         case .reasoningDelta(let text):
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
@@ -2047,7 +2141,14 @@ if restoreSessionState(displayID: key) {
             // unreachable here, kept only for switch exhaustiveness.
             break
 
-        case .statusUpdate, .toolGenerating, .reasoningAvailable,
+        case .statusUpdate(_, let text):
+            // Includes browser.progress / preview.restart.* (folded into
+            // statusUpdate at decode) — transient line, no transcript entry.
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                showTransientStatus(text)
+            }
+
+        case .toolGenerating, .reasoningAvailable,
              .gatewayReady, .skinChanged, .backgroundComplete,
              .sudoRequest, .secretRequest,
              .voiceTranscript, .voiceStatus,
@@ -2344,6 +2445,21 @@ if restoreSessionState(displayID: key) {
         case .toolGenerating:
             break
 
+        case .toolOutputRisk(let payload):
+            // No isStreaming gate: the scanner's verdict can trail the turn.
+            applyToolRisk(payload, activeToolCalls: &activeToolCalls, messages: &messages)
+
+        case .moaReference(let label, let text, _):
+            guard isStreaming else { break }
+            appendMoAReference(label: label, text: text, to: &messages)
+
+        case .moaAggregating(let aggregator):
+            guard isStreaming else { break }
+            showTransientStatus(aggregator.isEmpty ? "aggregating" : "aggregating via \(aggregator)")
+
+        case .reaction(let kind):
+            handleReaction(kind: kind)
+
         case .reasoningDelta(let text):
             // Thinking/reasoning — avatar thinks
             guard isStreaming else { break }
@@ -2372,8 +2488,10 @@ if restoreSessionState(displayID: key) {
         case .approvalRequest(payload: let payload):
             pendingApproval = payload
 
-        case .statusUpdate:
-            break
+        case .statusUpdate(_, let text):
+            // Includes browser.progress / preview.restart.* (folded into
+            // statusUpdate at decode) — transient line, no transcript entry.
+            showTransientStatus(text)
 
         case .error(let message):
             self.error = message

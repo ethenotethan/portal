@@ -34,6 +34,10 @@ struct ToolPillView: View {
                 .font(.system(.caption, weight: .medium))
                 .foregroundStyle(Theme.primary)
 
+            if let risk = tool.riskLevel {
+                ToolRiskChip(tool: tool, risk: risk)
+            }
+
             // Separator
             Text("—")
                 .font(.system(.caption2))

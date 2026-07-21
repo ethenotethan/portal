@@ -169,6 +169,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `tool.complete` | `toolComplete(payload)` | optional `summary`, `duration_seconds`, `inline_diff`, `todos` |
 | `tool.progress` | `toolProgress(name, preview)` | In-progress preview |
 | `tool.generating` | `toolGenerating(name)` | Model generating for a tool |
+| `tool.output_risk` | `toolOutputRisk(payload)` | Output-security scanner verdict: `tool_id`, `name`, `risk` (low/medium/high), `findings`, `redacted` — badges the matching tool row |
 
 ### Reasoning / thinking (live turn)
 | Wire type | Enum case | Description |
@@ -176,6 +177,12 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `reasoning.delta` | `reasoningDelta(text)` | Incremental reasoning |
 | `reasoning.available` | `reasoningAvailable(text)` | Complete reasoning available |
 | `thinking.delta` | `thinkingDelta(text)` | Extended-thinking stream |
+
+### Mixture-of-Agents (live turn)
+| Wire type | Enum case | Description |
+|-----------|-----------|-------------|
+| `moa.reference` | `moaReference(label, text, count?)` | Discrete labelled reference answer from one MoA slot — rendered as a labelled thinking block ("Reference — \<label\>") |
+| `moa.aggregating` | `moaAggregating(aggregator)` | Aggregation started — transient status line ("aggregating via \<name\>") |
 
 ### Subagent delegation
 | Wire type | Enum case | Description |
@@ -200,6 +207,10 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | Wire type | Enum case | Description |
 |-----------|-----------|-------------|
 | `status.update` | `statusUpdate(kind, text)` | Generic status message |
+| `browser.progress` | `statusUpdate(kind: "browser", text)` | Browser automation progress (`message`, `level`) — folded into statusUpdate at decode |
+| `preview.restart.progress` | `statusUpdate(kind: "preview", text)` | Preview restart progress (`task_id`, `level`, `text`) — folded into statusUpdate at decode |
+| `preview.restart.complete` | `statusUpdate(kind: "preview", text)` | Preview restart finished — folded into statusUpdate at decode |
+| `reaction` | `reaction(kind)` | Affection detection (e.g. `hearts`) — triggers a celebration; unknown kinds are safe |
 | `error` | `error(message)` | Server error |
 | `skin.changed` | `skinChanged(skin?)` | Theme changed |
 | `voice.transcript` | `voiceTranscript(text, noSpeechLimit)` | Voice transcription |

@@ -91,6 +91,12 @@ final class CelebrationManager: ObservableObject {
         celebrate(.confetti(occasion: "\(jobName) completed"))
     }
 
+    /// Call when the gateway detects an affectionate reaction (hearts etc.).
+    /// Always celebrates — the gateway already decided the moment deserves it.
+    func onReaction(occasion: String) {
+        celebrate(.confetti(occasion: occasion))
+    }
+
     // MARK: - Private
 
     private func celebrate(_ event: CelebrationEvent) {

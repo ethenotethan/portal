@@ -875,6 +875,19 @@ struct ChatView: View {
                                 .id("streaming-status")
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
+
+                            if let status = chatViewModel.transientStatus {
+                                HStack(spacing: 6) {
+                                    HermesProgressView()
+                                        .scaleEffect(0.6)
+                                    Text(status)
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.tertiary)
+                                        .lineLimit(1)
+                                }
+                                .id("transient-status")
+                                .transition(.opacity)
+                            }
                         }
                         .padding(.leading, messageLeadingPadding)
                         .padding(.trailing, 16)

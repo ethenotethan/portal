@@ -68,6 +68,7 @@ struct ToolTrailView: View {
 struct ToolRow: View {
     let tool: ToolCallRecord
     @State private var diffExpanded = false
+    @State private var findingsExpanded = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 4) {
@@ -88,8 +89,41 @@ struct ToolRow: View {
                             .foregroundStyle(.tertiary)
                     }
 
+                    if let risk = tool.riskLevel {
+                        ToolRiskChip(tool: tool, risk: risk)
+                    }
+
                     if !tool.isComplete {
                         HermesProgressView()
+                    }
+                }
+
+                // Output-risk findings (collapsible)
+                if let findings = tool.riskFindings, !findings.isEmpty {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            findingsExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 2) {
+                            Image(systemName: findingsExpanded ? "chevron.down" : "chevron.right")
+                                .font(.caption2)
+                            Text("Findings (\(findings.count))")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+
+                    if findingsExpanded {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(findings, id: \.self) { finding in
+                                Text("• \(finding)")
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
                     }
                 }
 
@@ -133,6 +167,49 @@ struct ToolRow: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Tool Risk Chip (output-security scanner verdict)
+
+/// Small colored chip flagging a tool call's scanned output risk, with the
+/// findings summarized in a tooltip and a "redacted" marker when the
+/// gateway stripped content.
+struct ToolRiskChip: View {
+    let tool: ToolCallRecord
+    let risk: ToolRiskLevel
+
+    private var chipColor: Color {
+        switch risk {
+        case .low: .green
+        case .medium: .yellow
+        case .high: .red
+        }
+    }
+
+    private var tooltip: String {
+        let findings = tool.riskFindings ?? []
+        guard !findings.isEmpty else { return "Output risk: \(risk.rawValue)" }
+        return findings.joined(separator: "\n")
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "exclamationmark.shield.fill")
+                .font(.system(size: 8))
+            Text(risk.rawValue)
+                .font(.caption2.weight(.semibold))
+            if tool.riskRedacted == true {
+                Text("· redacted")
+                    .font(.caption2)
+            }
+        }
+        .foregroundStyle(chipColor)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(chipColor.opacity(0.15), in: Capsule())
+        .help(tooltip)
+        .accessibilityLabel("Output risk \(risk.rawValue)")
     }
 }
 
