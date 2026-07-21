@@ -421,6 +421,94 @@ final class CentaurClient: ObservableObject {
     }
 }
 
+// MARK: - Raw Event Log
+
+/// Mutable last-frame marker shared between the raw-log read loop and its
+/// idle watchdog. Both run on the main actor, so plain property access is
+/// race-free; the class exists only because Swift 6 forbids two tasks
+/// capturing one local `var`.
+@MainActor
+private final class StreamActivityMarker {
+    var lastFrameAt: Date?
+}
+
+extension CentaurClient: RawEventLogProviding {
+
+    /// One-shot replay of the thread's full SSE event log — what Centaur's
+    /// own web frontend renders. Runs on a SEPARATE connection from the live
+    /// chat stream and never calls `advanceCursor`, so the per-thread cursor
+    /// the live loop resumes from is untouched.
+    ///
+    /// Centaur's `/events` stream never closes on its own (after the replay
+    /// burst it idles, waiting to tail live output), so "the log is
+    /// complete" is detected by frame silence: a watchdog cancels the
+    /// transfer once no frame has arrived for `idleWindow` (or `maxWait`
+    /// overall) and the cancellation ends the byte loop cleanly.
+    func rawEventLog(sessionID: String, afterEventID: Int64 = 0) async throws -> [RawSessionEvent] {
+        guard let base = URL(string: sessionPath(sessionID, "/events"), relativeTo: baseURL) else {
+            throw GatewayError.invalidResponse("invalid Centaur URL for event log")
+        }
+        var req = URLRequest(url: base
+            .appending(queryItems: [URLQueryItem(name: "after_event_id", value: String(afterEventID))]))
+        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue(apiKey, forHTTPHeaderField: "x-centaur-api-key")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+
+        let (bytes, response) = try await sseSession.bytes(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw GatewayError.invalidResponse("Centaur event log fetch failed")
+        }
+
+        let idleWindow: TimeInterval = 1.5
+        let maxWait: TimeInterval = 20
+        let maxEvents = 5000
+        let marker = StreamActivityMarker()
+        let transfer = bytes.task
+        let watchdog = Task { @MainActor in
+            let started = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                let now = Date()
+                if now.timeIntervalSince(marker.lastFrameAt ?? started) > idleWindow
+                    || now.timeIntervalSince(started) > maxWait {
+                    transfer.cancel()
+                    return
+                }
+            }
+        }
+        defer { watchdog.cancel() }
+
+        var collector = RawEventLogCollector()
+        var events: [RawSessionEvent] = []
+        var lineBuffer: [UInt8] = []
+        do {
+            for try await byte in bytes {
+                guard byte == UInt8(ascii: "\n") else {
+                    lineBuffer.append(byte)
+                    continue
+                }
+                var lineBytes = lineBuffer
+                lineBuffer.removeAll(keepingCapacity: true)
+                if lineBytes.last == UInt8(ascii: "\r") { lineBytes.removeLast() }
+                guard let line = String(bytes: lineBytes, encoding: .utf8) else { continue }
+                if let event = collector.consume(line: line) {
+                    marker.lastFrameAt = Date()
+                    events.append(event)
+                    if events.count >= maxEvents { break }
+                }
+            }
+        } catch {
+            // Watchdog cancellation is the expected end of a replay read;
+            // only surface errors that left us with nothing to show.
+            if events.isEmpty, !(error is CancellationError) {
+                let urlError = error as? URLError
+                if urlError?.code != .cancelled { throw error }
+            }
+        }
+        return events
+    }
+}
+
 // MARK: - AgentBackend Conformance
 
 extension CentaurClient: AgentBackend {

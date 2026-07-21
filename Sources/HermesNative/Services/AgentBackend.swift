@@ -106,6 +106,11 @@ struct BackendCapabilities: Sendable {
     /// feed, learning. These are Hermes gateway RPCs, not chat features —
     /// harness backends never grow them.
     var supportsGatewayServices: Bool
+    /// Per-session introspection RPCs beyond plain history: session.timeline
+    /// (playback), session.usage, session.peek, prompt breakdown. Gates the
+    /// Explorer's Timeline/Usage tabs — backends without these RPCs show
+    /// their raw event log instead (see `RawEventLogProviding`).
+    var supportsSessionIntrospection: Bool
     /// Centaur workflow runtime introspection (/api/workflows/*): schedules
     /// + run history. The Centaur analogue of Hermes cron.
     var supportsWorkflows: Bool
@@ -124,6 +129,7 @@ struct BackendCapabilities: Sendable {
         supportsModelSwitching: true,
         supportsResponseStyles: true,
         supportsGatewayServices: true,
+        supportsSessionIntrospection: true,
         supportsWorkflows: false,
         harnessPersona: nil
     )
@@ -141,6 +147,7 @@ struct BackendCapabilities: Sendable {
         supportsModelSwitching: false,
         supportsResponseStyles: false,
         supportsGatewayServices: false,
+        supportsSessionIntrospection: false,
         supportsWorkflows: true,
         harnessPersona: .centaurPersona
     )

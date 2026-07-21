@@ -15,8 +15,10 @@ struct ObserverMessage: Identifiable {
 
 /// Streaming machinery for the Explorer's "Live" tab, lifted from the old
 /// SessionObserverView: loads the transcript via session.history (with a
-/// peekSession fallback for stale/foreign sessions), then keeps appending
-/// from the gateway event stream so a running session updates in place.
+/// peekSession fallback for stale/foreign Hermes sessions), then keeps
+/// appending from the backend's event stream so a running session updates
+/// in place. Backend-generic: any AgentBackend's normalized GatewayEvents
+/// render here, so a Centaur session's adapted SSE stream works unchanged.
 @MainActor
 final class SessionLiveFeedModel: ObservableObject {
     @Published var messages: [ObserverMessage] = []
@@ -24,13 +26,13 @@ final class SessionLiveFeedModel: ObservableObject {
     @Published var loadError: String?
 
     private var cancellable: AnyCancellable?
-    private weak var client: GatewayClient?
+    private weak var client: (any AgentBackend)?
     private var sessionKey = ""
     private var runtimeSessionID = ""
     /// The assistant message currently accumulating message.delta text.
     private var streamingMessageID: UUID?
 
-    func start(client: GatewayClient, sessionKey: String, runtimeSessionID: String, isOwned: Bool) async {
+    func start(client: any AgentBackend, sessionKey: String, runtimeSessionID: String, isOwned: Bool) async {
         // Re-entrant .task (tab switches) must not reload or resubscribe.
         guard self.client !== client || self.sessionKey != sessionKey else { return }
         self.client = client
@@ -42,7 +44,7 @@ final class SessionLiveFeedModel: ObservableObject {
 
     // MARK: History (lifted from SessionObserverView)
 
-    private func loadHistory(client: GatewayClient, isOwned: Bool) async {
+    private func loadHistory(client: any AgentBackend, isOwned: Bool) async {
         guard case .connected = client.connectionState else {
             loadError = "Not connected to gateway."
             isLoading = false
@@ -51,24 +53,27 @@ final class SessionLiveFeedModel: ObservableObject {
         isLoading = true
         loadError = nil
 
-        if isOwned {
-            // Try session.history (lightweight, requires live short hex).
-            // If the session ended and the gateway cleaned up the runtime,
-            // the short hex may be stale -> 4001. Fall back to peekSession.
+        if isOwned || !(client is GatewayClient) {
+            // Try session.history (lightweight; on Hermes it requires a live
+            // short hex). If the session ended and the gateway cleaned up the
+            // runtime, the short hex may be stale -> 4001. Fall back to
+            // peekSession — a Hermes-only RPC; other backends surface the
+            // error directly.
             do {
                 let response = try await client.sessionHistory(sessionID: runtimeSessionID)
                 messages = Self.parse(response)
             } catch let error as GatewayError {
-                if case .rpcError(let rpcErr) = error, rpcErr.code == 4001 {
-                    await loadViaPeek(client: client)
+                if case .rpcError(let rpcErr) = error, rpcErr.code == 4001,
+                   let gateway = client as? GatewayClient {
+                    await loadViaPeek(client: gateway)
                 } else {
                     loadError = "History unavailable: \(error.localizedDescription)"
                 }
             } catch {
                 loadError = "History unavailable: \(error.localizedDescription)"
             }
-        } else {
-            await loadViaPeek(client: client)
+        } else if let gateway = client as? GatewayClient {
+            await loadViaPeek(client: gateway)
         }
 
         isLoading = false
@@ -76,6 +81,7 @@ final class SessionLiveFeedModel: ObservableObject {
 
     /// peekSession (resume -> get data -> close) works for sessions from other
     /// transports, but is expensive — only used when session.history can't.
+    /// Hermes-only: no other backend has a peek RPC.
     private func loadViaPeek(client: GatewayClient) async {
         do {
             let result = try await client.peekSession(sessionKey: sessionKey)
@@ -105,7 +111,7 @@ final class SessionLiveFeedModel: ObservableObject {
 
     // MARK: Live Stream
 
-    private func subscribe(to client: GatewayClient) {
+    private func subscribe(to client: any AgentBackend) {
         cancellable = client.eventStream
             .collect(.byTimeOrCount(RunLoop.main, .milliseconds(48), 30))
             .sink { [weak self] batch in
@@ -171,6 +177,8 @@ struct SessionLiveFeedView: View {
     let runtimeSessionID: String
     let isOwned: Bool
     let isSessionLive: Bool
+    /// Backend serving this session; nil = the home Hermes gateway.
+    var backend: (any AgentBackend)?
     var onViewTimeline: (() -> Void)?
 
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
@@ -185,7 +193,7 @@ struct SessionLiveFeedView: View {
         }
         .task(id: sessionID) {
             await feed.start(
-                client: gatewayClientWrapper.client,
+                client: backend ?? gatewayClientWrapper.client,
                 sessionKey: sessionID,
                 runtimeSessionID: runtimeSessionID,
                 isOwned: isOwned
@@ -202,12 +210,13 @@ struct SessionLiveFeedView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("View Timeline") {
-                onViewTimeline?()
+            // Hidden when the backend has no timeline RPC (Centaur).
+            if let onViewTimeline {
+                Button("View Timeline", action: onViewTimeline)
+                    .font(.caption)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
-            .font(.caption)
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

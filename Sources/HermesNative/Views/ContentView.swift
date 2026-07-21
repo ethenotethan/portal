@@ -27,6 +27,10 @@ struct ContentView: View {
     private let macSidebarWidth: CGFloat = 352
     @State private var missionControlSessionID: String?
     @State private var missionControlRuntimeSessionID: String?
+    /// Backend serving the Explorer's session; nil = home Hermes gateway.
+    /// Resolved in openMissionControl via the session→backend registry so a
+    /// Centaur session's detail view queries Centaur, not the home gateway.
+    @State private var missionControlBackend: (any AgentBackend)?
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
     @State private var showActivitySheet = false
@@ -310,10 +314,16 @@ struct ContentView: View {
         // Mission Control sheet (for owned sessions)
         .sheet(isPresented: Binding(
             get: { missionControlSessionID != nil },
-            set: { if !$0 { missionControlSessionID = nil; missionControlRuntimeSessionID = nil } }
+            set: { if !$0 {
+                missionControlSessionID = nil
+                missionControlRuntimeSessionID = nil
+                missionControlBackend = nil
+            } }
         )) {
             if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid, runtimeSessionID: missionControlRuntimeSessionID)
+                SessionExplorerView(sessionID: sid,
+                                    runtimeSessionID: missionControlRuntimeSessionID,
+                                    backend: missionControlBackend)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(spawnTreeStore)
                     .environmentObject(sessionList)
@@ -508,6 +518,7 @@ struct ContentView: View {
             Button {
                 missionControlSessionID = nil
                 missionControlRuntimeSessionID = nil
+                missionControlBackend = nil
                 showCronDashboard = false
                 showLiveSessions = false
                 showActivitySheet = false
@@ -933,9 +944,13 @@ struct ContentView: View {
             }
 
             if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid, runtimeSessionID: missionControlRuntimeSessionID, onDismiss: {
+                SessionExplorerView(sessionID: sid,
+                                    runtimeSessionID: missionControlRuntimeSessionID,
+                                    backend: missionControlBackend,
+                                    onDismiss: {
                     missionControlSessionID = nil
                     missionControlRuntimeSessionID = nil
+                    missionControlBackend = nil
                     chatViewModel.refocusInput += 1
                 })
                     .environmentObject(gatewayClientWrapper)
@@ -1319,6 +1334,19 @@ struct ContentView: View {
         spawnTreeStore.setActive(sessionID: sessionID)
         missionControlSessionID = sessionID
         missionControlRuntimeSessionID = runtimeID
+        missionControlBackend = sessionScopedExplorerBackend(for: sessionID)
+    }
+
+    /// Resolve the backend a session lives on for the Explorer, reusing the
+    /// same registry→entry→client mapping the chat pipeline uses. nil for
+    /// Hermes sessions (SessionExplorerView then uses the home gateway).
+    private func sessionScopedExplorerBackend(for sessionID: String) -> (any AgentBackend)? {
+        guard let backendID = SessionBackendRegistry.shared.backendID(for: sessionID),
+              let entry = settings.savedGateways.first(where: { $0.id == backendID }),
+              entry.kind.isSessionScoped else {
+            return nil
+        }
+        return gatewayClientWrapper.sessionScopedBackend(for: entry)
     }
 
     // MARK: - Wiring

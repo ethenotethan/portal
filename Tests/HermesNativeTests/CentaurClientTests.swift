@@ -240,6 +240,112 @@ struct CentaurEventAdapterTests {
     }
 }
 
+// MARK: - Raw event log (Events tab)
+
+@Suite("Raw Event Log Collector")
+struct RawEventLogCollectorTests {
+
+    /// Feed a full synthetic SSE replay through the collector line-by-line —
+    /// the exact shape a `?after_event_id=0` fetch produces.
+    @Test("collects a replay of SSE frames into raw events")
+    func collectsReplay() {
+        var collector = RawEventLogCollector()
+        let lines = [
+            "id: 1",
+            "event: session.execution_started",
+            "data: {\"execution_id\": \"ex_1\"}",
+            "",
+            ": keepalive",
+            "id: 2",
+            "event: session.output.line",
+            #"data: {"method":"item/agentMessage/delta","params":{"delta":"Hi"}}"#,
+            "",
+            "id: 3",
+            "event: session.execution_completed",
+            "data: {}",
+            "",
+        ]
+        var events: [RawSessionEvent] = []
+        for line in lines {
+            if let event = collector.consume(line: line) { events.append(event) }
+        }
+        #expect(events.count == 3)
+        #expect(events.map(\.id) == [1, 2, 3])
+        #expect(events[0].name == "session.execution_started")
+        #expect(events[1].name == "session.output.line")
+        #expect(events[1].harnessMethod == "item/agentMessage/delta")
+        #expect(events[2].name == "session.execution_completed")
+    }
+
+    @Test("frames without numeric ids get synthesized monotonic ids")
+    func synthesizesIDs() {
+        var collector = RawEventLogCollector()
+        var events: [RawSessionEvent] = []
+        for line in ["data: one", "", "data: two", "", "id: 40", "data: three", "", "data: four", ""] {
+            if let event = collector.consume(line: line) { events.append(event) }
+        }
+        // Synthetic ids stay monotonic and resume after an explicit id.
+        #expect(events.map(\.id) == [0, 1, 40, 41])
+    }
+
+    @Test("keepalive comments and blank lines emit nothing")
+    func ignoresKeepalives() {
+        var collector = RawEventLogCollector()
+        #expect(collector.consume(line: ": ping") == nil)
+        #expect(collector.consume(line: "") == nil)
+        #expect(collector.consume(line: "") == nil)
+    }
+}
+
+@Suite("Raw Session Event")
+struct RawSessionEventTests {
+
+    @Test("NDJSON output lines surface the harness method")
+    func extractsHarnessMethod() {
+        let event = RawSessionEvent(
+            id: 7, name: "session.output.line",
+            payload: #"{"method":"item/started","params":{"item":{"id":"t1","type":"toolCall"}}}"#
+        )
+        #expect(event.harnessMethod == "item/started")
+    }
+
+    @Test("non-JSON payloads pass through with no method and verbatim pretty print")
+    func plainTextPassthrough() {
+        let event = RawSessionEvent(id: 1, name: "session.output.line", payload: "plain harness stdout")
+        #expect(event.harnessMethod == nil)
+        #expect(event.prettyPayload == "plain harness stdout")
+        #expect(event.timestamp == nil)
+    }
+
+    @Test("pretty print formats JSON payloads")
+    func prettyPrintsJSON() {
+        let event = RawSessionEvent(id: 2, name: "session.execution_failed", payload: #"{"error":"sandbox OOM"}"#)
+        #expect(event.prettyPayload.contains("\n"))
+        #expect(event.prettyPayload.contains("\"error\" : \"sandbox OOM\""))
+    }
+
+    @Test("timestamps parse from RFC3339 and epoch payload keys")
+    func parsesTimestamps() {
+        let iso = RawSessionEvent(
+            id: 3, name: "session.execution_started",
+            payload: #"{"created_at":"2026-07-19T09:00:00Z"}"#
+        )
+        #expect(iso.timestamp != nil)
+
+        let fractional = RawSessionEvent(
+            id: 4, name: "session.execution_started",
+            payload: #"{"timestamp":"2026-07-19T09:00:00.123456Z"}"#
+        )
+        #expect(fractional.timestamp != nil)
+
+        let epoch = RawSessionEvent(
+            id: 5, name: "session.execution_started",
+            payload: #"{"ts": 1784000000.5}"#
+        )
+        #expect(epoch.timestamp == Date(timeIntervalSince1970: 1_784_000_000.5))
+    }
+}
+
 // MARK: - Workflow model decoding
 
 @Suite("Centaur Workflow Models")

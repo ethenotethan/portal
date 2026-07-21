@@ -4,9 +4,17 @@ import SwiftUI
 /// surface. A running session leads with a Live tab (streaming transcript,
 /// lifted from the old SessionObserverView); an ended session leads with the
 /// Timeline tab (playback, the old standalone SessionPlaybackView sheet).
+///
+/// Backend-generic: sessions living on a session-scoped backend (Centaur)
+/// pass their backend in, and the tab set adapts to its capabilities —
+/// introspection tabs (Timeline/Chat/History/Usage) need Hermes gateway
+/// RPCs; backends exposing a raw wire log (`RawEventLogProviding`) get an
+/// Events tab instead, matching what Centaur's own frontend renders.
 struct SessionExplorerView: View {
     let sessionID: String
     var runtimeSessionID: String?
+    /// Backend serving this session; nil = the home Hermes gateway.
+    var backend: (any AgentBackend)?
     var onDismiss: (() -> Void)?
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
@@ -34,6 +42,7 @@ struct SessionExplorerView: View {
 
     enum ExplorerTab: String, CaseIterable {
         case live = "Live"
+        case events = "Events"
         case timeline = "Timeline"
         case tree = "Agents"
         case graph = "Graph"
@@ -43,8 +52,40 @@ struct SessionExplorerView: View {
         case usage = "Usage"
     }
 
+    /// The client actually serving this session's data calls.
+    private var activeBackend: any AgentBackend {
+        backend ?? gatewayClientWrapper.client
+    }
+
+    /// Hermes-only RPC surface (peek/usage/timeline/spawn-tree), nil for
+    /// session-scoped backends — the tabs behind it are hidden then.
+    private var gatewayBackend: GatewayClient? {
+        activeBackend as? GatewayClient
+    }
+
+    /// Raw wire-log surface (Centaur SSE); nil hides the Events tab.
+    private var rawEventProvider: (any RawEventLogProviding)? {
+        activeBackend as? RawEventLogProviding
+    }
+
+    /// Tab availability follows the backend: capability-gated introspection
+    /// (Hermes RPCs) vs. the raw Events log (protocol conformance).
     private var availableTabs: [ExplorerTab] {
-        showLiveTab ? ExplorerTab.allCases : ExplorerTab.allCases.filter { $0 != .live }
+        let capabilities = activeBackend.capabilities
+        return ExplorerTab.allCases.filter { tab in
+            switch tab {
+            case .live:
+                return showLiveTab
+            case .events:
+                return rawEventProvider != nil
+            case .timeline, .chat, .usage:
+                return capabilities.supportsSessionIntrospection
+            case .tree, .graph, .toolCalls:
+                return capabilities.supportsSubagentEvents
+            case .history:
+                return true
+            }
+        }
     }
 
     private var session: Session? {
@@ -77,6 +118,8 @@ struct SessionExplorerView: View {
                     switch selectedTab {
                     case .live:
                         liveContent
+                    case .events:
+                        eventsContent
                     case .timeline:
                         timelineContent
                     case .tree:
@@ -103,12 +146,15 @@ struct SessionExplorerView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 12) {
-                        Button {
-                            showPromptBreakdown = true
-                        } label: {
-                            Image(systemName: "text.alignleft")
+                        // Prompt breakdown is a Hermes gateway RPC.
+                        if activeBackend.capabilities.supportsSessionIntrospection {
+                            Button {
+                                showPromptBreakdown = true
+                            } label: {
+                                Image(systemName: "text.alignleft")
+                            }
+                            .help("Prompt Breakdown")
                         }
-                        .help("Prompt Breakdown")
                         if selectedTab == .tree, let tree {
                             interruptButton(tree: tree)
                         }
@@ -129,15 +175,18 @@ struct SessionExplorerView: View {
         }
     }
 
-    /// Running session → Live tab first and default; ended session → Timeline.
+    /// Running session → Live tab first and default; ended session →
+    /// Timeline (Hermes) or the raw Events log (backends without playback).
     private func configureInitialTab() {
         guard !didConfigureTabs else { return }
         didConfigureTabs = true
         if session?.isLive == true {
             showLiveTab = true
             selectedTab = .live
-        } else {
+        } else if availableTabs.contains(.timeline) {
             selectedTab = .timeline
+        } else {
+            selectedTab = availableTabs.first ?? .history
         }
     }
 
@@ -149,8 +198,20 @@ struct SessionExplorerView: View {
             runtimeSessionID: rpcSessionID,
             isOwned: session?.isOwned == true,
             isSessionLive: session?.isLive == true,
-            onViewTimeline: { selectedTab = .timeline }
+            backend: backend,
+            onViewTimeline: availableTabs.contains(.timeline) ? { selectedTab = .timeline } : nil
         )
+    }
+
+    // MARK: - Events Tab (raw wire log)
+
+    @ViewBuilder
+    private var eventsContent: some View {
+        if let rawEventProvider {
+            SessionEventLogView(sessionID: sessionID, provider: rawEventProvider)
+        } else {
+            emptyTreeState
+        }
     }
 
     // MARK: - Timeline Tab (playback)
@@ -219,7 +280,7 @@ struct SessionExplorerView: View {
     }
 
     private func loadChat() async {
-        guard case .connected = gatewayClientWrapper.client.connectionState else {
+        guard case .connected = activeBackend.connectionState else {
             chatError = "Not connected to gateway"
             return
         }
@@ -227,27 +288,30 @@ struct SessionExplorerView: View {
         chatError = nil
         do {
             let raw: [[String: AnyCodable]]
-            if session?.isOwned == true {
-                // Try session.history (lightweight, requires live short hex).
-                // If the session has ended and the gateway cleaned up the
-                // runtime, the short hex may be stale → 4001. Fall back to
-                // peekSession which resumes from the persistent database key.
+            if session?.isOwned == true || gatewayBackend == nil {
+                // Try session.history (lightweight; on Hermes it requires a
+                // live short hex). If the session has ended and the gateway
+                // cleaned up the runtime, the short hex may be stale → 4001.
+                // Fall back to peekSession (Hermes-only), which resumes from
+                // the persistent database key.
                 do {
-                    raw = try await gatewayClientWrapper.client.sessionHistory(sessionID: rpcSessionID)
+                    raw = try await activeBackend.sessionHistory(sessionID: rpcSessionID)
                 } catch let error as GatewayError {
-                    if case .rpcError(let rpcErr) = error, rpcErr.code == 4001 {
-                        let peek = try await gatewayClientWrapper.client.peekSession(sessionKey: sessionID)
+                    if case .rpcError(let rpcErr) = error, rpcErr.code == 4001, let gatewayBackend {
+                        let peek = try await gatewayBackend.peekSession(sessionKey: sessionID)
                         raw = peek.messages
                     } else {
                         throw error
                     }
                 }
-            } else {
-                // Non-owned sessions only have the database key, so use
-                // peekSession which resumes, fetches messages, and closes
+            } else if let gatewayBackend {
+                // Non-owned Hermes sessions only have the database key, so
+                // use peekSession which resumes, fetches messages, and closes
                 // the session immediately.
-                let peek = try await gatewayClientWrapper.client.peekSession(sessionKey: sessionID)
+                let peek = try await gatewayBackend.peekSession(sessionKey: sessionID)
                 raw = peek.messages
+            } else {
+                raw = []
             }
             chatMessages = ChatViewModel.parseHistoryMessages(raw)
         } catch {
@@ -535,8 +599,8 @@ struct SessionExplorerView: View {
     private func interruptButton(tree: SessionTree) -> some View {
         Button {
             Task {
-                guard case .connected = gatewayClientWrapper.client.connectionState else { return }
-                try? await gatewayClientWrapper.client.interrupt(sessionID: rpcSessionID)
+                guard case .connected = activeBackend.connectionState else { return }
+                try? await activeBackend.interrupt(sessionID: rpcSessionID)
             }
         } label: {
             Label("Interrupt", systemImage: "stop.fill")
@@ -714,17 +778,22 @@ struct SessionExplorerView: View {
     }
 
     private func loadUsage() async {
-        guard case .connected = gatewayClientWrapper.client.connectionState else {
+        // session.usage is a Hermes RPC; the tab is hidden for other backends.
+        guard let gatewayBackend else {
+            usageError = "Usage is not available on this backend"
+            return
+        }
+        guard case .connected = gatewayBackend.connectionState else {
             usageError = "Not connected to gateway"
             return
         }
         isLoadingUsage = true
         usageError = nil
         do {
-            usage = try await gatewayClientWrapper.client.sessionUsage(sessionID: rpcSessionID)
+            usage = try await gatewayBackend.sessionUsage(sessionID: rpcSessionID)
         } catch {
             if rpcSessionID != sessionID,
-               let fallbackUsage = try? await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID) {
+               let fallbackUsage = try? await gatewayBackend.sessionUsage(sessionID: sessionID) {
                 usage = fallbackUsage
                 usageError = nil
             } else {
