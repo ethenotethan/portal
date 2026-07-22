@@ -24,8 +24,6 @@ opt_in_rules:
 
 disabled_rules:
   - trailing_comma
-  - type_body_length
-  - file_length
   - function_body_length
   - function_parameter_count
   - large_tuple
@@ -54,6 +52,30 @@ line_length:
   ignores_comments: true
   ignores_urls: true
 
+# Re-enabled 2026-07: growth guards. CI runs --strict, which promotes warnings
+# to errors, so existing files over the warning threshold carry a file-level
+# `swiftlint:disable file_length` / `type_body_length` pragma with a
+# justification comment ("legacy giant"). New files must stay under these.
+file_length:
+  warning: 800
+  error: 1200
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 600
+  error: 900
+
+# Legacy-giant files carry file-level `swiftlint:disable type_body_length`
+# pragmas (the grandfathering mechanism); allow that alongside the default
+# file_length allowance.
+blanket_disable_command:
+  allowed_rules:
+    - file_length
+    - file_name
+    - file_name_no_space
+    - single_test_class
+    - type_body_length
+
 type_name:
   min_length: 2
 
@@ -64,8 +86,93 @@ trailing_whitespace:
   ignores_empty_lines: true
   ignores_comments: true
 
+# Semantic rules — the layer conventions this codebase runs on.
+# See docs/architecture-rules.md for the why behind each rule and how to
+# request an exception. NOTE: CI runs `swiftlint lint --strict`, which
+# promotes warnings to errors — every rule below is effectively blocking,
+# so current violations are excluded per-file rather than left as warnings.
 custom_rules:
   no_nslog:
     regex: "\\bNSLog\\("
     message: "Use Logger from os.log instead of NSLog"
+    severity: warning
+
+  no_direct_client_in_views:
+    included: ".*/Views/.*\\.swift"
+    excluded:
+      # Existing offenders, grandfathered — do not add to this list; new views
+      # must go through a ViewModel or accept an AgentBackend.
+      - ".*/Views/ArtifactsPane\\.swift"
+      - ".*/Views/Playback/SessionPlaybackView\\.swift"
+      - ".*/Views/Prompt/PromptBreakdownView\\.swift"
+      - ".*/Views/SessionExportMenu\\.swift"
+      - ".*/Views/Wiki/WikiChangesetDiffView\\.swift"
+    regex: "gatewayClientWrapper\\.client\\."
+    message: >-
+      Views must not call the raw GatewayClient; go through a ViewModel or accept
+      an AgentBackend (see PR #190 — hardwired views broke Centaur sessions).
+    severity: warning
+
+  no_swiftui_in_services:
+    included: ".*/Services/.*\\.swift"
+    excluded:
+      # Legit presentation service: renders SwiftUI views to PDF via ImageRenderer.
+      - ".*/Services/SessionPDFExporter\\.swift"
+      # TODO: these import SwiftUI only for ObservableObject/@Published —
+      # switch them to `import Combine` (or Observation) and drop the exclusion.
+      - ".*/Services/GatewayClientWrapper\\.swift"
+      - ".*/Services/SkillCache\\.swift"
+      - ".*/Services/SkillStore\\.swift"
+      - ".*/Services/TTSService\\.swift"
+    regex: "^import SwiftUI$"
+    message: >-
+      Services are the platform-agnostic layer — no SwiftUI. Use Foundation/Combine;
+      presentation concerns belong in Views or ViewModels.
+    severity: warning
+
+  no_new_singletons:
+    excluded:
+      # Existing singleton census (2026-07) — grandfathered, do not extend.
+      # Singletons create invisible coupling: callers can't be given a test
+      # double and the dependency never shows up in an initializer signature.
+      - ".*/Models/ActivityStore\\.swift"
+      - ".*/Models/CronRunHistory\\.swift"
+      - ".*/Models/SessionRunEvent\\.swift"
+      - ".*/Services/ArtifactStore\\.swift"
+      - ".*/Services/ChatHistoryStore\\.swift"
+      - ".*/Services/KeychainStore\\.swift"
+      - ".*/Services/NotificationService\\.swift"
+      - ".*/Services/PushRegistrationService\\.swift"
+      - ".*/Services/QuizStore\\.swift"
+      - ".*/Services/SessionBackendRegistry\\.swift"
+      - ".*/Services/SkillCache\\.swift"
+      - ".*/Services/SkillStore\\.swift"
+      - ".*/Services/SkillSummaryService\\.swift"
+      - ".*/Services/SRSStore\\.swift"
+      - ".*/Services/TTSService\\.swift"
+      - ".*/Services/VideoCache\\.swift"
+      - ".*/Utilities/PerfInstrumentation\\.swift"
+      - ".*/ViewModels/CelebrationManager\\.swift"
+      - ".*/Views/ChatView\\.swift"
+      - ".*/Views/FeedView\\.swift"
+      - ".*/Views/LongResponseView\\.swift"
+      - ".*/Views/MarkdownContentView\\.swift"
+      - ".*/Views/MermaidDiagramView\\.swift"
+      - ".*/Views/PerfOverlayView\\.swift"
+    regex: "static let shared\\b"
+    message: >-
+      No new singletons — `.shared` is invisible coupling that can't be swapped in
+      tests. Inject the dependency through an initializer or the environment instead.
+    severity: warning
+
+  no_raw_error_assignment:
+    included: ".*/ViewModels/.*\\.swift"
+    excluded:
+      # Existing raw-string error assignments (10 in ChatViewModel) — route new
+      # ones through an error-mapping helper instead of extending these.
+      - ".*/ViewModels/ChatViewModel\\.swift"
+    regex: "\\bself\\.error = \""
+    message: >-
+      Route user-facing errors through an error-mapping helper; raw strings become
+      red banners (advisory warnings must not look like failures — see #191/#192).
     severity: warning

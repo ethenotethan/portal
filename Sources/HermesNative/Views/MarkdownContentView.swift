@@ -1,3 +1,5 @@
+// swiftlint:disable file_length
+// Legacy giant — split tracked as debt; do not add to this file.
 import SwiftUI
 import WebKit
 import Highlightr

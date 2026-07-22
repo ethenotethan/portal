@@ -156,8 +156,10 @@ Services/
   └── KeychainStore            # API key, gateway URL, saved gateways
 ```
 
-See [`DESIGN.md`](DESIGN.md) for the connection/auth design and rationale, and
-[`docs/rpc-reference.md`](docs/rpc-reference.md) for the complete RPC + event catalog.
+See [`DESIGN.md`](DESIGN.md) for the connection/auth design and rationale,
+[`docs/rpc-reference.md`](docs/rpc-reference.md) for the complete RPC + event catalog, and
+[`docs/architecture-rules.md`](docs/architecture-rules.md) for the layer rules CI enforces
+(SwiftLint custom rules + architecture tests) and how to request an exception.
 
 ### Key Models
 

@@ -216,7 +216,8 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `voice.transcript` | `voiceTranscript(text, noSpeechLimit)` | Voice transcription |
 | `voice.status` | `voiceStatus(state)` | Voice state change |
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
-| `activity.updated` / `.read` / `.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified |
+| `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
+| `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors
