@@ -368,17 +368,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         recordDebugEvent(.state, name: "connect", detail: "opening")
 
         Task {
-            // Always probe HTTP first so we fail fast with a useful status.
+            // Probe HTTP first for a useful status in the logs, but NEVER
+            // let the probe veto the connection — a wrong-looking answer
+            // here (proxy quirk, HEAD 405, unrelated server on the default
+            // port) used to hard-fail with "HTTP status 404" while the
+            // WebSocket itself would have connected fine.
             let httpStatus = await probeHTTPHealth()
-            if httpStatus == 404 {
-                onLog?("⚠ HTTP health returned 404 — gateway may not have a WebSocket route at \(gatewayURL.path)", true)
-                connectionState = .error(
-                    "Gateway returned 404. The server does not have a WebSocket endpoint at \(gatewayURL.path). " +
-                    "Check your gateway URL or server configuration."
-                )
-                return
-            }
-            // If HTTP is also failing (non-200, non-404), surface it but still try WS
             if httpStatus != 200 {
                 onLog?("⚠ HTTP health returned \(httpStatus) — trying WS anyway", true)
             }
@@ -415,18 +410,30 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         handleDisconnect(reason: reason)
     }
 
-    /// Quick HTTP HEAD to the gateway host to confirm reachability.
+    /// /health on the gateway's own scheme+host+PORT. Dropping the port sent
+    /// the probe to whatever squats on :80/:443 (an unrelated local nginx
+    /// answered 404 and connect() gave up before ever dialing the socket).
+    nonisolated static func healthProbeURL(for gatewayURL: URL) -> URL? {
+        guard var components = URLComponents(url: gatewayURL, resolvingAgainstBaseURL: false) else { return nil }
+        switch components.scheme {
+        case "ws": components.scheme = "http"
+        case "wss": components.scheme = "https"
+        default: break
+        }
+        components.path = "/health"
+        components.query = nil
+        return components.url
+    }
+
+    /// Quick HTTP HEAD to the gateway to confirm reachability.
     /// Returns the HTTP status code, or -1 if the request itself failed.
     private func probeHTTPHealth() async -> Int {
-        guard let host = gatewayURL.host,
-              let scheme = gatewayURL.scheme else { return -1 }
-        let healthURL = URL(string: "\(scheme)://\(host)/health")
-            ?? URL(string: "\(scheme)://\(host)")
-        guard let url = healthURL else { return -1 }
+        guard let url = Self.healthProbeURL(for: gatewayURL) else { return -1 }
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
-        request.httpMethod = "HEAD"
+        // GET, not HEAD — the gateway's /health rejects HEAD with 405.
+        request.httpMethod = "GET"
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
@@ -448,9 +455,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// Verify the CF_Authorization cookie is still valid via a quick HTTP check.
     private func verifyCFCookieThenConnect() async {
-        guard let host = gatewayURL.host,
-              let scheme = gatewayURL.scheme,
-              let healthURL = URL(string: "\(scheme)://\(host)/health") else {
+        guard let healthURL = Self.healthProbeURL(for: gatewayURL) else {
             openWebSocket()
             return
         }

@@ -76,3 +76,26 @@ struct GatewayReconnectBudgetTests {
         #expect(wrapper.client.snapshotForDebug.reconnectAttempt == 0)
     }
 }
+
+@Suite("Health probe URL")
+struct HealthProbeURLTests {
+
+    @Test("Probe keeps the gateway's port — dropping it dialed strangers on :80")
+    func keepsPort() {
+        let url = GatewayClient.healthProbeURL(for: URL(string: "ws://127.0.0.1:8642/v1/ws")!)
+        #expect(url?.absoluteString == "http://127.0.0.1:8642/health")
+    }
+
+    @Test("ws→http and wss→https scheme mapping")
+    func schemes() {
+        #expect(GatewayClient.healthProbeURL(for: URL(string: "wss://gw.example.com/v1/ws")!)?.absoluteString
+                == "https://gw.example.com/health")
+        #expect(GatewayClient.healthProbeURL(for: URL(string: "ws://192.168.1.7:9000/v1/ws")!)?.scheme == "http")
+    }
+
+    @Test("Query stripped, path replaced")
+    func pathAndQuery() {
+        let url = GatewayClient.healthProbeURL(for: URL(string: "wss://gw.example.com:4443/v1/ws?token=x")!)
+        #expect(url?.absoluteString == "https://gw.example.com:4443/health")
+    }
+}
