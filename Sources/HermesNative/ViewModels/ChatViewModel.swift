@@ -100,7 +100,17 @@ final class ChatViewModel: ObservableObject {
       {"id": "clients", "key": "name", "columns": ["name", "tier", "arr"],
        "rows": [{"name": "Acme", "tier": "enterprise", "arr": 120000}]}
       ```
-    - **Living artifacts**: add an "id" field to any map/chart/graph/stats/dataset block to make it a
+    - **Timelines / Gantt** in ```timeline blocks for scheduled or dated work — project plans, incident
+      chronologies, release schedules (native swimlane chart with duration bars, diamond milestones, a
+      today line, and date scrubbing — prefer over mermaid gantt/timeline):
+      ```timeline
+      {"title": "Q3 Launch", "items": [
+        {"label": "Design", "start": "2026-07-01", "end": "2026-07-14", "lane": "Product", "group": "done"},
+        {"label": "Build", "start": "2026-07-10", "end": "2026-08-15", "lane": "Eng"},
+        {"label": "GA", "at": "2026-08-20", "lane": "Launch", "note": "public release"}]}
+      ```
+      Items with start+end are bars; items with "at" are milestones. "lane" groups rows, "group" colors them.
+    - **Living artifacts**: add an "id" field to any map/chart/graph/stats/dataset/timeline block to make it a
       PERSISTENT model the user keeps across sessions. When the user adds or changes items, re-emit the
       block with the SAME id — maps merge markers by label and datasets merge rows by key (emit only
       new/changed entries or the full set; both work), other kinds replace wholesale so emit the

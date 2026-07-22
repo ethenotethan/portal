@@ -46,6 +46,7 @@ enum SessionPDFExporter {
             for block in MarkdownParser.parse(message.contentWithoutAttachments) {
                 guard case .codeBlock(let language, let code) = block,
                       MarkdownParser.isDiagramLanguage(language),
+                      !MarkdownParser.isTimelineBlock(language: language, code: code),
                       images[code] == nil
                 else { continue }
                 if let image = await MermaidExportRenderer.renderImage(source: code) {
@@ -255,6 +256,10 @@ private struct ExportBlockView: View {
                 // which ImageRenderer rasterizes as an empty box; export always
                 // draws the full domain with all series visible.
                 NativeChartView(json: code, isStreaming: false, interactive: false)
+            } else if MarkdownParser.isTimelineBlock(language: language, code: code) {
+                // Swift Charts BarMarks + native text, no representables —
+                // safe to reuse live.
+                TimelineBlockView(json: code, isStreaming: false)
             } else if MarkdownParser.isDiagramLanguage(language) {
                 if let image = diagramImages[code] {
                     ExportImageRow(image: image, caption: MermaidDiagramView.diagramTypeLabel(for: code))

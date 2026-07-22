@@ -186,3 +186,68 @@ struct WaterfallTests {
         #expect(segments[1].end == 6)
     }
 }
+
+@Suite("Timeline")
+struct TimelineTests {
+
+    @Test("Spec parses bars, milestones, lanes; drops unparseable items")
+    func parsing() {
+        let spec = TimelineSpec.parse("""
+        {"title": "Q3", "items": [
+          {"label": "Design", "start": "2026-07-01", "end": "2026-07-14", "lane": "Product", "group": "done"},
+          {"label": "Build", "start": "2026-07-10", "end": "2026-08-15", "lane": "Eng"},
+          {"label": "GA", "at": "2026-08-20", "lane": "Launch"},
+          {"label": "Backwards", "start": "2026-08-01", "end": "2026-07-01"},
+          {"label": "", "start": "2026-07-01", "end": "2026-07-02"},
+          {"label": "No dates"}
+        ]}
+        """)!
+        #expect(spec.items.count == 3)
+        #expect(spec.items[2].isMilestone)
+        #expect(spec.items[2].start == spec.items[2].end)
+        #expect(spec.lanes == ["Product", "Eng", "Launch"])
+        #expect(spec.groups == ["done"])
+        #expect(TimelineSpec.parse("{\"items\": []}") == nil)
+    }
+
+    @Test("Date range spans min start to max end")
+    func range() {
+        let spec = TimelineSpec.parse("""
+        {"items": [
+          {"label": "A", "start": "2026-07-10", "end": "2026-07-20"},
+          {"label": "B", "start": "2026-07-01", "end": "2026-07-05"}
+        ]}
+        """)!
+        let range = spec.dateRange!
+        #expect(range.lowerBound == TimelineSpec.parseDate("2026-07-01"))
+        #expect(range.upperBound == TimelineSpec.parseDate("2026-07-20"))
+    }
+
+    @Test("Single milestone pads the axis instead of collapsing")
+    func singleInstant() {
+        let spec = TimelineSpec.parse("""
+        {"items": [{"label": "GA", "at": "2026-08-20"}]}
+        """)!
+        let range = spec.dateRange!
+        #expect(range.upperBound > range.lowerBound)
+    }
+
+    @Test("Dates parse as yyyy-MM-dd and full ISO-8601")
+    func dates() {
+        #expect(TimelineSpec.parseDate("2026-07-01") != nil)
+        #expect(TimelineSpec.parseDate("2026-07-01T14:30:00Z") != nil)
+        #expect(TimelineSpec.parseDate("2026-07-01T14:30:00.250Z") != nil)
+        #expect(TimelineSpec.parseDate("July 1") == nil)
+        #expect(TimelineSpec.parseDate("2026-13-99") == nil)
+    }
+
+    @Test("Fence routing: JSON timeline/gantt is ours, mermaid text falls through")
+    func fenceRouting() {
+        #expect(MarkdownParser.isTimelineBlock(language: "timeline", code: "{\"items\": []}"))
+        #expect(MarkdownParser.isTimelineBlock(language: " Gantt ", code: "  {\"items\": []}"))
+        // Mermaid timeline/gantt syntax is line-oriented — falls through.
+        #expect(!MarkdownParser.isTimelineBlock(language: "timeline", code: "title History of Social Media"))
+        #expect(!MarkdownParser.isTimelineBlock(language: "gantt", code: "dateFormat YYYY-MM-DD"))
+        #expect(!MarkdownParser.isTimelineBlock(language: "chart", code: "{\"items\": []}"))
+    }
+}

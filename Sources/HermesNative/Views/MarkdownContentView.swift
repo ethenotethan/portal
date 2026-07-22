@@ -27,6 +27,9 @@ struct MarkdownContentView: View, Equatable {
                     if MarkdownParser.isChartLanguage(language) {
                         NativeChartView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "chart", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isTimelineBlock(language: language, code: code) {
+                        TimelineBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "timeline", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isDiagramLanguage(language) {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
@@ -388,6 +391,17 @@ struct MarkdownParser {
 
     static func isDatasetLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "dataset"
+    }
+
+    /// ```timeline and ```gantt collide with mermaid diagram languages, so
+    /// the fence is disambiguated by content: our spec is a JSON object
+    /// ({"items": …}), mermaid's is line-oriented text. Checked BEFORE
+    /// isDiagramLanguage in dispatch — JSON goes native, text falls through
+    /// to mermaid.
+    static func isTimelineBlock(language: String, code: String) -> Bool {
+        let normalized = language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalized == "timeline" || normalized == "gantt" else { return false }
+        return code.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
     }
 
     /// ```graph is the node-link fence. Bare "graph" without mermaid syntax
