@@ -74,7 +74,7 @@ final class ArtifactStore: ObservableObject {
     func remove(id: String) {
         guard artifacts.removeValue(forKey: id) != nil else { return }
         persistToDisk()
-        guard syncAvailable != false else { return }
+        guard !Self.isTestProcess, syncAvailable != false else { return }
         Task { [weak self] in try? await self?.client?.artifactDelete(id: id) }
     }
 
@@ -174,7 +174,16 @@ final class ArtifactStore: ObservableObject {
         }
     }
 
+    /// True when running inside a test process. Tests exercise the shared
+    /// store (singleton), and without this guard a test upsert schedules a
+    /// REAL gateway push when a client happens to be wired — unit tests
+    /// leaked test-artifact-* entries into the production store.
+    private static let isTestProcess = NSClassFromString("XCTestCase") != nil
+        || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        || ProcessInfo.processInfo.environment["SWIFT_TESTING_ENABLED"] == "1"
+
     private func schedulePush(id: String) {
+        guard !Self.isTestProcess else { return }
         guard syncAvailable != false else { return }
         pushTask?.cancel()
         pushTask = Task { [weak self] in
