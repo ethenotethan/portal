@@ -107,9 +107,9 @@ struct FlashcardDeckView: View {
                 return .ignored
             }
         }
-        .frame(minWidth: 560, minHeight: 480)
         .background(Theme.background)
         #if os(macOS)
+        .frame(minWidth: 560, minHeight: 480)
         .frame(
             width: min((NSScreen.main?.visibleFrame.width ?? 800) * 0.7, 700),
             height: min((NSScreen.main?.visibleFrame.height ?? 700) * 0.8, 650)

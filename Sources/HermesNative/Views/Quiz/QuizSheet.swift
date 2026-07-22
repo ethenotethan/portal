@@ -39,9 +39,9 @@ struct QuizSheet: View {
                 Spacer(minLength: 0)
             }
         }
-        .frame(minWidth: 520, minHeight: 460)
         .background(Theme.background)
         #if os(macOS)
+        .frame(minWidth: 520, minHeight: 460)
         .frame(
             width: min((NSScreen.main?.visibleFrame.width ?? 800) * 0.65, 640),
             height: min((NSScreen.main?.visibleFrame.height ?? 700) * 0.7, 560)
