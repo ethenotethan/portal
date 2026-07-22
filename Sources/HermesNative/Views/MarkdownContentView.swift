@@ -32,6 +32,9 @@ struct MarkdownContentView: View, Equatable {
                     } else if MarkdownParser.isTimelineBlock(language: language, code: code) {
                         TimelineBlockView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "timeline", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isSankeyBlock(language: language, code: code) {
+                        SankeyBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "sankey", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isDiagramLanguage(language) {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
@@ -403,6 +406,16 @@ struct MarkdownParser {
     static func isTimelineBlock(language: String, code: String) -> Bool {
         let normalized = language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard normalized == "timeline" || normalized == "gantt" else { return false }
+        return code.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
+    }
+
+    /// ```sankey collides with mermaid's sankey diagram language, so the
+    /// fence is disambiguated by content: our spec is a JSON object
+    /// ({"links": …}), mermaid's is CSV lines (source,target,value). Checked
+    /// BEFORE isDiagramLanguage in dispatch — JSON goes native, CSV falls
+    /// through to mermaid.
+    static func isSankeyBlock(language: String, code: String) -> Bool {
+        guard language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "sankey" else { return false }
         return code.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
     }
 

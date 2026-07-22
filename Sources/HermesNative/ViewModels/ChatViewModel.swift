@@ -118,6 +118,12 @@ final class ChatViewModel: ObservableObject {
       new/changed entries or the full set; both work), other kinds replace wholesale so emit the
       complete block. Example: a ```map block with "id": "bkk-apartments" updated as the user
       evaluates listings.
+    - **Sankey diagrams** in ```sankey blocks for branching flows — budget allocation, token/traffic routing,
+      funnels (nodes are implicit from link endpoints; ribbon thickness ∝ value):
+      ```sankey
+      {"title": "Q2 Budget", "links": [{"from": "Revenue", "to": "Engineering", "value": 400},
+        {"from": "Revenue", "to": "Marketing", "value": 150}, {"from": "Engineering", "to": "Salaries", "value": 320}]}
+      ```
     - **Network graphs** in ```graph blocks for node-link structures — dependency graphs, service topologies,
       entity networks (interactive force-directed diagram; prefer over mermaid flowchart when the story is
       the CONNECTIVITY, not a sequence):

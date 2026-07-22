@@ -251,3 +251,74 @@ struct TimelineTests {
         #expect(!MarkdownParser.isTimelineBlock(language: "chart", code: "{\"items\": []}"))
     }
 }
+
+@Suite("Sankey")
+struct SankeyTests {
+
+    @Test("Spec parses links; drops self-loops, zero/negative values")
+    func parsing() {
+        let spec = SankeySpec.parse("""
+        {"title": "Budget", "links": [
+          {"from": "Revenue", "to": "Eng", "value": 400},
+          {"from": "Revenue", "to": "Revenue", "value": 50},
+          {"from": "Eng", "to": "Salaries", "value": 0},
+          {"from": "Eng", "to": "Cloud", "value": -3},
+          {"from": "Eng", "to": "Salaries", "value": 320}
+        ]}
+        """)!
+        #expect(spec.links.count == 2)
+        #expect(spec.nodeOrder == ["Revenue", "Eng", "Salaries"])
+        #expect(SankeySpec.parse("{\"links\": []}") == nil)
+    }
+
+    @Test("Layout assigns topological columns and proportional spans")
+    func layout() {
+        let spec = SankeySpec.parse("""
+        {"links": [
+          {"from": "A", "to": "B", "value": 60},
+          {"from": "A", "to": "C", "value": 40},
+          {"from": "B", "to": "D", "value": 60},
+          {"from": "C", "to": "D", "value": 40}
+        ]}
+        """)!
+        let result = SankeyLayout.layout(spec)
+        #expect(result.columnCount == 3)
+        let byName = Dictionary(uniqueKeysWithValues: result.nodes.map { ($0.name, $0) })
+        #expect(byName["A"]!.column == 0)
+        #expect(byName["B"]!.column == 1 && byName["C"]!.column == 1)
+        #expect(byName["D"]!.column == 2)
+        // A and D both carry the full 100; equal spans at global scale.
+        let spanA = byName["A"]!.y1 - byName["A"]!.y0
+        let spanD = byName["D"]!.y1 - byName["D"]!.y0
+        #expect(abs(spanA - spanD) < 0.001)
+        // B (60) is 1.5x C (40).
+        let spanB = byName["B"]!.y1 - byName["B"]!.y0
+        let spanC = byName["C"]!.y1 - byName["C"]!.y0
+        #expect(abs(spanB / spanC - 1.5) < 0.01)
+        // Ribbons stack without overlap on A's out edge.
+        let ribbonsFromA = result.ribbons.filter { $0.from == "A" }
+        #expect(abs(ribbonsFromA[0].sourceY1 - ribbonsFromA[1].sourceY0) < 0.001)
+    }
+
+    @Test("Fence routing: JSON sankey is ours, mermaid CSV falls through")
+    func fenceRouting() {
+        #expect(MarkdownParser.isSankeyBlock(language: "sankey", code: "{\"links\": []}"))
+        #expect(MarkdownParser.isSankeyBlock(language: " Sankey ", code: "  {\"links\": []}"))
+        // Mermaid sankey syntax is CSV lines — must fall through to mermaid.
+        #expect(!MarkdownParser.isSankeyBlock(language: "sankey", code: "Revenue,Engineering,400"))
+        #expect(!MarkdownParser.isSankeyBlock(language: "chart", code: "{\"links\": []}"))
+    }
+
+    @Test("Cycles terminate instead of hanging")
+    func cycles() {
+        let spec = SankeySpec.parse("""
+        {"links": [
+          {"from": "A", "to": "B", "value": 10},
+          {"from": "B", "to": "A", "value": 5}
+        ]}
+        """)!
+        let result = SankeyLayout.layout(spec)
+        #expect(result.nodes.count == 2)          // completed, didn't spin
+        #expect(result.columnCount >= 2)
+    }
+}

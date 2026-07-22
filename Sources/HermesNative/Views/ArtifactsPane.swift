@@ -246,6 +246,8 @@ struct ArtifactKindRenderer: View {
             DatasetBlockView(json: content, isStreaming: false)
         case "timeline":
             TimelineBlockView(json: content, isStreaming: false)
+        case "sankey":
+            SankeyBlockView(json: content, isStreaming: false)
         default:
             MarkdownContentView(text: content, isStreaming: false)
                 .equatable()
