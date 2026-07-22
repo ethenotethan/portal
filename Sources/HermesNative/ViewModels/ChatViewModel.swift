@@ -75,6 +75,8 @@ final class ChatViewModel: ObservableObject {
       - `heatmap` — points of `{"x": column, "y": row, "v": value}` (both axes categorical, `v` is the magnitude); one series
       - `histogram` — series carry RAW samples in `"values": [12.1, 13.4, …]` (no points); the app bins client-side; optional top-level `"bins": 15`
       - `boxplot` — same `"values"` shape, one series per group; the app computes quartiles — never pre-compute min/median/quartiles yourself
+      - `waterfall` — financial bridges / where-did-it-go: one series of signed deltas in point order ({"x": "Refunds", "y": -12000});
+        mark running-total checkpoints with {"x": "Gross", "total": true} (no y needed). The app computes the running levels
     - **Markdown headings** (##, ###) to structure longer responses
     - **Bold** for key terms, *italic* for emphasis
     - **Code blocks** with language tags (```python, ```swift, ```bash, ```sql, ```go, etc.)

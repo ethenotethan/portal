@@ -86,7 +86,7 @@ private struct ChartCard: View {
     private var legendVisible: Bool {
         // Heatmap identity is the sequential color scale, not series —
         // a toggling legend would be meaningless there.
-        if spec.type == .heatmap { return false }
+        if spec.type == .heatmap || spec.type == .waterfall { return false }
         return spec.type == .pie || spec.series.count > 1
     }
 
@@ -180,8 +180,9 @@ private struct ChartCard: View {
             baseChart
         } else if spec.type == .pie {
             baseChart.chartAngleSelection(value: $selectedPieAngle)
-        } else if spec.type == .heatmap || spec.type == .boxplot {
-            // Heatmap x is categorical; boxplot x is the series name.
+        } else if spec.type == .heatmap || spec.type == .boxplot || spec.type == .waterfall {
+            // Heatmap x is categorical; boxplot x is the series name;
+            // waterfall x is the step label.
             baseChart.chartXSelection(value: $selectedCategoryX)
         } else if spec.type == .histogram || numericX {
             baseChart.chartXSelection(value: $selectedNumericX)
@@ -229,7 +230,7 @@ private struct ChartCard: View {
     /// Full numeric x extent across all series; nil when degenerate.
     /// Distribution/heatmap types manage their own axes — never zoomable.
     private var fullXSpan: Double? {
-        guard !spec.isDistribution, spec.type != .heatmap else { return nil }
+        guard !spec.isDistribution, spec.type != .heatmap, spec.type != .waterfall else { return nil }
         let xs = spec.series.flatMap { $0.points.compactMap(\.x.numberValue) }
         guard let lo = xs.min(), let hi = xs.max(), hi > lo else { return nil }
         return hi - lo
@@ -260,6 +261,8 @@ private struct ChartCard: View {
             histogramMarks
         case .boxplot:
             boxplotMarks
+        case .waterfall:
+            waterfallMarks
         case .bar, .line, .area, .scatter:
             ForEach(spec.series.indices, id: \.self) { s in
                 let series = spec.series[s]
@@ -319,6 +322,40 @@ private struct ChartCard: View {
                     .opacity(overlaid ? 0.6 : 1)
                 }
             }
+        }
+    }
+
+    // MARK: Waterfall
+
+    /// Floating delta bars over a running total: rises in Theme.success,
+    /// falls in red (financial-bridge convention, matching the cron chart's
+    /// OK/Error language), totals as neutral full-height bars. Hairline
+    /// connectors carry the running level between adjacent bars.
+    @ChartContentBuilder
+    private var waterfallMarks: some ChartContent {
+        let segments = ChartWaterfall.segments(for: spec.series[0].points)
+        ForEach(segments) { segment in
+            BarMark(
+                x: .value(xKey, segment.label),
+                yStart: .value(yKey, segment.start),
+                yEnd: .value(yKey, segment.end),
+                width: .ratio(0.65)
+            )
+            .foregroundStyle(
+                segment.isTotal ? Theme.secondary.opacity(0.75)
+                    : segment.isRise ? Theme.success : Color.red
+            )
+            .cornerRadius(2)
+        }
+        // Connectors: from each bar's end to the next bar's start level.
+        ForEach(Array(zip(segments, segments.dropFirst()).enumerated()), id: \.offset) { _, pair in
+            RuleMark(
+                xStart: .value(xKey, pair.0.label),
+                xEnd: .value(xKey, pair.1.label),
+                y: .value(yKey, pair.0.isTotal ? pair.0.end : pair.0.end)
+            )
+            .foregroundStyle(Theme.tertiary.opacity(0.55))
+            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 2]))
         }
     }
 
@@ -408,7 +445,7 @@ private struct ChartCard: View {
             lineMark(point, series: series)
         case .area:
             areaMarks(point, series: series)
-        case .scatter, .pie, .heatmap, .histogram, .boxplot:
+        case .scatter, .pie, .heatmap, .histogram, .boxplot, .waterfall:
             // Only .scatter reaches here; the others branch in `content`.
             pointMark(point, series: series)
         }
@@ -499,7 +536,7 @@ private struct ChartCard: View {
     private var swatchShape: LegendChip.Swatch {
         switch spec.type {
         case .line, .scatter: return .line
-        case .bar, .area, .pie, .heatmap, .histogram, .boxplot: return .rect
+        case .bar, .area, .pie, .heatmap, .histogram, .boxplot, .waterfall: return .rect
         }
     }
 
@@ -560,6 +597,18 @@ private struct ChartCard: View {
                 (String(localized: "median"), fmt(f.median)),
                 (String(localized: "q1"), fmt(f.q1)),
                 (String(localized: "min"), fmt(f.min)),
+            ])
+        }
+        if spec.type == .waterfall {
+            guard let sel = selectedCategoryX else { return nil }
+            let segments = ChartWaterfall.segments(for: spec.series[0].points)
+            guard let segment = segments.first(where: { $0.label == sel }) else { return nil }
+            if segment.isTotal {
+                return ChartReadout(title: segment.label, entries: [("total", fmt(segment.end))])
+            }
+            return ChartReadout(title: segment.label, entries: [
+                (segment.isRise ? "gain" : "loss", fmt(segment.delta)),
+                ("running", fmt(segment.end)),
             ])
         }
         if spec.type == .histogram {

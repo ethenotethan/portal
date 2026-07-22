@@ -51,9 +51,12 @@ struct ChartPoint: Decodable {
     let row: String?
     /// Heatmap cell magnitude. nil for every other chart type.
     let value: Double?
+    /// Waterfall total marker: bar drawn from zero to the running total
+    /// instead of as a delta ({"x": "Gross profit", "total": true}).
+    let isTotal: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case x, y, v
+        case x, y, v, total
     }
 
     init(from decoder: Decoder) throws {
@@ -61,23 +64,26 @@ struct ChartPoint: Decodable {
         x = try c.decode(AxisValue.self, forKey: .x)
         // Heatmap contract: {"x": "Mon", "y": "Week 1", "v": 12} — y is the
         // row CATEGORY and v the magnitude. Everything else: {"x": …, "y": 3}.
+        isTotal = (try c.decodeIfPresent(Bool.self, forKey: .total)) ?? false
         if let magnitude = try c.decodeIfPresent(Double.self, forKey: .v) {
             let rowValue = try c.decode(AxisValue.self, forKey: .y)
             row = rowValue.labelValue
             value = magnitude
             y = magnitude
         } else {
-            y = try c.decode(Double.self, forKey: .y)
+            // Total markers may omit y entirely (the running total is theirs).
+            y = try c.decodeIfPresent(Double.self, forKey: .y) ?? 0
             row = nil
             value = nil
         }
     }
 
-    init(x: AxisValue, y: Double, row: String? = nil, value: Double? = nil) {
+    init(x: AxisValue, y: Double, row: String? = nil, value: Double? = nil, isTotal: Bool = false) {
         self.x = x
         self.y = y
         self.row = row
         self.value = value
+        self.isTotal = isTotal
     }
 }
 
@@ -110,7 +116,7 @@ struct ChartSeries {
 /// ```
 struct ChartSpec: Decodable {
     enum ChartType: String {
-        case bar, line, area, scatter, pie, heatmap, histogram, boxplot
+        case bar, line, area, scatter, pie, heatmap, histogram, boxplot, waterfall
     }
 
     let type: ChartType
@@ -152,7 +158,7 @@ struct ChartSpec: Decodable {
         guard let chartType = ChartType(rawValue: normalized) else {
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: container,
-                debugDescription: "Unknown chart type '\(typeString)' — expected bar, line, area, scatter, pie, heatmap, histogram, or boxplot"
+                debugDescription: "Unknown chart type '\(typeString)' — expected bar, line, area, scatter, pie, heatmap, histogram, boxplot, or waterfall"
             )
         }
         type = chartType
@@ -308,5 +314,42 @@ enum ChartDistribution {
             q3: quantile(0.75),
             max: sorted.last!
         )
+    }
+}
+
+
+// MARK: - Waterfall computation
+
+/// Floating-bar segments for waterfall charts: each delta bar spans
+/// [runningBefore, runningAfter]; total markers span [0, runningTotal].
+enum ChartWaterfall {
+
+    struct Segment: Identifiable {
+        let label: String
+        let start: Double
+        let end: Double
+        let delta: Double
+        let isTotal: Bool
+        var id: String { label }
+        var isRise: Bool { delta >= 0 }
+    }
+
+    static func segments(for points: [ChartPoint]) -> [Segment] {
+        var running = 0.0
+        var used = Set<String>()
+        return points.map { point in
+            var label = point.x.labelValue
+            // Duplicate labels would collide on a categorical axis; suffix.
+            while used.contains(label) { label += " " }
+            used.insert(label)
+            if point.isTotal {
+                return Segment(label: label, start: 0, end: running,
+                               delta: running, isTotal: true)
+            }
+            let start = running
+            running += point.y
+            return Segment(label: label, start: start, end: running,
+                           delta: point.y, isTotal: false)
+        }
     }
 }

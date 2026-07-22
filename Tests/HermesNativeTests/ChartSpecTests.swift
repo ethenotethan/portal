@@ -130,3 +130,59 @@ struct ChartSpecTests {
         #expect(ChartDistribution.fiveNumber(for: []) == nil)
     }
 }
+
+@Suite("Waterfall")
+struct WaterfallTests {
+
+    @Test("Waterfall parses with total markers (y optional on totals)")
+    func parses() {
+        let result = ChartSpec.parse("""
+        {"type": "waterfall", "title": "Q2 Bridge", "series": [
+          {"name": "Bridge", "points": [
+            {"x": "Revenue", "y": 500},
+            {"x": "COGS", "y": -180},
+            {"x": "Gross profit", "total": true},
+            {"x": "Opex", "y": -220},
+            {"x": "Net", "total": true}
+          ]}
+        ]}
+        """)
+        guard case .success(let spec) = result else {
+            Issue.record("parse failed")
+            return
+        }
+        #expect(spec.type == .waterfall)
+        #expect(spec.series[0].points[2].isTotal)
+        #expect(spec.series[0].points[2].y == 0)   // omitted y defaults
+    }
+
+    @Test("Segments compute running levels; totals span from zero")
+    func segments() {
+        let points = [
+            ChartPoint(x: .label("Revenue"), y: 500),
+            ChartPoint(x: .label("COGS"), y: -180),
+            ChartPoint(x: .label("Gross"), y: 0, isTotal: true),
+            ChartPoint(x: .label("Opex"), y: -220),
+            ChartPoint(x: .label("Net"), y: 0, isTotal: true),
+        ]
+        let segments = ChartWaterfall.segments(for: points)
+        #expect(segments[0].start == 0 && segments[0].end == 500)
+        #expect(segments[1].start == 500 && segments[1].end == 320)   // fall
+        #expect(!segments[1].isRise)
+        #expect(segments[2].isTotal && segments[2].start == 0 && segments[2].end == 320)
+        #expect(segments[3].end == 100)
+        #expect(segments[4].isTotal && segments[4].end == 100)
+    }
+
+    @Test("Duplicate step labels get disambiguated, not collapsed")
+    func duplicateLabels() {
+        let points = [
+            ChartPoint(x: .label("Adjustment"), y: 10),
+            ChartPoint(x: .label("Adjustment"), y: -4),
+        ]
+        let segments = ChartWaterfall.segments(for: points)
+        #expect(segments.count == 2)
+        #expect(segments[0].label != segments[1].label)
+        #expect(segments[1].end == 6)
+    }
+}
