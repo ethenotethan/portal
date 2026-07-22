@@ -6,16 +6,21 @@ import SwiftUI
 /// {
 ///   "id": "darkbloom-contributors", "key": "login",
 ///   "columns": ["login", "name", "commits"],
+///   "actions": [{"field": "status", "type": "choice", "options": ["going", "not going"]},
+///               {"field": "reached_out", "type": "toggle"}, {"type": "delete"}],
 ///   "rows": [{"login": "greg", "name": "Greg", "commits": 44}]
 /// }
 /// ```
 /// `key` names the row-identity field (server merges rows by it). `columns`
 /// fixes display order; absent, columns derive from the union of row keys
-/// (key field first). Values may be strings, numbers, or bools.
+/// (key field first). Values may be strings, numbers, or bools. `actions`
+/// declares per-row user verbs (rendered only in artifact hosts). Rows
+/// carrying `_deleted: true` are tombstones — merged, never shown.
 struct DatasetSpec {
     let key: String
     let columns: [String]
     let rows: [[String: String]]
+    let actions: [ArtifactAction]
 
     static func parse(_ json: String) -> DatasetSpec? {
         guard let data = json.data(using: .utf8),
@@ -23,20 +28,23 @@ struct DatasetSpec {
               let rawRows = obj["rows"] as? [[String: Any]], !rawRows.isEmpty else { return nil }
 
         let key = (obj["key"] as? String) ?? "id"
-        let rows: [[String: String]] = rawRows.map { row in
-            row.mapValues { value in
-                if let s = value as? String { return s }
-                if let n = value as? NSNumber { return "\(n)" }
-                return "\(value)"
+        let rows: [[String: String]] = rawRows
+            .filter { ($0["_deleted"] as? Bool) != true }
+            .map { row in
+                row.mapValues { value in
+                    if let s = value as? String { return s }
+                    if let n = value as? NSNumber { return "\(n)" }
+                    return "\(value)"
+                }
             }
-        }
+        guard !rows.isEmpty else { return nil }
 
         var columns = (obj["columns"] as? [String]) ?? []
         if columns.isEmpty {
             var seen = Set<String>()
             var derived: [String] = []
             for row in rows {
-                for field in row.keys.sorted() where seen.insert(field).inserted {
+                for field in row.keys.sorted() where seen.insert(field).inserted && field != "_deleted" {
                     derived.append(field)
                 }
             }
@@ -47,24 +55,36 @@ struct DatasetSpec {
             }
             columns = derived
         }
-        return DatasetSpec(key: key, columns: columns, rows: rows)
+        return DatasetSpec(key: key, columns: columns, rows: rows, actions: ArtifactAction.parse(obj["actions"]))
     }
 }
 
 /// Renders a dataset through the existing sortable TableView (click-to-sort
-/// headers, numeric-aware, CSV copy — all inherited).
+/// headers, numeric-aware, CSV copy — all inherited). When the dataset is a
+/// living artifact with declared actions, pass `actionableArtifactID` (the
+/// Artifacts pane does) to append per-row action controls.
 struct DatasetBlockView: View {
     let json: String
     let isStreaming: Bool
+    /// Set by artifact hosts (Artifacts pane / sheets): enables the declared
+    /// per-row actions, routed through ArtifactStore. Chat transcripts leave
+    /// this nil — a transcript block is a snapshot, not the live model.
+    var actionableArtifactID: String?
 
     var body: some View {
         if let spec = DatasetSpec.parse(json) {
-            TableView(
-                headers: spec.columns,
-                rows: spec.rows.map { row in
-                    spec.columns.map { row[$0] ?? "" }
+            VStack(alignment: .leading, spacing: 0) {
+                TableView(
+                    headers: spec.columns,
+                    rows: spec.rows.map { row in
+                        spec.columns.map { row[$0] ?? "" }
+                    }
+                )
+                if let artifactID = actionableArtifactID, !spec.actions.isEmpty {
+                    DatasetActionRows(spec: spec, artifactID: artifactID)
+                        .padding(.top, 8)
                 }
-            )
+            }
         } else if isStreaming {
             EmptyView()
         } else {
@@ -80,6 +100,136 @@ struct DatasetBlockView: View {
             }
             .padding(10)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+/// One triage row per dataset row: key + declared action controls. Lives
+/// below the table (the table stays a clean, sortable data surface; actions
+/// are a work surface).
+private struct DatasetActionRows: View {
+    let spec: DatasetSpec
+    let artifactID: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(spec.rows, id: \.self) { row in
+                let entryKey = row[spec.key] ?? ""
+                if !entryKey.isEmpty {
+                    HStack(spacing: 8) {
+                        Text(entryKey)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.primary)
+                            .lineLimit(1)
+                            .frame(minWidth: 60, alignment: .leading)
+                        Spacer(minLength: 4)
+                        ArtifactActionControls(
+                            actions: spec.actions,
+                            entryKey: entryKey,
+                            fieldValue: { row[$0] },
+                            artifactID: artifactID
+                        )
+                    }
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                }
+            }
+        }
+        .padding(6)
+        .background(Theme.background.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// The declared actions of one entry, as controls: choice → menu, toggle →
+/// checkbox, delete → trash button (with a confirm). Shared by dataset rows
+/// and map entry rows.
+struct ArtifactActionControls: View {
+    let actions: [ArtifactAction]
+    let entryKey: String
+    /// Current value of a field on this entry (for menu checkmark / toggle state).
+    let fieldValue: (String) -> String?
+    let artifactID: String
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(actions) { action in
+                control(for: action)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func control(for action: ArtifactAction) -> some View {
+        switch action.kind {
+        case .choice:
+            Menu {
+                ForEach(action.options, id: \.self) { option in
+                    Button {
+                        ArtifactStore.shared.applyAction(
+                            artifactID: artifactID, action: action, entryKey: entryKey, value: option
+                        )
+                    } label: {
+                        if fieldValue(action.field) == option {
+                            Label(option, systemImage: "checkmark")
+                        } else {
+                            Text(option)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(fieldValue(action.field) ?? action.field)
+                        .font(.caption2)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 7))
+                }
+                .foregroundStyle(fieldValue(action.field) == nil ? Theme.tertiary : Theme.accent)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Theme.surfaceHover.opacity(0.7), in: Capsule())
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        case .toggle:
+            Button {
+                ArtifactStore.shared.applyAction(
+                    artifactID: artifactID, action: action, entryKey: entryKey
+                )
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: ArtifactAction.isTruthy(fieldValue(action.field))
+                          ? "checkmark.square.fill" : "square")
+                        .font(.system(size: 11))
+                        .foregroundStyle(ArtifactAction.isTruthy(fieldValue(action.field))
+                                         ? Theme.accent : Theme.tertiary)
+                    Text(action.field.replacingOccurrences(of: "_", with: " "))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+        case .delete:
+            Button {
+                confirmingDelete = true
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Remove entry")
+            .confirmationDialog(
+                "Remove \"\(entryKey)\"?", isPresented: $confirmingDelete, titleVisibility: .visible
+            ) {
+                Button("Remove", role: .destructive) {
+                    ArtifactStore.shared.applyAction(
+                        artifactID: artifactID, action: action, entryKey: entryKey
+                    )
+                }
+            } message: {
+                Text("The entry is tombstoned — agents re-emitting it won't bring it back.")
+            }
         }
     }
 }

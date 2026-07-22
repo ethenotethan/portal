@@ -71,6 +71,58 @@ final class ArtifactStore: ObservableObject {
         return artifact
     }
 
+    // MARK: - User actions (declared per-artifact, executed on entries)
+
+    /// Apply a declared action to one entry of a dataset/map artifact:
+    /// choice/toggle set a field, delete tombstones. Content mutates through
+    /// the same upsert→push path agent writes use, so the user's triage is
+    /// visible to agents on their next get and lands in revision history
+    /// attributed to this device.
+    func applyAction(
+        artifactID: String, action: ArtifactAction, entryKey: String, value: String? = nil
+    ) {
+        guard let artifact = artifacts[artifactID] else { return }
+        let mutated: String?
+        switch action.kind {
+        case .delete:
+            mutated = ArtifactActionEngine.markDeleted(
+                in: artifact.content, kind: artifact.kind, entryKey: entryKey
+            )
+        case .toggle:
+            let current = currentFieldValue(in: artifact, entryKey: entryKey, field: action.field)
+            mutated = ArtifactActionEngine.setField(
+                in: artifact.content, kind: artifact.kind, entryKey: entryKey,
+                field: action.field, value: !ArtifactAction.isTruthy(current)
+            )
+        case .choice:
+            guard let value, action.options.contains(value) else { return }
+            mutated = ArtifactActionEngine.setField(
+                in: artifact.content, kind: artifact.kind, entryKey: entryKey,
+                field: action.field, value: value
+            )
+        }
+        guard let content = mutated else { return }
+        var updated = artifact
+        updated.content = content
+        updated.updatedAt = Date()
+        updated.updatedBy = "user:\(SessionMetaSyncService.deviceID)"
+        artifacts[artifactID] = updated
+        persistToDisk()
+        schedulePush(id: artifactID)
+    }
+
+    private func currentFieldValue(in artifact: LivingArtifact, entryKey: String, field: String) -> String? {
+        guard let data = artifact.content.data(using: .utf8),
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        let listField = artifact.kind == "map" ? "markers" : "rows"
+        let keyField = artifact.kind == "map" ? "label" : ((obj["key"] as? String) ?? "id")
+        let target = entryKey.trimmingCharacters(in: .whitespaces).lowercased()
+        let entry = (obj[listField] as? [[String: Any]])?.first {
+            String(describing: $0[keyField] ?? "").trimmingCharacters(in: .whitespaces).lowercased() == target
+        }
+        return entry?[field].map { String(describing: $0) }
+    }
+
     func remove(id: String) {
         guard artifacts.removeValue(forKey: id) != nil else { return }
         persistToDisk()

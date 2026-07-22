@@ -104,7 +104,7 @@ enum ArtifactMerge {
             let keyValue = String(describing: row[keyField] ?? "").trimmingCharacters(in: .whitespaces).lowercased()
             guard !keyValue.isEmpty, keyValue != "nil" else { continue }
             if byKey[keyValue] == nil { order.append(keyValue) }
-            byKey[keyValue] = row
+            byKey[keyValue] = carryTombstone(from: byKey[keyValue], into: row)
         }
         merged["rows"] = order.compactMap { byKey[$0] }
 
@@ -134,7 +134,7 @@ enum ArtifactMerge {
             let label = ((marker["label"] as? String) ?? "").lowercased()
             guard !label.isEmpty else { continue }
             if byLabel[label] == nil { order.append(label) }
-            byLabel[label] = marker   // later (incoming) wins
+            byLabel[label] = carryTombstone(from: byLabel[label], into: marker)   // later (incoming) wins
         }
         merged["markers"] = order.compactMap { byLabel[$0] }
 
@@ -144,6 +144,23 @@ enum ArtifactMerge {
             return incoming
         }
         return json
+    }
+
+    /// A user's tombstone (`_deleted: true`) survives an agent re-emitting
+    /// the same entry WITHOUT the flag — deletes don't resurrect. An
+    /// incoming entry that explicitly sets `_deleted` (true or false) wins:
+    /// that's a deliberate write, including un-delete.
+    private static func carryTombstone(
+        from existing: [String: Any]?, into incoming: [String: Any]
+    ) -> [String: Any] {
+        guard let existing,
+              (existing["_deleted"] as? Bool) == true,
+              incoming["_deleted"] == nil else {
+            return incoming
+        }
+        var kept = incoming
+        kept["_deleted"] = true
+        return kept
     }
 
     private static func parse(_ s: String) -> [String: Any]? {

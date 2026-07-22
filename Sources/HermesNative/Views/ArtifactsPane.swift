@@ -214,9 +214,12 @@ private struct ArtifactDetailView: View {
             switch tab {
             case .rendered:
                 ScrollView {
-                    ArtifactKindRenderer(kind: artifact.kind, content: artifact.content)
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ArtifactKindRenderer(
+                        kind: artifact.kind, content: artifact.content,
+                        actionableArtifactID: artifact.id
+                    )
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             case .history:
                 ArtifactHistoryView(artifact: artifact)
@@ -231,11 +234,14 @@ private struct ArtifactDetailView: View {
 struct ArtifactKindRenderer: View {
     let kind: String
     let content: String
+    /// The artifact id when rendering the LIVE artifact (not a history
+    /// revision) — enables declared per-entry actions on dataset/map.
+    var actionableArtifactID: String?
 
     var body: some View {
         switch kind {
         case "map":
-            MapBlockView(json: content, isStreaming: false)
+            MapBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         case "chart":
             NativeChartView(json: content, isStreaming: false, interactive: true)
         case "graph":
@@ -243,7 +249,7 @@ struct ArtifactKindRenderer: View {
         case "stats":
             StatTilesView(json: content, isStreaming: false)
         case "dataset":
-            DatasetBlockView(json: content, isStreaming: false)
+            DatasetBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         case "timeline":
             TimelineBlockView(json: content, isStreaming: false)
         case "sankey":

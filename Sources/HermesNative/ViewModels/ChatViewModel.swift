@@ -118,6 +118,13 @@ final class ChatViewModel: ObservableObject {
       new/changed entries or the full set; both work), other kinds replace wholesale so emit the
       complete block. Example: a ```map block with "id": "bkk-apartments" updated as the user
       evaluates listings.
+      Dataset and map artifacts may also declare per-entry USER ACTIONS — controls the user taps to
+      triage entries, writing back into the artifact where you'll see them on your next read:
+      "actions": [{"field": "status", "type": "choice", "options": ["going", "not going"]},
+      {"field": "reached_out", "type": "toggle"}, {"type": "delete"}]
+      Declare actions matching what the artifact represents (apartments → reached_out/delete;
+      conferences → going/not going). Entries with "_deleted": true are user-removed tombstones:
+      NEVER re-emit or resurrect them, and never set _deleted yourself unless the user asks.
     - **Sankey diagrams** in ```sankey blocks for branching flows — budget allocation, token/traffic routing,
       funnels (nodes are implicit from link endpoints; ribbon thickness ∝ value):
       ```sankey

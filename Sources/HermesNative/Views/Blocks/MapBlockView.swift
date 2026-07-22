@@ -22,16 +22,26 @@ struct MapSpec: Decodable {
         let label: String
         let group: String?
         let note: String?
+        /// Tombstone (set by the delete action) — merged, never rendered.
+        let _deleted: Bool?
+        /// Arbitrary action-fields (e.g. "reached_out") live outside the
+        /// typed keys; carried for control state.
+        var extra: [String: String] = [:]
 
         var id: String { label }
         var coordinate: CLLocationCoordinate2D {
             CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case lat, lon, label, group, note, _deleted
         }
     }
 
     let id: String?
     let title: String?
     let markers: [Marker]
+    let actions: [ArtifactAction]
 
     /// Distinct groups in first-appearance order.
     var groups: [String] {
@@ -39,11 +49,49 @@ struct MapSpec: Decodable {
         return markers.compactMap(\.group).filter { seen.insert($0).inserted }
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case id, title, markers
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        markers = try container.decode([Marker].self, forKey: .markers)
+        actions = []
+    }
+
+    init(id: String?, title: String?, markers: [Marker], actions: [ArtifactAction]) {
+        self.id = id
+        self.title = title
+        self.markers = markers
+        self.actions = actions
+    }
+
     static func parse(_ json: String) -> MapSpec? {
         guard let data = json.data(using: .utf8),
-              let spec = try? JSONDecoder().decode(MapSpec.self, from: data),
-              !spec.markers.isEmpty else { return nil }
-        return spec
+              let decoded = try? JSONDecoder().decode(MapSpec.self, from: data) else { return nil }
+        // Action declarations + per-marker action-field values ride outside
+        // the typed schema; pull them via JSONSerialization.
+        let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let actions = ArtifactAction.parse(obj?["actions"])
+        let rawMarkers = (obj?["markers"] as? [[String: Any]]) ?? []
+        let typedKeys: Set<String> = ["lat", "lon", "label", "group", "note", "_deleted"]
+        var markers = decoded.markers.filter { $0._deleted != true }
+        for index in markers.indices {
+            guard let raw = rawMarkers.first(where: {
+                ($0["label"] as? String) == markers[index].label
+            }) else { continue }
+            markers[index].extra = raw
+                .filter { !typedKeys.contains($0.key) }
+                .mapValues { value in
+                    if let s = value as? String { return s }
+                    if let n = value as? NSNumber { return "\(n)" }
+                    return "\(value)"
+                }
+        }
+        guard !markers.isEmpty else { return nil }
+        return MapSpec(id: decoded.id, title: decoded.title, markers: markers, actions: actions)
     }
 }
 
@@ -54,6 +102,9 @@ struct MapBlockView: View {
     /// Fullscreen host mode: the map fills the container and the entry list
     /// becomes a sidebar column instead of a stacked footer.
     var isExpanded: Bool = false
+    /// Set by artifact hosts: enables declared per-marker actions (choice/
+    /// toggle/delete) on entry rows. Chat transcript blocks leave this nil.
+    var actionableArtifactID: String?
 
     /// Shared categorical palette (chart/graph parity).
     private static let palette: [Color] = [
@@ -63,7 +114,7 @@ struct MapBlockView: View {
 
     var body: some View {
         if let spec = MapSpec.parse(json) {
-            MapCard(spec: spec, isExpanded: isExpanded)
+            MapCard(spec: spec, isExpanded: isExpanded, actionableArtifactID: actionableArtifactID)
         } else if isStreaming {
             EmptyView()
         } else {
@@ -92,6 +143,7 @@ struct MapBlockView: View {
 private struct MapCard: View {
     let spec: MapSpec
     let isExpanded: Bool
+    var actionableArtifactID: String?
     @State private var selectedMarkerID: String?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showFullscreen = false
@@ -212,7 +264,7 @@ private struct MapCard: View {
             .padding(.vertical, 10)
             .background(Theme.background)
             Divider().overlay(Theme.border)
-            MapCard(spec: spec, isExpanded: true)
+            MapCard(spec: spec, isExpanded: true, actionableArtifactID: actionableArtifactID)
         }
         #if os(macOS)
         .frame(minWidth: 900, minHeight: 620)
@@ -327,6 +379,16 @@ private struct MapCard: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 21)
+            }
+            if let artifactID = actionableArtifactID, !spec.actions.isEmpty {
+                ArtifactActionControls(
+                    actions: spec.actions,
+                    entryKey: marker.label,
+                    fieldValue: { marker.extra[$0] },
+                    artifactID: artifactID
+                )
+                .padding(.leading, 21)
+                .padding(.top, 2)
             }
         }
         .padding(.vertical, 6)

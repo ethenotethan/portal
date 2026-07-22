@@ -157,20 +157,10 @@ struct ArtifactPanelView: View {
     /// LIVE from the store so agent updates appear while the panel is open.
     @ViewBuilder
     private func livingContent(kind: String, artifactID: String) -> some View {
+        // Same dispatch as the Artifacts pane (all kinds, incl. dataset/
+        // timeline/sankey the old inline switch predated), actions enabled.
         let content = store.artifacts[artifactID]?.content ?? artifact.content
-        switch kind {
-        case "map":
-            MapBlockView(json: content, isStreaming: false)
-        case "chart":
-            NativeChartView(json: content, isStreaming: false, interactive: true)
-        case "graph":
-            NetworkGraphView(json: content, isStreaming: false)
-        case "stats":
-            StatTilesView(json: content, isStreaming: false)
-        default:
-            MarkdownContentView(text: content, isStreaming: false)
-                .equatable()
-        }
+        ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
     }
 
     private var header: some View {

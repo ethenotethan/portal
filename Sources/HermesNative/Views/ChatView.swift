@@ -243,26 +243,10 @@ struct ChatView: View {
             MarkdownContentView(text: artifact.content, isStreaming: false)
                 .equatable()
         case .living(let kind, let artifactID):
+            // Live content when the store has it; actions enabled — the
+            // sheet hosts the live model, not a transcript snapshot.
             let content = ArtifactStore.shared.artifacts[artifactID]?.content ?? artifact.content
-            switch kind {
-            case "map":
-                MapBlockView(json: content, isStreaming: false)
-            case "chart":
-                NativeChartView(json: content, isStreaming: false, interactive: true)
-            case "graph":
-                NetworkGraphView(json: content, isStreaming: false)
-            case "stats":
-                StatTilesView(json: content, isStreaming: false)
-            case "dataset":
-                DatasetBlockView(json: content, isStreaming: false)
-            case "timeline":
-                TimelineBlockView(json: content, isStreaming: false)
-            case "sankey":
-                SankeyBlockView(json: content, isStreaming: false)
-            default:
-                MarkdownContentView(text: content, isStreaming: false)
-                    .equatable()
-            }
+            ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
         }
     }
     #endif

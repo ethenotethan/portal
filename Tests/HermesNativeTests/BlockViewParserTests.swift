@@ -391,3 +391,127 @@ struct DatasetKindTests {
         #expect(lines.contains("greg: commits changed"))
     }
 }
+
+@Suite("Artifact Actions")
+struct ArtifactActionTests {
+
+    @Test("Actions parse; malformed entries drop without breaking the rest")
+    func parsing() {
+        let actions = ArtifactAction.parse([
+            ["field": "status", "type": "choice", "options": ["going", "not going"]],
+            ["field": "reached_out", "type": "toggle"],
+            ["type": "delete"],
+            ["type": "choice", "options": ["x"]],          // no field → dropped
+            ["field": "f", "type": "choice"],              // no options → dropped
+            ["field": "f", "type": "teleport"],            // unknown → dropped
+        ] as Any)
+        #expect(actions.count == 3)
+        #expect(actions[0].kind == .choice && actions[0].options.count == 2)
+        #expect(actions[1].kind == .toggle && actions[1].field == "reached_out")
+        #expect(actions[2].kind == .delete)
+        #expect(ArtifactAction.parse(nil).isEmpty)
+        #expect(ArtifactAction.parse("nonsense" as Any).isEmpty)
+    }
+
+    @Test("setField updates the matching dataset row by key, case-insensitive")
+    func setFieldDataset() {
+        let content = """
+        {"key": "name", "rows": [{"name": "Acme Conf", "status": "undecided"}, {"name": "Other", "status": "going"}]}
+        """
+        let out = ArtifactActionEngine.setField(
+            in: content, kind: "dataset", entryKey: " acme conf ", field: "status", value: "going"
+        )!
+        let obj = try! JSONSerialization.jsonObject(with: out.data(using: .utf8)!) as! [String: Any]
+        let rows = obj["rows"] as! [[String: Any]]
+        #expect(rows[0]["status"] as? String == "going")
+        #expect(rows[1]["status"] as? String == "going")   // untouched
+        #expect(ArtifactActionEngine.setField(
+            in: content, kind: "dataset", entryKey: "nope", field: "status", value: "x") == nil)
+    }
+
+    @Test("setField updates map markers by label")
+    func setFieldMap() {
+        let content = """
+        {"markers": [{"lat": 1.0, "lon": 2.0, "label": "Ekkamai loft"}]}
+        """
+        let out = ArtifactActionEngine.setField(
+            in: content, kind: "map", entryKey: "Ekkamai loft", field: "reached_out", value: true
+        )!
+        #expect(out.contains("\"reached_out\":true"))
+    }
+
+    @Test("markDeleted tombstones; spec parsers hide tombstoned entries")
+    func tombstone() {
+        let content = """
+        {"key": "name", "rows": [{"name": "A"}, {"name": "B"}]}
+        """
+        let out = ArtifactActionEngine.markDeleted(in: content, kind: "dataset", entryKey: "A")!
+        let spec = DatasetSpec.parse(out)!
+        #expect(spec.rows.count == 1)
+        #expect(spec.rows[0]["name"] == "B")
+
+        let mapContent = """
+        {"markers": [{"lat": 1.0, "lon": 2.0, "label": "gone", "_deleted": true},
+                     {"lat": 3.0, "lon": 4.0, "label": "kept"}]}
+        """
+        let mapSpec = MapSpec.parse(mapContent)!
+        #expect(mapSpec.markers.count == 1)
+        #expect(mapSpec.markers[0].label == "kept")
+    }
+
+    @Test("Merge carries tombstones — agent re-emitting a deleted row can't resurrect it")
+    func tombstoneSurvivesMerge() {
+        let existing = """
+        {"key": "name", "rows": [{"name": "A", "_deleted": true}, {"name": "B"}]}
+        """
+        let incoming = """
+        {"key": "name", "rows": [{"name": "A", "note": "found again!"}, {"name": "C"}]}
+        """
+        let merged = ArtifactMerge.mergeDataset(existing: existing, incoming: incoming)
+        let spec = DatasetSpec.parse(merged)!
+        let names = spec.rows.compactMap { $0["name"] }
+        #expect(!names.contains("A"))                       // still dead
+        #expect(names.contains("B") && names.contains("C"))
+        // Explicit un-delete wins:
+        let revived = ArtifactMerge.mergeDataset(
+            existing: existing,
+            incoming: "{\"key\": \"name\", \"rows\": [{\"name\": \"A\", \"_deleted\": false}]}"
+        )
+        #expect(DatasetSpec.parse(revived)!.rows.contains { $0["name"] == "A" })
+    }
+
+    @Test("Map merge carries marker tombstones the same way")
+    func mapTombstoneSurvivesMerge() {
+        let existing = """
+        {"markers": [{"lat": 1.0, "lon": 2.0, "label": "gone", "_deleted": true}]}
+        """
+        let incoming = """
+        {"markers": [{"lat": 1.0, "lon": 2.0, "label": "gone", "note": "re-listed"},
+                     {"lat": 5.0, "lon": 6.0, "label": "new"}]}
+        """
+        let merged = ArtifactMerge.mergeMap(existing: existing, incoming: incoming)
+        let spec = MapSpec.parse(merged)!
+        #expect(spec.markers.map(\.label) == ["new"])
+    }
+
+    @Test("Action-field values ride on map markers via extra")
+    func markerExtraFields() {
+        let content = """
+        {"markers": [{"lat": 1.0, "lon": 2.0, "label": "loft", "reached_out": true, "score": 8}]}
+        """
+        let spec = MapSpec.parse(content)!
+        #expect(ArtifactAction.isTruthy(spec.markers[0].extra["reached_out"]))
+        #expect(spec.markers[0].extra["score"] == "8")
+        #expect(spec.markers[0].extra["label"] == nil)      // typed keys excluded
+    }
+
+    @Test("isTruthy accepts bool-ish forms")
+    func truthy() {
+        #expect(ArtifactAction.isTruthy("true"))
+        #expect(ArtifactAction.isTruthy("1"))
+        #expect(!ArtifactAction.isTruthy("false"))
+        #expect(!ArtifactAction.isTruthy("0"))
+        #expect(!ArtifactAction.isTruthy(nil))
+        #expect(!ArtifactAction.isTruthy("going"))
+    }
+}
