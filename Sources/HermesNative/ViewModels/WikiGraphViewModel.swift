@@ -215,7 +215,11 @@ final class WikiGraphViewModel: ObservableObject {
     private var hasLoadedOnce = false
     /// The source the current graph was loaded from; the reader fetches page
     /// bodies through it so override wikis (Centaur) don't hit the home gateway.
-    private weak var loadedSource: (any WikiSource)?
+    /// Strong on purpose: ContentView rebuilds its override client on every
+    /// body evaluation, so a weak ref here dies between graph load and page
+    /// read and the reader silently falls back to the home gateway (which
+    /// 404s every Centaur page). No cycle: sources hold no view-model refs.
+    private var loadedSource: (any WikiSource)?
 
     func load(client: GatewayClient, wiki: String? = nil) async {
         await load(source: client, wiki: wiki)

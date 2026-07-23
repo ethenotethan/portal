@@ -614,7 +614,9 @@ struct ContentView: View {
     /// Wiki source for the visible chat's backend: a Centaur session gets a
     /// wiki-api client against its deployment's base URL; Hermes sessions
     /// return nil (WikiGraphView then uses the home gateway's wiki.* RPCs).
-    /// Cached per (url, key) via a static so repeated opens reuse a session.
+    /// Built fresh per access — the view model retains the one it loads
+    /// from (WikiGraphViewModel.loadedSource must stay strong for exactly
+    /// this reason).
     private var centaurWikiSource: (any WikiSource)? {
         guard let sid = chatViewModel.currentSessionID,
               let backendID = SessionBackendRegistry.shared.backendID(for: sid),

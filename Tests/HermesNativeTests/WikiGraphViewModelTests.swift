@@ -212,4 +212,36 @@ struct WikiGraphViewModelTests {
             #expect(abs(screenY - 300) < 0.001)
         }
     }
+
+    /// Regression: loadedSource was weak, and ContentView rebuilds its
+    /// override client per body evaluation — the ref died between graph load
+    /// and page read, so the reader fell back to the home gateway and every
+    /// Centaur page 404'd. The VM must retain the source it loaded from.
+    @Test("Override source outlives its creation scope for page reads")
+    func overrideSourceRetained() async {
+        final class StubSource: WikiSource {
+            var pageFetches = 0
+            func fetchGraph() async throws -> WikiGraph {
+                WikiGraph(pages: [], links: [])
+            }
+            func fetchPage(path: String) async throws -> WikiPageContent {
+                pageFetches += 1
+                return WikiPageContent(frontmatter: [:], body: "# hi", path: path)
+            }
+            func search(query: String, limit: Int) async throws -> [WikiSearchResult] { [] }
+        }
+
+        let vm = WikiGraphViewModel()
+        weak var weakStub: StubSource?
+        do {
+            let stub = StubSource()
+            weakStub = stub
+            await vm.load(source: stub)
+        }
+        // The creating scope is gone; only the VM's reference remains.
+        #expect(weakStub != nil, "VM must retain the source the graph loaded from")
+
+        await vm.ensureContentLoaded(client: GatewayClient(), path: "concepts/alpha.md")
+        #expect(weakStub?.pageFetches == 1, "page reads must route to the override source, not the home gateway")
+    }
 }
