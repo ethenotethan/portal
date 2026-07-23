@@ -401,17 +401,15 @@ private final class Coordinator: NSObject {
         for hit in hits {
             guard let name = hit.node.name, !name.hasPrefix("label:") else { continue }
             guard let idx = indexByID[name], viewModel.simNodes.indices.contains(idx) else { continue }
-            if viewModel.selectedNodeIndex == idx {
-                viewModel.openReaderForSelection()
-            } else {
-                viewModel.selectNode(idx)
-            }
+            // Selection-driven reader: one click selects AND opens, matching
+            // the 2D canvas's adaptive behavior.
+            viewModel.activateNode(idx)
             #if os(macOS)
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
             #endif
             return
         }
-        viewModel.deselectNode()
+        viewModel.deactivateSelection()
     }
 }
 

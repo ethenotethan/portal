@@ -106,7 +106,6 @@ custom_rules:
       - ".*/Views/Playback/SessionPlaybackView\\.swift"
       - ".*/Views/Prompt/PromptBreakdownView\\.swift"
       - ".*/Views/SessionExportMenu\\.swift"
-      - ".*/Views/Wiki/WikiChangesetDiffView\\.swift"
     regex: "gatewayClientWrapper\\.client\\."
     message: >-
       Views must not call the raw GatewayClient; go through a ViewModel or accept

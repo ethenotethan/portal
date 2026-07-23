@@ -100,4 +100,34 @@ final class WikiTimelineViewModel: ObservableObject {
         lastClient = client
         await reload(client: client)
     }
+
+    // MARK: - Inline diffs
+
+    /// Fetch state for a changeset's git-style diff, keyed by changeset id
+    /// (the inline expansion under a timeline row reads this).
+    struct DiffState {
+        var diff: String?
+        var errorMessage: String?
+        var isLoading = true
+    }
+
+    @Published private(set) var diffStates: [String: DiffState] = [:]
+
+    /// Load a changeset's unified diff for inline display. Cached per id;
+    /// re-expanding a row is free. `force` drops the cache (error retry).
+    func loadDiff(client: GatewayClient?, changesetID: String, force: Bool = false) async {
+        guard let client else { return }
+        if !force, let state = diffStates[changesetID], !state.isLoading { return }
+        diffStates[changesetID] = DiffState(isLoading: true)
+        do {
+            let diff = try await client.wikiChangesetDiff(id: changesetID, wiki: wiki)
+            diffStates[changesetID] = DiffState(diff: diff, isLoading: false)
+        } catch let GatewayError.rpcError(rpcError) {
+            // 5057 = wiki not git-initialized at capture time; anything else
+            // (older gateway without the RPC, transient) reads the same way.
+            diffStates[changesetID] = DiffState(errorMessage: rpcError.message, isLoading: false)
+        } catch {
+            diffStates[changesetID] = DiffState(errorMessage: error.localizedDescription, isLoading: false)
+        }
+    }
 }

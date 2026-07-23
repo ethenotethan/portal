@@ -1,20 +1,35 @@
 import SwiftUI
 
 /// Chronological feed of wiki changesets (edit history) with action filtering,
-/// day grouping, pagination, and tap-to-open-page.
+/// day grouping, and pagination. Hosted as the wiki's timeline drawer
+/// (bottom drawer on macOS, sheet on iOS). Tapping an entry expands the
+/// git-style diff INLINE beneath it — GitHub commit-list style, no nested
+/// sheet. When a page is selected in the shared plane the feed scopes to
+/// that page's history (toggleable back to the whole wiki).
 struct WikiTimelineView: View {
     @StateObject private var viewModel = WikiTimelineViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
 
     /// Wiki name to scope the timeline to (nil = default wiki).
     let wiki: String?
-    /// Optional single-page filter (relative path); shows that page's history.
-    var pageFilter: String?
-    /// Called when a row is tapped, with the changeset's page path.
+    /// Shared-plane selection (relative path); when set, the feed offers
+    /// (and defaults to) that page's history.
+    var selectedPagePath: String?
+    /// Called when "Open page" is invoked, with the changeset's page path.
     var onOpenPage: ((String) -> Void)?
+    /// Drawer hosting: close affordance.
+    var onClose: (() -> Void)?
 
-    /// Changeset whose git-style diff is being viewed (sheet).
-    @State private var diffChangeset: WikiChangeset?
+    /// Changeset whose diff is expanded inline (one at a time keeps the
+    /// feed scannable and bounds diff fetches).
+    @State private var expandedChangesetID: String?
+    /// Whether the feed is scoped to the selected page. Defaults on: the
+    /// user's flow is "click the entity that changed, see its diffs".
+    @State private var scopedToSelection = true
+
+    private var effectivePageFilter: String? {
+        scopedToSelection ? selectedPagePath : nil
+    }
 
     private static let relativeFormatter: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter()
@@ -36,20 +51,12 @@ struct WikiTimelineView: View {
             content
         }
         .background(Theme.background)
-        .task(id: pageFilter) {
-            viewModel.configure(wiki: wiki, page: pageFilter)
+        // Reconfigure on wiki switch OR scope change; the drawer persists
+        // across both on macOS.
+        .task(id: "\(wiki ?? "")|\(effectivePageFilter ?? "")") {
+            expandedChangesetID = nil
+            viewModel.configure(wiki: wiki, page: effectivePageFilter)
             await viewModel.start(client: gatewayClientWrapper.client)
-        }
-        .sheet(item: $diffChangeset) { changeset in
-            WikiChangesetDiffView(
-                changeset: changeset,
-                wiki: wiki,
-                onOpenPage: onOpenPage
-            )
-            .environmentObject(gatewayClientWrapper)
-            #if os(macOS)
-            .frame(minWidth: 700, minHeight: 520)
-            #endif
         }
     }
 
@@ -61,7 +68,7 @@ struct WikiTimelineView: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.accent)
 
-            Text(pageFilter == nil ? "Timeline" : "Page History")
+            Text("Timeline")
                 .font(.headline)
                 .foregroundStyle(Theme.primary)
 
@@ -69,6 +76,10 @@ struct WikiTimelineView: View {
                 Text("\(viewModel.total)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(Theme.secondary)
+            }
+
+            if selectedPagePath != nil {
+                scopeToggle
             }
 
             Spacer()
@@ -83,11 +94,49 @@ struct WikiTimelineView: View {
             }
             .buttonStyle(.borderless)
             .help("Refresh timeline")
+
+            if let onClose {
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Close timeline")
+            }
         }
         .foregroundStyle(Theme.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Theme.surface)
+    }
+
+    /// This-page / whole-wiki scope switch, shown only while a page is
+    /// selected in the shared plane.
+    private var scopeToggle: some View {
+        Button {
+            scopedToSelection.toggle()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: scopedToSelection ? "doc.text" : "globe")
+                    .font(.system(size: 10))
+                Text(scopedToSelection ? scopedPageName : "All pages")
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(scopedToSelection ? Theme.accent : Theme.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Theme.surfaceHover, in: Capsule())
+        }
+        .buttonStyle(.borderless)
+        .help(scopedToSelection ? "Showing this page's history — click for all changes" : "Showing all changes — click to scope to the selected page")
+    }
+
+    private var scopedPageName: String {
+        selectedPagePath?.split(separator: "/").last.map(String.init) ?? "This page"
     }
 
     private var actionFilterMenu: some View {
@@ -149,19 +198,7 @@ struct WikiTimelineView: View {
                 ForEach(groupedByDay, id: \.key) { group in
                     Section {
                         ForEach(group.items) { changeset in
-                            WikiChangesetRow(
-                                changeset: changeset,
-                                showPage: pageFilter == nil,
-                                relativeText: relativeText(for: changeset)
-                            )
-                            .contentShape(Rectangle())
-                            // Tap = show what changed (git-style diff); the
-                            // sheet's "Open Page" button navigates onward.
-                            .onTapGesture { diffChangeset = changeset }
-                            .contextMenu {
-                                Button("View Diff") { diffChangeset = changeset }
-                                Button("Open Page") { onOpenPage?(changeset.page) }
-                            }
+                            changesetEntry(changeset)
                             Divider().padding(.leading, 44)
                         }
                     } header: {
@@ -173,6 +210,67 @@ struct WikiTimelineView: View {
                     loadMoreFooter
                 }
             }
+        }
+    }
+
+    /// A commit-list entry: the row toggles its diff, which expands inline
+    /// beneath it (disclosure, not a sheet).
+    @ViewBuilder
+    private func changesetEntry(_ changeset: WikiChangeset) -> some View {
+        let isExpanded = expandedChangesetID == changeset.id
+
+        WikiChangesetRow(
+            changeset: changeset,
+            showPage: effectivePageFilter == nil,
+            relativeText: relativeText(for: changeset),
+            isExpanded: isExpanded
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { toggleDiff(changeset) }
+        .contextMenu {
+            Button(isExpanded ? "Hide Diff" : "View Diff") { toggleDiff(changeset) }
+            Button("Open Page") { onOpenPage?(changeset.page) }
+        }
+
+        if isExpanded {
+            VStack(alignment: .leading, spacing: 6) {
+                WikiChangesetInlineDiff(
+                    changeset: changeset,
+                    state: viewModel.diffStates[changeset.id] ?? .init(),
+                    onRetry: {
+                        Task {
+                            await viewModel.loadDiff(
+                                client: gatewayClientWrapper.client,
+                                changesetID: changeset.id, force: true)
+                        }
+                    }
+                )
+                .task(id: changeset.id) {
+                    await viewModel.loadDiff(
+                        client: gatewayClientWrapper.client, changesetID: changeset.id)
+                }
+
+                if onOpenPage != nil {
+                    Button {
+                        onOpenPage?(changeset.page)
+                    } label: {
+                        Label("Open page", systemImage: "arrow.up.right.square")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.accent)
+                }
+            }
+            .padding(.leading, 44)
+            .padding(.trailing, 12)
+            .padding(.bottom, 10)
+            .transition(.opacity)
+        }
+    }
+
+    private func toggleDiff(_ changeset: WikiChangeset) {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            expandedChangesetID = expandedChangesetID == changeset.id ? nil : changeset.id
         }
     }
 
@@ -214,7 +312,7 @@ struct WikiTimelineView: View {
             Image(systemName: "clock.badge.questionmark")
                 .font(.system(size: 36))
                 .foregroundStyle(Theme.tertiary)
-            Text(pageFilter == nil ? "No changes recorded yet" : "No history for this page")
+            Text(effectivePageFilter == nil ? "No changes recorded yet" : "No history for this page")
                 .font(.callout)
                 .foregroundStyle(Theme.secondary)
         }
@@ -256,13 +354,10 @@ struct WikiTimelineView: View {
         var buckets: [String: [WikiChangeset]] = [:]
         for changeset in viewModel.changesets {
             let key: String
-            let title: String
             if let date = changeset.date {
                 key = Self.dayFormatter.string(from: date)
-                title = dayTitle(for: date, key: key)
             } else {
                 key = "Unknown date"
-                title = "Unknown date"
             }
             if buckets[key] == nil {
                 buckets[key] = []
@@ -306,6 +401,7 @@ private struct WikiChangesetRow: View {
     let changeset: WikiChangeset
     let showPage: Bool
     let relativeText: String
+    let isExpanded: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -336,6 +432,11 @@ private struct WikiChangesetRow: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                         .fixedSize()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Theme.tertiary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
 
                 if !changeset.summary.isEmpty {

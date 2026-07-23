@@ -34,64 +34,20 @@ private func buildFolderNode(name: String, id: String, entries: [(page: WikiPage
     return WikiFolderNode(id: id, name: name, subfolders: subfolders, files: files)
 }
 
-// MARK: - WikiBrowserView
+// MARK: - WikiFileTreeSidebar
 
-/// Obsidian-style file browser over the wiki vault: folder tree sidebar +
-/// the shared WikiReaderPane. Selection, history, cache, and backlinks all
-/// live on WikiGraphViewModel so they survive mode switches.
-struct WikiBrowserView: View {
+/// Obsidian-style folder tree over the wiki vault, with page search. The
+/// adaptive wiki hosts it as a toggleable left sidebar (macOS) or a browse
+/// sheet (iOS); selection flows through the shared plane via `onSelect`.
+struct WikiFileTreeSidebar: View {
     @ObservedObject var viewModel: WikiGraphViewModel
-    #if !os(macOS)
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    #endif
+    /// Called after a page is picked (hosts navigate + present the reader;
+    /// the iOS sheet also dismisses itself here).
+    var onSelect: (WikiPage) -> Void
 
     @State private var searchText = ""
 
-    private var isCompact: Bool {
-        #if os(macOS)
-        return false
-        #else
-        return horizontalSizeClass == .compact
-        #endif
-    }
-
     var body: some View {
-        Group {
-            if isCompact {
-                compactLayout
-            } else {
-                regularLayout
-            }
-        }
-        .background(Theme.background)
-    }
-
-    // MARK: - Layouts
-
-    private var regularLayout: some View {
-        HStack(spacing: 0) {
-            sidebar
-                .frame(width: 240)
-            Divider()
-            WikiReaderPane(viewModel: viewModel)
-        }
-    }
-
-    private var compactLayout: some View {
-        ZStack {
-            sidebar
-            if viewModel.selectedPath != nil {
-                WikiReaderPane(viewModel: viewModel, showsCompactBack: true)
-                    .background(Theme.background)
-                    .transition(.move(edge: .trailing))
-            }
-        }
-        .animation(.easeInOut(duration: 0.22), value: viewModel.selectedPath != nil)
-    }
-
-    // MARK: - Sidebar
-
-    private var sidebar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
@@ -126,7 +82,7 @@ struct WikiBrowserView: View {
                             node: tree,
                             selectedPath: viewModel.selectedPath,
                             colorFor: { viewModel.color(for: $0) },
-                            onSelect: { viewModel.navigate(to: $0.path) }
+                            onSelect: onSelect
                         )
                     } else {
                         let results = filteredPages
@@ -141,7 +97,7 @@ struct WikiBrowserView: View {
                                     page: page,
                                     isSelected: page.path == viewModel.selectedPath,
                                     dotColor: viewModel.color(for: page.type)
-                                ) { viewModel.navigate(to: page.path) }
+                                ) { onSelect(page) }
                             }
                         }
                     }

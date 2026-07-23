@@ -5,26 +5,34 @@ import simd
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "WikiGraphViewModel")
 
-/// The four presentations of the wiki: force-directed 2D/3D graphs,
-/// the folder-tree file browser, and the changeset timeline.
-enum WikiViewMode {
-    case twoD, threeD, files, timeline
-}
-
 @MainActor
 final class WikiGraphViewModel: ObservableObject {
 
     @Published var graph: WikiGraph = .empty {
         didSet { rebuildBacklinks() }
     }
-    @Published var viewMode: WikiViewMode = .twoD
+
+    // MARK: - Adaptive layout state
+    // One surface: the graph is the wiki home. Everything else is an
+    // attachment — the reader opens on selection, the file tree is a
+    // toggleable sidebar, and the changeset timeline is a drawer.
+
+    /// Reader visibility: true presents the reader for `selectedPath`
+    /// (macOS side panel / iOS sheet) over the always-alive graph.
     @Published var showPageDetail = false
+    /// Folder-tree sidebar (macOS) / browse sheet (iOS) visibility.
+    @Published var showFileTree = false
+    /// Changeset-timeline drawer (macOS) / sheet (iOS) visibility.
+    /// Hermes-only; the hosting view hides the affordance for sources that
+    /// don't conform to WikiChangesetSource.
+    @Published var showTimeline = false
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
 
     // MARK: - Shared page selection plane
-    // One "current page" across all four modes: the browser's reader, the
-    // graph's node selection, and the timeline all read and write this.
+    // One "current page" across every surface: the reader, the graph's node
+    // selection, the file-tree sidebar, and the timeline drawer all read and
+    // write this.
 
     @Published var selectedPath: String?
     @Published private(set) var backStack: [String] = []
@@ -138,7 +146,9 @@ final class WikiGraphViewModel: ObservableObject {
     private let alphaMin: CGFloat = 0.002
     private let dragReheat: CGFloat = 0.15
     var simAlpha: CGFloat { alpha }
-    var is3D = false
+    /// 2D canvas vs 3D SceneKit rendering of the same graph — a toggle in
+    /// the graph controls, not a separate top-level mode.
+    @Published var is3D = false
 
     private let springLength3D: Float = 160
     private let chargeConstant3D: Float = 20000
@@ -392,24 +402,29 @@ final class WikiGraphViewModel: ObservableObject {
         showPageDetail = true
     }
 
-    // MARK: - Cross-mode affordances
+    // MARK: - Cross-surface affordances
 
-    /// "Show in Graph": jump to the 2D graph with the current page's node
-    /// selected and centered.
+    /// "Show in Graph": close the reader and reveal the current page's node
+    /// selected and centered on the 2D canvas.
     func showCurrentPageInGraph() {
         showPageDetail = false
-        if viewMode != .twoD {
-            viewMode = .twoD
-            if is3D { is3D = false; setupSimulation() }
-        }
+        if is3D { is3D = false; setupSimulation() }
         syncNodeSelection(toPath: selectedPath)
         if let idx = selectedNodeIndex { centerOnNode(idx) }
     }
 
-    /// "Open in Files": jump to the file browser with a page open.
-    func openInFiles(path: String) {
-        showPageDetail = false
-        viewMode = .files
+    /// Flips the 2D canvas / 3D SceneKit rendering, reseeding the simulation
+    /// and carrying the shared page selection into the fresh node set.
+    func setRendering3D(_ enabled: Bool) {
+        guard is3D != enabled else { return }
+        is3D = enabled
+        setupSimulation()
+        if !enabled, let idx = selectedNodeIndex { centerOnNode(idx) }
+    }
+
+    /// "Reveal in sidebar": open the file tree with the page selected.
+    func revealInFileTree(path: String) {
+        showFileTree = true
         navigate(to: path)
     }
 
@@ -631,8 +646,24 @@ final class WikiGraphViewModel: ObservableObject {
 
     func handleTap(at point: CGPoint) {
         if let index = hitTest(point: point) {
-            if selectedNodeIndex == index { openReaderForSelection() } else { selectNode(index) }
-        } else { selectedNodeIndex = nil }
+            activateNode(index)
+        } else {
+            deactivateSelection()
+        }
+    }
+
+    /// Selection-driven reader: tapping a node (2D or 3D) selects it and
+    /// opens the reader over the always-alive graph.
+    func activateNode(_ index: Int) {
+        selectNode(index)
+        openReaderForSelection()
+    }
+
+    /// Tapping empty canvas deselects and closes the reader — back to the
+    /// full-bleed graph. Path/history survive for the sidebar and timeline.
+    func deactivateSelection() {
+        selectedNodeIndex = nil
+        showPageDetail = false
     }
 
     func deselectNode() { selectedNodeIndex = nil }

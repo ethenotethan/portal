@@ -184,22 +184,23 @@ struct WikiGraphViewModelTests {
         #expect(vm.selectedNodeIndex == nil)
     }
 
-    @Test("Open in Files switches mode and opens the page")
-    func openInFiles() {
+    @Test("Reveal in file tree opens the sidebar with the page selected")
+    func revealInFileTree() {
         let vm = makeVM()
-        vm.openInFiles(path: "concepts/beta.md")
-        #expect(vm.viewMode == .files)
+        vm.revealInFileTree(path: "concepts/beta.md")
+        #expect(vm.showFileTree)
         #expect(vm.selectedPath == "concepts/beta.md")
-        #expect(vm.showPageDetail == false)
     }
 
-    @Test("Show in Graph switches to 2D and selects the node")
+    @Test("Show in Graph closes the reader, drops to 2D, and selects the node")
     func showInGraph() {
         let vm = makeVM()
-        vm.viewMode = .files
+        vm.is3D = true
         vm.navigate(to: "concepts/beta.md")
+        vm.showPageDetail = true
         vm.showCurrentPageInGraph()
-        #expect(vm.viewMode == .twoD)
+        #expect(vm.showPageDetail == false)
+        #expect(vm.is3D == false)
         let idx = vm.selectedNodeIndex
         #expect(idx != nil)
         if let idx {
@@ -211,6 +212,60 @@ struct WikiGraphViewModelTests {
             #expect(abs(screenX - 400) < 0.001)
             #expect(abs(screenY - 300) < 0.001)
         }
+    }
+
+    @Test("Activating a node selects its page and opens the reader")
+    func activateNodeOpensReader() {
+        let vm = makeVM()
+        guard let idx = vm.simNodes.firstIndex(where: { $0.id == "alpha" }) else {
+            Issue.record("alpha node missing")
+            return
+        }
+        vm.activateNode(idx)
+        #expect(vm.selectedPath == "concepts/alpha.md")
+        #expect(vm.showPageDetail)
+    }
+
+    @Test("Deactivating (empty-canvas tap) closes the reader but keeps history")
+    func deactivateClosesReader() {
+        let vm = makeVM()
+        vm.navigate(to: "concepts/alpha.md")
+        vm.navigate(to: "concepts/beta.md")
+        vm.showPageDetail = true
+        vm.deactivateSelection()
+        #expect(vm.showPageDetail == false)
+        #expect(vm.selectedNodeIndex == nil)
+        // The shared path and history survive for the sidebar/timeline.
+        #expect(vm.selectedPath == "concepts/beta.md")
+        #expect(vm.canGoBack)
+    }
+
+    @Test("3D rendering toggle reseeds the sim and keeps the page selection")
+    func renderingToggleKeepsSelection() {
+        let vm = makeVM()
+        vm.navigate(to: "entities/gamma.md")
+
+        vm.setRendering3D(true)
+        #expect(vm.is3D)
+        var idx = vm.selectedNodeIndex
+        #expect(idx != nil)
+        if let idx { #expect(vm.simNodes[idx].id == "gamma") }
+
+        vm.setRendering3D(false)
+        #expect(!vm.is3D)
+        idx = vm.selectedNodeIndex
+        #expect(idx != nil)
+        if let idx {
+            #expect(vm.simNodes[idx].id == "gamma")
+            // Back in 2D the selected node is re-centered.
+            let pos = vm.simNodes[idx].position
+            #expect(abs(pos.x * vm.zoom + vm.panOffset.width - 400) < 0.001)
+        }
+
+        // Same-value set is a no-op (no reseed churn).
+        let positions = vm.simNodes.map(\.position)
+        vm.setRendering3D(false)
+        #expect(vm.simNodes.map(\.position) == positions)
     }
 
     /// Regression: loadedSource was weak, and ContentView rebuilds its
