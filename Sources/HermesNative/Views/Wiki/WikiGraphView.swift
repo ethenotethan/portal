@@ -839,6 +839,8 @@ struct WikiGraphView: View {
             modeButton(.files, icon: "list.bullet", help: "File browser")
             modeButton(.timeline, icon: "clock.arrow.circlepath", help: "Timeline")
 
+            WikiEventTimelineButton(source: overrideSource, viewModel: viewModel)
+
             Divider().frame(height: 14)
 
             Button {
@@ -900,6 +902,8 @@ struct WikiGraphView: View {
             modeButton(.threeD, icon: "cube.transparent", help: "3D graph")
             modeButton(.files, icon: "list.bullet", help: "File browser")
             modeButton(.timeline, icon: "clock.arrow.circlepath", help: "Timeline")
+
+            WikiEventTimelineButton(source: overrideSource, viewModel: viewModel)
 
             Divider().frame(height: 14)
 

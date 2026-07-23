@@ -120,6 +120,18 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | `wiki.expand_links` | `slug`, `wiki?` | Expand integration links → `{type, status, title, url}` |
 | `wiki.changesets` | `wiki?`, `page?`, `action?`, `trigger?`, `since?`, `until?`, `limit`, `offset` | Edit-history timeline (newest first) + `total` for pagination |
 
+Centaur sessions browse the same wiki UI through `CentaurWikiClient`
+(`Services/CentaurWikiClient.swift` + `+Timeline.swift`) — plain HTTP GETs
+against Darkbloom's wiki-api instead of these RPCs: `/wiki/graph`,
+`/wiki/page/{id}`, `/wiki/search`, plus two Centaur-only timeline surfaces
+gated by `WikiEventTimelineProviding` conformance (GatewayClient does not
+conform, so Hermes wikis never show the Events button):
+
+| Endpoint | Params | Description |
+|----------|--------|-------------|
+| `GET /wiki/timeline` | `days?`, `since?`, `until?` | Raw ingestion events on an event-time axis: `events` (kind, label, url, `occurred_at`/`ingested_at`, `event_time_estimated`, directive enrichment) + `events_by_kind` counts |
+| `GET /wiki/revisions-timeline` | `days?`, `since?`, `until?` | Page-edit volume bucketed hour/day/week/month (`unit`, `buckets`) + pre-window cumulative `baseline` for the "knowledge accrued" curve |
+
 ### feed.*
 
 | Method | Params | Description |

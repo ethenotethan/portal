@@ -51,6 +51,14 @@ extension GatewayClient: WikiSource {
 /// Read-only client for Darkbloom's wiki-api (services/wiki-api): public
 /// GET endpoints under /wiki/*. Bearer sent anyway — the endpoints are
 /// unauthenticated today, but the header future-proofs a lockdown.
+///
+/// Beyond the WikiSource surface (graph/page/search), the client also serves
+/// the Compendium ingestion timeline (CentaurWikiClient+Timeline.swift):
+/// - `GET /wiki/timeline` — raw INPUT events that flowed into the knowledge
+///   base (per-kind counts + directive attribution), and
+/// - `GET /wiki/revisions-timeline` — the OUTPUT counterpart: page-edit
+///   volume bucketed hour/day/week/month plus the pre-window cumulative
+///   baseline for a "knowledge accrued" curve.
 @MainActor
 final class CentaurWikiClient: WikiSource {
 
@@ -156,7 +164,8 @@ final class CentaurWikiClient: WikiSource {
 
     // MARK: Plumbing
 
-    private func getJSON(_ path: String) async throws -> [String: Any] {
+    /// Internal (not private) so CentaurWikiClient+Timeline.swift shares it.
+    func getJSON(_ path: String) async throws -> [String: Any] {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw GatewayError.invalidResponse("bad wiki path: \(path)")
         }
