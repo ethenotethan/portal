@@ -44,11 +44,31 @@ enum SessionPDFExporter {
         var images: [String: PlatformImage] = [:]
         for message in messages where message.role == .assistant {
             for block in MarkdownParser.parse(message.contentWithoutAttachments) {
-                guard case .codeBlock(let language, let code) = block,
-                      MarkdownParser.isDiagramLanguage(language),
+                guard case .codeBlock(let language, let code) = block, images[code] == nil else { continue }
+                // Maps (and the map views inside model blocks): MapKit's Map
+                // is a representable — snapshot via MKMapSnapshotter instead.
+                if MarkdownParser.isMapLanguage(language), let spec = MapSpec.parse(code) {
+                    if let image = await MapExportRenderer.renderImage(spec: spec) {
+                        images[code] = image
+                    }
+                    continue
+                }
+                if MarkdownParser.isModelLanguage(language), let spec = ModelSpec.parse(code) {
+                    for view in spec.views where view.kind == .map {
+                        if let mapJSON = ModelProjections.mapJSON(spec: spec, view: view),
+                           images[mapJSON] == nil,
+                           let mapSpec = MapSpec.parse(mapJSON),
+                           let image = await MapExportRenderer.renderImage(spec: mapSpec) {
+                            // Keyed by the PROJECTED map json — the model
+                            // export view projects the same string to look up.
+                            images[mapJSON] = image
+                        }
+                    }
+                    continue
+                }
+                guard MarkdownParser.isDiagramLanguage(language),
                       !MarkdownParser.isTimelineBlock(language: language, code: code),
-                      !MarkdownParser.isSankeyBlock(language: language, code: code),
-                      images[code] == nil
+                      !MarkdownParser.isSankeyBlock(language: language, code: code)
                 else { continue }
                 if let image = await MermaidExportRenderer.renderImage(source: code) {
                     images[code] = image
@@ -286,6 +306,14 @@ private struct ExportBlockView: View {
                 // Canvas + circles + text — no representables; the static
                 // layout is deterministic, so print matches screen.
                 NetworkGraphView(json: code, isStreaming: false)
+            } else if MarkdownParser.isMapLanguage(language) {
+                if let image = diagramImages[code] {
+                    ExportImageRow(image: image, caption: MapSpec.parse(code)?.title ?? "Map")
+                } else {
+                    ExportCodeText(language: language, code: code)
+                }
+            } else if MarkdownParser.isModelLanguage(language) {
+                ExportModelView(code: code, diagramImages: diagramImages)
             } else {
                 ExportCodeText(language: language, code: code)
             }
@@ -393,6 +421,82 @@ private struct ExportDiffView: View {
 /// Static table for PDF export. TableView wraps its content in a horizontal
 /// ScrollView, which ImageRenderer rasterizes as an empty box — so lay the
 /// grid out directly, letting cells wrap instead of scrolling.
+/// Ensemble model export: each declared view rendered by its PDF-safe path —
+/// markdown/graph/chart/stats reuse the live views (no representables), map
+/// views look up their pre-rendered MKMapSnapshotter image by projected
+/// JSON, tables flatten to the static export grid.
+private struct ExportModelView: View {
+    let code: String
+    let diagramImages: [String: PlatformImage]
+
+    var body: some View {
+        if let spec = ModelSpec.parse(code) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let title = spec.title {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
+                ForEach(spec.views) { view in
+                    viewBlock(spec: spec, view: view)
+                }
+            }
+        } else {
+            ExportCodeText(language: "model", code: code)
+        }
+    }
+
+    @ViewBuilder
+    private func viewBlock(spec: ModelSpec, view: ModelSpec.View) -> some View {
+        switch view.kind {
+        case .markdown:
+            MarkdownContentView(text: view.text, isStreaming: false)
+                .equatable()
+        case .map:
+            if let mapJSON = ModelProjections.mapJSON(spec: spec, view: view),
+               let image = diagramImages[mapJSON] {
+                ExportImageRow(image: image, caption: "Map")
+            }
+        case .table:
+            ForEach(spec.sets(for: view), id: \.name) { set in
+                let columns = view.columns.isEmpty ? derivedColumns(for: set) : view.columns
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(set.name)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.secondary)
+                    ExportTableView(
+                        headers: columns,
+                        rows: set.items.map { item in columns.map { item[$0] ?? "" } }
+                    )
+                }
+            }
+        case .graph:
+            if let json = ModelProjections.graphJSON(spec: spec, view: view) {
+                NetworkGraphView(json: json, isStreaming: false)
+            }
+        case .chart:
+            if let json = ModelProjections.chartJSON(spec: spec, view: view) {
+                NativeChartView(json: json, isStreaming: false, interactive: false)
+            }
+        case .stats:
+            if let json = ModelProjections.statsJSON(spec: spec, view: view) {
+                StatTilesView(json: json, isStreaming: false)
+            }
+        }
+    }
+
+    private func derivedColumns(for set: ModelSpec.EntitySet) -> [String] {
+        var seen = Set<String>([set.key, "lat", "lon"])
+        var derived = [set.key]
+        for item in set.items {
+            for field in item.keys.sorted() where seen.insert(field).inserted {
+                derived.append(field)
+            }
+        }
+        return derived
+    }
+}
+
 private struct ExportTableView: View {
     let headers: [String]
     let rows: [[String]]

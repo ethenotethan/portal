@@ -50,7 +50,6 @@
 		1A8A679079EBFA6B36C70C2C /* SessionFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */; };
 		1AF11B4AFBFFA1FC026201D3 /* StatTilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6581DF6FE30E3629D12F54B5 /* StatTilesView.swift */; };
 		1B9CFABF8EA2A0E659C80D9A /* ChatSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742C42FB4508D2508FF94A82 /* ChatSkin.swift */; };
-		1BABF57BA5606C3A59712CE5 /* WikiEventTimelineButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7C36F25B3CC13EC9FE2EAA /* WikiEventTimelineButton.swift */; };
 		1BF54C22DCEC8F5EE5304F57 /* ChartSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3C1AE5F7C59A935A9652E0 /* ChartSpec.swift */; };
 		1C0A7A5E9BF22A385D308989 /* DatasetBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE5913B4CED89DEF44A7508 /* DatasetBlockView.swift */; };
 		1C372FF7882368E6FF4A8BFD /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */; };
@@ -79,7 +78,6 @@
 		31D12D614277EDA4B02B87F3 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BA414BA13AEA29C4CC7A03 /* SpawnTreeModels.swift */; };
 		326FB76DD8343B9E2EC44D48 /* SkillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEB8209DAE21C0F0337FA525 /* SkillStore.swift */; };
 		32C5144C3A885BC6692EED6C /* SessionExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */; };
-		32EC8FCDB787765537EDA4FE /* WikiEventTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC942FEFC46268BAB13D7C1E /* WikiEventTimelineView.swift */; };
 		3464EF27BBC22E601A76277A /* WikiGraphControlsBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EF6BFD11BFEDA0569506C77 /* WikiGraphControlsBar.swift */; };
 		3484BF8D09DD4F6079F39D1F /* TimelineSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEF2447D688F5A0717467A4 /* TimelineSpec.swift */; };
 		34EF999CDB8F55165AA5B0C1 /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */; };
@@ -96,6 +94,7 @@
 		3A6660107A287CE2996F80B8 /* TimelineSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEF2447D688F5A0717467A4 /* TimelineSpec.swift */; };
 		3ACC241006FC37EB2EAE5FD2 /* ThoughtGraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A69884F119471D33D25E7E4 /* ThoughtGraphLayoutEngine.swift */; };
 		3B0862F9F8DB3ED209EC7505 /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */; };
+		3C26C1ED00A977610E557E38 /* MapExportRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA60FCB2AE29451A3933505E /* MapExportRenderer.swift */; };
 		3C9F4A6FB688C9E510F195C8 /* SessionTimelineEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D29CAFCED8C928526916577 /* SessionTimelineEvent.swift */; };
 		3CA005F2EEC68DB737BD7BE8 /* SessionTimelineEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D29CAFCED8C928526916577 /* SessionTimelineEvent.swift */; };
 		3CAF40A65810107577A15E18 /* SessionLiveFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8520BBCB8665592D67A503DB /* SessionLiveFeedView.swift */; };
@@ -109,7 +108,7 @@
 		3F132ED582BFB260BD55D500 /* TreeNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCD3141656594B639005AAD /* TreeNodeView.swift */; };
 		3FDE2F80C7640F7DA73C146A /* SankeyBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D2E7129997DF3E82184495 /* SankeyBlockView.swift */; };
 		3FF80DFEDB9ABFB1CFFACDA9 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */; };
-		3FFE0063535FAF24731A2C9A /* WikiEventTimelineButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7C36F25B3CC13EC9FE2EAA /* WikiEventTimelineButton.swift */; };
+		41A8A625583DAE6A43A2F4F3 /* WikiEventsInputOutputChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF49EE343971DEE0F87356CF /* WikiEventsInputOutputChart.swift */; };
 		41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		41B11A07A04322A628F4DE3D /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */; };
 		41DD600DABF60611C291CD5D /* CentaurWorkflowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDE426E9E1CCED02EF79B023 /* CentaurWorkflowsView.swift */; };
@@ -249,6 +248,7 @@
 		90F76F46D7DA1E440696C34D /* ToolCallFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D01C62D7F9E9F4482310FA5 /* ToolCallFlowView.swift */; };
 		9173E4A3FBF0AD9AE57E9F26 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3179815C2A0EC7D43C9213AC /* CFAuthView.swift */; };
 		91DFC6A366B0EB81CA2B8C52 /* ModelSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E9BA0C0A71B4F33BCBBDAE1 /* ModelSpec.swift */; };
+		91E6987BBEEEC7EE06C0C725 /* WikiEventsKnowledgePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C020482E226F6F95314F03 /* WikiEventsKnowledgePane.swift */; };
 		92AAC904F3878F8C4BC728B8 /* MacScrollViewIntrospection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6B2B69312613B87EACC713E /* MacScrollViewIntrospection.swift */; };
 		92DBEEEA367A9CAEF513E78D /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 846CAD9657C0ED6872929714 /* QuizViewModel.swift */; };
 		931B84E5C3C6E084C355F5F9 /* ToolCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AE31FDF73C19D9F3762143 /* ToolCallView.swift */; };
@@ -264,6 +264,7 @@
 		97ECB1563388C158B3C6EC83 /* LivingArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA7E5DA4817A89AD472EF98B /* LivingArtifact.swift */; };
 		982CDFF6ACCAF4EF8B9FCAA9 /* HermesNativeE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03F119AA20F2FA922F50012C /* HermesNativeE2ETests.swift */; };
 		99B568E578154657238796E4 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 1BC88E0CAA3C0BE61BF7D7EF /* MLXLLM */; };
+		9A9474679A5F20DB72CA80D4 /* MapExportRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA60FCB2AE29451A3933505E /* MapExportRenderer.swift */; };
 		9B4FAE7AD46C36480B9C7D2A /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */; };
 		9B99946C96597C1E47195AB7 /* SessionPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */; };
 		9B9FABA5C6074DA98D4E8C05 /* ModelProjections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3535E1EA499AFF8865A2BF50 /* ModelProjections.swift */; };
@@ -275,6 +276,7 @@
 		9D846F746180F16291C70E15 /* ToolPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22A7665D966524A9EA9F3483 /* ToolPillView.swift */; };
 		9EE702EAF77D6AF23836B9B0 /* WikiGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BD6CA191B834A64926DFE6 /* WikiGraphView.swift */; };
 		A138D267E2459FDFFF6068AA /* TUISkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DFAC2BEE7A7000345BFEE4B /* TUISkin.swift */; };
+		A16C0F3ED0E1940E3940BE90 /* WikiEventsInputOutputChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF49EE343971DEE0F87356CF /* WikiEventsInputOutputChart.swift */; };
 		A1A69D04D289705BA86876C1 /* WikiEventTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897FF359EA570FE1CAE22D0E /* WikiEventTimeline.swift */; };
 		A21EA9881177CBCE89DAFCAE /* WikiPathPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */; };
 		A2789D8B5D09451E03DF854E /* ThoughtGraphNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3485571962535F17DD9D1AA /* ThoughtGraphNode.swift */; };
@@ -292,6 +294,7 @@
 		AF10FB705BABD6C9520C47B4 /* MacInputTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C915199AED78B0F829F02D17 /* MacInputTextField.swift */; };
 		AF66C5481E71991EA2B1090F /* ResponseStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0507F41EEE70625CED6689E9 /* ResponseStyle.swift */; };
 		B070B9746CD795F55091EFB8 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */; };
+		B09B9EEFD12129992F90CF7D /* WikiEventsKnowledgePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C020482E226F6F95314F03 /* WikiEventsKnowledgePane.swift */; };
 		B1192BB0C2D9608C14C562DC /* FlashcardDeckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C601BC4FC5AB9C1C81A777 /* FlashcardDeckView.swift */; };
 		B1C72D03E5C09B3FF0D5095D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04413B7162C8D0EAA432920E /* SettingsView.swift */; };
 		B20E904C579FD5ECFD0F0F67 /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */; };
@@ -309,6 +312,7 @@
 		B6CD7C750A37A6EC4E5B41A5 /* PromptBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98EAA5520C82637C026B91DB /* PromptBreakdown.swift */; };
 		B7A2ACFD1E4703732703EE24 /* MacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41979884D456FA9522F47D6 /* MacApp.swift */; };
 		B8671A98DA5C32813A0BA2B4 /* WikiGraph2DCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B0F1E402E3EF22146194C7 /* WikiGraph2DCanvas.swift */; };
+		BA428146D14EBC1C00054FA0 /* WikiEventFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7995EE8F5DD7C46B85883D14 /* WikiEventFeedView.swift */; };
 		BAC17B3A35FCE50C20CC2BF4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */; };
 		BAE5E00064175DD384B803DB /* NetworkGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F48DC03F5AD30707522478B /* NetworkGraphView.swift */; };
 		BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
@@ -324,7 +328,6 @@
 		C1551C4EC0BA077469198667 /* BeautifulMermaid in Frameworks */ = {isa = PBXBuildFile; productRef = 3B1D253A1B6E0624203E28E4 /* BeautifulMermaid */; };
 		C18EC002DEDEFB4463D5B64D /* ResponseStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0507F41EEE70625CED6689E9 /* ResponseStyle.swift */; };
 		C2EC3B58E28D3010EF444E86 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */; };
-		C305C3F5A90D3E83A8B09CA2 /* WikiEventTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC942FEFC46268BAB13D7C1E /* WikiEventTimelineView.swift */; };
 		C363CEDD15EF180248E0E3DD /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = D8E8A256BEBA815C53BE4C28 /* Tokenizers */; };
 		C5010057984A50A213B8790C /* ReasoningSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */; };
 		C50238D57DB0F48A1064C65E /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7471C7C26357969AFAF4154 /* SpawnNode.swift */; };
@@ -332,6 +335,7 @@
 		C5D56CE85AB1DDC2A4945793 /* ModelPickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74165A16776B6E131CE895E1 /* ModelPickerMenu.swift */; };
 		C639B17446988C825619F345 /* SkillCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E50848877F195F3F5628E4 /* SkillCache.swift */; };
 		C644828537C310FF4356FC38 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 659975ED74F5BCB4755CA417 /* SwiftMath */; };
+		C79273BBBF3692D1C41A760B /* WikiEventFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7995EE8F5DD7C46B85883D14 /* WikiEventFeedView.swift */; };
 		C98EECAF481BF8D1D742664C /* ActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1C673C620872B0D6482C9E /* ActivityStore.swift */; };
 		CB50AE5766A010F57898099E /* SessionBackendRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A372EE19C0E643C86683288 /* SessionBackendRegistry.swift */; };
 		CB7FDF8B318CE64BFED4EFE1 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D998C9BAC20BB758688FC9EB /* FlowLayout.swift */; };
@@ -367,6 +371,7 @@
 		DEC17FA02D6B7CEDBAFA3EFA /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */; };
 		DEEF9A80E5956C071C4B5660 /* ModelBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B25600A5222C8BD8D4DB94 /* ModelBlockView.swift */; };
 		E0D8D2B3D5615B59570D437C /* InlineMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28476A2EB8762400A85ABAEB /* InlineMath.swift */; };
+		E0DE07000BE4C33031897330 /* WikiEventsPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CDE26739CB3B72E8D30237F /* WikiEventsPageView.swift */; };
 		E18E4CAC79D565554493CA83 /* WikiGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */; };
 		E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */; };
 		E26F97711E4D8DA752711933 /* RenderMemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E792BA9A198723943260CC51 /* RenderMemo.swift */; };
@@ -384,6 +389,7 @@
 		E6D44D68797BD55FD6B1128D /* SessionPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585DA7FCBAB60B91E45207CD /* SessionPlaybackView.swift */; };
 		E7F5A3F87B57B14A61911CA3 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */; };
 		E8E9840D183EB7DB712F61E2 /* ThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5636A29AD5AB638D64191A0 /* ThoughtGraphView.swift */; };
+		EA20B666C13946F20751C173 /* WikiEventsPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CDE26739CB3B72E8D30237F /* WikiEventsPageView.swift */; };
 		EABE1088D83BEFBB0CAB94E7 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */; };
 		EAF2F54F452E73FFCFF76E10 /* HermesCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */; };
 		EC07855BC490EEE7FB98C920 /* ActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B1C673C620872B0D6482C9E /* ActivityStore.swift */; };
@@ -439,6 +445,7 @@
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
 		0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapBlockView.swift; sourceTree = "<group>"; };
+		0CDE26739CB3B72E8D30237F /* WikiEventsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsPageView.swift; sourceTree = "<group>"; };
 		0D220716249F948C0B818E3C /* ArtifactPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactPanel.swift; sourceTree = "<group>"; };
 		0DA4B7A611A2BE0BE76EDB1B /* SessionEventLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionEventLogView.swift; sourceTree = "<group>"; };
 		111C767B6EA881FE236C93F8 /* SkillSummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillSummaryService.swift; sourceTree = "<group>"; };
@@ -478,6 +485,7 @@
 		3DDB760C7DE7962EDD68FE92 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		3E9BA0C0A71B4F33BCBBDAE1 /* ModelSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSpec.swift; sourceTree = "<group>"; };
 		3F22EE17C766B1A1431CEAC6 /* GatewayClient+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Push.swift"; sourceTree = "<group>"; };
+		42B27397DB787F750C102F0C /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		438F3AF894E195EF4007BAE9 /* confused.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = confused.json; sourceTree = "<group>"; };
 		4392D892650CECEFE61D5A72 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		4616ABDB28D885C44153C4A3 /* PlatformCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformCompat.swift; sourceTree = "<group>"; };
@@ -492,7 +500,6 @@
 		581833B777AC84A1607DBD1F /* DarkMangaSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkMangaSkin.swift; sourceTree = "<group>"; };
 		585DA7FCBAB60B91E45207CD /* SessionPlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPlaybackView.swift; sourceTree = "<group>"; };
 		5947E5D1704228B981F401BD /* HermesProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesProgressView.swift; sourceTree = "<group>"; };
-		5B7C36F25B3CC13EC9FE2EAA /* WikiEventTimelineButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineButton.swift; sourceTree = "<group>"; };
 		5CCAEA30C82BE9DEAAB6E59F /* ThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailImageView.swift; sourceTree = "<group>"; };
 		5EB8F9DE662D9A4B1B014DB7 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		6294FDA258010F40BDDF42C3 /* StreamingStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingStatusBar.swift; sourceTree = "<group>"; };
@@ -512,7 +519,6 @@
 		6F924BA7C739D8BF1220EC89 /* WikiTimelineViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiTimelineViewModel.swift; sourceTree = "<group>"; };
 		71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfOverlayView.swift; sourceTree = "<group>"; };
 		73D6EDC73D991500193CD1A1 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
-		73E92AC319AB7804B4B48E0F /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		74165A16776B6E131CE895E1 /* ModelPickerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPickerMenu.swift; sourceTree = "<group>"; };
 		74241583599C1664DB6A4B94 /* SRSDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSDashboardView.swift; sourceTree = "<group>"; };
 		742C42FB4508D2508FF94A82 /* ChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSkin.swift; sourceTree = "<group>"; };
@@ -522,6 +528,7 @@
 		769BBB3BE6C0F8FD9A10A6CF /* JSONRPCResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONRPCResponse.swift; sourceTree = "<group>"; };
 		77A49E74E10C41B44D3C49C8 /* ActivityInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityInboxView.swift; sourceTree = "<group>"; };
 		787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagramExplorerView.swift; sourceTree = "<group>"; };
+		7995EE8F5DD7C46B85883D14 /* WikiEventFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventFeedView.swift; sourceTree = "<group>"; };
 		7DCC03393A6C612B15A7822C /* WikiChangesetInlineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetInlineDiff.swift; sourceTree = "<group>"; };
 		7FA16F415470C4A20A1155A3 /* SessionListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListViewModel.swift; sourceTree = "<group>"; };
 		80C19CE5657AD3FD6547FC3D /* ActivityItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityItem.swift; sourceTree = "<group>"; };
@@ -598,6 +605,7 @@
 		DBE7F6C318B11174A754F38A /* CronDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardView.swift; sourceTree = "<group>"; };
 		DCEF2447D688F5A0717467A4 /* TimelineSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineSpec.swift; sourceTree = "<group>"; };
 		DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubagentGraphIntegrator.swift; sourceTree = "<group>"; };
+		DF49EE343971DEE0F87356CF /* WikiEventsInputOutputChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsInputOutputChart.swift; sourceTree = "<group>"; };
 		E1110949F66962E0E6B6DF6E /* thinking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = thinking.json; sourceTree = "<group>"; };
 		E189B48EA1AAFB00B67C209F /* AgentBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBackend.swift; sourceTree = "<group>"; };
 		E1CB9DFBFC6F7CC67D8359F5 /* happy.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = happy.json; sourceTree = "<group>"; };
@@ -612,10 +620,10 @@
 		E996AFDAC3ACF6290E04567F /* HermesNative-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "HermesNative-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFolder.swift; sourceTree = "<group>"; };
 		EA3B85B277F45FC12C34E028 /* SessionsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDashboard.swift; sourceTree = "<group>"; };
+		EA60FCB2AE29451A3933505E /* MapExportRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapExportRenderer.swift; sourceTree = "<group>"; };
 		EA7E5DA4817A89AD472EF98B /* LivingArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifact.swift; sourceTree = "<group>"; };
 		EB368C6555C42F86E2B3C2D2 /* NetworkGraphSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGraphSpec.swift; sourceTree = "<group>"; };
 		EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfInstrumentation.swift; sourceTree = "<group>"; };
-		EC942FEFC46268BAB13D7C1E /* WikiEventTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineView.swift; sourceTree = "<group>"; };
 		EDFF359835C2716C43ADF249 /* HermesNative-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HermesNative-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedGateway.swift; sourceTree = "<group>"; };
 		EF6C83FB177D450056599E65 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
@@ -623,6 +631,7 @@
 		F2B04CED033B45A8BC5F71F5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F3608E6772F9A16E94183B21 /* CentaurClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurClient.swift; sourceTree = "<group>"; };
 		F390CDDA5944A2B5F4776A05 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
+		F3C020482E226F6F95314F03 /* WikiEventsKnowledgePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsKnowledgePane.swift; sourceTree = "<group>"; };
 		F428854475FA67BF7A39BF19 /* CronPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronPoller.swift; sourceTree = "<group>"; };
 		F48805BABC59EDB80428C1A0 /* SessionExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExplorerView.swift; sourceTree = "<group>"; };
 		F5636A29AD5AB638D64191A0 /* ThoughtGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphView.swift; sourceTree = "<group>"; };
@@ -690,6 +699,15 @@
 				74241583599C1664DB6A4B94 /* SRSDashboardView.swift */,
 			);
 			path = Quiz;
+			sourceTree = "<group>";
+		};
+		14A6B5CF1C7E8D26448DC078 /* hn-seams */ = {
+			isa = PBXGroup;
+			children = (
+				42B27397DB787F750C102F0C /* Local.xcconfig */,
+			);
+			name = "hn-seams";
+			path = .;
 			sourceTree = "<group>";
 		};
 		1F3F9B6602D553E52ACB6B45 /* Quiz */ = {
@@ -769,7 +787,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				9CA3063D343D3BB86E3C6EC3 /* hn-perf */,
+				14A6B5CF1C7E8D26448DC078 /* hn-seams */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -923,9 +941,11 @@
 			isa = PBXGroup;
 			children = (
 				7DCC03393A6C612B15A7822C /* WikiChangesetInlineDiff.swift */,
-				5B7C36F25B3CC13EC9FE2EAA /* WikiEventTimelineButton.swift */,
+				7995EE8F5DD7C46B85883D14 /* WikiEventFeedView.swift */,
+				DF49EE343971DEE0F87356CF /* WikiEventsInputOutputChart.swift */,
+				F3C020482E226F6F95314F03 /* WikiEventsKnowledgePane.swift */,
+				0CDE26739CB3B72E8D30237F /* WikiEventsPageView.swift */,
 				37E70A01C02BF9E547F3925B /* WikiEventTimelineCharts.swift */,
-				EC942FEFC46268BAB13D7C1E /* WikiEventTimelineView.swift */,
 				7498875BFAADDB4DC1962EBB /* WikiFileTreeSidebar.swift */,
 				13B0F1E402E3EF22146194C7 /* WikiGraph2DCanvas.swift */,
 				036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */,
@@ -947,15 +967,6 @@
 			path = App;
 			sourceTree = "<group>";
 		};
-		9CA3063D343D3BB86E3C6EC3 /* hn-perf */ = {
-			isa = PBXGroup;
-			children = (
-				73E92AC319AB7804B4B48E0F /* Local.xcconfig */,
-			);
-			name = "hn-perf";
-			path = .;
-			sourceTree = "<group>";
-		};
 		A91472BDE496AE4ADF1DD59A /* Blocks */ = {
 			isa = PBXGroup;
 			children = (
@@ -966,6 +977,7 @@
 				817CE76AF8753D467DA32202 /* LivingArtifactCapture.swift */,
 				0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */,
 				A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */,
+				EA60FCB2AE29451A3933505E /* MapExportRenderer.swift */,
 				73D6EDC73D991500193CD1A1 /* MathView.swift */,
 				D5B25600A5222C8BD8D4DB94 /* ModelBlockView.swift */,
 				8F48DC03F5AD30707522478B /* NetworkGraphView.swift */,
@@ -1342,6 +1354,7 @@
 				DCDE7EC7338E09D937F4302F /* MacScrollViewIntrospection.swift in Sources */,
 				5BFE694064475402CB3E286C /* MapBlockView.swift in Sources */,
 				CC42E48CDF80A0E07FFCD093 /* MapEntryTableView.swift in Sources */,
+				3C26C1ED00A977610E557E38 /* MapExportRenderer.swift in Sources */,
 				D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */,
 				3F0511D7BFFD9F095F75A6A4 /* MathView.swift in Sources */,
 				5A1108897F9D615124D85957 /* MediaAttachment.swift in Sources */,
@@ -1437,10 +1450,12 @@
 				E52630FDDA9E5076DD325674 /* VideoCache.swift in Sources */,
 				6DFA1570093A92122BFDD87A /* WikiChangesetInlineDiff.swift in Sources */,
 				630D8E544F09E472A93DC097 /* WikiChangesetSource.swift in Sources */,
+				C79273BBBF3692D1C41A760B /* WikiEventFeedView.swift in Sources */,
 				E49214769084FD4EA5D23DEB /* WikiEventTimeline.swift in Sources */,
-				1BABF57BA5606C3A59712CE5 /* WikiEventTimelineButton.swift in Sources */,
 				4320D7A4931193B77882584C /* WikiEventTimelineCharts.swift in Sources */,
-				C305C3F5A90D3E83A8B09CA2 /* WikiEventTimelineView.swift in Sources */,
+				A16C0F3ED0E1940E3940BE90 /* WikiEventsInputOutputChart.swift in Sources */,
+				B09B9EEFD12129992F90CF7D /* WikiEventsKnowledgePane.swift in Sources */,
+				EA20B666C13946F20751C173 /* WikiEventsPageView.swift in Sources */,
 				11D253F753775DD20E0B5139 /* WikiFileTreeSidebar.swift in Sources */,
 				EFD35A75F8CC6C60DB244A9B /* WikiGraph.swift in Sources */,
 				B8671A98DA5C32813A0BA2B4 /* WikiGraph2DCanvas.swift in Sources */,
@@ -1551,6 +1566,7 @@
 				92AAC904F3878F8C4BC728B8 /* MacScrollViewIntrospection.swift in Sources */,
 				626A5AD333834198D406FA43 /* MapBlockView.swift in Sources */,
 				0C5F46CC9CF74556F7785EBE /* MapEntryTableView.swift in Sources */,
+				9A9474679A5F20DB72CA80D4 /* MapExportRenderer.swift in Sources */,
 				6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */,
 				93D896A2085AE1C71CA67A11 /* MathView.swift in Sources */,
 				BF38ABA9B6F9DF39FE9E9766 /* MediaAttachment.swift in Sources */,
@@ -1646,10 +1662,12 @@
 				3190ED167BC76A42CFCEC6E5 /* VideoCache.swift in Sources */,
 				74F471E6BC15ECFD5832FAAC /* WikiChangesetInlineDiff.swift in Sources */,
 				9D798778D987F7DFD149B47C /* WikiChangesetSource.swift in Sources */,
+				BA428146D14EBC1C00054FA0 /* WikiEventFeedView.swift in Sources */,
 				A1A69D04D289705BA86876C1 /* WikiEventTimeline.swift in Sources */,
-				3FFE0063535FAF24731A2C9A /* WikiEventTimelineButton.swift in Sources */,
 				F313797208E4F5DD0E28C19B /* WikiEventTimelineCharts.swift in Sources */,
-				32EC8FCDB787765537EDA4FE /* WikiEventTimelineView.swift in Sources */,
+				41A8A625583DAE6A43A2F4F3 /* WikiEventsInputOutputChart.swift in Sources */,
+				91E6987BBEEEC7EE06C0C725 /* WikiEventsKnowledgePane.swift in Sources */,
+				E0DE07000BE4C33031897330 /* WikiEventsPageView.swift in Sources */,
 				46C6CE1F9045824400B46CE6 /* WikiFileTreeSidebar.swift in Sources */,
 				0C3ADFFCF9CBFD8E9B0D89F4 /* WikiGraph.swift in Sources */,
 				30C8AECF903DBD03BB04BFBA /* WikiGraph2DCanvas.swift in Sources */,
@@ -1695,7 +1713,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
+			baseConfigurationReference = 42B27397DB787F750C102F0C /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1721,7 +1739,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
+			baseConfigurationReference = 42B27397DB787F750C102F0C /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1747,7 +1765,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
+			baseConfigurationReference = 42B27397DB787F750C102F0C /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1851,7 +1869,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
+			baseConfigurationReference = 42B27397DB787F750C102F0C /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";

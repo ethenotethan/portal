@@ -121,7 +121,15 @@ private struct ModelCard: View {
             }
         case .graph:
             if let json = projection(view, ModelProjections.graphJSON(spec: spec, view: view)) {
-                NetworkGraphView(json: json, isStreaming: false)
+                // Graph node ids are "set/key" — the bus's ref encoding —
+                // so translation is a straight parse, no set resolution.
+                NetworkGraphView(
+                    json: json, isStreaming: false,
+                    externalSelection: Binding(
+                        get: { selectedRef.map { "\($0.set)/\($0.key)" } },
+                        set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
+                    )
+                )
             }
         case .chart:
             if let json = projection(view, ModelProjections.chartJSON(spec: spec, view: view)) {

@@ -7,10 +7,13 @@ import SwiftUI
 struct NetworkGraphView: View {
     let json: String
     let isStreaming: Bool
+    /// Host-owned node selection (ensemble models share one selection bus
+    /// across stacked views); nil = the card keeps private state.
+    var externalSelection: Binding<String?>?
 
     var body: some View {
         if let spec = NetworkGraphSpec.parse(json) {
-            GraphCard(spec: spec)
+            GraphCard(spec: spec, externalSelection: externalSelection)
         } else if Self.looksLikeMermaid(json) {
             // Models sometimes put mermaid `graph TD` syntax in a ```graph
             // fence. That's a diagram, not our JSON — route it to mermaid.
@@ -34,9 +37,16 @@ struct NetworkGraphView: View {
 
 private struct GraphCard: View {
     let spec: NetworkGraphSpec
-    @State private var selectedNodeID: String?
+    var externalSelection: Binding<String?>?
+    @State private var localSelection: String?
     /// Groups hidden via legend chips.
     @State private var hiddenGroups: Set<String> = []
+
+    /// Selection routes to the host's bus when provided, else stays local
+    /// (same pattern as MapCard).
+    private var selectionBinding: Binding<String?> {
+        externalSelection ?? $localSelection
+    }
 
     /// Categorical palette — same validated slots as NativeChartView
     /// (dark column, CVD-safe adjacent pairs on Theme.surface).
@@ -62,7 +72,7 @@ private struct GraphCard: View {
                 spec: spec,
                 groupColors: groupColors,
                 hiddenGroups: hiddenGroups,
-                selectedNodeID: $selectedNodeID
+                selectedNodeID: selectionBinding
             )
             if !spec.groups.isEmpty {
                 legendChips
