@@ -70,10 +70,14 @@ struct ModelSpec {
 
     struct View: Identifiable {
         enum Kind: String {
-            case map, table, graph, chart, stats
+            case map, table, graph, chart, stats, markdown
         }
 
         let kind: Kind
+        /// Position in the declared views array — part of identity so two
+        /// views of the same kind (e.g. markdown header + markdown notes)
+        /// don't collide in ForEach.
+        let index: Int
         /// Entity sets this view projects; empty = all sets.
         let entitySets: [String]
         /// table: display columns (empty = derive).
@@ -84,8 +88,11 @@ struct ModelSpec {
         let yField: String
         /// stats: fields to tile (empty = numeric fields).
         let fields: [String]
+        /// markdown: the prose body (headings/lists/nested fences all render
+        /// through the standard markdown pipeline).
+        let text: String
 
-        var id: String { "\(kind.rawValue):\(entitySets.joined(separator: ","))" }
+        var id: String { "\(index):\(kind.rawValue)" }
     }
 
     let id: String?
@@ -161,16 +168,21 @@ struct ModelSpec {
             )
         }
 
-        var views: [View] = ((obj["views"] as? [[String: Any]]) ?? []).compactMap { raw in
+        var views: [View] = ((obj["views"] as? [[String: Any]]) ?? []).enumerated().compactMap { index, raw in
             guard let kind = (raw["type"] as? String).flatMap(View.Kind.init(rawValue:)) else { return nil }
+            let text = ((raw["text"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            // A markdown view IS its text; empty prose is a no-op view.
+            if kind == .markdown && text.isEmpty { return nil }
             return View(
                 kind: kind,
+                index: index,
                 entitySets: ((raw["entities"] as? [String]) ?? []).filter { liveSetNames.contains($0) },
                 columns: (raw["columns"] as? [String]) ?? [],
                 chartType: (raw["chart"] as? String) ?? "bar",
                 xField: (raw["x"] as? String) ?? "",
                 yField: (raw["y"] as? String) ?? "",
-                fields: (raw["fields"] as? [String]) ?? []
+                fields: (raw["fields"] as? [String]) ?? [],
+                text: text
             )
         }
         // No views declared: sensible defaults — map when anything has
@@ -179,9 +191,13 @@ struct ModelSpec {
             let hasCoords = sets.contains { set in
                 set.rawItems.contains { $0["lat"] is NSNumber && $0["lon"] is NSNumber }
             }
-            if hasCoords { views.append(View(kind: .map, entitySets: [], columns: [], chartType: "bar", xField: "", yField: "", fields: [])) }
-            views.append(View(kind: .table, entitySets: [], columns: [], chartType: "bar", xField: "", yField: "", fields: []))
-            if !relations.isEmpty { views.append(View(kind: .graph, entitySets: [], columns: [], chartType: "bar", xField: "", yField: "", fields: [])) }
+            func defaultView(_ kind: View.Kind, index: Int) -> View {
+                View(kind: kind, index: index, entitySets: [], columns: [],
+                     chartType: "bar", xField: "", yField: "", fields: [], text: "")
+            }
+            if hasCoords { views.append(defaultView(.map, index: 0)) }
+            views.append(defaultView(.table, index: 1))
+            if !relations.isEmpty { views.append(defaultView(.graph, index: 2)) }
         }
 
         var actions: [String: [ArtifactAction]] = [:]

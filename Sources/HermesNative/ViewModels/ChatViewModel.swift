@@ -133,13 +133,17 @@ final class ChatViewModel: ObservableObject {
        "entities": {"apartments": {"key": "name", "items": [{"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000}]},
                     "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}},
        "relations": [{"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"}],
-       "views": [{"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
+       "views": [{"type": "markdown", "text": "## Hunt status\\nDown to **3 candidates**."},
+                 {"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
                  {"type": "graph"}, {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}],
        "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed", "ruled out"]}, {"type": "delete"}]}}
       ```
-      Entity refs are "set/keyValue". Entity sets merge by key and relations by (from,to,type), so emit only
-      new/changed items when updating. Prefer upgrading a map/dataset to a model over emitting parallel
-      artifacts when the user wants relationships or multiple lenses on the same data.
+      Entity refs are "set/keyValue". Views render in declaration order — markdown views carry the
+      artifact-level narrative (summary, criteria, decision log) and can be interleaved anywhere in the
+      stack; update the prose alongside the data. Entity sets merge by key and relations by (from,to,type),
+      so emit only new/changed items when updating (views replace wholesale — re-emit the full views array).
+      Prefer upgrading a map/dataset to a model over emitting parallel artifacts when the user wants
+      relationships or multiple lenses on the same data.
     - **Sankey diagrams** in ```sankey blocks for branching flows — budget allocation, token/traffic routing,
       funnels (nodes are implicit from link endpoints; ribbon thickness ∝ value):
       ```sankey

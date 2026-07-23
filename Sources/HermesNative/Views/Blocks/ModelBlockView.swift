@@ -114,6 +114,12 @@ private struct ModelCard: View {
             if let json = ModelProjections.statsJSON(spec: spec, view: view) {
                 StatTilesView(json: json, isStreaming: false)
             }
+        case .markdown:
+            // Artifact-level narrative interleaved in the stack (summaries,
+            // decision logs, criteria). Full markdown pipeline — headings,
+            // lists, math, even nested fences.
+            MarkdownContentView(text: view.text, isStreaming: false)
+                .equatable()
         }
     }
 

@@ -652,3 +652,32 @@ struct EnsembleModelTests {
         #expect(!MarkdownParser.isModelLanguage("mode"))
     }
 }
+
+@Suite("Model Markdown Views")
+struct ModelMarkdownViewTests {
+
+    @Test("Markdown views parse in declaration order; empty text drops")
+    func parsing() {
+        let spec = ModelSpec.parse("""
+        {"entities": {"things": {"key": "id", "items": [{"id": "a"}]}},
+         "views": [
+           {"type": "markdown", "text": "## Header"},
+           {"type": "table"},
+           {"type": "markdown", "text": "   "},
+           {"type": "markdown", "text": "### Notes"}
+         ]}
+        """)!
+        #expect(spec.views.map(\.kind) == [.markdown, .table, .markdown])
+        #expect(spec.views[0].text == "## Header")
+        #expect(spec.views[2].text == "### Notes")
+    }
+
+    @Test("Two same-kind views get distinct ids (ForEach identity)")
+    func distinctIDs() {
+        let spec = ModelSpec.parse("""
+        {"entities": {"things": {"key": "id", "items": [{"id": "a"}]}},
+         "views": [{"type": "markdown", "text": "one"}, {"type": "markdown", "text": "two"}]}
+        """)!
+        #expect(Set(spec.views.map(\.id)).count == 2)
+    }
+}
