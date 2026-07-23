@@ -39,7 +39,23 @@ private struct SankeyCard: View {
         "#199e70", "#d95926", "#9085e9", "#e66767",
     ].compactMap { Color(hex: $0) }
 
-    private var layout: SankeyLayout.Result { SankeyLayout.layout(spec) }
+    /// Layout is pure in the spec; body re-runs on every selection click,
+    /// so cache instead of recomputing the column/ribbon packing per click.
+    private static let layoutMemo = RenderMemo<SankeyLayout.Result>(limit: 16)
+
+    private var layout: SankeyLayout.Result {
+        Self.layoutMemo.value(for: cacheKey) { SankeyLayout.layout(spec) }
+    }
+
+    private var cacheKey: String {
+        var hasher = Hasher()
+        for link in spec.links {
+            hasher.combine(link.from)
+            hasher.combine(link.to)
+            hasher.combine(link.value)
+        }
+        return String(hasher.finalize())
+    }
 
     /// Node color: its group's slot when groups are declared, else its
     /// column's slot — adjacent columns never share a hue either way.

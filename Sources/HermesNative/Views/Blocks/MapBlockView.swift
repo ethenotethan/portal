@@ -68,7 +68,16 @@ struct MapSpec: Decodable {
         self.actions = actions
     }
 
+    /// Parse runs in body (re-evaluated per selection click) and does a
+    /// double pass (Decodable + JSONSerialization for extra fields) — memo
+    /// keyed on the source string.
+    private static let parseMemo = RenderMemo<MapSpec?>(limit: 16)
+
     static func parse(_ json: String) -> MapSpec? {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> MapSpec? {
         guard let data = json.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(MapSpec.self, from: data) else { return nil }
         // Action declarations + per-marker action-field values ride outside

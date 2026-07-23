@@ -224,6 +224,7 @@
 		82872A7E1CF3BD5A7FB1569A /* NetworkGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F48DC03F5AD30707522478B /* NetworkGraphView.swift */; };
 		8293B793A25F73E2DCD6E076 /* CentaurClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3608E6772F9A16E94183B21 /* CentaurClient.swift */; };
 		82DD829EDC65638DC04ED1BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3D7AE79773431722873482 /* Theme.swift */; };
+		8409995B8A104A74D37FE49D /* RenderMemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E792BA9A198723943260CC51 /* RenderMemo.swift */; };
 		854DA8E57545F5379A0F4C54 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */; };
 		86301818503A4FFE9FBC7E93 /* InlineMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28476A2EB8762400A85ABAEB /* InlineMath.swift */; };
 		86840130D03445C9B796DE72 /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F048DC6F9BF97D41CB5DC4A /* DocumentTextExtractor.swift */; };
@@ -368,6 +369,7 @@
 		E0D8D2B3D5615B59570D437C /* InlineMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28476A2EB8762400A85ABAEB /* InlineMath.swift */; };
 		E18E4CAC79D565554493CA83 /* WikiGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036752590B5CB027B0AC7E23 /* WikiGraph3DView.swift */; };
 		E244AA9D933CB49AFBE5DF1C /* DiagramExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */; };
+		E26F97711E4D8DA752711933 /* RenderMemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E792BA9A198723943260CC51 /* RenderMemo.swift */; };
 		E3925E2282187B1CE14879C3 /* SessionRunTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ED7E5FCE51907EC21E5388 /* SessionRunTimelineView.swift */; };
 		E3C036E42FFD817B3C59D14C /* PerfOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */; };
 		E4699CB4ACBE1489A7F8835C /* RawEventLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD7F4A4FF0FB547409694A56 /* RawEventLog.swift */; };
@@ -444,7 +446,6 @@
 		13B0F1E402E3EF22146194C7 /* WikiGraph2DCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph2DCanvas.swift; sourceTree = "<group>"; };
 		16F426AEEEE5AE599528DBFA /* FlashcardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardModels.swift; sourceTree = "<group>"; };
 		1975D19033F4A08DBE1B0FCD /* AgentPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentPanel.swift; sourceTree = "<group>"; };
-		1C998FB98674BB53E1B861E0 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		1CBC71ED91AC512E21E65282 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillGraph3DView.swift; sourceTree = "<group>"; };
 		1DD634738EDA588BA9B5EDDE /* PlaybackTimelineChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTimelineChart.swift; sourceTree = "<group>"; };
@@ -511,6 +512,7 @@
 		6F924BA7C739D8BF1220EC89 /* WikiTimelineViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiTimelineViewModel.swift; sourceTree = "<group>"; };
 		71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfOverlayView.swift; sourceTree = "<group>"; };
 		73D6EDC73D991500193CD1A1 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
+		73E92AC319AB7804B4B48E0F /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		74165A16776B6E131CE895E1 /* ModelPickerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelPickerMenu.swift; sourceTree = "<group>"; };
 		74241583599C1664DB6A4B94 /* SRSDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSDashboardView.swift; sourceTree = "<group>"; };
 		742C42FB4508D2508FF94A82 /* ChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSkin.swift; sourceTree = "<group>"; };
@@ -604,6 +606,7 @@
 		E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		E64C419357E72FE3B8BFCAE7 /* QuizSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizSheet.swift; sourceTree = "<group>"; };
 		E75C11A7DC7195F4353C93DA /* idle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idle.json; sourceTree = "<group>"; };
+		E792BA9A198723943260CC51 /* RenderMemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderMemo.swift; sourceTree = "<group>"; };
 		E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPathPickerSheet.swift; sourceTree = "<group>"; };
 		E92CD7D282D79F69DD027BFE /* SkillModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModels.swift; sourceTree = "<group>"; };
 		E996AFDAC3ACF6290E04567F /* HermesNative-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "HermesNative-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -766,7 +769,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				C8F8DD29F2804E370A7ADF74 /* hn-mdview */,
+				9CA3063D343D3BB86E3C6EC3 /* hn-perf */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -865,6 +868,7 @@
 				C6B2B69312613B87EACC713E /* MacScrollViewIntrospection.swift */,
 				EBB5B7588A4450E3C1E0AD2E /* PerfInstrumentation.swift */,
 				4616ABDB28D885C44153C4A3 /* PlatformCompat.swift */,
+				E792BA9A198723943260CC51 /* RenderMemo.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -943,6 +947,15 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		9CA3063D343D3BB86E3C6EC3 /* hn-perf */ = {
+			isa = PBXGroup;
+			children = (
+				73E92AC319AB7804B4B48E0F /* Local.xcconfig */,
+			);
+			name = "hn-perf";
+			path = .;
+			sourceTree = "<group>";
+		};
 		A91472BDE496AE4ADF1DD59A /* Blocks */ = {
 			isa = PBXGroup;
 			children = (
@@ -987,15 +1000,6 @@
 				ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */,
 			);
 			path = Charts;
-			sourceTree = "<group>";
-		};
-		C8F8DD29F2804E370A7ADF74 /* hn-mdview */ = {
-			isa = PBXGroup;
-			children = (
-				1C998FB98674BB53E1B861E0 /* Local.xcconfig */,
-			);
-			name = "hn-mdview";
-			path = .;
 			sourceTree = "<group>";
 		};
 		D087157DF3D83C65A7057EC9 /* HermesNativeUITests */ = {
@@ -1371,6 +1375,7 @@
 				8A6F091DB183AE6D3A18B209 /* RawEventLog.swift in Sources */,
 				C11D790B06A579042F5C6A37 /* ReasoningGraphIntegrator.swift in Sources */,
 				C5010057984A50A213B8790C /* ReasoningSummarizer.swift in Sources */,
+				8409995B8A104A74D37FE49D /* RenderMemo.swift in Sources */,
 				AF66C5481E71991EA2B1090F /* ResponseStyle.swift in Sources */,
 				CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */,
 				732500FBB99598638E21A1D6 /* SRSEngine.swift in Sources */,
@@ -1579,6 +1584,7 @@
 				E4699CB4ACBE1489A7F8835C /* RawEventLog.swift in Sources */,
 				1C372FF7882368E6FF4A8BFD /* ReasoningGraphIntegrator.swift in Sources */,
 				0CFFE72C830B00F5FCA714D3 /* ReasoningSummarizer.swift in Sources */,
+				E26F97711E4D8DA752711933 /* RenderMemo.swift in Sources */,
 				C18EC002DEDEFB4463D5B64D /* ResponseStyle.swift in Sources */,
 				9C157AA3FB3DBB7D8A6D0AB7 /* SRSDashboardView.swift in Sources */,
 				24F0470B945EA86E4BF2E387 /* SRSEngine.swift in Sources */,
@@ -1689,7 +1695,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1C998FB98674BB53E1B861E0 /* Local.xcconfig */;
+			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1715,7 +1721,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1C998FB98674BB53E1B861E0 /* Local.xcconfig */;
+			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1741,7 +1747,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1C998FB98674BB53E1B861E0 /* Local.xcconfig */;
+			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1845,7 +1851,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1C998FB98674BB53E1B861E0 /* Local.xcconfig */;
+			baseConfigurationReference = 73E92AC319AB7804B4B48E0F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";

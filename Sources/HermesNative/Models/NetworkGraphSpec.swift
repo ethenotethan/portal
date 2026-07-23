@@ -80,11 +80,28 @@ struct NetworkGraphSpec: Decodable {
         return nodes.compactMap(\.group).filter { seen.insert($0).inserted }
     }
 
+    /// Identity for layout memoization: node ids + edge endpoints are the
+    /// only inputs the force sim reads (labels/groups only affect drawing).
+    var cacheKey: String {
+        var hasher = Hasher()
+        for node in nodes { hasher.combine(node.id) }
+        for edge in edges {
+            hasher.combine(edge.from)
+            hasher.combine(edge.to)
+        }
+        return String(hasher.finalize())
+    }
+
+    /// Parse runs in body (re-evaluated per state change) — memoized.
+    private static let parseMemo = RenderMemo<NetworkGraphSpec?>(limit: 16)
+
     static func parse(_ json: String) -> NetworkGraphSpec? {
-        guard let data = json.data(using: .utf8),
-              let spec = try? JSONDecoder().decode(NetworkGraphSpec.self, from: data),
-              !spec.nodes.isEmpty else { return nil }
-        return spec
+        parseMemo.value(for: json) {
+            guard let data = json.data(using: .utf8),
+                  let spec = try? JSONDecoder().decode(NetworkGraphSpec.self, from: data),
+                  !spec.nodes.isEmpty else { return nil }
+            return spec
+        }
     }
 }
 
@@ -107,10 +124,22 @@ enum NetworkGraphLayout {
         let positions: [String: CGPoint]
     }
 
+    /// Layout is deterministic in (spec, width) — memoize on both. The force
+    /// sim is 300 O(n²) iterations; running it inside `body` (GeometryReader
+    /// closure + the height precompute) executed it twice per render and
+    /// made the artifact pane visibly laggy.
+    private static let memo = RenderMemo<Result>(limit: 16)
+
+    static func layout(_ spec: NetworkGraphSpec, width: CGFloat) -> Result {
+        memo.value(for: "\(spec.cacheKey)|w:\(Int(width))") {
+            computeLayout(spec, width: width)
+        }
+    }
+
     /// Deterministic layout for `spec` targeting roughly `width` points.
     /// Seeded ring start (stable across re-renders of the same spec) +
     /// 300 settle iterations, then normalized into a padded bounding box.
-    static func layout(_ spec: NetworkGraphSpec, width: CGFloat) -> Result {
+    private static func computeLayout(_ spec: NetworkGraphSpec, width: CGFloat) -> Result {
         let n = spec.nodes.count
         let indexOf = Dictionary(uniqueKeysWithValues: spec.nodes.enumerated().map { ($1.id, $0) })
         let links: [(Int, Int)] = spec.edges.compactMap {

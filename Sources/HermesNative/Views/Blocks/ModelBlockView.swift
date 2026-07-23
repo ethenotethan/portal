@@ -12,9 +12,14 @@ struct ModelBlockView: View {
     /// relations panel. Chat transcript blocks render read-only.
     var actionableArtifactID: String?
 
+    /// Parse + projections are pure in the source JSON but run inside body,
+    /// which SwiftUI re-evaluates on every selection click — memoized so a
+    /// click costs a lookup, not a full model re-parse + re-projection.
+    private static let parseMemo = RenderMemo<ModelSpec?>(limit: 12)
+
     var body: some View {
-        if let spec = ModelSpec.parse(json) {
-            ModelCard(spec: spec, actionableArtifactID: actionableArtifactID)
+        if let spec = Self.parseMemo.value(for: json, compute: { ModelSpec.parse(json) }) {
+            ModelCard(spec: spec, sourceJSON: json, actionableArtifactID: actionableArtifactID)
         } else if isStreaming {
             EmptyView()
         } else {
@@ -36,12 +41,24 @@ struct ModelBlockView: View {
 
 private struct ModelCard: View {
     let spec: ModelSpec
+    /// Original fence body — projection memo key (spec isn't Hashable and
+    /// the JSON string already IS its identity).
+    let sourceJSON: String
     var actionableArtifactID: String?
 
     /// The selection bus: one selected entity ref shared by every view.
     /// Stored as the "set/normalizedKey" string every projection uses as
     /// its stable id (map marker label is bare key — mapped below).
     @State private var selectedRef: ModelSpec.EntityRef?
+
+    /// Projection JSON per (source, view) — selection clicks re-run body,
+    /// and un-memoized that meant re-serializing every view's projection
+    /// (and re-running the graph force sim downstream) per click.
+    private static let projectionMemo = RenderMemo<String?>(limit: 48)
+
+    private func projection(_ view: ModelSpec.View, _ compute: @autoclosure () -> String?) -> String? {
+        Self.projectionMemo.value(for: "\(sourceJSON.hashValue)|\(view.id)") { compute() }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -88,7 +105,7 @@ private struct ModelCard: View {
     private func viewBlock(_ view: ModelSpec.View) -> some View {
         switch view.kind {
         case .map:
-            if let json = ModelProjections.mapJSON(spec: spec, view: view) {
+            if let json = projection(view, ModelProjections.mapJSON(spec: spec, view: view)) {
                 MapBlockView(
                     json: json, isStreaming: false,
                     externalSelection: markerSelectionBinding(for: view)
@@ -103,15 +120,15 @@ private struct ModelCard: View {
                 )
             }
         case .graph:
-            if let json = ModelProjections.graphJSON(spec: spec, view: view) {
+            if let json = projection(view, ModelProjections.graphJSON(spec: spec, view: view)) {
                 NetworkGraphView(json: json, isStreaming: false)
             }
         case .chart:
-            if let json = ModelProjections.chartJSON(spec: spec, view: view) {
+            if let json = projection(view, ModelProjections.chartJSON(spec: spec, view: view)) {
                 NativeChartView(json: json, isStreaming: false)
             }
         case .stats:
-            if let json = ModelProjections.statsJSON(spec: spec, view: view) {
+            if let json = projection(view, ModelProjections.statsJSON(spec: spec, view: view)) {
                 StatTilesView(json: json, isStreaming: false)
             }
         case .markdown:
