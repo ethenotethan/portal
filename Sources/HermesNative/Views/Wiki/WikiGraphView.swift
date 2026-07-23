@@ -12,6 +12,10 @@ import SwiftUI
 /// - The changeset timeline is a bottom drawer (macOS) / sheet (iOS) with
 ///   git-style inline diffs; shown only for sources with edit history
 ///   (WikiChangesetSource conformance).
+/// - The Compendium events page (Centaur sources only, by
+///   WikiEventTimelineProviding conformance) is a full-surface page WITHIN
+///   the wiki: `showEventsPage` swaps the whole surface graph ↔ events,
+///   with "← Wiki" navigating back — never a sheet/overlay.
 /// Selection stays synced across every surface via the view model's shared
 /// selection plane.
 struct WikiGraphView: View {
@@ -32,6 +36,12 @@ struct WikiGraphView: View {
     private var supportsTimeline: Bool {
         if let overrideSource { return overrideSource is WikiChangesetSource }
         return true // home gateway conforms
+    }
+
+    /// Compendium events page capability (Centaur wiki-api only). nil hides
+    /// the affordance and keeps `showEventsPage` inert.
+    private var eventTimelineProvider: (any WikiEventTimelineProviding)? {
+        overrideSource as? (any WikiEventTimelineProviding)
     }
 
     @State private var showWikiPicker = false
@@ -86,9 +96,26 @@ struct WikiGraphView: View {
 
     // MARK: - Adaptive layout
 
+    /// True while the Compendium events page owns the wiki surface. Gated on
+    /// the capability so a stale flag can never blank a non-Centaur wiki.
+    private var showsEventsPage: Bool {
+        viewModel.showEventsPage && eventTimelineProvider != nil
+    }
+
     #if os(macOS)
-    /// macOS: sidebar | (graph / timeline drawer) | reader panel.
+    /// macOS: sidebar | (graph / timeline drawer) | reader panel — or the
+    /// full-surface Compendium events page when navigated there.
+    @ViewBuilder
     private var adaptiveLayout: some View {
+        if let provider = eventTimelineProvider, showsEventsPage {
+            WikiEventsPageView(provider: provider, viewModel: viewModel)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+        } else {
+            graphLayout
+        }
+    }
+
+    private var graphLayout: some View {
         HStack(spacing: 0) {
             if viewModel.showFileTree {
                 WikiFileTreeSidebar(viewModel: viewModel) { page in
@@ -132,8 +159,22 @@ struct WikiGraphView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.showTimeline)
     }
     #else
-    /// iOS: full-bleed graph; sidebar, reader, and timeline present as sheets.
+    /// iOS: full-bleed graph; sidebar, reader, and timeline present as
+    /// sheets — or the full-surface Compendium events page when navigated
+    /// there. Page chips on the events page navigate back to the graph
+    /// surface first (openPageLeavingEvents), so the reader sheet always
+    /// presents from the graph branch.
+    @ViewBuilder
     private var adaptiveLayout: some View {
+        if let provider = eventTimelineProvider, showsEventsPage {
+            WikiEventsPageView(provider: provider, viewModel: viewModel)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+        } else {
+            graphLayout
+        }
+    }
+
+    private var graphLayout: some View {
         graphSurface
             .sheet(isPresented: readerSheetBinding) {
                 WikiReaderPane(

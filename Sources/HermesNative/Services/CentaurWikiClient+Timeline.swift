@@ -12,6 +12,9 @@ protocol WikiEventTimelineProviding: AnyObject {
     func fetchEventTimeline(days: Double?, since: Date?, until: Date?) async throws -> WikiEventTimeline
     /// `GET /wiki/revisions-timeline` — bucketed page-edit volume + baseline.
     func fetchRevisionsTimeline(days: Double?, since: Date?, until: Date?) async throws -> WikiRevisionsTimeline
+    /// `GET /wiki/changes` — pages created/updated in the window (the
+    /// page-mutation view; the events page's "pages touched" summary).
+    func fetchChangesSummary(days: Double?, since: Date?, until: Date?) async throws -> WikiChangesSummary
 }
 
 // MARK: - CentaurWikiClient conformance
@@ -40,6 +43,17 @@ extension CentaurWikiClient: WikiEventTimelineProviding {
             Self.timelinePath("wiki/revisions-timeline", days: days, since: since, until: until)
         )
         return WikiTimelineDecoding.mapRevisionsTimeline(obj)
+    }
+
+    /// /wiki/changes → WikiChangesSummary (page slice only — the response's
+    /// `sources` array duplicates /wiki/timeline with less enrichment).
+    func fetchChangesSummary(
+        days: Double? = nil,
+        since: Date? = nil,
+        until: Date? = nil
+    ) async throws -> WikiChangesSummary {
+        let obj = try await getJSON(Self.timelinePath("wiki/changes", days: days, since: since, until: until))
+        return WikiTimelineDecoding.mapChangesSummary(obj)
     }
 
     /// Builds "path?days=…" / "path?since=…&until=…". Static + nonisolated

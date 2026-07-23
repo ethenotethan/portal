@@ -30,14 +30,13 @@ enum WikiEventKindStyle {
 
 /// Dot plot of ingestion events: x = event time, y = kind lane, color by
 /// kind. Estimated-time events (ingest time only) render as hollow diamonds.
-/// Tap a dot to select it; the parent anchors the detail popover at the
-/// selected dot's plot position.
+/// Selection is by event id, shared with the Event Feed: tapping a dot
+/// highlights (and scrolls to) the feed row, and selecting a feed row lights
+/// up the dot — the feed row is the detail surface.
 struct WikiEventDotChart: View {
     let events: [WikiTimelineEvent]
     let window: ClosedRange<Date>
-    @Binding var selectedEvent: WikiTimelineEvent?
-    /// Detail card content for the selected event's popover.
-    let detail: (WikiTimelineEvent) -> WikiEventDetailCard
+    @Binding var selectedEventID: String?
 
     /// Lanes actually present, in fixed slot order (unused kinds drop out).
     private var lanes: [WikiEventKind] {
@@ -59,7 +58,7 @@ struct WikiEventDotChart: View {
                             .opacity(dimmed(event) ? 0.28 : 0.9)
                     )
                     .symbol(event.eventTimeEstimated ? .diamond : .circle)
-                    .symbolSize(selectedEvent?.id == event.id ? 130 : 55)
+                    .symbolSize(selectedEventID == event.id ? 130 : 55)
                 }
             }
         }
@@ -85,39 +84,19 @@ struct WikiEventDotChart: View {
     }
 
     private func dimmed(_ event: WikiTimelineEvent) -> Bool {
-        selectedEvent != nil && selectedEvent?.id != event.id
+        selectedEventID != nil && selectedEventID != event.id
     }
 
-    // MARK: Tap selection + popover anchor
+    // MARK: Tap selection
 
     private func chartTapOverlay(proxy: ChartProxy) -> some View {
         GeometryReader { geo in
-            ZStack(alignment: .topLeading) {
-                Rectangle()
-                    .fill(.clear)
-                    .contentShape(Rectangle())
-                    .onTapGesture { location in
-                        selectedEvent = nearestEvent(to: location, proxy: proxy, geo: geo)
-                    }
-
-                // Invisible 1pt anchor placed at the selected dot; the
-                // popover attaches here so it points at the mark itself.
-                if let selected = selectedEvent,
-                   let anchorPoint = position(of: selected, proxy: proxy, geo: geo) {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .position(anchorPoint)
-                        .popover(
-                            isPresented: Binding(
-                                get: { selectedEvent != nil },
-                                set: { if !$0 { selectedEvent = nil } }
-                            )
-                        ) {
-                            detail(selected)
-                                .presentationCompactAdaptation(.popover)
-                        }
+            Rectangle()
+                .fill(.clear)
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    selectedEventID = nearestEvent(to: location, proxy: proxy, geo: geo)?.id
                 }
-            }
         }
     }
 

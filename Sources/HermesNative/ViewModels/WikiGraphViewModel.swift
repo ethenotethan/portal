@@ -26,6 +26,11 @@ final class WikiGraphViewModel: ObservableObject {
     /// Hermes-only; the hosting view hides the affordance for sources that
     /// don't conform to WikiChangesetSource.
     @Published var showTimeline = false
+    /// Full-surface Compendium events page: while true the adaptive host
+    /// swaps the graph surface for the events page (a page WITHIN the wiki,
+    /// not an overlay). Centaur-only — the toggle affordance gates on
+    /// WikiEventTimelineProviding conformance, same plane as the graph.
+    @Published var showEventsPage = false
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
 
@@ -295,6 +300,8 @@ final class WikiGraphViewModel: ObservableObject {
         failedPath = nil
         showPageDetail = false
         selectedNodeIndex = nil
+        // Wiki switch: the events surface belongs to the previous source.
+        showEventsPage = false
     }
 
     /// Navigates the shared reader to a page, pushing the current page onto
@@ -426,6 +433,16 @@ final class WikiGraphViewModel: ObservableObject {
     func revealInFileTree(path: String) {
         showFileTree = true
         navigate(to: path)
+    }
+
+    /// Directive target-page chip (or changed-page row) on the events page:
+    /// leave the events surface, make the page the shared current page, and
+    /// open the reader over the graph — the same landing as every other
+    /// "jump into the wiki" path.
+    func openPageLeavingEvents(_ path: String) {
+        showEventsPage = false
+        navigate(to: path)
+        openReaderForSelection()
     }
 
     private func rebuildBacklinks() {

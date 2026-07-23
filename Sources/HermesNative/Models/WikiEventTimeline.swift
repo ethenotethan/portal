@@ -112,6 +112,44 @@ struct WikiRevisionsTimeline {
             return (date, running)
         }
     }
+
+    /// All-time revision count as of the window's end: what the cumulative
+    /// curve tops out at. This is the headline "knowledge accrued" number.
+    var totalAllTime: Int { baseline + totalInWindow }
+
+    /// The bucket with the most edits in the window (nil when empty) — the
+    /// "busiest \(unit)" stat tile. Ties break to the most recent bucket.
+    var busiestBucket: Bucket? {
+        buckets.filter { $0.bucket != nil && $0.count >= 1 }
+            .max { ($0.count, $0.bucket ?? .distantPast) < ($1.count, $1.bucket ?? .distantPast) }
+    }
+}
+
+// MARK: - WikiChangesSummary (GET /wiki/changes)
+
+/// Page-level slice of wiki-api `GET /wiki/changes`: which wiki pages were
+/// created/updated in the window (anchored on EVENT time, per the handler's
+/// backfill-alignment comment), plus per-type counts. The response also
+/// carries a `sources` array, but that duplicates `/wiki/timeline` with less
+/// enrichment — the feed uses the timeline; this summary feeds the
+/// "knowledge accrued" pane (pages touched + updated-page links).
+struct WikiChangesSummary {
+    let since: Date?
+    let until: Date?
+    let pageCount: Int
+    /// Page type ("topic", "entity", …) → count in window.
+    let pagesByType: [String: Int]
+    let pages: [PageChange]
+
+    struct PageChange: Identifiable, Hashable {
+        /// Document id ("wiki:topic:glossary-mcp") — doubles as the wiki
+        /// page path for the shared selection plane.
+        let id: String
+        let title: String
+        let type: String
+        let url: String
+        let updatedAt: Date?
+    }
 }
 
 // MARK: - Decoding
@@ -164,6 +202,29 @@ enum WikiTimelineDecoding {
             directiveStatus: e["directive_status"] as? String,
             resultingRevisionIDs: (e["resulting_revision_ids"] as? [Any])?
                 .compactMap { ($0 as? NSNumber)?.int64Value }
+        )
+    }
+
+    static func mapChangesSummary(_ obj: [String: Any]) -> WikiChangesSummary {
+        let rawPages = (obj["pages"] as? [[String: Any]]) ?? []
+        let pages: [WikiChangesSummary.PageChange] = rawPages.compactMap { p in
+            guard let id = p["id"] as? String else { return nil }
+            return WikiChangesSummary.PageChange(
+                id: id,
+                title: p["title"] as? String ?? id,
+                type: p["type"] as? String ?? "topic",
+                url: p["url"] as? String ?? "",
+                updatedAt: parseDate(p["updated_at"])
+            )
+        }
+        let byType = (obj["pages_by_type"] as? [String: Any])?
+            .compactMapValues { ($0 as? NSNumber)?.intValue } ?? [:]
+        return WikiChangesSummary(
+            since: parseDate(obj["since"]),
+            until: parseDate(obj["until"]),
+            pageCount: (obj["page_count"] as? NSNumber)?.intValue ?? pages.count,
+            pagesByType: byType,
+            pages: pages
         )
     }
 

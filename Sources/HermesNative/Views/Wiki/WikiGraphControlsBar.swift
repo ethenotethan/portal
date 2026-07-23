@@ -122,7 +122,22 @@ struct WikiGraphControlsBar: View {
             .help(viewModel.showTimeline ? "Hide timeline" : "Show change timeline")
         }
 
-        WikiEventTimelineButton(source: source, viewModel: viewModel)
+        // Events page toggle: navigates the wiki surface to the full
+        // Compendium events page (graph ↔ events swap in the adaptive
+        // host), not an overlay. Centaur-only by protocol conformance.
+        if source is (any WikiEventTimelineProviding) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.showEventsPage.toggle()
+                }
+            } label: {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(viewModel.showEventsPage ? Theme.accent : Theme.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(viewModel.showEventsPage ? "Back to the wiki graph" : "Events — Compendium ingestion timeline")
+        }
     }
 
     private var sidebarIcon: String {
