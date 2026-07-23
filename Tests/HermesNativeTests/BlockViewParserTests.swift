@@ -515,3 +515,140 @@ struct ArtifactActionTests {
         #expect(!ArtifactAction.isTruthy("going"))
     }
 }
+
+@Suite("Ensemble Model")
+struct EnsembleModelTests {
+
+    static let fixture = """
+    {"id": "bkk-life", "title": "Bangkok Base",
+     "entities": {
+       "apartments": {"key": "name", "items": [
+         {"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000, "status": "interested"},
+         {"name": "Ghost Apt", "_deleted": true},
+         {"name": "Fuse", "lat": 13.71, "lon": 100.541, "rent": 15000}]},
+       "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}
+     },
+     "relations": [
+       {"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"},
+       {"from": "apartments/Ghost Apt", "to": "gyms/FelixMuayThai", "type": "walkable"},
+       {"from": "apartments/Fuse", "to": "nowhere/x", "type": "broken"}
+     ],
+     "views": [
+       {"type": "map"},
+       {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
+       {"type": "graph"},
+       {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}
+     ],
+     "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed"]}, {"type": "delete"}]}}
+    """
+
+    @Test("Spec parses sets, filters tombstones, drops broken-set relations")
+    func parsing() {
+        let spec = ModelSpec.parse(Self.fixture)!
+        #expect(spec.entitySets.count == 2)
+        let apartments = spec.entitySet(named: "apartments")!
+        #expect(apartments.items.count == 2)                 // ghost filtered
+        #expect(spec.relations.count == 2)                   // broken-set ref dropped
+        #expect(spec.views.count == 4)
+        #expect(spec.actions["apartments"]?.count == 2)
+        #expect(ModelSpec.parse("{\"entities\": {}}") == nil)
+    }
+
+    @Test("Entity refs parse and resolve case-insensitively")
+    func refs() {
+        let spec = ModelSpec.parse(Self.fixture)!
+        let ref = ModelSpec.EntityRef("apartments/seed mingle")!
+        #expect(spec.item(for: ref)?["rent"] == "22000")
+        #expect(spec.relations(touching: ref).count == 1)
+        #expect(ModelSpec.EntityRef("noslash") == nil)
+    }
+
+    @Test("Map projection: coordinates become markers grouped by set")
+    func mapProjection() {
+        let spec = ModelSpec.parse(Self.fixture)!
+        let json = ModelProjections.mapJSON(spec: spec, view: spec.views[0])!
+        let mapSpec = MapSpec.parse(json)!
+        #expect(mapSpec.markers.count == 3)                  // 2 apartments + 1 gym
+        #expect(Set(mapSpec.markers.compactMap(\.group)) == ["apartments", "gyms"])
+    }
+
+    @Test("Graph projection: entities as nodes, relations as edges, tombstoned endpoints dropped")
+    func graphProjection() {
+        let spec = ModelSpec.parse(Self.fixture)!
+        let view = spec.views[2]
+        let json = ModelProjections.graphJSON(spec: spec, view: view)!
+        let graph = NetworkGraphSpec.parse(json)!
+        #expect(graph.nodes.count == 3)
+        #expect(graph.edges.count == 1)                      // ghost + broken edges dropped
+    }
+
+    @Test("Chart projection: one series per set, y from field")
+    func chartProjection() {
+        let spec = ModelSpec.parse(Self.fixture)!
+        let json = ModelProjections.chartJSON(spec: spec, view: spec.views[3])!
+        guard case .success(let chart) = ChartSpec.parse(json) else {
+            Issue.record("chart projection did not parse")
+            return
+        }
+        #expect(chart.series.count == 1)
+        #expect(chart.series[0].points.count == 2)
+    }
+
+    @Test("Default views: map + table (+ graph when relations)")
+    func defaultViews() {
+        let spec = ModelSpec.parse("""
+        {"entities": {"things": {"key": "id", "items": [{"id": "a", "lat": 1.0, "lon": 2.0}]}},
+         "relations": [{"from": "things/a", "to": "things/a", "type": "self"}]}
+        """)!
+        #expect(spec.views.map(\.kind) == [.map, .table, .graph])
+    }
+
+    @Test("Model merge: per-set union by key, tombstone carry, relations by triple")
+    func merge() {
+        let existing = """
+        {"entities": {"apartments": {"key": "name", "items": [
+           {"name": "A", "_deleted": true}, {"name": "B", "status": "viewed"}]}},
+         "relations": [{"from": "apartments/B", "to": "apartments/A", "type": "near"}]}
+        """
+        let incoming = """
+        {"entities": {"apartments": {"key": "name", "items": [
+           {"name": "A", "rent": 999}, {"name": "C"}]},
+           "gyms": {"key": "name", "items": [{"name": "Felix"}]}},
+         "relations": [{"from": "apartments/B", "to": "apartments/A", "type": "near", "note": "updated"},
+                       {"from": "apartments/C", "to": "gyms/Felix", "type": "walkable"}]}
+        """
+        let merged = ArtifactMerge.merge(kind: "model", existing: existing, incoming: incoming)
+        let spec = ModelSpec.parse(merged)!
+        let apartments = spec.entitySet(named: "apartments")!
+        let names = apartments.items.compactMap { $0["name"] }
+        #expect(!names.contains("A"))                        // tombstone carried
+        #expect(names.contains("B") && names.contains("C"))  // untouched + new survive
+        #expect(spec.entitySet(named: "gyms") != nil)        // new set added
+        #expect(spec.relations.count == 2)                   // triple-deduped, note updated
+        #expect(spec.relations.contains { $0.type == "near" })
+    }
+
+    @Test("Action engine routes set/key refs into entity items")
+    func actionEngine() {
+        let out = ArtifactActionEngine.setField(
+            in: Self.fixture, kind: "model", entryKey: "apartments/Fuse",
+            field: "status", value: "viewed"
+        )!
+        let spec = ModelSpec.parse(out)!
+        #expect(spec.item(for: .init(set: "apartments", key: "fuse"))?["status"] == "viewed")
+
+        let deleted = ArtifactActionEngine.markDeleted(
+            in: Self.fixture, kind: "model", entryKey: "apartments/Fuse"
+        )!
+        #expect(ModelSpec.parse(deleted)!.entitySet(named: "apartments")!.items.count == 1)
+        #expect(ArtifactActionEngine.setField(
+            in: Self.fixture, kind: "model", entryKey: "nope/x", field: "f", value: 1) == nil)
+    }
+
+    @Test("Fence routing recognizes model")
+    func routing() {
+        #expect(MarkdownParser.isModelLanguage("model"))
+        #expect(MarkdownParser.isModelLanguage(" Model "))
+        #expect(!MarkdownParser.isModelLanguage("mode"))
+    }
+}

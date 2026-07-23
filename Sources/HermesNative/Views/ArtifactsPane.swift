@@ -168,6 +168,7 @@ struct ArtifactsPane: View {
         case "graph": return "point.3.connected.trianglepath.dotted"
         case "stats": return "gauge.medium"
         case "table", "dataset": return "tablecells"
+        case "model": return "square.stack.3d.up"
         default: return "doc.richtext"
         }
     }
@@ -254,6 +255,8 @@ struct ArtifactKindRenderer: View {
             TimelineBlockView(json: content, isStreaming: false)
         case "sankey":
             SankeyBlockView(json: content, isStreaming: false)
+        case "model":
+            ModelBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         default:
             MarkdownContentView(text: content, isStreaming: false)
                 .equatable()

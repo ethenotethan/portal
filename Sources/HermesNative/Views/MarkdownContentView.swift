@@ -55,6 +55,9 @@ struct MarkdownContentView: View, Equatable {
                     } else if MarkdownParser.isDatasetLanguage(language) {
                         DatasetBlockView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "dataset", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isModelLanguage(language) {
+                        ModelBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "model", json: code, isStreaming: isStreaming)
                     } else {
                         CodeBlockView(language: language, code: code)
                     }
@@ -396,6 +399,11 @@ struct MarkdownParser {
 
     static func isDatasetLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "dataset"
+    }
+
+    /// ```model is the ensemble-artifact fence (entities/relations/views).
+    static func isModelLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "model"
     }
 
     /// ```timeline and ```gantt collide with mermaid diagram languages, so

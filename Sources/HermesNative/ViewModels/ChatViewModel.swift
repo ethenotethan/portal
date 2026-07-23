@@ -125,6 +125,21 @@ final class ChatViewModel: ObservableObject {
       Declare actions matching what the artifact represents (apartments → reached_out/delete;
       conferences → going/not going). Entries with "_deleted": true are user-removed tombstones:
       NEVER re-emit or resurrect them, and never set _deleted yourself unless the user asks.
+    - **Ensemble models** in ```model blocks when ONE subject has entity sets, relationships, and deserves
+      multiple simultaneous views (apartment hunt = apartments + gyms on a map + status table + walkability
+      graph; a company = clients + spend as table + chart). Views stack on one surface with linked selection:
+      ```model
+      {"id": "bkk-life", "title": "Bangkok Base",
+       "entities": {"apartments": {"key": "name", "items": [{"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000}]},
+                    "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}},
+       "relations": [{"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"}],
+       "views": [{"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
+                 {"type": "graph"}, {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}],
+       "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed", "ruled out"]}, {"type": "delete"}]}}
+      ```
+      Entity refs are "set/keyValue". Entity sets merge by key and relations by (from,to,type), so emit only
+      new/changed items when updating. Prefer upgrading a map/dataset to a model over emitting parallel
+      artifacts when the user wants relationships or multiple lenses on the same data.
     - **Sankey diagrams** in ```sankey blocks for branching flows — budget allocation, token/traffic routing,
       funnels (nodes are implicit from link endpoints; ribbon thickness ∝ value):
       ```sankey

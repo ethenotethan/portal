@@ -105,6 +105,9 @@ struct MapBlockView: View {
     /// Set by artifact hosts: enables declared per-marker actions (choice/
     /// toggle/delete) on entry rows. Chat transcript blocks leave this nil.
     var actionableArtifactID: String?
+    /// Host-owned selection (ensemble models share one selection bus across
+    /// stacked views); nil = the card keeps private selection state.
+    var externalSelection: Binding<String?>?
 
     /// Shared categorical palette (chart/graph parity).
     private static let palette: [Color] = [
@@ -114,7 +117,11 @@ struct MapBlockView: View {
 
     var body: some View {
         if let spec = MapSpec.parse(json) {
-            MapCard(spec: spec, isExpanded: isExpanded, actionableArtifactID: actionableArtifactID)
+            MapCard(
+                spec: spec, isExpanded: isExpanded,
+                actionableArtifactID: actionableArtifactID,
+                externalSelection: externalSelection
+            )
         } else if isStreaming {
             EmptyView()
         } else {
@@ -144,7 +151,28 @@ private struct MapCard: View {
     let spec: MapSpec
     let isExpanded: Bool
     var actionableArtifactID: String?
-    @State private var selectedMarkerID: String?
+    var externalSelection: Binding<String?>?
+    @State private var localSelection: String?
+
+    /// Selection routes to the host's bus when provided (ensemble models),
+    /// else stays card-local (standalone maps).
+    private var selectedMarkerID: String? {
+        get { externalSelection?.wrappedValue ?? localSelection }
+        nonmutating set {
+            if let externalSelection {
+                externalSelection.wrappedValue = newValue
+            } else {
+                localSelection = newValue
+            }
+        }
+    }
+
+    private var selectionBinding: Binding<String?> {
+        Binding(
+            get: { selectedMarkerID },
+            set: { selectedMarkerID = $0 }
+        )
+    }
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showFullscreen = false
 
@@ -206,7 +234,7 @@ private struct MapCard: View {
                 // content body — row click highlights the pin and vice versa.
                 MapEntryTableView(
                     spec: spec, artifactID: artifactID,
-                    selectedMarkerID: $selectedMarkerID
+                    selectedMarkerID: selectionBinding
                 )
             } else {
                 entryList(maxVisible: 4)
@@ -237,7 +265,7 @@ private struct MapCard: View {
                         if let artifactID = actionableArtifactID {
                             MapEntryTableView(
                                 spec: spec, artifactID: artifactID,
-                                selectedMarkerID: $selectedMarkerID
+                                selectedMarkerID: selectionBinding
                             )
                         } else {
                             ForEach(spec.markers) { marker in
@@ -291,7 +319,7 @@ private struct MapCard: View {
     // MARK: Map
 
     private var mapView: some View {
-        Map(position: $cameraPosition, selection: $selectedMarkerID) {
+        Map(position: $cameraPosition, selection: selectionBinding) {
             ForEach(spec.markers) { marker in
                 Marker(
                     marker.label,

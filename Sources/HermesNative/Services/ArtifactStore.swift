@@ -114,6 +114,17 @@ final class ArtifactStore: ObservableObject {
     private func currentFieldValue(in artifact: LivingArtifact, entryKey: String, field: String) -> String? {
         guard let data = artifact.content.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        // Ensemble model: entryKey is a "set/keyValue" ref.
+        if artifact.kind == "model" {
+            guard let ref = ModelSpec.EntityRef(entryKey),
+                  let setObj = (obj["entities"] as? [String: [String: Any]])?[ref.set],
+                  let items = setObj["items"] as? [[String: Any]] else { return nil }
+            let keyField = (setObj["key"] as? String) ?? "id"
+            let entry = items.first {
+                String(describing: $0[keyField] ?? "").trimmingCharacters(in: .whitespaces).lowercased() == ref.key
+            }
+            return entry?[field].map { String(describing: $0) }
+        }
         let listField = artifact.kind == "map" ? "markers" : "rows"
         let keyField = artifact.kind == "map" ? "label" : ((obj["key"] as? String) ?? "id")
         let target = entryKey.trimmingCharacters(in: .whitespaces).lowercased()

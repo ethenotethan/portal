@@ -83,9 +83,70 @@ enum ArtifactMerge {
             return mergeMap(existing: existing, incoming: incoming)
         case "dataset":
             return mergeDataset(existing: existing, incoming: incoming)
+        case "model":
+            return mergeModel(existing: existing, incoming: incoming)
         default:
             return incoming
         }
+    }
+
+    /// Ensemble models: each entity set unions items by its declared key
+    /// (incoming wins field-wise, tombstones carried); sets absent from the
+    /// incoming block carry over untouched (agents may update one set).
+    /// Relations union by (from, to, type). Views/actions/title come from
+    /// incoming when present (declarative config — latest wins wholesale).
+    static func mergeModel(existing: String, incoming: String) -> String {
+        guard let old = parse(existing), let new = parse(incoming) else { return incoming }
+        var merged = old.merging(new) { _, n in n }
+
+        let oldSets = (old["entities"] as? [String: [String: Any]]) ?? [:]
+        let newSets = (new["entities"] as? [String: [String: Any]]) ?? [:]
+        var mergedSets = oldSets
+        for (name, newSet) in newSets {
+            guard let oldSet = oldSets[name] else {
+                mergedSets[name] = newSet
+                continue
+            }
+            var out = oldSet.merging(newSet) { _, n in n }
+            let keyField = (newSet["key"] as? String) ?? (oldSet["key"] as? String) ?? "id"
+            out["key"] = keyField
+            var byKey: [String: [String: Any]] = [:]
+            var order: [String] = []
+            let oldItems = (oldSet["items"] as? [[String: Any]]) ?? []
+            let newItems = (newSet["items"] as? [[String: Any]]) ?? []
+            for item in oldItems + newItems {
+                let keyValue = String(describing: item[keyField] ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+                guard !keyValue.isEmpty, keyValue != "nil" else { continue }
+                if byKey[keyValue] == nil { order.append(keyValue) }
+                byKey[keyValue] = carryTombstone(from: byKey[keyValue], into: item)
+            }
+            out["items"] = order.compactMap { byKey[$0] }
+            mergedSets[name] = out
+        }
+        merged["entities"] = mergedSets
+
+        var byTriple: [String: [String: Any]] = [:]
+        var relationOrder: [String] = []
+        let oldRelations = (old["relations"] as? [[String: Any]]) ?? []
+        let newRelations = (new["relations"] as? [[String: Any]]) ?? []
+        for relation in oldRelations + newRelations {
+            let from = String(describing: relation["from"] ?? "").lowercased()
+            let to = String(describing: relation["to"] ?? "").lowercased()
+            guard !from.isEmpty, !to.isEmpty else { continue }
+            let triple = "\(from)|\(to)|\(String(describing: relation["type"] ?? "related").lowercased())"
+            if byTriple[triple] == nil { relationOrder.append(triple) }
+            byTriple[triple] = carryTombstone(from: byTriple[triple], into: relation)
+        }
+        if !relationOrder.isEmpty {
+            merged["relations"] = relationOrder.compactMap { byTriple[$0] }
+        }
+
+        guard JSONSerialization.isValidJSONObject(merged),
+              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else {
+            return incoming
+        }
+        return json
     }
 
     /// Union rows by the dataset's declared key field (mirror of the

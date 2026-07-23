@@ -93,6 +93,25 @@ enum ArtifactActionEngine {
               var obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             return nil
         }
+
+        // Ensemble model: entryKey is a "set/keyValue" ref; the entry lives
+        // at entities[set].items, keyed by that set's declared key field.
+        if kind == "model" {
+            guard let ref = ModelSpec.EntityRef(entryKey),
+                  var sets = obj["entities"] as? [String: [String: Any]],
+                  var setObj = sets[ref.set],
+                  var items = setObj["items"] as? [[String: Any]] else { return nil }
+            let keyField = (setObj["key"] as? String) ?? "id"
+            guard let index = items.firstIndex(where: {
+                normalize(String(describing: $0[keyField] ?? "")) == ref.key
+            }) else { return nil }
+            mutate(&items[index])
+            setObj["items"] = items
+            sets[ref.set] = setObj
+            obj["entities"] = sets
+            return serialize(obj)
+        }
+
         let listField: String
         let keyField: String
         switch kind {
@@ -114,7 +133,10 @@ enum ArtifactActionEngine {
 
         mutate(&entries[index])
         obj[listField] = entries
+        return serialize(obj)
+    }
 
+    private static func serialize(_ obj: [String: Any]) -> String? {
         guard JSONSerialization.isValidJSONObject(obj),
               let out = try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys]),
               let json = String(data: out, encoding: .utf8) else {
