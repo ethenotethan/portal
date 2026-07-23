@@ -25,6 +25,7 @@
 		0B5438F3AA47A320C7A9598E /* MacInputTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = C915199AED78B0F829F02D17 /* MacInputTextField.swift */; };
 		0C0C28041FEF81750765CCBE /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */; };
 		0C3ADFFCF9CBFD8E9B0D89F4 /* WikiGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201F95763EBE727F2961B603 /* WikiGraph.swift */; };
+		0C5F46CC9CF74556F7785EBE /* MapEntryTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */; };
 		0C89EF117C26BD3BA7635637 /* WikiGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BD6CA191B834A64926DFE6 /* WikiGraphView.swift */; };
 		0CFFE72C830B00F5FCA714D3 /* ReasoningSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */; };
 		0FD4BEE9B35811AC3F5D405C /* GatewayClientWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */; };
@@ -98,6 +99,7 @@
 		3EE9F505BC9F6CA2AA77B3BE /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
 		3F0511D7BFFD9F095F75A6A4 /* MathView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D6EDC73D991500193CD1A1 /* MathView.swift */; };
 		3F132ED582BFB260BD55D500 /* TreeNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCD3141656594B639005AAD /* TreeNodeView.swift */; };
+		3FDE2F80C7640F7DA73C146A /* SankeyBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D2E7129997DF3E82184495 /* SankeyBlockView.swift */; };
 		3FF80DFEDB9ABFB1CFFACDA9 /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */; };
 		41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		41B11A07A04322A628F4DE3D /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */; };
@@ -139,6 +141,7 @@
 		5924909BD661EA6EA43952F2 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DE48DC34DE5ECC63525DDC /* Constants.swift */; };
 		5A1108897F9D615124D85957 /* MediaAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1669F694E957B7E101B2C51 /* MediaAttachment.swift */; };
 		5A3B6ADCEB14219041EEA2C1 /* SessionExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA41D2A10630C36C4FF7C10 /* SessionExporter.swift */; };
+		5A4205C39260EDCAC4B89D9B /* LearningComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E06A025731D17CD0634FDE /* LearningComponents.swift */; };
 		5A7D744A47A70A419C281E51 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EB8F9DE662D9A4B1B014DB7 /* FeedView.swift */; };
 		5AE0C41F6397EB4E54106462 /* SessionsDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3B85B277F45FC12C34E028 /* SessionsDashboard.swift */; };
 		5BFE694064475402CB3E286C /* MapBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */; };
@@ -152,6 +155,7 @@
 		5F74549973CC40C2FD192577 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CBC71ED91AC512E21E65282 /* Session.swift */; };
 		5FA26E2B73BBAB7B0261CCDF /* CronListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98AC0B5715E7BCBE84B1DD9D /* CronListViewModel.swift */; };
 		5FAEEF9FEE061DDABE38A1E2 /* WikiBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF8106491981F489EBC1AAF /* WikiBrowserView.swift */; };
+		60422974BC1D3902BB9CFCBF /* LearningComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E06A025731D17CD0634FDE /* LearningComponents.swift */; };
 		60EE1A52ECD0015AD4EB14F8 /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */; };
 		617F9169FBE1B5C9439009B3 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6D926B2B3719706E1229C37 /* SkillsView.swift */; };
 		61A658AC225C0EB372BF3DA4 /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = E1110949F66962E0E6B6DF6E /* thinking.json */; };
@@ -192,6 +196,7 @@
 		76E7B0F9046AB44AB1B1E5C0 /* ActivityInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A49E74E10C41B44D3C49C8 /* ActivityInboxView.swift */; };
 		771128385DD3B439F0C4E2B4 /* ThoughtGraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A69884F119471D33D25E7E4 /* ThoughtGraphLayoutEngine.swift */; };
 		78E71F57F73E679647805228 /* CronDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBE7F6C318B11174A754F38A /* CronDashboardView.swift */; };
+		795D0F64EBFCC30E63987C54 /* SankeySpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33EEECAEA14DB28C452F132 /* SankeySpec.swift */; };
 		7989F3D46D0A0BF03C275071 /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDB000F6D0C975615D7F80F /* LottieCharacterView.swift */; };
 		79F8332C74A0AF69F0CAF780 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30743804431E0415F8F6D1F8 /* ContentView.swift */; };
 		7B3AEED11C020B993203E2E9 /* QuizStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E27F73CC5FD8B101BBEEB2 /* QuizStore.swift */; };
@@ -290,6 +295,7 @@
 		BAE5E00064175DD384B803DB /* NetworkGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F48DC03F5AD30707522478B /* NetworkGraphView.swift */; };
 		BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
 		BCD27430404D7001FFF847CB /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 34CEED05A66980B463C2FAC3 /* MLXLLM */; };
+		BCE12C9371BB3FD0FE783112 /* SankeyBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D2E7129997DF3E82184495 /* SankeyBlockView.swift */; };
 		BDC97F8DC661A548E1DFF2B5 /* HermesNativeDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */; };
 		BDEFD1C80F6AC34B0EF6660D /* FileTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */; };
 		BE24337796086B0381DCFFF2 /* StatTileSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8C09C252DE3B729C6534AD /* StatTileSpec.swift */; };
@@ -314,9 +320,11 @@
 		CBF547E9F64DB1BF606F17D9 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C62719357450637B7EF8D76 /* CelebrationOverlay.swift */; };
 		CC10B7453EBD118DA7064E32 /* CelebrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A703BA8AB5B196807AE254A /* CelebrationManager.swift */; };
 		CC3401353A17237D16CE3B81 /* SessionPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585DA7FCBAB60B91E45207CD /* SessionPlaybackView.swift */; };
+		CC42E48CDF80A0E07FFCD093 /* MapEntryTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */; };
 		CD36367200E4AC47BEF6E9D4 /* HermesNativeOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */; };
 		CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74241583599C1664DB6A4B94 /* SRSDashboardView.swift */; };
 		CD58DF846C28EA00DD8182C5 /* DiffBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08D050F975F8D875A7FC930 /* DiffBlockView.swift */; };
+		CDA6902028594ACDB0DF2566 /* SankeySpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33EEECAEA14DB28C452F132 /* SankeySpec.swift */; };
 		CEEF97E31350F2523D53C4ED /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */; };
 		CF1D256C6004FEBF4E172994 /* ActivityInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A49E74E10C41B44D3C49C8 /* ActivityInboxView.swift */; };
 		D0601FD0D9413389D2B5A800 /* SessionLiveFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8520BBCB8665592D67A503DB /* SessionLiveFeedView.swift */; };
@@ -405,6 +413,7 @@
 		04413B7162C8D0EAA432920E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0507F41EEE70625CED6689E9 /* ResponseStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseStyle.swift; sourceTree = "<group>"; };
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
+		06B276283644CE10754796AA /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
 		0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapBlockView.swift; sourceTree = "<group>"; };
 		0D220716249F948C0B818E3C /* ArtifactPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactPanel.swift; sourceTree = "<group>"; };
@@ -436,7 +445,6 @@
 		342D787380CE678F4DDFEB8F /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		34BD6CA191B834A64926DFE6 /* WikiGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphView.swift; sourceTree = "<group>"; };
 		34DE48DC34DE5ECC63525DDC /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
-		35A51887982A564AC365DA79 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		38EA8CC2DBF51DFC5F57CA8F /* HermesNativeDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeDeepLink.swift; sourceTree = "<group>"; };
 		3911D2EEE42B27538613563C /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
 		3A6DB7DECBA8B2BCE7989B62 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
@@ -493,6 +501,7 @@
 		8520BBCB8665592D67A503DB /* SessionLiveFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionLiveFeedView.swift; sourceTree = "<group>"; };
 		85E50848877F195F3F5628E4 /* SkillCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillCache.swift; sourceTree = "<group>"; };
 		86F630297EBA7625D0FCE142 /* VideoCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCache.swift; sourceTree = "<group>"; };
+		87E06A025731D17CD0634FDE /* LearningComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningComponents.swift; sourceTree = "<group>"; };
 		88A82A8B0386F71280851A8F /* ThoughtGraphNodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphNodeView.swift; sourceTree = "<group>"; };
 		89DF820435B5D88C97CF7888 /* CronJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJob.swift; sourceTree = "<group>"; };
 		8DFAC2BEE7A7000345BFEE4B /* TUISkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUISkin.swift; sourceTree = "<group>"; };
@@ -512,12 +521,14 @@
 		9C8C09C252DE3B729C6534AD /* StatTileSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatTileSpec.swift; sourceTree = "<group>"; };
 		9D29CAFCED8C928526916577 /* SessionTimelineEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineEvent.swift; sourceTree = "<group>"; };
 		A1669F694E957B7E101B2C51 /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
+		A2D2E7129997DF3E82184495 /* SankeyBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SankeyBlockView.swift; sourceTree = "<group>"; };
 		A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
 		A4B9D264CE64D63FED48E990 /* SkillMarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillMarkdownEditor.swift; sourceTree = "<group>"; };
 		A4F3A8DCE4BC4EE7005ABAEB /* GitHubLinkCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLinkCard.swift; sourceTree = "<group>"; };
 		A54C47E1D40CAFED01F2C079 /* CentaurWikiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWikiClient.swift; sourceTree = "<group>"; };
 		A605D9137E4AF11274408370 /* ArtifactsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactsPane.swift; sourceTree = "<group>"; };
 		A6D926B2B3719706E1229C37 /* SkillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsView.swift; sourceTree = "<group>"; };
+		A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapEntryTableView.swift; sourceTree = "<group>"; };
 		A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunEvent.swift; sourceTree = "<group>"; };
 		ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChartView.swift; sourceTree = "<group>"; };
 		B08D050F975F8D875A7FC930 /* DiffBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffBlockView.swift; sourceTree = "<group>"; };
@@ -542,6 +553,7 @@
 		CDE426E9E1CCED02EF79B023 /* CentaurWorkflowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWorkflowsView.swift; sourceTree = "<group>"; };
 		CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Wiki.swift"; sourceTree = "<group>"; };
 		D2350443FCFD79CA0CC60484 /* CronListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListView.swift; sourceTree = "<group>"; };
+		D33EEECAEA14DB28C452F132 /* SankeySpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SankeySpec.swift; sourceTree = "<group>"; };
 		D5BD7CC6FF32E293542617F7 /* SessionExportMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExportMenu.swift; sourceTree = "<group>"; };
 		D6AE9BC7BFA54E190252B742 /* PromptBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdownView.swift; sourceTree = "<group>"; };
 		D720C22206C484ABBD4DF181 /* WikiReaderPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiReaderPane.swift; sourceTree = "<group>"; };
@@ -644,15 +656,6 @@
 			path = Quiz;
 			sourceTree = "<group>";
 		};
-		16A32024360A4271B0B21AD2 /* hn-actions */ = {
-			isa = PBXGroup;
-			children = (
-				35A51887982A564AC365DA79 /* Local.xcconfig */,
-			);
-			name = "hn-actions";
-			path = .;
-			sourceTree = "<group>";
-		};
 		1F3F9B6602D553E52ACB6B45 /* Quiz */ = {
 			isa = PBXGroup;
 			children = (
@@ -730,7 +733,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				16A32024360A4271B0B21AD2 /* hn-actions */,
+				C1BD4FD38E6A3BFDB472A83B /* hn-composite */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -856,6 +859,7 @@
 				C8510CDBA7652A23723C1FA1 /* Persona.swift */,
 				98EAA5520C82637C026B91DB /* PromptBreakdown.swift */,
 				0507F41EEE70625CED6689E9 /* ResponseStyle.swift */,
+				D33EEECAEA14DB28C452F132 /* SankeySpec.swift */,
 				EF5E5044927ECADD7BF59DE5 /* SavedGateway.swift */,
 				1CBC71ED91AC512E21E65282 /* Session.swift */,
 				EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */,
@@ -907,8 +911,10 @@
 				C9E90EB5F3D33856790DE1EB /* FileTreeView.swift */,
 				817CE76AF8753D467DA32202 /* LivingArtifactCapture.swift */,
 				0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */,
+				A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */,
 				73D6EDC73D991500193CD1A1 /* MathView.swift */,
 				8F48DC03F5AD30707522478B /* NetworkGraphView.swift */,
+				A2D2E7129997DF3E82184495 /* SankeyBlockView.swift */,
 				6581DF6FE30E3629D12F54B5 /* StatTilesView.swift */,
 				6B196F8CB4B5F2F38418CE4C /* TimelineBlockView.swift */,
 			);
@@ -931,6 +937,15 @@
 				1D003F1AD32BA1637BC7C1C2 /* SkillGraph3DView.swift */,
 			);
 			path = Skills;
+			sourceTree = "<group>";
+		};
+		C1BD4FD38E6A3BFDB472A83B /* hn-composite */ = {
+			isa = PBXGroup;
+			children = (
+				06B276283644CE10754796AA /* Local.xcconfig */,
+			);
+			name = "hn-composite";
+			path = .;
 			sourceTree = "<group>";
 		};
 		C1E87EA5B46FB138FB9B0FBA /* Charts */ = {
@@ -1033,6 +1048,7 @@
 		FB62C7089DFCFA102AA077F2 /* Learning */ = {
 			isa = PBXGroup;
 			children = (
+				87E06A025731D17CD0634FDE /* LearningComponents.swift */,
 				C44EE6606D791985BA836876 /* LearningDashboardView.swift */,
 			);
 			path = Learning;
@@ -1267,6 +1283,7 @@
 				2C3618331E3F2AA253AC1699 /* JSONRPCRequest.swift in Sources */,
 				4F00EAC9C54FAF6B2FE39E2E /* JSONRPCResponse.swift in Sources */,
 				41AF41F3E6ADFCBC3C0C359E /* KeychainStore.swift in Sources */,
+				60422974BC1D3902BB9CFCBF /* LearningComponents.swift in Sources */,
 				4AA54D13A1704FB351257E7F /* LearningDashboardView.swift in Sources */,
 				97ECB1563388C158B3C6EC83 /* LivingArtifact.swift in Sources */,
 				3D749C76CB8F45BF1F318E3A /* LivingArtifactCapture.swift in Sources */,
@@ -1275,6 +1292,7 @@
 				0B5438F3AA47A320C7A9598E /* MacInputTextField.swift in Sources */,
 				DCDE7EC7338E09D937F4302F /* MacScrollViewIntrospection.swift in Sources */,
 				5BFE694064475402CB3E286C /* MapBlockView.swift in Sources */,
+				CC42E48CDF80A0E07FFCD093 /* MapEntryTableView.swift in Sources */,
 				D2191130A68073FA56F0EC91 /* MarkdownContentView.swift in Sources */,
 				3F0511D7BFFD9F095F75A6A4 /* MathView.swift in Sources */,
 				5A1108897F9D615124D85957 /* MediaAttachment.swift in Sources */,
@@ -1309,6 +1327,8 @@
 				CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */,
 				732500FBB99598638E21A1D6 /* SRSEngine.swift in Sources */,
 				E6A7169F51FA048FB9DCB1C0 /* SRSStore.swift in Sources */,
+				3FDE2F80C7640F7DA73C146A /* SankeyBlockView.swift in Sources */,
+				CDA6902028594ACDB0DF2566 /* SankeySpec.swift in Sources */,
 				E5ECADE4C4CECD0BB4809D33 /* SavedGateway.swift in Sources */,
 				5F74549973CC40C2FD192577 /* Session.swift in Sources */,
 				311FF00739063EA6C46F21F7 /* SessionBackendRegistry.swift in Sources */,
@@ -1459,6 +1479,7 @@
 				BC148807643E7DA972AF796F /* JSONRPCRequest.swift in Sources */,
 				6A125FB74D9B1C28E38E3666 /* JSONRPCResponse.swift in Sources */,
 				CEEF97E31350F2523D53C4ED /* KeychainStore.swift in Sources */,
+				5A4205C39260EDCAC4B89D9B /* LearningComponents.swift in Sources */,
 				6BFBE750DA484A614091AF61 /* LearningDashboardView.swift in Sources */,
 				68C6E42A31E194FAD1C3252A /* LivingArtifact.swift in Sources */,
 				4BAB293C6064BDE1F28F6838 /* LivingArtifactCapture.swift in Sources */,
@@ -1468,6 +1489,7 @@
 				AF10FB705BABD6C9520C47B4 /* MacInputTextField.swift in Sources */,
 				92AAC904F3878F8C4BC728B8 /* MacScrollViewIntrospection.swift in Sources */,
 				626A5AD333834198D406FA43 /* MapBlockView.swift in Sources */,
+				0C5F46CC9CF74556F7785EBE /* MapEntryTableView.swift in Sources */,
 				6E6414EFE64F9508863DD960 /* MarkdownContentView.swift in Sources */,
 				93D896A2085AE1C71CA67A11 /* MathView.swift in Sources */,
 				BF38ABA9B6F9DF39FE9E9766 /* MediaAttachment.swift in Sources */,
@@ -1502,6 +1524,8 @@
 				9C157AA3FB3DBB7D8A6D0AB7 /* SRSDashboardView.swift in Sources */,
 				24F0470B945EA86E4BF2E387 /* SRSEngine.swift in Sources */,
 				1E53A9AD621BB08CCA78B3DA /* SRSStore.swift in Sources */,
+				BCE12C9371BB3FD0FE783112 /* SankeyBlockView.swift in Sources */,
+				795D0F64EBFCC30E63987C54 /* SankeySpec.swift in Sources */,
 				E7F5A3F87B57B14A61911CA3 /* SavedGateway.swift in Sources */,
 				FF074D7A7E2E409BECFDA744 /* Session.swift in Sources */,
 				CB50AE5766A010F57898099E /* SessionBackendRegistry.swift in Sources */,
@@ -1599,7 +1623,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 35A51887982A564AC365DA79 /* Local.xcconfig */;
+			baseConfigurationReference = 06B276283644CE10754796AA /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1625,7 +1649,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 35A51887982A564AC365DA79 /* Local.xcconfig */;
+			baseConfigurationReference = 06B276283644CE10754796AA /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1651,7 +1675,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 35A51887982A564AC365DA79 /* Local.xcconfig */;
+			baseConfigurationReference = 06B276283644CE10754796AA /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1755,7 +1779,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 35A51887982A564AC365DA79 /* Local.xcconfig */;
+			baseConfigurationReference = 06B276283644CE10754796AA /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";

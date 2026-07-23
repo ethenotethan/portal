@@ -201,7 +201,16 @@ private struct MapCard: View {
                 legend
             }
 
-            entryList(maxVisible: 4)
+            if let artifactID = actionableArtifactID {
+                // Artifact host: map + status table are ONE surface over one
+                // content body — row click highlights the pin and vice versa.
+                MapEntryTableView(
+                    spec: spec, artifactID: artifactID,
+                    selectedMarkerID: $selectedMarkerID
+                )
+            } else {
+                entryList(maxVisible: 4)
+            }
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
@@ -225,15 +234,22 @@ private struct MapCard: View {
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
-                        ForEach(spec.markers) { marker in
-                            entryRow(marker)
+                        if let artifactID = actionableArtifactID {
+                            MapEntryTableView(
+                                spec: spec, artifactID: artifactID,
+                                selectedMarkerID: $selectedMarkerID
+                            )
+                        } else {
+                            ForEach(spec.markers) { marker in
+                                entryRow(marker)
+                            }
                         }
                     }
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                 }
             }
-            .frame(width: 300)
+            .frame(width: actionableArtifactID != nil ? 420 : 300)
             .background(Theme.surface)
         }
     }
@@ -379,16 +395,6 @@ private struct MapCard: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 21)
-            }
-            if let artifactID = actionableArtifactID, !spec.actions.isEmpty {
-                ArtifactActionControls(
-                    actions: spec.actions,
-                    entryKey: marker.label,
-                    fieldValue: { marker.extra[$0] },
-                    artifactID: artifactID
-                )
-                .padding(.leading, 21)
-                .padding(.top, 2)
             }
         }
         .padding(.vertical, 6)

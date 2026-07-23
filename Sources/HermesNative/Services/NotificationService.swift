@@ -16,7 +16,13 @@ private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "
 @MainActor
 final class NotificationService: NSObject, ObservableObject {
     static let shared = NotificationService()
-    static var isTestEnvironment: Bool = false
+
+    /// Auto-detected: UNUserNotificationCenter throws NSInternalInconsistency
+    /// ("bundleProxyForCurrentProcess is nil") in bundle-less test runners,
+    /// and whether tests crashed depended on which suite touched .shared
+    /// first (two suites set this manually; ordering decided the rest).
+    /// Kept settable for explicit opt-in from UI-test hosts.
+    static var isTestEnvironment: Bool = ProcessInfo.isTestProcess
 
     /// Set by ChatViewModel — the session the user is currently viewing.
     var activeSessionID: String? {

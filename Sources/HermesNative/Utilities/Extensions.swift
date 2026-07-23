@@ -67,3 +67,19 @@ extension String {
         return String(self.prefix(length)) + "…"
     }
 }
+
+// MARK: - Test-process detection
+
+extension ProcessInfo {
+    /// True inside a unit-test runner (XCTest or swift-testing, Xcode or
+    /// SwiftPM). Shared by services that must not touch process-external
+    /// state under test: gateway pushes (ArtifactStore leaked test artifacts
+    /// to the live store) and UNUserNotificationCenter (throws
+    /// NSInternalInconsistencyException in bundle-less SwiftPM runners).
+    static let isTestProcess = NSClassFromString("XCTestCase") != nil
+        || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        || ProcessInfo.processInfo.environment["SWIFT_TESTING_ENABLED"] == "1"
+        || Bundle.main.bundlePath.hasSuffix(".xctest")
+        || (Bundle.main.bundleIdentifier == nil
+            && Bundle.main.bundlePath.contains("/usr/libexec/swift/pm"))
+}

@@ -230,9 +230,7 @@ final class ArtifactStore: ObservableObject {
     /// store (singleton), and without this guard a test upsert schedules a
     /// REAL gateway push when a client happens to be wired — unit tests
     /// leaked test-artifact-* entries into the production store.
-    private static let isTestProcess = NSClassFromString("XCTestCase") != nil
-        || ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        || ProcessInfo.processInfo.environment["SWIFT_TESTING_ENABLED"] == "1"
+    private static let isTestProcess = ProcessInfo.isTestProcess
 
     private func schedulePush(id: String) {
         guard !Self.isTestProcess else { return }
