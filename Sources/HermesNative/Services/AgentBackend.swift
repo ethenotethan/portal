@@ -70,8 +70,9 @@ protocol AgentBackend: AnyObject {
     /// (callers fall back to `AgentModel.catalog`).
     func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog?
     /// Model switch that surfaces the backend's verdict (warnings,
-    /// expensive-model confirmation gates).
-    func switchModel(_ model: String, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome
+    /// expensive-model confirmation gates). `provider` names the provider
+    /// the pick came from (nil = backend's current provider).
+    func switchModel(_ model: String, provider: String?, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome
 
     // MARK: Attachments
 
@@ -161,8 +162,10 @@ extension AgentBackend {
     func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
 
     /// Fallback switch path: plain config.set with no verdict surface.
-    func switchModel(_ model: String, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome {
-        try await setConfig(key: "model", value: model, sessionID: sessionID)
+    /// Provider qualification uses the gateway's "--provider" value syntax.
+    func switchModel(_ model: String, provider: String?, sessionID: String, confirm: Bool) async throws -> ModelSwitchOutcome {
+        let value = provider.map { "\(model) --provider \($0)" } ?? model
+        try await setConfig(key: "model", value: value, sessionID: sessionID)
         return ModelSwitchOutcome(value: model, warning: "", confirmRequired: false, confirmMessage: "")
     }
 }

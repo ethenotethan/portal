@@ -79,6 +79,9 @@ struct ModelCatalog: Equatable {
 struct ModelSwitchConfirmation: Equatable, Identifiable {
     let model: String
     let message: String
+    /// Provider slug the pick came from (nil = current provider) — the
+    /// confirmed retry must route the same way the original pick did.
+    var provider: String?
 
     var id: String { model }
 }

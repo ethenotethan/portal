@@ -1525,7 +1525,7 @@ if restoreSessionState(displayID: key) {
     /// The gateway may veto instead of applying: an expensive model returns
     /// confirm_required, published as `pendingModelConfirmation` for the UI
     /// to show; confirming resends with the confirmation flag.
-    func switchModel(_ model: String, confirmed: Bool = false) async {
+    func switchModel(_ model: String, provider: String? = nil, confirmed: Bool = false) async {
         guard backendCapabilities.supportsModelSwitching else { return }
         // Record the pick as the new-session default BEFORE any early return.
         // If no session is wired yet (picker used from a fresh chat before
@@ -1542,7 +1542,7 @@ if restoreSessionState(displayID: key) {
         currentModel = model
         snapshotCurrentSessionState()
         do {
-            let outcome = try await client.switchModel(model, sessionID: sid, confirm: confirmed)
+            let outcome = try await client.switchModel(model, provider: provider, sessionID: sid, confirm: confirmed)
             if outcome.confirmRequired {
                 // Not applied — roll the badge back and surface the gate.
                 currentModel = previousModel
@@ -1551,7 +1551,8 @@ if restoreSessionState(displayID: key) {
                     model: model,
                     message: outcome.confirmMessage.isEmpty
                         ? "Switching to \(AgentModel.displayName(for: model)) may be expensive. Continue?"
-                        : outcome.confirmMessage
+                        : outcome.confirmMessage,
+                    provider: provider
                 )
             } else if !outcome.warning.isEmpty {
                 self.error = outcome.warning

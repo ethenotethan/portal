@@ -1530,10 +1530,15 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// verdict: it may accept with a warning, or gate an expensive model
     /// behind confirmation (`confirmRequired` — resend with `confirm: true`
     /// after the user agrees). Plain setConfig discards those fields.
-    func switchModel(_ model: String, sessionID: String, confirm: Bool = false) async throws -> ModelSwitchOutcome {
+    func switchModel(_ model: String, provider: String? = nil, sessionID: String, confirm: Bool = false) async throws -> ModelSwitchOutcome {
+        // A bare model ID resolves against the gateway's CURRENT provider —
+        // picks from another provider's picker section must say which one.
+        // The gateway's parse_model_flags handles "--provider <slug>" inside
+        // the value (same syntax as the TUI's /model command).
+        let value = provider.map { "\(model) --provider \($0)" } ?? model
         var params: [String: AnyCodable] = [
             "key": AnyCodable("model"),
-            "value": AnyCodable(model),
+            "value": AnyCodable(value),
             "session_id": AnyCodable(sessionID),
         ]
         if confirm {

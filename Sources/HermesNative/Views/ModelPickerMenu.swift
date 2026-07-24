@@ -67,7 +67,11 @@ struct ModelPickerMenu: View {
                 if let confirmation = chatViewModel.pendingModelConfirmation {
                     Button("Switch to \(AgentModel.displayName(for: confirmation.model))") {
                         chatViewModel.pendingModelConfirmation = nil
-                        Task { await chatViewModel.switchModel(confirmation.model, confirmed: true) }
+                        Task {
+                            await chatViewModel.switchModel(
+                                confirmation.model, provider: confirmation.provider, confirmed: true
+                            )
+                        }
                     }
                     Button("Cancel", role: .cancel) {
                         chatViewModel.pendingModelConfirmation = nil
@@ -100,7 +104,10 @@ struct ModelPickerMenu: View {
     }
 
     /// One section per authenticated provider, in the gateway's canonical
-    /// order, the current provider's section first.
+    /// order, the current provider's section first. Each row carries its
+    /// section's provider slug — a bare model ID resolves against the
+    /// gateway's CURRENT provider, so picking from another provider's
+    /// section silently failed or mis-routed without it.
     @ViewBuilder
     private func liveCatalogSections(_ catalog: ModelCatalog) -> some View {
         let providers = catalog.selectableProviders
@@ -108,7 +115,11 @@ struct ModelPickerMenu: View {
         ForEach(providers) { provider in
             Section(provider.name) {
                 ForEach(provider.models, id: \.self) { modelID in
-                    modelButton(id: modelID, label: AgentModel.displayName(for: modelID))
+                    modelButton(
+                        id: modelID,
+                        label: AgentModel.displayName(for: modelID),
+                        provider: provider.isCurrent ? nil : provider.slug
+                    )
                 }
             }
         }
@@ -122,9 +133,9 @@ struct ModelPickerMenu: View {
     }
 
     @ViewBuilder
-    private func modelButton(id: String, label: String) -> some View {
+    private func modelButton(id: String, label: String, provider: String? = nil) -> some View {
         Button {
-            Task { await chatViewModel.switchModel(id) }
+            Task { await chatViewModel.switchModel(id, provider: provider) }
         } label: {
             if AgentModel.normalize(id) == AgentModel.normalize(currentModel) {
                 Label(label, systemImage: "checkmark")
