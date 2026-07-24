@@ -34,6 +34,11 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
 
+    /// True while the 2D layout is being pre-settled off the main thread.
+    /// The canvas withholds drawing until this clears, so the graph appears
+    /// already relaxed and framed instead of animating apart on screen.
+    @Published private(set) var isSettling = false
+
     // MARK: - Shared page selection plane
     // One "current page" across every surface: the reader, the graph's node
     // selection, the file-tree sidebar, and the timeline drawer all read and
@@ -121,7 +126,7 @@ final class WikiGraphViewModel: ObservableObject {
         return lookup
     }
 
-    struct SimNode: Identifiable {
+    struct SimNode: Identifiable, Sendable {
         let id: String
         var position: CGPoint
         var velocity: CGVector = .zero
@@ -149,6 +154,9 @@ final class WikiGraphViewModel: ObservableObject {
     private var alpha: CGFloat = 1.0
     private let alphaDecay: CGFloat = 0.0228
     private let alphaMin: CGFloat = 0.002
+    /// Bumped per settle so a stale background relaxation can't overwrite a
+    /// newer graph (see WikiGraphViewModel+Layout).
+    var settleGeneration = 0
     private let dragReheat: CGFloat = 0.15
     var simAlpha: CGFloat { alpha }
     /// 2D canvas vs 3D SceneKit rendering of the same graph — a toggle in
@@ -484,6 +492,7 @@ final class WikiGraphViewModel: ObservableObject {
             return SimNode(id: page.id, position: CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist), type: page.type, label: page.title)
         }
         finishSetup()
+        settleAndReveal()
     }
 
     private func setup3D() {
@@ -528,54 +537,10 @@ final class WikiGraphViewModel: ObservableObject {
         let anyDragging = simNodes.contains { $0.isDragging }
         guard alpha > alphaMin || anyDragging else { return }
         // Simulate into a local copy so the @Published publisher fires once per tick.
-        var nodes = simNodes
-        for _ in 0..<iterationsPerFrame {
-            var forces = Array(repeating: CGVector.zero, count: nodes.count)
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                for j in (i + 1)..<nodes.count {
-                    let dx = nodes[i].position.x - nodes[j].position.x
-                    let dy = nodes[i].position.y - nodes[j].position.y
-                    let distSq = dx * dx + dy * dy
-                    guard distSq > 0.01 else { continue }
-                    let rawForce = chargeConstant / distSq
-                    let force = min(rawForce, maxRepulsionForce)
-                    let dist = sqrt(distSq)
-                    let fx = (dx / dist) * force; let fy = (dy / dist) * force
-                    forces[i].dx += fx; forces[i].dy += fy
-                    forces[j].dx -= fx; forces[j].dy -= fy
-                }
-            }
-            for (si, ti) in simLinks {
-                let dx = nodes[ti].position.x - nodes[si].position.x
-                let dy = nodes[ti].position.y - nodes[si].position.y
-                let dist = sqrt(dx * dx + dy * dy)
-                guard dist > 0 else { continue }
-                let force = (dist - springLength) * springConstant
-                let fx = (dx / dist) * force; let fy = (dy / dist) * force
-                forces[si].dx += fx; forces[si].dy += fy
-                forces[ti].dx -= fx; forces[ti].dy -= fy
-            }
-            let meanX = nodes.reduce(0) { $0 + $1.position.x } / CGFloat(nodes.count)
-            let meanY = nodes.reduce(0) { $0 + $1.position.y } / CGFloat(nodes.count)
-            let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                forces[i].dx += (center.x - meanX) * centerPull
-                forces[i].dy += (center.y - meanY) * centerPull
-            }
-            for i in 0..<nodes.count {
-                guard !nodes[i].isDragging else { continue }
-                var v = nodes[i].velocity
-                v.dx = (v.dx + forces[i].dx * alpha) * friction
-                v.dy = (v.dy + forces[i].dy * alpha) * friction
-                let speed = sqrt(v.dx * v.dx + v.dy * v.dy)
-                if speed > maxVelocity { let scale = maxVelocity / speed; v.dx *= scale; v.dy *= scale }
-                nodes[i].velocity = v
-                nodes[i].position.x += v.dx; nodes[i].position.y += v.dy
-            }
-        }
-        simNodes = nodes
+        simNodes = Self.stepPhysics2D(
+            nodes: simNodes, links: simLinks, alpha: alpha,
+            canvasSize: canvasSize, iterations: iterationsPerFrame, params: physicsParams
+        )
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
@@ -720,3 +685,166 @@ final class WikiGraphViewModel: ObservableObject {
 
 extension CGPoint { var width: CGFloat { x }; var height: CGFloat { y } }
 extension CGVector { static let zero = CGVector(dx: 0, dy: 0) }
+
+// MARK: - Layout: pre-settle, fit-to-view, and the shared 2D physics step
+
+extension WikiGraphViewModel {
+
+    /// Immutable snapshot of the 2D force constants so the physics step can
+    /// run as a `nonisolated static` (usable from a background task) without
+    /// touching @MainActor instance state.
+    struct Physics2DParams: Sendable {
+        let friction, springLength, springConstant, chargeConstant: CGFloat
+        let centerPull, maxVelocity, maxRepulsionForce: CGFloat
+    }
+
+    var physicsParams: Physics2DParams {
+        Physics2DParams(
+            friction: friction, springLength: springLength, springConstant: springConstant,
+            chargeConstant: chargeConstant, centerPull: centerPull,
+            maxVelocity: maxVelocity, maxRepulsionForce: maxRepulsionForce
+        )
+    }
+
+    /// Relaxes the freshly-seeded 2D layout off the main thread, then reveals
+    /// it already-settled and framed — the graph "clicks into place" instead
+    /// of visibly exploding apart. Cheap graphs settle in a couple frames;
+    /// large ones are capped so this never blocks perceptibly. The live tick
+    /// still runs afterward (alpha is low), so dragging/reheat behave as before.
+    func settleAndReveal() {
+        guard !is3D, canvasSize != .zero, simNodes.count > 1 else {
+            isSettling = false
+            return
+        }
+        settleGeneration += 1
+        let generation = settleGeneration
+        isSettling = true
+
+        let seed = simNodes
+        let links = simLinks
+        let size = canvasSize
+        let params = physicsParams
+        let iterations = iterationsPerFrame
+        // More nodes need more relaxation, but cap the work so the pause is
+        // imperceptible even on large graphs.
+        let steps = min(300, max(60, seed.count))
+
+        Task.detached(priority: .userInitiated) {
+            var nodes = seed
+            var a: CGFloat = 1.0
+            for _ in 0..<steps {
+                nodes = Self.stepPhysics2D(
+                    nodes: nodes, links: links, alpha: a,
+                    canvasSize: size, iterations: iterations, params: params
+                )
+                a += (0.002 - a) * 0.0228
+                if a < 0.02 { break }
+            }
+            let settled = nodes
+            await MainActor.run { [weak self] in
+                guard let self, generation == self.settleGeneration else { return }
+                // Only adopt if the graph hasn't been rebuilt underneath us.
+                guard self.simNodes.count == settled.count else {
+                    self.isSettling = false
+                    return
+                }
+                for i in settled.indices where self.simNodes.indices.contains(i) {
+                    self.simNodes[i].position = settled[i].position
+                    self.simNodes[i].velocity = .zero
+                }
+                self.alpha = self.alphaMin      // arrive at rest; no on-screen spread
+                // Frame the whole graph, unless a page is already selected —
+                // then keep that node centered (Show in Graph / mode switch).
+                if let sel = self.selectedNodeIndex, self.simNodes.indices.contains(sel) {
+                    self.centerOnNode(sel)
+                } else {
+                    self.fitToView()
+                }
+                self.isSettling = false
+            }
+        }
+    }
+
+    /// Frames the whole 2D graph in the canvas: centers its bounding box and
+    /// picks a zoom that leaves a comfortable margin, so nodes read at a
+    /// legible size the moment the view appears (clamped to the pinch range).
+    func fitToView() {
+        guard !is3D, canvasSize != .zero, simNodes.count > 1 else { return }
+        var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
+        for node in simNodes {
+            minX = min(minX, node.position.x); maxX = max(maxX, node.position.x)
+            minY = min(minY, node.position.y); maxY = max(maxY, node.position.y)
+        }
+        let graphW = max(maxX - minX, 1), graphH = max(maxY - minY, 1)
+        let margin: CGFloat = 80
+        let fitZoom = min(
+            (canvasSize.width - margin * 2) / graphW,
+            (canvasSize.height - margin * 2) / graphH
+        )
+        let newZoom = max(0.3, min(1.6, fitZoom))
+        let cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+        zoom = newZoom
+        panOffset = CGSize(
+            width: canvasSize.width / 2 - cx * newZoom,
+            height: canvasSize.height / 2 - cy * newZoom
+        )
+    }
+
+    /// One frame of 2D force integration over `iterations` sub-steps. Pure:
+    /// takes node/link state in, returns advanced nodes out. Shared by the
+    /// live tick and the off-main pre-settle so both produce identical layouts.
+    nonisolated static func stepPhysics2D(
+        nodes input: [SimNode], links: [(sourceIndex: Int, targetIndex: Int)],
+        alpha: CGFloat, canvasSize: CGSize, iterations: Int, params: Physics2DParams
+    ) -> [SimNode] {
+        var nodes = input
+        for _ in 0..<iterations {
+            var forces = Array(repeating: CGVector.zero, count: nodes.count)
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                for j in (i + 1)..<nodes.count {
+                    let dx = nodes[i].position.x - nodes[j].position.x
+                    let dy = nodes[i].position.y - nodes[j].position.y
+                    let distSq = dx * dx + dy * dy
+                    guard distSq > 0.01 else { continue }
+                    let rawForce = params.chargeConstant / distSq
+                    let force = min(rawForce, params.maxRepulsionForce)
+                    let dist = sqrt(distSq)
+                    let fx = (dx / dist) * force; let fy = (dy / dist) * force
+                    forces[i].dx += fx; forces[i].dy += fy
+                    forces[j].dx -= fx; forces[j].dy -= fy
+                }
+            }
+            for (si, ti) in links {
+                let dx = nodes[ti].position.x - nodes[si].position.x
+                let dy = nodes[ti].position.y - nodes[si].position.y
+                let dist = sqrt(dx * dx + dy * dy)
+                guard dist > 0 else { continue }
+                let force = (dist - params.springLength) * params.springConstant
+                let fx = (dx / dist) * force; let fy = (dy / dist) * force
+                forces[si].dx += fx; forces[si].dy += fy
+                forces[ti].dx -= fx; forces[ti].dy -= fy
+            }
+            let meanX = nodes.reduce(0) { $0 + $1.position.x } / CGFloat(nodes.count)
+            let meanY = nodes.reduce(0) { $0 + $1.position.y } / CGFloat(nodes.count)
+            let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                forces[i].dx += (center.x - meanX) * params.centerPull
+                forces[i].dy += (center.y - meanY) * params.centerPull
+            }
+            for i in 0..<nodes.count {
+                guard !nodes[i].isDragging else { continue }
+                var v = nodes[i].velocity
+                v.dx = (v.dx + forces[i].dx * alpha) * params.friction
+                v.dy = (v.dy + forces[i].dy * alpha) * params.friction
+                let speed = sqrt(v.dx * v.dx + v.dy * v.dy)
+                if speed > params.maxVelocity { let scale = params.maxVelocity / speed; v.dx *= scale; v.dy *= scale }
+                nodes[i].velocity = v
+                nodes[i].position.x += v.dx; nodes[i].position.y += v.dy
+            }
+        }
+        return nodes
+    }
+}

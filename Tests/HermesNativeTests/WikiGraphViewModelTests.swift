@@ -268,6 +268,24 @@ struct WikiGraphViewModelTests {
         #expect(vm.simNodes.map(\.position) == positions)
     }
 
+    @Test("Fit-to-view centers the graph's bounding box in the canvas")
+    func fitToViewCentersGraph() {
+        let vm = makeVM()
+        // Place nodes at a known, off-center bounding box.
+        for i in vm.simNodes.indices {
+            vm.simNodes[i].position = CGPoint(x: 100 + CGFloat(i) * 200, y: 100)
+        }
+        vm.fitToView()
+        // The bounding-box center must map to the canvas center at the chosen zoom.
+        let minX = vm.simNodes.map(\.position.x).min()!
+        let maxX = vm.simNodes.map(\.position.x).max()!
+        let cx = (minX + maxX) / 2
+        let screenX = cx * vm.zoom + vm.panOffset.width
+        #expect(abs(screenX - vm.canvasSize.width / 2) < 0.001)
+        // Zoom stays within the legible clamp range.
+        #expect(vm.zoom >= 0.3 && vm.zoom <= 1.6)
+    }
+
     /// Regression: loadedSource was weak, and ContentView rebuilds its
     /// override client per body evaluation — the ref died between graph load
     /// and page read, so the reader fell back to the home gateway and every

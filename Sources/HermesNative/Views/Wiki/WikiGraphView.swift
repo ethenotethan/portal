@@ -72,6 +72,7 @@ struct WikiGraphView: View {
             .background(Theme.background)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onReceive(timer) { _ in
+                guard !viewModel.isSettling else { return }
                 guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
                 viewModel.tick()
             }
@@ -223,6 +224,11 @@ struct WikiGraphView: View {
             } else {
                 WikiGraph2DCanvas(viewModel: viewModel)
                     .gesture(pinchGesture)
+                    // The layout relaxes off-screen, so the random seed frame
+                    // never shows; reveal the framed graph with a quick fade
+                    // instead of an on-screen explosion.
+                    .opacity(viewModel.isSettling ? 0 : 1)
+                    .animation(.easeOut(duration: 0.2), value: viewModel.isSettling)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
