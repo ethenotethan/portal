@@ -108,35 +108,83 @@ struct WikiGraphControlsBar: View {
         .buttonStyle(.borderless)
         .help(viewModel.showFileTree ? "Hide page browser" : "Browse pages")
 
-        if supportsTimeline {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.showTimeline.toggle()
-                }
-            } label: {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(viewModel.showTimeline ? Theme.accent : Theme.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help(viewModel.showTimeline ? "Hide timeline" : "Show change timeline")
-        }
+        historyControl
+    }
 
-        // Events page toggle: navigates the wiki surface to the full
-        // Compendium events page (graph ↔ events swap in the adaptive
-        // host), not an overlay. Centaur-only by protocol conformance.
-        if source is (any WikiEventTimelineProviding) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.showEventsPage.toggle()
+    // MARK: - History (one door)
+
+    /// Whether the source exposes the Compendium event feed (Centaur only).
+    private var hasEventsSurface: Bool {
+        source is (any WikiEventTimelineProviding)
+    }
+
+    /// Whether any history surface is active right now (drives the icon tint).
+    private var historyActive: Bool {
+        (supportsTimeline && viewModel.showTimeline) ||
+        (hasEventsSurface && viewModel.showEventsPage)
+    }
+
+    /// Change history was reached through two separate, similarly clock-ish
+    /// toolbar icons — the edit-timeline drawer AND the Compendium event feed —
+    /// which read as "wait, which one is the history?". Fold them into a single
+    /// door: when both surfaces exist (Centaur) it's a menu (Changes / Events);
+    /// when only one does (the common Hermes case) it stays a direct toggle so
+    /// there's no extra click.
+    @ViewBuilder
+    private var historyControl: some View {
+        if supportsTimeline && hasEventsSurface {
+            Menu {
+                Button { toggleTimeline() } label: {
+                    historyMenuLabel("Changes", systemImage: "clock.arrow.circlepath", on: viewModel.showTimeline)
+                }
+                Button { toggleEventsPage() } label: {
+                    historyMenuLabel("Events", systemImage: "tray.and.arrow.down", on: viewModel.showEventsPage)
                 }
             } label: {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(viewModel.showEventsPage ? Theme.accent : Theme.secondary)
+                historyIcon
             }
-            .buttonStyle(.borderless)
-            .help(viewModel.showEventsPage ? "Back to the wiki graph" : "Events — Compendium ingestion timeline")
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Wiki history — page changes and ingested events")
+        } else if supportsTimeline {
+            Button { toggleTimeline() } label: { historyIcon }
+                .buttonStyle(.borderless)
+                .help(viewModel.showTimeline ? "Hide change history" : "Change history — what edited each page")
+        } else if hasEventsSurface {
+            Button { toggleEventsPage() } label: { historyIcon }
+                .buttonStyle(.borderless)
+                .help(viewModel.showEventsPage ? "Back to the wiki graph" : "Event history — what flowed into the wiki")
+        }
+    }
+
+    private var historyIcon: some View {
+        Image(systemName: "clock.arrow.circlepath")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(historyActive ? Theme.accent : Theme.secondary)
+    }
+
+    @ViewBuilder
+    private func historyMenuLabel(_ title: String, systemImage: String, on: Bool) -> some View {
+        if on {
+            Label(title, systemImage: "checkmark")
+        } else {
+            Label(title, systemImage: systemImage)
+        }
+    }
+
+    private func toggleTimeline() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            // Opening the drawer and the full events page at once would fight
+            // over the surface; leaving events closes it as we open the drawer.
+            if !viewModel.showTimeline { viewModel.showEventsPage = false }
+            viewModel.showTimeline.toggle()
+        }
+    }
+
+    private func toggleEventsPage() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if !viewModel.showEventsPage { viewModel.showTimeline = false }
+            viewModel.showEventsPage.toggle()
         }
     }
 
