@@ -88,11 +88,29 @@ struct WikiGraphView: View {
                 )
             }
             .onAppear {
-                Task {
-                    await viewModel.discoverWikis(client: gatewayClientWrapper.client)
-                    await loadGraph(wiki: viewModel.selectedWikiPath)
-                }
+                Task { await attemptInitialLoad() }
             }
+            .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
+                // The home-gateway graph loads over the WebSocket. If the view
+                // appeared before the socket finished connecting, the first
+                // wiki.scan threw .notConnected and left the surface blank with
+                // no recovery — the "sometimes it doesn't load" bug. Retry once
+                // the connection comes up, but only while we still have no data
+                // (don't disrupt a loaded graph on a mid-session reconnect) and
+                // only for the home gateway (override sources use REST, not the
+                // WS, so isConnected is irrelevant to them).
+                guard connected, !isOverride, viewModel.graph.pages.isEmpty else { return }
+                Task { await attemptInitialLoad() }
+            }
+    }
+
+    /// Discover wikis, then load the selected graph. Safe to call more than
+    /// once: the view model drops stale responses by generation, and the
+    /// retry-on-connect path guards on an empty graph so this never stacks
+    /// redundant loads over live data.
+    private func attemptInitialLoad() async {
+        await viewModel.discoverWikis(client: gatewayClientWrapper.client)
+        await loadGraph(wiki: viewModel.selectedWikiPath)
     }
 
     // MARK: - Adaptive layout
@@ -232,6 +250,7 @@ struct WikiGraphView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay { graphStatusOverlay }
         .overlay(alignment: .topLeading) { infoOverlay }
         .overlay(alignment: .topTrailing) {
             WikiGraphControlsBar(
@@ -240,6 +259,57 @@ struct WikiGraphView: View {
                 source: overrideSource,
                 onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
             )
+        }
+    }
+
+    /// Centered status shown only when the graph has no nodes to draw, so a
+    /// cold-connect failure, an in-flight load, and a genuinely empty wiki are
+    /// no longer indistinguishable blank canvases. Hidden the moment real
+    /// nodes exist.
+    @ViewBuilder
+    private var graphStatusOverlay: some View {
+        if viewModel.graph.pages.isEmpty {
+            VStack(spacing: 10) {
+                if viewModel.isLoading {
+                    ProgressView()
+                    Text("Loading wiki…")
+                        .font(.callout)
+                        .foregroundStyle(Theme.secondary)
+                } else if !isOverride && !gatewayClientWrapper.isConnected {
+                    ProgressView()
+                    Text(gatewayClientWrapper.isConnecting ? "Connecting to gateway…" : "Waiting for gateway…")
+                        .font(.callout)
+                        .foregroundStyle(Theme.secondary)
+                } else if let error = viewModel.error {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.title2)
+                        .foregroundStyle(Theme.warning)
+                    Text("Couldn't load the wiki")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Theme.primary)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .frame(maxWidth: 320)
+                    Button("Try again") {
+                        Task { await loadGraph(wiki: viewModel.selectedWikiPath) }
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Theme.accent)
+                } else {
+                    Image(systemName: "square.dashed")
+                        .font(.title2)
+                        .foregroundStyle(Theme.tertiary)
+                    Text("This wiki has no pages yet")
+                        .font(.callout)
+                        .foregroundStyle(Theme.secondary)
+                }
+            }
+            .padding(24)
+            .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 12))
+            .transition(.opacity)
         }
     }
 
