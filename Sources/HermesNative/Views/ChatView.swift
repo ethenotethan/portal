@@ -29,6 +29,16 @@ struct ChatView: View {
     @State private var avatarY: CGFloat = 0
     @State private var pendingScrollTask: Task<Void, Never>?
 
+    /// How far the transcript's bottom edge sits below the visible viewport,
+    /// in points. 0 means the latest turn is on-screen; a large value means the
+    /// user has scrolled up in a long session. Drives the jump-to-latest pill.
+    @State private var distanceBelowFold: CGFloat = 0
+
+    /// Height of the visible scroll viewport, captured from ChatViewportHeightKey.
+    /// The bottom-fold sentinel compares its own Y against this to decide
+    /// whether the newest turn is on-screen.
+    @State private var chatViewportHeight: CGFloat = 0
+
     // ── Thought Graph ──
     @State private var showThoughtGraph = false
     @StateObject private var thoughtGraphEngine = ThoughtGraphLayoutEngine()
@@ -483,6 +493,65 @@ struct ChatView: View {
         }
     }
 
+    /// Zero-height marker pinned to the bottom of the transcript content. It
+    /// reports how far its own bottom edge sits past the visible viewport's
+    /// lower edge (measured in the fixed "chatViewport" space): 0 when the
+    /// newest turn is on-screen, growing as the user scrolls up. That distance
+    /// gates the jump-to-latest pill.
+    private var bottomFoldSentinel: some View {
+        GeometryReader { geo in
+            let maxY = geo.frame(in: .named("chatViewport")).maxY
+            let distance = max(0, maxY - chatViewportHeight)
+            Color.clear.preference(key: BottomFoldDistanceKey.self, value: distance)
+        }
+        .frame(height: 0)
+    }
+
+    /// Floating pill that appears bottom-right when the transcript is scrolled
+    /// up in a long session, so the user can snap back to the newest message
+    /// without hand-scrolling. Hidden whenever the latest turn is already
+    /// on-screen. The transient status/streaming rows keep the transcript
+    /// auto-scrolled while streaming, so this is a read-mode affordance.
+    @ViewBuilder
+    private func jumpToLatestButton(proxy: ScrollViewProxy) -> some View {
+        if distanceBelowFold > 120 {
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        scrollToBottom(proxy: proxy)
+                    }
+                } label: {
+                    Label("Jump to latest", systemImage: "arrow.down")
+                        .font(.caption.weight(.semibold))
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule().fill(Theme.accent)
+                        )
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 3)
+                }
+                .buttonStyle(.plain)
+                .help("Scroll to the newest message")
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, jumpButtonBottomInset)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .allowsHitTesting(true)
+        }
+    }
+
+    /// Lift the pill above the composer so it never overlaps the input card.
+    private var jumpButtonBottomInset: CGFloat {
+        #if os(macOS)
+        return chatViewModel.isSessionReady ? 96 : 24
+        #else
+        return 72
+        #endif
+    }
+
     /// Toolbar chrome above the transcript. macOS keeps the original
     /// single-row layout; iOS collapses secondary actions into an overflow
     /// menu so the persona, model, and streaming/stop/error state stay
@@ -878,6 +947,8 @@ struct ChatView: View {
                                 .id("transient-status")
                                 .transition(.opacity)
                             }
+
+                            bottomFoldSentinel
                         }
                         .padding(.leading, messageLeadingPadding)
                         .padding(.trailing, 16)
@@ -932,13 +1003,33 @@ struct ChatView: View {
                 .padding(.bottom, 18)
                 .frame(maxWidth: 808, alignment: .bottom)
             #endif
+
+                jumpToLatestButton(proxy: proxy)
             }
+            .coordinateSpace(name: "chatViewport")
             .background(activeSkin.background)
             #if os(macOS)
             .scrollIndicators(.hidden, axes: .horizontal)
             #else
             .scrollDismissesKeyboard(.interactively)
             #endif
+            .onPreferenceChange(BottomFoldDistanceKey.self) { distance in
+                // How far the transcript bottom sits past the viewport's lower
+                // edge. Snap tiny values to 0 so sub-pixel jitter near the
+                // bottom never flickers the pill in and out.
+                let clamped = distance < 24 ? 0 : distance
+                if abs(clamped - distanceBelowFold) > 1 {
+                    // Animate only the threshold crossings that show/hide the
+                    // pill, so its entrance/exit eases instead of popping.
+                    let wasVisible = distanceBelowFold > 120
+                    let willBeVisible = clamped > 120
+                    if wasVisible != willBeVisible {
+                        withAnimation(.easeInOut(duration: 0.2)) { distanceBelowFold = clamped }
+                    } else {
+                        distanceBelowFold = clamped
+                    }
+                }
+            }
             .onPreferenceChange(LatestBotTurnYKey.self) { y in
                 if let y = y {
                     Task { @MainActor in
@@ -952,6 +1043,9 @@ struct ChatView: View {
                 }
             }
             .onPreferenceChange(ChatViewportHeightKey.self) { height in
+                if abs(height - chatViewportHeight) > 1 {
+                    chatViewportHeight = height
+                }
                 if !hasBotContent {
                     Task { @MainActor in
                         await Task.yield()
@@ -1228,6 +1322,16 @@ private struct LatestBotTurnYKey: PreferenceKey {
 }
 
 private struct ChatViewportHeightKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+// How far the transcript's bottom edge sits past the visible viewport, in
+// points. Reported by the zero-height bottomFoldSentinel; gates the
+// jump-to-latest pill. Single producer, so reduce keeps the last value.
+private struct BottomFoldDistanceKey: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
