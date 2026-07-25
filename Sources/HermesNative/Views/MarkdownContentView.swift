@@ -958,27 +958,16 @@ struct TableView: View {
     @State private var sortAscending = true
     @State private var copied = false
 
-    var body: some View {
-        let content = tableContent
+    /// Rows shown while collapsed. Structural truncation, NOT visual
+    /// clipping: the old frame+clip+mask approach first centered the clip
+    /// window (header vanished), then with top alignment clipped away the
+    /// expander button at the bottom — collapsed tables must render only
+    /// the rows that fit so header AND expander are always real, visible,
+    /// hittable views.
+    private static let collapsedRowLimit = 6
 
-        if isExpanded {
-            content
-        } else {
-            content
-                .frame(maxHeight: 240)
-                .clipped()
-                .mask(
-                    VStack(spacing: 0) {
-                        Rectangle().frame(height: 220)
-                        LinearGradient(
-                            colors: [Theme.surface, Theme.surface.opacity(0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 20)
-                    }
-                )
-        }
+    var body: some View {
+        tableContent
     }
 
     // MARK: Sorting
@@ -1092,8 +1081,11 @@ struct TableView: View {
                 }
                 .background(Theme.accent.opacity(0.08))
 
-                // Data rows
-                ForEach(Array(displayRows.enumerated()), id: \.offset) { rowIndex, row in
+                // Data rows — collapsed tables truncate structurally (only
+                // the first rows exist) so nothing can clip the header above
+                // or the expander below.
+                let visibleRows = isExpanded ? displayRows : Array(displayRows.prefix(Self.collapsedRowLimit))
+                ForEach(Array(visibleRows.enumerated()), id: \.offset) { rowIndex, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { index, cell in
                             tableCell(
@@ -1107,14 +1099,14 @@ struct TableView: View {
                 }
 
                 // Expand / collapse
-                if rows.count > 5 {
+                if rows.count > Self.collapsedRowLimit {
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             isExpanded.toggle()
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(isExpanded ? "Collapse" : "\(rows.count) rows")
+                            Text(isExpanded ? "Collapse" : "+ \(rows.count - Self.collapsedRowLimit) more rows")
                                 .font(.system(size: 11, weight: .semibold))
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
