@@ -21,6 +21,21 @@ opt_in_rules:
   - vertical_whitespace_closing_braces
   - yoda_condition
   - function_name_whitespace
+  # Crash-safety & clarity rules (added 2026-07). Existing violations are
+  # frozen in .swiftlint-baseline (regenerate with `make lint-baseline`); CI
+  # runs `--baseline`, so these only block NEW code. The point: a lower-effort
+  # agent cannot introduce a new force-unwrap / force-try / IUO — the class of
+  # bug that crashes on the unhappy path — and gets a crisp, diff-local red.
+  - force_unwrapping            # baseline: 61 existing
+  - implicitly_unwrapped_optional  # baseline: 8 existing
+  - explicit_acl                # baseline: ~3.5k existing (visibility must be explicit on new decls)
+  - redundant_type_annotation   # baseline: 4 existing
+  # Zero existing violations — pure guards, nothing to grandfather:
+  - empty_string
+  - toggle_bool
+  - explicit_init
+  - unavailable_function
+  - prefer_self_type_over_type_of_self
 
 disabled_rules:
   - trailing_comma
@@ -32,8 +47,8 @@ disabled_rules:
   - no_space_in_method_call
   - identifier_name
   - comma
-  - force_cast
-  - force_try
+  # force_cast / force_try were disabled; re-enabled 2026-07 as crash-safety
+  # guards (0 existing violations, so no baseline entries needed).
   - unused_closure_parameter
   - redundant_discardable_let
   - todo
@@ -95,6 +110,19 @@ custom_rules:
   no_nslog:
     regex: "\\bNSLog\\("
     message: "Use Logger from os.log instead of NSLog"
+    severity: warning
+
+  no_print:
+    included: ".*/Sources/.*\\.swift"
+    excluded:
+      # Grandfathered (2026-07) — the one pre-existing print(). Do not extend;
+      # new diagnostics go through Logger (os.log) so they're filterable and
+      # don't ship to release stdout.
+      - ".*/Models/ChatMessage\\.swift"
+    regex: "(?<![A-Za-z0-9_.])print\\("
+    message: >-
+      Use Logger from os.log instead of print(); print goes to stdout with no
+      level or subsystem and can't be filtered in Console or silenced in release.
     severity: warning
 
   no_direct_client_in_views:
