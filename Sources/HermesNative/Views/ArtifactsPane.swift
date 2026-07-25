@@ -194,6 +194,7 @@ private struct ArtifactDetailView: View {
 
     private enum Tab: String, CaseIterable { case rendered = "Rendered", history = "History" }
     @State private var tab: Tab = .rendered
+    @State private var cronVM = CronListViewModel()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -215,12 +216,19 @@ private struct ArtifactDetailView: View {
             switch tab {
             case .rendered:
                 ScrollView {
-                    ArtifactKindRenderer(
-                        kind: artifact.kind, content: artifact.content,
-                        actionableArtifactID: artifact.id
-                    )
+                    VStack(alignment: .leading, spacing: 14) {
+                        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                        ArtifactKindRenderer(
+                            kind: artifact.kind, content: artifact.content,
+                            actionableArtifactID: artifact.id
+                        )
+                    }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .task {
+                    cronVM.setGatewayClient(gatewayClientWrapper.client)
+                    await cronVM.refreshJobs()
                 }
             case .history:
                 ArtifactHistoryView(artifact: artifact)

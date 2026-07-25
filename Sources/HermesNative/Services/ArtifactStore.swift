@@ -111,6 +111,24 @@ final class ArtifactStore: ObservableObject {
         schedulePush(id: artifactID)
     }
 
+    /// Set the artifact's maintainers (the crons that keep it current),
+    /// rewriting the content's top-level `maintainers` array. Goes through the
+    /// same user-attributed upsert→push path as declared actions, so the link
+    /// syncs to the gateway and lands in revision history. No-op when the
+    /// content isn't JSON (markdown docs can't declare maintainers).
+    func setMaintainers(artifactID: String, refs: [MaintainerRef]) {
+        guard let artifact = artifacts[artifactID],
+              let content = MaintainerRef.write(refs, into: artifact.content) else { return }
+        guard content != artifact.content else { return }
+        var updated = artifact
+        updated.content = content
+        updated.updatedAt = Date()
+        updated.updatedBy = "user:\(SessionMetaSyncService.deviceID)"
+        artifacts[artifactID] = updated
+        persistToDisk()
+        schedulePush(id: artifactID)
+    }
+
     private func currentFieldValue(in artifact: LivingArtifact, entryKey: String, field: String) -> String? {
         guard let data = artifact.content.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }

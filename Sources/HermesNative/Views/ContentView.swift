@@ -1045,6 +1045,17 @@ struct ContentView: View {
             if showArtifactsPane {
                 ArtifactsPane { showArtifactsPane = false }
                     .environmentObject(gatewayClientWrapper)
+                    .environment(\.openCron) { _ in
+                        // Leave the artifacts pane and reveal the cron surface.
+                        // The dashboard lists every job; the maintainer link is
+                        // the navigation, deep-per-job selection can come later.
+                        showArtifactsPane = false
+                        #if os(macOS)
+                        showCronDashboard = true
+                        #else
+                        selectedTab = 1
+                        #endif
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)

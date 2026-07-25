@@ -26,6 +26,18 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// Human label for pickers: title if present, else the id.
     var displayName: String { title.isEmpty ? id : title }
 
+    /// Maintainers declared in the content's top-level `maintainers` array —
+    /// the crons (or other agents) that keep this artifact current. Empty for
+    /// an artifact that's merely mutable, not actively tended.
+    var maintainerRefs: [MaintainerRef] { MaintainerRef.parseList(from: content) }
+
+    /// Whether the content is a JSON object we can write a `maintainers` key
+    /// into. Markdown docs aren't, so they can't declare maintainers.
+    var supportsMaintainers: Bool {
+        guard let data = content.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data)) is [String: Any]
+    }
+
     /// Decode from a gateway artifact.* result payload.
     static func from(_ d: [String: AnyCodable]?) -> LivingArtifact? {
         guard let d, let id = d["id"]?.stringValue, !id.isEmpty else { return nil }
