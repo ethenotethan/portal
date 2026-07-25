@@ -169,6 +169,7 @@ struct ArtifactsPane: View {
         case "stats": return "gauge.medium"
         case "table", "dataset": return "tablecells"
         case "model": return "square.stack.3d.up"
+        case "html": return "safari"
         default: return "doc.richtext"
         }
     }
@@ -265,6 +266,13 @@ struct ArtifactKindRenderer: View {
             SankeyBlockView(json: content, isStreaming: false)
         case "model":
             ModelBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+        case "html":
+            // A self-contained HTML document — content is raw HTML, not JSON.
+            // Renders in the same WKWebView-backed view chat uses for "Open
+            // Page" on an html fence (JS on, ephemeral store, external links
+            // open in the system browser).
+            InlineHTMLView(html: content)
+                .frame(minHeight: 320)
         default:
             MarkdownContentView(text: content, isStreaming: false)
                 .equatable()

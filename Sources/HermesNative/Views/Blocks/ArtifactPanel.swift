@@ -221,6 +221,7 @@ struct ArtifactPanelView: View {
             case "chart": return "chart.bar"
             case "graph": return "point.3.connected.trianglepath.dotted"
             case "stats": return "gauge.medium"
+            case "html": return "safari"
             default: return "internaldrive"
             }
         }
