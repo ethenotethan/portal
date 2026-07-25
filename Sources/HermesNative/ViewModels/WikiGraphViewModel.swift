@@ -684,7 +684,7 @@ final class WikiGraphViewModel: ObservableObject {
 }
 
 extension CGPoint { var width: CGFloat { x }; var height: CGFloat { y } }
-extension CGVector { static let zero = CGVector(dx: 0, dy: 0) }
+extension CGVector { static let zero = CGVector.zero }
 
 // MARK: - Layout: pre-settle, fit-to-view, and the shared 2D physics step
 

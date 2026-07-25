@@ -341,13 +341,13 @@ enum MermaidExportRenderer {
 
     // NSLock.lock() is unavailable in async contexts; hop through
     // nonisolated sync helpers to touch the shared web-render cache.
-    private nonisolated static func cachedWebImage(for key: String) -> PlatformImage? {
+    nonisolated private static func cachedWebImage(for key: String) -> PlatformImage? {
         mermaidCacheLock.lock()
         defer { mermaidCacheLock.unlock() }
         return mermaidImageCache[key]
     }
 
-    private nonisolated static func cacheWebImage(_ image: PlatformImage, for key: String) {
+    nonisolated private static func cacheWebImage(_ image: PlatformImage, for key: String) {
         mermaidCacheLock.lock()
         defer { mermaidCacheLock.unlock() }
         mermaidImageCache[key] = image

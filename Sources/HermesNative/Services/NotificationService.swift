@@ -34,7 +34,7 @@ final class NotificationService: NSObject, ObservableObject {
         didSet { UserDefaults.standard.set(isForegrounded, forKey: "hermes.notificationIsForegrounded") }
     }
 
-    private override init() {
+    override private init() {
         super.init()
         guard !Self.isTestEnvironment else { return }
         UNUserNotificationCenter.current().delegate = self

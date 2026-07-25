@@ -1880,7 +1880,7 @@ if restoreSessionState(displayID: key) {
         recordPerfEvent("visibleFlush")
         if perfLoggingEnabled {
             perfVisibleFlushLogCount += 1
-            if perfVisibleFlushLogCount <= 20 || perfVisibleFlushLogCount % 20 == 0 {
+            if perfVisibleFlushLogCount <= 20 || perfVisibleFlushLogCount.isMultiple(of: 20) {
                 writePerfLog("[HermesNativePerf] flush=\(perfVisibleFlushLogCount) " +
                     "messageBytes=\(messageDelta.count) " +
                     "reasoningBytes=\(reasoningDelta.count) " +

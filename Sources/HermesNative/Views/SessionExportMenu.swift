@@ -24,7 +24,7 @@ enum SessionExportSupport {
         let messages = chatViewModel.messages.filter { !$0.isStreaming }
         var usage: SessionUsage?
         if let sessionID = chatViewModel.currentSessionID {
-            usage = (try? await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID)) ?? nil
+            usage = (try? await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID))
         }
         let metadata = SessionExporter.Metadata(
             title: chatViewModel.sessionTitle,

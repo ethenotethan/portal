@@ -114,6 +114,9 @@ struct SessionPDFExporterTests {
         // XObject/image stream. A monospace-text fallback would not.
         // (PDF bytes aren't UTF-8; scan for the ASCII markers directly.)
         func containsASCII(_ marker: String) -> Bool {
+            // Data.range(of:) is a subsequence search; Data has no contains(Data),
+            // so the rule's String-oriented suggestion doesn't apply here.
+            // swiftlint:disable:next contains_over_range_nil_comparison
             unwrapped.range(of: Data(marker.utf8)) != nil
         }
         #expect(containsASCII("/Image") || containsASCII("/XObject"))

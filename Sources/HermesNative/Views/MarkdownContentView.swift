@@ -573,7 +573,7 @@ struct MarkdownText: View {
         for char in result where char == "`" {
             backtickCount += 1
         }
-        if backtickCount % 2 != 0 {
+        if !backtickCount.isMultiple(of: 2) {
             if let lastIdx = result.lastIndex(of: "`") {
                 result = result.replacingOccurrences(of: "`", with: "\\`", range: lastIdx..<result.index(after: lastIdx))
             }
@@ -1111,7 +1111,7 @@ struct TableView: View {
                             )
                         }
                     }
-                    .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.3))
+                    .background(rowIndex.isMultiple(of: 2) ? Theme.background : Theme.surface.opacity(0.3))
                 }
 
                 // Expand / collapse

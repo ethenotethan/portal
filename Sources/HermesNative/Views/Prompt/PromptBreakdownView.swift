@@ -514,7 +514,7 @@ private struct SectionRowView: View {
 
     private func attributedHighlightedText(_ text: String, query: String) -> Text {
         let lower = text.lowercased()
-        guard lower.range(of: query) != nil else {
+        guard lower.contains(query) else {
             return Text(text).foregroundStyle(Theme.primary)
         }
 

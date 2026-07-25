@@ -431,7 +431,7 @@ struct FileAttachment: Identifiable, Codable {
     }
 }
 
-private nonisolated(unsafe) var cacheKey: UInt8 = 0
+nonisolated(unsafe) private var cacheKey: UInt8 = 0
 
 // MARK: - MEDIA: Parser
 
@@ -440,7 +440,7 @@ private nonisolated(unsafe) var cacheKey: UInt8 = 0
 struct MediaParser {
     /// Regex matching standalone MEDIA: lines (not embedded in prose).
     /// Mirrors the TUI's MEDIA_LINE_RE pattern.
-    private static nonisolated(unsafe) let mediaLinePattern = /^\s*`?MEDIA:\s*(\S+?)`?\s*$/
+    nonisolated(unsafe) private static let mediaLinePattern = /^\s*`?MEDIA:\s*(\S+?)`?\s*$/
 
     /// Extract all MEDIA: file paths from content.
     static func extractAttachments(from content: String) -> [FileAttachment] {

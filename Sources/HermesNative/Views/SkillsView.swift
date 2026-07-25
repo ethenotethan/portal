@@ -254,7 +254,7 @@ struct SkillsView: View {
                 SkillCard(
                     skill: skill,
                     isExpanded: expandedSkill == skill.id,
-                    installStatus: viewModel.installStatus[skill.name] ?? nil,
+                    installStatus: viewModel.installStatus[skill.name],
                     summaryState: viewModel.skillSummaries[skill.name],
                     confirmUninstall: confirmUninstall == skill.name,
                     onToggle: {

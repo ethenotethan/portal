@@ -36,6 +36,30 @@ opt_in_rules:
   - explicit_init
   - unavailable_function
   - prefer_self_type_over_type_of_self
+  # Correctness / crash-safety guards (added 2026-07, batch 2). All either had
+  # zero existing violations or the handful were fixed in the enabling PR, so
+  # nothing is grandfathered — a new violation is always the contributor's own.
+  - unowned_variable_capture    # [unowned self] crashes after dealloc; force [weak self]
+  - contains_over_range_nil_comparison  # range(of:) != nil → contains (fixed 1 existing)
+  - legacy_multiple             # x % n == 0 → x.isMultiple(of: n) (fixed 4 existing)
+  # Performance idioms — allocate-then-discard patterns the optimizer can't undo:
+  - last_where                  # .filter{}.last → .last(where:)
+  - contains_over_filter_count  # .filter{}.count > 0 → .contains(where:)
+  - empty_collection_literal    # == [] / == [:] → .isEmpty
+  - reduce_boolean              # .reduce(true){} → .allSatisfy / .contains
+  - flatmap_over_map_reduce     # .map{}.reduce([],+) → .flatMap
+  - sorted_first_last           # .sorted().first → .min() (avoids sorting for one element)
+  # Style guards that keep new code uniform (existing nits auto-fixed by
+  # `swiftlint --fix` in the enabling PR, so these too start at zero):
+  - modifier_order              # e.g. `static private` → `private static`
+  - redundant_nil_coalescing    # `x ?? nil`
+  - prefer_zero_over_explicit_init  # `CGPoint(x: 0, y: 0)` → `.zero`
+  # Clarity guard — baselined, not zero. `Bool?` is a silent three-state trap
+  # (true / false / nil); an agent reading a signature can't tell nil from
+  # false. Existing legit cases (Codable-optional persisted fields, genuine
+  # tri-state) are frozen in the baseline; new optional bools must justify
+  # themselves by being added there deliberately.
+  - discouraged_optional_boolean  # baseline: 7 existing (Codable / tri-state)
 
 disabled_rules:
   - trailing_comma
@@ -110,6 +134,22 @@ custom_rules:
   no_nslog:
     regex: "\\bNSLog\\("
     message: "Use Logger from os.log instead of NSLog"
+    severity: warning
+
+  no_swallowed_try:
+    included: ".*/Sources/.*\\.swift"
+    # baseline: 165 existing (frozen). `try?` turns a thrown error into a silent
+    # nil — the failure path vanishes with no log, no branch, no signal. That's
+    # the bug class a lower-effort agent introduces without realizing it: the
+    # happy path works in the demo, the unhappy path fails invisibly in the
+    # field. New code must `do/catch` (handle it) or `try` (propagate it) so the
+    # error is at least visible. If nil-on-failure is genuinely intended, make
+    # that explicit at the call site and add the line to .swiftlint-baseline
+    # deliberately — never reach for `try?` as the default.
+    regex: "\\btry\\?"
+    message: >-
+      Don't swallow errors with `try?` — it discards the error and yields nil
+      with no log or branch. Use do/catch to handle it, or `try` to propagate.
     severity: warning
 
   no_print:

@@ -1727,7 +1727,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// Pure bytes → decoded message. Runs in a detached task so streaming
     /// floods (large payloads, dozens of events/sec) never block the UI.
     /// Must stay free of any GatewayClient state access.
-    private nonisolated static func parseMessage(_ data: Data) -> ParsedMessage {
+    nonisolated private static func parseMessage(_ data: Data) -> ParsedMessage {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return .parseFailed
         }

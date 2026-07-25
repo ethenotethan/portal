@@ -516,7 +516,7 @@ private struct ExportTableView: View {
                         cell(text: value, isHeader: false)
                     }
                 }
-                .background(rowIndex % 2 == 0 ? Theme.background : Theme.surface.opacity(0.3))
+                .background(rowIndex.isMultiple(of: 2) ? Theme.background : Theme.surface.opacity(0.3))
             }
         }
         .overlay(
