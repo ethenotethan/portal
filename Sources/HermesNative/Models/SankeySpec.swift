@@ -45,7 +45,15 @@ struct SankeySpec {
         return order
     }
 
+    /// Runs in the sankey view body; memoized so resume/scroll don't re-run
+    /// JSONSerialization + link assembly. Pure function of the source string.
+    private static let parseMemo = RenderMemo<SankeySpec?>(limit: 32)
+
     static func parse(_ json: String) -> SankeySpec? {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> SankeySpec? {
         guard let data = json.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let rawLinks = obj["links"] as? [[String: Any]] else { return nil }

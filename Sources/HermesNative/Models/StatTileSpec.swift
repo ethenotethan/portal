@@ -104,7 +104,15 @@ struct StatTileSpec: Decodable {
 
     let tiles: [Tile]
 
+    /// Runs in the stat-tile view body; memoized so resume/scroll don't
+    /// re-decode. Pure function of the source string.
+    private static let parseMemo = RenderMemo<StatTileSpec?>(limit: 32)
+
     static func parse(_ json: String) -> StatTileSpec? {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> StatTileSpec? {
         guard let data = json.data(using: .utf8),
               let spec = try? JSONDecoder().decode(StatTileSpec.self, from: data),
               !spec.tiles.isEmpty else { return nil }

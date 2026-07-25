@@ -208,7 +208,16 @@ struct ChartSpec: Decodable {
         }
     }
 
+    /// Parse runs in NativeChartView.body, so it re-decodes on every layout /
+    /// scroll pass unless memoized — a resume hotspot for chart-heavy
+    /// transcripts. Result is a pure function of the source string.
+    private static let parseMemo = RenderMemo<Result<ChartSpec, ChartSpecError>>(limit: 32)
+
     static func parse(_ json: String) -> Result<ChartSpec, ChartSpecError> {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> Result<ChartSpec, ChartSpecError> {
         guard let data = json.data(using: .utf8) else {
             return .failure(ChartSpecError(message: "Chart spec is not valid UTF-8"))
         }

@@ -55,7 +55,15 @@ struct TimelineSpec {
         return min...max
     }
 
+    /// Runs in TimelineBlockView.body; memoized so resume/scroll don't re-run
+    /// JSONSerialization + date parsing. Pure function of the source string.
+    private static let parseMemo = RenderMemo<TimelineSpec?>(limit: 32)
+
     static func parse(_ json: String) -> TimelineSpec? {
+        parseMemo.value(for: json) { parseUncached(json) }
+    }
+
+    private static func parseUncached(_ json: String) -> TimelineSpec? {
         guard let data = json.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let rawItems = obj["items"] as? [[String: Any]] else { return nil }

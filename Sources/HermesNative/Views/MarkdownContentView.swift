@@ -104,7 +104,12 @@ final class MarkdownParseCache: @unchecked Sendable {
     private var cachedBlocks: [MarkdownBlock] = []
     private var completedCache: [Int: [MarkdownBlock]] = [:]
     private var completedOrder: [Int] = []
-    private let completedLimit = 32
+    // Sized to hold a resumed transcript's visible run of messages. The LRU
+    // now caches inputs of any length: the previous >2400-char gate meant
+    // short messages lived only in the single `cachedInput` slot, so while any
+    // one message occupied that slot every OTHER visible short message
+    // re-parsed on every body pass — the churn behind the resume beachball.
+    private let completedLimit = 96
     #if DEBUG
     private(set) var parseCount = 0
     #endif
@@ -117,7 +122,7 @@ final class MarkdownParseCache: @unchecked Sendable {
             return blocks
         }
         let key = input.hashValue
-        if let blocks = completedCache[key], input.count > 2_400 {
+        if let blocks = completedCache[key] {
             cachedInput = input
             cachedBlocks = blocks
             lock.unlock()
@@ -133,14 +138,12 @@ final class MarkdownParseCache: @unchecked Sendable {
         #endif
         cachedInput = input
         cachedBlocks = parsed
-        if input.count > 2_400 {
-            completedCache[key] = parsed
-            completedOrder.removeAll { $0 == key }
-            completedOrder.append(key)
-            while completedOrder.count > completedLimit {
-                let evicted = completedOrder.removeFirst()
-                completedCache.removeValue(forKey: evicted)
-            }
+        completedCache[key] = parsed
+        completedOrder.removeAll { $0 == key }
+        completedOrder.append(key)
+        while completedOrder.count > completedLimit {
+            let evicted = completedOrder.removeFirst()
+            completedCache.removeValue(forKey: evicted)
         }
         lock.unlock()
         return parsed
@@ -831,7 +834,20 @@ private enum CodeHighlighter {
         return h
     }()
 
+    /// Highlightr runs JavaScriptCore synchronously on the main thread and was
+    /// previously called uncached in `body`, so every layout/scroll pass on a
+    /// resumed transcript re-highlighted every visible code block — the single
+    /// most expensive per-block op behind the resume beachball. Cache by
+    /// (language + code); results are a pure function of both.
+    nonisolated(unsafe) private static let cache = RenderMemo<AttributedString>(limit: 128)
+
     static func highlight(_ code: String, language: String) -> AttributedString {
+        cache.value(for: "\(language)\u{1F}\(code)") {
+            computeHighlight(code, language: language)
+        }
+    }
+
+    private static func computeHighlight(_ code: String, language: String) -> AttributedString {
         guard let highlightr,
               let attributed = highlightr.highlight(code, as: mapLanguage(language))
         else {
