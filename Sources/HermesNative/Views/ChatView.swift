@@ -920,6 +920,19 @@ struct ChatView: View {
                                 )
                                 .id("streaming-status")
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
+
+                                // Live flamechart strip alongside the text tool
+                                // trace — bars fill in real time as tools run
+                                // and subagents take turns. Tap opens the full
+                                // session graph.
+                                InlineTurnTimelineLive(
+                                    chatViewModel: chatViewModel,
+                                    subagentGraph: chatViewModel.subagentGraph,
+                                    reasoningGraph: chatViewModel.reasoningGraph,
+                                    onExpand: { showThoughtGraph = true }
+                                )
+                                .id("inline-timeline")
+                                .transition(.opacity)
                             }
 
                             if let status = chatViewModel.transientStatus {
@@ -1111,15 +1124,16 @@ struct ChatView: View {
     @ViewBuilder
     private var thoughtGraphSection: some View {
         VStack(spacing: 0) {
-            // ── Open button — presents the graph full-screen so it's
-            // actually traversable instead of a cramped inline strip. ──
+            // ── Open button — the live per-turn timeline renders inline in the
+            // transcript (InlineTurnTimelineLive); this opens the macro
+            // all-turns "Session Graph" you traverse across the conversation. ──
             Button {
                 showThoughtGraph = true
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "arrow.triangle.branch")
+                    Image(systemName: "chart.bar.xaxis")
                         .font(.caption)
-                    Text("Show Thought Graph")
+                    Text("Session Graph")
                         .font(.caption)
                     Spacer()
                     if chatViewModel.isStreaming {
@@ -1159,7 +1173,7 @@ struct ChatView: View {
     private var thoughtGraphFullScreen: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Agent Thought Graph")
+                Text("Session Graph")
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
                 Spacer()
