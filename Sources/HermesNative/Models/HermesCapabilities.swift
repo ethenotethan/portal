@@ -47,6 +47,15 @@ struct HermesCapabilities: Equatable, Sendable {
         })
     }
 
+    /// Whether the gateway supports artifact.action.log (ledger query).
+    /// Present in gateways shipping §2 of the intents V2 spec; older
+    /// gateways return method-not-found so the call is skipped entirely.
+    internal var supportsActionLog: Bool {
+        capabilityNames.contains(where: {
+            $0.contains("artifact.action.log") || $0.contains("artifact_action_log")
+        })
+    }
+
     static let conservativeDefaults = HermesCapabilities(
         gatewayVersion: nil,
         hermesVersion: nil,

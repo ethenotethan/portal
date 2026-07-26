@@ -1661,6 +1661,28 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return ArtifactActionInvokeResult.from(response.result?.dictionaryValue)
     }
 
+    /// Query the invocation ledger for an artifact — newest first.
+    /// Used to re-hydrate intent badge state after an app restart.
+    /// Returns nil on method-not-found (gateway predates §2).
+    internal func artifactActionLog(
+        artifactID: String,
+        bindingID: String? = nil,
+        limit: Int = 50
+    ) async throws -> [[String: AnyCodable]]? {
+        var params: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "limit": AnyCodable(limit),
+        ]
+        if let bindingID { params["binding_id"] = AnyCodable(bindingID) }
+        let response = try await call("artifact.action.log", params: params)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue?["records"]?.arrayValue?
+            .compactMap { $0.dictionaryValue }
+    }
+
     /// Confirm a pending backend intent (destructive actions require this
     /// second step). `challenge` comes from the invoke response — it is
     /// bound to actor, artifact revision, binding, resolved target, and expiry

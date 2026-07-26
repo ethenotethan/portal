@@ -192,6 +192,7 @@ private struct HSplitViewCompat<Content: View>: View {
 private struct ArtifactDetailView: View {
     let artifact: LivingArtifact
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
 
     private enum Tab: String, CaseIterable { case rendered = "Rendered", history = "History" }
     @State private var tab: Tab = .rendered
@@ -267,6 +268,9 @@ private struct ArtifactDetailView: View {
     private func refreshCrons() async {
         cronVM.setGatewayClient(gatewayClientWrapper.client)
         await cronVM.refreshJobs()
+        if capabilitiesStore.capabilities.supportsActionLog {
+            ArtifactStore.shared.rehydrateBadges(for: artifact.id)
+        }
     }
 }
 

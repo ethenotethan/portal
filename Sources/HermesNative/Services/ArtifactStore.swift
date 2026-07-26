@@ -35,6 +35,19 @@ final class ArtifactStore: ObservableObject {
         case failed(reason: String)
         case conflict
         case unsupported
+
+        /// Map a ledger outcome string to a displayable state.
+        /// Returns nil for non-terminal outcomes (needs_confirmation, running)
+        /// which shouldn't be re-displayed after a restart.
+        static func from(ledgerOutcome: String, reason: String?) -> IntentInvocationState? {
+            switch ledgerOutcome {
+            case "succeeded": return .succeeded(message: nil)
+            case "failed":    return .failed(reason: reason ?? "Unknown error")
+            case "conflict":  return .conflict
+            case "unsupported": return .unsupported
+            default:          return nil
+            }
+        }
     }
 
     private weak var client: GatewayClient?
@@ -207,6 +220,46 @@ final class ArtifactStore: ObservableObject {
             applyInvokeResult(result, slot: slot, artifactID: artifactID)
         } catch {
             intentStates[slot] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// Re-seed badge state from the gateway's invocation ledger.
+    ///
+    /// Called when the artifact pane opens after an app restart. The ledger
+    /// records every terminal outcome durably (§2), so we can restore ✓/⚠
+    /// badges that were live when the app quit. Only the most-recent record
+    /// per (bindingID × entityRef) slot is used — newer outcomes supersede.
+    ///
+    /// Live states from the current session (.pending, .needsConfirmation)
+    /// are never overwritten — a slot with an in-flight request takes
+    /// precedence over any historical record.
+    internal func rehydrateBadges(for artifactID: String) {
+        guard let client else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            guard let records = try? await client.artifactActionLog(artifactID: artifactID) else { return }
+            // Records arrive newest-first. Walk them once, seeding only the
+            // first (newest) terminal outcome seen for each slot.
+            var seenSlots = Set<String>()
+            for record in records {
+                guard
+                    let bindingID = record["binding_id"]?.stringValue,
+                    let entityRef = record["entity_ref"]?.stringValue,
+                    let outcomeStr = record["outcome"]?.stringValue
+                else { continue }
+                let slot = slotKey(artifactID, bindingID, entityRef)
+                guard !seenSlots.contains(slot) else { continue }
+                seenSlots.insert(slot)
+                // Don't overwrite a live in-session state.
+                switch intentStates[slot] {
+                case .pending, .needsConfirmation: continue
+                default: break
+                }
+                let state = IntentInvocationState.from(ledgerOutcome: outcomeStr,
+                                                       reason: record["reason"]?.stringValue)
+                guard let state else { continue }
+                intentStates[slot] = state
+            }
         }
     }
 
