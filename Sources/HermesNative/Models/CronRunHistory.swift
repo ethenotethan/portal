@@ -26,10 +26,20 @@ final class CronRunHistoryStore: ObservableObject {
     @Published var unreadCronRunCount: Int = 0
 
     private static let storageKey = "hermes.cronRunHistory"
+    private static let fileMigratedKey = "hermes.cronRunHistory.fileMigrated"
     private let maxRecordsPerJob = 500
 
     private var previousLastRuns: [String: Date] = [:]
     private var saveTask: Task<Void, Never>?
+
+    private let fileManager = FileManager.default
+    private var storageDir: URL = {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return URL(fileURLWithPath: "/tmp/hermes-native")
+        }
+        return appSupport.appendingPathComponent("hermes-native", isDirectory: true)
+    }()
+    private var storeFile: URL { storageDir.appendingPathComponent("cron-run-history.json") }
 
     private init() {
         load()
@@ -52,13 +62,6 @@ final class CronRunHistoryStore: ObservableObject {
             guard let lastRun = job.lastRunAt else { continue }
             let prev = previousLastRuns[job.id]
 
-            // First sighting of this job: record the current lastRun as the
-            // baseline WITHOUT notifying (it happened before we were
-            // watching). Previously nothing seeded the baseline outside the
-            // cron UI (seedFromJobs only runs when the cron tab loads), so
-            // `prev` stayed nil, this branch never fired, and background
-            // polling never produced a single notification — they only
-            // appeared after the user opened the cron view.
             guard let prev else {
                 previousLastRuns[job.id] = lastRun
                 let alreadyRecorded = records.contains { $0.jobID == job.id && $0.firedAt == lastRun }
@@ -186,13 +189,16 @@ final class CronRunHistoryStore: ObservableObject {
 
     private func performSave() {
         let records = self.records
-        let key = Self.storageKey
+        let dir = storageDir
+        let file = storeFile
         Task.detached(priority: .background) {
             let encoder = JSONEncoder()
             if let data = try? encoder.encode(records) {
-                UserDefaults.standard.set(data, forKey: key)
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try? data.write(to: file, options: .atomic)
             }
         }
+        UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
     }
 
     private func save() {
@@ -200,10 +206,27 @@ final class CronRunHistoryStore: ObservableObject {
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
-        let decoder = JSONDecoder()
-        if let decoded = try? decoder.decode([CronRunRecord].self, from: data) {
+        if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {
+            loadFromFile()
+        } else {
+            loadFromUserDefaults()
+        }
+    }
+
+    private func loadFromFile() {
+        guard fileManager.fileExists(atPath: storeFile.path) else { return }
+        guard let data = try? Data(contentsOf: storeFile) else { return }
+        if let decoded = try? JSONDecoder().decode([CronRunRecord].self, from: data) {
             records = decoded
+        }
+    }
+
+    private func loadFromUserDefaults() {
+        guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
+        if let decoded = try? JSONDecoder().decode([CronRunRecord].self, from: data) {
+            records = decoded
+            performSave()
+            UserDefaults.standard.removeObject(forKey: Self.storageKey)
         }
     }
 }

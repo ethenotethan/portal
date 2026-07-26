@@ -11,8 +11,18 @@ enum SkillStoreDisk {
     private static let key = "hermes.skillStore.v2"
     private static let timestampKey = "hermes.skillStore.timestamp"
     private static let versionKey = "hermes.skillStore.version"
+    private static let fileStorageKey = "hermes.skillStore.fileMigrated"
 
     private static let currentVersion = 2
+
+    private static let fileManager = FileManager.default
+    private static var storageDir: URL = {
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return URL(fileURLWithPath: "/tmp/hermes-native")
+        }
+        return appSupport.appendingPathComponent("hermes-native", isDirectory: true)
+    }()
+    private static var skillStoreFile: URL { storageDir.appendingPathComponent("skill-store.json") }
 
     struct StoredSkills: Codable {
         let skills: [StoredSkillInfo]
@@ -52,22 +62,27 @@ enum SkillStoreDisk {
         }
         do {
             let data = try JSONEncoder().encode(StoredSkills(skills: stored, timestamp: Date(), version: currentVersion))
-            UserDefaults.standard.set(data, forKey: key)
+            try? fileManager.createDirectory(at: storageDir, withIntermediateDirectories: true)
+            try data.write(to: skillStoreFile, options: .atomic)
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)
             UserDefaults.standard.set(currentVersion, forKey: versionKey)
+            UserDefaults.standard.set(true, forKey: fileStorageKey)
         } catch {
             log.error("SkillStoreDisk.save failed: \(error.localizedDescription)")
         }
     }
 
     static func load() -> [SkillInfo]? {
-        let version = UserDefaults.standard.integer(forKey: versionKey)
-        guard version == currentVersion else {
-            log.info("SkillStoreDisk.load: version mismatch (\(version) vs \(currentVersion)), discarding")
-            return nil
+        if UserDefaults.standard.bool(forKey: fileStorageKey) {
+            return loadFromFile()
         }
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return loadFromUserDefaults()
+    }
+
+    private static func loadFromFile() -> [SkillInfo]? {
+        guard fileManager.fileExists(atPath: skillStoreFile.path) else { return nil }
         do {
+            let data = try Data(contentsOf: skillStoreFile)
             let decoded = try JSONDecoder().decode(StoredSkills.self, from: data)
             return decoded.skills.map { s in
                 SkillInfo(
@@ -85,7 +100,42 @@ enum SkillStoreDisk {
                 )
             }
         } catch {
-            log.error("SkillStoreDisk.load failed: \(error.localizedDescription)")
+            log.error("SkillStoreDisk.loadFromFile failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private static func loadFromUserDefaults() -> [SkillInfo]? {
+        let version = UserDefaults.standard.integer(forKey: versionKey)
+        guard version == currentVersion else {
+            log.info("SkillStoreDisk.load: version mismatch (\(version) vs \(currentVersion)), discarding")
+            return nil
+        }
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        do {
+            let decoded = try JSONDecoder().decode(StoredSkills.self, from: data)
+            let result = decoded.skills.map { s in
+                SkillInfo(
+                    name: s.name,
+                    description: s.description,
+                    category: s.category,
+                    source: s.source,
+                    identifier: s.identifier,
+                    tags: s.tags,
+                    skillMdPath: s.skillMdPath,
+                    skillDir: s.skillDir,
+                    skillMdPreview: s.skillMdPreview,
+                    skillMdFullContent: s.skillMdFullContent,
+                    slashCommand: s.slashCommand
+                )
+            }
+            // Migrate to file storage on first load
+            save(result)
+            UserDefaults.standard.removeObject(forKey: key)
+            log.info("SkillStoreDisk: migrated from UserDefaults to file (\(result.count) skills)")
+            return result
+        } catch {
+            log.error("SkillStoreDisk.loadFromUserDefaults failed: \(error.localizedDescription)")
             return nil
         }
     }

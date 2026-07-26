@@ -10,8 +10,18 @@ final class ActivityStore {
     private let defaults = UserDefaults.standard
     private let maxItems = 500
     private let saveKey = "hermes.activityItems"
+    private static let fileMigratedKey = "hermes.activityItems.fileMigrated"
     private var dirty = false
     private var saveTask: Task<Void, Never>?
+
+    private let fileManager = FileManager.default
+    private var storageDir: URL = {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return URL(fileURLWithPath: "/tmp/hermes-native")
+        }
+        return appSupport.appendingPathComponent("hermes-native", isDirectory: true)
+    }()
+    private var storeFile: URL { storageDir.appendingPathComponent("activity-items.json") }
 
     private(set) var items: [ActivityItem] = [] {
         didSet { scheduleSave() }
@@ -79,23 +89,46 @@ final class ActivityStore {
     }
 
     private func save() {
-        // Encode + write off the main actor — up to 500 items per save.
         let items = self.items
-        let key = saveKey
+        let dir = storageDir
+        let file = storeFile
         Task.detached(priority: .background) {
             do {
                 let data = try JSONEncoder().encode(items)
-                UserDefaults.standard.set(data, forKey: key)
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try data.write(to: file, options: .atomic)
             } catch {
                 storeLog.error("save failed: \(error.localizedDescription)")
             }
         }
+        UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
     }
 
     private func load() {
+        if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {
+            loadFromFile()
+        } else {
+            loadFromUserDefaults()
+        }
+    }
+
+    private func loadFromFile() {
+        guard fileManager.fileExists(atPath: storeFile.path) else { return }
+        do {
+            let data = try Data(contentsOf: storeFile)
+            items = try JSONDecoder().decode([ActivityItem].self, from: data)
+        } catch {
+            storeLog.error("loadFromFile failed: \(error.localizedDescription)")
+            items = []
+        }
+    }
+
+    private func loadFromUserDefaults() {
         guard let data = defaults.data(forKey: saveKey) else { return }
         do {
             items = try JSONDecoder().decode([ActivityItem].self, from: data)
+            save()
+            UserDefaults.standard.removeObject(forKey: saveKey)
         } catch {
             storeLog.error("load failed: \(error.localizedDescription)")
             items = []

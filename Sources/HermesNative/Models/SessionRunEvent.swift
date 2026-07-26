@@ -52,8 +52,18 @@ final class SessionRunHistoryStore: ObservableObject {
     @Published private(set) var events: [SessionRunEvent] = []
 
     private static let storageKey = "hermes.sessionRunHistory"
+    private static let fileMigratedKey = "hermes.sessionRunHistory.fileMigrated"
     private let maxEventsPerSession = 200
     private var saveTask: Task<Void, Never>?
+
+    private let fileManager = FileManager.default
+    private var storageDir: URL = {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return URL(fileURLWithPath: "/tmp/hermes-native")
+        }
+        return appSupport.appendingPathComponent("hermes-native", isDirectory: true)
+    }()
+    private var storeFile: URL { storageDir.appendingPathComponent("session-run-history.json") }
 
     private init() {
         load()
@@ -111,20 +121,40 @@ final class SessionRunHistoryStore: ObservableObject {
 
     private func performSave() {
         let events = self.events
-        let key = Self.storageKey
+        let dir = storageDir
+        let file = storeFile
         Task.detached(priority: .background) {
             let encoder = JSONEncoder()
             if let data = try? encoder.encode(events) {
-                UserDefaults.standard.set(data, forKey: key)
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try? data.write(to: file, options: .atomic)
             }
         }
+        UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
     }
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
-        let decoder = JSONDecoder()
-        if let decoded = try? decoder.decode([SessionRunEvent].self, from: data) {
+        if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {
+            loadFromFile()
+        } else {
+            loadFromUserDefaults()
+        }
+    }
+
+    private func loadFromFile() {
+        guard fileManager.fileExists(atPath: storeFile.path) else { return }
+        guard let data = try? Data(contentsOf: storeFile) else { return }
+        if let decoded = try? JSONDecoder().decode([SessionRunEvent].self, from: data) {
             events = decoded
+        }
+    }
+
+    private func loadFromUserDefaults() {
+        guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
+        if let decoded = try? JSONDecoder().decode([SessionRunEvent].self, from: data) {
+            events = decoded
+            performSave()
+            UserDefaults.standard.removeObject(forKey: Self.storageKey)
         }
     }
 }
