@@ -7,6 +7,13 @@ struct ChatMessage: Identifiable, Codable {
     var content: String
     var isStreaming: Bool
     var toolCalls: [ToolCallRecord]
+    /// Snapshot of the turn's thought-graph subagent + reasoning nodes,
+    /// captured at message-complete so the per-session graph can replay this
+    /// turn with full depth (tool bars persist via `toolCalls`; these add the
+    /// reasoning diamonds and subagent lanes that the live integrators reset
+    /// each turn). Empty for turns recorded before this was captured or for
+    /// gateway-resumed history without live graph data.
+    internal var graphSnapshot: TurnGraphSnapshot?
     var reasoning: String?
     var thinkingTrace: ThinkingTrace?
     var usage: UsageInfo?
@@ -35,7 +42,7 @@ struct ChatMessage: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
-        case usage, status, attachments, userAttachments
+        case usage, status, attachments, userAttachments, graphSnapshot
     }
 
     public init(from decoder: Decoder) throws {
@@ -45,6 +52,7 @@ struct ChatMessage: Identifiable, Codable {
         content = try container.decode(String.self, forKey: .content)
         isStreaming = try container.decodeIfPresent(Bool.self, forKey: .isStreaming) ?? false
         toolCalls = try container.decodeIfPresent([ToolCallRecord].self, forKey: .toolCalls) ?? []
+        graphSnapshot = try container.decodeIfPresent(TurnGraphSnapshot.self, forKey: .graphSnapshot)
         reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning)
         thinkingTrace = try container.decodeIfPresent(ThinkingTrace.self, forKey: .thinkingTrace)
         usage = try container.decodeIfPresent(UsageInfo.self, forKey: .usage)
@@ -64,6 +72,7 @@ struct ChatMessage: Identifiable, Codable {
         content: String,
         isStreaming: Bool = false,
         toolCalls: [ToolCallRecord] = [],
+        graphSnapshot: TurnGraphSnapshot? = nil,
         reasoning: String? = nil,
         thinkingTrace: ThinkingTrace? = nil,
         usage: UsageInfo? = nil,
@@ -75,6 +84,7 @@ struct ChatMessage: Identifiable, Codable {
         self.content = content
         self.isStreaming = isStreaming
         self.toolCalls = toolCalls
+        self.graphSnapshot = graphSnapshot
         self.reasoning = reasoning
         self.thinkingTrace = thinkingTrace
         self.usage = usage
@@ -167,6 +177,25 @@ struct ThinkingBlock: Identifiable, Codable, Equatable {
         self.label = label
         self.startedAt = startedAt
         self.updatedAt = updatedAt
+    }
+}
+
+/// The thought-graph depth for one turn, snapshotted at message-complete so a
+/// past turn can be replayed with reasoning beats + subagent lanes — not just
+/// its tool bars. The tool calls themselves live on `ChatMessage.toolCalls`;
+/// this carries the two node sets the live integrators reset each turn.
+/// `ThoughtGraphNode` is Codable, so this round-trips to the session JSON.
+internal struct TurnGraphSnapshot: Codable {
+    /// Spawned-subagent nodes (agent lanes + their tool steps).
+    internal var agentNodes: [ThoughtGraphNode]
+    /// Reasoning-beat marker nodes.
+    internal var reasoningNodes: [ThoughtGraphNode]
+
+    internal var isEmpty: Bool { agentNodes.isEmpty && reasoningNodes.isEmpty }
+
+    internal init(agentNodes: [ThoughtGraphNode] = [], reasoningNodes: [ThoughtGraphNode] = []) {
+        self.agentNodes = agentNodes
+        self.reasoningNodes = reasoningNodes
     }
 }
 

@@ -264,6 +264,21 @@ final class ChatViewModel: ObservableObject {
     /// subtrees rendered inside the ThoughtGraphView. Turn-scoped like
     /// reasoningGraph.
     let subagentGraph = SubagentGraphIntegrator()
+
+    /// Snapshot the live thought-graph depth (subagent + reasoning nodes) for
+    /// the turn that's completing. Called at message-complete, BEFORE the
+    /// integrators reset on the next message-start, so the per-session graph
+    /// can replay this turn with full depth. Returns nil when there's nothing
+    /// beyond tool calls (which persist separately on the message) to keep
+    /// tool-only turns from bloating the session JSON.
+    private func captureGraphSnapshot() -> TurnGraphSnapshot? {
+        let snapshot = TurnGraphSnapshot(
+            agentNodes: subagentGraph.agentNodes,
+            reasoningNodes: reasoningGraph.reasoningNodes
+        )
+        return snapshot.isEmpty ? nil : snapshot
+    }
+
     private var sessionStates: [String: SessionRuntimeState] = [:]
     private var streamingMessageID: UUID?
     private var streamStartDate: Date?
@@ -2041,6 +2056,7 @@ if restoreSessionState(displayID: key) {
             state.messages[idx]._contentWithoutAttachments = MediaParser.stripMediaTags(from: payload.text)
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
+            state.messages[idx].graphSnapshot = captureGraphSnapshot()
             state.activeToolCalls = [:]
             state.isStreaming = false
             state.streamingMessageID = nil
@@ -2397,6 +2413,7 @@ if restoreSessionState(displayID: key) {
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)
+            messages[idx].graphSnapshot = captureGraphSnapshot()
 
             activeToolCalls = [:]
             isStreaming = false

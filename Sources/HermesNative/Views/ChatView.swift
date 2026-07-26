@@ -41,7 +41,6 @@ struct ChatView: View {
 
     // ── Thought Graph ──
     @State private var showThoughtGraph = false
-    @StateObject private var thoughtGraphEngine = ThoughtGraphLayoutEngine()
 
     // ── Quiz Mode ──
     @State private var showQuizSheet = false
@@ -93,19 +92,6 @@ struct ChatView: View {
     /// Whether to show the thought graph toggle button.
     private var shouldShowThoughtGraphToggle: Bool {
         chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty
-    }
-
-    /// Compact "12.3k tok" style rollup of the latest turn's usage, shown in
-    /// the thought-graph header. Uses the most recent message carrying usage.
-    private var thoughtGraphUsageSummary: String? {
-        guard let usage = chatViewModel.messages.last(where: { $0.usage != nil })?.usage else {
-            return nil
-        }
-        let total = usage.totalTokens
-        if total >= 1000 {
-            return String(format: "%.1fk tok", Double(total) / 1000)
-        }
-        return "\(total) tok"
     }
 
     /// Message ID to scroll to once the thought-graph sheet finishes
@@ -1195,8 +1181,6 @@ struct ChatView: View {
                 chatViewModel: chatViewModel,
                 subagentGraph: chatViewModel.subagentGraph,
                 reasoningGraph: chatViewModel.reasoningGraph,
-                engine: thoughtGraphEngine,
-                usageSummary: thoughtGraphUsageSummary,
                 onJumpToTool: { toolID in jumpToTool(toolID: toolID) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1212,30 +1196,40 @@ struct ChatView: View {
         @ObservedObject var chatViewModel: ChatViewModel
         @ObservedObject var subagentGraph: SubagentGraphIntegrator
         @ObservedObject var reasoningGraph: ReasoningGraphIntegrator
-        let engine: ThoughtGraphLayoutEngine
-        let usageSummary: String?
         let onJumpToTool: (String) -> Void
 
-        /// Main-loop tool calls + subagent subtrees + reasoning beats,
-        /// interleaved chronologically by the layout engine.
-        private var nodes: [ThoughtGraphNode] {
-            let tools = Array(chatViewModel.activeToolCalls.values)
-                .sorted { $0.id < $1.id }
-            return ThoughtGraphLayoutEngine.composeTimeline(
-                tools: tools,
-                agentNodes: subagentGraph.agentNodes,
-                reasoningNodes: reasoningGraph.reasoningNodes
-            )
+        /// Every turn in the session: persisted past turns (from the
+        /// transcript, replayed with whatever depth was captured) plus, while
+        /// streaming, the live turn synthesized from the active integrators —
+        /// which the transcript doesn't hold until the turn completes.
+        private var turns: [SessionTurn] {
+            var all = SessionTurnBuilder.turns(from: chatViewModel.messages)
+            if chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty {
+                let liveNodes = ThoughtGraphLayoutEngine.composeTimeline(
+                    tools: Array(chatViewModel.activeToolCalls.values).sorted { $0.id < $1.id },
+                    agentNodes: subagentGraph.agentNodes,
+                    reasoningNodes: reasoningGraph.reasoningNodes
+                )
+                if !liveNodes.isEmpty {
+                    all.append(SessionTurn(
+                        id: liveTurnID,
+                        index: all.count + 1,
+                        prompt: "Current turn",
+                        replyPreview: "",
+                        nodes: liveNodes,
+                        toolCount: chatViewModel.activeToolCalls.count,
+                        toolsOnly: false
+                    ))
+                }
+            }
+            return all
         }
 
+        /// Stable id for the synthesized live turn so re-renders don't reset it.
+        private let liveTurnID = UUID()
+
         var body: some View {
-            ThoughtGraphView(
-                engine: engine,
-                nodes: nodes,
-                isStreaming: chatViewModel.isStreaming,
-                usageSummary: usageSummary,
-                onJumpToTool: onJumpToTool
-            )
+            SessionThoughtGraphView(turns: turns, onJumpToTool: onJumpToTool)
         }
     }
 

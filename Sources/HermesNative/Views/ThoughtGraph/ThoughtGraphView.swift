@@ -79,6 +79,15 @@ struct ThoughtGraphView: View {
     /// Camera tails the newest activity while streaming until the user pans.
     @State private var autoFollow: Bool = true
 
+    /// Set once we've framed the graph to fit, so we don't re-fit (and fight
+    /// the user's manual zoom/pan) on every layout pass. Reset when the graph
+    /// identity changes (a different turn/session loads).
+    @State private var hasFitted: Bool = false
+
+    /// True once the user manually zooms/pans — suppresses auto-refit so we
+    /// never yank the camera out from under them.
+    @State private var hasUserAdjustedCamera: Bool = false
+
     // ── Motion state (advanced by the 30Hz tick) ──
     @State private var nodeAppearTimes: [String: TimeInterval] = [:]
     @State private var now: TimeInterval = Date.now.timeIntervalSinceReferenceDate
@@ -156,6 +165,7 @@ struct ThoughtGraphView: View {
                             panOffset.width += delta.width
                             panOffset.height += delta.height
                             autoFollow = false
+                            hasUserAdjustedCamera = true
                         },
                         onMouseMoved: { pt in
                             if mouseState == .idle {
@@ -224,21 +234,24 @@ struct ThoughtGraphView: View {
         // ── Double-tap reset (macOS) ──
         #if os(macOS)
         .onTapGesture(count: 2) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                zoom = 1.0
-                panOffset = .zero
-            }
-            autoFollow = true
+            // Double-tap reframes the whole graph — the quick global overview.
+            hasUserAdjustedCamera = false
+            fitToView(animated: true)
         }
         #endif
 
         .onAppear {
             engine.layout(nodes: visibleNodes, now: Date())
             seedAppearTimes(animated: false)
+            fitIfNeeded(animated: false)
         }
         .onChange(of: layoutKey) { _, _ in
             engine.layout(nodes: visibleNodes, now: Date())
             seedAppearTimes(animated: true)
+            // A filter toggle (collapse/reasoning) changed the graph — reframe
+            // it unless the user has taken manual control of the camera.
+            if !hasUserAdjustedCamera { hasFitted = false }
+            fitIfNeeded(animated: true)
         }
 
         // ── 30Hz motion tick: grow running bars, pulse, follow-cam ──
@@ -317,8 +330,11 @@ struct ThoughtGraphView: View {
                     )
                 }
             }
-            .onAppear { canvasSize = geo.size }
-            .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
+            .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
+            .onChange(of: geo.size) { _, newSize in
+                canvasSize = newSize
+                fitIfNeeded(animated: false)
+            }
         }
     }
 
@@ -686,16 +702,15 @@ struct ThoughtGraphView: View {
             .buttonStyle(.borderless)
 
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    zoom = 1.0
-                    panOffset = .zero
-                }
-                autoFollow = true
+                // Fit the whole graph back into view — the global overview.
+                hasUserAdjustedCamera = false
+                fitToView(animated: true)
             } label: {
-                Image(systemName: "arrow.counterclockwise")
+                Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
+            .help("Fit graph to view")
         }
         .foregroundStyle(Theme.secondary)
         .padding(10)
@@ -1000,8 +1015,56 @@ struct ThoughtGraphView: View {
 
     // MARK: - Zoom
 
+    /// Frame the ENTIRE graph in the viewport — the global overview. Computes
+    /// the zoom that fits the laid-out bounds (clamped to the zoom range) and
+    /// centers it, so the graph opens whole instead of anchored top-left and
+    /// running off-screen. Disengages follow so the fit isn't immediately
+    /// yanked away by the camera.
+    private func fitToView(animated: Bool) {
+        let world = engine.totalSize
+        guard world.width > 1, world.height > 1,
+              canvasSize.width > 1, canvasSize.height > 1 else { return }
+
+        // Available plot area inside the chrome margins, with a little padding.
+        let padding: CGFloat = 24
+        let availW = max(1, canvasSize.width - Self.leftMargin - padding)
+        let availH = max(1, canvasSize.height - Self.topMargin - padding)
+        let fit = min(availW / world.width, availH / world.height)
+        let targetZoom = max(0.25, min(4.0, fit))
+
+        // Center the scaled world in the available area (world origin sits at
+        // leftMargin/topMargin, then panOffset shifts from there).
+        let scaledW = world.width * targetZoom
+        let scaledH = world.height * targetZoom
+        let targetPan = CGSize(
+            width: max(0, (availW - scaledW) / 2),
+            height: max(0, (availH - scaledH) / 2)
+        )
+
+        autoFollow = false
+        if animated {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                zoom = targetZoom
+                panOffset = targetPan
+            }
+        } else {
+            zoom = targetZoom
+            panOffset = targetPan
+        }
+    }
+
+    /// Fit exactly once per graph, when the canvas size is known. Onappear can
+    /// fire before GeometryReader reports a size, so `canvasSize` becoming
+    /// valid also calls this.
+    private func fitIfNeeded(animated: Bool) {
+        guard !hasFitted, canvasSize.width > 1, engine.totalSize.width > 1 else { return }
+        hasFitted = true
+        fitToView(animated: animated)
+    }
+
     private func zoomAtPoint(factor: CGFloat, around point: CGPoint) {
         guard factor.isFinite, factor > 0 else { return }
+        hasUserAdjustedCamera = true
         let oldZoom = zoom
         let newZoom = max(0.25, min(4.0, oldZoom * factor))
         guard newZoom != oldZoom else { return }
@@ -1032,6 +1095,7 @@ struct ThoughtGraphView: View {
             if dist > 5 {
                 mouseState = .panning
                 autoFollow = false
+                hasUserAdjustedCamera = true
             }
         case .panning:
             panOffset = CGSize(
@@ -1082,6 +1146,7 @@ struct ThoughtGraphView: View {
                     if dist > 5 {
                         iosMouseState = .panning
                         autoFollow = false
+                        hasUserAdjustedCamera = true
                     }
                 case .panning:
                     panOffset = CGSize(

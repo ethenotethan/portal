@@ -11,6 +11,7 @@
 		016936A4BC04606CB097B862 /* PerfOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E12FD15E139F860259C2F2 /* PerfOverlayView.swift */; };
 		01C0D3BFF2F128184740757C /* happy.json in Resources */ = {isa = PBXBuildFile; fileRef = E1CB9DFBFC6F7CC67D8359F5 /* happy.json */; };
 		01D92CDD0D9C65888DA64726 /* ArtifactActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A6986C56D7999613D87F19 /* ArtifactActions.swift */; };
+		02A9513E5C2DB40DD12519E2 /* SessionThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7982D16854CAB3C4C26552 /* SessionThoughtGraphView.swift */; };
 		02CBD3C18F1C08B3AC95B2AC /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34DE48DC34DE5ECC63525DDC /* Constants.swift */; };
 		03AAEAC08629D75C76094B59 /* HermesCapabilitiesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA8C6586DF32B80252EBABD8 /* HermesCapabilitiesStore.swift */; };
 		04EEF20FCD60B878169ED0CD /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADDCFFBF8C3B95F8CC9B30BC /* NativeChartView.swift */; };
@@ -215,6 +216,7 @@
 		7D320FE587EA461576B3447F /* TimelineBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B196F8CB4B5F2F38418CE4C /* TimelineBlockView.swift */; };
 		7DDD74B3B3868AD3CEEF5786 /* GatewayClient+Wiki.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */; };
 		7E1BCCCADCFDD000491A7271 /* MessageBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3AB049C24CAF89E13F3FA25 /* MessageBubbleView.swift */; };
+		7ED41CFB76FFBDB3D87C8EA5 /* SessionThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7982D16854CAB3C4C26552 /* SessionThoughtGraphView.swift */; };
 		7F7E9984E8457B5BC402254F /* GatewayClient+Wiki.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */; };
 		7F929003380381379ED1B1B9 /* SkillMarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B9D264CE64D63FED48E990 /* SkillMarkdownEditor.swift */; };
 		7FB4F578C486529EDB8F95F7 /* QuizModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C507ADF4D946E8F07EE41174 /* QuizModels.swift */; };
@@ -450,6 +452,7 @@
 		0507F41EEE70625CED6689E9 /* ResponseStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseStyle.swift; sourceTree = "<group>"; };
 		0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		0929E0C0571B4C1249D20DAC /* SkillsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModel.swift; sourceTree = "<group>"; };
+		0A7982D16854CAB3C4C26552 /* SessionThoughtGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionThoughtGraphView.swift; sourceTree = "<group>"; };
 		0AFA556511E4F06BEDFD9E65 /* MapBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapBlockView.swift; sourceTree = "<group>"; };
 		0CDE26739CB3B72E8D30237F /* WikiEventsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsPageView.swift; sourceTree = "<group>"; };
 		0D220716249F948C0B818E3C /* ArtifactPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactPanel.swift; sourceTree = "<group>"; };
@@ -596,6 +599,7 @@
 		CB319A3833717782F16B3086 /* CentaurWikiClient+Timeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CentaurWikiClient+Timeline.swift"; sourceTree = "<group>"; };
 		CB69181ACA2327F9FDECF746 /* MermaidDiagramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidDiagramView.swift; sourceTree = "<group>"; };
 		CC871CF4533AE44104E0C11A /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		CCD05F2F93612B4539A8C24A /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		CD3BC9EBF49E5287A7AE997C /* GatewayClientWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClientWrapper.swift; sourceTree = "<group>"; };
 		CDE426E9E1CCED02EF79B023 /* CentaurWorkflowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWorkflowsView.swift; sourceTree = "<group>"; };
 		CF80D004081F32919E4B20A6 /* GatewayClient+Wiki.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Wiki.swift"; sourceTree = "<group>"; };
@@ -622,7 +626,6 @@
 		E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		E64C419357E72FE3B8BFCAE7 /* QuizSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizSheet.swift; sourceTree = "<group>"; };
 		E75C11A7DC7195F4353C93DA /* idle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idle.json; sourceTree = "<group>"; };
-		E784AF460ED98FA24AE960F2 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		E792BA9A198723943260CC51 /* RenderMemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderMemo.swift; sourceTree = "<group>"; };
 		E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPathPickerSheet.swift; sourceTree = "<group>"; };
 		E92CD7D282D79F69DD027BFE /* SkillModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModels.swift; sourceTree = "<group>"; };
@@ -787,7 +790,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				692B308E3D04958716E7462C /* hn-lintfix */,
+				7A4199E4936B57C830B7DD42 /* hn-sessiongraph */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -831,15 +834,6 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		692B308E3D04958716E7462C /* hn-lintfix */ = {
-			isa = PBXGroup;
-			children = (
-				E784AF460ED98FA24AE960F2 /* Local.xcconfig */,
-			);
-			name = "hn-lintfix";
-			path = .;
-			sourceTree = "<group>";
-		};
 		6BC19BA3638B0546FDE0B420 /* Lottie */ = {
 			isa = PBXGroup;
 			children = (
@@ -849,6 +843,15 @@
 				E1110949F66962E0E6B6DF6E /* thinking.json */,
 			);
 			path = Lottie;
+			sourceTree = "<group>";
+		};
+		7A4199E4936B57C830B7DD42 /* hn-sessiongraph */ = {
+			isa = PBXGroup;
+			children = (
+				CCD05F2F93612B4539A8C24A /* Local.xcconfig */,
+			);
+			name = "hn-sessiongraph";
+			path = .;
 			sourceTree = "<group>";
 		};
 		83CDF5F49CE0642E665E1C80 /* HermesNative */ = {
@@ -1003,6 +1006,7 @@
 		ABD5E6FED74BB2193055231F /* ThoughtGraph */ = {
 			isa = PBXGroup;
 			children = (
+				0A7982D16854CAB3C4C26552 /* SessionThoughtGraphView.swift */,
 				4A69884F119471D33D25E7E4 /* ThoughtGraphLayoutEngine.swift */,
 				88A82A8B0386F71280851A8F /* ThoughtGraphNodeView.swift */,
 				F5636A29AD5AB638D64191A0 /* ThoughtGraphView.swift */,
@@ -1427,6 +1431,7 @@
 				CC3401353A17237D16CE3B81 /* SessionPlaybackView.swift in Sources */,
 				39A181E3B5C4BE94E11C595C /* SessionRunEvent.swift in Sources */,
 				3956E831C7FF187440494534 /* SessionRunTimelineView.swift in Sources */,
+				7ED41CFB76FFBDB3D87C8EA5 /* SessionThoughtGraphView.swift in Sources */,
 				3CA005F2EEC68DB737BD7BE8 /* SessionTimelineEvent.swift in Sources */,
 				5AE0C41F6397EB4E54106462 /* SessionsDashboard.swift in Sources */,
 				75C11FF675CE3ECE889E401B /* SettingsView.swift in Sources */,
@@ -1642,6 +1647,7 @@
 				E6D44D68797BD55FD6B1128D /* SessionPlaybackView.swift in Sources */,
 				95678EA6F547C8AB0F9ED9B8 /* SessionRunEvent.swift in Sources */,
 				E3925E2282187B1CE14879C3 /* SessionRunTimelineView.swift in Sources */,
+				02A9513E5C2DB40DD12519E2 /* SessionThoughtGraphView.swift in Sources */,
 				3C9F4A6FB688C9E510F195C8 /* SessionTimelineEvent.swift in Sources */,
 				0611FA519921C89D95FCCF4B /* SessionsDashboard.swift in Sources */,
 				B1C72D03E5C09B3FF0D5095D /* SettingsView.swift in Sources */,
@@ -1731,7 +1737,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
+			baseConfigurationReference = CCD05F2F93612B4539A8C24A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1757,7 +1763,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
+			baseConfigurationReference = CCD05F2F93612B4539A8C24A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1783,7 +1789,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
+			baseConfigurationReference = CCD05F2F93612B4539A8C24A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1887,7 +1893,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
+			baseConfigurationReference = CCD05F2F93612B4539A8C24A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
