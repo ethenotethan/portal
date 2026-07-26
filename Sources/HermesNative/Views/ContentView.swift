@@ -31,12 +31,6 @@ struct ContentView: View {
     @State private var showAddGateway = false
     @State private var isMacSidebarVisible = true
     private let macSidebarWidth: CGFloat = 352
-    @State private var missionControlSessionID: String?
-    @State private var missionControlRuntimeSessionID: String?
-    /// Backend serving the Explorer's session; nil = home Hermes gateway.
-    /// Resolved in openMissionControl via the session→backend registry so a
-    /// Centaur session's detail view queries Centaur, not the home gateway.
-    @State private var missionControlBackend: (any AgentBackend)?
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
     @State private var showActivitySheet = false
@@ -228,9 +222,6 @@ struct ContentView: View {
     private var iOSSessionStack: some View {
         NavigationStack(path: $iOSNavigationPath) {
             SessionListView(
-                onMissionControl: { sessionID in
-                    openMissionControl(sessionID: sessionID)
-                },
                 onCreateSession: {
                     let focused = settings.focusedGateway
                     Task {
@@ -320,25 +311,6 @@ struct ContentView: View {
                 pushOwnedSessionOnIOS(sid)
             }
         }
-        // Mission Control sheet (for owned sessions)
-        .sheet(isPresented: Binding(
-            get: { missionControlSessionID != nil },
-            set: { if !$0 {
-                missionControlSessionID = nil
-                missionControlRuntimeSessionID = nil
-                missionControlBackend = nil
-            } }
-        )) {
-            if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid,
-                                    runtimeSessionID: missionControlRuntimeSessionID,
-                                    backend: missionControlBackend)
-                    .environmentObject(gatewayClientWrapper)
-                    .environmentObject(spawnTreeStore)
-                    .environmentObject(sessionList)
-                    .presentationDetents([.large])
-            }
-        }
         .onChange(of: iOSNavigationPath) { _, newPath in
             if newPath.isEmpty {
                 sessionList.activeSessionID = nil
@@ -364,7 +336,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showLiveSessions) {
             SessionsDashboard(onOpenSession: { sessionID in
-                openMissionControl(sessionID: sessionID)
+                showLiveSessions = false
+                selectedTab = 0
+                sessionList.selectSession(id: sessionID)
             })
                 .environmentObject(sessionList)
                 .environmentObject(gatewayClientWrapper)
@@ -452,7 +426,7 @@ struct ContentView: View {
     }
 
     private var isOverlayActive: Bool {
-        missionControlSessionID != nil || showCronDashboard || showLiveSessions || showActivitySheet
+        showCronDashboard || showLiveSessions || showActivitySheet
             || showFeedSheet || showSkills || showWikiGraph || showLearning || showCentaurWorkflows
             || showArtifactsPane
     }
@@ -467,7 +441,6 @@ struct ContentView: View {
         if showCronDashboard { return "Cron Activity" }
         if showActivitySheet { return "Activity" }
         if showLearning { return "Learning" }
-        if missionControlSessionID != nil { return "Mission Control" }
         return ""
     }
 
@@ -530,9 +503,6 @@ struct ContentView: View {
     /// `keepActivitySheet` spares the Activity sheet, which floats above the
     /// stack and composes with whatever surface is beneath it.
     private func closeAllOverlays(keepActivitySheet: Bool = false) {
-        missionControlSessionID = nil
-        missionControlRuntimeSessionID = nil
-        missionControlBackend = nil
         showCronDashboard = false
         showLiveSessions = false
         if !keepActivitySheet { showActivitySheet = false }
@@ -939,9 +909,6 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 if isMacSidebarVisible {
                     SessionListView(
-                        onMissionControl: { sessionID in
-                            openMissionControl(sessionID: sessionID)
-                        },
                         onCreateSession: {
                             let focused = settings.focusedGateway
                             Task {
@@ -974,29 +941,10 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            if let sid = missionControlSessionID {
-                SessionExplorerView(sessionID: sid,
-                                    runtimeSessionID: missionControlRuntimeSessionID,
-                                    backend: missionControlBackend,
-                                    onDismiss: {
-                    missionControlSessionID = nil
-                    missionControlRuntimeSessionID = nil
-                    missionControlBackend = nil
-                    chatViewModel.refocusInput += 1
-                })
-                    .environmentObject(gatewayClientWrapper)
-                    .environmentObject(spawnTreeStore)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.background)
-                    .transition(.opacity)
-            }
-
             if showLiveSessions {
                 SessionsDashboard(onOpenSession: { sessionID in
                     showLiveSessions = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        openMissionControl(sessionID: sessionID)
-                    }
+                    sessionList.selectSession(id: sessionID)
                 })
                     .environmentObject(sessionList)
                     .environmentObject(gatewayClientWrapper)
@@ -1218,21 +1166,23 @@ struct ContentView: View {
                 }
             }
         } else {
-            // Non-owned session — open the unified Explorer (deferred outside
-            // the current run loop to avoid AppKit layout recursion). Put the
-            // sidebar selection back on the row that was active so opening the
-            // detail view doesn't clobber it — the job the old observer-sheet
-            // dismissal bookkeeping (previousActiveSessionID) used to do.
-            let sessionID = session.id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                if sessionList.activeSessionID == sessionID {
-                    // Keep lastProcessedSelectionID in sync BEFORE the write so
-                    // the resulting onChange early-returns instead of re-running
-                    // this handler for the restored row.
-                    lastProcessedSelectionID = previousID
-                    sessionList.activeSessionID = previousID
+            // Non-owned session (Telegram/TUI/etc) — resume it into the chat
+            // view like any other. It loads read-only-ish (the transcript is
+            // shown; sending is gated by the session's own ownership), the same
+            // one session surface now used everywhere.
+            pushOwnedSessionOnIOS(newID)
+            chatViewModel.bindRuntimeSession(displayID: newID, runtimeID: rpcID)
+            spawnTreeStore.bindRuntimeSession(displayID: newID, runtimeID: rpcID)
+            if rpcID == chatViewModel.currentSessionID { return }
+            let generation = chatViewModel.beginSwitchToSession(key: newID)
+            chatViewModel.refocusInput += 1
+            Task {
+                let resumed = await chatViewModel.resumeSession(key: newID, generation: generation)
+                guard resumed else { return }
+                if let runtimeID = chatViewModel.currentSessionID {
+                    chatViewModel.bindRuntimeSession(displayID: newID, runtimeID: runtimeID)
+                    spawnTreeStore.bindRuntimeSession(displayID: newID, runtimeID: runtimeID)
                 }
-                openMissionControl(sessionID: sessionID)
             }
         }
     }
@@ -1365,34 +1315,6 @@ struct ContentView: View {
         spawnTreeStore.createTree(sessionID: sid)
         spawnTreeStore.bindRuntimeSession(displayID: sid, runtimeID: sid)
         pushOwnedSessionOnIOS(sid)
-    }
-
-    // MARK: - Mission Control
-
-    private func openMissionControl(sessionID: String) {
-        let session = sessionList.sessions.first(where: { $0.id == sessionID })
-        let runtimeID = session?.rpcID ?? chatViewModel.currentSessionID ?? sessionID
-        spawnTreeStore.createTree(sessionID: sessionID)
-        spawnTreeStore.bindRuntimeSession(displayID: sessionID, runtimeID: runtimeID)
-        spawnTreeStore.setActive(sessionID: sessionID)
-        // Close any other surface first (closeAllOverlays nils the mission
-        // control fields too), then open onto a clean stack.
-        closeAllOverlays()
-        missionControlSessionID = sessionID
-        missionControlRuntimeSessionID = runtimeID
-        missionControlBackend = sessionScopedExplorerBackend(for: sessionID)
-    }
-
-    /// Resolve the backend a session lives on for the Explorer, reusing the
-    /// same registry→entry→client mapping the chat pipeline uses. nil for
-    /// Hermes sessions (SessionExplorerView then uses the home gateway).
-    private func sessionScopedExplorerBackend(for sessionID: String) -> (any AgentBackend)? {
-        guard let backendID = SessionBackendRegistry.shared.backendID(for: sessionID),
-              let entry = settings.savedGateways.first(where: { $0.id == backendID }),
-              entry.kind.isSessionScoped else {
-            return nil
-        }
-        return gatewayClientWrapper.sessionScopedBackend(for: entry)
     }
 
     // MARK: - Wiring

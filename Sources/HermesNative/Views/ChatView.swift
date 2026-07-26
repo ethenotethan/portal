@@ -252,11 +252,17 @@ struct ChatView: View {
         VStack(spacing: 0) {
             #if os(iOS)
             chatToolbar
+            SessionUsageBadge(chatViewModel: chatViewModel, client: gatewayClientWrapper.client)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
             Divider()
             #endif
 
             #if os(macOS)
             HStack {
+                // Cumulative session usage (tokens + cost), leading edge.
+                SessionUsageBadge(chatViewModel: chatViewModel, client: gatewayClientWrapper.client)
                 Spacer()
                 // Response style (deep map / balanced / direct)
                 if chatViewModel.backendCapabilities.supportsResponseStyles {

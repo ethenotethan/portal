@@ -1,15 +1,14 @@
 import SwiftUI
 
 /// Sidebar list of sessions split into two tiers:
-/// - "My Sessions" — created by this app, full control (chat, Mission Control)
-/// - "Other Sessions" — from Telegram/TUI/etc, read-only observer mode
+/// - "My Sessions" — created by this app, full control
+/// - "Other Sessions" — from Telegram/TUI/etc, opened read-only
+/// Tapping any row selects it into the chat view.
 struct SessionListView: View {
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
 
-    /// Called on long-press with the session ID to open Mission Control.
-    var onMissionControl: ((String) -> Void)?
     var onCreateSession: (() -> Void)?
     var onOpenPanel: (() -> Void)?
 
@@ -179,11 +178,6 @@ struct SessionListView: View {
                 Label(session.isPinned ? "Unpin Session" : "Pin Session",
                       systemImage: session.isPinned ? "pin.slash" : "pin")
             }
-            Button {
-                onMissionControl?(session.id)
-            } label: {
-                Label("Mission Control", systemImage: "network")
-            }
             exportMarkdownButton(session: session)
             Divider()
             Button(role: .destructive) {
@@ -276,11 +270,6 @@ struct SessionListView: View {
             } label: {
                 Label(session.isPinned ? "Unpin Session" : "Pin Session",
                       systemImage: session.isPinned ? "pin.slash" : "pin")
-            }
-            Button {
-                onMissionControl?(session.id)
-            } label: {
-                Label("Mission Control", systemImage: "network")
             }
             exportMarkdownButton(session: session)
         }
