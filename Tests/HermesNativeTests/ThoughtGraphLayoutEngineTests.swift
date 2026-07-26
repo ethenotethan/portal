@@ -69,10 +69,48 @@ internal struct ThoughtGraphLayoutEngineTests {
         ])
         let main = try #require(layout(engine, "m1"))
         let subTool = try #require(layout(engine, "s1t1"))
-        // Main lane is y=0; the subagent lane sits one laneHeight below.
-        #expect(main.y == 0)
-        #expect(subTool.y == Engine.laneHeight)
+        // The subagent lane sits strictly below the main lane.
+        #expect(subTool.y > main.y)
         #expect(engine.lanes.count == 2)
+    }
+
+    @Test("concurrent bars in one lane pack into distinct sub-rows, never overlap")
+    internal func parallelBarsPackIntoSubRows() throws {
+        let engine = Engine()
+        // Three tool calls that all overlap in time (each 5s, staggered 1s)
+        // in the SAME (main) lane — classic parallel dispatch.
+        engine.layout(nodes: [
+            node("a", start: 0, duration: 5),
+            node("b", start: 1, duration: 5),
+            node("c", start: 2, duration: 5),
+        ])
+        let a = try #require(layout(engine, "a"))
+        let b = try #require(layout(engine, "b"))
+        let c = try #require(layout(engine, "c"))
+        // All in one lane (no subagents) but three distinct y's — stacked.
+        #expect(engine.lanes.count == 1)
+        #expect(Set([a.y, b.y, c.y]).count == 3)
+        // No two bars share a y AND overlap in x (the overlap bug).
+        for (p, q) in [(a, b), (b, c), (a, c)] where p.y == q.y {
+            let overlap = p.x < q.x + q.width && q.x < p.x + p.width
+            #expect(!overlap)
+        }
+    }
+
+    @Test("sequential bars in one lane share a sub-row (no needless stacking)")
+    internal func sequentialBarsShareRow() throws {
+        let engine = Engine()
+        // Non-overlapping: each ends before the next starts.
+        engine.layout(nodes: [
+            node("a", start: 0, duration: 0.5),
+            node("b", start: 2, duration: 0.5),
+            node("c", start: 4, duration: 0.5),
+        ])
+        let a = try #require(layout(engine, "a"))
+        let b = try #require(layout(engine, "b"))
+        let c = try #require(layout(engine, "c"))
+        #expect(a.y == b.y)
+        #expect(b.y == c.y)
     }
 
     @Test("a running bar (no completedAt) grows with now")

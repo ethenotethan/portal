@@ -27,6 +27,9 @@ struct ThoughtGraphLane: Identifiable {
     internal let id: String       // "main" or the subagent_id
     internal let index: Int
     internal let y: Double        // lane center in world space (row)
+    /// Full band height. Grows past `laneHeight` when concurrent bars pack
+    /// into multiple sub-rows (parallel tool calls stack, never overlap).
+    internal let height: Double
     internal let title: String    // "main loop" or the agent goal prefix
     internal let isAgent: Bool
     internal var minX: Double     // left edge of this lane's first bar
@@ -83,11 +86,19 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     /// variable-width). Kept so the popover renders a full node card.
     internal static let nodeSize = CGSize(width: 150, height: 52)
 
-    /// Vertical distance between lane centers.
+    /// Minimum lane band height (a lane with no concurrency). Lanes grow
+    /// taller when parallel bars pack into extra sub-rows.
     internal static let laneHeight: Double = 66
 
     /// Thickness of a tool/agent bar.
     internal static let barHeight: Double = 30
+
+    /// Vertical pitch between packed sub-rows within a lane — bar height plus
+    /// a small gap so stacked parallel bars read as distinct.
+    internal static let subRowPitch: Double = 36
+
+    /// Gap between one lane's band and the next.
+    internal static let laneGap: Double = 12
 
     /// Linear time scale: world pixels per second of duration.
     internal static let pixelsPerSecond: Double = 46
@@ -182,34 +193,91 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
                 laneOrder.append(key)
             }
         }
-        let laneCount = laneOrder.count
 
-        func laneY(_ index: Int) -> Double { Double(index) * Self.laneHeight }
+        // Bucket the ordered nodes by lane, preserving chronological order.
+        var nodesByLane: [Int: [(ordinal: Int, node: ThoughtGraphNode)]] = [:]
+        for (ordinal, node) in ordered.enumerated() {
+            let laneIdx = laneIndexByKey[node.agentID ?? node.ownerAgentID ?? "main"] ?? 0
+            nodesByLane[laneIdx, default: []].append((ordinal, node))
+        }
 
-        // ---- 4. Bars: positioned by time, stacked by lane ----
+        // ---- 4. Pack each lane's bars into sub-rows so concurrent (time-
+        // overlapping) bars stack instead of drawing on top of each other.
+        // Greedy interval packing: a bar takes the first sub-row whose last
+        // bar has already ended by the time this one starts.
         var layoutResults: [ThoughtGraphLayout] = []
         var laneMinX: [Int: Double] = [:]
         var laneMaxX: [Int: Double] = [:]
+        var laneSubRows: [Int: Int] = [:]        // sub-row count per lane
         var computedEdges: [ThoughtGraphEdge] = []
         var lastMainNodeID: String?
+        // Node id → its packed sub-row within the lane, filled below and used
+        // to compute y once lane band origins are known.
+        var subRowByID: [String: Int] = [:]
+        var xByID: [String: Double] = [:]
+        var widthByID: [String: Double] = [:]
 
+        for laneIdx in laneOrder.indices {
+            let items = nodesByLane[laneIdx] ?? []
+            // Right edge (x + width) of the last bar placed in each sub-row.
+            var subRowEnds: [Double] = []
+            for (ordinal, node) in items {
+                let x = startX(node, ordinal: ordinal)
+                let width = barWidth(node)
+                xByID[node.id] = x
+                widthByID[node.id] = width
+                laneMinX[laneIdx] = min(laneMinX[laneIdx] ?? x, x)
+                laneMaxX[laneIdx] = max(laneMaxX[laneIdx] ?? (x + width), x + width)
+
+                // First sub-row whose previous bar ended at/before this start.
+                // Small epsilon so touching bars share a row; overlaps push down.
+                let placed = subRowEnds.firstIndex(where: { $0 <= x + 0.5 })
+                let row: Int
+                if let placed {
+                    row = placed
+                    subRowEnds[placed] = x + width
+                } else {
+                    row = subRowEnds.count
+                    subRowEnds.append(x + width)
+                }
+                subRowByID[node.id] = row
+            }
+            laneSubRows[laneIdx] = max(1, subRowEnds.count)
+        }
+
+        // Lane band origins: stack lanes top→down, each as tall as its packed
+        // sub-row count needs.
+        var laneTop: [Int: Double] = [:]
+        var laneBandHeight: [Int: Double] = [:]
+        var cursorY = 0.0
+        for laneIdx in laneOrder.indices {
+            let rows = laneSubRows[laneIdx] ?? 1
+            let band = max(Self.laneHeight, Double(rows) * Self.subRowPitch + (Self.laneHeight - Self.subRowPitch))
+            laneTop[laneIdx] = cursorY
+            laneBandHeight[laneIdx] = band
+            cursorY += band + Self.laneGap
+        }
+
+        func barY(laneIdx: Int, subRow: Int) -> Double {
+            // Center of the sub-row within the lane band.
+            let top = laneTop[laneIdx] ?? 0
+            return top + Self.subRowPitch / 2 + Double(subRow) * Self.subRowPitch
+        }
+
+        // Emit layouts now that y is resolvable, and build spawn edges.
         for (ordinal, node) in ordered.enumerated() {
-            let laneKey = node.agentID ?? node.ownerAgentID ?? "main"
-            let laneIdx = laneIndexByKey[laneKey] ?? 0
-            let x = startX(node, ordinal: ordinal)
-            let y = laneY(laneIdx)
+            _ = ordinal
+            let laneIdx = laneIndexByKey[node.agentID ?? node.ownerAgentID ?? "main"] ?? 0
             let isMarker = node.category == .reasoning
-            let width = barWidth(node)
+            let x = xByID[node.id] ?? Self.leftGutter
+            let width = widthByID[node.id] ?? Self.minBarWidth
+            let y = barY(laneIdx: laneIdx, subRow: subRowByID[node.id] ?? 0)
             let height = isMarker ? Self.markerSize : Self.barHeight
 
             layoutResults.append(ThoughtGraphLayout(
                 nodeID: node.id, x: x, y: y, width: width, height: height
             ))
-            laneMinX[laneIdx] = min(laneMinX[laneIdx] ?? x, x)
-            laneMaxX[laneIdx] = max(laneMaxX[laneIdx] ?? (x + width), x + width)
 
-            // Spawn edge: a subagent lane hangs off the delegating tool call
-            // (explicit parent if present, else the most recent main node).
             if node.isAgent {
                 if let pid = node.parentIDs.first(where: { nodeIndex[$0] != nil }) {
                     computedEdges.append(.init(from: pid, to: node.id, kind: .spawn))
@@ -231,8 +299,10 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
             } else {
                 title = "main loop"
             }
+            let band = laneBandHeight[idx] ?? Self.laneHeight
+            let top = laneTop[idx] ?? 0
             laneInfos.append(ThoughtGraphLane(
-                id: key, index: idx, y: laneY(idx),
+                id: key, index: idx, y: top + band / 2, height: band,
                 title: title, isAgent: isAgent,
                 minX: laneMinX[idx] ?? 0,
                 maxX: laneMaxX[idx] ?? 0
@@ -247,7 +317,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
 
         let maxRight = layoutResults.map { $0.x + $0.width }.max() ?? 200
         let width = maxRight + Self.leftGutter * 2
-        let height = Double(laneCount) * Self.laneHeight + Self.barHeight
+        let height = cursorY + Self.barHeight
         totalSize = CGSize(width: max(width, 200), height: max(height, 120))
     }
 

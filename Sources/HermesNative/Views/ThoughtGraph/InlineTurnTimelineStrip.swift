@@ -56,18 +56,21 @@ internal struct InlineTurnTimelineStrip: View {
     @StateObject private var engine = ThoughtGraphLayoutEngine()
     @State private var now: TimeInterval = Date.now.timeIntervalSinceReferenceDate
 
-    /// One lane tall + a couple more if subagents appear, capped so the strip
-    /// never dominates the transcript.
-    private static let laneStripHeight: CGFloat = 26
-    private static let maxLanes = 4
     private static let topPad: CGFloat = 6
     private static let bottomPad: CGFloat = 6
     private static let sidePad: CGFloat = 8
+    /// Max drawable world-rows shown inline before the strip caps its height
+    /// (deeper packing/lanes clip; the full graph shows everything).
+    private static let maxStripWorldHeight: CGFloat = 132
 
-    private var laneCount: Int { max(1, min(engine.lanes.count, Self.maxLanes)) }
+    /// Strip drawable height tracks the packed world height (parallel bars +
+    /// subagent lanes make it taller), capped so it never dominates the chat.
+    private var drawableHeight: CGFloat {
+        min(max(CGFloat(engine.totalSize.height), 26), Self.maxStripWorldHeight)
+    }
 
     private var contentHeight: CGFloat {
-        Self.topPad + Self.bottomPad + CGFloat(laneCount) * Self.laneStripHeight
+        Self.topPad + Self.bottomPad + drawableHeight
     }
 
     /// World width of the laid-out graph (before fitting).
@@ -141,14 +144,17 @@ internal struct InlineTurnTimelineStrip: View {
         let nowDate = Date()
         let nodeByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
         let scale = fitScale(for: size)
-        // Map a world-x into fitted screen-x (world y stays on strip lanes).
+        // Map world-x into fitted screen-x, and world-y proportionally into the
+        // capped strip band so packed sub-rows (parallel bars) keep their
+        // relative stacking instead of collapsing onto one line.
         func sx(_ worldX: CGFloat) -> CGFloat { Self.sidePad + worldX * scale }
+        let worldH = max(CGFloat(engine.totalSize.height), 1)
+        let yScale = min(1, drawableHeight / worldH)
+        func sy(_ worldY: CGFloat) -> CGFloat { Self.topPad + worldY * yScale }
 
         for layout in engine.layouts {
             guard let node = nodeByID[layout.nodeID] else { continue }
-            let laneIndex = Int((layout.y / ThoughtGraphLayoutEngine.laneHeight).rounded())
-            guard laneIndex < Self.maxLanes else { continue }   // clip deep lanes
-            let cy = Self.topPad + (CGFloat(laneIndex) + 0.5) * Self.laneStripHeight
+            let cy = sy(CGFloat(layout.y))
             let color = node.category.color
 
             if node.category == .reasoning {
@@ -165,7 +171,8 @@ internal struct InlineTurnTimelineStrip: View {
             }
 
             let worldWidth = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
-            let barH: CGFloat = 14
+            // Scale bar thickness with the sub-row pitch so stacked bars don't touch.
+            let barH: CGFloat = min(14, ThoughtGraphLayoutEngine.subRowPitch * yScale * 0.7)
             let x = sx(layout.x)
             let w = max(2, worldWidth * scale)   // floor so a bar never vanishes when fitted
             let rect = CGRect(x: x, y: cy - barH / 2, width: w, height: barH)

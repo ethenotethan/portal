@@ -383,15 +383,16 @@ struct ThoughtGraphView: View {
     /// Full-width horizontal band behind each lane, tinted by actor, with the
     /// lane title pinned at the left.
     private func drawLanes(context: GraphicsContext, showLabels: Bool) {
-        let laneH = ThoughtGraphLayoutEngine.laneHeight
         let totalWidth = engine.totalSize.width
 
         for lane in engine.lanes {
+            // Band height is the lane's packed height (grows with parallel
+            // sub-rows), not a fixed constant.
             let rect = CGRect(
                 x: -ThoughtGraphLayoutEngine.leftGutter,
-                y: lane.y - laneH / 2,
+                y: lane.y - lane.height / 2,
                 width: totalWidth,
-                height: laneH
+                height: lane.height
             )
             let band = Path(roundedRect: rect, cornerRadius: 10)
             let tint = lane.isAgent ? Theme.agentAccent : Theme.accent
@@ -402,7 +403,7 @@ struct ThoughtGraphView: View {
                 Text(lane.title)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .foregroundColor(tint.opacity(0.8)),
-                at: CGPoint(x: rect.minX + 6, y: lane.y - laneH / 2 + 9),
+                at: CGPoint(x: rect.minX + 6, y: rect.minY + 9),
                 anchor: .leading
             )
         }

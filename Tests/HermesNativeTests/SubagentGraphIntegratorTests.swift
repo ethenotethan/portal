@@ -108,14 +108,22 @@ struct SubagentGraphIntegratorTests {
     @Test("layout assigns lanes: main loop first, one lane per agent")
     internal func layoutAssignsLanes() throws {
         let t0 = Date(timeIntervalSinceReferenceDate: 1000)
+        // Completed, short, non-overlapping durations so each lane's bars are
+        // sequential (share a sub-row) — this test validates lane ASSIGNMENT,
+        // not the concurrent-bar packing (covered separately).
         let nodes = [
-            ThoughtGraphNode(id: "t1", name: "search_files", isComplete: true, startedAt: t0),
-            ThoughtGraphNode(id: "t2", name: "delegate_task", startedAt: t0.addingTimeInterval(1)),
-            ThoughtGraphNode(id: "agent-s1", name: "agent", parentIDs: ["t2"],
-                             startedAt: t0.addingTimeInterval(2), agentID: "s1"),
-            ThoughtGraphNode(id: "agent-s1-t1", name: "grep", parentIDs: ["agent-s1"],
-                             startedAt: t0.addingTimeInterval(3), ownerAgentID: "s1"),
-            ThoughtGraphNode(id: "t3", name: "read_file", startedAt: t0.addingTimeInterval(4)),
+            ThoughtGraphNode(id: "t1", name: "search_files", isComplete: true,
+                             durationSeconds: 0.3, startedAt: t0, completedAt: t0.addingTimeInterval(0.3)),
+            ThoughtGraphNode(id: "t2", name: "delegate_task", isComplete: true,
+                             durationSeconds: 0.3, startedAt: t0.addingTimeInterval(1), completedAt: t0.addingTimeInterval(1.3)),
+            ThoughtGraphNode(id: "agent-s1", name: "agent", isComplete: true, durationSeconds: 0.3,
+                             parentIDs: ["t2"], startedAt: t0.addingTimeInterval(2),
+                             completedAt: t0.addingTimeInterval(2.3), agentID: "s1"),
+            ThoughtGraphNode(id: "agent-s1-t1", name: "grep", isComplete: true, durationSeconds: 0.3,
+                             parentIDs: ["agent-s1"], startedAt: t0.addingTimeInterval(3),
+                             completedAt: t0.addingTimeInterval(3.3), ownerAgentID: "s1"),
+            ThoughtGraphNode(id: "t3", name: "read_file", isComplete: true,
+                             durationSeconds: 0.3, startedAt: t0.addingTimeInterval(4), completedAt: t0.addingTimeInterval(4.3)),
         ]
 
         let engine = ThoughtGraphLayoutEngine()
