@@ -1,33 +1,56 @@
 import Foundation
 
-/// User affordances a dataset/map artifact declares for its own entries.
+/// User affordances a dataset/map/model artifact declares for its own entries.
 /// The emitting model (or user request) decides WHAT the verbs are; the
 /// renderer only knows how to draw each type. Declared per-artifact:
 /// ```json
 /// {"id": "tech-confs", "key": "name", "actions": [
 ///    {"field": "status", "type": "choice", "options": ["going", "not going", "undecided"]},
 ///    {"field": "reached_out", "type": "toggle"},
-///    {"type": "delete"}
+///    {"type": "delete"},
+///    {"type": "intent", "id": "archive-issue", "label": "Archive",
+///     "intent": "linear.issue.archive", "presentation": {"role": "destructive"},
+///     "target": {"entity_set": "issues", "key_field": "identifier"}}
 ///  ], "rows": [...]}
 /// ```
-/// - `choice`: per-entry menu that sets `field` to one of `options`.
-/// - `toggle`: per-entry checkbox that flips `field` true/false.
-/// - `delete`: tombstones the entry (`_deleted: true`) — hidden everywhere,
-///   but survives merges so an agent re-emitting the row can't resurrect it.
+/// Local actions (`choice`, `toggle`, `delete`) mutate content directly.
+/// Backend intents (`intent`) send an opaque binding to the gateway and let
+/// the server resolve the registered handler — the artifact never provides
+/// executable code, credentials, or arbitrary URLs.
 struct ArtifactAction: Equatable, Identifiable {
     enum Kind: String {
         case choice
         case toggle
         case delete
+        case intent
     }
 
-    let kind: Kind
-    /// Entry field the action reads/writes (empty for delete).
-    let field: String
-    /// Allowed values for choice actions.
-    let options: [String]
+    internal enum PresentationRole: String {
+        case normal
+        case destructive
+    }
 
-    var id: String { "\(kind.rawValue):\(field)" }
+    internal let kind: Kind
+    /// Entry field the action reads/writes (local actions; empty for delete/intent).
+    internal let field: String
+    /// Allowed values for choice actions.
+    internal let options: [String]
+
+    // MARK: Intent-specific fields (populated only when kind == .intent)
+
+    /// Stable binding ID declared in the artifact. The gateway resolves this
+    /// against the pinned revision — never sent as the intent name itself.
+    internal let bindingID: String
+    /// Display label for the intent button.
+    internal let label: String
+    /// Intent name, for display and debugging only — never trusted by the server.
+    internal let intentName: String
+    /// Whether the button renders as destructive (red).
+    internal let presentationRole: PresentationRole
+
+    internal var id: String {
+        kind == .intent ? "intent:\(bindingID)" : "\(kind.rawValue):\(field)"
+    }
 
     /// Parse the `actions` value of a spec object. Unknown types and
     /// field-less choice/toggle entries drop silently — a malformed action
@@ -40,13 +63,26 @@ struct ArtifactAction: Equatable, Identifiable {
             let options = (entry["options"] as? [String]) ?? []
             switch kind {
             case .delete:
-                return ArtifactAction(kind: .delete, field: "", options: [])
+                return ArtifactAction(kind: .delete, field: "", options: [],
+                                      bindingID: "", label: "", intentName: "", presentationRole: .normal)
             case .choice:
                 guard !field.isEmpty, !options.isEmpty else { return nil }
-                return ArtifactAction(kind: .choice, field: field, options: options)
+                return ArtifactAction(kind: .choice, field: field, options: options,
+                                      bindingID: "", label: "", intentName: "", presentationRole: .normal)
             case .toggle:
                 guard !field.isEmpty else { return nil }
-                return ArtifactAction(kind: .toggle, field: field, options: [])
+                return ArtifactAction(kind: .toggle, field: field, options: [],
+                                      bindingID: "", label: "", intentName: "", presentationRole: .normal)
+            case .intent:
+                let bindingID = ((entry["id"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
+                guard !bindingID.isEmpty else { return nil }
+                let label = ((entry["label"] as? String) ?? bindingID).trimmingCharacters(in: .whitespaces)
+                let intentName = ((entry["intent"] as? String) ?? "").trimmingCharacters(in: .whitespaces)
+                let roleStr = (entry["presentation"] as? [String: Any])?["role"] as? String ?? "normal"
+                let role = PresentationRole(rawValue: roleStr) ?? .normal
+                return ArtifactAction(kind: .intent, field: "", options: [],
+                                      bindingID: bindingID, label: label,
+                                      intentName: intentName, presentationRole: role)
             }
         }
     }
@@ -56,6 +92,44 @@ struct ArtifactAction: Equatable, Identifiable {
     static func isTruthy(_ value: String?) -> Bool {
         let normalized = (value ?? "").trimmingCharacters(in: .whitespaces).lowercased()
         return normalized == "true" || normalized == "1"
+    }
+}
+
+// MARK: - Backend intent invocation result
+
+/// Result returned by the gateway's artifact.action.invoke RPC.
+internal struct ArtifactActionInvokeResult {
+    internal enum Outcome {
+        /// Handler needs native confirmation before proceeding.
+        case needsConfirmation(challenge: String, prompt: String)
+        /// Handler completed successfully.
+        case succeeded(message: String?)
+        /// Handler failed (user-visible reason).
+        case failed(reason: String)
+        /// Artifact changed since button was rendered — refresh and retry.
+        case conflict
+        /// Gateway doesn't support this RPC (old deployment).
+        case unsupported
+    }
+    internal let outcome: Outcome
+
+    internal static func from(_ d: [String: AnyCodable]?) -> ArtifactActionInvokeResult {
+        guard let d else { return .init(outcome: .unsupported) }
+        let status = d["status"]?.stringValue ?? ""
+        switch status {
+        case "needs_confirmation":
+            let challenge = d["challenge"]?.stringValue ?? ""
+            let prompt = d["prompt"]?.stringValue ?? "Confirm action?"
+            return .init(outcome: .needsConfirmation(challenge: challenge, prompt: prompt))
+        case "succeeded":
+            return .init(outcome: .succeeded(message: d["message"]?.stringValue))
+        case "failed":
+            return .init(outcome: .failed(reason: d["reason"]?.stringValue ?? "Action failed"))
+        case "conflict":
+            return .init(outcome: .conflict)
+        default:
+            return .init(outcome: .unsupported)
+        }
     }
 }
 

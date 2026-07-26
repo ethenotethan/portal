@@ -21,11 +21,32 @@ final class ArtifactStore: ObservableObject {
 
     @Published private(set) var artifacts: [String: LivingArtifact] = [:]
 
+    // MARK: - Intent invocation state
+
+    /// One entry per in-flight or recently-completed intent invocation.
+    /// Keyed by "artifactID/bindingID/entryKey" so each (button × row) slot
+    /// has independent state without blocking sibling rows.
+    @Published internal private(set) var intentStates: [String: IntentInvocationState] = [:]
+
+    internal enum IntentInvocationState: Equatable {
+        case pending
+        case needsConfirmation(challenge: String, prompt: String)
+        case succeeded(message: String?)
+        case failed(reason: String)
+        case conflict
+        case unsupported
+    }
+
     private weak var client: GatewayClient?
     private var syncAvailable: Bool?
     private var pushTask: Task<Void, Never>?
     private let pushDebounce: TimeInterval = 2
     private let fileURL: URL
+
+    /// Idempotency keys issued this session: (slotKey → UUID string).
+    /// A retry for the same slot reuses the key — the server returns the
+    /// original result rather than executing twice.
+    private var idempotencyKeys: [String: String] = [:]
 
     /// Artifacts sorted by recency for pickers.
     var sortedArtifacts: [LivingArtifact] {
@@ -100,6 +121,9 @@ final class ArtifactStore: ObservableObject {
                 in: artifact.content, kind: artifact.kind, entryKey: entryKey,
                 field: action.field, value: value
             )
+        case .intent:
+            // Backend intents are dispatched through invokeIntent(), not here.
+            return
         }
         guard let content = mutated else { return }
         var updated = artifact
@@ -109,6 +133,136 @@ final class ArtifactStore: ObservableObject {
         artifacts[artifactID] = updated
         persistToDisk()
         schedulePush(id: artifactID)
+    }
+
+    // MARK: - Backend intent invocation
+
+    /// Invoke a backend intent declared by the artifact. The gateway resolves
+    /// the binding from the artifact's pinned revision and validates its
+    /// registered handler — this method never supplies executable content.
+    ///
+    /// The slot (artifactID/bindingID/entryKey) carries independent state so
+    /// each row's button gives its own feedback without blocking siblings.
+    /// Idempotency: the same slot reuses its UUID so a retry or double-click
+    /// does not execute the handler twice.
+    internal func invokeIntent(
+        artifactID: String,
+        bindingID: String,
+        entryKey: String
+    ) async {
+        guard let artifact = artifacts[artifactID],
+              let client else {
+            intentStates[slotKey(artifactID, bindingID, entryKey)] = .unsupported
+            return
+        }
+        let slot = slotKey(artifactID, bindingID, entryKey)
+        // Reuse the idempotency key for this slot so retries are no-ops.
+        let ikey: String
+        if let existing = idempotencyKeys[slot] {
+            ikey = existing
+        } else {
+            ikey = UUID().uuidString
+            idempotencyKeys[slot] = ikey
+        }
+        intentStates[slot] = .pending
+        do {
+            guard let result = try await client.artifactActionInvoke(
+                artifactID: artifactID,
+                artifactRev: artifact.rev,
+                bindingID: bindingID,
+                entityRef: entryKey,
+                idempotencyKey: ikey
+            ) else {
+                intentStates[slot] = .unsupported
+                return
+            }
+            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+        } catch {
+            intentStates[slot] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// Confirm a pending destructive intent after the user approves the
+    /// native confirmation dialog. `challenge` is the short-lived token the
+    /// gateway returned in the needs_confirmation response — it is bound to
+    /// actor, revision, binding, and expiry server-side so the artifact
+    /// cannot weaken confirmation policy.
+    internal func confirmIntent(
+        artifactID: String,
+        bindingID: String,
+        entryKey: String,
+        challenge: String
+    ) async {
+        guard let client else { return }
+        let slot = slotKey(artifactID, bindingID, entryKey)
+        intentStates[slot] = .pending
+        do {
+            guard let result = try await client.artifactActionConfirm(
+                artifactID: artifactID,
+                challenge: challenge
+            ) else {
+                intentStates[slot] = .unsupported
+                return
+            }
+            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+        } catch {
+            intentStates[slot] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// Clear the invocation state for a slot so the button resets to idle.
+    internal func clearIntentState(artifactID: String, bindingID: String, entryKey: String) {
+        let slot = slotKey(artifactID, bindingID, entryKey)
+        intentStates.removeValue(forKey: slot)
+        idempotencyKeys.removeValue(forKey: slot)
+    }
+
+    private func applyInvokeResult(
+        _ result: ArtifactActionInvokeResult, slot: String, artifactID: String
+    ) {
+        switch result.outcome {
+        case .needsConfirmation(let challenge, let prompt):
+            intentStates[slot] = .needsConfirmation(challenge: challenge, prompt: prompt)
+        case .succeeded(let message):
+            intentStates[slot] = .succeeded(message: message)
+            // Refresh the artifact so the UI reflects any server-side mutation
+            // (tombstone, field update, etc.). Do not imply the refresh is part
+            // of the external action result — they are separate outcomes.
+            refreshArtifact(id: artifactID)
+        case .failed(let reason):
+            intentStates[slot] = .failed(reason: reason)
+        case .conflict:
+            intentStates[slot] = .conflict
+            // Pull latest so the user sees the current state and can retry
+            // with the updated revision.
+            refreshArtifact(id: artifactID)
+        case .unsupported:
+            intentStates[slot] = .unsupported
+        }
+    }
+
+    private func refreshArtifact(id: String) {
+        guard let client else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                guard let fresh = try await client.artifactGet(id: id) else { return }
+                if let current = self.artifacts[id], current.rev >= fresh.rev, fresh.rev > 0 { return }
+                self.artifacts[id] = fresh
+                self.persistToDisk()
+            } catch {
+                log.debug("refreshArtifact(\(id)) failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func slotKey(_ artifactID: String, _ bindingID: String, _ entryKey: String) -> String {
+        "\(artifactID)/\(bindingID)/\(entryKey)"
+    }
+
+    /// Expose slot key construction to views so they can look up state.
+    internal func intentSlotKey(artifactID: String, bindingID: String, entryKey: String) -> String {
+        slotKey(artifactID, bindingID, entryKey)
     }
 
     /// Set the artifact's maintainers (the crons that keep it current),

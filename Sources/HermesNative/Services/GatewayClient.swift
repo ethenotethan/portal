@@ -1634,6 +1634,54 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return rows.compactMap { ArtifactRevision.from($0.dictionaryValue) }
     }
 
+    /// Invoke a backend intent declared in an artifact's action manifest.
+    /// The gateway resolves the binding from `artifactRev` and validates the
+    /// registered handler — the client sends only stable identifiers, never
+    /// executable content or intent names. Returns nil on method-not-found
+    /// (gateway predates the action surface).
+    internal func artifactActionInvoke(
+        artifactID: String,
+        artifactRev: Int,
+        bindingID: String,
+        entityRef: String,
+        idempotencyKey: String
+    ) async throws -> ArtifactActionInvokeResult? {
+        let params: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "artifact_rev": AnyCodable(artifactRev),
+            "binding_id": AnyCodable(bindingID),
+            "entity_ref": AnyCodable(entityRef),
+            "idempotency_key": AnyCodable(idempotencyKey),
+        ]
+        let response = try await call("artifact.action.invoke", params: params)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactActionInvokeResult.from(response.result?.dictionaryValue)
+    }
+
+    /// Confirm a pending backend intent (destructive actions require this
+    /// second step). `challenge` comes from the invoke response — it is
+    /// bound to actor, artifact revision, binding, resolved target, and expiry
+    /// on the server. An artifact cannot weaken confirmation policy by
+    /// declaring `confirm: false`.
+    internal func artifactActionConfirm(
+        artifactID: String,
+        challenge: String
+    ) async throws -> ArtifactActionInvokeResult? {
+        let params: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "challenge": AnyCodable(challenge),
+        ]
+        let response = try await call("artifact.action.confirm", params: params)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactActionInvokeResult.from(response.result?.dictionaryValue)
+    }
+
     /// One revision's full content.
     func artifactRevision(id: String, rev: Int) async throws -> ArtifactRevision? {
         let response = try await call("artifact.revision", params: [

@@ -149,12 +149,21 @@ struct ArtifactActionControls: View {
     /// Current value of a field on this entry (for menu checkmark / toggle state).
     let fieldValue: (String) -> String?
     let artifactID: String
+
+    @ObservedObject private var store = ArtifactStore.shared
+    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
     @State private var confirmingDelete = false
 
-    var body: some View {
+    /// Intent buttons are hidden when the gateway doesn't report the
+    /// artifact.action capability — the button would always error.
+    private var supportsIntents: Bool { capabilitiesStore.capabilities.supportsArtifactActions }
+
+    internal var body: some View {
         HStack(spacing: 10) {
             ForEach(actions) { action in
-                control(for: action)
+                // Never render intent buttons against an unsupported gateway.
+                if action.kind == .intent && !supportsIntents { EmptyView() }
+                else { control(for: action) }
             }
         }
     }
@@ -230,6 +239,162 @@ struct ArtifactActionControls: View {
             } message: {
                 Text("The entry is tombstoned — agents re-emitting it won't bring it back.")
             }
+        case .intent:
+            IntentButton(
+                action: action,
+                entryKey: entryKey,
+                artifactID: artifactID
+            )
         }
+    }
+}
+
+// MARK: - Intent button (backend action invocation)
+
+/// Per-entry (or artifact-level) button for a backend intent.
+/// Manages its own invocation state by reading from ArtifactStore and
+/// dispatching invoke/confirm calls. Used by ArtifactActionControls (row
+/// actions) and ArtifactTopLevelActionBar (HTML chrome / artifact-scoped).
+internal struct IntentButton: View {
+    internal let action: ArtifactAction
+    internal let entryKey: String
+    internal let artifactID: String
+
+    @ObservedObject private var store = ArtifactStore.shared
+    @State private var showConfirmation = false
+    @State private var pendingChallenge = ""
+    @State private var pendingPrompt = ""
+
+    private var slotKey: String {
+        store.intentSlotKey(artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey)
+    }
+
+    private var invocationState: ArtifactStore.IntentInvocationState? {
+        store.intentStates[slotKey]
+    }
+
+    private var isPending: Bool {
+        invocationState == .pending
+    }
+
+    internal var body: some View {
+        Group {
+            switch invocationState {
+            case .none, .conflict:
+                invokeButton
+                    .overlay(alignment: .topTrailing) {
+                        if case .conflict = invocationState {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .font(.system(size: 8))
+                                .foregroundStyle(Theme.warning)
+                                .offset(x: 4, y: -4)
+                        }
+                    }
+            case .pending:
+                ProgressView()
+                    .scaleEffect(0.6)
+                    .frame(width: 28, height: 16)
+            case .succeeded(let message):
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Theme.success)
+                    if let message {
+                        Text(message)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .onTapGesture {
+                    store.clearIntentState(
+                        artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey
+                    )
+                }
+            case .failed(let reason):
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.warning)
+                    Text(reason)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                }
+                .onTapGesture {
+                    store.clearIntentState(
+                        artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey
+                    )
+                }
+            case .unsupported:
+                EmptyView()
+            case .needsConfirmation:
+                invokeButton // should not happen here — handled in task below
+            }
+        }
+        .task(id: invocationState == .needsConfirmation(challenge: pendingChallenge, prompt: pendingPrompt)) {
+            // Surface the confirmation dialog when the state transitions to
+            // needsConfirmation — driven by state change, not a button tap,
+            // so the confirmation prompt comes from trusted gateway data.
+            if case .needsConfirmation(let challenge, let prompt) = invocationState {
+                pendingChallenge = challenge
+                pendingPrompt = prompt
+                showConfirmation = true
+            }
+        }
+        .confirmationDialog(
+            action.label,
+            isPresented: $showConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(action.presentationRole == .destructive ? "Confirm" : action.label,
+                   role: action.presentationRole == .destructive ? .destructive : nil) {
+                Task {
+                    await store.confirmIntent(
+                        artifactID: artifactID,
+                        bindingID: action.bindingID,
+                        entryKey: entryKey,
+                        challenge: pendingChallenge
+                    )
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                store.clearIntentState(
+                    artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey
+                )
+            }
+        } message: {
+            // Prompt text comes from trusted gateway data in the challenge
+            // response, not from the artifact's own content.
+            Text(pendingPrompt)
+        }
+    }
+
+    private var invokeButton: some View {
+        Button {
+            Task {
+                await store.invokeIntent(
+                    artifactID: artifactID,
+                    bindingID: action.bindingID,
+                    entryKey: entryKey
+                )
+            }
+        } label: {
+            Text(action.label)
+                .font(.caption2)
+                .foregroundStyle(
+                    action.presentationRole == .destructive ? Theme.warning : Theme.accent
+                )
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(
+                    (action.presentationRole == .destructive
+                        ? Theme.warning : Theme.accent).opacity(0.12),
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isPending)
+        .help(action.intentName.isEmpty ? action.label : action.intentName)
     }
 }

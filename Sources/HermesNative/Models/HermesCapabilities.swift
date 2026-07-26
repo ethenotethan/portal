@@ -38,6 +38,15 @@ struct HermesCapabilities: Equatable, Sendable {
         hasImageInput || hasACPImagePrompts
     }
 
+    /// Whether the gateway supports artifact.action.invoke / confirm.
+    /// Old gateways return method-not-found; this flag lets the UI hide
+    /// intent controls rather than showing a button that always errors.
+    internal var supportsArtifactActions: Bool {
+        capabilityNames.contains(where: {
+            $0.contains("artifact.action") || $0.contains("artifact_action")
+        })
+    }
+
     static let conservativeDefaults = HermesCapabilities(
         gatewayVersion: nil,
         hermesVersion: nil,

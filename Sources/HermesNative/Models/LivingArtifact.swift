@@ -23,6 +23,52 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// never round-tripped through the gateway).
     var rev: Int = 0
 
+    /// First-class action declarations on the artifact record — the source of
+    /// truth for HTML artifacts (which can't embed trusted action declarations
+    /// inside page code) and for any kind that wants actions expressed outside
+    /// the content fence. Excluded from Codable (disk cache): repopulated
+    /// from the gateway on next pull.
+    internal var topLevelActions: [ArtifactAction] = []
+
+    // Explicit memberwise init (required once we add CodingKeys for Codable).
+    internal init(id: String, kind: String, title: String, content: String,
+                  updatedAt: Date, updatedBy: String, rev: Int = 0,
+                  topLevelActions: [ArtifactAction] = []) {
+        self.id = id; self.kind = kind; self.title = title
+        self.content = content; self.updatedAt = updatedAt
+        self.updatedBy = updatedBy; self.rev = rev
+        self.topLevelActions = topLevelActions
+    }
+
+    // Custom Codable to exclude topLevelActions (ArtifactAction is not Codable;
+    // it's always re-parsed from the gateway response, never from disk).
+    internal enum CodingKeys: String, CodingKey {
+        case id, kind, title, content, updatedAt, updatedBy, rev
+    }
+
+    internal init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        kind = try c.decode(String.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        content = try c.decode(String.self, forKey: .content)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        updatedBy = try c.decode(String.self, forKey: .updatedBy)
+        rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 0
+        topLevelActions = []
+    }
+
+    internal func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(title, forKey: .title)
+        try c.encode(content, forKey: .content)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(updatedBy, forKey: .updatedBy)
+        try c.encode(rev, forKey: .rev)
+    }
+
     /// Human label for pickers: title if present, else the id.
     var displayName: String { title.isEmpty ? id : title }
 
@@ -41,6 +87,30 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// Decode from a gateway artifact.* result payload.
     static func from(_ d: [String: AnyCodable]?) -> LivingArtifact? {
         guard let d, let id = d["id"]?.stringValue, !id.isEmpty else { return nil }
+        let rawActions: [[String: Any]]? = d["actions"]?.arrayValue?.compactMap { item in
+            guard let dict = item.dictionaryValue else { return nil }
+            return dict.compactMapValues { v -> Any? in
+                switch v {
+                case .string(let s): return s
+                case .int(let i): return i
+                case .double(let n): return n
+                case .bool(let b): return b
+                case .array(let arr): return arr.compactMap { e -> Any? in
+                    if case .string(let s) = e { return s }
+                    if case .int(let i) = e { return i }
+                    return nil
+                }
+                case .dictionary(let inner):
+                    return inner.compactMapValues { w -> Any? in
+                        if case .string(let s) = w { return s }
+                        if case .bool(let b) = w { return b }
+                        return nil
+                    }
+                case .null: return nil
+                }
+            }
+        }
+        let actions = ArtifactAction.parse(rawActions)
         return LivingArtifact(
             id: id,
             kind: d["kind"]?.stringValue ?? "markdown",
@@ -48,7 +118,8 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
             content: d["content"]?.stringValue ?? "",
             updatedAt: d["updated_at"]?.stringValue.flatMap(Self.parseISO) ?? Date(),
             updatedBy: d["updated_by"]?.stringValue ?? "",
-            rev: d["rev"]?.intValue ?? 0
+            rev: d["rev"]?.intValue ?? 0,
+            topLevelActions: actions
         )
     }
 

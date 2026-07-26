@@ -240,7 +240,8 @@ private struct ArtifactDetailView: View {
                     .padding(16)
                 ArtifactKindRenderer(
                     kind: artifact.kind, content: artifact.content,
-                    actionableArtifactID: artifact.id
+                    actionableArtifactID: artifact.id,
+                    topLevelActions: artifact.topLevelActions
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -252,7 +253,8 @@ private struct ArtifactDetailView: View {
                     ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
                     ArtifactKindRenderer(
                         kind: artifact.kind, content: artifact.content,
-                        actionableArtifactID: artifact.id
+                        actionableArtifactID: artifact.id,
+                        topLevelActions: artifact.topLevelActions
                     )
                 }
                 .padding(16)
@@ -275,8 +277,12 @@ struct ArtifactKindRenderer: View {
     /// The artifact id when rendering the LIVE artifact (not a history
     /// revision) — enables declared per-entry actions on dataset/map.
     var actionableArtifactID: String?
+    /// First-class top-level actions for this artifact (HTML kind only —
+    /// structured kinds embed their actions in content). These render as
+    /// trusted SwiftUI chrome above the HTML document; no JS bridge involved.
+    internal var topLevelActions: [ArtifactAction] = []
 
-    var body: some View {
+    internal var body: some View {
         switch kind {
         case "map":
             MapBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
@@ -299,11 +305,61 @@ struct ArtifactKindRenderer: View {
             // Renders in the same WKWebView-backed view chat uses for "Open
             // Page" on an html fence (JS on, ephemeral store, external links
             // open in the system browser).
-            InlineHTMLView(html: content)
-                .frame(minHeight: 320)
+            // Backend intent actions declared on this artifact render as
+            // trusted SwiftUI chrome ABOVE the document — no WKScriptMessageHandler,
+            // no gateway credentials injected into page context. See issue #242.
+            VStack(alignment: .leading, spacing: 0) {
+                if let artifactID = actionableArtifactID, !topLevelActions.isEmpty {
+                    ArtifactTopLevelActionBar(
+                        actions: topLevelActions,
+                        artifactID: artifactID
+                    )
+                }
+                InlineHTMLView(html: content)
+                    .frame(minHeight: 320)
+            }
         default:
             MarkdownContentView(text: content, isStreaming: false)
                 .equatable()
+        }
+    }
+}
+
+// MARK: - Artifact-level action bar (HTML chrome + artifact-scoped intents)
+
+/// Horizontal strip of intent buttons rendered as TRUSTED SwiftUI chrome —
+/// above an HTML document, not inside it. The artifact never receives a
+/// WKScriptMessageHandler, gateway credentials, or an arbitrary command
+/// surface; these buttons are strictly native UI calling the gateway RPC.
+/// Used for intents that operate on the artifact as a whole (e.g. refresh)
+/// rather than on a specific entity row.
+private struct ArtifactTopLevelActionBar: View {
+    let actions: [ArtifactAction]
+    let artifactID: String
+
+    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
+
+    private var intentActions: [ArtifactAction] {
+        guard capabilitiesStore.capabilities.supportsArtifactActions else { return [] }
+        return actions.filter { $0.kind == .intent }
+    }
+
+    var body: some View {
+        if !intentActions.isEmpty {
+            HStack(spacing: 8) {
+                ForEach(intentActions) { action in
+                    // Artifact-level intents use an empty entryKey — they
+                    // operate on the artifact itself, not a specific row.
+                    IntentButton(action: action, entryKey: "", artifactID: artifactID)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Theme.surface)
+            .overlay(alignment: .bottom) {
+                Divider().overlay(Theme.border.opacity(0.5))
+            }
         }
     }
 }
