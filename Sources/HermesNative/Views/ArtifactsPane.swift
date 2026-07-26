@@ -216,27 +216,55 @@ private struct ArtifactDetailView: View {
 
             switch tab {
             case .rendered:
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
-                        ArtifactKindRenderer(
-                            kind: artifact.kind, content: artifact.content,
-                            actionableArtifactID: artifact.id
-                        )
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .task {
-                    cronVM.setGatewayClient(gatewayClientWrapper.client)
-                    await cronVM.refreshJobs()
-                }
+                renderedTab
             case .history:
                 ArtifactHistoryView(artifact: artifact)
             }
         }
         // Tab resets when switching artifacts.
         .id(artifact.id)
+    }
+
+    /// Kinds whose content is a full document that manages its own scrolling
+    /// (a WKWebView for html) — they must FILL the pane with a bounded height
+    /// rather than sit in the outer ScrollView, where an unbounded height
+    /// proposal collapses them to a clipped rectangle.
+    private var kindFillsHeight: Bool { artifact.kind == "html" }
+
+    @ViewBuilder
+    private var renderedTab: some View {
+        if kindFillsHeight {
+            // Maintenance pinned on top; the document fills the rest.
+            VStack(alignment: .leading, spacing: 0) {
+                ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                    .padding(16)
+                ArtifactKindRenderer(
+                    kind: artifact.kind, content: artifact.content,
+                    actionableArtifactID: artifact.id
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .task { await refreshCrons() }
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                    ArtifactKindRenderer(
+                        kind: artifact.kind, content: artifact.content,
+                        actionableArtifactID: artifact.id
+                    )
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .task { await refreshCrons() }
+        }
+    }
+
+    private func refreshCrons() async {
+        cronVM.setGatewayClient(gatewayClientWrapper.client)
+        await cronVM.refreshJobs()
     }
 }
 
@@ -335,10 +363,13 @@ private struct ArtifactHistoryView: View {
                 .padding(10)
             }
             .frame(width: 230)
+            .frame(maxHeight: .infinity)
             .background(Theme.surface.opacity(0.4))
             Divider().overlay(Theme.border.opacity(0.5))
             revisionDetail
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func revisionRow(_ revision: ArtifactRevision) -> some View {
@@ -403,23 +434,39 @@ private struct ArtifactHistoryView: View {
                 .padding(.vertical, 8)
                 Divider().overlay(Theme.border.opacity(0.4))
                 if let content = selectedContent {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 14) {
+                    if artifact.kind == "html" {
+                        // Full-document kinds fill and scroll internally; a diff
+                        // chip pins above the rendered page.
+                        VStack(alignment: .leading, spacing: 0) {
                             if let diff = ArtifactDiff.describe(
                                 kind: artifact.kind, old: content, new: artifact.content
                             ), revision.rev != artifact.rev {
-                                diffSummary(diff)
+                                diffSummary(diff).padding(14)
                             }
                             ArtifactKindRenderer(kind: artifact.kind, content: content)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                if let diff = ArtifactDiff.describe(
+                                    kind: artifact.kind, old: content, new: artifact.content
+                                ), revision.rev != artifact.rev {
+                                    diffSummary(diff)
+                                }
+                                ArtifactKindRenderer(kind: artifact.kind, content: content)
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 } else {
                     HermesProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
             Text("Select a revision to inspect")
                 .font(.caption)
