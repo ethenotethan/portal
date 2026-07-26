@@ -36,13 +36,14 @@ import os
 
 #if DEBUG
 
-/// Whether the hang watchdog was requested at launch. Piggybacks on `--perf`
-/// (so anyone already running perf instrumentation gets it free) and also has
-/// its own `--hang-watchdog` flag for enabling just the watchdog.
-private let hangWatchdogEnabled: Bool = {
-    let args = ProcessInfo.processInfo.arguments
-    return args.contains("--perf") || args.contains("--hang-watchdog")
-}()
+/// ON BY DEFAULT in DEBUG builds (this whole file is `#if DEBUG`), opt out
+/// with `--no-hang-watchdog`. It started life opt-in (`--hang-watchdog`), which
+/// meant ordinary `make run` sessions never had it — beachballs kept reaching
+/// users undetected and every one required a debugger session to localize.
+/// Detection must be the default for the fault log to replace the debugger.
+/// (`--hang-watchdog` is still accepted as a no-op for muscle memory/CI.)
+private let hangWatchdogEnabled: Bool =
+    !ProcessInfo.processInfo.arguments.contains("--no-hang-watchdog")
 
 /// When set (`--hang-fatal`), a detected hang trips `assertionFailure` instead
 /// of only logging a fault — use this in CI UI tests so a hang fails the run.

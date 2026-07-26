@@ -763,15 +763,21 @@ if restoreSessionState(displayID: key) {
             stableSessionByGatewayID[result.sessionID] = key
             gatewayIDByStableSession[key] = result.sessionID
 
-            var parsedMessages = Self.parseHistoryMessages(result.messages)
-            // Restore richer local content (e.g. full HTML blocks the gateway
-            // preview dropped) over the resumed history. The local on-disk
-            // cache keeps the full original message bodies.
-            if !parsedMessages.isEmpty,
-               ChatHistoryStore.shared.hasLocalMessages(forSession: key),
-               let localMessages = await ChatHistoryStore.shared.loadMessagesBackground(forSession: key) {
-                parsedMessages = Self.mergeHistory(gateway: parsedMessages, local: localMessages)
-            }
+            // Parse + merge off the main thread — result.messages can be
+            // hundreds of entries and the loop + object allocation is pure CPU
+            // work that blocks the run loop when done inline on @MainActor.
+            let rawMessages = result.messages
+            let hasLocal = ChatHistoryStore.shared.hasLocalMessages(forSession: key)
+            let localMessages = hasLocal
+                ? await ChatHistoryStore.shared.loadMessagesBackground(forSession: key)
+                : nil
+            let parsedMessages: [ChatMessage] = await Task.detached(priority: .userInitiated) {
+                var parsed = Self.parseHistoryMessages(rawMessages)
+                if !parsed.isEmpty, let local = localMessages {
+                    parsed = Self.mergeHistory(gateway: parsed, local: local)
+                }
+                return parsed
+            }.value
             if !parsedMessages.isEmpty {
                 if var liveState = sessionStates[key], liveState.isStreaming {
                     // The gateway history returned by session.resume is a persisted
@@ -1068,7 +1074,7 @@ if restoreSessionState(displayID: key) {
     /// baseline (it may contain newer turns from other devices) but, for each
     /// aligned assistant message, keep whichever content is longer — which
     /// restores the full HTML the user already had.
-    static func mergeHistory(gateway: [ChatMessage], local: [ChatMessage]) -> [ChatMessage] {
+    nonisolated internal static func mergeHistory(gateway: [ChatMessage], local: [ChatMessage]) -> [ChatMessage] {
         guard !local.isEmpty else { return gateway }
         guard !gateway.isEmpty else { return local }
 
@@ -1094,7 +1100,7 @@ if restoreSessionState(displayID: key) {
         return merged
     }
 
-    static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
+    nonisolated internal static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
 

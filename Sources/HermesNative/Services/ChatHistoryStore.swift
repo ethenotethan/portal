@@ -102,4 +102,21 @@ final class ChatHistoryStore {
         guard let messages = loadMessages(forSession: sessionID) else { return nil }
         return messages.first(where: { $0.role == .user })?.content
     }
+
+    /// Off-main variant for batch title population. Reads and decodes in a
+    /// detached task so the main thread is never blocked.
+    nonisolated internal func firstUserMessageBackground(forSession sessionID: String) async -> String? {
+        let dir = await sessionsDir
+        let file = dir.appendingPathComponent("\(sessionID).json")
+        return await Task.detached(priority: .utility) {
+            guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+            do {
+                let data = try Data(contentsOf: file)
+                let messages = try JSONDecoder().decode([ChatMessage].self, from: data)
+                return messages.first(where: { $0.role == .user })?.content
+            } catch {
+                return nil
+            }
+        }.value
+    }
 }

@@ -206,28 +206,48 @@ final class SessionListViewModel: ObservableObject {
         if localHadNewer { await metaSync.push(buildMetaDocument()) }
     }
 
-    /// Get the display title for a session.
-    /// Priority: local title (from first user message) > gateway title > preview (truncated) > source > short ID.
+    /// Get the display title for a session. MUST be instant (called per
+    /// visible row per render frame) — no file I/O, no JSON decode.
     func titleForSession(_ session: Session) -> String {
-        // 1. Local title from first user message (highest priority)
         if let local = localTitles[session.id], !local.isEmpty {
             return local
         }
-        // 2. Gateway-provided title
         if let title = session.title, !title.isEmpty {
             return title
         }
-        // 3. Preview (truncated to 50 chars)
         if let preview = session.preview, !preview.isEmpty {
             return String(preview.prefix(50)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        // 4. Local chat history — extract first user message as title
-        if let firstUser = ChatHistoryStore.shared.firstUserMessage(forSession: session.id) {
-            let title = String(firstUser.prefix(60)).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !title.isEmpty { return title }
-        }
-        // 5. Short ID
         return session.id.prefix(8).description
+    }
+
+    /// Populate cached titles for sessions that would otherwise show a short
+    /// ID. Runs file I/O in Task.detached so the main thread is never blocked.
+    /// Called once after refreshSessions completes.
+    internal func populateMissingTitles() {
+        let needing: [String] = sessions.compactMap { session in
+            if localTitles[session.id] != nil { return nil }
+            if session.title != nil { return nil }
+            if session.preview != nil { return nil }
+            return session.id
+        }
+        guard !needing.isEmpty else { return }
+        Task.detached(priority: .utility) { [needing] in
+            var resolved: [String: String] = [:]
+            for id in needing {
+                if let first = await ChatHistoryStore.shared.firstUserMessageBackground(forSession: id) {
+                    let title = String(first.prefix(60)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !title.isEmpty { resolved[id] = title }
+                }
+            }
+            guard !resolved.isEmpty else { return }
+            await MainActor.run { [resolved] in
+                for (id, title) in resolved {
+                    self._localTitles[id] = title
+                }
+                self.scheduleDefaultsFlush()
+            }
+        }
     }
 
     /// Get the subtitle for a session (second line info).
@@ -435,6 +455,7 @@ final class SessionListViewModel: ObservableObject {
             // Silently fail — session list is non-critical
         }
         isLoading = false
+        populateMissingTitles()
 
         // Refresh cron jobs if a cron view model is wired up
         if refreshCron, let cronVM = cronViewModel {
