@@ -248,6 +248,15 @@ final class WikiGraphViewModel: ObservableObject {
         await load(source: client, wiki: wiki)
     }
 
+    /// Called by ContentView at gateway-connect time so the graph is ready
+    /// before the user opens the wiki panel. Skips if a load is already in
+    /// flight or data is present — safe to call on every reconnect.
+    internal func eagerLoad(client: GatewayClient) async {
+        guard !isLoading, graph.pages.isEmpty else { return }
+        await discoverWikis(client: client)
+        await load(client: client, wiki: selectedWikiPath)
+    }
+
     /// Source-generic load: Hermes (GatewayClient) and Centaur
     /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
     /// Hermes-only (multi-wiki gateways); other sources ignore it.

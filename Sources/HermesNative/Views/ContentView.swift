@@ -18,6 +18,10 @@ struct ContentView: View {
     @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var activityInbox = ActivityInboxViewModel()
+    // Hoisted so the home-gateway wiki graph loads at connect time, not when
+    // the user first opens the wiki panel. By the time the panel is visible
+    // the graph is already there (or close to it) — no "Loading…" wait.
+    @StateObject private var wikiViewModel = WikiGraphViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
     @StateObject private var cronPoller = CronPoller()
@@ -96,12 +100,14 @@ struct ContentView: View {
                 wireUpClient()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
+                    await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client)
                 }
             }
         }
         .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
             if connected {
                 Task { await sessionList.refreshSessions() }
+                Task { await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client) }
                 // Register this device's APNs token with whichever gateway we
                 // just connected to (no-op until the OS grants a token, and
                 // once per gateway+token thereafter).
@@ -163,6 +169,7 @@ struct ContentView: View {
             wireUpClient()
             if gatewayClientWrapper.isConnected {
                 await sessionList.refreshSessions()
+                await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client)
             }
         }
     }
@@ -187,7 +194,7 @@ struct ContentView: View {
             }
             .tag(1)
 
-            WikiGraphView()
+            WikiGraphView(viewModel: wikiViewModel)
                 .environmentObject(gatewayClientWrapper)
                 .tabItem {
                     Label("Wiki", systemImage: "network")
@@ -1028,7 +1035,7 @@ struct ContentView: View {
             }
 
             if showWikiGraph {
-                WikiGraphView(overrideSource: centaurWikiSource)
+                WikiGraphView(viewModel: wikiViewModel, overrideSource: centaurWikiSource)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)

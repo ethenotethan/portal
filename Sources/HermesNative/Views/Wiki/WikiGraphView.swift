@@ -24,8 +24,13 @@ struct WikiGraphView: View {
     /// the same graph/reader/sidebar UI renders the Darkbloom KB.
     var overrideSource: (any WikiSource)?
 
-    @StateObject private var viewModel = WikiGraphViewModel()
+    @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+
+    internal init(viewModel: WikiGraphViewModel = WikiGraphViewModel(), overrideSource: (any WikiSource)? = nil) {
+        self.viewModel = viewModel
+        self.overrideSource = overrideSource
+    }
 
     /// Hermes-only chrome (wiki picker, taxonomy from wiki.list) hides when
     /// browsing an override source — those RPCs don't exist there.
@@ -88,6 +93,11 @@ struct WikiGraphView: View {
                 )
             }
             .onAppear {
+                // For override sources (Centaur), always load — the source
+                // changes per session and the VM is shared from ContentView.
+                // For the home gateway, skip if already loaded eagerly at
+                // connect time so opening the panel doesn't re-fetch.
+                guard isOverride || viewModel.graph.pages.isEmpty else { return }
                 Task { await attemptInitialLoad() }
             }
             .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
@@ -272,7 +282,7 @@ struct WikiGraphView: View {
             VStack(spacing: 10) {
                 if viewModel.isLoading {
                     ProgressView()
-                    Text("Loading wiki…")
+                    Text("Loading…")
                         .font(.callout)
                         .foregroundStyle(Theme.secondary)
                 } else if !isOverride && !gatewayClientWrapper.isConnected {
