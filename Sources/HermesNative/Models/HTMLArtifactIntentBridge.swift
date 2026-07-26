@@ -67,10 +67,16 @@ internal struct HTMLArtifactIntentRequest: Equatable, Sendable {
 /// arbitrary RPC surface is exposed to page JavaScript.
 internal enum HTMLArtifactIntentBridge {
     internal static func userScriptSource(nonce: String) -> String {
-        let nonceLiteral = String(
-            data: try! JSONEncoder().encode(nonce),
-            encoding: .utf8
-        )!
+        // JSON-encode the nonce so it embeds as a safe JS string literal.
+        // Encoding a String can't realistically fail; on the impossible error,
+        // fall back to an empty JS string rather than force-unwrapping.
+        let nonceLiteral: String
+        do {
+            let data = try JSONEncoder().encode(nonce)
+            nonceLiteral = String(data: data, encoding: .utf8) ?? "\"\""
+        } catch {
+            nonceLiteral = "\"\""
+        }
         return #"""
     (() => {
       'use strict';

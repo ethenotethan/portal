@@ -73,6 +73,13 @@ internal struct InlineTurnTimelineStrip: View {
         Self.topPad + Self.bottomPad + drawableHeight
     }
 
+    /// A bar is still growing only if the turn is streaming AND some non-
+    /// reasoning node is running (started, not completed). When false the strip
+    /// is static, so the growth timer stays idle — no per-frame work.
+    private var hasGrowingBar: Bool {
+        isStreaming && nodes.contains { $0.status == .running && $0.category != .reasoning }
+    }
+
     /// World width of the laid-out graph (before fitting).
     private var worldWidth: CGFloat {
         max(engine.totalSize.width, 1)
@@ -93,13 +100,15 @@ internal struct InlineTurnTimelineStrip: View {
         .onTapGesture { onExpand?() }
         .onAppear { relayout() }
         .onChange(of: nodes.count) { _, _ in relayout() }
-        // Advance "now" while streaming so running bars grow and the fit
-        // rescales; animate the change so bars glide rather than jump.
-        .onReceive(Timer.publish(every: 1.0 / 12.0, on: .main, in: .common).autoconnect()) { tick in
-            guard isStreaming else { return }
-            withAnimation(.linear(duration: 1.0 / 12.0)) {
-                now = tick.timeIntervalSinceReferenceDate
-            }
+        // Advance "now" only while a bar is actually GROWING (a running,
+        // non-reasoning node) — otherwise the strip is static and needs no
+        // ticking. Plain assignment: the Canvas redraw is the animation;
+        // wrapping a 4Hz state write in withAnimation piled up transactions on
+        // the main thread and beachballed during streaming. 4Hz is plenty for
+        // a bar that grows ~46pt/sec.
+        .onReceive(Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()) { tick in
+            guard hasGrowingBar else { return }
+            now = tick.timeIntervalSinceReferenceDate
         }
         .help("Live timeline — tap to open the session graph")
     }

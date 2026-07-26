@@ -3,9 +3,9 @@ import Testing
 @testable import HermesNative
 
 @Suite("HTML artifact intent bridge")
-struct HTMLArtifactIntentBridgeTests {
+internal struct HTMLArtifactIntentBridgeTests {
     @Test("decodes only the narrow invoke URL contract")
-    func decodesInvokeURL() throws {
+    internal func decodesInvokeURL() throws {
         let url = try #require(URL(string: "hermes-artifact-action://invoke?binding_id=start-issue&entity_ref=issues%2FARC-42&nonce=test-nonce"))
         let request = try #require(HTMLArtifactIntentRequest(url: url, expectedNonce: "test-nonce"))
 
@@ -16,7 +16,7 @@ struct HTMLArtifactIntentBridgeTests {
     }
 
     @Test("rejects ordinary links, forged capabilities, duplicate fields, and missing bindings")
-    func rejectsAnythingOutsideContract() throws {
+    internal func rejectsAnythingOutsideContract() throws {
         let urls = [
             "https://linear.app/ARC-42",
             "hermes-artifact-action://delete?binding_id=x&nonce=test-nonce",
@@ -33,7 +33,7 @@ struct HTMLArtifactIntentBridgeTests {
     }
 
     @Test("binding IDs are bounded and use stable identifier characters")
-    func validatesBindingIDs() throws {
+    internal func validatesBindingIDs() throws {
         let spaced = try #require(URL(string: "hermes-artifact-action://invoke?binding_id=start%20issue&nonce=test-nonce"))
         #expect(HTMLArtifactIntentRequest(url: spaced, expectedNonce: "test-nonce") == nil)
 
@@ -43,7 +43,7 @@ struct HTMLArtifactIntentBridgeTests {
     }
 
     @Test("resolves only declared intent actions")
-    func resolvesDeclaredIntent() {
+    internal func resolvesDeclaredIntent() {
         let actions = ArtifactAction.parse([
             ["type": "intent", "id": "start-issue", "label": "Start", "intent": "linear.issue.start"],
             ["type": "toggle", "field": "selected"],
@@ -56,7 +56,7 @@ struct HTMLArtifactIntentBridgeTests {
     }
 
     @Test("injected bridge recognizes inert attributes and carries an isolated capability")
-    func bridgeScriptIsNarrow() {
+    internal func bridgeScriptIsNarrow() {
         let script = HTMLArtifactIntentBridge.userScriptSource(nonce: "test-nonce")
 
         #expect(script.contains("data-hermes-binding"))

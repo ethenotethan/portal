@@ -1483,9 +1483,9 @@ struct InlineHTMLView: View {
     /// Present only for a live HTML living artifact. Transcript HTML and
     /// revision previews omit the callback, so inert binding markers cannot
     /// invoke anything outside the current authoritative artifact.
-    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
 
-    init(
+    internal init(
         html: String,
         onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil
     ) {
@@ -1507,7 +1507,7 @@ struct InlineHTMLView: View {
 #if os(macOS)
 struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
-    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1543,7 +1543,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
 #else
 struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
-    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1588,12 +1588,12 @@ struct InlineHTMLUIView: UIViewRepresentable {
 @MainActor
 final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     var lastLoadedHTML: String?
-    var onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal var onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     /// Per-webview capability known only to the isolated content world and
     /// the native navigation delegate. The page cannot auto-submit an action.
-    let nonce = UUID().uuidString
+    internal let nonce = UUID().uuidString
 
-    init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
+    internal init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
         self.onArtifactIntent = onArtifactIntent
     }
 
