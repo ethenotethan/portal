@@ -485,7 +485,6 @@
 		2C9CE5DF772697EFC0D7F9F1 /* Skill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Skill.swift; sourceTree = "<group>"; };
 		2CB34A11D78E3CDA3A1BECC2 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		2DAEE3B6FB366FA0C3197EA7 /* FileDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDownloadManager.swift; sourceTree = "<group>"; };
-		3049B88C41926DCE39EBFA68 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		30743804431E0415F8F6D1F8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3179815C2A0EC7D43C9213AC /* CFAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CFAuthView.swift; sourceTree = "<group>"; };
 		342D787380CE678F4DDFEB8F /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -544,6 +543,7 @@
 		787CA06C97FDC81CAA11DBAE /* DiagramExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagramExplorerView.swift; sourceTree = "<group>"; };
 		7995EE8F5DD7C46B85883D14 /* WikiEventFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventFeedView.swift; sourceTree = "<group>"; };
 		7DCC03393A6C612B15A7822C /* WikiChangesetInlineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetInlineDiff.swift; sourceTree = "<group>"; };
+		7EF6A61BD50052E8AF75353E /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		7FA16F415470C4A20A1155A3 /* SessionListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListViewModel.swift; sourceTree = "<group>"; };
 		80C19CE5657AD3FD6547FC3D /* ActivityItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityItem.swift; sourceTree = "<group>"; };
 		817CE76AF8753D467DA32202 /* LivingArtifactCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifactCapture.swift; sourceTree = "<group>"; };
@@ -787,22 +787,13 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		38FF4F7921CC89AD4F5BF339 /* hn-inlinegraph */ = {
-			isa = PBXGroup;
-			children = (
-				3049B88C41926DCE39EBFA68 /* Local.xcconfig */,
-			);
-			name = "hn-inlinegraph";
-			path = .;
-			sourceTree = "<group>";
-		};
 		3A598FBA90BA765239BB519B = {
 			isa = PBXGroup;
 			children = (
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				38FF4F7921CC89AD4F5BF339 /* hn-inlinegraph */,
+				91D4DBCD8C8CA8C8330BB9CE /* hn-stripfit */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -952,6 +943,15 @@
 				1F3F9B6602D553E52ACB6B45 /* Quiz */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		91D4DBCD8C8CA8C8330BB9CE /* hn-stripfit */ = {
+			isa = PBXGroup;
+			children = (
+				7EF6A61BD50052E8AF75353E /* Local.xcconfig */,
+			);
+			name = "hn-stripfit";
+			path = .;
 			sourceTree = "<group>";
 		};
 		977253029943CF1B5C91054C /* Wiki */ = {
@@ -1743,7 +1743,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3049B88C41926DCE39EBFA68 /* Local.xcconfig */;
+			baseConfigurationReference = 7EF6A61BD50052E8AF75353E /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1769,7 +1769,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3049B88C41926DCE39EBFA68 /* Local.xcconfig */;
+			baseConfigurationReference = 7EF6A61BD50052E8AF75353E /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1795,7 +1795,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3049B88C41926DCE39EBFA68 /* Local.xcconfig */;
+			baseConfigurationReference = 7EF6A61BD50052E8AF75353E /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1899,7 +1899,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3049B88C41926DCE39EBFA68 /* Local.xcconfig */;
+			baseConfigurationReference = 7EF6A61BD50052E8AF75353E /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";

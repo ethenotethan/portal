@@ -48,7 +48,7 @@ internal struct InlineTurnTimelineStrip: View {
     /// rebuilt by the caller as live events arrive.
     internal let nodes: [ThoughtGraphNode]
     /// Whether the turn is still streaming — drives the growing right edge and
-    /// the auto-scroll-to-now behavior.
+    /// the live rescale so the whole turn keeps fitting the strip width.
     internal let isStreaming: Bool
     /// Tap handler — opens the full session graph.
     internal var onExpand: (() -> Void)?
@@ -62,6 +62,7 @@ internal struct InlineTurnTimelineStrip: View {
     private static let maxLanes = 4
     private static let topPad: CGFloat = 6
     private static let bottomPad: CGFloat = 6
+    private static let sidePad: CGFloat = 8
 
     private var laneCount: Int { max(1, min(engine.lanes.count, Self.maxLanes)) }
 
@@ -69,44 +70,62 @@ internal struct InlineTurnTimelineStrip: View {
         Self.topPad + Self.bottomPad + CGFloat(laneCount) * Self.laneStripHeight
     }
 
-    /// World width of the laid-out graph (for the scroll content).
+    /// World width of the laid-out graph (before fitting).
     private var worldWidth: CGFloat {
         max(engine.totalSize.width, 1)
     }
 
     internal var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                Canvas { context, size in
-                    draw(context: context, size: size)
-                }
-                .frame(width: worldWidth, height: contentHeight)
-                // Anchor at the far right so auto-scroll-to-now works.
-                .overlay(alignment: .trailing) {
-                    Color.clear.frame(width: 1).id("live-edge")
-                }
-            }
-            .onChange(of: nodes.count) { _, _ in
-                relayout()
-                if isStreaming { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("live-edge", anchor: .trailing) } }
-            }
+        // Fit-to-width: the whole turn always fits the strip. As time passes
+        // the world grows, so the fit scale shrinks and bars smoothly rescale
+        // in place — the timeline compresses rather than scrolling off-screen.
+        Canvas { context, size in
+            draw(context: context, size: size)
         }
         .frame(height: contentHeight)
+        .frame(maxWidth: .infinity)
         .background(Theme.surface.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
         .overlay(alignment: .topTrailing) { expandHint }
         .contentShape(Rectangle())
         .onTapGesture { onExpand?() }
         .onAppear { relayout() }
-        // Grow running bars + advance "now" while streaming.
+        .onChange(of: nodes.count) { _, _ in relayout() }
+        // Advance "now" while streaming so running bars grow and the fit
+        // rescales; animate the change so bars glide rather than jump.
         .onReceive(Timer.publish(every: 1.0 / 12.0, on: .main, in: .common).autoconnect()) { tick in
             guard isStreaming else { return }
-            now = tick.timeIntervalSinceReferenceDate
+            withAnimation(.linear(duration: 1.0 / 12.0)) {
+                now = tick.timeIntervalSinceReferenceDate
+            }
         }
         .help("Live timeline — tap to open the session graph")
     }
 
     private func relayout() {
         engine.layout(nodes: nodes, now: Date())
+    }
+
+    /// Scale mapping world-x → the strip's available width. Recomputed each
+    /// draw against the live world width so the turn stays fully framed.
+    private func fitScale(for size: CGSize) -> CGFloat {
+        let avail = max(1, size.width - Self.sidePad * 2)
+        // For a running turn, extend the world to "now" so the fit accounts
+        // for the growing bar and doesn't clip the live edge.
+        let liveWorld = liveWorldWidth()
+        return min(1, avail / liveWorld)
+    }
+
+    /// World width including any still-running bar grown to `now`.
+    private func liveWorldWidth() -> CGFloat {
+        let nowDate = Date()
+        let nodeByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        var maxRight = engine.totalSize.width
+        for layout in engine.layouts {
+            guard let node = nodeByID[layout.nodeID] else { continue }
+            let w = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
+            maxRight = max(maxRight, layout.x + w + ThoughtGraphLayoutEngine.leftGutter)
+        }
+        return max(maxRight, 1)
     }
 
     private var expandHint: some View {
@@ -121,8 +140,9 @@ internal struct InlineTurnTimelineStrip: View {
     private func draw(context: GraphicsContext, size: CGSize) {
         let nowDate = Date()
         let nodeByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
-        // Scale the engine's world-y (laneHeight pitch) down to the strip pitch.
-        let laneScale = Self.laneStripHeight / ThoughtGraphLayoutEngine.laneHeight
+        let scale = fitScale(for: size)
+        // Map a world-x into fitted screen-x (world y stays on strip lanes).
+        func sx(_ worldX: CGFloat) -> CGFloat { Self.sidePad + worldX * scale }
 
         for layout in engine.layouts {
             guard let node = nodeByID[layout.nodeID] else { continue }
@@ -133,7 +153,7 @@ internal struct InlineTurnTimelineStrip: View {
 
             if node.category == .reasoning {
                 let s: CGFloat = 8
-                let cx = layout.x + s / 2
+                let cx = sx(layout.x + ThoughtGraphLayoutEngine.markerSize / 2)
                 var diamond = Path()
                 diamond.move(to: CGPoint(x: cx, y: cy - s / 2))
                 diamond.addLine(to: CGPoint(x: cx + s / 2, y: cy))
@@ -144,9 +164,11 @@ internal struct InlineTurnTimelineStrip: View {
                 continue
             }
 
-            let width = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
+            let worldWidth = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
             let barH: CGFloat = 14
-            let rect = CGRect(x: layout.x, y: cy - barH / 2, width: width, height: barH)
+            let x = sx(layout.x)
+            let w = max(2, worldWidth * scale)   // floor so a bar never vanishes when fitted
+            let rect = CGRect(x: x, y: cy - barH / 2, width: w, height: barH)
             let shape = Path(roundedRect: rect, cornerRadius: 3)
             var ctx = context
             if node.status == .running {
@@ -161,8 +183,8 @@ internal struct InlineTurnTimelineStrip: View {
                 ctx.stroke(shape, with: .color(.red), lineWidth: 1.2)
             }
 
-            // Inline label only when the bar has room.
-            if width >= 30 {
+            // Inline label only when the fitted bar has room.
+            if w >= 30 {
                 var labelCtx = ctx
                 labelCtx.clip(to: shape)
                 labelCtx.draw(
