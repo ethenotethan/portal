@@ -139,7 +139,7 @@ struct SkillGraph: Hashable, Codable {
 
 private extension Optional where Wrapped == String {
     var nilIfEmpty: String? {
-        guard let value = self, !value.isEmpty else { return nil }
-        return value
+        guard let self, !self.isEmpty else { return nil }
+        return self
     }
 }

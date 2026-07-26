@@ -71,10 +71,9 @@ struct FeedArticle: Codable, Identifiable, Hashable {
 
     /// Compact single-paragraph preview for the collapsed card.
     var previewSummary: String {
-        let text = displaySummary
+        return displaySummary
             .replacingOccurrences(of: #"^#{1,6}\s+"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"\n#{1,6}\s+"#, with: "\n", options: .regularExpression)
-        return text
     }
 
     var isTwitter: Bool { source == "twitter" }

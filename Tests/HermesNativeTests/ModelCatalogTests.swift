@@ -8,10 +8,9 @@ struct ModelCatalogTests {
     /// Decode helper: JSON string → AnyCodable dictionary, the same shape a
     /// JSON-RPC result reaches ModelCatalog.from as.
     private func result(_ json: String) -> [String: AnyCodable] {
-        let decoded = try! JSONDecoder().decode(
+        return try! JSONDecoder().decode(
             [String: AnyCodable].self, from: json.data(using: .utf8)!
         )
-        return decoded
     }
 
     @Test("Decodes the model.options payload shape")

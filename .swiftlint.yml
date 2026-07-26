@@ -60,6 +60,15 @@ opt_in_rules:
   # tri-state) are frozen in the baseline; new optional bools must justify
   # themselves by being added there deliberately.
   - discouraged_optional_boolean  # baseline: 7 existing (Codable / tri-state)
+  # Zero-baseline guards (added 2026-07, batch 3). Every one started at zero, or
+  # the handful were `swiftlint --fix`-corrected in the enabling PR — nothing is
+  # grandfathered, so any hit is the contributor's own new code.
+  - optional_data_string_conversion  # String(data:encoding:)! → non-crashing init; the force-unwrap crashes on invalid UTF-8
+  - prohibited_super_call       # don't call super where it's forbidden (e.g. loadView)
+  - discouraged_object_literal  # #colorLiteral/#imageLiteral — opaque, non-diffable
+  - private_action              # @IBAction must be private (no external callers)
+  - self_binding                # `guard let self = self` not `guard let foo = self` (fixed 1 existing)
+  - direct_return               # return the expression, don't assign-then-return (fixed 2 existing)
 
 disabled_rules:
   - trailing_comma
