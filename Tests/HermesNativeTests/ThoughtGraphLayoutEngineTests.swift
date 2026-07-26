@@ -6,7 +6,7 @@ import Foundation
 /// duration (floored), lanes stack by actor, running bars grow to `now`.
 @MainActor
 @Suite("Thought graph timeline layout")
-struct ThoughtGraphLayoutEngineTests {
+internal struct ThoughtGraphLayoutEngineTests {
 
     private typealias Engine = ThoughtGraphLayoutEngine
 
@@ -31,44 +31,44 @@ struct ThoughtGraphLayoutEngineTests {
     }
 
     @Test("x is proportional to time since the earliest start")
-    func xTracksTime() {
+    internal func xTracksTime() throws {
         let engine = Engine()
         engine.layout(nodes: [
             node("a", start: 0, duration: 1),
             node("b", start: 10, duration: 1),
         ])
-        let a = layout(engine, "a")!
-        let b = layout(engine, "b")!
+        let a = try #require(layout(engine, "a"))
+        let b = try #require(layout(engine, "b"))
         // b starts 10s after a → 10 * pixelsPerSecond further right.
         #expect(abs((b.x - a.x) - 10 * Engine.pixelsPerSecond) < 0.001)
     }
 
     @Test("width is proportional to duration")
-    func widthTracksDuration() {
+    internal func widthTracksDuration() throws {
         let engine = Engine()
         engine.layout(nodes: [node("a", start: 0, duration: 3)])
-        let a = layout(engine, "a")!
+        let a = try #require(layout(engine, "a"))
         #expect(abs(a.width - 3 * Engine.pixelsPerSecond) < 0.001)
     }
 
     @Test("sub-threshold durations are floored to minBarWidth, not zero")
-    func minWidthFloor() {
+    internal func minWidthFloor() throws {
         let engine = Engine()
         engine.layout(nodes: [node("fast", start: 0, duration: 0.001)])
-        let bar = layout(engine, "fast")!
+        let bar = try #require(layout(engine, "fast"))
         #expect(bar.width == Engine.minBarWidth)
     }
 
     @Test("subagent tool calls stack into a lane below the main loop")
-    func laneStacking() {
+    internal func laneStacking() throws {
         let engine = Engine()
         engine.layout(nodes: [
             node("m1", start: 0, duration: 1),
             node("sub", start: 1, duration: 5, agentID: "s1", name: "agent"),
             node("s1t1", start: 2, duration: 1, ownerAgentID: "s1"),
         ])
-        let main = layout(engine, "m1")!
-        let subTool = layout(engine, "s1t1")!
+        let main = try #require(layout(engine, "m1"))
+        let subTool = try #require(layout(engine, "s1t1"))
         // Main lane is y=0; the subagent lane sits one laneHeight below.
         #expect(main.y == 0)
         #expect(subTool.y == Engine.laneHeight)
@@ -76,19 +76,20 @@ struct ThoughtGraphLayoutEngineTests {
     }
 
     @Test("a running bar (no completedAt) grows with now")
-    func runningBarGrows() {
+    internal func runningBarGrows() throws {
         let engine = Engine()
         let running = node("live", start: 0, duration: nil, complete: false)
         engine.layout(nodes: [running])
-        let base = layout(engine, "live")!
+        let base = try #require(layout(engine, "live"))
         // 8 seconds after its start, the live width reflects 8s of elapsed time.
-        let now = running.startedAt!.addingTimeInterval(8)
+        let started = try #require(running.startedAt)
+        let now = started.addingTimeInterval(8)
         let w = engine.liveWidth(for: running, laidOut: base.width, now: now)
         #expect(abs(w - 8 * Engine.pixelsPerSecond) < 0.001)
     }
 
     @Test("a spawned agent gets a spawn edge from its delegating parent")
-    func spawnEdge() {
+    internal func spawnEdge() {
         let engine = Engine()
         var agent = node("agent-s1", start: 2, duration: 4, agentID: "s1", name: "agent")
         agent.parentIDs = ["deleg"]
@@ -100,7 +101,7 @@ struct ThoughtGraphLayoutEngineTests {
     }
 
     @Test("empty input clears all published state")
-    func emptyClears() {
+    internal func emptyClears() {
         let engine = Engine()
         engine.layout(nodes: [node("a", start: 0, duration: 1)])
         #expect(!engine.layouts.isEmpty)

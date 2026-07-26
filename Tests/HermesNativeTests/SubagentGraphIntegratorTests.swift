@@ -106,7 +106,7 @@ struct SubagentGraphIntegratorTests {
     }
 
     @Test("layout assigns lanes: main loop first, one lane per agent")
-    func layoutAssignsLanes() {
+    internal func layoutAssignsLanes() throws {
         let t0 = Date(timeIntervalSinceReferenceDate: 1000)
         let nodes = [
             ThoughtGraphNode(id: "t1", name: "search_files", isComplete: true, startedAt: t0),
@@ -126,16 +126,19 @@ struct SubagentGraphIntegratorTests {
         #expect(engine.lanes[1].id == "s1")
         #expect(engine.lanes[1].isAgent)
 
-        // Main-lane nodes share an x; agent-lane nodes share a different x.
-        let x = { (id: String) in engine.layout(for: id)!.x }
-        #expect(x("t1") == x("t2"))
-        #expect(x("t2") == x("t3"))
-        #expect(x("agent-s1") == x("agent-s1-t1"))
-        #expect(x("t1") != x("agent-s1"))
+        // Time-plot: lanes stack on the y-axis, so an actor's nodes share a y;
+        // time runs on x, so nodes with different starts get different x.
+        func x(_ id: String) throws -> Double { try #require(engine.layout(for: id)).x }
+        func y(_ id: String) throws -> Double { try #require(engine.layout(for: id)).y }
+        #expect(try y("t1") == y("t2"))                 // both main lane
+        #expect(try y("t2") == y("t3"))
+        #expect(try y("agent-s1") == y("agent-s1-t1"))  // both the subagent lane
+        #expect(try y("t1") != y("agent-s1"))           // different lanes
+        #expect(try x("t1") != x("t2"))                 // started 1s apart
     }
 
-    @Test("layout orders rows chronologically and chains lanes with real edges")
-    func layoutOrdersChronologically() {
+    @Test("layout positions nodes by start time and links spawns")
+    internal func layoutOrdersChronologically() throws {
         let t0 = Date(timeIntervalSinceReferenceDate: 1000)
         let nodes = [
             ThoughtGraphNode(id: "t2", name: "delegate_task", startedAt: t0.addingTimeInterval(1)),
@@ -148,13 +151,14 @@ struct SubagentGraphIntegratorTests {
         let engine = ThoughtGraphLayoutEngine()
         engine.layout(nodes: nodes)
 
-        let y = { (id: String) in engine.layout(for: id)!.y }
-        #expect(y("t1") < y("t2"))
-        #expect(y("t2") < y("agent-s1"))
+        // Time flows on x now: an earlier start is further left.
+        func x(_ id: String) throws -> Double { try #require(engine.layout(for: id)).x }
+        #expect(try x("t1") < x("t2"))
 
-        // Main chain edge t1→t2, spawn edge t2→agent-s1.
-        #expect(engine.edges.contains(.init(from: "t1", to: "t2", kind: .main)))
+        // Only spawn edges are drawn (t2 delegated agent-s1); within-lane
+        // sequence is conveyed by left→right adjacency, not a .main edge.
         #expect(engine.edges.contains(.init(from: "t2", to: "agent-s1", kind: .spawn)))
+        #expect(!engine.edges.contains { $0.kind == .main })
     }
 
     @Test("agent with unknown parent spawn-links to the latest main-lane node")

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "SessionRunEventStore")
 
 struct SessionRunEvent: Identifiable, Codable {
     let id: UUID
@@ -124,10 +127,12 @@ final class SessionRunHistoryStore: ObservableObject {
         let dir = storageDir
         let file = storeFile
         Task.detached(priority: .background) {
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(events) {
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                try? data.write(to: file, options: .atomic)
+            do {
+                let data = try JSONEncoder().encode(events)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try data.write(to: file, options: .atomic)
+            } catch {
+                log.error("session-run-event save failed: \(error.localizedDescription)")
             }
         }
         UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
@@ -143,18 +148,22 @@ final class SessionRunHistoryStore: ObservableObject {
 
     private func loadFromFile() {
         guard fileManager.fileExists(atPath: storeFile.path) else { return }
-        guard let data = try? Data(contentsOf: storeFile) else { return }
-        if let decoded = try? JSONDecoder().decode([SessionRunEvent].self, from: data) {
-            events = decoded
+        do {
+            let data = try Data(contentsOf: storeFile)
+            events = try JSONDecoder().decode([SessionRunEvent].self, from: data)
+        } catch {
+            log.error("session-run-event load failed: \(error.localizedDescription)")
         }
     }
 
     private func loadFromUserDefaults() {
         guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
-        if let decoded = try? JSONDecoder().decode([SessionRunEvent].self, from: data) {
-            events = decoded
+        do {
+            events = try JSONDecoder().decode([SessionRunEvent].self, from: data)
             performSave()
             UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        } catch {
+            log.error("session-run-event migration decode failed: \(error.localizedDescription)")
         }
     }
 }

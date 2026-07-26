@@ -556,7 +556,6 @@
 		904504E2C49E02801D8061BE /* MainThreadWatchdog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainThreadWatchdog.swift; sourceTree = "<group>"; };
 		91DFAD60A0B5D0CF3069AF59 /* ReasoningSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningSummarizer.swift; sourceTree = "<group>"; };
 		93ABC37DAEF78165B9F9173C /* AttachmentChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipView.swift; sourceTree = "<group>"; };
-		93D582F1B20156F45FB002C5 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeOfflineSmokeUITests.swift; sourceTree = "<group>"; };
 		98AC0B5715E7BCBE84B1DD9D /* CronListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListViewModel.swift; sourceTree = "<group>"; };
 		98EAA5520C82637C026B91DB /* PromptBreakdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdown.swift; sourceTree = "<group>"; };
@@ -623,6 +622,7 @@
 		E5AF7C8FD90209C14BD37A45 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		E64C419357E72FE3B8BFCAE7 /* QuizSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizSheet.swift; sourceTree = "<group>"; };
 		E75C11A7DC7195F4353C93DA /* idle.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idle.json; sourceTree = "<group>"; };
+		E784AF460ED98FA24AE960F2 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		E792BA9A198723943260CC51 /* RenderMemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderMemo.swift; sourceTree = "<group>"; };
 		E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPathPickerSheet.swift; sourceTree = "<group>"; };
 		E92CD7D282D79F69DD027BFE /* SkillModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModels.swift; sourceTree = "<group>"; };
@@ -787,7 +787,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				56ED2F6DD53A291CF7383C3A /* hn-artifactfix */,
+				692B308E3D04958716E7462C /* hn-lintfix */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -831,12 +831,12 @@
 			path = ViewModels;
 			sourceTree = "<group>";
 		};
-		56ED2F6DD53A291CF7383C3A /* hn-artifactfix */ = {
+		692B308E3D04958716E7462C /* hn-lintfix */ = {
 			isa = PBXGroup;
 			children = (
-				93D582F1B20156F45FB002C5 /* Local.xcconfig */,
+				E784AF460ED98FA24AE960F2 /* Local.xcconfig */,
 			);
-			name = "hn-artifactfix";
+			name = "hn-lintfix";
 			path = .;
 			sourceTree = "<group>";
 		};
@@ -1731,7 +1731,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 93D582F1B20156F45FB002C5 /* Local.xcconfig */;
+			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1757,7 +1757,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 93D582F1B20156F45FB002C5 /* Local.xcconfig */;
+			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1783,7 +1783,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 93D582F1B20156F45FB002C5 /* Local.xcconfig */;
+			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1887,7 +1887,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 93D582F1B20156F45FB002C5 /* Local.xcconfig */;
+			baseConfigurationReference = E784AF460ED98FA24AE960F2 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";

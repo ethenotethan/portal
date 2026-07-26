@@ -27,8 +27,9 @@ struct WikiGraphView: View {
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
 
-    internal init(viewModel: WikiGraphViewModel = WikiGraphViewModel(), overrideSource: (any WikiSource)? = nil) {
-        self.viewModel = viewModel
+    @MainActor
+    internal init(viewModel: WikiGraphViewModel? = nil, overrideSource: (any WikiSource)? = nil) {
+        self.viewModel = viewModel ?? WikiGraphViewModel()
         self.overrideSource = overrideSource
     }
 

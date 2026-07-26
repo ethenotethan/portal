@@ -62,7 +62,7 @@ enum SkillStoreDisk {
         }
         do {
             let data = try JSONEncoder().encode(StoredSkills(skills: stored, timestamp: Date(), version: currentVersion))
-            try? fileManager.createDirectory(at: storageDir, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: storageDir, withIntermediateDirectories: true)
             try data.write(to: skillStoreFile, options: .atomic)
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)
             UserDefaults.standard.set(currentVersion, forKey: versionKey)

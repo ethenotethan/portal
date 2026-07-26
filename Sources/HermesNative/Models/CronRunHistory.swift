@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "CronRunHistoryStore")
 
 struct CronRunRecord: Identifiable, Codable {
     let id: UUID
@@ -192,10 +195,12 @@ final class CronRunHistoryStore: ObservableObject {
         let dir = storageDir
         let file = storeFile
         Task.detached(priority: .background) {
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(records) {
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                try? data.write(to: file, options: .atomic)
+            do {
+                let data = try JSONEncoder().encode(records)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try data.write(to: file, options: .atomic)
+            } catch {
+                log.error("cron-run-history save failed: \(error.localizedDescription)")
             }
         }
         UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
@@ -215,18 +220,22 @@ final class CronRunHistoryStore: ObservableObject {
 
     private func loadFromFile() {
         guard fileManager.fileExists(atPath: storeFile.path) else { return }
-        guard let data = try? Data(contentsOf: storeFile) else { return }
-        if let decoded = try? JSONDecoder().decode([CronRunRecord].self, from: data) {
-            records = decoded
+        do {
+            let data = try Data(contentsOf: storeFile)
+            records = try JSONDecoder().decode([CronRunRecord].self, from: data)
+        } catch {
+            log.error("cron-run-history load failed: \(error.localizedDescription)")
         }
     }
 
     private func loadFromUserDefaults() {
         guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }
-        if let decoded = try? JSONDecoder().decode([CronRunRecord].self, from: data) {
-            records = decoded
+        do {
+            records = try JSONDecoder().decode([CronRunRecord].self, from: data)
             performSave()
             UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        } catch {
+            log.error("cron-run-history migration decode failed: \(error.localizedDescription)")
         }
     }
 }

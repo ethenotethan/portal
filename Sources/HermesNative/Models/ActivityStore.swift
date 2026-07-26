@@ -95,7 +95,7 @@ final class ActivityStore {
         Task.detached(priority: .background) {
             do {
                 let data = try JSONEncoder().encode(items)
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                 try data.write(to: file, options: .atomic)
             } catch {
                 storeLog.error("save failed: \(error.localizedDescription)")
