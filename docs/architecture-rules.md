@@ -77,6 +77,36 @@ Rules for the baseline:
 | `Utils/` must not exist | Two helper directories (`Utils/` and `Utilities/`) meant every contributor guessed where shared code lived. Everything merged into `Utilities/`. | ArchitectureTests |
 | Every `GatewayEvent` wire type is documented | `docs/rpc-reference.md` is the contract clients and the gateway build against. The test parses the `case "x.y":` strings from `GatewayEvent.from(type:)` and asserts each appears in the doc — the sync we used to do by hand. | ArchitectureTests |
 
+## Main-thread hang watchdog (beachball tripwire)
+
+This app has fixed the same bug class — a beachball / spinning cursor from the
+main thread blocking — over a dozen times (#107, #111, #138, #145, #146, #193,
+#210, #217, …). Every one was found the same way: **a human noticed the cursor
+spinning and went hunting.** There was no automated detector, so a hang only
+became visible when someone happened to be watching the UI at the instant it
+stalled. The three root causes are all one symptom (the main run loop doesn't
+get back to idle in time): expensive pure work in a SwiftUI `body`, layout
+oscillation loops, and synchronous file I/O + JSON decode on the main actor.
+
+`MainThreadWatchdog` (`Sources/HermesNative/Utilities/MainThreadWatchdog.swift`,
+DEBUG-only) is the missing tripwire. It observes the main run loop and, when a
+turn stays busy past a threshold (250ms default), suspends the main thread,
+walks its stack, and reports the **exact call stack that stalled the UI** as an
+`os.log` fault — turning "user notices spinning" into a symbolicated culprit
+trace in dev and CI. It catches all three causes with one mechanism.
+
+- **Enable it:** launch with `--hang-watchdog` (or `--perf`, which turns it on
+  alongside the memory/CPU sampler). Tune with `--hang-threshold-ms=N`.
+- **Make a hang fail CI:** add `--hang-fatal`, which escalates a detected hang
+  from a logged fault to an `assertionFailure` — so a hang in a UI test trips
+  the run instead of scrolling past in the log.
+- **Zero cost in release:** the whole file is `#if DEBUG`; release builds get an
+  inert shim so `PerfInstrumentation.bootstrap()` still compiles.
+
+When it fires, the fix is one of: move the work off the main actor (a `Task`
+off `@MainActor`, or a background queue), memoize pure work with `RenderMemo`,
+or break the layout feedback loop. Don't raise the threshold to silence it.
+
 ## Requesting an exception
 
 Exceptions are explicit, justified, and grandfathered — never silent:

@@ -228,6 +228,9 @@ custom_rules:
       - ".*/Services/TTSService\\.swift"
       - ".*/Services/VideoCache\\.swift"
       - ".*/Utilities/PerfInstrumentation\\.swift"
+      # DEBUG-only main-thread hang detector — dev/CI tooling, same rationale as
+      # the perf infra above; a single process-wide watchdog is the correct shape.
+      - ".*/Utilities/MainThreadWatchdog\\.swift"
       - ".*/ViewModels/CelebrationManager\\.swift"
       - ".*/Views/ChatView\\.swift"
       - ".*/Views/FeedView\\.swift"
