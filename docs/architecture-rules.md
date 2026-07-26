@@ -50,7 +50,13 @@ of errors your own diff created, and the signal is crisp and local.
 Rules for the baseline:
 
 - **Never add entries to silence a new violation.** Fix the code instead. The
-  baseline is a record of *old* debt, not an escape hatch for new debt.
+  baseline is a record of *old* debt, not an escape hatch for new debt. This is
+  now *enforced*, not just policy: the **Baseline growth guard** CI job
+  (`scripts/check-baseline-growth.py`, also `make lint-baseline-guard`) fails
+  the PR if any rule's frozen-entry count grew versus main. Per-rule, so paying
+  down one rule can't mask freezing a new violation in another. A genuinely
+  intended new entry (rare) must be called out in the PR description — it can
+  no longer slip in silently.
 - **Regenerate only to pay debt down** — `make lint-baseline` after you've
   fixed some existing violations. The git diff should only ever *remove* rows.
 - **Always regenerate via `make lint-baseline`, never raw
@@ -65,8 +71,8 @@ Rules for the baseline:
   baseline froze, so an unpinned bump fails CI on debt it never recorded. To
   upgrade: bump the pin, install the same version locally, `make lint-baseline`,
   commit the workflow + baseline together.
-- `make check` runs the full local gate (build + tests + baselined lint); if
-  it's green, CI is green.
+- `make check` runs the full local gate (build + tests + baselined lint +
+  baseline-growth guard); if it's green, CI is green.
 | ViewModels must not construct Views | Constructing a View from a ViewModel inverts the layer direction and makes the VM untestable without a UI. | ArchitectureTests |
 | `Utils/` must not exist | Two helper directories (`Utils/` and `Utilities/`) meant every contributor guessed where shared code lived. Everything merged into `Utilities/`. | ArchitectureTests |
 | Every `GatewayEvent` wire type is documented | `docs/rpc-reference.md` is the contract clients and the gateway build against. The test parses the `case "x.y":` strings from `GatewayEvent.from(type:)` and asserts each appears in the doc — the sync we used to do by hand. | ArchitectureTests |

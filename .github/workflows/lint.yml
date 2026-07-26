@@ -40,6 +40,27 @@ jobs:
         # debt), never to silence a new violation.
         run: swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging
 
+  baseline-growth:
+    name: Baseline growth guard
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so `git show <base>:.swiftlint-baseline` can read the
+      # baseline as it exists on the target branch (default checkout is shallow
+      # and wouldn't have the base ref).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the lint baseline did not grow
+        # The baseline freezes PRE-EXISTING lint debt. This guard fails the PR
+        # if any rule's frozen-entry count grew versus the base branch — i.e.
+        # someone regenerated the baseline to silence a NEW violation instead of
+        # fixing it, which would defeat every rule we enforce. Paying debt down
+        # (counts shrink) always passes. See docs/architecture-rules.md.
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-baseline-growth.py "$BASE"
+
   swift-build:
     name: Swift Build
     runs-on: macos-26

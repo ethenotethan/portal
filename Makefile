@@ -11,7 +11,7 @@ SCHEME_MAC := HermesNative-macOS
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline test check clean
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -43,6 +43,13 @@ kill:
 lint:
 	swiftlint lint --strict --baseline .swiftlint-baseline
 
+# Fail if the baseline gained frozen violations versus main — i.e. a new
+# violation was baselined instead of fixed, silently defeating a rule. Paying
+# debt down (fewer entries) passes. CI runs the same check; run it locally
+# after `make lint-baseline` to confirm the diff only ever REMOVES entries.
+lint-baseline-guard:
+	python3 scripts/check-baseline-growth.py origin/main
+
 # Auto-fix the mechanical violations (whitespace, redundant annotations, etc.).
 # Run this instead of hand-editing style nits — safe, idempotent, and it never
 # touches the semantic rules. Re-run `make lint` afterward to see what's left.
@@ -73,7 +80,7 @@ test:
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, and baselined lint. If this is green, CI is.
-check: lint
+check: lint lint-baseline-guard
 	swift build
 	swift build --build-tests
 	swift test --disable-sandbox
