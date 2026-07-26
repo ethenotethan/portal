@@ -58,6 +58,7 @@ final class HermesNativeSmokeUITests: XCTestCase {
             add(debugAttachment)
         }
         XCTAssertTrue(connected, "Sessions UI should appear after connecting")
+        XCTAssertTrue(app.tabBars.buttons["Artifacts"].waitForExistence(timeout: 5), "Artifacts tab should be visible on iOS")
 
         // Create/open an owned chat session from the in-app control so the
         // original launch environment (gateway URL + API key) stays attached.

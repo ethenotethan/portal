@@ -6,7 +6,7 @@ import os
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "ContentView")
 
-/// Root content view — TabView on iOS with "Sessions" + "Cron" tabs,
+/// Root content view — TabView on iOS with first-class app surfaces,
 /// custom split layout on macOS with app-owned chrome.
 struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
@@ -202,6 +202,18 @@ struct ContentView: View {
                 }
                 .tag(3)
 
+            ArtifactsPane {
+                selectedTab = 0
+            }
+            .environmentObject(gatewayClientWrapper)
+            .environment(\.openCron) { _ in
+                selectedTab = 1
+            }
+            .tabItem {
+                Label("Artifacts", systemImage: "internaldrive")
+            }
+            .tag(4)
+
             NavigationStack {
                 FeedView()
                     .environmentObject(gatewayClientWrapper)
@@ -209,13 +221,13 @@ struct ContentView: View {
             .tabItem {
                 Label("Feed", systemImage: "newspaper")
             }
-            .tag(4)
+            .tag(5)
 
             LearningDashboardView(onClose: { })
             .tabItem {
                 Label("Learning", systemImage: "books.vertical.fill")
             }
-            .tag(5)
+            .tag(6)
         }
     }
 
