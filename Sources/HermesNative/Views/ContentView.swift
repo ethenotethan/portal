@@ -522,21 +522,32 @@ struct ContentView: View {
         .background(Theme.background)
     }
 
+    /// Clear every top-level surface flag at once. The macOS surfaces are
+    /// independent opaque overlays stacked in a fixed z-order (see
+    /// `macSplitContent`), so opening B while A is still set can leave A
+    /// covering B. Every open path routes through here first to keep exactly
+    /// one surface active — mutual exclusion the boolean model doesn't give us.
+    /// `keepActivitySheet` spares the Activity sheet, which floats above the
+    /// stack and composes with whatever surface is beneath it.
+    private func closeAllOverlays(keepActivitySheet: Bool = false) {
+        missionControlSessionID = nil
+        missionControlRuntimeSessionID = nil
+        missionControlBackend = nil
+        showCronDashboard = false
+        showLiveSessions = false
+        if !keepActivitySheet { showActivitySheet = false }
+        showSkills = false
+        showWikiGraph = false
+        showCentaurWorkflows = false
+        showArtifactsPane = false
+        showFeedSheet = false
+        showLearning = false
+    }
+
     private var overlayHeaderBar: some View {
         HStack(spacing: 12) {
             Button {
-                missionControlSessionID = nil
-                missionControlRuntimeSessionID = nil
-                missionControlBackend = nil
-                showCronDashboard = false
-                showLiveSessions = false
-                showActivitySheet = false
-                showSkills = false
-                showWikiGraph = false
-                showCentaurWorkflows = false
-                showArtifactsPane = false
-                showFeedSheet = false
-                showLearning = false
+                closeAllOverlays()
                 chatViewModel.refocusInput += 1
             } label: {
                 HStack(spacing: 6) {
@@ -790,6 +801,7 @@ struct ContentView: View {
             .accessibilityLabel("Settings")
 
             Button {
+                closeAllOverlays()
                 showLiveSessions = true
             } label: {
                 Label("Sessions", systemImage: "square.grid.2x2")
@@ -805,6 +817,7 @@ struct ContentView: View {
             // presentation. Settings and Sessions stay — they're app chrome.
             if chatViewModel.backendCapabilities.supportsGatewayServices {
                 Button {
+                    closeAllOverlays()
                     showCronDashboard = true
                     CronRunHistoryStore.shared.markAllCronRunsRead()
                 } label: {
@@ -840,6 +853,7 @@ struct ContentView: View {
 
             if chatViewModel.backendCapabilities.supportsSkills {
                 Button {
+                    closeAllOverlays()
                     showSkills = true
                 } label: {
                     Label("Skills", systemImage: "sparkles")
@@ -852,6 +866,7 @@ struct ContentView: View {
 
             if chatViewModel.backendCapabilities.supportsGatewayServices {
                 Button {
+                    closeAllOverlays()
                     showFeedSheet = true
                 } label: {
                     Label("Feed", systemImage: "newspaper")
@@ -862,6 +877,7 @@ struct ContentView: View {
                 .accessibilityLabel("Feed")
 
                 Button {
+                    closeAllOverlays()
                     showLearning = true
                 } label: {
                     Label("Learning", systemImage: "books.vertical.fill")
@@ -874,6 +890,7 @@ struct ContentView: View {
 
             if chatViewModel.backendCapabilities.supportsWiki {
                 Button {
+                    closeAllOverlays()
                     showWikiGraph = true
                 } label: {
                     Label("Wiki", systemImage: "network")
@@ -887,6 +904,7 @@ struct ContentView: View {
             // Living artifacts — named models any writer maintains (chat,
             // cron, workflows), rendered live. Cross-backend surface.
             Button {
+                closeAllOverlays()
                 showArtifactsPane = true
             } label: {
                 Label("Artifacts", systemImage: "internaldrive")
@@ -901,6 +919,7 @@ struct ContentView: View {
             // center (same Cmd-K muscle memory).
             if chatViewModel.backendCapabilities.supportsWorkflows {
                 Button {
+                    closeAllOverlays()
                     showCentaurWorkflows = true
                 } label: {
                     Label("Workflows", systemImage: "point.3.connected.trianglepath.dotted")
@@ -932,6 +951,7 @@ struct ContentView: View {
                             }
                         },
                         onOpenPanel: {
+                            closeAllOverlays()
                             showCronDashboard = true
                         }
                     )
@@ -1056,10 +1076,11 @@ struct ContentView: View {
                         // Leave the artifacts pane and reveal the cron surface.
                         // The dashboard lists every job; the maintainer link is
                         // the navigation, deep-per-job selection can come later.
-                        showArtifactsPane = false
                         #if os(macOS)
+                        closeAllOverlays()
                         showCronDashboard = true
                         #else
+                        showArtifactsPane = false
                         selectedTab = 1
                         #endif
                     }
@@ -1354,6 +1375,9 @@ struct ContentView: View {
         spawnTreeStore.createTree(sessionID: sessionID)
         spawnTreeStore.bindRuntimeSession(displayID: sessionID, runtimeID: runtimeID)
         spawnTreeStore.setActive(sessionID: sessionID)
+        // Close any other surface first (closeAllOverlays nils the mission
+        // control fields too), then open onto a clean stack.
+        closeAllOverlays()
         missionControlSessionID = sessionID
         missionControlRuntimeSessionID = runtimeID
         missionControlBackend = sessionScopedExplorerBackend(for: sessionID)
