@@ -47,30 +47,92 @@ private struct ModelCard: View {
     var actionableArtifactID: String?
 
     /// The selection bus: one selected entity ref shared by every view.
-    /// Stored as the "set/normalizedKey" string every projection uses as
-    /// its stable id (map marker label is bare key — mapped below).
     @State private var selectedRef: ModelSpec.EntityRef?
 
-    /// Projection JSON per (source, view) — selection clicks re-run body,
-    /// and un-memoized that meant re-serializing every view's projection
-    /// (and re-running the graph force sim downstream) per click.
+    /// Per-view pane heights for canvas kinds (map/graph/chart/stats).
+    /// Content kinds (table/markdown) are excluded — they size to content.
+    @State private var paneHeights: [String: CGFloat] = [:]
+
+    /// Projection JSON per (source, view) — memoized so selection clicks
+    /// don't re-serialize every view's projection on every body re-eval.
     private static let projectionMemo = RenderMemo<String?>(limit: 48)
 
     private func projection(_ view: ModelSpec.View, _ compute: @autoclosure () -> String?) -> String? {
         Self.projectionMemo.value(for: "\(sourceJSON.hashValue)|\(view.id)") { compute() }
     }
 
+    /// Minimum and default heights per kind. Content kinds return nil —
+    /// they are not height-constrained (they grow with their content).
+    private static func minHeight(for kind: ModelSpec.View.Kind) -> CGFloat? {
+        switch kind {
+        case .map:      return 180
+        case .graph:    return 200
+        case .chart:    return 120
+        case .stats:    return 80
+        case .table, .markdown: return nil
+        }
+    }
+
+    private static func defaultHeight(for kind: ModelSpec.View.Kind) -> CGFloat? {
+        switch kind {
+        case .map:      return 280
+        case .graph:    return 260
+        case .chart:    return 200
+        case .stats:    return 100
+        case .table, .markdown: return nil
+        }
+    }
+
+    private func height(for view: ModelSpec.View) -> CGFloat? {
+        guard let def = Self.defaultHeight(for: view.kind) else { return nil }
+        return paneHeights[view.id] ?? def
+    }
+
+    /// Canvas views whose panes participate in drag-to-resize.
+    private var resizableViews: [ModelSpec.View] {
+        spec.views.filter { Self.defaultHeight(for: $0.kind) != nil }
+    }
+
+    private func equalizeHeights() {
+        guard !resizableViews.isEmpty else { return }
+        let total = resizableViews.reduce(0) { $0 + (height(for: $1) ?? 0) }
+        let equal = total / CGFloat(resizableViews.count)
+        for view in resizableViews {
+            let minH = Self.minHeight(for: view.kind) ?? 60
+            paneHeights[view.id] = max(minH, equal)
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             header
-            ForEach(spec.views) { view in
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+            ForEach(Array(spec.views.enumerated()), id: \.element.id) { idx, view in
+                if idx > 0 {
+                    PaneDivider(
+                        topID: spec.views[idx - 1].id,
+                        bottomID: view.id,
+                        topMin: Self.minHeight(for: spec.views[idx - 1].kind),
+                        bottomMin: Self.minHeight(for: view.kind),
+                        paneHeights: $paneHeights,
+                        defaultTopHeight: Self.defaultHeight(for: spec.views[idx - 1].kind),
+                        defaultBottomHeight: Self.defaultHeight(for: view.kind),
+                        onDoubleTap: equalizeHeights
+                    )
+                }
                 viewBlock(view)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, idx == spec.views.count - 1 ? 12 : 0)
+                    .frame(height: height(for: view))
             }
             if let ref = selectedRef {
                 selectionPanel(ref)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
             }
         }
-        .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -90,6 +152,15 @@ private struct ModelCard: View {
             Text(entityCountSummary)
                 .font(.caption2)
                 .foregroundStyle(Theme.tertiary)
+            if resizableViews.count > 1 {
+                Button(action: equalizeHeights) {
+                    Image(systemName: "rectangle.split.2x1")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Equalize pane heights")
+            }
         }
     }
 
@@ -373,6 +444,81 @@ private struct ModelEntityTable: View {
         .contentShape(Rectangle())
         .onTapGesture {
             selectedRef = isSelected ? nil : ref
+        }
+    }
+}
+
+// MARK: - Pane resize divider
+
+/// Drag handle between two stacked model panes. Dragging redistributes
+/// height between the pane above and the pane below, respecting per-kind
+/// minimums. Double-tap equalizes all canvas panes via the provided callback.
+/// Only participates in layout when both flanking panes are canvas kinds
+/// (map/graph/chart/stats) that have explicit heights.
+private struct PaneDivider: View {
+    let topID: String
+    let bottomID: String
+    let topMin: CGFloat?
+    let bottomMin: CGFloat?
+    @Binding var paneHeights: [String: CGFloat]
+    let defaultTopHeight: CGFloat?
+    let defaultBottomHeight: CGFloat?
+    let onDoubleTap: () -> Void
+
+    @State private var isDragging = false
+    /// Heights at the moment the drag started — delta is applied from these
+    /// so accumulating translation doesn't double-count each frame.
+    @State private var dragStartTopHeight: CGFloat = 0
+    @State private var dragStartBottomHeight: CGFloat = 0
+
+    private var isResizable: Bool { defaultTopHeight != nil && defaultBottomHeight != nil }
+
+    var body: some View {
+        if isResizable {
+            ZStack {
+                // Hit target — taller than visual for easier grab
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(height: 12)
+                    .contentShape(Rectangle())
+
+                // Visual indicator
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(isDragging ? Theme.accent : Theme.border)
+                    .frame(width: 32, height: 3)
+                    .animation(.easeInOut(duration: 0.15), value: isDragging)
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if !isDragging {
+                            isDragging = true
+                            dragStartTopHeight = paneHeights[topID] ?? defaultTopHeight ?? 200
+                            dragStartBottomHeight = paneHeights[bottomID] ?? defaultBottomHeight ?? 200
+                        }
+                        let delta = value.translation.height
+                        let newTop = dragStartTopHeight + delta
+                        let newBottom = dragStartBottomHeight - delta
+                        let minTop = topMin ?? 60
+                        let minBottom = bottomMin ?? 60
+                        if newTop >= minTop && newBottom >= minBottom {
+                            paneHeights[topID] = newTop
+                            paneHeights[bottomID] = newBottom
+                        }
+                    }
+                    .onEnded { _ in isDragging = false }
+            )
+            .onTapGesture(count: 2) { onDoubleTap() }
+            #if os(macOS)
+            .onHover { inside in
+                if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+            }
+            #endif
+        } else {
+            // Non-canvas boundary: plain divider, no drag affordance
+            Divider()
+                .overlay(Theme.border.opacity(0.4))
+                .padding(.vertical, 4)
         }
     }
 }
