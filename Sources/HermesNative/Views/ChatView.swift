@@ -89,9 +89,14 @@ struct ChatView: View {
 
     // MARK: - Thought Graph Helpers
 
-    /// Whether to show the thought graph toggle button.
+    /// Whether to show the Session Graph toggle. Available whenever the
+    /// session has ANY assistant activity — the graph is rebuilt from the
+    /// persisted transcript, so it stays reachable after a turn ends, not just
+    /// while streaming.
     private var shouldShowThoughtGraphToggle: Bool {
-        chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty
+        chatViewModel.isStreaming
+            || !chatViewModel.activeToolCalls.isEmpty
+            || chatViewModel.messages.contains { $0.role == .assistant }
     }
 
     /// Message ID to scroll to once the thought-graph sheet finishes
@@ -1249,7 +1254,11 @@ struct ChatView: View {
         private let liveTurnID = UUID()
 
         var body: some View {
-            SessionThoughtGraphView(turns: turns, onJumpToTool: onJumpToTool)
+            SessionThoughtGraphView(
+                turns: turns,
+                isThinking: reasoningGraph.isThinking,
+                onJumpToTool: onJumpToTool
+            )
         }
     }
 

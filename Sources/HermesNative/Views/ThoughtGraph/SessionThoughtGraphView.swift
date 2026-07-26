@@ -79,6 +79,8 @@ internal enum SessionTurnBuilder {
 /// N timers and N pan/zoom states, so we page through turns instead.
 internal struct SessionThoughtGraphView: View {
     internal let turns: [SessionTurn]
+    /// The local reasoning model is summarizing right now (heartbeat).
+    internal var isThinking: Bool = false
     /// Newest turn is selected by default (most recent activity).
     @State private var selectedTurnID: UUID?
     /// Selection shared between the timeline (when) and the file tree (where):
@@ -105,6 +107,9 @@ internal struct SessionThoughtGraphView: View {
                         engine: engine,
                         nodes: turn.nodes,
                         isStreaming: false,
+                        // Heartbeat only on the live (last) turn — past turns
+                        // are settled.
+                        isThinking: isThinking && turn.id == turns.last?.id,
                         usageSummary: nil,
                         selection: $selectedNodeID,
                         onJumpToTool: onJumpToTool

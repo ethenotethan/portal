@@ -253,13 +253,18 @@ final class ChatViewModel: ObservableObject {
 
     /// Manager for downloading remote file attachments from the gateway.
     var fileDownloadManager = FileDownloadManager()
-    /// Live reasoning summarization — extracts decision trees from agent thought traces
-    /// in real-time during streaming. Results feed into the ThoughtGraphView.
-    /// Uses heuristic pattern-matching (zero dep, works immediately).
-    /// Set summarizer: MLXReasoningSummarizer() for local LLM inference.
-    lazy var reasoningGraph = ReasoningGraphIntegrator(
-        summarizer: HeuristicReasoningSummarizer()
-    )
+    /// Live reasoning summarization — extracts decision structure from agent
+    /// thought traces during streaming; results feed the ThoughtGraphView.
+    /// macOS runs the on-device MLX model (Gemma 3 1B); iOS falls back to the
+    /// zero-dependency heuristic (MLX is jetsam-banned there). The MLX path
+    /// itself degrades to the heuristic when the model isn't loaded yet.
+    internal lazy var reasoningGraph: ReasoningGraphIntegrator = {
+        #if canImport(MLXLLM) && os(macOS)
+        return ReasoningGraphIntegrator(summarizer: MLXReasoningSummarizer())
+        #else
+        return ReasoningGraphIntegrator(summarizer: HeuristicReasoningSummarizer())
+        #endif
+    }()
     /// Live subagent dispatch tracking — folds subagent.* events into agent
     /// subtrees rendered inside the ThoughtGraphView. Turn-scoped like
     /// reasoningGraph.

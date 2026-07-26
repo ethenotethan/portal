@@ -37,6 +37,10 @@ struct ThoughtGraphView: View {
     /// Whether the conversation turn is still streaming.
     let isStreaming: Bool
 
+    /// Whether the local reasoning model is actively summarizing right now —
+    /// drives the "thinking…" heartbeat in the header.
+    internal let isThinking: Bool
+
     /// Invoked with a tool-call ID when the user taps "Jump to tool in chat".
     var onJumpToTool: ((String) -> Void)?
 
@@ -60,6 +64,7 @@ struct ThoughtGraphView: View {
         engine: ThoughtGraphLayoutEngine,
         nodes: [ThoughtGraphNode],
         isStreaming: Bool,
+        isThinking: Bool = false,
         usageSummary: String? = nil,
         selection: Binding<String?>? = nil,
         onJumpToTool: ((String) -> Void)? = nil
@@ -67,6 +72,7 @@ struct ThoughtGraphView: View {
         self.engine = engine
         self.nodes = nodes
         self.isStreaming = isStreaming
+        self.isThinking = isThinking
         self.usageSummary = usageSummary
         self.externalSelection = selection
         self.onJumpToTool = onJumpToTool
@@ -482,7 +488,10 @@ struct ThoughtGraphView: View {
         let isHovered = hoveredNodeID == node.id
         let color = node.category.color
 
-        // Reasoning beats: durationless diamond markers.
+        // Reasoning beats: a diamond marker + the beat's label inline, so the
+        // gist ("planning · wiki status retrieval") is readable without
+        // clicking. The diamond anchors the moment in time; the text spills to
+        // its right.
         if node.category == .reasoning {
             let s = ThoughtGraphLayoutEngine.markerSize
             let c = CGPoint(x: layout.x + s / 2, y: layout.y)
@@ -495,6 +504,15 @@ struct ThoughtGraphView: View {
             ctx.fill(diamond, with: .color(color.opacity(0.9)))
             if isSelected || isHovered {
                 ctx.stroke(diamond, with: .color(Theme.primary.opacity(0.9)), lineWidth: 1.5)
+            }
+            if showLabel, let label = reasoningLabel(node), !label.isEmpty {
+                ctx.draw(
+                    Text(label)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(color.opacity(isSelected ? 1 : 0.85)),
+                    at: CGPoint(x: c.x + s / 2 + 4, y: c.y),
+                    anchor: .leading
+                )
             }
             return
         }
@@ -535,6 +553,17 @@ struct ThoughtGraphView: View {
             at: CGPoint(x: rect.minX + 6, y: rect.midY),
             anchor: .leading
         )
+    }
+
+    /// Short label for a reasoning beat, drawn beside its diamond. Prefers the
+    /// beat's `context` (the extracted decision label), falling back to the
+    /// first line of its summary; capped so it stays a glanceable chip.
+    private func reasoningLabel(_ node: ThoughtGraphNode) -> String? {
+        let raw = node.context ?? node.summary?.components(separatedBy: "\n").first
+        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            return nil
+        }
+        return text.count > 40 ? String(text.prefix(40)) + "…" : text
     }
 
     // MARK: - Shared entities (deterministic overlay)
@@ -663,6 +692,16 @@ struct ThoughtGraphView: View {
                     Text("complete")
                         .font(.caption)
                         .foregroundStyle(Theme.success)
+                }
+
+                if isThinking {
+                    Image(systemName: "brain")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.agentAccent)
+                        .symbolEffect(.pulse, options: .repeating)
+                    Text("thinking…")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.agentAccent)
                 }
 
                 if runningCount > 0 {
