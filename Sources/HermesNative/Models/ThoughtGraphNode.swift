@@ -112,6 +112,36 @@ struct ThoughtGraphNode: Identifiable, Codable {
         return firstLine.count <= 60 ? firstLine : nil
     }
 
+    /// Compiled once — a path token: optional leading ./ ~ /, then dir
+    /// segments, ending in a filename with an extension (so bare words / prose
+    /// don't match). Force-tried at load: a malformed literal is a programmer
+    /// error we want to surface in tests, not silently swallow at call time.
+    private static let confidentPathRegex = try! NSRegularExpression( // swiftlint:disable:this force_try
+        pattern: #"((?:\.{1,2}/|~/|/)?(?:[\w\-.]+/)*[\w\-]+\.[A-Za-z0-9]{1,6})"#
+    )
+
+    /// A CONFIDENT file path for the file-tree lens — only real path shapes
+    /// (a slash-bearing token with a file-ish tail), never the loose
+    /// first-line fallback `extractedFilePath` allows. Returns nil when we
+    /// can't be sure, so the tree shows only files it actually recognizes
+    /// ("files touched", not a guess). Also gates on file-touching categories.
+    internal var confidentFilePath: String? {
+        switch category {
+        case .read, .write, .patch, .search: break
+        default: return nil
+        }
+        guard let ctx = context else { return nil }
+        let regex = Self.confidentPathRegex
+        let ns = ctx as NSString
+        guard let match = regex.firstMatch(in: ctx, range: NSRange(location: 0, length: ns.length)),
+              match.numberOfRanges > 1 else { return nil }
+        let path = ns.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
+        // Reject degenerate matches (e.g. "1.0", "v2.3") — require a slash OR a
+        // known-code-ish extension so version strings don't populate the tree.
+        guard path.contains("/") || path.count >= 5 else { return nil }
+        return path
+    }
+
     // MARK: - Initializer
 
     init(

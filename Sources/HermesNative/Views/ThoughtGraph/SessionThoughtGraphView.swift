@@ -81,6 +81,9 @@ internal struct SessionThoughtGraphView: View {
     internal let turns: [SessionTurn]
     /// Newest turn is selected by default (most recent activity).
     @State private var selectedTurnID: UUID?
+    /// Selection shared between the timeline (when) and the file tree (where):
+    /// select a bar → its file highlights; tap a file → its bar lights.
+    @State private var selectedNodeID: String?
     @StateObject private var engine = ThoughtGraphLayoutEngine()
 
     internal var onJumpToTool: ((String) -> Void)?
@@ -95,7 +98,7 @@ internal struct SessionThoughtGraphView: View {
         } else {
             HStack(spacing: 0) {
                 turnRail
-                    .frame(width: 220)
+                    .frame(width: 200)
                 Divider().overlay(Theme.border)
                 if let turn = selectedTurn {
                     ThoughtGraphView(
@@ -103,14 +106,23 @@ internal struct SessionThoughtGraphView: View {
                         nodes: turn.nodes,
                         isStreaming: false,
                         usageSummary: nil,
+                        selection: $selectedNodeID,
                         onJumpToTool: onJumpToTool
                     )
                     // Re-seed the engine when the selected turn changes.
                     .id(turn.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    Divider().overlay(Theme.border)
+                    // The "where" lens — files this turn touched, cross-
+                    // highlighting with the timeline via the shared selection.
+                    SessionFileTreePane(nodes: turn.nodes, selectedNodeID: $selectedNodeID)
+                        .frame(width: 240)
                 }
             }
             .onAppear { if selectedTurnID == nil { selectedTurnID = turns.last?.id } }
+            // Clear cross-highlight when switching turns (ids don't carry over).
+            .onChange(of: selectedTurnID) { _, _ in selectedNodeID = nil }
         }
     }
 

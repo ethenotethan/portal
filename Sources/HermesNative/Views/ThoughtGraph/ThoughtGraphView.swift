@@ -43,6 +43,11 @@ struct ThoughtGraphView: View {
     /// Live cost/token rollup for the current turn. nil hides the chip.
     var usageSummary: String?
 
+    /// Optional shared selection — when provided (e.g. the file-tree pane
+    /// cross-highlights with the graph), selection reads/writes route through
+    /// it; when nil the graph owns selection in its own @State.
+    private let externalSelection: Binding<String?>?
+
     // MARK: - Derived Node Data (computed once per view update)
 
     private let nodeIndex: [String: ThoughtGraphNode]
@@ -53,12 +58,14 @@ struct ThoughtGraphView: View {
         nodes: [ThoughtGraphNode],
         isStreaming: Bool,
         usageSummary: String? = nil,
+        selection: Binding<String?>? = nil,
         onJumpToTool: ((String) -> Void)? = nil
     ) {
         self.engine = engine
         self.nodes = nodes
         self.isStreaming = isStreaming
         self.usageSummary = usageSummary
+        self.externalSelection = selection
         self.onJumpToTool = onJumpToTool
         self.nodeIndex = Dictionary(
             nodes.map { ($0.id, $0) },
@@ -71,7 +78,16 @@ struct ThoughtGraphView: View {
 
     @State private var panOffset: CGSize = .zero
     @State private var zoom: CGFloat = 1.0
-    @State private var selectedNodeID: String?
+    @State private var internalSelectedNodeID: String?
+
+    /// Selection proxy: the shared binding when present, else internal state.
+    private var selectedNodeID: String? {
+        get { externalSelection?.wrappedValue ?? internalSelectedNodeID }
+        nonmutating set {
+            if let externalSelection { externalSelection.wrappedValue = newValue }
+            else { internalSelectedNodeID = newValue }
+        }
+    }
     @State private var hoveredNodeID: String?
     @State private var showReasoningBeats: Bool = true
     @State private var collapsedAgentIDs: Set<String> = []
