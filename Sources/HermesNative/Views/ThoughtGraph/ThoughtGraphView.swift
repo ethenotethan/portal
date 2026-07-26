@@ -8,20 +8,22 @@ import AppKit
 
 // MARK: - ThoughtGraphView
 
-/// Interactive swimlane/timeline canvas that visualizes the live agent react
-/// loop: reasoning beats and tool calls flow down the main lane, and every
-/// spawned subagent opens its own lane whose loop runs in parallel.
+/// Interactive time-plot ("flamechart") of the live agent react loop.
+///
+/// The graph reads as a timeline: horizontal position is WHEN a step happened,
+/// bar width is HOW LONG it took, and each actor (the main loop + every spawned
+/// subagent) owns its own horizontal lane, stacked top→down by spawn order.
 ///
 /// ## Architecture
-/// - **Layout**: `ThoughtGraphLayoutEngine` (lanes × chronological rows).
-/// - **Motion**: node positions are lerped toward layout targets on a 30Hz
-///   tick, new nodes scale/fade in, new edges draw in via path trim, and
-///   flow particles run along edges into running nodes.
-/// - **Nodes**: pre-snapshot `Image` cards via `ImageRenderer` at readable
-///   zoom; compact category dots below the semantic-zoom threshold.
-/// - **Camera**: optional follow mode tails the newest activity while
-///   streaming; any manual pan disengages it.
-/// - **Interaction**: macOS `GraphMouseInterceptor`; iOS drag + pinch.
+/// - **Layout**: `ThoughtGraphLayoutEngine` (time on x, lanes on y, width ∝
+///   duration). See that file for the scale.
+/// - **Rendering**: bars are drawn directly in a SwiftUI `Canvas` (rounded
+///   rects + inline labels) — no per-node image snapshots. Reasoning beats are
+///   durationless diamonds. Running bars grow rightward to "now" each frame.
+/// - **Motion**: a 30 Hz tick advances the clock so running bars extend and
+///   pulse; new bars fade in; the follow-cam tails the newest activity
+///   horizontally while streaming until the user pans.
+/// - **Camera**: pan + zoom; macOS `GraphMouseInterceptor`, iOS drag + pinch.
 struct ThoughtGraphView: View {
 
     // MARK: - Observed State
@@ -78,9 +80,7 @@ struct ThoughtGraphView: View {
     @State private var autoFollow: Bool = true
 
     // ── Motion state (advanced by the 30Hz tick) ──
-    @State private var animPositions: [String: CGPoint] = [:]
     @State private var nodeAppearTimes: [String: TimeInterval] = [:]
-    @State private var edgeAppearTimes: [String: TimeInterval] = [:]
     @State private var now: TimeInterval = Date.now.timeIntervalSinceReferenceDate
 
     // ── Mouse interaction (macOS) ──
@@ -97,18 +97,17 @@ struct ThoughtGraphView: View {
     // ── Canvas size (set once from GeometryReader) ──
     @State private var canvasSize: CGSize = .zero
 
-    // ── Cached node snapshots ──
-    @State private var snapshotCache: [String: Image] = [:]
-
     // MARK: - Constants
 
-    /// Below this zoom nodes render as compact category dots.
-    private static let semanticZoomThreshold: CGFloat = 0.55
     private static let appearDuration: TimeInterval = 0.3
-    private static let edgeDrawDuration: TimeInterval = 0.35
-    /// World-space Y anchor: fraction of the canvas height where the newest
-    /// node sits while following.
-    private static let followAnchor: CGFloat = 0.68
+    /// Screen-space origin of world (0,0): room for the header + time axis on
+    /// top, and lane titles on the left.
+    private static let topMargin: CGFloat = 96
+    private static let leftMargin: CGFloat = 118
+    /// Below this zoom, bar labels are dropped (bars stay, just quieter).
+    private static let labelZoomThreshold: CGFloat = 0.5
+    /// While following, keep the newest activity this far across the viewport.
+    private static let followAnchorX: CGFloat = 0.72
 
     // MARK: - Visible Nodes
 
@@ -136,7 +135,7 @@ struct ThoughtGraphView: View {
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             HStack(spacing: 0) {
                 ZStack {
                     Theme.background
@@ -234,20 +233,15 @@ struct ThoughtGraphView: View {
         #endif
 
         .onAppear {
-            engine.layout(nodes: visibleNodes)
-            seedMotionState(animated: false)
+            engine.layout(nodes: visibleNodes, now: Date())
+            seedAppearTimes(animated: false)
         }
         .onChange(of: layoutKey) { _, _ in
-            engine.layout(nodes: visibleNodes)
-            seedMotionState(animated: true)
+            engine.layout(nodes: visibleNodes, now: Date())
+            seedAppearTimes(animated: true)
         }
-        .onChange(of: selectedNodeID) { oldID, newID in
-            if let oldID { invalidateSnapshots(for: oldID) }
-            if let newID { invalidateSnapshots(for: newID) }
-        }
-        .onChange(of: zoom) { _, _ in lastPinchScale = zoom }
 
-        // ── 30Hz motion tick: lerp, pulse, particles, follow-cam ──
+        // ── 30Hz motion tick: grow running bars, pulse, follow-cam ──
         .onReceive(
             Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
         ) { tick in
@@ -257,74 +251,33 @@ struct ThoughtGraphView: View {
 
     // MARK: - Motion
 
-    /// Register targets for new nodes/edges. New nodes spawn at their parent's
-    /// current position (so they visibly "emerge" from it) when animating.
-    private func seedMotionState(animated: Bool) {
+    /// Register appear times for newly-seen nodes so they fade in.
+    private func seedAppearTimes(animated: Bool) {
         let t = Date.now.timeIntervalSinceReferenceDate
-        for layout in engine.layouts {
-            let target = CGPoint(x: layout.x, y: layout.y)
-            if animPositions[layout.nodeID] == nil {
-                if animated,
-                   let node = nodeIndex[layout.nodeID],
-                   let parentID = node.parentIDs.first,
-                   let parentPos = animPositions[parentID] {
-                    animPositions[layout.nodeID] = parentPos
-                } else if animated,
-                          let edge = engine.edges.first(where: { $0.to == layout.nodeID }),
-                          let parentPos = animPositions[edge.from] {
-                    animPositions[layout.nodeID] = parentPos
-                } else {
-                    animPositions[layout.nodeID] = target
-                }
-                nodeAppearTimes[layout.nodeID] = animated ? t : t - Self.appearDuration
-            }
-        }
-        for edge in engine.edges {
-            let key = "\(edge.from)->\(edge.to)"
-            if edgeAppearTimes[key] == nil {
-                edgeAppearTimes[key] = animated ? t : t - Self.edgeDrawDuration
-            }
+        for layout in engine.layouts where nodeAppearTimes[layout.nodeID] == nil {
+            nodeAppearTimes[layout.nodeID] = animated ? t : t - Self.appearDuration
         }
     }
 
-    /// One 30Hz frame: advance the clock, ease positions toward layout
-    /// targets, and ease the camera when following.
+    /// One 30Hz frame: advance the clock (running bars grow + pulse) and ease
+    /// the follow-cam horizontally toward the newest activity.
     private func advanceMotion(to t: TimeInterval) {
-        let animatingLayout = engine.layouts.contains { layout in
-            guard let pos = animPositions[layout.nodeID] else { return false }
-            return abs(pos.x - layout.x) > 0.5 || abs(pos.y - layout.y) > 0.5
-        }
         let appearing = nodeAppearTimes.values.contains { t - $0 < Self.appearDuration }
-        let drawingEdges = edgeAppearTimes.values.contains { t - $0 < Self.edgeDrawDuration }
-        let needsFrame = runningCount > 0 || animatingLayout || appearing || drawingEdges
-
+        // Running bars are recomputed from `now` at draw time, so we only need
+        // frames while something is live or animating in.
+        let needsFrame = runningCount > 0 || appearing
         guard needsFrame else { return }
         now = t
 
-        // ── Exponential ease toward layout targets ──
-        if animatingLayout {
-            let k: CGFloat = 0.22
-            for layout in engine.layouts {
-                guard var pos = animPositions[layout.nodeID] else { continue }
-                pos.x += (layout.x - pos.x) * k
-                pos.y += (layout.y - pos.y) * k
-                if abs(pos.x - layout.x) < 0.3 { pos.x = layout.x }
-                if abs(pos.y - layout.y) < 0.3 { pos.y = layout.y }
-                animPositions[layout.nodeID] = pos
-            }
-        }
-
-        // ── Follow-cam: keep the newest node near the anchor line ──
-        if autoFollow, isStreaming, canvasSize.height > 0,
-           let newestID = engine.layouts.max(by: {
-               (nodeAppearTimes[$0.nodeID] ?? 0) < (nodeAppearTimes[$1.nodeID] ?? 0)
-           })?.nodeID,
-           let pos = animPositions[newestID] {
-            let targetPanY = canvasSize.height * Self.followAnchor - 80 - pos.y * zoom
-            let targetPanX = -pos.x * zoom * 0.35   // gentle horizontal bias toward the active lane
-            panOffset.height += (targetPanY - panOffset.height) * 0.08
-            panOffset.width += (targetPanX - panOffset.width) * 0.08
-        }
+        guard autoFollow, isStreaming, canvasSize.width > 0 else { return }
+        // Keep the rightmost live edge near the anchor line.
+        let nowDate = Date()
+        let maxRight = engine.layouts.map { layout -> Double in
+            guard let node = nodeIndex[layout.nodeID] else { return layout.x + layout.width }
+            return layout.x + engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
+        }.max() ?? 0
+        let targetPanX = canvasSize.width * Self.followAnchorX - Self.leftMargin - maxRight * zoom
+        panOffset.width += (targetPanX - panOffset.width) * 0.08
     }
 
     // MARK: - Graph Canvas
@@ -334,80 +287,34 @@ struct ThoughtGraphView: View {
         GeometryReader { geo in
             Canvas { context, size in
                 let selectedID = selectedNodeID
-                let pulse = 0.8 + 0.2 * sin(now * (2 * .pi / 1.5))
+                let pulse = 0.7 + 0.3 * sin(now * (2 * .pi / 1.2))
                 let lineage = lineageIDs(for: selectedID)
-                let pillMode = zoom < Self.semanticZoomThreshold
+                let showLabels = zoom >= Self.labelZoomThreshold
+                let nowDate = Date()
 
-                // ── 0. Dot grid (screen space, camera-locked) ──
-                drawDotGrid(context: context, size: size)
+                // ── 0. Time axis (screen space, top) ──
+                drawTimeAxis(context: context, size: size)
 
-                context.translateBy(x: size.width / 2 + panOffset.width,
-                                    y: 80 + panOffset.height)
+                context.translateBy(x: Self.leftMargin + panOffset.width,
+                                    y: Self.topMargin + panOffset.height)
                 context.scaleBy(x: zoom, y: zoom)
 
                 // ── 1. Lane bands + titles ──
-                drawLanes(context: context, pillMode: pillMode)
+                drawLanes(context: context, showLabels: showLabels)
 
-                // ── 2. Edges ──
+                // ── 2. Spawn edges ──
                 for edge in engine.edges {
-                    drawEdge(edge, context: context, lineage: lineage, selectedID: selectedID)
+                    drawSpawnEdge(edge, context: context, lineage: lineage, selectedID: selectedID)
                 }
 
-                // ── 3. Flow particles on edges into running nodes ──
-                for edge in engine.edges {
-                    guard nodeIndex[edge.to]?.status == .running else { continue }
-                    drawParticles(edge, context: context)
-                }
-
-                // ── 4. Running-node glow ──
+                // ── 3. Bars ──
                 for layout in engine.layouts {
-                    guard let node = nodeIndex[layout.nodeID],
-                          node.status == .running,
-                          let pos = animPositions[layout.nodeID] else { continue }
-                    let glowR: CGFloat = node.isAgent ? 52 : 36
-                    let glowColor = node.isAgent ? Theme.agentAccent : node.category.color
-                    let rect = CGRect(
-                        x: pos.x - glowR, y: pos.y - glowR,
-                        width: glowR * 2, height: glowR * 2
+                    guard let node = nodeIndex[layout.nodeID] else { continue }
+                    drawBar(
+                        node: node, layout: layout, context: context,
+                        pulse: pulse, showLabel: showLabels,
+                        lineage: lineage, selectedID: selectedID, now: nowDate
                     )
-                    let glow = GraphicsContext.Shading.radialGradient(
-                        Gradient(colors: [
-                            glowColor.opacity(0.25 * pulse),
-                            glowColor.opacity(0.0),
-                        ]),
-                        center: pos,
-                        startRadius: 0,
-                        endRadius: glowR
-                    )
-                    context.fill(Path(ellipseIn: rect), with: glow)
-                }
-
-                // ── 5. Nodes ──
-                for layout in engine.layouts {
-                    guard let node = nodeIndex[layout.nodeID],
-                          let pos = animPositions[layout.nodeID] else { continue }
-
-                    let onLineage = lineage?.contains(node.id) ?? true
-                    var nodeContext = context
-                    if node.status == .running { nodeContext.opacity = pulse }
-                    if !onLineage { nodeContext.opacity *= 0.22 }
-
-                    // Appear animation: scale up + fade in.
-                    let born = nodeAppearTimes[node.id] ?? now
-                    let age = now - born
-                    let appear = min(1, max(0, age / Self.appearDuration))
-                    let appearScale = 0.6 + 0.4 * easeOutCubic(appear)
-                    nodeContext.opacity *= appear
-
-                    if pillMode {
-                        drawPill(node: node, at: pos, context: nodeContext,
-                                 scale: appearScale, isSelected: selectedID == node.id)
-                    } else {
-                        drawCard(node: node, layout: layout, at: pos,
-                                 context: nodeContext, scale: appearScale,
-                                 isSelected: selectedID == node.id,
-                                 isHovered: hoveredNodeID == node.id)
-                    }
                 }
             }
             .onAppear { canvasSize = geo.size }
@@ -417,69 +324,86 @@ struct ThoughtGraphView: View {
 
     // MARK: - Canvas Draw Helpers
 
-    /// Faint dot lattice that pans/zooms with the camera for spatial feedback.
-    private func drawDotGrid(context: GraphicsContext, size: CGSize) {
-        let worldSpacing: CGFloat = 56
-        var spacing = worldSpacing * zoom
-        // Halve density when zoomed out so the grid never becomes noise.
-        while spacing < 24 { spacing *= 2 }
+    /// Elapsed-time ruler across the top: faint vertical gridlines + "Ns"
+    /// labels at nice intervals, positioned by the same time→x scale as bars.
+    private func drawTimeAxis(context: GraphicsContext, size: CGSize) {
+        let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * zoom
+        guard pps > 0 else { return }
 
-        let originX = size.width / 2 + panOffset.width
-        let originY = 80 + panOffset.height
-        let startX = originX.truncatingRemainder(dividingBy: spacing)
-        let startY = originY.truncatingRemainder(dividingBy: spacing)
+        // Pick a tick interval that keeps labels ~70pt apart on screen.
+        let candidates: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
+        let interval = candidates.first { $0 * pps >= 70 } ?? 600
 
-        var dots = Path()
-        var x = startX
-        while x < size.width {
-            var y = startY
-            while y < size.height {
-                dots.addEllipse(in: CGRect(x: x - 1, y: y - 1, width: 2, height: 2))
-                y += spacing
+        let originX = Self.leftMargin + panOffset.width
+            + ThoughtGraphLayoutEngine.leftGutter * zoom
+        var second = 0.0
+        var gridlines = Path()
+        while true {
+            let x = originX + second * pps
+            if x > size.width { break }
+            if x >= Self.leftMargin - 1 {
+                gridlines.move(to: CGPoint(x: x, y: Self.topMargin - 8))
+                gridlines.addLine(to: CGPoint(x: x, y: size.height))
+                context.draw(
+                    Text(tickLabel(second))
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(Theme.tertiary),
+                    at: CGPoint(x: x + 3, y: Self.topMargin - 14),
+                    anchor: .leading
+                )
             }
-            x += spacing
+            second += interval
         }
-        context.fill(dots, with: .color(Theme.primary.opacity(0.05)))
+        context.stroke(gridlines, with: .color(Theme.primary.opacity(0.05)), lineWidth: 1)
     }
 
-    /// Soft rounded bands behind each lane, plus a small title above.
-    private func drawLanes(context: GraphicsContext, pillMode: Bool) {
-        guard engine.lanes.count > 1 else { return }
+    private func tickLabel(_ seconds: Double) -> String {
+        if seconds < 60 { return "\(Int(seconds))s" }
+        let m = Int(seconds) / 60
+        let s = Int(seconds) % 60
+        return s == 0 ? "\(m)m" : "\(m)m\(s)s"
+    }
 
-        let bandWidth = ThoughtGraphLayoutEngine.nodeSize.width + 44
-        let nodeH = ThoughtGraphLayoutEngine.nodeSize.height
+    /// Full-width horizontal band behind each lane, tinted by actor, with the
+    /// lane title pinned at the left.
+    private func drawLanes(context: GraphicsContext, showLabels: Bool) {
+        let laneH = ThoughtGraphLayoutEngine.laneHeight
+        let totalWidth = engine.totalSize.width
 
         for lane in engine.lanes {
             let rect = CGRect(
-                x: lane.x - bandWidth / 2,
-                y: lane.minY - nodeH,
-                width: bandWidth,
-                height: (lane.maxY - lane.minY) + nodeH * 2
+                x: -ThoughtGraphLayoutEngine.leftGutter,
+                y: lane.y - laneH / 2,
+                width: totalWidth,
+                height: laneH
             )
-            let band = Path(roundedRect: rect, cornerRadius: 18)
+            let band = Path(roundedRect: rect, cornerRadius: 10)
             let tint = lane.isAgent ? Theme.agentAccent : Theme.accent
             context.fill(band, with: .color(tint.opacity(lane.isAgent ? 0.05 : 0.035)))
-            context.stroke(band, with: .color(tint.opacity(0.10)), lineWidth: 1)
 
-            guard !pillMode else { continue }
+            guard showLabels else { continue }
             context.draw(
                 Text(lane.title)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundColor(tint.opacity(0.75)),
-                at: CGPoint(x: lane.x, y: rect.minY - 10),
-                anchor: .center
+                    .foregroundColor(tint.opacity(0.8)),
+                at: CGPoint(x: rect.minX + 6, y: lane.y - laneH / 2 + 9),
+                anchor: .leading
             )
         }
     }
 
-    /// One edge with kind-based styling, lineage dimming, and draw-in trim.
-    private func drawEdge(
+    /// A spawn edge: the delegating tool bar's right edge arcing down into the
+    /// subagent lane's first bar.
+    private func drawSpawnEdge(
         _ edge: ThoughtGraphEdge,
         context: GraphicsContext,
         lineage: Set<String>?,
         selectedID: String?
     ) {
-        guard let path = animatedEdgePath(edge) else { return }
+        guard let pts = engine.edgeControlPoints(from: edge.from, to: edge.to) else { return }
+        var path = Path()
+        path.move(to: pts.start)
+        path.addQuadCurve(to: pts.end, control: pts.control)
 
         let onLineage: Bool
         if let lineage {
@@ -487,193 +411,96 @@ struct ThoughtGraphView: View {
         } else {
             onLineage = true
         }
-
-        let color: Color
-        let width: CGFloat
-        let dash: [CGFloat]
-        switch edge.kind {
-        case .main:
-            color = Theme.accent
-            width = 1.6
-            dash = [6, 5]
-        case .spawn:
-            color = Theme.agentAccent
-            width = 2.2
-            dash = []
-        case .loop:
-            color = Theme.agentAccent
-            width = 1.2
-            dash = []
-        }
-
-        let opacity: CGFloat = onLineage ? (selectedID == nil ? 0.35 : 0.7) : 0.06
-
-        // Draw-in: trim the path while the edge is young.
-        let born = edgeAppearTimes["\(edge.from)->\(edge.to)"] ?? now
-        let progress = min(1, max(0, (now - born) / Self.edgeDrawDuration))
-        let drawn = progress < 1
-            ? path.trimmedPath(from: 0, to: easeOutCubic(progress))
-            : path
-
+        let opacity: CGFloat = onLineage ? (selectedID == nil ? 0.5 : 0.8) : 0.08
         context.stroke(
-            drawn,
-            with: .color(color.opacity(opacity)),
-            style: StrokeStyle(lineWidth: width, lineCap: .round, dash: dash)
+            path,
+            with: .color(Theme.agentAccent.opacity(opacity)),
+            style: StrokeStyle(lineWidth: 2, lineCap: .round)
         )
     }
 
-    /// Two dots flowing parent→child along a live edge.
-    private func drawParticles(_ edge: ThoughtGraphEdge, context: GraphicsContext) {
-        let color = edge.kind == .main ? Theme.accent : Theme.agentAccent
-        // Stagger per-edge via a stable hash so parallel edges don't sync up.
-        let phaseOffset = Double(abs(edge.to.hashValue % 997)) / 997.0
-        for i in 0..<2 {
-            let t = CGFloat(((now * 0.45) + phaseOffset + Double(i) * 0.5)
-                .truncatingRemainder(dividingBy: 1))
-            guard let pt = animatedEdgePoint(edge, t: t) else { continue }
-            let r: CGFloat = 2.6 * (0.7 + 0.3 * sin(.pi * t))  // swell mid-flight
-            let rect = CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)
-            context.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.85)))
-        }
-    }
-
-    /// Compact category dot for semantic zoom.
-    private func drawPill(
-        node: ThoughtGraphNode,
-        at pos: CGPoint,
-        context: GraphicsContext,
-        scale: CGFloat,
-        isSelected: Bool
-    ) {
-        let baseR: CGFloat = node.isAgent ? 13 : 9
-        let r = baseR * scale
-        let color = node.category.color
-        let rect = CGRect(x: pos.x - r, y: pos.y - r, width: r * 2, height: r * 2)
-
-        context.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.85)))
-
-        if isSelected {
-            context.stroke(
-                Path(ellipseIn: rect.insetBy(dx: -3, dy: -3)),
-                with: .color(Theme.primary.opacity(0.9)),
-                lineWidth: 1.5
-            )
-        }
-        if node.status == .error {
-            context.stroke(
-                Path(ellipseIn: rect),
-                with: .color(.red),
-                lineWidth: 2
-            )
-        }
-    }
-
-    /// Full node card via the ImageRenderer snapshot cache.
-    private func drawCard(
+    /// One node: a duration bar (tool/agent) or a diamond marker (reasoning).
+    private func drawBar(
         node: ThoughtGraphNode,
         layout: ThoughtGraphLayout,
-        at pos: CGPoint,
         context: GraphicsContext,
-        scale: CGFloat,
-        isSelected: Bool,
-        isHovered: Bool
+        pulse: Double,
+        showLabel: Bool,
+        lineage: Set<String>?,
+        selectedID: String?,
+        now: Date
     ) {
-        let collapsedSteps = node.isAgent && collapsedAgentIDs.contains(node.agentID ?? "")
-            ? stepCountByAgentID[node.agentID ?? ""] ?? 0
-            : nil
-        let key = node.cacheKey(
-            isSelected: isSelected, hovered: isHovered, collapsedSteps: collapsedSteps
+        let onLineage = lineage?.contains(node.id) ?? true
+        let born = nodeAppearTimes[node.id] ?? self.now
+        let appear = min(1, max(0, (self.now - born) / Self.appearDuration))
+
+        var ctx = context
+        ctx.opacity = (onLineage ? 1 : 0.2) * appear
+        if node.status == .running { ctx.opacity *= pulse }
+
+        let isSelected = selectedID == node.id
+        let isHovered = hoveredNodeID == node.id
+        let color = node.category.color
+
+        // Reasoning beats: durationless diamond markers.
+        if node.category == .reasoning {
+            let s = ThoughtGraphLayoutEngine.markerSize
+            let c = CGPoint(x: layout.x + s / 2, y: layout.y)
+            var diamond = Path()
+            diamond.move(to: CGPoint(x: c.x, y: c.y - s / 2))
+            diamond.addLine(to: CGPoint(x: c.x + s / 2, y: c.y))
+            diamond.addLine(to: CGPoint(x: c.x, y: c.y + s / 2))
+            diamond.addLine(to: CGPoint(x: c.x - s / 2, y: c.y))
+            diamond.closeSubpath()
+            ctx.fill(diamond, with: .color(color.opacity(0.9)))
+            if isSelected || isHovered {
+                ctx.stroke(diamond, with: .color(Theme.primary.opacity(0.9)), lineWidth: 1.5)
+            }
+            return
+        }
+
+        let width = engine.liveWidth(for: node, laidOut: layout.width, now: now)
+        let h = ThoughtGraphLayoutEngine.barHeight
+        let rect = CGRect(x: layout.x, y: layout.y - h / 2, width: width, height: h)
+        let shape = Path(roundedRect: rect, cornerRadius: 6)
+
+        // Fill: agents get a stronger tint; running bars a subtle sheen.
+        ctx.fill(shape, with: .color(color.opacity(node.isAgent ? 0.9 : 0.72)))
+        if node.isAgent {
+            ctx.stroke(shape, with: .color(Theme.agentAccent), lineWidth: 1)
+        }
+
+        // Status affordances.
+        if node.status == .error {
+            ctx.stroke(shape, with: .color(.red), lineWidth: 2)
+        }
+        if isSelected {
+            ctx.stroke(
+                Path(roundedRect: rect.insetBy(dx: -2.5, dy: -2.5), cornerRadius: 8),
+                with: .color(Theme.primary.opacity(0.9)), lineWidth: 1.5
+            )
+        } else if isHovered {
+            ctx.stroke(shape, with: .color(Theme.primary.opacity(0.5)), lineWidth: 1)
+        }
+
+        // Inline label, clipped to the bar when there's room.
+        guard showLabel, width >= 34 else { return }
+        let label = node.isAgent ? "◆ \(node.name)" : node.name
+        var labelCtx = ctx
+        labelCtx.clip(to: shape)
+        labelCtx.draw(
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.95)),
+            at: CGPoint(x: rect.minX + 6, y: rect.midY),
+            anchor: .leading
         )
-
-        let image: Image
-        if let cached = snapshotCache[key] {
-            image = cached
-        } else {
-            let view = ThoughtGraphNodeView(
-                node: node, layout: layout,
-                isSelected: isSelected, isHovered: isHovered,
-                collapsedStepCount: collapsedSteps
-            )
-            let renderer = ImageRenderer(
-                content: view.frame(width: layout.width, height: layout.height)
-            )
-            renderer.scale = 2
-            #if os(macOS)
-            guard let nsImage = renderer.nsImage else { return }
-            image = Image(nsImage: nsImage)
-            #else
-            guard let uiImage = renderer.uiImage else { return }
-            image = Image(uiImage: uiImage)
-            #endif
-            snapshotCache[key] = image
-        }
-
-        let w = layout.width * scale
-        let h = layout.height * scale
-        context.draw(image, in: CGRect(x: pos.x - w / 2, y: pos.y - h / 2, width: w, height: h))
-
-        // Completed check, top-right of the card.
-        if node.status == .completed && scale > 0.95 {
-            context.draw(
-                Text(Image(systemName: "checkmark.circle.fill"))
-                    .font(.system(size: 11))
-                    .foregroundColor(Theme.success.opacity(0.85)),
-                at: CGPoint(x: pos.x + layout.width / 2 + 4, y: pos.y - layout.height / 2 - 4),
-                anchor: .center
-            )
-        }
-    }
-
-    // MARK: - Edge Geometry (animated positions)
-
-    /// Bezier control points computed from the *animated* node positions so
-    /// edges track their nodes mid-transition.
-    private func animatedEdgeGeometry(_ edge: ThoughtGraphEdge)
-        -> (start: CGPoint, control: CGPoint, end: CGPoint)? {
-        guard let p = animPositions[edge.from], let c = animPositions[edge.to] else { return nil }
-        let size = ThoughtGraphLayoutEngine.nodeSize
-
-        let sameLane = abs(p.x - c.x) < 1
-        let start: CGPoint
-        let end: CGPoint
-        if sameLane {
-            start = CGPoint(x: p.x, y: p.y + size.height / 2)
-            end = CGPoint(x: c.x, y: c.y - size.height / 2)
-        } else {
-            let dir: CGFloat = c.x > p.x ? 1 : -1
-            start = CGPoint(x: p.x + dir * size.width / 2, y: p.y)
-            end = CGPoint(x: c.x, y: c.y - size.height / 2)
-        }
-
-        let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        let len = max(hypot(dx, dy), 1)
-        let bow: CGFloat = sameLane ? min(len * 0.12, 26) : min(len * 0.25, 60)
-        let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
-        return (start, ctrl, end)
-    }
-
-    private func animatedEdgePath(_ edge: ThoughtGraphEdge) -> Path? {
-        guard let g = animatedEdgeGeometry(edge) else { return nil }
-        var path = Path()
-        path.move(to: g.start)
-        path.addQuadCurve(to: g.end, control: g.control)
-        return path
-    }
-
-    private func animatedEdgePoint(_ edge: ThoughtGraphEdge, t: CGFloat) -> CGPoint? {
-        guard let g = animatedEdgeGeometry(edge) else { return nil }
-        let u = 1 - t
-        let x = u * u * g.start.x + 2 * u * t * g.control.x + t * t * g.end.x
-        let y = u * u * g.start.y + 2 * u * t * g.control.y + t * t * g.end.y
-        return CGPoint(x: x, y: y)
     }
 
     // MARK: - Lineage
 
-    /// IDs on the ancestor path from the selected node back to its lane root
-    /// (following spawn edges across lanes). nil when nothing is selected.
+    /// IDs on the ancestor path from the selected node back through spawn
+    /// edges. nil when nothing is selected.
     private func lineageIDs(for selectedID: String?) -> Set<String>? {
         guard let selectedID else { return nil }
         var parentByChild: [String: String] = [:]
@@ -689,19 +516,13 @@ struct ThoughtGraphView: View {
         return path
     }
 
-    // MARK: - Easing
-
-    private func easeOutCubic(_ t: Double) -> Double {
-        1 - pow(1 - t, 3)
-    }
-
     // MARK: - Empty State
 
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: isStreaming
                   ? "arrow.triangle.2.circlepath"
-                  : "square.stack.3d.up")
+                  : "chart.bar.xaxis")
                 .font(.system(size: 36))
                 .foregroundStyle(Theme.tertiary)
 
@@ -786,7 +607,10 @@ struct ThoughtGraphView: View {
                 legendItem(icon: "checkmark.circle.fill", color: Theme.success, label: "completed")
                 legendItem(icon: "xmark.circle.fill", color: Color.red, label: "error")
                 legendItem(icon: "brain", color: Theme.agentAccent, label: "subagent")
-                legendItem(icon: "bubble.left", color: Theme.graphReasoning, label: "thought")
+                legendItem(icon: "diamond.fill", color: Theme.graphReasoning, label: "thought")
+                Text("← width = duration →")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiary)
             }
         }
         .padding(.horizontal, 14)
@@ -814,7 +638,7 @@ struct ThoughtGraphView: View {
             autoFollow = true
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "arrow.down.to.line")
+                Image(systemName: "arrow.right.to.line")
                     .font(.system(size: 10, weight: .semibold))
                 Text("Follow")
                     .font(.caption2.weight(.medium))
@@ -891,7 +715,7 @@ struct ThoughtGraphView: View {
             }
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "bubble.left")
+                Image(systemName: "diamond")
                     .font(.system(size: 10, weight: .medium))
                 Text("Thoughts")
                     .font(.caption2)
@@ -1017,7 +841,6 @@ struct ThoughtGraphView: View {
                             } else {
                                 collapsedAgentIDs.insert(agentID)
                             }
-                            invalidateSnapshots(for: node.id)
                         }
                     } label: {
                         let collapsed = collapsedAgentIDs.contains(agentID)
@@ -1143,29 +966,32 @@ struct ThoughtGraphView: View {
 
     // MARK: - Hit Testing
 
-    /// Convert a point in view-space to a node ID, if any.
+    /// Convert a point in view-space to a node ID, if any. Bars are
+    /// left-anchored; markers are centered diamonds.
     private func hitTest(point: CGPoint) -> String? {
-        let canvasCenterX = canvasSize.width / 2 + panOffset.width
-        let canvasCenterY: CGFloat = 80 + panOffset.height
-        let pillMode = zoom < Self.semanticZoomThreshold
+        let originX = Self.leftMargin + panOffset.width
+        let originY = Self.topMargin + panOffset.height
+        let nowDate = Date()
 
-        for layout in engine.layouts {
-            guard let pos = animPositions[layout.nodeID] else { continue }
-            let sx = pos.x * zoom + canvasCenterX
-            let sy = pos.y * zoom + canvasCenterY
-
+        // Reverse order so topmost-drawn (later) bars win overlaps.
+        for layout in engine.layouts.reversed() {
+            guard let node = nodeIndex[layout.nodeID] else { continue }
             let rect: CGRect
-            if pillMode {
-                // Generous touch target around the dot.
-                let r: CGFloat = 16
-                rect = CGRect(x: sx - r, y: sy - r, width: r * 2, height: r * 2)
+            if node.category == .reasoning {
+                let s = ThoughtGraphLayoutEngine.markerSize * zoom
+                let cx = (layout.x + ThoughtGraphLayoutEngine.markerSize / 2) * zoom + originX
+                let cy = layout.y * zoom + originY
+                rect = CGRect(x: cx - s / 2, y: cy - s / 2, width: s, height: s)
             } else {
-                let sw = layout.width * zoom
-                let sh = layout.height * zoom
-                rect = CGRect(x: sx - sw / 2, y: sy - sh / 2, width: sw, height: sh)
+                let w = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
+                let h = ThoughtGraphLayoutEngine.barHeight
+                let sx = layout.x * zoom + originX
+                let sy = (layout.y - h / 2) * zoom + originY
+                // Pad narrow bars for a usable touch target.
+                let drawnW = max(w * zoom, 10)
+                rect = CGRect(x: sx, y: sy, width: drawnW, height: h * zoom)
             }
-
-            if rect.contains(point) {
+            if rect.insetBy(dx: -3, dy: -3).contains(point) {
                 return layout.nodeID
             }
         }
@@ -1179,19 +1005,12 @@ struct ThoughtGraphView: View {
         let oldZoom = zoom
         let newZoom = max(0.25, min(4.0, oldZoom * factor))
         guard newZoom != oldZoom else { return }
-        panOffset.width += point.x * (oldZoom - newZoom)
-        panOffset.height += point.y * (oldZoom - newZoom)
+        // Keep the point under the cursor stable across the zoom.
+        panOffset.width += (point.x - Self.leftMargin - panOffset.width)
+            * (1 - newZoom / oldZoom)
+        panOffset.height += (point.y - Self.topMargin - panOffset.height)
+            * (1 - newZoom / oldZoom)
         zoom = newZoom
-    }
-
-    // MARK: - Snapshots
-
-    /// Remove all cached snapshot variants (selected/hovered/status) for one node.
-    private func invalidateSnapshots(for nodeID: String) {
-        let prefix = "\(nodeID)-"
-        for key in snapshotCache.keys where key.hasPrefix(prefix) {
-            snapshotCache.removeValue(forKey: key)
-        }
     }
 
     // MARK: - Mouse Handlers (macOS)
@@ -1290,15 +1109,6 @@ struct ThoughtGraphView: View {
     #endif
 }
 
-// MARK: - Cache Key Helper
-
-private extension ThoughtGraphNode {
-    /// Produce a stable cache key for the snapshot dictionary.
-    func cacheKey(isSelected: Bool, hovered: Bool, collapsedSteps: Int?) -> String {
-        "\(id)-sel\(isSelected)-hov\(hovered)-\(status.rawValue)-col\(collapsedSteps.map(String.init) ?? "n")"
-    }
-}
-
 // MARK: - Status Display Name
 
 private extension ThoughtNodeStatus {
@@ -1319,7 +1129,7 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
     static var previews: some View {
         let engine = ThoughtGraphLayoutEngine()
         let sampleNodes = makeSampleNodes()
-        engine.layout(nodes: sampleNodes)
+        engine.layout(nodes: sampleNodes, now: Date())
 
         return ThoughtGraphView(
             engine: engine,
@@ -1355,7 +1165,7 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
         let n3 = ThoughtGraphNode(
             id: "t3", name: "delegate_task",
             context: "Delegating reconnect audit",
-            isComplete: false, startedAt: at(8)
+            isComplete: true, durationSeconds: 1.1, startedAt: at(8)
         )
         let a1 = ThoughtGraphNode(
             id: "agent-s1", name: "agent",
@@ -1367,7 +1177,7 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
         let a1t1 = ThoughtGraphNode(
             id: "agent-s1-t1", name: "grep",
             context: "receiveLoop|reconnect",
-            isComplete: true, startedAt: at(11), ownerAgentID: "s1"
+            isComplete: true, durationSeconds: 0.5, startedAt: at(11), ownerAgentID: "s1"
         )
         let a1t2 = ThoughtGraphNode(
             id: "agent-s1-t2", name: "read_file",

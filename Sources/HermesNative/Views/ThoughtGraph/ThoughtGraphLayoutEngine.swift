@@ -21,34 +21,37 @@ struct ThoughtGraphEdge: Equatable {
 
 // MARK: - Lane Info
 
-/// One vertical swimlane: the main loop or a single subagent's loop.
+/// One horizontal swimlane: the main loop or a single subagent's loop. Lanes
+/// stack down the y-axis; time runs left→right across each lane.
 struct ThoughtGraphLane: Identifiable {
-    let id: String          // "main" or the subagent_id
-    let index: Int
-    let x: Double           // lane center in world space
-    let title: String       // "main loop" or the agent goal prefix
-    let isAgent: Bool
-    var minY: Double
-    var maxY: Double
+    internal let id: String       // "main" or the subagent_id
+    internal let index: Int
+    internal let y: Double        // lane center in world space (row)
+    internal let title: String    // "main loop" or the agent goal prefix
+    internal let isAgent: Bool
+    internal var minX: Double     // left edge of this lane's first bar
+    internal var maxX: Double     // right edge of this lane's last bar
 }
 
 // MARK: - ThoughtGraphLayoutEngine
 
-/// Swimlane/timeline layout engine for the live agent thought graph.
+/// Time-plot swimlane layout engine for the live agent thought graph.
 ///
-/// The graph reads as a story rather than an inferred dependency DAG:
+/// The graph reads as a flamechart of the react loop — a box's horizontal
+/// position is WHEN it happened and its width is HOW LONG it took:
 ///
-/// - **Lanes (x-axis)** — one column per actor. The main react loop owns the
-///   first lane; every spawned subagent gets its own lane to the right, in
-///   spawn order. Recursion reads as lanes spawning lanes.
-/// - **Time (y-axis)** — every node (tool call, reasoning beat, agent spawn)
-///   occupies its own chronological row, ordered by `startedAt` (falling back
-///   to arrival order). Parallel work shows as adjacent lanes advancing
-///   through the same time band.
-/// - **Edges** — consecutive nodes within a lane chain vertically (`main` /
-///   `loop` kinds); a subagent's lane connects back to the delegating tool
-///   call with a `spawn` edge. No cross-lane dependency inference: every edge
-///   drawn is real.
+/// - **Time (x-axis)** — a node's left edge is `(startedAt − t0)` scaled by
+///   `pixelsPerSecond`; its width is its duration on the same scale, floored
+///   at `minBarWidth` so a 40 ms call never vanishes. Gaps between bars are
+///   real idle/wait time. Running nodes have no end yet — the view extends
+///   their right edge to "now" each frame (see `runningWidth`).
+/// - **Lanes (y-axis)** — one row per actor, stacked by spawn order. The main
+///   react loop owns the top lane; every spawned subagent opens its own lane
+///   below, beginning at the x where it was dispatched.
+/// - **Edges** — a subagent's lane connects back to the delegating tool call
+///   with a `spawn` edge (a diagonal from the parent's right edge down into
+///   the child lane). Sequence within a lane is shown by left→right adjacency,
+///   so within-lane edges aren't drawn — the time axis already orders them.
 ///
 /// The engine is pure geometry: filtering (collapsed agents, hidden
 /// reasoning) happens in the view before `layout(nodes:)` is called.
@@ -58,39 +61,63 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
     // MARK: - Published State
 
     /// Computed layout positions for every node, keyed by node ID.
-    @Published var layouts: [ThoughtGraphLayout] = []
+    /// `x` is the bar's LEFT edge (time start); `y` is the lane center.
+    @Published internal var layouts: [ThoughtGraphLayout] = []
 
-    /// Typed edges (lane chains + spawn edges).
-    @Published var edges: [ThoughtGraphEdge] = []
+    /// Typed edges (spawn edges from a delegating tool to a subagent lane).
+    @Published internal var edges: [ThoughtGraphEdge] = []
 
     /// Swimlanes, main first, then agents in spawn order.
-    @Published var lanes: [ThoughtGraphLane] = []
+    @Published internal var lanes: [ThoughtGraphLane] = []
 
     /// Total bounding size of the laid-out graph (including padding).
-    @Published var totalSize: CGSize = .zero
+    @Published internal var totalSize: CGSize = .zero
+
+    /// Wall-clock time mapped to world x = 0 (the earliest node's start).
+    /// The view needs this to extend running bars to "now".
+    @Published internal var timeOrigin: Date?
 
     // MARK: - Layout Constants
 
-    /// Width × height of every node rectangle.
-    static let nodeSize = CGSize(width: 150, height: 52)
+    /// Size of the detail-popover card (NOT the timeline bar — bars are
+    /// variable-width). Kept so the popover renders a full node card.
+    internal static let nodeSize = CGSize(width: 150, height: 52)
 
-    /// Horizontal distance between lane centers.
-    static let lanePitch: Double = 220
+    /// Vertical distance between lane centers.
+    internal static let laneHeight: Double = 66
 
-    /// Vertical distance between consecutive chronological rows.
-    static let rowPitch: Double = 76
+    /// Thickness of a tool/agent bar.
+    internal static let barHeight: Double = 30
+
+    /// Linear time scale: world pixels per second of duration.
+    internal static let pixelsPerSecond: Double = 46
+
+    /// Minimum bar width so sub-100 ms calls stay tappable and visible.
+    internal static let minBarWidth: Double = 7
+
+    /// Edge size of a reasoning-beat diamond (durationless, point-in-time).
+    internal static let markerSize: Double = 16
+
+    /// Padding before the first bar (space for t=0).
+    internal static let leftGutter: Double = 12
+
+    /// Synthetic seconds-per-node when nodes lack real timestamps (history
+    /// snapshots) — keeps them ordered left→right with readable spacing.
+    private static let syntheticStep: Double = 1.2
 
     // MARK: - Private Storage
 
     private var nodeIndex: [String: ThoughtGraphNode] = [:]
     private var layoutIndex: [String: ThoughtGraphLayout] = [:]
 
-    init() {}
+    internal init() {}
 
     // MARK: - Layout Computation
 
-    /// Run the swimlane/timeline layout on the given nodes.
-    func layout(nodes: [ThoughtGraphNode]) {
+    /// Run the time-plot swimlane layout on the given nodes. `now` bounds the
+    /// right edge of still-running bars at layout time; the view keeps them
+    /// growing between layouts.
+    internal func layout(nodes: [ThoughtGraphNode], now: Date = Date()) {
         nodeIndex = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
 
         guard !nodes.isEmpty else {
@@ -98,6 +125,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
             edges = []
             lanes = []
             totalSize = .zero
+            timeOrigin = nil
             return
         }
 
@@ -105,16 +133,45 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
         // startedAt when present; otherwise keep arrival order by synthesizing
         // an epoch-offset key from the array index (history entries have no
         // timestamps).
-        let ordered = nodes.enumerated().sorted { a, b in
+        let orderedPairs = nodes.enumerated().sorted { a, b in
             let ta = a.element.startedAt?.timeIntervalSinceReferenceDate
                 ?? Double(a.offset) * 0.001
             let tb = b.element.startedAt?.timeIntervalSinceReferenceDate
                 ?? Double(b.offset) * 0.001
             if ta != tb { return ta < tb }
             return a.offset < b.offset
-        }.map(\.element)
+        }
+        let ordered = orderedPairs.map(\.element)
 
-        // ---- 2. Lane assignment ----
+        // ---- 2. Time origin ----
+        // t0 = earliest real start; nodes without one fall back to a synthetic
+        // ordinal clock so history still reads left→right.
+        let t0 = ordered.compactMap(\.startedAt).min()
+        timeOrigin = t0
+
+        func startX(_ node: ThoughtGraphNode, ordinal: Int) -> Double {
+            guard let t0, let started = node.startedAt else {
+                return Self.leftGutter + Double(ordinal) * Self.syntheticStep * Self.pixelsPerSecond
+            }
+            return Self.leftGutter + started.timeIntervalSince(t0) * Self.pixelsPerSecond
+        }
+
+        func barWidth(_ node: ThoughtGraphNode) -> Double {
+            if node.category == .reasoning { return Self.markerSize }
+            let seconds: Double
+            if let dur = node.durationSeconds {
+                seconds = dur
+            } else if let s = node.startedAt, let e = node.completedAt {
+                seconds = e.timeIntervalSince(s)
+            } else if let s = node.startedAt {
+                seconds = max(0, now.timeIntervalSince(s))   // still running
+            } else {
+                seconds = 0
+            }
+            return max(Self.minBarWidth, seconds * Self.pixelsPerSecond)
+        }
+
+        // ---- 3. Lane assignment ----
         // Main lane first, then one lane per agent in first-appearance order.
         var laneOrder: [String] = ["main"]
         var laneIndexByKey: [String: Int] = ["main": 0]
@@ -126,70 +183,46 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
             }
         }
         let laneCount = laneOrder.count
-        let laneCenterOffset = Double(laneCount - 1) * Self.lanePitch / 2
 
-        func laneX(_ index: Int) -> Double {
-            Double(index) * Self.lanePitch - laneCenterOffset
-        }
+        func laneY(_ index: Int) -> Double { Double(index) * Self.laneHeight }
 
-        // ---- 3. Rows: one per node, chronological ----
+        // ---- 4. Bars: positioned by time, stacked by lane ----
         var layoutResults: [ThoughtGraphLayout] = []
-        var lastNodeIDInLane: [Int: String] = [:]
-        var laneMinY: [Int: Double] = [:]
-        var laneMaxY: [Int: Double] = [:]
+        var laneMinX: [Int: Double] = [:]
+        var laneMaxX: [Int: Double] = [:]
         var computedEdges: [ThoughtGraphEdge] = []
         var lastMainNodeID: String?
-        var rowByID: [String: Int] = [:]
 
-        for (row, node) in ordered.enumerated() {
+        for (ordinal, node) in ordered.enumerated() {
             let laneKey = node.agentID ?? node.ownerAgentID ?? "main"
             let laneIdx = laneIndexByKey[laneKey] ?? 0
-            let x = laneX(laneIdx)
-            let y = Double(row) * Self.rowPitch
+            let x = startX(node, ordinal: ordinal)
+            let y = laneY(laneIdx)
+            let isMarker = node.category == .reasoning
+            let width = barWidth(node)
+            let height = isMarker ? Self.markerSize : Self.barHeight
 
             layoutResults.append(ThoughtGraphLayout(
-                nodeID: node.id,
-                x: x, y: y,
-                width: Self.nodeSize.width,
-                height: Self.nodeSize.height
+                nodeID: node.id, x: x, y: y, width: width, height: height
             ))
-            rowByID[node.id] = row
-            laneMinY[laneIdx] = min(laneMinY[laneIdx] ?? y, y)
-            laneMaxY[laneIdx] = max(laneMaxY[laneIdx] ?? y, y)
+            laneMinX[laneIdx] = min(laneMinX[laneIdx] ?? x, x)
+            laneMaxX[laneIdx] = max(laneMaxX[laneIdx] ?? (x + width), x + width)
 
-            // ---- Edges ----
+            // Spawn edge: a subagent lane hangs off the delegating tool call
+            // (explicit parent if present, else the most recent main node).
             if node.isAgent {
-                // Spawn edge: explicit delegating parent when it exists in
-                // this node set, else the most recent main-lane node so the
-                // dispatch still reads as "spawned from the loop here".
                 if let pid = node.parentIDs.first(where: { nodeIndex[$0] != nil }) {
                     computedEdges.append(.init(from: pid, to: node.id, kind: .spawn))
                 } else if let fallback = lastMainNodeID {
                     computedEdges.append(.init(from: fallback, to: node.id, kind: .spawn))
                 }
-            } else if let prev = lastNodeIDInLane[laneIdx] {
-                computedEdges.append(.init(
-                    from: prev, to: node.id,
-                    kind: laneIdx == 0 ? .main : .loop
-                ))
             }
-
-            lastNodeIDInLane[laneIdx] = node.id
             if laneIdx == 0 { lastMainNodeID = node.id }
         }
 
-        // Persist row into the node's depth field for callers that inspect it.
-        for i in layoutResults.indices {
-            if var node = nodeIndex[layoutResults[i].nodeID] {
-                node.depth = rowByID[node.id] ?? 0
-                nodeIndex[node.id] = node
-            }
-        }
-
-        // ---- 4. Lane metadata (for backgrounds + headers) ----
+        // ---- 5. Lane metadata (for backgrounds + headers) ----
         var laneInfos: [ThoughtGraphLane] = []
         for (idx, key) in laneOrder.enumerated() {
-            guard let minY = laneMinY[idx], let maxY = laneMaxY[idx] else { continue }
             let title: String
             let isAgent = key != "main"
             if isAgent {
@@ -199,52 +232,50 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
                 title = "main loop"
             }
             laneInfos.append(ThoughtGraphLane(
-                id: key, index: idx, x: laneX(idx),
+                id: key, index: idx, y: laneY(idx),
                 title: title, isAgent: isAgent,
-                minY: minY, maxY: maxY
+                minX: laneMinX[idx] ?? 0,
+                maxX: laneMaxX[idx] ?? 0
             ))
         }
 
-        // ---- 5. Publish ----
+        // ---- 6. Publish ----
         layouts = layoutResults
         layoutIndex = Dictionary(uniqueKeysWithValues: layoutResults.map { ($0.nodeID, $0) })
         edges = computedEdges
         lanes = laneInfos
 
-        let width = Double(laneCount) * Self.lanePitch + Self.nodeSize.width
-        let height = Double(ordered.count) * Self.rowPitch + Self.nodeSize.height * 2
-        totalSize = CGSize(width: max(width, 200), height: max(height, 200))
+        let maxRight = layoutResults.map { $0.x + $0.width }.max() ?? 200
+        let width = maxRight + Self.leftGutter * 2
+        let height = Double(laneCount) * Self.laneHeight + Self.barHeight
+        totalSize = CGSize(width: max(width, 200), height: max(height, 120))
+    }
+
+    /// Live width of a bar for the current frame: completed bars use their
+    /// laid-out width; a still-running bar grows rightward to `now`.
+    internal func liveWidth(for node: ThoughtGraphNode, laidOut: Double, now: Date) -> Double {
+        guard node.status == .running, node.category != .reasoning,
+              let started = node.startedAt else { return laidOut }
+        let seconds = max(0, now.timeIntervalSince(started))
+        return max(Self.minBarWidth, seconds * Self.pixelsPerSecond)
     }
 
     // MARK: - Edge Geometry
 
-    /// Control points for the quadratic bezier connecting two nodes.
-    /// Within-lane edges run bottom-center → top-center; cross-lane spawn
-    /// edges leave the parent's side toward the child lane for a clean fan-out.
-    func edgeControlPoints(from parentID: String, to childID: String)
+    /// Control points for the quadratic bezier of a spawn edge: from the
+    /// delegating bar's right edge, arcing down into the child lane's start.
+    internal func edgeControlPoints(from parentID: String, to childID: String)
         -> (start: CGPoint, control: CGPoint, end: CGPoint)? {
         guard let p = layoutIndex[parentID], let c = layoutIndex[childID] else { return nil }
-
-        let sameLane = abs(p.x - c.x) < 1
-        let start: CGPoint
-        let end: CGPoint
-        if sameLane {
-            start = CGPoint(x: p.x, y: p.y + p.height / 2)
-            end = CGPoint(x: c.x, y: c.y - c.height / 2)
-        } else {
-            // Leave the parent from the side facing the child's lane.
-            let dir: CGFloat = c.x > p.x ? 1 : -1
-            start = CGPoint(x: p.x + dir * p.width / 2, y: p.y)
-            end = CGPoint(x: c.x, y: c.y - c.height / 2)
-        }
-
+        // Parent right-center → child left-center (bars are left-anchored).
+        let start = CGPoint(x: p.x + p.width, y: p.y)
+        let end = CGPoint(x: c.x, y: c.y)
         let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let dx = end.x - start.x
         let dy = end.y - start.y
         let len = max(hypot(dx, dy), 1)
-        // Cross-lane edges bow harder so they arc around lane contents.
-        let bow: CGFloat = sameLane ? min(len * 0.12, 26) : min(len * 0.25, 60)
-        let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
+        let bow: CGFloat = min(len * 0.22, 46)
+        let ctrl = CGPoint(x: mid.x + dy / len * bow, y: mid.y - dx / len * bow)
         return (start, ctrl, end)
     }
 
