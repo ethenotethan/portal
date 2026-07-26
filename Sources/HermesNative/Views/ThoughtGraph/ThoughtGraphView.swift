@@ -52,6 +52,9 @@ struct ThoughtGraphView: View {
 
     private let nodeIndex: [String: ThoughtGraphNode]
     private let runningCount: Int
+    /// Deterministically-detected external entities >1 bar touches (K8s pods,
+    /// URLs, hosts…), drawn as shapes with edges to their bars.
+    private let sharedEntities: [SharedEntity]
 
     init(
         engine: ThoughtGraphLayoutEngine,
@@ -72,6 +75,7 @@ struct ThoughtGraphView: View {
             uniquingKeysWith: { _, latest in latest }
         )
         self.runningCount = nodes.filter { $0.status == .running }.count
+        self.sharedEntities = SharedEntityExtractor.extract(from: nodes)
     }
 
     // MARK: - Local State
@@ -345,6 +349,9 @@ struct ThoughtGraphView: View {
                         lineage: lineage, selectedID: selectedID, now: nowDate
                     )
                 }
+
+                // ── 4. Shared-entity shapes + edges (deterministic overlay) ──
+                drawSharedEntities(context: context, selectedID: selectedID)
             }
             .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
             .onChange(of: geo.size) { _, newSize in
@@ -528,6 +535,61 @@ struct ThoughtGraphView: View {
             at: CGPoint(x: rect.minX + 6, y: rect.midY),
             anchor: .leading
         )
+    }
+
+    // MARK: - Shared entities (deterministic overlay)
+
+    /// Draw each detected shared entity as a labeled pill in a row BELOW the
+    /// lanes, with a curved edge from the pill up to the bottom-center of every
+    /// bar that touched it — so several tool calls hitting the same pod/URL/host
+    /// read as spokes into one node. Purely deterministic (SharedEntityExtractor);
+    /// nothing is inferred.
+    private func drawSharedEntities(context: GraphicsContext, selectedID: String?) {
+        guard !sharedEntities.isEmpty else { return }
+        let rowY = engine.totalSize.height + 28   // below the last lane band
+        let pillW: CGFloat = 150
+        let pillH: CGFloat = 22
+        let spacing: CGFloat = 12
+        // Lay pills left→right, centered under the graph's used width.
+        let totalW = CGFloat(sharedEntities.count) * pillW + CGFloat(max(0, sharedEntities.count - 1)) * spacing
+        var cursorX = max(ThoughtGraphLayoutEngine.leftGutter, (engine.totalSize.width - totalW) / 2)
+
+        for entity in sharedEntities {
+            let pillRect = CGRect(x: cursorX, y: rowY, width: pillW, height: pillH)
+            let anyTouchSelected = selectedID.map { entity.nodeIDs.contains($0) } ?? false
+            let highlight = anyTouchSelected
+
+            // Edges from each touching bar's bottom-center down to the pill top.
+            for nodeID in entity.nodeIDs {
+                guard let bar = engine.layout(for: nodeID) else { continue }
+                let from = CGPoint(x: bar.x + bar.width / 2, y: bar.y + ThoughtGraphLayoutEngine.barHeight / 2)
+                let to = CGPoint(x: pillRect.midX, y: pillRect.minY)
+                var path = Path()
+                path.move(to: from)
+                let midY = (from.y + to.y) / 2
+                path.addCurve(to: to,
+                              control1: CGPoint(x: from.x, y: midY),
+                              control2: CGPoint(x: to.x, y: midY))
+                context.stroke(
+                    path,
+                    with: .color(Theme.graphOther.opacity(highlight ? 0.7 : 0.28)),
+                    style: StrokeStyle(lineWidth: highlight ? 1.6 : 1, lineCap: .round, dash: [3, 3])
+                )
+            }
+
+            // The pill.
+            let shape = Path(roundedRect: pillRect, cornerRadius: 6)
+            context.fill(shape, with: .color(Theme.surface))
+            context.stroke(shape, with: .color(highlight ? Theme.accent : Theme.border), lineWidth: highlight ? 1.5 : 0.75)
+            context.draw(
+                Text("\(Image(systemName: entity.kind.icon))  \(entity.displayLabel)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(highlight ? Theme.primary : Theme.secondary),
+                at: CGPoint(x: pillRect.midX, y: pillRect.midY),
+                anchor: .center
+            )
+            cursorX += pillW + spacing
+        }
     }
 
     // MARK: - Lineage
@@ -1038,7 +1100,10 @@ struct ThoughtGraphView: View {
     /// running off-screen. Disengages follow so the fit isn't immediately
     /// yanked away by the camera.
     private func fitToView(animated: Bool) {
-        let world = engine.totalSize
+        var world = engine.totalSize
+        // Reserve room for the shared-entity pill row drawn below the lanes so
+        // fit-to-view frames it too instead of clipping it off the bottom.
+        if !sharedEntities.isEmpty { world.height += 58 }
         guard world.width > 1, world.height > 1,
               canvasSize.width > 1, canvasSize.height > 1 else { return }
 

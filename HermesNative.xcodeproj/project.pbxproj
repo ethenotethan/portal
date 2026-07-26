@@ -84,6 +84,7 @@
 		34EF999CDB8F55165AA5B0C1 /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23BEB95C27E09DC478FFEF1 /* FlashcardView.swift */; };
 		3513EE5A8E6D6262B500EB25 /* SessionMetaSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B77D558002A72140D541A3 /* SessionMetaSyncService.swift */; };
 		358171E086373BD8C8566D16 /* ModelProjections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3535E1EA499AFF8865A2BF50 /* ModelProjections.swift */; };
+		35979272549C55244D282A06 /* SharedEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5222E85D0C3083187BF21 /* SharedEntity.swift */; };
 		36685095E85435040146FFB3 /* WikiReaderPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = D720C22206C484ABBD4DF181 /* WikiReaderPane.swift */; };
 		36BAC600849A11730C0F06D7 /* SessionPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21133C8DE8B6625C436F2F07 /* SessionPDFExporter.swift */; };
 		3799F99662EBF112F0D9C42F /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4616ABDB28D885C44153C4A3 /* PlatformCompat.swift */; };
@@ -338,6 +339,7 @@
 		CBF547E9F64DB1BF606F17D9 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C62719357450637B7EF8D76 /* CelebrationOverlay.swift */; };
 		CC10B7453EBD118DA7064E32 /* CelebrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A703BA8AB5B196807AE254A /* CelebrationManager.swift */; };
 		CC42E48CDF80A0E07FFCD093 /* MapEntryTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78A0D4EF3AD362E70CED22D /* MapEntryTableView.swift */; };
+		CC78EC03057CC8F0878B8DBC /* SharedEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5222E85D0C3083187BF21 /* SharedEntity.swift */; };
 		CD36367200E4AC47BEF6E9D4 /* HermesNativeOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968F70307942ABE375AE4CC9 /* HermesNativeOfflineSmokeUITests.swift */; };
 		CD3880E8B57B976ABB04696F /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74241583599C1664DB6A4B94 /* SRSDashboardView.swift */; };
 		CD58DF846C28EA00DD8182C5 /* DiffBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08D050F975F8D875A7FC930 /* DiffBlockView.swift */; };
@@ -487,7 +489,6 @@
 		4A703BA8AB5B196807AE254A /* CelebrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManager.swift; sourceTree = "<group>"; };
 		4B2F649BE0F12B966FAF6C47 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		4D5389C6C82B2AEB4DAC6CC6 /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListView.swift; sourceTree = "<group>"; };
-		4E2D4064AB7F019EC934FE1C /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		4EBB3395C7A05FE0F19D8BFA /* ActivityInboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityInboxViewModel.swift; sourceTree = "<group>"; };
 		50B8F0AF1E0A054072161527 /* FeedViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedViewModel.swift; sourceTree = "<group>"; };
 		55AE31FDF73C19D9F3762143 /* ToolCallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallView.swift; sourceTree = "<group>"; };
@@ -595,6 +596,7 @@
 		D6AE9BC7BFA54E190252B742 /* PromptBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdownView.swift; sourceTree = "<group>"; };
 		D720C22206C484ABBD4DF181 /* WikiReaderPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiReaderPane.swift; sourceTree = "<group>"; };
 		D760B3D3B61C06DDF821D84C /* WikiChangesetSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetSource.swift; sourceTree = "<group>"; };
+		D7A5222E85D0C3083187BF21 /* SharedEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedEntity.swift; sourceTree = "<group>"; };
 		D85E59FC49B94551FB934540 /* ChatHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryStore.swift; sourceTree = "<group>"; };
 		D94BA7BB0578A446C7882922 /* IOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSApp.swift; sourceTree = "<group>"; };
 		D998C9BAC20BB758688FC9EB /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
@@ -633,6 +635,7 @@
 		F5636A29AD5AB638D64191A0 /* ThoughtGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphView.swift; sourceTree = "<group>"; };
 		F7471C7C26357969AFAF4154 /* SpawnNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnNode.swift; sourceTree = "<group>"; };
 		F82B26CC4D53A1A8AD7A15A4 /* LongResponseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongResponseView.swift; sourceTree = "<group>"; };
+		F85C1C75D76BE195C72757D1 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		FA8C6586DF32B80252EBABD8 /* HermesCapabilitiesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesCapabilitiesStore.swift; sourceTree = "<group>"; };
 		FB07E37EF81D865283A7F3D9 /* ArtifactStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactStore.swift; sourceTree = "<group>"; };
 		FD7F4A4FF0FB547409694A56 /* RawEventLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawEventLog.swift; sourceTree = "<group>"; };
@@ -772,7 +775,7 @@
 				9B1A7EED309784C08FCBAEB9 /* App */,
 				83CDF5F49CE0642E665E1C80 /* HermesNative */,
 				D087157DF3D83C65A7057EC9 /* HermesNativeUITests */,
-				8CB3CB2DCA05A340AA46176B /* hn-filetree */,
+				720DC4E85A24A01CECDC4BD5 /* hn-entities */,
 				DFF5ED6F1B797010DEEE8E3E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -825,6 +828,15 @@
 				E1110949F66962E0E6B6DF6E /* thinking.json */,
 			);
 			path = Lottie;
+			sourceTree = "<group>";
+		};
+		720DC4E85A24A01CECDC4BD5 /* hn-entities */ = {
+			isa = PBXGroup;
+			children = (
+				F85C1C75D76BE195C72757D1 /* Local.xcconfig */,
+			);
+			name = "hn-entities";
+			path = .;
 			sourceTree = "<group>";
 		};
 		83CDF5F49CE0642E665E1C80 /* HermesNative */ = {
@@ -903,6 +915,7 @@
 				EA2EC8133F5FA99A75ADFBA8 /* SessionFolder.swift */,
 				A7FF38A450D5792CD5FBD622 /* SessionRunEvent.swift */,
 				9D29CAFCED8C928526916577 /* SessionTimelineEvent.swift */,
+				D7A5222E85D0C3083187BF21 /* SharedEntity.swift */,
 				2C9CE5DF772697EFC0D7F9F1 /* Skill.swift */,
 				E92CD7D282D79F69DD027BFE /* SkillModels.swift */,
 				F7471C7C26357969AFAF4154 /* SpawnNode.swift */,
@@ -916,15 +929,6 @@
 				1F3F9B6602D553E52ACB6B45 /* Quiz */,
 			);
 			path = Models;
-			sourceTree = "<group>";
-		};
-		8CB3CB2DCA05A340AA46176B /* hn-filetree */ = {
-			isa = PBXGroup;
-			children = (
-				4E2D4064AB7F019EC934FE1C /* Local.xcconfig */,
-			);
-			name = "hn-filetree";
-			path = .;
 			sourceTree = "<group>";
 		};
 		977253029943CF1B5C91054C /* Wiki */ = {
@@ -1401,6 +1405,7 @@
 				5AE0C41F6397EB4E54106462 /* SessionsDashboard.swift in Sources */,
 				75C11FF675CE3ECE889E401B /* SettingsView.swift in Sources */,
 				71D6DCD896DD343FFA4BE0C7 /* SettingsViewModel.swift in Sources */,
+				CC78EC03057CC8F0878B8DBC /* SharedEntity.swift in Sources */,
 				4AB867696B6237E2E400D49A /* Skill.swift in Sources */,
 				1537D87915C7E8AE247C6B9C /* SkillCache.swift in Sources */,
 				9B4FAE7AD46C36480B9C7D2A /* SkillGraph3DView.swift in Sources */,
@@ -1611,6 +1616,7 @@
 				0611FA519921C89D95FCCF4B /* SessionsDashboard.swift in Sources */,
 				B1C72D03E5C09B3FF0D5095D /* SettingsView.swift in Sources */,
 				9050E9BF45207715254D5340 /* SettingsViewModel.swift in Sources */,
+				35979272549C55244D282A06 /* SharedEntity.swift in Sources */,
 				EEE533A6664268A419D73884 /* Skill.swift in Sources */,
 				C639B17446988C825619F345 /* SkillCache.swift in Sources */,
 				60EE1A52ECD0015AD4EB14F8 /* SkillGraph3DView.swift in Sources */,
@@ -1693,7 +1699,7 @@
 		};
 		26084659FB5AB0647E69727B /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4E2D4064AB7F019EC934FE1C /* Local.xcconfig */;
+			baseConfigurationReference = F85C1C75D76BE195C72757D1 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1719,7 +1725,7 @@
 		};
 		4CFC00ED66BEC888E19DEA4F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4E2D4064AB7F019EC934FE1C /* Local.xcconfig */;
+			baseConfigurationReference = F85C1C75D76BE195C72757D1 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-iOS.entitlements";
@@ -1745,7 +1751,7 @@
 		};
 		595D2229016B5145935C4AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4E2D4064AB7F019EC934FE1C /* Local.xcconfig */;
+			baseConfigurationReference = F85C1C75D76BE195C72757D1 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
@@ -1849,7 +1855,7 @@
 		};
 		F784528AD7F02B4BDB8D7E96 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4E2D4064AB7F019EC934FE1C /* Local.xcconfig */;
+			baseConfigurationReference = F85C1C75D76BE195C72757D1 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "HermesNative-macOS.entitlements";
