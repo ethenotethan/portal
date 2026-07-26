@@ -10,14 +10,18 @@ silently defeating every rule we enforce. `docs/architecture-rules.md` says
 
 This script turns the policy into an enforced invariant. It compares the
 per-rule entry counts in the PR's baseline against the base branch's baseline
-and fails if ANY rule's count grew. Per-rule (not just the total) is deliberate:
-paying down 5 explicit_acl while freezing 5 new force_unwraps leaves the total
-flat but is exactly the regression we want to catch.
+and fails if an *existing* rule's count grew. Per-rule (not just the total) is
+deliberate: paying down 5 explicit_acl while freezing 5 new force_unwraps
+leaves the total flat but is exactly the regression we want to catch.
 
-Shrinking counts (real debt paydown) always pass. Adding a genuinely intended
-baseline entry (e.g. a new discouraged_optional_boolean that's truly tri-state)
-is a deliberate act: it must be called out in review, and this check makes it
-impossible to do silently — the diff turns red and the PR has to justify it.
+Two cases always pass:
+- Shrinking counts: real debt paydown.
+- A rule absent from the base baseline: its entries are the *initial freeze* —
+  the first snapshot of pre-existing debt for a newly-enabled rule. You can't
+  enable a rule without this or it immediately fails CI on all prior code.
+
+The one case that fails: an already-tracked rule's count grows. That means
+someone silently froze a new violation instead of fixing it.
 
 Usage:
     check-baseline-growth.py [BASE_REF]
@@ -73,13 +77,30 @@ def main() -> int:
     base = rule_counts(base_raw)
     current = rule_counts(current_path.read_text())
 
+    # Only flag growth for rules that already existed in the base baseline.
+    # A rule absent from base with N entries in the PR is an *initial freeze* —
+    # the first snapshot of debt for a newly-enabled rule. That's expected and
+    # intentional: you can't enable a rule without baselining the existing hits
+    # or it fails CI immediately on all prior code. What we guard against is an
+    # *existing* rule's count growing (someone silently froze a new violation).
     grew = {
-        rule: (base.get(rule, 0), count)
+        rule: (base[rule], count)
         for rule, count in current.items()
-        if count > base.get(rule, 0)
+        if rule in base and count > base[rule]
+    }
+
+    new_rules = {
+        rule: count
+        for rule, count in current.items()
+        if rule not in base and count > 0
     }
 
     base_total, current_total = sum(base.values()), sum(current.values())
+
+    if new_rules:
+        print(f"  New rules with initial baseline (expected):")
+        for rule, count in sorted(new_rules.items()):
+            print(f"    {rule}: {count} entries (first freeze for this rule)")
 
     if grew:
         print("✗ Baseline GREW — new violations were frozen instead of fixed.")
@@ -87,7 +108,7 @@ def main() -> int:
         for rule, (was, now) in sorted(grew.items()):
             print(f"  {rule}: {was} → {now}  (+{now - was})")
         print(
-            "\nThe baseline records OLD debt only. A rule's count must never grow.\n"
+            "\nThe baseline records OLD debt only. An existing rule's count must never grow.\n"
             "Fix the new violation instead of baselining it. If the entry is\n"
             "genuinely intended (rare), say so explicitly in the PR description —\n"
             "this check is here so that can never happen silently.\n"

@@ -244,6 +244,29 @@ custom_rules:
       tests. Inject the dependency through an initializer or the environment instead.
     severity: warning
 
+  no_sync_io_on_main:
+    included:
+      - ".*/Views/.*\\.swift"
+      - ".*/ViewModels/.*\\.swift"
+    excluded:
+      # ChatViewModel:ingestAttachment already does this correctly — the
+      # FileManager.contents call is inside Task.detached (the comment even says
+      # why). Exclude the file so it's not baselined as debt; any new sync-I/O
+      # added to this file IS a violation.
+      - ".*/ViewModels/ChatViewModel\\.swift"
+    # Baseline: 3 existing sites in AttachmentChipView frozen in .swiftlint-baseline.
+    # Data(contentsOf:), contentsOfFile:, and FileManager.contents read the
+    # filesystem synchronously on whatever thread they're called from. In a View
+    # body that means the main thread — which blocks the run loop and causes a
+    # beachball. New code must read files in Task.detached (or a background actor).
+    # Existing debt is frozen as baseline entries to pay down over time.
+    regex: "(?:Data\\(contentsOf:|NSImage\\(contentsOfFile:|UIImage\\(contentsOfFile:|FileManager\\.default\\.contents\\(atPath:)"
+    message: >-
+      Synchronous file I/O on the main thread causes a beachball — read files
+      in Task.detached (or a background actor) and await the result. See the
+      main-thread hang watchdog in architecture-rules.md for the detection story.
+    severity: warning
+
   no_raw_error_assignment:
     included: ".*/ViewModels/.*\\.swift"
     excluded:
