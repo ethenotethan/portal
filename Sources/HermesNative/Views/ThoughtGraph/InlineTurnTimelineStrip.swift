@@ -60,6 +60,10 @@ internal struct InlineTurnTimelineStrip: View {
     private static let topPad: CGFloat = 6
     private static let bottomPad: CGFloat = 6
     private static let sidePad: CGFloat = 8
+    /// A thin ruler band under the bars for elapsed-time tick labels ("0s",
+    /// "10s", …), so the strip reads as a time plot — you can see WHEN each bar
+    /// started and the idle lapses between them, not just their order.
+    private static let axisBandHeight: CGFloat = 13
     /// Max drawable world-rows shown inline before the strip caps its height
     /// (deeper packing/lanes clip; the full graph shows everything).
     private static let maxStripWorldHeight: CGFloat = 132
@@ -71,7 +75,7 @@ internal struct InlineTurnTimelineStrip: View {
     }
 
     private var contentHeight: CGFloat {
-        Self.topPad + Self.bottomPad + drawableHeight
+        Self.topPad + Self.bottomPad + drawableHeight + Self.axisBandHeight
     }
 
     /// A bar is still growing only if the turn is streaming AND some non-
@@ -159,6 +163,49 @@ internal struct InlineTurnTimelineStrip: View {
 
     // MARK: - Draw
 
+    /// Elapsed-time ruler for the strip: vertical gridlines at "nice" second
+    /// intervals across the plot, with an "Ns" label in the bottom band under
+    /// each line. Uses the same time→x scale as the bars (world x=0 sits at
+    /// `leftGutter`), and picks the interval so labels stay ~56pt apart at the
+    /// current fit — the whole point the user asked for: seeing the lapse
+    /// between tool calls, not just their order.
+    private func drawTimeAxis(context: GraphicsContext, size: CGSize, scale: CGFloat) {
+        let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * scale   // screen px per second
+        guard pps > 0.5 else { return }   // too compressed to label — skip quietly
+
+        let candidates: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
+        let interval = candidates.first { $0 * pps >= 56 } ?? 600
+
+        // world x=0 (t0) → screen. leftGutter is the pad before the first bar.
+        let originX = Self.sidePad + ThoughtGraphLayoutEngine.leftGutter * scale
+        let axisTop = size.height - Self.axisBandHeight
+
+        var gridlines = Path()
+        var second = 0.0
+        while true {
+            let x = originX + second * pps
+            if x > size.width - Self.sidePad { break }
+            gridlines.move(to: CGPoint(x: x, y: Self.topPad))
+            gridlines.addLine(to: CGPoint(x: x, y: axisTop))
+            context.draw(
+                Text(tickLabel(second))
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundColor(Theme.tertiary),
+                at: CGPoint(x: x + 2, y: axisTop + Self.axisBandHeight / 2),
+                anchor: .leading
+            )
+            second += interval
+        }
+        context.stroke(gridlines, with: .color(Theme.primary.opacity(0.06)), lineWidth: 1)
+    }
+
+    private func tickLabel(_ seconds: Double) -> String {
+        if seconds < 60 { return "\(Int(seconds))s" }
+        let m = Int(seconds) / 60
+        let s = Int(seconds) % 60
+        return s == 0 ? "\(m)m" : "\(m)m\(s)s"
+    }
+
     private func draw(context: GraphicsContext, size: CGSize) {
         let nowDate = Date()
         let nodeByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
@@ -170,6 +217,10 @@ internal struct InlineTurnTimelineStrip: View {
         let worldH = max(CGFloat(engine.totalSize.height), 1)
         let yScale = min(1, drawableHeight / worldH)
         func sy(_ worldY: CGFloat) -> CGFloat { Self.topPad + worldY * yScale }
+
+        // Time ruler behind the bars: faint gridlines + elapsed-second labels
+        // so the lapse between bars is legible, not just their order.
+        drawTimeAxis(context: context, size: size, scale: scale)
 
         for layout in engine.layouts {
             guard let node = nodeByID[layout.nodeID] else { continue }

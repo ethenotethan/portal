@@ -147,6 +147,12 @@ struct ThoughtGraphView: View {
     private static let labelZoomThreshold: CGFloat = 0.5
     /// While following, keep the newest activity this far across the viewport.
     private static let followAnchorX: CGFloat = 0.72
+    /// Zoom range. The lower bound is intentionally tiny so `fitToView` can
+    /// frame a long turn onto ONE screen — a wide flamechart must compress to
+    /// fit, never force horizontal panning to traverse it. Manual zoom shares
+    /// the same range so the user can always zoom back out to the fitted whole.
+    private static let minZoom: CGFloat = 0.05
+    private static let maxZoom: CGFloat = 4.0
 
     // MARK: - Visible Nodes
 
@@ -229,7 +235,7 @@ struct ThoughtGraphView: View {
             MagnificationGesture()
                 .onChanged { value in
                     let targetZoom = lastPinchScale * value
-                    let clamped = max(0.25, min(4.0, targetZoom))
+                    let clamped = max(Self.minZoom, min(Self.maxZoom, targetZoom))
                     let oldZoom = zoom
                     guard abs(clamped - oldZoom) > 0.001 else { return }
                     let c = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
@@ -1188,7 +1194,7 @@ struct ThoughtGraphView: View {
         let availW = max(1, canvasSize.width - Self.leftMargin - padding)
         let availH = max(1, canvasSize.height - Self.topMargin - padding)
         let fit = min(availW / world.width, availH / world.height)
-        let targetZoom = max(0.25, min(4.0, fit))
+        let targetZoom = max(Self.minZoom, min(Self.maxZoom, fit))
 
         // Center the scaled world in the available area (world origin sits at
         // leftMargin/topMargin, then panOffset shifts from there).
@@ -1224,7 +1230,7 @@ struct ThoughtGraphView: View {
         guard factor.isFinite, factor > 0 else { return }
         hasUserAdjustedCamera = true
         let oldZoom = zoom
-        let newZoom = max(0.25, min(4.0, oldZoom * factor))
+        let newZoom = max(Self.minZoom, min(Self.maxZoom, oldZoom * factor))
         guard newZoom != oldZoom else { return }
         // Keep the point under the cursor stable across the zoom.
         panOffset.width += (point.x - Self.leftMargin - panOffset.width)
