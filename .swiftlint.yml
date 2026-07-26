@@ -278,3 +278,42 @@ custom_rules:
       Route user-facing errors through an error-mapping helper; raw strings become
       red banners (advisory warnings must not look like failures — see #191/#192).
     severity: warning
+
+  # ── Main-thread hang (beachball) prevention ──────────────────────────────
+  # Companion to no_sync_io_on_main above and the MainThreadWatchdog. These
+  # catch the OTHER two recurring hang causes at author time, before the wheel
+  # ever spins. See beachball history: #210, #217, #252.
+
+  no_withanimation_in_onreceive:
+    included: ".*/Views/.*\\.swift"
+    # A timer's `.onReceive` fires many times/sec; wrapping its state write in
+    # `withAnimation` queues one animation transaction PER TICK on the main
+    # thread. Under streaming (already re-rendering per token) that floods the
+    # run loop and beachballs — this was #252 exactly. The Canvas/view redraw
+    # is already the animation; just assign the state plainly, and gate the
+    # timer so it's idle when nothing is moving.
+    regex: "\\.onReceive\\([^)]*Timer[\\s\\S]{0,400}?withAnimation"
+    message: >-
+      Don't wrap a timer .onReceive's state write in withAnimation — it queues an
+      animation transaction every tick and beachballs during streaming (#252).
+      Assign plainly (the redraw is the animation) and gate the timer to idle.
+    severity: warning
+
+  no_heavy_work_in_view_body:
+    included: ".*/Views/.*\\.swift"
+    excluded:
+      # False positive: CodeHighlighter.highlight is already RenderMemo-backed
+      # internally (#217) — the call site looks heavy but the work is cached.
+      - ".*/Views/MarkdownContentView\\.swift"
+    # Parse/extract/build/layout/highlight are pure but EXPENSIVE. Called from a
+    # computed `var body`/helper they re-run on every SwiftUI invalidation —
+    # per keystroke, per streaming token — and stall the main thread (#210,
+    # #217). Route them through RenderMemo (cached by input) or compute once in
+    # init. This flags the call as a `private var … { Type.parse(…) }`-style
+    # computed property; memoized/`Self.someMemo.value(…)` uses don't match.
+    regex: "private var \\w+: [^{]+\\{\\s*(?:return\\s+)?\\w+\\.(?:parse|extract|build|link|compose|highlight)\\("
+    message: >-
+      Heavy pure work (parse/extract/build/link/compose/highlight) in a computed
+      view property re-runs every render and stalls the main thread (#210/#217).
+      Memoize via RenderMemo, or compute once in init — not per body evaluation.
+    severity: warning

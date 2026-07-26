@@ -14,8 +14,14 @@ internal struct SessionFileTreePane: View {
     /// Shared selection with the timeline (a thought-graph node id).
     @Binding internal var selectedNodeID: String?
 
+    /// The tree fold is pure but non-trivial (regex path extraction over every
+    /// node); memoized on the node-id set so it runs once per distinct turn,
+    /// not on every render pass. (Would otherwise re-fold per selection change.)
+    private static let treeMemo = RenderMemo<[TouchedFileNode]>(limit: 12)
+
     private var roots: [TouchedFileNode] {
-        FileTreeAggregator.build(from: nodes)
+        let key = nodes.map(\.id).joined(separator: "|")
+        return Self.treeMemo.value(for: key) { FileTreeAggregator.build(from: nodes) }
     }
 
     internal var body: some View {

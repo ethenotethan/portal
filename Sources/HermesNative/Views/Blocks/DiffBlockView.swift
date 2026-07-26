@@ -7,7 +7,9 @@ struct DiffBlockView: View {
     let code: String
     @State private var isCopied = false
 
-    private var lines: [DiffLine] { DiffLine.parse(code) }
+    /// Parse once per distinct diff, not per render (body + stats both read it).
+    private static let parseMemo = RenderMemo<[DiffLine]>(limit: 24)
+    private var lines: [DiffLine] { Self.parseMemo.value(for: code) { DiffLine.parse(code) } }
 
     private var stats: (added: Int, removed: Int) {
         let l = lines

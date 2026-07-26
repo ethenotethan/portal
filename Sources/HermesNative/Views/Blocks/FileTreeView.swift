@@ -11,7 +11,9 @@ struct FileTreeView: View {
     let code: String
     @State private var collapsed: Set<Int> = []
 
-    private var nodes: [FileTreeNode] { FileTreeNode.parse(code) }
+    /// Parse once per distinct tree source, not on every render/collapse toggle.
+    private static let parseMemo = RenderMemo<[FileTreeNode]>(limit: 24)
+    private var nodes: [FileTreeNode] { Self.parseMemo.value(for: code) { FileTreeNode.parse(code) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {

@@ -116,3 +116,21 @@ targets:
       base:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
+
+  # macOS UI tests — the beachball gate lives here. Every main-thread hang this
+  # app has hit was on macOS (the platform with MLX, GraphMouseInterceptor, the
+  # overlay-nav surface). Launched with --hang-fatal, the MainThreadWatchdog
+  # trips an assertion on any >250ms main-thread stall → the test fails → the
+  # PR can't merge. That's the "can't ship a beachball" gate.
+  HermesNativeMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Tests/HermesNativeMacUITests
+    dependencies:
+      - target: HermesNative-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS.uitests
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)

@@ -11,7 +11,7 @@ SCHEME_MAC := HermesNative-macOS
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -88,3 +88,11 @@ check: lint lint-baseline-guard
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) clean
+
+# Beachball triage in one shot. When the UI spins, this assembles the context
+# a programming agent needs to localize it WITHOUT a debugger: (1) the
+# MainThreadWatchdog's captured hang stacks from the unified log, (2) a static
+# scan for the known hang anti-patterns, (3) recent Views/perf churn. Pass a
+# look-back window in minutes: `make diagnose-hang MIN=30`.
+diagnose-hang:
+	@bash scripts/diagnose-hang.sh $(MIN)
