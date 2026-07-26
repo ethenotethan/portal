@@ -59,6 +59,9 @@ struct ThoughtGraphView: View {
     /// Deterministically-detected external entities >1 bar touches (K8s pods,
     /// URLs, hosts…), drawn as shapes with edges to their bars.
     private let sharedEntities: [SharedEntity]
+    /// Reasoning-beat ↔ tool-call concept links (shared salient token), drawn
+    /// as faint edges connecting the thinking to the tools it's about.
+    private let conceptLinks: [ConceptLink]
 
     init(
         engine: ThoughtGraphLayoutEngine,
@@ -82,6 +85,7 @@ struct ThoughtGraphView: View {
         )
         self.runningCount = nodes.filter { $0.status == .running }.count
         self.sharedEntities = SharedEntityExtractor.extract(from: nodes)
+        self.conceptLinks = ConceptLinker.link(nodes: nodes)
     }
 
     // MARK: - Local State
@@ -346,6 +350,9 @@ struct ThoughtGraphView: View {
                     drawSpawnEdge(edge, context: context, lineage: lineage, selectedID: selectedID)
                 }
 
+                // ── 2b. Concept links (reasoning ↔ tools, under the bars) ──
+                drawConceptLinks(context: context, selectedID: selectedID)
+
                 // ── 3. Bars ──
                 for layout in engine.layouts {
                     guard let node = nodeIndex[layout.nodeID] else { continue }
@@ -564,6 +571,36 @@ struct ThoughtGraphView: View {
             return nil
         }
         return text.count > 40 ? String(text.prefix(40)) + "…" : text
+    }
+
+    // MARK: - Concept links (reasoning ↔ tools)
+
+    /// Faint curved edges connecting each reasoning beat's diamond to the tool
+    /// bars that share a salient concept with it — so the thinking visibly ties
+    /// to the tools it's about. Quiet by default; a link brightens when either
+    /// of its endpoints is selected, so selecting a beat lights up the tools it
+    /// reasoned about (and vice-versa).
+    private func drawConceptLinks(context: GraphicsContext, selectedID: String?) {
+        guard !conceptLinks.isEmpty else { return }
+        for link in conceptLinks {
+            guard let beat = engine.layout(for: link.reasoningID),
+                  let tool = engine.layout(for: link.toolID) else { continue }
+            let related = selectedID == link.reasoningID || selectedID == link.toolID
+            // Beat diamond right vertex → tool bar left edge center.
+            let from = CGPoint(x: beat.x + ThoughtGraphLayoutEngine.markerSize, y: beat.y)
+            let to = CGPoint(x: tool.x, y: tool.y)
+            var path = Path()
+            path.move(to: from)
+            let midX = (from.x + to.x) / 2
+            path.addCurve(to: to,
+                          control1: CGPoint(x: midX, y: from.y),
+                          control2: CGPoint(x: midX, y: to.y))
+            context.stroke(
+                path,
+                with: .color(Theme.graphReasoning.opacity(related ? 0.65 : 0.18)),
+                style: StrokeStyle(lineWidth: related ? 1.4 : 0.8, lineCap: .round, dash: [2, 4])
+            )
+        }
     }
 
     // MARK: - Shared entities (deterministic overlay)

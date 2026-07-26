@@ -39,7 +39,7 @@ final class ArtifactStore: ObservableObject {
         /// Map a ledger outcome string to a displayable state.
         /// Returns nil for non-terminal outcomes (needs_confirmation, running)
         /// which shouldn't be re-displayed after a restart.
-        static func from(ledgerOutcome: String, reason: String?) -> IntentInvocationState? {
+        internal static func from(ledgerOutcome: String, reason: String?) -> IntentInvocationState? {
             switch ledgerOutcome {
             case "succeeded": return .succeeded(message: nil)
             case "failed":    return .failed(reason: reason ?? "Unknown error")
@@ -237,7 +237,14 @@ final class ArtifactStore: ObservableObject {
         guard let client else { return }
         Task { [weak self] in
             guard let self else { return }
-            guard let records = try? await client.artifactActionLog(artifactID: artifactID) else { return }
+            let fetched: [[String: AnyCodable]]?
+            do {
+                fetched = try await client.artifactActionLog(artifactID: artifactID)
+            } catch {
+                log.debug("artifact action log fetch failed: \(error.localizedDescription)")
+                return
+            }
+            guard let records = fetched else { return }
             // Records arrive newest-first. Walk them once, seeding only the
             // first (newest) terminal outcome seen for each slot.
             var seenSlots = Set<String>()
