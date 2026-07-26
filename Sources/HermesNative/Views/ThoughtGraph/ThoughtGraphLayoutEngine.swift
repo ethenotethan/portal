@@ -311,7 +311,7 @@ final class ThoughtGraphLayoutEngine: ObservableObject {
 
         // ---- 6. Publish ----
         layouts = layoutResults
-        layoutIndex = Dictionary(uniqueKeysWithValues: layoutResults.map { ($0.nodeID, $0) })
+        layoutIndex = Dictionary(layoutResults.map { ($0.nodeID, $0) }, uniquingKeysWith: { _, latest in latest })
         edges = computedEdges
         lanes = laneInfos
 

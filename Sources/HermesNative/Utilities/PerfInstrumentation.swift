@@ -154,7 +154,35 @@ final class PerfSampler: ObservableObject {
             let mem = String(format: "%.1f", s.footprintMB)
             let peak = String(format: "%.1f", Double(peakFootprintBytes) / 1_048_576)
             let cpu = String(format: "%.0f", s.cpuPercent)
-            perfLog.debug("mem=\(mem)MB peak=\(peak)MB cpu=\(cpu)% threads=\(s.threadCount) live=\(LeakTracker.liveCountSummary())")
+            let line = "mem=\(mem)MB peak=\(peak)MB cpu=\(cpu)% threads=\(s.threadCount) live=\(LeakTracker.liveCountSummary())"
+            perfLog.debug("\(line)")
+            writePerfSampleLog(line)
+        }
+    }
+
+    private static var perfSampleLogURL: URL? = {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        return appSupport.appendingPathComponent("hermes-native/perf-samples.log", isDirectory: false)
+    }()
+
+    private func writePerfSampleLog(_ line: String) {
+        guard let url = Self.perfSampleLogURL else { return }
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let fullLine = "[\(timestamp)] \(line)\n"
+        guard let data = fullLine.data(using: .utf8) else { return }
+        Task.detached(priority: .background) {
+            do {
+                if FileManager.default.fileExists(atPath: url.path) {
+                    let handle = try FileHandle(forWritingTo: url)
+                    try handle.seekToEnd()
+                    try handle.write(contentsOf: data)
+                    try handle.close()
+                } else {
+                    try data.write(to: url, options: .atomic)
+                }
+            } catch {
+                perfLog.warning("perf-sample-log write failed: \(error)")
+            }
         }
     }
 }

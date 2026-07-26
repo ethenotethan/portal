@@ -234,6 +234,7 @@ struct ContentView: View {
     private var iOSSessionStack: some View {
         NavigationStack(path: $iOSNavigationPath) {
             SessionListView(
+                currentSessionID: chatViewModel.currentSessionID,
                 onCreateSession: {
                     let focused = settings.focusedGateway
                     Task {
@@ -247,8 +248,6 @@ struct ContentView: View {
                 }
             )
             .environmentObject(sessionList)
-            .environmentObject(chatViewModel)
-            .environmentObject(gatewayClientWrapper)
             .navigationTitle("Sessions")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top) {
@@ -921,6 +920,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 if isMacSidebarVisible {
                     SessionListView(
+                        currentSessionID: chatViewModel.currentSessionID,
                         onCreateSession: {
                             let focused = settings.focusedGateway
                             Task {
@@ -935,8 +935,6 @@ struct ContentView: View {
                         }
                     )
                     .environmentObject(sessionList)
-                    .environmentObject(chatViewModel)
-                    .environmentObject(gatewayClientWrapper)
                     .frame(width: macSidebarWidth)
                     .transition(.move(edge: .leading).combined(with: .opacity))
 

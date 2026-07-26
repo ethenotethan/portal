@@ -6,8 +6,8 @@ import SwiftUI
 /// Tapping any row selects it into the chat view.
 struct SessionListView: View {
     @EnvironmentObject var sessionList: SessionListViewModel
-    @EnvironmentObject var chatViewModel: ChatViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+
+    public var currentSessionID: String?
 
     var onCreateSession: (() -> Void)?
     var onOpenPanel: (() -> Void)?
@@ -160,7 +160,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
             source: nil,
-            isActive: session.id == chatViewModel.currentSessionID,
+            isActive: session.id == currentSessionID,
             isOwned: true,
             isPinned: session.isPinned,
             tags: session.tags,
@@ -213,7 +213,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
             source: nil,
-            isActive: session.id == chatViewModel.currentSessionID,
+            isActive: session.id == currentSessionID,
             isOwned: true,
             isArchived: true,
             isPinned: session.isPinned,
@@ -253,7 +253,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForSession(session),
             source: session.source,
-            isActive: session.id == chatViewModel.currentSessionID,
+            isActive: session.id == currentSessionID,
             isOwned: false,
             isPinned: session.isPinned,
             tags: session.tags,
@@ -582,9 +582,7 @@ struct PulsingDot: View {
 }
 
 #Preview {
-    SessionListView()
+    SessionListView(currentSessionID: nil)
         .environmentObject(SessionListViewModel())
-        .environmentObject(ChatViewModel())
-        .environmentObject(GatewayClientWrapper())
         .frame(width: 280, height: 500)
 }

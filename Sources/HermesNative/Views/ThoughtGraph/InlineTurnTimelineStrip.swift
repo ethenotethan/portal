@@ -55,6 +55,7 @@ internal struct InlineTurnTimelineStrip: View {
 
     @StateObject private var engine = ThoughtGraphLayoutEngine()
     @State private var now: TimeInterval = Date.now.timeIntervalSinceReferenceDate
+    @State private var relayoutTask: Task<Void, Never>?
 
     private static let topPad: CGFloat = 6
     private static let bottomPad: CGFloat = 6
@@ -99,7 +100,7 @@ internal struct InlineTurnTimelineStrip: View {
         .contentShape(Rectangle())
         .onTapGesture { onExpand?() }
         .onAppear { relayout() }
-        .onChange(of: nodes.count) { _, _ in relayout() }
+        .onChange(of: nodes.count) { _, _ in debouncedRelayout() }
         // Advance "now" only while a bar is actually GROWING (a running,
         // non-reasoning node) — otherwise the strip is static and needs no
         // ticking. Plain assignment: the Canvas redraw is the animation;
@@ -115,6 +116,15 @@ internal struct InlineTurnTimelineStrip: View {
 
     private func relayout() {
         engine.layout(nodes: nodes, now: Date())
+    }
+
+    private func debouncedRelayout() {
+        relayoutTask?.cancel()
+        relayoutTask = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: 100_000_000) } catch { return }
+            guard !Task.isCancelled else { return }
+            relayout()
+        }
     }
 
     /// Scale mapping world-x → the strip's available width. Recomputed each
