@@ -68,6 +68,7 @@
 		27999E6FC9618D9EA0A9938B /* SessionUsageBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69BE1BFB4981AC15D5E2726 /* SessionUsageBadge.swift */; };
 		280980593A775D9E5BAC9139 /* StreamingStatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6294FDA258010F40BDDF42C3 /* StreamingStatusBar.swift */; };
 		288ECCEA3C3ED136FDC2AA49 /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5174D9176CAF7C53C76301E /* WikiTimelineView.swift */; };
+		29738225203E2A9E1BC4771C /* HTMLArtifactIntentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0E4F31E78A136DE94CEF88 /* HTMLArtifactIntentBridge.swift */; };
 		2B3CC48A1A9BE821F4ACA957 /* TimelineBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B196F8CB4B5F2F38418CE4C /* TimelineBlockView.swift */; };
 		2C3618331E3F2AA253AC1699 /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10E22AF9B26D11278DD62B6 /* JSONRPCRequest.swift */; };
 		2C68165D6A36788059DD1B66 /* SessionFileTreePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2C23A5E7998A1B315E6ECB /* SessionFileTreePane.swift */; };
@@ -418,6 +419,7 @@
 		FC630866E5003CEF3DB435B2 /* WikiPathPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8E5E08E65C896D70FBCA35B /* WikiPathPickerSheet.swift */; };
 		FCBCCD98C0F42F94C0D65940 /* SubagentGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA73FC9F53826DC70D6736D /* SubagentGraphIntegrator.swift */; };
 		FD3E7899A19A2676755CEC08 /* ActivityInboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBB3395C7A05FE0F19D8BFA /* ActivityInboxViewModel.swift */; };
+		FD8C6983F2EFC2CC1B58CC18 /* HTMLArtifactIntentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0E4F31E78A136DE94CEF88 /* HTMLArtifactIntentBridge.swift */; };
 		FD914CDE296D96EB51525491 /* CentaurWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2677BF51ECCB84E1D8ED5275 /* CentaurWorkflow.swift */; };
 		FDA5911129F556FB29B289B4 /* QuizModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C507ADF4D946E8F07EE41174 /* QuizModels.swift */; };
 		FDB5583AC9395AAD7A316F62 /* confused.json in Resources */ = {isa = PBXBuildFile; fileRef = 438F3AF894E195EF4007BAE9 /* confused.json */; };
@@ -552,6 +554,7 @@
 		98EAA5520C82637C026B91DB /* PromptBreakdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdown.swift; sourceTree = "<group>"; };
 		98F83FBEE2240F4A57B1FB0D /* CronRunHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronRunHistory.swift; sourceTree = "<group>"; };
 		9A014710FF545F86CB656E53 /* TTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSService.swift; sourceTree = "<group>"; };
+		9B0E4F31E78A136DE94CEF88 /* HTMLArtifactIntentBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLArtifactIntentBridge.swift; sourceTree = "<group>"; };
 		9B1C673C620872B0D6482C9E /* ActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStore.swift; sourceTree = "<group>"; };
 		9B2AB0CFDB8A13FCF88213B5 /* SRSEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSEngine.swift; sourceTree = "<group>"; };
 		9C081C7E7A87FF91A5D3F2C2 /* ReasoningGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningGraphIntegrator.swift; sourceTree = "<group>"; };
@@ -903,6 +906,7 @@
 				0648368C04972EB1614B4374 /* GatewayDebugSnapshot.swift */,
 				6772AAD454D58CA9064AE58D /* GatewayEvent.swift */,
 				6C12EFC4F6A1D7B76A700928 /* HermesCapabilities.swift */,
+				9B0E4F31E78A136DE94CEF88 /* HTMLArtifactIntentBridge.swift */,
 				EA7E5DA4817A89AD472EF98B /* LivingArtifact.swift */,
 				1BD595ED92F0E83BCFB7415E /* MaintainerRef.swift */,
 				A1669F694E957B7E101B2C51 /* MediaAttachment.swift */,
@@ -1329,6 +1333,7 @@
 				95006EACD8FAE6B2373C7E9D /* GatewayDebugSnapshot.swift in Sources */,
 				FB36647CC221C486A87A10AA /* GatewayEvent.swift in Sources */,
 				FAEAC76D80A7E5CE1C87FF9D /* GitHubLinkCard.swift in Sources */,
+				FD8C6983F2EFC2CC1B58CC18 /* HTMLArtifactIntentBridge.swift in Sources */,
 				48E2F0B696FBAE1CA8D89745 /* HermesCapabilities.swift in Sources */,
 				03AAEAC08629D75C76094B59 /* HermesCapabilitiesStore.swift in Sources */,
 				3D8A9421202DEC219E546408 /* HermesNativeApp.swift in Sources */,
@@ -1541,6 +1546,7 @@
 				8060C4164F4FA40B50846E7D /* GatewayDebugSnapshot.swift in Sources */,
 				F07A9C9323E8246CB1728EFA /* GatewayEvent.swift in Sources */,
 				D35DBCE40117088D697FD5AA /* GitHubLinkCard.swift in Sources */,
+				29738225203E2A9E1BC4771C /* HTMLArtifactIntentBridge.swift in Sources */,
 				EAF2F54F452E73FFCFF76E10 /* HermesCapabilities.swift in Sources */,
 				4F9265805827A9DAC48D6960 /* HermesCapabilitiesStore.swift in Sources */,
 				636E6271A60453754BEC74F1 /* HermesNativeApp.swift in Sources */,

@@ -1480,13 +1480,25 @@ struct OpenableBlockSheet: View {
 
 struct InlineHTMLView: View {
     let html: String
+    /// Present only for a live HTML living artifact. Transcript HTML and
+    /// revision previews omit the callback, so inert binding markers cannot
+    /// invoke anything outside the current authoritative artifact.
+    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+
+    init(
+        html: String,
+        onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil
+    ) {
+        self.html = html
+        self.onArtifactIntent = onArtifactIntent
+    }
 
     var body: some View {
         #if os(macOS)
-        InlineHTMLNSView(html: html)
+        InlineHTMLNSView(html: html, onArtifactIntent: onArtifactIntent)
             .background(Theme.background)
         #else
-        InlineHTMLUIView(html: html)
+        InlineHTMLUIView(html: html, onArtifactIntent: onArtifactIntent)
             .background(Theme.background)
         #endif
     }
@@ -1495,9 +1507,10 @@ struct InlineHTMLView: View {
 #if os(macOS)
 struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
+    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate()
+        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -1505,6 +1518,14 @@ struct InlineHTMLNSView: NSViewRepresentable {
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.isElementFullscreenEnabled = true
         config.websiteDataStore = .nonPersistent()
+        if onArtifactIntent != nil {
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLArtifactIntentBridge.userScriptSource(nonce: context.coordinator.nonce),
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: "HermesArtifactIntentBridge")
+            ))
+        }
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
@@ -1513,6 +1534,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onArtifactIntent = onArtifactIntent
         guard context.coordinator.lastLoadedHTML != html else { return }
         context.coordinator.lastLoadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
@@ -1521,15 +1543,24 @@ struct InlineHTMLNSView: NSViewRepresentable {
 #else
 struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
+    let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate()
+        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.websiteDataStore = .nonPersistent()
+        if onArtifactIntent != nil {
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLArtifactIntentBridge.userScriptSource(nonce: context.coordinator.nonce),
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: "HermesArtifactIntentBridge")
+            ))
+        }
         // Match macOS: embedded media plays inline instead of hijacking the
         // screen with the system fullscreen player, and element-fullscreen
         // requests (charts, embeds) are honored instead of silently ignored.
@@ -1546,6 +1577,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onArtifactIntent = onArtifactIntent
         guard context.coordinator.lastLoadedHTML != html else { return }
         context.coordinator.lastLoadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
@@ -1553,13 +1585,34 @@ struct InlineHTMLUIView: UIViewRepresentable {
 }
 #endif
 
+@MainActor
 final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     var lastLoadedHTML: String?
+    var onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    /// Per-webview capability known only to the isolated content world and
+    /// the native navigation delegate. The page cannot auto-submit an action.
+    let nonce = UUID().uuidString
+
+    init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
+        self.onArtifactIntent = onArtifactIntent
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
+        if let url = navigationAction.request.url,
+           url.scheme?.lowercased() == HTMLArtifactIntentRequest.scheme {
+            if let request = HTMLArtifactIntentRequest(url: url, expectedNonce: nonce) {
+                onArtifactIntent?(request)
+            }
+            // Always cancel the private navigation, including malformed
+            // requests. It is a control message, never page navigation.
+            decisionHandler(.cancel)
+            return
+        }
+
         guard navigationAction.navigationType == .linkActivated,
               let url = navigationAction.request.url,
               ["http", "https"].contains(url.scheme?.lowercased() ?? "")
