@@ -61,9 +61,23 @@ final class ArtifactStore: ObservableObject {
     /// original result rather than executing twice.
     private var idempotencyKeys: [String: String] = [:]
 
-    /// Artifacts sorted by recency for pickers.
+    /// The gateway that is currently "focused" in the UI. When non-nil,
+    /// `sortedArtifacts` returns only artifacts owned by this gateway (plus
+    /// legacy nil-gateway artifacts under the Hermes home gateway). New
+    /// artifacts created while a gateway is focused are stamped with its id.
+    @Published internal var focusedGatewayID: UUID?
+
+    /// Artifacts sorted by recency for pickers, scoped to the focused
+    /// gateway when one is set. Legacy artifacts (nil gatewayID) are
+    /// treated as belonging to the Hermes home gateway and shown when no
+    /// session-scoped gateway is focused.
     var sortedArtifacts: [LivingArtifact] {
-        artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
+        let all = artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
+        guard let focused = focusedGatewayID else { return all }
+        // Session-scoped backend focused: show only its artifacts.
+        // Nil-gateway (legacy/Hermes) artifacts are excluded when a
+        // session-scoped gateway is active — they belong to Hermes.
+        return all.filter { $0.gatewayID == focused }
     }
 
     private convenience init() {
@@ -101,7 +115,8 @@ final class ArtifactStore: ObservableObject {
             title: title ?? artifacts[id]?.title ?? "",
             content: merged,
             updatedAt: Date(),
-            updatedBy: SessionMetaSyncService.deviceID
+            updatedBy: SessionMetaSyncService.deviceID,
+            gatewayID: artifacts[id]?.gatewayID ?? focusedGatewayID
         )
         // Preserve a non-empty title over an incoming nil/empty one.
         if artifact.title.isEmpty, let existingTitle = artifacts[id]?.title {
@@ -473,12 +488,17 @@ final class ArtifactStore: ObservableObject {
             return
         }
         guard let client else { return }
-        Task {
+        let preservedGatewayID = artifacts[id]?.gatewayID ?? focusedGatewayID
+        Task { [weak self] in
+            guard let self else { return }
             guard let fresh = try? await client.artifactGet(id: id) else { return }
             // Ignore events for our own just-pushed writes only if stale:
             // rev is monotonic, so an older rev never overwrites a newer one.
             if let current = artifacts[id], current.rev >= fresh.rev, fresh.rev > 0 { return }
-            artifacts[id] = fresh
+            // Preserve the local gateway-ownership stamp.
+            var stamped = fresh
+            stamped.gatewayID = preservedGatewayID
+            artifacts[id] = stamped
             persistToDisk()
         }
     }
@@ -501,7 +521,12 @@ final class ArtifactStore: ObservableObject {
                 let local = artifacts[summary.id]
                 if local == nil || summary.rev > (local?.rev ?? 0) {
                     if let full = try? await client.artifactGet(id: summary.id) {
-                        artifacts[summary.id] = full
+                        // Preserve the local gateway-ownership stamp — it is a
+                        // client-side annotation and is not round-tripped through
+                        // the gateway wire format.
+                        var stamped = full
+                        stamped.gatewayID = local?.gatewayID ?? focusedGatewayID
+                        artifacts[summary.id] = stamped
                         changed = true
                     }
                 }

@@ -13,8 +13,12 @@ struct ArtifactsPane: View {
 
     @State private var selectedID: String?
 
+    private var visibleArtifacts: [LivingArtifact] { store.sortedArtifacts }
+
     private var selected: LivingArtifact? {
-        selectedID.flatMap { store.artifacts[$0] } ?? store.sortedArtifacts.first
+        selectedID.flatMap { store.artifacts[$0] }.flatMap { a in
+            visibleArtifacts.contains(where: { $0.id == a.id }) ? a : nil
+        } ?? visibleArtifacts.first
     }
 
     var body: some View {
@@ -23,7 +27,7 @@ struct ArtifactsPane: View {
             VStack(spacing: 0) {
                 header
                 Divider().overlay(Theme.border)
-                if store.artifacts.isEmpty {
+                if visibleArtifacts.isEmpty {
                     emptyState
                 } else {
                     HSplitViewCompat {
@@ -53,7 +57,7 @@ struct ArtifactsPane: View {
             Text("Artifacts")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Theme.primary)
-            Text("\(store.artifacts.count)")
+            Text("\(visibleArtifacts.count)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
                 .padding(.horizontal, 6)
@@ -103,7 +107,7 @@ struct ArtifactsPane: View {
     private var artifactList: some View {
         ScrollView {
             VStack(spacing: 3) {
-                ForEach(store.sortedArtifacts) { artifact in
+                ForEach(visibleArtifacts) { artifact in
                     artifactRow(artifact)
                 }
             }

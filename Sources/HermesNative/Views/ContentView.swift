@@ -133,6 +133,11 @@ struct ContentView: View {
             guard oldID != nil, newID != nil, settings.isConfigured else { return }
             handleGatewaySwitch()
         }
+        .onChange(of: settings.focusedBackendID) { _, focused in
+            // Propagate the focused gateway to the artifact store so it can
+            // scope sortedArtifacts and stamp new artifacts with the right owner.
+            updateArtifactGatewayScope(focusedID: focused)
+        }
         .onReceive(PushRegistrationService.shared.$deviceTokenHex) { token in
             // The OS usually grants the APNs token AFTER the first connect
             // completes — re-sync when it lands so cold launch registers too.
@@ -1363,6 +1368,21 @@ struct ContentView: View {
         observeChatRunState()
 spawnTreeStore.subscribe(to: client)
         cronPoller.setGatewayClient(client)
+        updateArtifactGatewayScope(focusedID: settings.focusedBackendID)
+    }
+
+    /// Scope the artifact store to the currently-focused gateway so the UI only
+    /// shows artifacts that belong to the selected backend. Session-scoped
+    /// (Centaur) gateways get their own artifact namespace; Hermes (nil focus)
+    /// shows legacy/unscoped artifacts.
+    private func updateArtifactGatewayScope(focusedID: UUID?) {
+        guard let focusedID,
+              let entry = settings.savedGateways.first(where: { $0.id == focusedID }),
+              entry.kind.isSessionScoped else {
+            ArtifactStore.shared.focusedGatewayID = nil
+            return
+        }
+        ArtifactStore.shared.focusedGatewayID = focusedID
     }
 
     private func observeChatRunState() {

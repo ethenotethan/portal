@@ -5,7 +5,8 @@ import SwiftUI
 /// - "Other Sessions" — from Telegram/TUI/etc, opened read-only
 /// Tapping any row selects it into the chat view.
 struct SessionListView: View {
-    @EnvironmentObject var sessionList: SessionListViewModel
+    @EnvironmentObject internal var sessionList: SessionListViewModel
+    @EnvironmentObject internal var settings: SettingsViewModel
 
     public var currentSessionID: String?
 
@@ -17,20 +18,37 @@ struct SessionListView: View {
     @State private var otherSessionsCollapsed = false
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
+    /// When a gateway is focused, filter the displayed sessions to only those
+    /// that belong to it. Session-scoped (Centaur) gateways use the backend
+    /// registry. The Hermes home gateway shows sessions with no registered
+    /// backend (nil) plus any sessions explicitly mapped to its ID.
+    private func gatewayFilter(_ session: Session) -> Bool {
+        guard let focused = settings.focusedGateway else { return true }
+        let backendID = SessionBackendRegistry.shared.backendID(for: session.id)
+        if focused.kind.isSessionScoped {
+            // Session-scoped gateway: show only its sessions
+            return backendID == focused.id
+        } else {
+            // Hermes gateway: show sessions with no backend registration
+            // (legacy / natively created) or mapped to this specific entry
+            return backendID == nil || backendID == focused.id
+        }
+    }
+
     private var mySessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && !$0.isArchived })
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && !$0.isArchived && gatewayFilter($0) })
     }
 
     private var archivedSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && $0.isArchived })
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && $0.isArchived && gatewayFilter($0) })
     }
 
     private var cronSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.source?.lowercased() == "cron" })
+        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.source?.lowercased() == "cron" && gatewayFilter($0) })
     }
 
     private var otherSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" })
+        sessionList.sortedForSidebar(sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" && gatewayFilter($0) })
     }
 
     var body: some View {
@@ -584,5 +602,6 @@ struct PulsingDot: View {
 #Preview {
     SessionListView(currentSessionID: nil)
         .environmentObject(SessionListViewModel())
+        .environmentObject(SettingsViewModel())
         .frame(width: 280, height: 500)
 }

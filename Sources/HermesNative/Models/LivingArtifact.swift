@@ -33,17 +33,24 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     // Explicit memberwise init (required once we add CodingKeys for Codable).
     internal init(id: String, kind: String, title: String, content: String,
                   updatedAt: Date, updatedBy: String, rev: Int = 0,
+                  gatewayID: UUID? = nil,
                   topLevelActions: [ArtifactAction] = []) {
         self.id = id; self.kind = kind; self.title = title
         self.content = content; self.updatedAt = updatedAt
         self.updatedBy = updatedBy; self.rev = rev
+        self.gatewayID = gatewayID
         self.topLevelActions = topLevelActions
     }
 
     // Custom Codable to exclude topLevelActions (ArtifactAction is not Codable;
     // it's always re-parsed from the gateway response, never from disk).
+    /// The backend/gateway that owns this artifact. Nil = pre-scoping artifact
+    /// (legacy) or Hermes home gateway. Used to filter the artifact list when
+    /// a specific gateway is focused in the UI.
+    internal var gatewayID: UUID?
+
     internal enum CodingKeys: String, CodingKey {
-        case id, kind, title, content, updatedAt, updatedBy, rev
+        case id, kind, title, content, updatedAt, updatedBy, rev, gatewayID
     }
 
     internal init(from decoder: Decoder) throws {
@@ -55,6 +62,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
         updatedBy = try c.decode(String.self, forKey: .updatedBy)
         rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 0
+        gatewayID = try c.decodeIfPresent(UUID.self, forKey: .gatewayID)
         topLevelActions = []
     }
 
@@ -67,6 +75,7 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
         try c.encode(updatedAt, forKey: .updatedAt)
         try c.encode(updatedBy, forKey: .updatedBy)
         try c.encode(rev, forKey: .rev)
+        try c.encodeIfPresent(gatewayID, forKey: .gatewayID)
     }
 
     /// Human label for pickers: title if present, else the id.
