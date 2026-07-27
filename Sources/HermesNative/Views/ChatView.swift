@@ -923,26 +923,41 @@ struct ChatView: View {
                             }
 
                             if chatViewModel.isStreaming {
-                                skinProvider.streamingPanel(
-                                    state: chatViewModel.avatarState,
-                                    activeToolCalls: chatViewModel.activeToolCalls,
-                                    personaName: displayPersona.name,
-                                    accentColor: displayPersona.accentColor
-                                )
-                                .id("streaming-status")
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                // Same plane as the running-tools trace: the
+                                // status + live timeline occupy the main width;
+                                // the skills lens (the "what capability" view)
+                                // pins to the far-right, grouped by the skill
+                                // taxonomy and updating live as skills attach.
+                                HStack(alignment: .top, spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        skinProvider.streamingPanel(
+                                            state: chatViewModel.avatarState,
+                                            activeToolCalls: chatViewModel.activeToolCalls,
+                                            personaName: displayPersona.name,
+                                            accentColor: displayPersona.accentColor
+                                        )
+                                        .id("streaming-status")
 
-                                // Live flamechart strip alongside the text tool
-                                // trace — bars fill in real time as tools run
-                                // and subagents take turns. Tap opens the full
-                                // session graph.
-                                InlineTurnTimelineLive(
-                                    chatViewModel: chatViewModel,
-                                    subagentGraph: chatViewModel.subagentGraph,
-                                    reasoningGraph: chatViewModel.reasoningGraph,
-                                    onExpand: { showThoughtGraph = true }
-                                )
-                                .id("inline-timeline")
+                                        // Live flamechart strip alongside the
+                                        // text tool trace — bars fill in real
+                                        // time as tools run and subagents take
+                                        // turns. Tap opens the full session graph.
+                                        InlineTurnTimelineLive(
+                                            chatViewModel: chatViewModel,
+                                            subagentGraph: chatViewModel.subagentGraph,
+                                            reasoningGraph: chatViewModel.reasoningGraph,
+                                            onExpand: { showThoughtGraph = true }
+                                        )
+                                        .id("inline-timeline")
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    if !chatViewModel.activeSkills.isEmpty {
+                                        TurnSkillsLens(skills: chatViewModel.activeSkills)
+                                            .frame(width: 168)
+                                            .id("turn-skills-lens")
+                                    }
+                                }
                                 .transition(.opacity)
                             }
 
