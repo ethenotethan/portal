@@ -106,7 +106,10 @@ extension GatewayClient {
         if let w = wiki {
             params["wiki"] = AnyCodable(w)
         }
-        let response = try await call("wiki.scan", params: params)
+        // A full wiki scan is one un-paginated round-trip; without a ceiling a
+        // slow or wedged gateway leaves the pane on "Loading…" indefinitely.
+        // Fail fast so the surface can show a real error with a retry.
+        let response = try await call("wiki.scan", params: params, timeout: 30)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }

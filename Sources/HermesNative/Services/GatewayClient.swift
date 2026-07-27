@@ -672,7 +672,16 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     // MARK: - JSON-RPC Calls
 
-    func call(_ method: String, params: [String: AnyCodable]? = nil) async throws -> JSONRPCResponse {
+    /// - Parameter timeout: when non-nil, the call fails with
+    ///   `GatewayError.timedOut` if no response arrives within this many
+    ///   seconds. Without it a slow or wedged handler leaves the continuation
+    ///   pending forever (the "stuck on Loading" class of bug). Off by default
+    ///   so existing callers are unchanged; opt in for user-facing fetches.
+    internal func call(
+        _ method: String,
+        params: [String: AnyCodable]? = nil,
+        timeout: Double? = nil
+    ) async throws -> JSONRPCResponse {
         let id = nextRequestID()
 
         let request = JSONRPCRequest(id: id, method: method, params: params)
@@ -692,6 +701,25 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             log.debug("call: registered continuation for id=\(id), pending count=\(count)")
             pendingRequestsLock.unlock()
             refreshDebugSnapshot()
+
+            // Arm a timeout, if requested. removePendingRequest returns the
+            // continuation only if it's still pending, so the response path and
+            // this timer can race safely — whichever wins resumes exactly once.
+            if let timeout {
+                Task { @MainActor [weak self] in
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    } catch {
+                        // Cancelled before the deadline — leave the request to
+                        // the response/disconnect path; don't force a timeout.
+                        return
+                    }
+                    guard let self, let pending = self.removePendingRequest(id: id) else { return }
+                    self.recordDebugEvent(.error, name: method, detail: "timed out after \(timeout)s id=\(id)")
+                    self.onLog?("✗ \(method) timed out after \(Int(timeout))s (id=\(id))", true)
+                    pending.resume(throwing: GatewayError.timedOut(method: method, seconds: timeout))
+                }
+            }
 
             // Send AFTER registration — continuation is now safe to fulfill.
             log.debug("call: sending \(method) id=\(id)")
@@ -1985,6 +2013,7 @@ enum GatewayError: LocalizedError {
     case disconnected
     case invalidResponse(String)
     case rpcError(JSONRPCError)
+    case timedOut(method: String, seconds: Double)
 
     var errorDescription: String? {
         switch self {
@@ -1992,6 +2021,8 @@ enum GatewayError: LocalizedError {
         case .disconnected: "Connection lost"
         case .invalidResponse(let msg): "Invalid response: \(msg)"
         case .rpcError(let err): "RPC error [\(err.code)]: \(err.message)"
+        case .timedOut(let method, let seconds):
+            "\(method) timed out after \(Int(seconds))s"
         }
     }
 }

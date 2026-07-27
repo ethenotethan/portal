@@ -99,3 +99,29 @@ struct HealthProbeURLTests {
         #expect(url?.absoluteString == "https://gw.example.com:4443/health")
     }
 }
+
+/// A slow `wiki.scan` used to leave the pane on "Loading…" forever because
+/// `call` never armed a timeout. It now fails with `.timedOut`; this locks the
+/// user-facing message (what the surface shows on a wedged gateway) and that a
+/// call with no connection still fails fast rather than waiting out the timer.
+@Suite("Gateway call timeout")
+@MainActor
+internal struct GatewayCallTimeoutTests {
+
+    @Test("timedOut names the method and elapsed seconds")
+    internal func timedOutMessage() {
+        let error = GatewayError.timedOut(method: "wiki.scan", seconds: 30)
+        #expect(error.errorDescription == "wiki.scan timed out after 30s")
+    }
+
+    @Test("A call with no socket fails fast, before the timeout can arm")
+    internal func notConnectedBeatsTimeout() async {
+        // Port 9 (discard) — never dialed; the client has no webSocketTask, so
+        // call() must throw .notConnected immediately regardless of timeout.
+        let client = GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
+        await #expect(throws: GatewayError.self) {
+            _ = try await client.call("wiki.scan", timeout: 30)
+        }
+        client.disconnect()
+    }
+}
