@@ -3,17 +3,16 @@ import SwiftUI
 /// The body of a wiki page reader: frontmatter chips, rendered markdown with
 /// clickable wikilinks, and backlinks — everything BELOW a host's header.
 ///
-/// Extracted from `WikiReaderPane` so the docked side panel and the floating
-/// doc cards share ONE content path. That matters for more than dedup: the
-/// markdown render (block parse + per-block highlight + the wikilink regex) is
-/// the expensive, beachball-prone work, and it lives here once, memoized by the
-/// shared caches (MarkdownParseCache / CodeHighlighter), instead of being
-/// copy-pasted into every host.
+/// Extracted from `WikiReaderPane` so the iOS sheet, the macOS docked reader,
+/// and each Compare tile share ONE content path. That matters for more than
+/// dedup: the markdown render (block parse + per-block highlight + the wikilink
+/// regex) is the expensive, beachball-prone work, and it lives here once,
+/// memoized by the shared caches (MarkdownParseCache / CodeHighlighter),
+/// instead of being copy-pasted into every host.
 ///
 /// This view is navigation-agnostic: it renders whatever `path` it's given and
-/// reports link taps through `onNavigate`, so the docked pane can drive the
-/// shared selection plane while a floating card drives its own per-card history
-/// — the body doesn't know or care which.
+/// reports link taps through `onNavigate`, so each host decides what "navigate"
+/// means — the body doesn't know or care which.
 internal struct WikiPageReaderBody: View {
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper

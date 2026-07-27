@@ -6,9 +6,9 @@ import SwiftUI
 /// - No page selected → full-bleed force-directed graph (2D canvas by
 ///   default; 3D SceneKit is a rendering toggle in the controls bar).
 /// - Selecting a page (graph node, file-tree sidebar, or search) opens the
-///   reader over the always-alive graph: on macOS a free-form floating doc
-///   card the user drags and resizes (open a second node → a second card); on
-///   iOS a sheet. Deselect/close → back to the full graph.
+///   reader over the always-alive graph: on macOS a right-docked panel with a
+///   draggable divider and a fullscreen toggle (pin pages to compare them
+///   side-by-side); on iOS a sheet. Deselect/close → back to the full graph.
 /// - The folder tree is a toggleable left sidebar (macOS) / sheet (iOS).
 /// - The changeset timeline is a bottom drawer (macOS) / sheet (iOS) with
 ///   git-style inline diffs; shown only for sources with edit history
@@ -158,12 +158,11 @@ struct WikiGraphView: View {
             }
 
             VStack(spacing: 0) {
-                // Full-bleed graph with the floating doc cards layered over it:
-                // clicking a node opens a free-form, draggable/resizable reader
-                // card; clicking another adds a second. The graph stays alive
-                // around and behind the cards (replaces the old trailing panel).
-                graphSurface
-                    .overlay { WikiFloatingDocsLayer(viewModel: viewModel) }
+                // The graph and the right-docked reader sit side-by-side (Peek):
+                // clicking a node opens the reader beside the always-alive graph,
+                // a draggable divider resizes it, and a toggle fills it over the
+                // whole surface (fullscreen). A page is open iff showPageDetail.
+                readerSurface
 
                 if viewModel.showTimeline && supportsTimeline {
                     Divider()
@@ -181,6 +180,37 @@ struct WikiGraphView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.showFileTree)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showTimeline)
+    }
+
+    /// Graph beside the right-docked reader (Peek), or the reader filling the
+    /// whole surface (fullscreen). Reads its own width so the divider drag can
+    /// clamp the panel against the live surface size.
+    private var readerSurface: some View {
+        GeometryReader { geo in
+            let showReader = viewModel.showPageDetail && viewModel.selectedPath != nil
+            HStack(spacing: 0) {
+                if !(showReader && viewModel.readerFullscreen) {
+                    graphSurface
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                if showReader {
+                    WikiDockedReader(viewModel: viewModel, surfaceWidth: geo.size.width)
+                        .frame(width: readerPanelWidth(surface: geo.size.width))
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.18), value: viewModel.showPageDetail)
+            .animation(.easeInOut(duration: 0.18), value: viewModel.readerFullscreen)
+        }
+    }
+
+    /// Peek: the user-set panel width, clamped to the live surface. Fullscreen:
+    /// the whole surface (the graph is dropped from the HStack above).
+    private func readerPanelWidth(surface: CGFloat) -> CGFloat {
+        if viewModel.readerFullscreen { return surface }
+        let maxWidth = max(WikiGraphViewModel.minReaderWidth, surface * 0.7)
+        return min(max(WikiGraphViewModel.minReaderWidth, viewModel.readerWidth), maxWidth)
     }
     #else
     /// iOS: full-bleed graph; sidebar, reader, and timeline present as

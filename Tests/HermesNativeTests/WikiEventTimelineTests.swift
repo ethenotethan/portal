@@ -343,13 +343,9 @@ struct WikiEventsPageNavigationTests {
 
         #expect(!vm.showEventsPage)                          // back on the graph surface
         #expect(vm.selectedPath == "wiki:topic:glossary-mcp") // shared selection plane
-        // Reader presentation is platform-specific: a floating doc card on
-        // macOS, the sheet on iOS.
-        #if os(macOS)
-        #expect(vm.docLayout.frontCard?.path == "wiki:topic:glossary-mcp")
-        #else
-        #expect(vm.showPageDetail)                            // reader presents it
-        #endif
+        // Reader presentation is uniform now: the docked panel on macOS and the
+        // sheet on iOS both key off showPageDetail + the shared selectedPath.
+        #expect(vm.showPageDetail)
     }
 
     @Test("Switching wikis clears the events surface with the rest of the selection")
