@@ -203,12 +203,11 @@ struct ThoughtGraphView: View {
                         onMouseDown: { pt in handleMouseDown(at: pt) },
                         onMouseDragged: { pt in handleMouseDragged(to: pt) },
                         onMouseUp: { pt in handleMouseUp(at: pt) },
-                        onScrollWheel: { delta in
-                            panOffset.width += delta.width
-                            panOffset.height += delta.height
-                            autoFollow = false
-                            hasUserAdjustedCamera = true
-                        },
+                        // Scroll wheel disabled: the graph fits its panel by
+                        // default. Double-tap reframes; zoom controls zoom.
+                        // Two-finger scroll would fight the fit-to-window model
+                        // (the graph expands to fill whatever window it's in).
+                        onScrollWheel: nil,
                         onMouseMoved: { pt in
                             if mouseState == .idle {
                                 hoveredNodeID = hitTest(point: pt)
@@ -290,10 +289,18 @@ struct ThoughtGraphView: View {
         .onChange(of: layoutKey) { _, _ in
             engine.layout(nodes: visibleNodes, now: Date())
             seedAppearTimes(animated: true)
-            // A filter toggle (collapse/reasoning) changed the graph — reframe
-            // it unless the user has taken manual control of the camera.
+            // Layout changed (new nodes, filter toggle, collapse) — reframe
+            // unless the user has taken manual control of the camera.
             if !hasUserAdjustedCamera { hasFitted = false }
             fitIfNeeded(animated: true)
+        }
+        // When the graph panel opens (or a turn is selected) it may have zero
+        // nodes initially, then nodes arrive. Re-fit once nodes land so the
+        // graph fills its panel rather than sitting at an arbitrary zoom.
+        .onChange(of: nodes.count) { old, new in
+            guard new > 0, !hasUserAdjustedCamera else { return }
+            hasFitted = false
+            fitIfNeeded(animated: old == 0)
         }
 
         // ── 30Hz motion tick: grow running bars, pulse, follow-cam ──
@@ -394,6 +401,10 @@ struct ThoughtGraphView: View {
             .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
             .onChange(of: geo.size) { _, newSize in
                 canvasSize = newSize
+                // Re-fit on every size change unless the user has taken manual
+                // control of the camera — this keeps the graph filling its panel
+                // on window resize without fighting a user-chosen zoom/pan.
+                if !hasUserAdjustedCamera { hasFitted = false }
                 fitIfNeeded(animated: false)
             }
         }

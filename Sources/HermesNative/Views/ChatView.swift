@@ -42,6 +42,21 @@ struct ChatView: View {
     // ── Thought Graph ──
     @State private var showThoughtGraph = false
 
+    /// On macOS the chat IS the canvas: the session always renders as
+    /// `SessionChatCanvas` (its default layout is a single full-width
+    /// conversation panel, so a fresh session reads exactly like the classic
+    /// transcript). There's no per-session toggle anymore — the canvas owns its
+    /// own toolbar, composer, and a "Reset to default view" action. iOS keeps the
+    /// plain transcript. This computed exists so shared chrome can branch without
+    /// `#if` at every use site.
+    private var isInCanvasMode: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     // ── Quiz Mode ──
     @State private var showQuizSheet = false
     @State private var showDecksSheet = false
@@ -264,67 +279,35 @@ struct ChatView: View {
             Divider()
             #endif
 
-            #if os(macOS)
-            HStack {
-                // Cumulative session usage (tokens + cost), leading edge.
-                SessionUsageBadge(chatViewModel: chatViewModel, client: gatewayClientWrapper.client)
-                Spacer()
-                // Response style (deep map / balanced / direct)
-                if chatViewModel.backendCapabilities.supportsResponseStyles {
-                    Menu {
-                        ForEach(ResponseStyle.allCases) { style in
-                            Button {
-                                chatViewModel.setResponseStyle(style)
-                            } label: {
-                                if style == chatViewModel.responseStyle {
-                                    Label(style.label, systemImage: "checkmark")
-                                } else {
-                                    Text(style.label)
-                                }
-                            }
-                            .help(style.help)
-                        }
-                    } label: {
-                        Label(chatViewModel.responseStyle.label,
-                              systemImage: chatViewModel.responseStyle.icon)
-                            .font(.caption)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    .foregroundStyle(Theme.secondary)
-                    .help("Response style: \(chatViewModel.responseStyle.help). Use /brief for a one-off direct answer.")
-                    .padding(.horizontal, 8)
-                }
-
-                // Export session as Markdown / PDF
-                SessionExportMenu(assistantName: displayPersona.name)
-                    .padding(.horizontal, 8)
-
-                // TTS toggle
-                Button {
-                    ttsService.toggle()
-                } label: {
-                    Label(ttsService.isEnabled ? "Speaking" : "Muted",
-                          systemImage: ttsService.isEnabled ? "speaker.wave.3.fill" : "speaker.slash")
-                        .font(.caption)
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(ttsService.isEnabled ? Theme.accent : Theme.secondary)
-                .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
-                .padding(.horizontal, 8)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            #endif
-
             // ── Thought Graph (collapsible) ──
-            if shouldShowThoughtGraphToggle {
+            // On macOS the Session Graph opener lives INSIDE the canvas toolbar
+            // (SessionChatCanvas reveals it as an in-canvas panel), so this
+            // floating section is iOS-only now — `isInCanvasMode` is always true
+            // on macOS.
+            if shouldShowThoughtGraphToggle && !isInCanvasMode {
                 thoughtGraphSection
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
+            #if os(macOS)
+            // macOS chat IS the canvas: it owns the whole toolbar (usage,
+            // response style, export, TTS, Session Graph), the message area, AND
+            // the docked composer. Its default layout is a single full-width
+            // conversation, so a fresh session reads as the classic transcript.
+            SessionChatCanvas(
+                chatViewModel: chatViewModel,
+                subagentGraph: chatViewModel.subagentGraph,
+                reasoningGraph: chatViewModel.reasoningGraph,
+                persona: displayPersona,
+                skinProvider: skinProvider,
+                client: gatewayClientWrapper.client,
+                isInputFocused: $isInputFocused,
+                inputFieldRef: $inputFieldRef
+            )
+            #else
 // Message list
             messageListArea
+            #endif
 
             #if os(iOS)
             Divider()
@@ -1217,7 +1200,7 @@ struct ChatView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
 
-            ThoughtGraphSheetContent(
+            SessionGraphPane(
                 chatViewModel: chatViewModel,
                 subagentGraph: chatViewModel.subagentGraph,
                 reasoningGraph: chatViewModel.reasoningGraph,
@@ -1226,56 +1209,6 @@ struct ChatView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.background)
-    }
-
-    /// Thought-graph sheet body. Split out so the two graph integrators are
-    /// observed directly — ChatView only observes chatViewModel, and nested
-    /// ObservableObject publishes (subagent/reasoning nodes) don't re-render
-    /// the parent. This view rebuilds live as agent subtrees grow.
-    private struct ThoughtGraphSheetContent: View {
-        @ObservedObject var chatViewModel: ChatViewModel
-        @ObservedObject var subagentGraph: SubagentGraphIntegrator
-        @ObservedObject var reasoningGraph: ReasoningGraphIntegrator
-        let onJumpToTool: (String) -> Void
-
-        /// Every turn in the session: persisted past turns (from the
-        /// transcript, replayed with whatever depth was captured) plus, while
-        /// streaming, the live turn synthesized from the active integrators —
-        /// which the transcript doesn't hold until the turn completes.
-        private var turns: [SessionTurn] {
-            var all = SessionTurnBuilder.turns(from: chatViewModel.messages)
-            if chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty {
-                let liveNodes = ThoughtGraphLayoutEngine.composeTimeline(
-                    tools: Array(chatViewModel.activeToolCalls.values).sorted { $0.id < $1.id },
-                    agentNodes: subagentGraph.agentNodes,
-                    reasoningNodes: reasoningGraph.reasoningNodes
-                )
-                if !liveNodes.isEmpty {
-                    all.append(SessionTurn(
-                        id: liveTurnID,
-                        index: all.count + 1,
-                        prompt: "Current turn",
-                        replyPreview: "",
-                        nodes: liveNodes,
-                        compactions: chatViewModel.currentTurnCompactions,
-                        toolCount: chatViewModel.activeToolCalls.count,
-                        toolsOnly: false
-                    ))
-                }
-            }
-            return all
-        }
-
-        /// Stable id for the synthesized live turn so re-renders don't reset it.
-        private let liveTurnID = UUID()
-
-        var body: some View {
-            SessionThoughtGraphView(
-                turns: turns,
-                isThinking: reasoningGraph.isThinking,
-                onJumpToTool: onJumpToTool
-            )
-        }
     }
 
     private func scheduleScrollToBottom(proxy: ScrollViewProxy, reason: String) {

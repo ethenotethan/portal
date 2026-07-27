@@ -1,6 +1,18 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// A single turn carved out of the session for export. In the canvas's Turns
+/// mode, export is offered scoped to the turn on screen (the user's prompt + the
+/// assistant's reply) as well as the whole session — the same per-turn vs.
+/// session-global split the rest of the canvas draws.
+internal struct TurnExportScope {
+    /// Human label for the turn, e.g. "Turn 3" — used in menu titles, the
+    /// document heading suffix, and the export filename.
+    internal let label: String
+    /// The turn's messages (user prompt + assistant reply), in order.
+    internal let messages: [ChatMessage]
+}
+
 /// Entry points for exporting the open session as Markdown / PDF.
 /// Kept out of ChatView so the toolbar diff stays a one-line insertion.
 ///
@@ -13,21 +25,27 @@ import UniformTypeIdentifiers
 @MainActor
 enum SessionExportSupport {
 
-    /// Assemble the markdown document for the currently open session.
-    /// Usage is fetched best-effort from the gateway and skipped on failure.
+    /// Assemble the markdown document for the currently open session — or, when
+    /// `scope` is set, just that one turn. Usage is fetched best-effort from the
+    /// gateway and skipped on failure (and skipped entirely for a turn export,
+    /// since cumulative session usage doesn't describe a single turn).
     static func markdown(
         chatViewModel: ChatViewModel,
         gatewayClientWrapper: GatewayClientWrapper,
         settings: SettingsViewModel,
-        assistantName: String
+        assistantName: String,
+        scope: TurnExportScope? = nil
     ) async -> String {
-        let messages = chatViewModel.messages.filter { !$0.isStreaming }
+        let messages = (scope?.messages ?? chatViewModel.messages).filter { !$0.isStreaming }
+        // Session-cumulative usage would misrepresent a single turn, so only
+        // attach it to a whole-session export.
         var usage: SessionUsage?
-        if let sessionID = chatViewModel.currentSessionID {
+        if scope == nil, let sessionID = chatViewModel.currentSessionID {
             usage = (try? await gatewayClientWrapper.client.sessionUsage(sessionID: sessionID))
         }
+        let title = scope.map { "\(chatViewModel.sessionTitle) — \($0.label)" } ?? chatViewModel.sessionTitle
         let metadata = SessionExporter.Metadata(
-            title: chatViewModel.sessionTitle,
+            title: title,
             sessionID: chatViewModel.currentSessionID,
             gatewayName: settings.focusedGateway?.displayName,
             model: chatViewModel.currentModel.isEmpty ? nil : chatViewModel.currentModel,
@@ -50,6 +68,15 @@ struct SessionExportMenu: View {
     @EnvironmentObject var settings: SettingsViewModel
 
     let assistantName: String
+    /// When the canvas is paging one turn at a time, the turn on screen. Set →
+    /// the menu adds "this turn" export items above the whole-session ones. Nil
+    /// (Scroll mode / iOS) → whole-session export only, exactly as before.
+    internal var turnScope: TurnExportScope?
+
+    internal init(assistantName: String, turnScope: TurnExportScope? = nil) {
+        self.assistantName = assistantName
+        self.turnScope = turnScope
+    }
 
     @State private var isExporting = false
 
@@ -59,15 +86,27 @@ struct SessionExportMenu: View {
 
     var body: some View {
         Menu {
-            Button {
-                exportMarkdown()
-            } label: {
-                Label("Export as Markdown…", systemImage: "doc.plaintext")
-            }
-            Button {
-                exportPDF()
-            } label: {
-                Label("Export as PDF…", systemImage: "doc.richtext")
+            // Per-turn export (Turns mode only): the prompt + reply on screen,
+            // scoped and labelled to that turn — the per-turn counterpart to the
+            // whole-session document below.
+            if let turnScope {
+                Section("This turn — \(turnScope.label)") {
+                    Button {
+                        export(format: .markdown, scope: turnScope)
+                    } label: {
+                        Label("Turn as Markdown…", systemImage: "doc.plaintext")
+                    }
+                    Button {
+                        export(format: .pdf, scope: turnScope)
+                    } label: {
+                        Label("Turn as PDF…", systemImage: "doc.richtext")
+                    }
+                }
+                Section("Whole session") {
+                    sessionButtons
+                }
+            } else {
+                sessionButtons
             }
         } label: {
             if isExporting {
@@ -85,7 +124,36 @@ struct SessionExportMenu: View {
         .help("Export this session — Markdown for another agent's context, PDF for sharing")
     }
 
-    private func exportMarkdown() {
+    @ViewBuilder
+    private var sessionButtons: some View {
+        Button {
+            export(format: .markdown, scope: nil)
+        } label: {
+            Label("Export as Markdown…", systemImage: "doc.plaintext")
+        }
+        Button {
+            export(format: .pdf, scope: nil)
+        } label: {
+            Label("Export as PDF…", systemImage: "doc.richtext")
+        }
+    }
+
+    private enum ExportFormat { case markdown, pdf }
+
+    /// Filename title for an export: the session title, suffixed with the turn
+    /// label for a turn-scoped export so files don't collide.
+    private func exportTitle(_ scope: TurnExportScope?) -> String {
+        scope.map { "\(chatViewModel.sessionTitle) — \($0.label)" } ?? chatViewModel.sessionTitle
+    }
+
+    private func export(format: ExportFormat, scope: TurnExportScope?) {
+        switch format {
+        case .markdown: exportMarkdown(scope: scope)
+        case .pdf: exportPDF(scope: scope)
+        }
+    }
+
+    private func exportMarkdown(scope: TurnExportScope?) {
         isExporting = true
         Task { @MainActor in
             defer { isExporting = false }
@@ -93,20 +161,21 @@ struct SessionExportMenu: View {
                 chatViewModel: chatViewModel,
                 gatewayClientWrapper: gatewayClientWrapper,
                 settings: settings,
-                assistantName: assistantName
+                assistantName: assistantName,
+                scope: scope
             )
             Self.savePanel(
                 data: Data(document.utf8),
-                defaultName: SessionExporter.filename(title: chatViewModel.sessionTitle, fileExtension: "md"),
+                defaultName: SessionExporter.filename(title: exportTitle(scope), fileExtension: "md"),
                 contentType: SessionExportSupport.markdownType
             )
         }
     }
 
-    private func exportPDF() {
-        let messages = chatViewModel.messages.filter { !$0.isStreaming }
+    private func exportPDF(scope: TurnExportScope?) {
+        let messages = (scope?.messages ?? chatViewModel.messages).filter { !$0.isStreaming }
         guard !messages.isEmpty else { return }
-        let title = chatViewModel.sessionTitle
+        let title = exportTitle(scope)
         isExporting = true
         Task { @MainActor in
             defer { isExporting = false }
@@ -122,7 +191,8 @@ struct SessionExportMenu: View {
                     chatViewModel: chatViewModel,
                     gatewayClientWrapper: gatewayClientWrapper,
                     settings: settings,
-                    assistantName: assistantName
+                    assistantName: assistantName,
+                    scope: scope
                 )
                 data = SessionExporter.pdf(markdown: document, title: title)
             }

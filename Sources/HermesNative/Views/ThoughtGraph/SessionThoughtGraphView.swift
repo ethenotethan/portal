@@ -20,6 +20,11 @@ internal struct SessionTurn: Identifiable {
     /// across the flamechart. Empty for turns with no compaction (the common
     /// case) or persisted before compaction capture existed.
     internal let compactions: [CompactionMarker]
+    /// Skills active during this turn ("what"). Live-only for now — the current
+    /// turn carries `ChatViewModel.activeSkills`; past turns are empty because
+    /// skills aren't persisted per-turn yet (the skills panel shows an honest
+    /// "not recorded" state rather than inventing them).
+    internal let skills: [SkillInfo]
     /// Tool-call count, for the rail badge.
     internal let toolCount: Int
     /// Whether full depth (reasoning/subagents) is available, vs tool-only —
@@ -65,6 +70,7 @@ internal enum SessionTurnBuilder {
                     replyPreview: String(message.content.prefix(80)),
                     nodes: nodes,
                     compactions: snapshot?.compactions ?? [],
+                    skills: [],
                     toolCount: message.toolCalls.count,
                     toolsOnly: snapshot == nil || snapshot?.isEmpty == true
                 ))
@@ -78,10 +84,15 @@ internal enum SessionTurnBuilder {
 // MARK: - Session thought graph
 
 /// The per-session Agent Thought Graph: a session is an ensemble of per-turn
-/// flamecharts. A left rail lists every turn; selecting one renders that
-/// turn's `ThoughtGraphView` on the right. Only ONE graph is live at a time
-/// (one engine, one 30 Hz canvas) — stacking N interactive canvases would run
-/// N timers and N pan/zoom states, so we page through turns instead.
+/// flamecharts. A left rail lists every turn; selecting one drives a composable
+/// **dashboard** on the right, where the user drags and resizes panels (the
+/// flamechart, thinking beats, running tools, skills, files) to taste.
+///
+/// The flamechart is the ONLY panel that runs a 30 Hz redraw timer, so it's a
+/// singleton kind — at most one on the canvas — keeping the whole dashboard at
+/// today's one-timer cost. Every other panel is a value-driven list/tree that
+/// re-renders only on data change, so composing many is beachball-free. Paging
+/// turns via the rail re-seeds each panel's per-turn state.
 internal struct SessionThoughtGraphView: View {
     internal let turns: [SessionTurn]
     /// The local reasoning model is summarizing right now (heartbeat).
@@ -91,12 +102,45 @@ internal struct SessionThoughtGraphView: View {
     /// Selection shared between the timeline (when) and the file tree (where):
     /// select a bar → its file highlights; tap a file → its bar lights.
     @State private var selectedNodeID: String?
+    /// The one flamechart engine, owned here and injected into the (singleton)
+    /// flamechart panel — never one-per-panel (the anti-beachball rule).
     @StateObject private var engine = ThoughtGraphLayoutEngine()
+
+    // MARK: Dashboard composition state
+
+    /// The user's panel arrangement — one personal layout, applied to whatever
+    /// turn the rail has selected. Loaded once, persisted on every drag/resize.
+    @State private var layout = DashboardLayout()
+    @State private var didLoadLayout = false
+    @State private var showAddPalette = false
+    /// Last measured canvas size, so "reset layout" can re-tile for the real
+    /// viewport even though the reset button has no geometry of its own.
+    @State private var canvasBounds: CGSize = .zero
+    /// Edit vs. use — same model as the live chat canvas. Starts in use mode so
+    /// the dashboard is immediately readable and only becomes rearrangeable on
+    /// Edit; panels don't feel grabby while you're just inspecting a turn.
+    @State private var isEditing = false
+    private let registry = PanelRegistry.standard
 
     internal var onJumpToTool: ((String) -> Void)?
 
     private var selectedTurn: SessionTurn? {
         turns.first { $0.id == selectedTurnID } ?? turns.last
+    }
+
+    /// Build the render inputs for a panel from the currently-selected turn.
+    /// The heartbeat only pulses on the live (last) turn — past turns are settled.
+    private func panelContext(for panel: DashboardPanel) -> PanelContext {
+        let turn = selectedTurn
+        return PanelContext(
+            nodes: turn?.nodes ?? [],
+            compactions: turn?.compactions ?? [],
+            skills: turn?.skills ?? [],
+            isThinking: isThinking && turn?.id == turns.last?.id,
+            selection: $selectedNodeID,
+            engine: engine,
+            onJumpToTool: onJumpToTool
+        )
     }
 
     internal var body: some View {
@@ -107,34 +151,171 @@ internal struct SessionThoughtGraphView: View {
                 turnRail
                     .frame(width: 200)
                 Divider().overlay(Theme.border)
-                if let turn = selectedTurn {
-                    ThoughtGraphView(
-                        engine: engine,
-                        nodes: turn.nodes,
-                        compactions: turn.compactions,
-                        isStreaming: false,
-                        // Heartbeat only on the live (last) turn — past turns
-                        // are settled.
-                        isThinking: isThinking && turn.id == turns.last?.id,
-                        usageSummary: nil,
-                        selection: $selectedNodeID,
-                        onJumpToTool: onJumpToTool
-                    )
-                    // Re-seed the engine when the selected turn changes.
-                    .id(turn.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    Divider().overlay(Theme.border)
-                    // The "where" lens — files this turn touched, cross-
-                    // highlighting with the timeline via the shared selection.
-                    SessionFileTreePane(nodes: turn.nodes, selectedNodeID: $selectedNodeID)
-                        .frame(width: 240)
-                }
+                dashboard
             }
             .onAppear { if selectedTurnID == nil { selectedTurnID = turns.last?.id } }
             // Clear cross-highlight when switching turns (ids don't carry over).
             .onChange(of: selectedTurnID) { _, _ in selectedNodeID = nil }
         }
+    }
+
+    // MARK: - Dashboard
+
+    /// The composable canvas: a toolbar (add-panel + reset) over a free-form
+    /// `DashboardCanvasView`. Panels re-key on the selected turn so the
+    /// flamechart engine re-seeds when the user pages the rail.
+    private var dashboard: some View {
+        VStack(spacing: 0) {
+            dashboardToolbar
+            Divider().overlay(Theme.border)
+            GeometryReader { geo in
+                DashboardCanvasView(
+                    layout: $layout,
+                    isEditing: isEditing,
+                    title: { registry.title(for: $0) },
+                    icon: { registry.icon(for: $0) },
+                    onLayoutCommitted: { layout.store() },
+                    content: { panel in
+                        AnyView(
+                            registry.content(for: panel.kind, context: panelContext(for: panel))
+                                // Re-seed a panel's inner state (e.g. the
+                                // flamechart engine) when the turn changes.
+                                .id(selectedTurn?.id)
+                        )
+                    }
+                )
+                .onAppear {
+                    canvasBounds = geo.size
+                    loadLayoutIfNeeded(bounds: geo.size)
+                }
+                .onChange(of: geo.size) { _, newSize in canvasBounds = newSize }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var dashboardToolbar: some View {
+        HStack(spacing: 10) {
+            Text(selectedTurn.map { "Turn \($0.index)" } ?? "Dashboard")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+            Text(isEditing
+                 ? "drag a panel to move · drag an edge or corner to resize"
+                 : "using the dashboard — tap Edit to rearrange")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiary)
+                .lineLimit(1)
+                .layoutPriority(-1)
+            Spacer()
+            if isEditing {
+                Button {
+                    showAddPalette.toggle()
+                } label: {
+                    Label("Add panel", systemImage: "plus.rectangle")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .popover(isPresented: $showAddPalette, arrowEdge: .bottom) {
+                    addPalette
+                }
+                Button {
+                    layout = DashboardLayout.seededDefault(for: canvasBounds)
+                    layout.store()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.tertiary)
+                .help("Reset to the default layout")
+            }
+            Button {
+                if isEditing {
+                    layout.store()
+                    showAddPalette = false
+                }
+                withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
+            } label: {
+                Label(isEditing ? "Done" : "Edit",
+                      systemImage: isEditing ? "checkmark" : "slider.horizontal.3")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
+            .help(isEditing ? "Save this arrangement and lock the dashboard" : "Rearrange the panels")
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(Theme.surface.opacity(0.5))
+    }
+
+    /// The add-panel palette: every registered kind not already blocked (a
+    /// singleton that's present). This is where custom sub-views surface — a
+    /// registered plugin appears here automatically.
+    private var addPalette: some View {
+        let present = layout.panels.map(\.kind)
+        let options = registry.addableDescriptors(present: present)
+        return VStack(alignment: .leading, spacing: 2) {
+            Text("Add a panel")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .padding(.bottom, 4)
+            if options.isEmpty {
+                Text("Every panel is already on the canvas.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.tertiary)
+            } else {
+                ForEach(options) { descriptor in
+                    Button {
+                        addPanel(descriptor)
+                        showAddPalette = false
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: descriptor.icon)
+                                .frame(width: 16)
+                                .foregroundStyle(Theme.accent)
+                            Text(descriptor.title)
+                                .foregroundStyle(Theme.primary)
+                            Spacer()
+                        }
+                        .font(.system(size: 12))
+                        .contentShape(Rectangle())
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 200)
+    }
+
+    // MARK: Layout lifecycle
+
+    /// Load the saved layout once the canvas has a real size — or seed the
+    /// default tiling on first run — clamping either into the viewport.
+    private func loadLayoutIfNeeded(bounds: CGSize) {
+        guard !didLoadLayout else { return }
+        didLoadLayout = true
+        let loaded = DashboardLayout.loadStored() ?? DashboardLayout.seededDefault(for: bounds)
+        layout = loaded.clamped(to: bounds)
+    }
+
+    /// Drop a new panel into the first vacant slot so it doesn't overlap an
+    /// existing one (the no-overlap rule applies to new panels too).
+    private func addPanel(_ descriptor: PanelDescriptor) {
+        let size = CGSize(width: min(360, max(DashboardPanel.minSize.width, canvasBounds.width * 0.4)),
+                          height: min(300, max(DashboardPanel.minSize.height, canvasBounds.height * 0.5)))
+        let frame = PanelResizeMath.vacantSlot(
+            size: size,
+            others: layout.panels.map(\.frame),
+            bounds: canvasBounds
+        )
+        let panel = DashboardPanel(kind: descriptor.kind, frame: frame).clamped(to: canvasBounds)
+        layout.panels.append(panel)
+        layout.store()
     }
 
     private var turnRail: some View {

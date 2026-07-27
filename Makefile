@@ -27,9 +27,17 @@ build: generate
 
 # Rebuild from current source, then relaunch. Kills any running instance first
 # so you never end up staring at a stale binary.
+#
+# We ask xcodebuild itself where the product is (BUILT_PRODUCTS_DIR) instead of
+# `find`-ing DerivedData: there is one HermesNative-<hash> dir PER checkout path,
+# and `find | head -1` returns them in inode order, NOT by build time — so it
+# repeatedly launched a stale sibling checkout's app while today's build sat in a
+# different hash dir. -showBuildSettings resolves the exact dir for THIS project.
 run: kill build
-	@APP=$$(find $(DERIVED)/HermesNative-*/Build/Products/$(CONFIG) \
-		-name "$(SCHEME_MAC).app" -maxdepth 1 2>/dev/null | head -1); \
+	@DIR=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration $(CONFIG) \
+		-destination 'platform=macOS' -showBuildSettings 2>/dev/null \
+		| awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $$2; exit}'); \
+	APP="$$DIR/$(SCHEME_MAC).app"; \
 	echo "launching $$APP"; \
 	open "$$APP"
 
