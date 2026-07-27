@@ -39,11 +39,15 @@ internal struct ConversationPanel: View {
     /// Cross-highlight selection shared with the canvas lenses.
     internal var selection: Binding<String?>?
     /// The rail lenses to render under each turn — the registry's inline lenses
-    /// minus any already peeled onto the canvas, so a peeled lens leaves the rail.
+    /// minus any already docked beneath the transcript.
     internal var inlineLenses: [(kind: PanelKind, lens: InlineLens)] = []
-    /// Peel a rail lens onto the canvas as its own panel. Nil where there's no
-    /// canvas to peel onto (the rail is then read-only).
-    internal var onPeel: ((PanelKind) -> Void)?
+    /// Dock a rail lens (or the flamechart ↗ button) BELOW the transcript as a
+    /// persistent docked section. This IS the expand/peel action for the
+    /// conversation panel — the conversation is the container, so "expand" means
+    /// "dock here", not "fly out to the canvas". Nil = rail is read-only.
+    internal var onDockKind: ((PanelKind) -> Void)?
+
+    private let dockedRegistry = PanelRegistry.chatCanvas
 
     // MARK: - Docked panels (attached INSIDE the conversation, below the transcript)
 
@@ -107,6 +111,8 @@ internal struct ConversationPanel: View {
     internal var body: some View {
         VStack(spacing: 0) {
             // ── The transcript (scroll region) ──
+            // frame(maxHeight: .infinity) ensures it takes all remaining space
+            // above the docked section, not the other way around.
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 2) {
@@ -128,6 +134,7 @@ internal struct ConversationPanel: View {
                     .padding(.vertical, 10)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: .infinity)
                 .background(Theme.background)
                 .onChange(of: streamTailKey) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
                 .onChange(of: chatViewModel.messages.count) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
@@ -178,18 +185,21 @@ internal struct ConversationPanel: View {
                     ForEach(dockedViews, id: \.kind) { entry in
                         VStack(spacing: 0) {
                             HStack(spacing: 6) {
-                                Text(entry.kind.rawValue.capitalized)
+                                Image(systemName: dockedRegistry.icon(for: entry.kind))
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(Theme.tertiary)
+                                Text(dockedRegistry.title(for: entry.kind))
                                     .font(.system(size: 10, weight: .semibold))
                                     .foregroundStyle(Theme.secondary)
                                 Spacer()
                                 if let onDockedDetach {
                                     Button { onDockedDetach(entry.kind) } label: {
-                                        Image(systemName: "arrow.up.right.square")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(Theme.secondary)
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundStyle(Theme.tertiary)
                                     }
                                     .buttonStyle(.plain)
-                                    .help("Detach to canvas")
+                                    .help("Remove from conversation")
                                 }
                             }
                             .padding(.horizontal, 10)
@@ -229,7 +239,7 @@ internal struct ConversationPanel: View {
                 engine: engine,
                 selection: selection,
                 lenses: inlineLenses,
-                onPeel: onPeel
+                onDockKind: onDockKind
             )
             .id("conversation-live-rail")
         } else if let turn = settledTurnsByID[message.id] {
@@ -242,10 +252,11 @@ internal struct ConversationPanel: View {
                     isStreaming: false,  // …and no growing bars
                     selection: selection,
                     engine: engine,
-                    onJumpToTool: nil
+                    onJumpToTool: nil,
+                    onDock: onDockKind
                 ),
                 lenses: inlineLenses,
-                onPeel: onPeel
+                onDockKind: onDockKind
             )
             .id("conversation-rail-\(message.id)")
         }

@@ -24,14 +24,10 @@ import SwiftUI
 internal struct InlineTurnRail: View {
     internal let context: PanelContext
     internal let lenses: [(kind: PanelKind, lens: InlineLens)]
-    /// Peel a lens onto the canvas as its own panel. Nil where there's nowhere to
-    /// peel to (iOS, or a host that doesn't compose a canvas) — the rail is then
-    /// read-only.
-    internal var onPeel: ((PanelKind) -> Void)?
+    /// Dock a lens below the transcript. Nil = rail is read-only (no dock affordance shown).
+    internal var onDockKind: ((PanelKind) -> Void)?
 
-    /// The rail lens the pointer is over, so its peel button reveals on hover
-    /// only — the scrollback stays clean instead of sprouting a pop-out glyph on
-    /// every turn's rail.
+    /// The rail lens the pointer is over, so its dock button reveals on hover only.
     @State private var hovered: PanelKind?
 
     /// One inline lens already built for this turn — kept with its kind so the
@@ -73,17 +69,17 @@ internal struct InlineTurnRail: View {
         }
     }
 
-    /// A single lens with its peel affordance. The peel button is a quiet
-    /// pop-out glyph in the top-trailing corner, shown only when peeling is
-    /// possible — tapping it lifts this lens onto the canvas as a full panel
-    /// (after which the registry drops it from the rail, so it's never doubled).
+    /// A single lens with its dock affordance. The dock button is a quiet
+    /// arrow-down glyph in the top-trailing corner, shown only when docking is
+    /// possible — tapping it pins this lens below the transcript as a persistent
+    /// docked section, removing it from the inline rail (no duplication).
     @ViewBuilder
     private func cell(_ lens: BuiltLens) -> some View {
         lens.view
             .overlay(alignment: .topTrailing) {
-                if let onPeel, hovered == lens.kind {
-                    Button { onPeel(lens.kind) } label: {
-                        Image(systemName: "arrow.up.right.square")
+                if let onDockKind, hovered == lens.kind {
+                    Button { onDockKind(lens.kind) } label: {
+                        Image(systemName: "arrow.down.to.line")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Theme.secondary)
                             .padding(3)
@@ -92,7 +88,7 @@ internal struct InlineTurnRail: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help("Peel this lens onto the canvas as its own panel")
+                    .help("Dock this lens below the conversation")
                     .transition(.opacity)
                 }
             }
@@ -118,7 +114,7 @@ internal struct LiveInlineTurnRail: View {
     internal let engine: ThoughtGraphLayoutEngine
     internal var selection: Binding<String?>?
     internal let lenses: [(kind: PanelKind, lens: InlineLens)]
-    internal var onPeel: ((PanelKind) -> Void)?
+    internal var onDockKind: ((PanelKind) -> Void)?
 
     private var liveNodes: [ThoughtGraphNode] {
         ThoughtGraphLayoutEngine.composeTimeline(
@@ -138,10 +134,11 @@ internal struct LiveInlineTurnRail: View {
                 isStreaming: chatViewModel.isStreaming,
                 selection: selection,
                 engine: engine,
-                onJumpToTool: nil
+                onJumpToTool: nil,
+                onDock: onDockKind
             ),
             lenses: lenses,
-            onPeel: onPeel
+            onDockKind: onDockKind
         )
     }
 }

@@ -219,12 +219,10 @@ internal struct SessionChatCanvas: View {
                     engine: engine,
                     selection: $selectedNodeID,
                     // Each turn's inline rail shows the registry's inline lenses
-                    // MINUS any already peeled onto the canvas or docked beneath —
-                    // a docked/peeled lens is never shown twice.
-                    inlineLenses: registry.inlineLenses(
-                        peeled: layout.panels.map(\.kind) + dockedKinds
-                    ),
-                    onPeel: peelLens,
+                    // MINUS any already docked beneath the transcript — a docked
+                    // lens leaves the rail, never shown twice.
+                    inlineLenses: registry.inlineLenses(peeled: dockedKinds),
+                    onDockKind: dockLens,
                     dockedViews: docked,
                     onDockedDetach: detachFromDock,
                     dockedHeight: $dockedSectionHeight

@@ -22,6 +22,11 @@ internal struct PanelContext {
     /// (singleton) flamechart panel — never created per-panel.
     internal let engine: ThoughtGraphLayoutEngine
     internal let onJumpToTool: ((String) -> Void)?
+    /// Dock a lens kind inside the conversation panel (expand inline → dock
+    /// below the transcript). Used by inline lens builders to wire their own
+    /// "expand" affordance. Nil when the context isn't inside a conversation
+    /// panel that supports docking (e.g. the session-graph dashboard).
+    internal var onDock: ((PanelKind) -> Void)?
 }
 
 /// Where a lens sits when it renders inline in the conversation feed (the rail
@@ -187,7 +192,11 @@ internal final class PanelRegistry {
                     InlineTurnTimelineStrip(
                         nodes: ctx.nodes,
                         compactions: ctx.compactions,
-                        isStreaming: ctx.isStreaming
+                        isStreaming: ctx.isStreaming,
+                        // Tapping ↗ on the strip docks the full flamechart
+                        // below the transcript — the conversation panel IS the
+                        // container, so docking is the right "expand" action.
+                        onExpand: ctx.onDock.map { dock in { dock(.flamechart) } }
                     )
                 )
             }
