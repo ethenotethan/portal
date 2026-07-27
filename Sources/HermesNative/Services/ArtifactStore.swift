@@ -50,7 +50,7 @@ final class ArtifactStore: ObservableObject {
         }
     }
 
-    private weak var client: GatewayClient?
+    private weak var client: (any ArtifactGateway)?
     private var syncAvailable: Bool?
     private var pushTask: Task<Void, Never>?
     private let pushDebounce: TimeInterval = 2
@@ -66,12 +66,20 @@ final class ArtifactStore: ObservableObject {
         artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    private init() {
+    private convenience init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: "/tmp")
         let folder = dir.appendingPathComponent("hermes-native", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        fileURL = folder.appendingPathComponent("artifacts.json")
+        self.init(fileURL: folder.appendingPathComponent("artifacts.json"))
+    }
+
+    /// Isolated-store initializer for tests: back the store with a scratch
+    /// `fileURL` (e.g. a temp dir) so a test drives its own `artifacts`,
+    /// `intentStates`, and disk cache without touching the shared singleton or
+    /// the production Application Support JSON.
+    internal init(fileURL: URL) {
+        self.fileURL = fileURL
         loadFromDisk()
     }
 
@@ -398,7 +406,22 @@ final class ArtifactStore: ObservableObject {
 
     // MARK: - Gateway sync (artifact.* RPCs + artifact.changed events)
 
-    func setClient(_ client: GatewayClient) {
+    /// Inject a gateway for tests WITHOUT `setClient`'s side effects (no
+    /// `pull()`, no event subscription), so intent state-machine tests stay
+    /// deterministic. Marks sync available so `invokeIntent` proceeds.
+    internal func injectClientForTesting(_ client: any ArtifactGateway) {
+        self.client = client
+        syncAvailable = true
+    }
+
+    /// Seed a fully-formed artifact (with a specific `rev`) directly, for
+    /// tests that need to assert the pinned revision an intent invoke sends.
+    /// Bypasses the upsert/merge path so `rev` is exactly as given.
+    internal func seedArtifactForTesting(_ artifact: LivingArtifact) {
+        artifacts[artifact.id] = artifact
+    }
+
+    internal func setClient(_ client: any ArtifactGateway) {
         guard self.client !== client else { return }
         self.client = client
         syncAvailable = nil
