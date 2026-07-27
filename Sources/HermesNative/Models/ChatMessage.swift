@@ -244,7 +244,7 @@ internal struct TurnGraphSnapshot: Codable {
 }
 
 /// Record of a tool invocation within a conversation turn.
-struct ToolCallRecord: Identifiable, Codable {
+struct ToolCallRecord: Identifiable, Codable, ToolCallRepresentable {
     let id: String         // tool_call_id from server
     var name: String
     var context: String?   // Preview text from tool.start

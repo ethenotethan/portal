@@ -3,14 +3,14 @@ import os
 
 private let log = Logger(subsystem: "com.researchoors.HermesNative", category: "SessionRunEventStore")
 
-struct SessionRunEvent: Identifiable, Codable {
+struct SessionRunEvent: Identifiable, Codable, TokenAccountable {
     let id: UUID
     let sessionID: String
     let startedAt: Date
     var endedAt: Date?
-    var inputTokens: Int
-    var outputTokens: Int
-    var totalTokens: Int
+    var inputTokens: Int?
+    var outputTokens: Int?
+    var totalTokens: Int?
     var apiCalls: Int
     var costUSD: Double?
     var status: RunStatus
@@ -39,9 +39,9 @@ struct SessionRunEvent: Identifiable, Codable {
         self.sessionID = sessionID
         self.startedAt = startedAt
         self.endedAt = nil
-        self.inputTokens = 0
-        self.outputTokens = 0
-        self.totalTokens = 0
+        self.inputTokens = nil
+        self.outputTokens = nil
+        self.totalTokens = nil
         self.apiCalls = 1
         self.costUSD = nil
         self.status = .running
@@ -81,9 +81,9 @@ final class SessionRunHistoryStore: ObservableObject {
 
     func recordRunEnd(
         sessionID: String,
-        inputTokens: Int = 0,
-        outputTokens: Int = 0,
-        totalTokens: Int = 0,
+        inputTokens: Int? = nil,
+        outputTokens: Int? = nil,
+        totalTokens: Int? = nil,
         apiCalls: Int = 1,
         costUSD: Double? = nil,
         status: SessionRunEvent.RunStatus = .completed

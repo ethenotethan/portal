@@ -1203,14 +1203,14 @@ struct ThoughtGraphView: View {
                     .foregroundStyle(Theme.secondary)
             }
 
-            if node.costUSD != nil || node.tokenTotal != nil {
+            if node.costUSD != nil || node.totalTokens != nil {
                 HStack(spacing: 10) {
                     if let cost = node.costUSD {
                         Label(String(format: "$%.4f", cost), systemImage: "dollarsign.circle")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(Theme.secondary)
                     }
-                    if let tokens = node.tokenTotal {
+                    if let tokens = node.totalTokens {
                         Label("\(tokens) tok", systemImage: "number.circle")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(Theme.secondary)

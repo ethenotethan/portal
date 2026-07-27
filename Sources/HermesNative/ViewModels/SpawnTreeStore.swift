@@ -164,7 +164,7 @@ final class SpawnTreeStore: ObservableObject {
             updateNode(id: nodeID, tree: tree) { node in
                 let toolCall = NodeToolCall(
                     name: payload.toolName ?? "tool",
-                    preview: payload.toolPreview ?? payload.text,
+                    context: payload.toolPreview ?? payload.text,
                     isComplete: true
                 )
                 node.toolCalls.append(toolCall)
@@ -187,7 +187,7 @@ final class SpawnTreeStore: ObservableObject {
             let toolCall = NodeToolCall(
                 id: payload.toolID,
                 name: payload.name,
-                preview: payload.context
+                context: payload.context
             )
             tree?.root.toolCalls.append(toolCall)
 
@@ -200,7 +200,7 @@ final class SpawnTreeStore: ObservableObject {
 
         case .toolProgress(let name, let preview):
             if let tree, let idx = tree.root.toolCalls.firstIndex(where: { $0.name == name && !$0.isComplete }) {
-                tree.root.toolCalls[idx].preview = preview
+                tree.root.toolCalls[idx].context = preview
             }
 
         case .thinkingDelta(let text):

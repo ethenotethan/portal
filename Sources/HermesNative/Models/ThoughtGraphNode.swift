@@ -5,7 +5,7 @@ import Foundation
 /// A single node in the live agent thought graph DAG, representing one tool invocation
 /// during an active chat streaming turn. Rendered as a node in the visualization with
 /// dependency edges connecting to parent nodes.
-struct ThoughtGraphNode: Identifiable, Codable {
+struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAccountable {
     /// The tool_call_id from gateway events (tool.start / tool.complete).
     let id: String
 
@@ -58,7 +58,9 @@ struct ThoughtGraphNode: Identifiable, Codable {
 
     /// Cost/token rollup from subagent.complete (agent nodes only).
     var costUSD: Double?
-    var tokenTotal: Int?
+    var totalTokens: Int?
+    var inputTokens: Int? { nil }
+    var outputTokens: Int? { nil }
 
     /// Tail of the subagent's live thinking stream, for the detail panel.
     var agentThinking: String?
@@ -160,7 +162,7 @@ struct ThoughtGraphNode: Identifiable, Codable {
         ownerAgentID: String? = nil,
         modelName: String? = nil,
         costUSD: Double? = nil,
-        tokenTotal: Int? = nil,
+        totalTokens: Int? = nil,
         agentThinking: String? = nil
     ) {
         self.id = id
@@ -178,7 +180,7 @@ struct ThoughtGraphNode: Identifiable, Codable {
         self.ownerAgentID = ownerAgentID
         self.modelName = modelName
         self.costUSD = costUSD
-        self.tokenTotal = tokenTotal
+        self.totalTokens = totalTokens
         self.agentThinking = agentThinking
     }
 

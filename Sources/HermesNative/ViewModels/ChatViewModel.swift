@@ -2159,9 +2159,9 @@ if restoreSessionState(displayID: key) {
                 let runStatus: SessionRunEvent.RunStatus = payload.status == "error" ? .failed : .completed
                 SessionRunHistoryStore.shared.recordRunEnd(
                     sessionID: sid,
-                    inputTokens: payload.usage?.promptTokens ?? 0,
-                    outputTokens: payload.usage?.completionTokens ?? 0,
-                    totalTokens: payload.usage?.totalTokens ?? 0,
+                    inputTokens: payload.usage?.inputTokens,
+                    outputTokens: payload.usage?.outputTokens,
+                    totalTokens: payload.usage?.totalTokens,
                     apiCalls: 1,
                     status: runStatus
                 )
