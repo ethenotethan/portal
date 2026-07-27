@@ -68,10 +68,12 @@ internal struct ArtifactIntentContractTests {
             #expect(p == "Sure?")
         } else { Issue.record("expected needsConfirmation") }
 
-        if case .succeeded(let m) = outcome([
+        if case .succeeded(let m, let sid) = outcome([
             "status": AnyCodable("succeeded"), "message": AnyCodable("done"),
+            "session_id": AnyCodable("sess-1"),
         ]) {
             #expect(m == "done")
+            #expect(sid == "sess-1")   // ran as a contained session
         } else { Issue.record("expected succeeded") }
 
         if case .failed(let r) = outcome(["status": AnyCodable("failed"), "reason": AnyCodable("nope")]) {
@@ -101,6 +103,17 @@ internal struct ArtifactIntentContractTests {
             .from(["status": AnyCodable("failed")]).outcome {
             #expect(r == "Action failed")
         } else { Issue.record("expected failed") }
+
+        // succeeded without session_id → no click-through target. An empty
+        // session_id is treated as absent, not as a navigable id.
+        if case .succeeded(_, let sid) = ArtifactActionInvokeResult
+            .from(["status": AnyCodable("succeeded")]).outcome {
+            #expect(sid == nil)
+        } else { Issue.record("expected succeeded") }
+        if case .succeeded(_, let sid) = ArtifactActionInvokeResult
+            .from(["status": AnyCodable("succeeded"), "session_id": AnyCodable("")]).outcome {
+            #expect(sid == nil)
+        } else { Issue.record("expected succeeded") }
     }
 
     // MARK: - IntentInvocationState.from(ledgerOutcome:)
@@ -108,7 +121,7 @@ internal struct ArtifactIntentContractTests {
     @Test("Ledger outcomes map to displayable states; non-terminal ones return nil")
     internal func ledgerOutcomeMapping() {
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "succeeded", reason: nil)
-                == .succeeded(message: nil))
+                == .succeeded(message: nil, sessionID: nil))
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "failed", reason: "boom")
                 == .failed(reason: "boom"))
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "failed", reason: nil)

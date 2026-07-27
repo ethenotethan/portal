@@ -84,7 +84,7 @@ private struct ArtifactIntentStoreTests {
     @Test("A succeeded invoke sends the pinned rev + identifiers and lands succeeded")
     func invokeSucceeds() async {
         let (store, fake) = makeStore(rev: 7)
-        fake.invokeResult = ArtifactActionInvokeResult(outcome: .succeeded(message: "Archived"))
+        fake.invokeResult = ArtifactActionInvokeResult(outcome: .succeeded(message: "Archived", sessionID: nil))
 
         await store.invokeIntent(artifactID: "issues", bindingID: "archive", entryKey: "ARC-42")
 
@@ -95,10 +95,24 @@ private struct ArtifactIntentStoreTests {
         #expect(call.binding == "archive")
         #expect(call.entity == "ARC-42")
         #expect(!call.ikey.isEmpty)
-        if case .succeeded(let message) = store.intentStates[slot(store)] {
+        if case .succeeded(let message, let sessionID) = store.intentStates[slot(store)] {
             #expect(message == "Archived")
+            #expect(sessionID == nil)                // one-off, not a contained run
         } else {
             Issue.record("expected .succeeded, got \(String(describing: store.intentStates[slot(store)]))")
+        }
+    }
+
+    @Test("A succeeded invoke that ran as a session carries the session id through")
+    func invokeSucceedsWithSession() async {
+        let (store, fake) = makeStore()
+        fake.invokeResult = ArtifactActionInvokeResult(
+            outcome: .succeeded(message: "Started run", sessionID: "sess-abc"))
+        await store.invokeIntent(artifactID: "issues", bindingID: "archive", entryKey: "ARC-42")
+        if case .succeeded(_, let sessionID) = store.intentStates[slot(store)] {
+            #expect(sessionID == "sess-abc")         // click-through target preserved
+        } else {
+            Issue.record("expected .succeeded with a session id")
         }
     }
 
@@ -160,7 +174,7 @@ private struct ArtifactIntentStoreTests {
     @Test("confirmIntent sends the challenge and applies the returned outcome")
     func confirmRoundTrip() async {
         let (store, fake) = makeStore()
-        fake.confirmResult = ArtifactActionInvokeResult(outcome: .succeeded(message: nil))
+        fake.confirmResult = ArtifactActionInvokeResult(outcome: .succeeded(message: nil, sessionID: nil))
         await store.confirmIntent(
             artifactID: "issues", bindingID: "archive", entryKey: "ARC-42", challenge: "chal-1")
         #expect(fake.confirmCalls.count == 1)

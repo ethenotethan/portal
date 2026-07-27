@@ -66,6 +66,11 @@ internal struct HTMLArtifactIntentRequest: Equatable, Sendable {
 /// to SwiftUI. No message handler, gateway object, credential, fetch API, or
 /// arbitrary RPC surface is exposed to page JavaScript.
 internal enum HTMLArtifactIntentBridge {
+    /// Name of the isolated content world shared by the click-capture user
+    /// script and the native→page status writes. Kept in one place so the
+    /// injection sites and `evaluateJavaScript` can't drift apart.
+    internal static let contentWorldName = "HermesArtifactIntentBridge"
+
     internal static func userScriptSource(nonce: String) -> String {
         // JSON-encode the nonce so it embeds as a safe JS string literal.
         // Encoding a String can't realistically fail; on the impossible error,
@@ -115,6 +120,102 @@ internal enum HTMLArtifactIntentBridge {
     ) -> ArtifactAction? {
         actions.first { action in
             action.kind == .intent && action.bindingID == request.bindingID
+        }
+    }
+
+    // MARK: - Status reflection (native → page, isolated world)
+
+    /// The fixed vocabulary native mirrors onto a control's
+    /// `data-hermes-status` attribute. A closed enum — never gateway-authored
+    /// text — so nothing but one of these tokens can enter the page DOM.
+    internal enum StatusToken: String, CaseIterable, Sendable {
+        case pending
+        case needsConfirmation = "needs-confirmation"
+        case succeeded
+        case failed
+        case conflict
+        case unsupported
+
+        /// Presentation projection of the store's terminal/interim state. Kept
+        /// here (not on `IntentInvocationState`) so the reflection vocabulary
+        /// stays independent of the store's richer associated values.
+        internal init(_ state: ArtifactStore.IntentInvocationState) {
+            switch state {
+            case .pending: self = .pending
+            case .needsConfirmation: self = .needsConfirmation
+            case .succeeded: self = .succeeded
+            case .failed: self = .failed
+            case .conflict: self = .conflict
+            case .unsupported: self = .unsupported
+            }
+        }
+    }
+
+    /// One control's reflected status: which slot (binding + entity) and what
+    /// token to stamp. `Equatable` so the host view can diff the mark set and
+    /// only re-run JS when it actually changes.
+    internal struct StatusMark: Equatable, Sendable {
+        internal let bindingID: String
+        internal let entityRef: String
+        internal let status: StatusToken
+
+        internal init(bindingID: String, entityRef: String, status: StatusToken) {
+            self.bindingID = bindingID
+            self.entityRef = entityRef
+            self.status = status
+        }
+    }
+
+    /// JavaScript that stamps (or clears) `data-hermes-status` on the inert
+    /// control(s) matching a slot, run in the SAME isolated `WKContentWorld`
+    /// as `userScriptSource`. The page shares the DOM but not this world's JS
+    /// scope, so it can style the attribute via CSS yet cannot observe,
+    /// override, or intercept the write. Every value is JSON-encoded (exactly
+    /// like the nonce) so a binding/entity string can't break out into
+    /// executable JS. It only calls `setAttribute`/`removeAttribute` — no
+    /// `innerHTML`, no `fetch`, no arbitrary evaluation.
+    ///
+    /// `status == nil` clears the attribute (slot cleared / reset). Elements
+    /// match on binding AND entity so per-row buttons don't cross-talk; an
+    /// empty `entityRef` matches controls that declare no `data-hermes-entity`.
+    internal static func statusReflectionScript(
+        bindingID: String,
+        entityRef: String,
+        status: StatusToken?
+    ) -> String {
+        let binding = jsStringLiteral(bindingID)
+        let entity = jsStringLiteral(entityRef)
+        let statusLiteral = status.map { jsStringLiteral($0.rawValue) } ?? "null"
+        return #"""
+    (() => {
+      'use strict';
+      const binding = \#(binding);
+      const entity = \#(entity);
+      const status = \#(statusLiteral);
+      const nodes = document.querySelectorAll('[data-hermes-binding]');
+      for (const node of nodes) {
+        if ((node.getAttribute('data-hermes-binding') || '').trim() !== binding) continue;
+        const nodeEntity = node.getAttribute('data-hermes-entity') || '';
+        if (nodeEntity !== entity) continue;
+        if (status === null) {
+          node.removeAttribute('data-hermes-status');
+        } else {
+          node.setAttribute('data-hermes-status', status);
+        }
+      }
+    })();
+    """#
+    }
+
+    /// Encode a Swift string as a safe JS string literal, matching the nonce
+    /// handling in `userScriptSource`. Falls back to an empty literal on the
+    /// impossible encode failure rather than force-unwrapping.
+    private static func jsStringLiteral(_ value: String) -> String {
+        do {
+            let data = try JSONEncoder().encode(value)
+            return String(data: data, encoding: .utf8) ?? "\"\""
+        } catch {
+            return "\"\""
         }
     }
 }
