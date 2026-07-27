@@ -34,6 +34,10 @@ struct ThoughtGraphView: View {
     /// tool/reasoning/subagent events arrive.
     let nodes: [ThoughtGraphNode]
 
+    /// Context-compaction folds for this turn, drawn as full-height rules
+    /// across the flamechart at the moment each fold happened.
+    internal let compactions: [CompactionMarker]
+
     /// Whether the conversation turn is still streaming.
     let isStreaming: Bool
 
@@ -66,6 +70,7 @@ struct ThoughtGraphView: View {
     init(
         engine: ThoughtGraphLayoutEngine,
         nodes: [ThoughtGraphNode],
+        compactions: [CompactionMarker] = [],
         isStreaming: Bool,
         isThinking: Bool = false,
         usageSummary: String? = nil,
@@ -74,6 +79,7 @@ struct ThoughtGraphView: View {
     ) {
         self.engine = engine
         self.nodes = nodes
+        self.compactions = compactions
         self.isStreaming = isStreaming
         self.isThinking = isThinking
         self.usageSummary = usageSummary
@@ -379,7 +385,10 @@ struct ThoughtGraphView: View {
                 // ── 4. Shared-entity shapes + edges (deterministic overlay) ──
                 drawSharedEntities(context: world, selectedID: selectedID)
 
-                // ── 5. Reasoning-beat labels (screen space, fixed size) ──
+                // ── 5. Context-compaction folds (screen space, full height) ──
+                drawCompactionFolds(context: screenContext, size: size)
+
+                // ── 6. Reasoning-beat labels (screen space, fixed size) ──
                 drawReasoningLabels(context: screenContext, size: size, selectedID: selectedID)
             }
             .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
@@ -567,6 +576,66 @@ struct ThoughtGraphView: View {
             at: CGPoint(x: rect.minX + 6, y: rect.midY),
             anchor: .leading
         )
+    }
+
+    /// Context-compaction folds: a full-height vertical rule across every lane
+    /// at the moment the agent compacted its context. Drawn in SCREEN space
+    /// (fixed width, legible at any zoom) and positioned by the SAME time→x
+    /// scale as the time axis — `timeOrigin` + `pixelsPerSecond * zoom` — so a
+    /// fold sits under the same tick as the bars it falls between. A compaction
+    /// reshapes the whole turn's context, not one actor's step, which is why it
+    /// spans all lanes rather than living in a lane like a node.
+    ///
+    /// Honest by construction: markers come only from real gateway signals (a
+    /// live `/compress` or the `usage.compressions` counter delta) — see
+    /// `CompactionMarker`. When the turn has no real timestamps (`timeOrigin`
+    /// nil, e.g. a history snapshot) a fold can't be placed in time, so it's
+    /// skipped rather than faked.
+    private func drawCompactionFolds(context: GraphicsContext, size: CGSize) {
+        guard !compactions.isEmpty, let t0 = engine.timeOrigin else { return }
+        let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * zoom
+        let originX = Self.leftMargin + panOffset.width
+            + ThoughtGraphLayoutEngine.leftGutter * zoom
+        let top = Self.topMargin - 8
+
+        for marker in compactions {
+            let x = originX + marker.at.timeIntervalSince(t0) * pps
+            // Cull folds off the plot (left of the lane titles or past the edge).
+            guard x >= Self.leftMargin - 1, x <= size.width + 1 else { continue }
+
+            var rule = Path()
+            rule.move(to: CGPoint(x: x, y: top))
+            rule.addLine(to: CGPoint(x: x, y: size.height))
+
+            let color = Theme.graphCompaction
+            // A manual /compress is a deliberate user act — draw it solid and a
+            // touch bolder than an automatic fold the agent did on its own
+            // (dashed, quieter) so the two read as distinct at a glance.
+            let solid = marker.trigger == .manual
+            context.stroke(
+                rule,
+                with: .color(color.opacity(solid ? 0.7 : 0.5)),
+                style: StrokeStyle(
+                    lineWidth: solid ? 1.6 : 1.2,
+                    lineCap: .round,
+                    dash: solid ? [] : [5, 4]
+                )
+            )
+
+            // A short tab near the top so the fold reads as a labeled event,
+            // not a stray gridline. The "⟳" mirrors the glyph the gateway
+            // prints when it compacts. Flip the anchor near the right edge so
+            // the label never runs off-screen.
+            let label = marker.detail ?? "context compacted"
+            let nearRight = x > size.width - 96
+            context.draw(
+                Text("⟳ \(label)")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundColor(color),
+                at: CGPoint(x: nearRight ? x - 4 : x + 4, y: top + 6),
+                anchor: nearRight ? .trailing : .leading
+            )
+        }
     }
 
     /// Reasoning-beat labels, drawn in SCREEN space (not the zoom-scaled world)
@@ -842,6 +911,9 @@ struct ThoughtGraphView: View {
                 legendItem(icon: "xmark.circle.fill", color: Color.red, label: "error")
                 legendItem(icon: "brain", color: Theme.agentAccent, label: "subagent")
                 legendItem(icon: "diamond.fill", color: Theme.graphReasoning, label: "thought")
+                if !compactions.isEmpty {
+                    legendItem(icon: "arrow.triangle.2.circlepath.circle", color: Theme.graphCompaction, label: "compacted")
+                }
                 Text("← width = duration →")
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
@@ -1420,6 +1492,14 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
         return ThoughtGraphView(
             engine: engine,
             nodes: sampleNodes,
+            compactions: [
+                CompactionMarker(
+                    id: "c1",
+                    at: Date(timeIntervalSinceNow: -48),
+                    trigger: .automatic,
+                    detail: "context compacted"
+                )
+            ],
             isStreaming: true
         )
         .frame(width: 900, height: 700)

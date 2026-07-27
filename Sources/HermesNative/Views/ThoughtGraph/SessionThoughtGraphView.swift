@@ -16,6 +16,10 @@ internal struct SessionTurn: Identifiable {
     /// Nodes composed for this turn: tool bars (always) + subagent lanes and
     /// reasoning beats (present when the turn carried a graph snapshot).
     internal let nodes: [ThoughtGraphNode]
+    /// Context-compaction folds during this turn, drawn as full-height rules
+    /// across the flamechart. Empty for turns with no compaction (the common
+    /// case) or persisted before compaction capture existed.
+    internal let compactions: [CompactionMarker]
     /// Tool-call count, for the rail badge.
     internal let toolCount: Int
     /// Whether full depth (reasoning/subagents) is available, vs tool-only —
@@ -60,6 +64,7 @@ internal enum SessionTurnBuilder {
                     prompt: pendingPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
                     replyPreview: String(message.content.prefix(80)),
                     nodes: nodes,
+                    compactions: snapshot?.compactions ?? [],
                     toolCount: message.toolCalls.count,
                     toolsOnly: snapshot == nil || snapshot?.isEmpty == true
                 ))
@@ -106,6 +111,7 @@ internal struct SessionThoughtGraphView: View {
                     ThoughtGraphView(
                         engine: engine,
                         nodes: turn.nodes,
+                        compactions: turn.compactions,
                         isStreaming: false,
                         // Heartbeat only on the live (last) turn — past turns
                         // are settled.

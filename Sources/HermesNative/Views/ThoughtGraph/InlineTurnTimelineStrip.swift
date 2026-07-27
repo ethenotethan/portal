@@ -16,6 +16,7 @@ internal struct InlineTurnTimelineLive: View {
         if !live.isEmpty {
             InlineTurnTimelineStrip(
                 nodes: live,
+                compactions: chatViewModel.currentTurnCompactions,
                 isStreaming: chatViewModel.isStreaming,
                 onExpand: onExpand
             )
@@ -47,6 +48,8 @@ internal struct InlineTurnTimelineStrip: View {
     /// The current turn's composed nodes (tools + subagent lanes + reasoning),
     /// rebuilt by the caller as live events arrive.
     internal let nodes: [ThoughtGraphNode]
+    /// Context-compaction folds for the live turn, drawn as full-height rules.
+    internal var compactions: [CompactionMarker] = []
     /// Whether the turn is still streaming — drives the growing right edge and
     /// the live rescale so the whole turn keeps fitting the strip width.
     internal let isStreaming: Bool
@@ -274,6 +277,13 @@ internal struct InlineTurnTimelineStrip: View {
             }
         }
 
+        // ── Compaction folds (over the bars) ──
+        // A full-height rule wherever the agent compacted its context, mapped
+        // by the same time→x scale as the bars so it lands between the right
+        // steps. Mirrors the full graph; the strip is where the user WATCHES a
+        // compaction happen, so it must show up live.
+        drawCompactionFolds(context: context, size: size, scale: scale)
+
         // ── Reasoning labels (second pass, over the bars) ──
         // Give each thought beat a short readable gist beside its diamond so
         // the strip shows WHAT the agent thought, not just an opaque dot. Drawn
@@ -296,6 +306,46 @@ internal struct InlineTurnTimelineStrip: View {
                     .foregroundColor(node.category.color.opacity(0.95)),
                 at: CGPoint(x: labelX, y: cy),
                 anchor: .leading
+            )
+        }
+    }
+
+    /// Full-height compaction rules for the strip, positioned by the same
+    /// time→x scale as the bars (`world x=0` sits at `leftGutter`, mapped from
+    /// wall-clock via `engine.timeOrigin`). A `/compress` is solid; an
+    /// automatic fold is dashed and quieter. Skipped when the turn has no real
+    /// time origin (nothing to anchor to) — never faked.
+    private func drawCompactionFolds(context: GraphicsContext, size: CGSize, scale: CGFloat) {
+        guard !compactions.isEmpty, let t0 = engine.timeOrigin else { return }
+        func sx(_ worldX: CGFloat) -> CGFloat { Self.sidePad + worldX * scale }
+        let axisTop = size.height - Self.axisBandHeight
+
+        for marker in compactions {
+            let worldX = ThoughtGraphLayoutEngine.leftGutter
+                + marker.at.timeIntervalSince(t0) * ThoughtGraphLayoutEngine.pixelsPerSecond
+            let x = sx(worldX)
+            guard x >= Self.sidePad, x <= size.width - Self.sidePad else { continue }
+
+            var rule = Path()
+            rule.move(to: CGPoint(x: x, y: Self.topPad))
+            rule.addLine(to: CGPoint(x: x, y: axisTop))
+            let solid = marker.trigger == .manual
+            context.stroke(
+                rule,
+                with: .color(Theme.graphCompaction.opacity(solid ? 0.75 : 0.55)),
+                style: StrokeStyle(
+                    lineWidth: solid ? 1.4 : 1,
+                    lineCap: .round,
+                    dash: solid ? [] : [4, 3]
+                )
+            )
+            // A tiny glyph cap at the top marks it as a compaction, not a tick.
+            context.draw(
+                Text("⟳")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(Theme.graphCompaction),
+                at: CGPoint(x: x, y: Self.topPad + 4),
+                anchor: .center
             )
         }
     }

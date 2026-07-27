@@ -184,6 +184,21 @@ final class ChatViewModel: ObservableObject {
     /// the streaming panel; auto-clears so stale text never lingers.
     @Published private(set) var transientStatus: String?
     private var transientStatusClearTask: Task<Void, Never>?
+
+    /// Context-compaction folds observed during the CURRENTLY-DISPLAYED turn —
+    /// the live strip and the session graph draw these as full-height rules.
+    /// Reset each turn (like the graph integrators) and snapshotted onto the
+    /// turn's `graphSnapshot` at message-complete for past-turn replay.
+    @Published internal private(set) var currentTurnCompactions: [CompactionMarker] = []
+
+    /// Last-seen cumulative `usage.compressions` per DISPLAY session id. The
+    /// delta between turns is how an AUTOMATIC compaction is detected (it has
+    /// no live event). Per-session and seeded-without-emitting on first sight so
+    /// switching sessions never fabricates a fold from another session's count.
+    private var compactionCounterBaseline: [String: Int] = [:]
+    /// Count of MANUAL compaction folds already recorded live this turn, so the
+    /// counter-delta pass at message-complete doesn't double-count them.
+    private var manualCompactionsThisTurn = 0
     @Published var sessionTitle: String = "New Chat"
     /// The visible session's current turn was started on another device.
     @Published private(set) var isRemoteTurn: Bool = false
@@ -279,7 +294,8 @@ final class ChatViewModel: ObservableObject {
     private func captureGraphSnapshot() -> TurnGraphSnapshot? {
         let snapshot = TurnGraphSnapshot(
             agentNodes: subagentGraph.agentNodes,
-            reasoningNodes: reasoningGraph.reasoningNodes
+            reasoningNodes: reasoningGraph.reasoningNodes,
+            compactions: currentTurnCompactions
         )
         return snapshot.isEmpty ? nil : snapshot
     }
@@ -1728,6 +1744,61 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    // MARK: - Context Compaction (thought-graph folds)
+
+    /// A live `status.update kind="compressing"` for the displayed session —
+    /// the precise moment a `/compress` folded the context. Record a MANUAL
+    /// fold now; the counter delta at message-complete will subtract these so
+    /// the same event isn't also counted as automatic. Caller guards that this
+    /// is the displayed session.
+    private func recordManualCompaction() {
+        currentTurnCompactions.append(CompactionMarker(
+            id: "manual-\(UUID().uuidString)",
+            at: Date(),
+            trigger: .manual,
+            detail: "context compacted"
+        ))
+        manualCompactionsThisTurn += 1
+    }
+
+    /// Seed a session's compaction counter WITHOUT emitting a fold — used on
+    /// session.info (connect/resume) so a session that already compacted before
+    /// we were watching doesn't fabricate a fold on its next turn. Idempotent;
+    /// only the first observation of a session sets the baseline.
+    private func seedCompactionBaseline(displayID: String, usage: UsageInfo?) {
+        guard let usage, compactionCounterBaseline[displayID] == nil else { return }
+        compactionCounterBaseline[displayID] = usage.compressions
+    }
+
+    /// Reconcile the cumulative `usage.compressions` counter at message-complete.
+    /// The delta since the last turn is how AUTOMATIC compaction is detected —
+    /// it emits no live event, only ticks this counter. Manual folds already
+    /// recorded live this turn are subtracted so they aren't double-counted.
+    /// The baseline is always advanced (so cross-session counts stay accurate),
+    /// but a fold is only appended for the displayed turn — automatic folds
+    /// carry no timestamp, so they're stamped at the turn's end.
+    private func noteCompactionCounter(displayID: String, usage: UsageInfo?, isDisplayed: Bool) {
+        guard let usage else { return }
+        let newCount = usage.compressions
+        guard let baseline = compactionCounterBaseline[displayID] else {
+            compactionCounterBaseline[displayID] = newCount   // first sight — seed, don't emit
+            return
+        }
+        compactionCounterBaseline[displayID] = newCount
+        let delta = newCount - baseline
+        guard delta > 0, isDisplayed else { return }
+        // Manual folds already drawn live this turn also ticked the counter.
+        let autoCount = max(0, delta - manualCompactionsThisTurn)
+        guard autoCount >= 1 else { return }
+        let detail = autoCount == 1 ? "context compacted" : "context compacted ×\(autoCount)"
+        currentTurnCompactions.append(CompactionMarker(
+            id: "auto-\(displayID)-\(newCount)",
+            at: Date(),
+            trigger: .automatic,
+            detail: detail
+        ))
+    }
+
     /// Land a whole MoA reference answer as a labelled discrete thinking
     /// block on the streaming assistant message.
     private func appendMoAReference(label: String, text: String, to messages: inout [ChatMessage]) {
@@ -2006,6 +2077,9 @@ if restoreSessionState(displayID: key) {
             if displaySessionID(for: sessionID ?? "") == displayID {
                 currentModel = info.model
             }
+            // Seed the compaction counter (without emitting) so compactions
+            // that happened before we connected don't fabricate a fold later.
+            seedCompactionBaseline(displayID: displayID, usage: info.usage)
             state.isSessionReady = true
 
         case .messageStart:
@@ -2031,6 +2105,8 @@ if restoreSessionState(displayID: key) {
                 streamingMessageID = state.streamingMessageID
                 reasoningGraph.reset()
                 subagentGraph.reset()
+                currentTurnCompactions = []
+                manualCompactionsThisTurn = 0
             }
             if let sid = sessionID ?? currentSessionID {
                 SessionRunHistoryStore.shared.recordRunStart(sessionID: sid)
@@ -2067,6 +2143,12 @@ if restoreSessionState(displayID: key) {
             state.messages[idx]._contentWithoutAttachments = MediaParser.stripMediaTags(from: payload.text)
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
+            // Reconcile the compaction counter BEFORE snapshotting so an
+            // automatic fold detected at turn-end persists on this turn. Only
+            // the displayed turn owns the live `currentTurnCompactions` the
+            // snapshot reads; the baseline advances for every session.
+            let isDisplayedTurn = displaySessionID(for: sessionID ?? "") == displayID
+            noteCompactionCounter(displayID: displayID, usage: payload.usage, isDisplayed: isDisplayedTurn)
             state.messages[idx].graphSnapshot = captureGraphSnapshot()
             state.activeToolCalls = [:]
             state.isStreaming = false
@@ -2215,10 +2297,15 @@ if restoreSessionState(displayID: key) {
             // unreachable here, kept only for switch exhaustiveness.
             break
 
-        case .statusUpdate(_, let text):
+        case .statusUpdate(let kind, let text):
             // Includes browser.progress / preview.restart.* (folded into
             // statusUpdate at decode) — transient line, no transcript entry.
             if displaySessionID(for: sessionID ?? "") == displayID {
+                // A live `/compress` — the precise moment of a manual fold. Draw
+                // it on the graph as well as flashing the transient line.
+                if kind == "compressing" {
+                    recordManualCompaction()
+                }
                 showTransientStatus(text)
             }
 
@@ -2389,6 +2476,11 @@ if restoreSessionState(displayID: key) {
             if sessionID != nil {
                 isSessionReady = true
             }
+            // Seed the compaction counter (without emitting) so a session that
+            // already compacted before connect doesn't fabricate a fold later.
+            if let sid = sessionID {
+                seedCompactionBaseline(displayID: displaySessionID(for: sid), usage: info.usage)
+            }
 
         case .messageStart:
             // Streaming begins — avatar is speaking
@@ -2396,6 +2488,8 @@ if restoreSessionState(displayID: key) {
             avatarState = .speaking
             reasoningGraph.reset()
             subagentGraph.reset()
+            currentTurnCompactions = []
+            manualCompactionsThisTurn = 0
 
         case .messageDelta(let text, _):
             recordPerfEvent("messageDelta", bytes: text.count)
@@ -2424,6 +2518,15 @@ if restoreSessionState(displayID: key) {
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)
+            // Detect an automatic compaction from the counter delta BEFORE
+            // snapshotting so the fold persists on this turn (foreground path is
+            // always the displayed session). Keyed by the same displayID as the
+            // background path so both reconcile against one baseline.
+            noteCompactionCounter(
+                displayID: displaySessionID(for: sessionID ?? ""),
+                usage: payload.usage,
+                isDisplayed: true
+            )
             messages[idx].graphSnapshot = captureGraphSnapshot()
 
             activeToolCalls = [:]
@@ -2563,9 +2666,14 @@ if restoreSessionState(displayID: key) {
         case .approvalRequest(payload: let payload):
             pendingApproval = payload
 
-        case .statusUpdate(_, let text):
+        case .statusUpdate(let kind, let text):
             // Includes browser.progress / preview.restart.* (folded into
             // statusUpdate at decode) — transient line, no transcript entry.
+            // A live `/compress` (kind="compressing") is the precise moment of a
+            // manual fold — draw it on the graph as well as flashing the line.
+            if kind == "compressing" {
+                recordManualCompaction()
+            }
             showTransientStatus(text)
 
         case .error(let message):

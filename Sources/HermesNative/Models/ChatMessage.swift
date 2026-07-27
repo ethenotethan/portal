@@ -180,22 +180,66 @@ struct ThinkingBlock: Identifiable, Codable, Equatable {
     }
 }
 
+/// A context-compaction event on a turn's timeline — a moment the agent folded
+/// its conversation history to reclaim tokens. The thought graph draws it as a
+/// full-height "fold" rule across every lane, because a compaction isn't one
+/// actor's step: it reshapes the whole turn's context.
+///
+/// Two honest provenances, both derived from real gateway signals (never
+/// inferred): `.manual` from a live `status.update kind="compressing"` (a user
+/// `/compress`, so the moment is precise) and `.automatic`, detected from the
+/// cumulative `usage.compressions` counter ticking at message-complete — which
+/// carries no timestamp, so an auto marker is stamped at the turn's end.
+internal struct CompactionMarker: Codable, Identifiable, Equatable {
+    internal enum Trigger: String, Codable {
+        /// Live `/compress` — precise moment the fold began.
+        case manual
+        /// Counter delta seen at turn end — approximate moment (turn end).
+        case automatic
+    }
+
+    internal let id: String
+    /// Wall-clock moment mapped onto the timeline (like a node's `startedAt`).
+    internal let at: Date
+    internal let trigger: Trigger
+    /// Short honest rule label ("context compacted"). nil draws the bare fold.
+    internal let detail: String?
+
+    internal init(id: String, at: Date, trigger: Trigger, detail: String? = nil) {
+        self.id = id
+        self.at = at
+        self.trigger = trigger
+        self.detail = detail
+    }
+}
+
 /// The thought-graph depth for one turn, snapshotted at message-complete so a
 /// past turn can be replayed with reasoning beats + subagent lanes — not just
 /// its tool bars. The tool calls themselves live on `ChatMessage.toolCalls`;
-/// this carries the two node sets the live integrators reset each turn.
+/// this carries the node sets the live integrators reset each turn.
 /// `ThoughtGraphNode` is Codable, so this round-trips to the session JSON.
 internal struct TurnGraphSnapshot: Codable {
     /// Spawned-subagent nodes (agent lanes + their tool steps).
     internal var agentNodes: [ThoughtGraphNode]
     /// Reasoning-beat marker nodes.
     internal var reasoningNodes: [ThoughtGraphNode]
+    /// Context-compaction folds observed during the turn. Optional so turns
+    /// persisted before this field existed still decode (same convention as
+    /// `ToolCallRecord`'s later-added optionals).
+    internal var compactions: [CompactionMarker]?
 
-    internal var isEmpty: Bool { agentNodes.isEmpty && reasoningNodes.isEmpty }
+    internal var isEmpty: Bool {
+        agentNodes.isEmpty && reasoningNodes.isEmpty && (compactions?.isEmpty ?? true)
+    }
 
-    internal init(agentNodes: [ThoughtGraphNode] = [], reasoningNodes: [ThoughtGraphNode] = []) {
+    internal init(
+        agentNodes: [ThoughtGraphNode] = [],
+        reasoningNodes: [ThoughtGraphNode] = [],
+        compactions: [CompactionMarker] = []
+    ) {
         self.agentNodes = agentNodes
         self.reasoningNodes = reasoningNodes
+        self.compactions = compactions.isEmpty ? nil : compactions
     }
 }
 

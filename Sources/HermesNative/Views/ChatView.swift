@@ -1257,6 +1257,7 @@ struct ChatView: View {
                         prompt: "Current turn",
                         replyPreview: "",
                         nodes: liveNodes,
+                        compactions: chatViewModel.currentTurnCompactions,
                         toolCount: chatViewModel.activeToolCalls.count,
                         toolsOnly: false
                     ))

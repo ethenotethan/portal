@@ -377,13 +377,19 @@ struct UsageInfo: Codable {
     let promptTokens: Int
     let completionTokens: Int
     let totalTokens: Int
+    /// Cumulative count of context compactions so far this session. This is
+    /// auto-compaction's ONLY client-visible trace (it otherwise just prints to
+    /// the gateway's stderr) — the delta between turns is how the thought graph
+    /// detects one happened. 0 when the gateway doesn't report it.
+    internal let compressions: Int
 
     static func from(_ v: AnyCodable) -> UsageInfo? {
         guard let d = v.dictionaryValue else { return nil }
         return UsageInfo(
             promptTokens: d["prompt_tokens"]?.intValue ?? 0,
             completionTokens: d["completion_tokens"]?.intValue ?? 0,
-            totalTokens: d["total_tokens"]?.intValue ?? 0
+            totalTokens: d["total_tokens"]?.intValue ?? 0,
+            compressions: d["compressions"]?.intValue ?? 0
         )
     }
 }
