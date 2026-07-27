@@ -4,9 +4,12 @@
 # programming agent (or human). Assembles three high-signal sections so a
 # spinning-wheel report can be triaged WITHOUT a debugger session:
 #
-#   [1] RUNTIME — the MainThreadWatchdog's captured "🔴 MAIN-THREAD HANG"
-#       faults from the unified log: the actual symbolicated stack that stalled
-#       the UI. (Requires the app to have run + hung in the window; DEBUG only.)
+#   [1] RUNTIME — the MainThreadWatchdog's captured "🔴 MAIN-THREAD HANG" /
+#       "🔴 MAIN-THREAD STORM" faults from the unified log: the actual
+#       symbolicated stack that stalled the UI. HANG = one overrun turn; STORM =
+#       many short turns saturating the run loop (the #254 relayout-loop class,
+#       which no single-turn threshold can see). (Requires the app to have run +
+#       stalled in the window; DEBUG only.)
 #   [2] STATIC — a grep for the known hang anti-patterns (the recurring root
 #       causes the watchdog header enumerates), so candidate culprits show up
 #       even if the app wasn't running.
@@ -31,21 +34,22 @@ echo "window: last ${WINDOW_MIN}m · subsystem: ${SUBSYSTEM} · category: ${CATE
 rule
 
 # ── [1] RUNTIME: captured hang stacks from the unified log ──────────────────
-bold "[1] Captured MAIN-THREAD HANG faults (runtime)"
+bold "[1] Captured MAIN-THREAD HANG / STORM faults (runtime)"
 if command -v log >/dev/null 2>&1; then
   # os.Logger faults land in the unified log. Pull this subsystem's perf
-  # category over the window and keep the hang report + its stack lines.
+  # category over the window and keep the hang/storm report + its stack lines.
   HANGS=$(log show --last "${WINDOW_MIN}m" --style compact \
       --predicate "subsystem == \"${SUBSYSTEM}\" AND category == \"${CATEGORY}\"" 2>/dev/null \
-      | grep -E "MAIN-THREAD HANG|beachball|^\s+[0-9]+: " )
+      | grep -E "MAIN-THREAD HANG|MAIN-THREAD STORM|beachball|^\s+[0-9]+: " )
   if [ -n "$HANGS" ]; then
     echo "$HANGS"
   else
-    echo "  (no hang faults in the last ${WINDOW_MIN}m)"
+    echo "  (no hang/storm faults in the last ${WINDOW_MIN}m)"
     echo "  → Reproduce the beachball with the app running a DEBUG build"
     echo "    (make run), then re-run this. The watchdog is on by default in"
     echo "    DEBUG; it logs the culprit stack the instant the main thread"
-    echo "    stalls >250ms."
+    echo "    stalls >250ms (HANG) or saturates the run loop across many short"
+    echo "    turns (STORM — the multi-session relayout-loop class)."
   fi
 else
   echo "  (\`log\` unavailable — not macOS?)"
