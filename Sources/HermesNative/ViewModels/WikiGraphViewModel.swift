@@ -18,8 +18,14 @@ final class WikiGraphViewModel: ObservableObject {
     // toggleable sidebar, and the changeset timeline is a drawer.
 
     /// Reader visibility: true presents the reader for `selectedPath`
-    /// (macOS side panel / iOS sheet) over the always-alive graph.
+    /// (iOS sheet) over the always-alive graph. On macOS the reader is instead
+    /// one or more floating cards in `docLayout`; this flag is unused there.
     @Published var showPageDetail = false
+    /// macOS: free-form floating doc cards over the graph. Each card owns its
+    /// page + history; opening a second node adds a second card. The graph node
+    /// highlight follows the front card's page via the shared `selectedPath`.
+    /// (iOS uses the sheet instead — this stays empty there.)
+    @Published internal var docLayout = WikiDocLayout()
     /// Folder-tree sidebar (macOS) / browse sheet (iOS) visibility.
     @Published var showFileTree = false
     /// Changeset-timeline drawer (macOS) / sheet (iOS) visibility.
@@ -316,6 +322,7 @@ final class WikiGraphViewModel: ObservableObject {
         contentCache.removeAll()
         failedPath = nil
         showPageDetail = false
+        docLayout.removeAll()
         selectedNodeIndex = nil
         // Wiki switch: the events surface belongs to the previous source.
         showEventsPage = false
@@ -419,11 +426,72 @@ final class WikiGraphViewModel: ObservableObject {
         )
     }
 
-    /// Opens the reader for the currently selected page: on the graph modes
-    /// this presents the reader sheet, elsewhere the inline reader shows it.
+    /// Opens the reader for the currently selected page. On macOS this opens
+    /// (or focuses) a floating doc card over the graph; on iOS it presents the
+    /// reader sheet. Every "jump into a page" path funnels through here, so the
+    /// two platforms diverge in exactly one place.
     func openReaderForSelection() {
-        guard selectedPath != nil else { return }
+        guard let path = selectedPath else { return }
+        #if os(macOS)
+        docLayout.openOrFocus(path: path, bounds: docPlacementBounds)
+        #else
         showPageDetail = true
+        #endif
+    }
+
+    // MARK: - Floating doc cards (macOS)
+
+    /// Bounds new cards are placed within. `canvasSize` is the graph surface,
+    /// kept current by the 2D canvas; the floating layer re-clamps on its own
+    /// geometry anyway, so a slightly stale value only affects initial placement.
+    private var docPlacementBounds: CGSize {
+        canvasSize == .zero ? CGSize(width: 1200, height: 800) : canvasSize
+    }
+
+    /// Focus a card (raise it) and make its page the graph's highlighted node.
+    internal func focusCard(_ id: UUID) {
+        docLayout.bringToFront(id)
+        syncSelectionToFrontCard()
+    }
+
+    /// Navigate a specific card (wikilink / backlink tap) using ITS OWN history,
+    /// leaving other cards untouched. The graph highlight follows if this card
+    /// is (now) the front one.
+    internal func navigateCard(_ id: UUID, to path: String) {
+        docLayout.navigate(id, to: path)
+        docLayout.bringToFront(id)
+        syncSelectionToFrontCard()
+    }
+
+    internal func cardGoBack(_ id: UUID) {
+        docLayout.goBack(id)
+        syncSelectionToFrontCard()
+    }
+
+    internal func cardGoForward(_ id: UUID) {
+        docLayout.goForward(id)
+        syncSelectionToFrontCard()
+    }
+
+    /// Close one card. The graph highlight falls back to whatever card is now
+    /// frontmost, or clears when the last card closes.
+    internal func closeCard(_ id: UUID) {
+        docLayout.remove(id)
+        syncSelectionToFrontCard()
+    }
+
+    /// Mirror the front card's page into the shared selection plane (graph node
+    /// highlight + `selectedPath`) WITHOUT touching the shared history stacks —
+    /// per-card history is the cards' own. When no card remains, clears the
+    /// node highlight but leaves history intact for the sidebar/timeline.
+    private func syncSelectionToFrontCard() {
+        if let front = docLayout.frontCard {
+            selectedPath = front.path
+            if failedPath == front.path { failedPath = nil }
+            syncNodeSelection(toPath: front.path)
+        } else {
+            selectedNodeIndex = nil
+        }
     }
 
     // MARK: - Cross-surface affordances

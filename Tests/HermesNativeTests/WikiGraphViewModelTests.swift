@@ -223,7 +223,13 @@ struct WikiGraphViewModelTests {
         }
         vm.activateNode(idx)
         #expect(vm.selectedPath == "concepts/alpha.md")
+        // The reader opens differently per platform: a floating doc card over
+        // the graph on macOS, the sheet on iOS.
+        #if os(macOS)
+        #expect(vm.docLayout.frontCard?.path == "concepts/alpha.md")
+        #else
         #expect(vm.showPageDetail)
+        #endif
     }
 
     @Test("Deactivating (empty-canvas tap) closes the reader but keeps history")

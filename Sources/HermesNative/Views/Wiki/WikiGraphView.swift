@@ -6,8 +6,9 @@ import SwiftUI
 /// - No page selected → full-bleed force-directed graph (2D canvas by
 ///   default; 3D SceneKit is a rendering toggle in the controls bar).
 /// - Selecting a page (graph node, file-tree sidebar, or search) opens the
-///   shared reader — a trailing side panel on macOS, a sheet on iOS — with
-///   the graph alive behind it. Deselect/close → back to the full graph.
+///   reader over the always-alive graph: on macOS a free-form floating doc
+///   card the user drags and resizes (open a second node → a second card); on
+///   iOS a sheet. Deselect/close → back to the full graph.
 /// - The folder tree is a toggleable left sidebar (macOS) / sheet (iOS).
 /// - The changeset timeline is a bottom drawer (macOS) / sheet (iOS) with
 ///   git-style inline diffs; shown only for sources with edit history
@@ -57,7 +58,6 @@ struct WikiGraphView: View {
 
     #if os(macOS)
     private let sidebarWidth: CGFloat = 240
-    private let readerWidth: CGFloat = 400
     private let timelineHeight: CGFloat = 300
     #endif
 
@@ -158,7 +158,12 @@ struct WikiGraphView: View {
             }
 
             VStack(spacing: 0) {
+                // Full-bleed graph with the floating doc cards layered over it:
+                // clicking a node opens a free-form, draggable/resizable reader
+                // card; clicking another adds a second. The graph stays alive
+                // around and behind the cards (replaces the old trailing panel).
                 graphSurface
+                    .overlay { WikiFloatingDocsLayer(viewModel: viewModel) }
 
                 if viewModel.showTimeline && supportsTimeline {
                     Divider()
@@ -173,17 +178,6 @@ struct WikiGraphView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if viewModel.showPageDetail, viewModel.selectedPath != nil {
-                Divider()
-                WikiReaderPane(
-                    viewModel: viewModel,
-                    onClose: { viewModel.showPageDetail = false },
-                    showsShowInGraph: false
-                )
-                .frame(width: readerWidth)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.showFileTree)
         .animation(.easeInOut(duration: 0.2), value: viewModel.showTimeline)
