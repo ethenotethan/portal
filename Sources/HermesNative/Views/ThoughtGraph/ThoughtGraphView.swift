@@ -344,33 +344,43 @@ struct ThoughtGraphView: View {
                 // ── 0. Time axis (screen space, top) ──
                 drawTimeAxis(context: context, size: size)
 
-                context.translateBy(x: Self.leftMargin + panOffset.width,
-                                    y: Self.topMargin + panOffset.height)
-                context.scaleBy(x: zoom, y: zoom)
+                // Pristine screen-space context for overlays that must NOT
+                // scale with zoom — reasoning labels stay legible even when a
+                // long turn is fitted to one screen at a tiny zoom, where
+                // world-space text would shrink to nothing.
+                let screenContext = context
+
+                var world = context
+                world.translateBy(x: Self.leftMargin + panOffset.width,
+                                  y: Self.topMargin + panOffset.height)
+                world.scaleBy(x: zoom, y: zoom)
 
                 // ── 1. Lane bands + titles ──
-                drawLanes(context: context, showLabels: showLabels)
+                drawLanes(context: world, showLabels: showLabels)
 
                 // ── 2. Spawn edges ──
                 for edge in engine.edges {
-                    drawSpawnEdge(edge, context: context, lineage: lineage, selectedID: selectedID)
+                    drawSpawnEdge(edge, context: world, lineage: lineage, selectedID: selectedID)
                 }
 
                 // ── 2b. Concept links (reasoning ↔ tools, under the bars) ──
-                drawConceptLinks(context: context, selectedID: selectedID)
+                drawConceptLinks(context: world, selectedID: selectedID)
 
                 // ── 3. Bars ──
                 for layout in engine.layouts {
                     guard let node = nodeIndex[layout.nodeID] else { continue }
                     drawBar(
-                        node: node, layout: layout, context: context,
+                        node: node, layout: layout, context: world,
                         pulse: pulse, showLabel: showLabels,
                         lineage: lineage, selectedID: selectedID, now: nowDate
                     )
                 }
 
                 // ── 4. Shared-entity shapes + edges (deterministic overlay) ──
-                drawSharedEntities(context: context, selectedID: selectedID)
+                drawSharedEntities(context: world, selectedID: selectedID)
+
+                // ── 5. Reasoning-beat labels (screen space, fixed size) ──
+                drawReasoningLabels(context: screenContext, size: size, selectedID: selectedID)
             }
             .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
             .onChange(of: geo.size) { _, newSize in
@@ -501,10 +511,10 @@ struct ThoughtGraphView: View {
         let isHovered = hoveredNodeID == node.id
         let color = node.category.color
 
-        // Reasoning beats: a diamond marker + the beat's label inline, so the
-        // gist ("planning · wiki status retrieval") is readable without
-        // clicking. The diamond anchors the moment in time; the text spills to
-        // its right.
+        // Reasoning beats: a diamond marker anchoring the moment in time. Its
+        // label is drawn separately in `drawReasoningLabels` (screen space, so
+        // it stays legible at any zoom) rather than here in the world context,
+        // where a fitted long turn would shrink the text to nothing.
         if node.category == .reasoning {
             let s = ThoughtGraphLayoutEngine.markerSize
             let c = CGPoint(x: layout.x + s / 2, y: layout.y)
@@ -517,15 +527,6 @@ struct ThoughtGraphView: View {
             ctx.fill(diamond, with: .color(color.opacity(0.9)))
             if isSelected || isHovered {
                 ctx.stroke(diamond, with: .color(Theme.primary.opacity(0.9)), lineWidth: 1.5)
-            }
-            if showLabel, let label = reasoningLabel(node), !label.isEmpty {
-                ctx.draw(
-                    Text(label)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(color.opacity(isSelected ? 1 : 0.85)),
-                    at: CGPoint(x: c.x + s / 2 + 4, y: c.y),
-                    anchor: .leading
-                )
             }
             return
         }
@@ -566,6 +567,62 @@ struct ThoughtGraphView: View {
             at: CGPoint(x: rect.minX + 6, y: rect.midY),
             anchor: .leading
         )
+    }
+
+    /// Reasoning-beat labels, drawn in SCREEN space (not the zoom-scaled world)
+    /// so the gist of each thought stays legible however far the turn is zoomed
+    /// out — the whole point of the change: a beat used to be an unreadable
+    /// diamond wedged between two bars. The diamond itself is still drawn in
+    /// `drawBar` (world space, so it tracks its moment on the time axis); here
+    /// we only place the text beside its projected screen position.
+    ///
+    /// Beats are visited left→right and a label is skipped when it would collide
+    /// with the previous one on the same row — so a dense thinking burst reads
+    /// as a few legible chips instead of an illegible pile. Selecting/hovering a
+    /// beat always draws its label (bypassing the declutter) so you can always
+    /// read the one you're pointing at.
+    private func drawReasoningLabels(context: GraphicsContext, size: CGSize, selectedID: String?) {
+        let originX = Self.leftMargin + panOffset.width
+        let originY = Self.topMargin + panOffset.height
+        let s = ThoughtGraphLayoutEngine.markerSize
+
+        // Track the right edge of the last drawn label per row (rounded world-y)
+        // so we can skip labels that would overlap the previous one.
+        var lastLabelRightByRow: [Int: CGFloat] = [:]
+        let approxCharWidth: CGFloat = 5.4   // ~9pt medium
+
+        for layout in engine.layouts.sorted(by: { $0.x < $1.x }) {
+            guard let node = nodeIndex[layout.nodeID], node.category == .reasoning,
+                  let label = reasoningLabel(node), !label.isEmpty else { continue }
+
+            let diamondCenterWorldX = layout.x + s / 2
+            let labelWorldX = diamondCenterWorldX + s / 2 + 4
+            let sx = labelWorldX * zoom + originX
+            let sy = layout.y * zoom + originY
+
+            // Cull off-screen (above the axis band or beyond the viewport).
+            guard sy > Self.topMargin - 10, sy < size.height + 10,
+                  sx < size.width else { continue }
+
+            let isSelected = selectedID == node.id
+            let isHovered = hoveredNodeID == node.id
+            let row = Int((layout.y / ThoughtGraphLayoutEngine.subRowPitch).rounded())
+            let estWidth = CGFloat(label.count) * approxCharWidth
+
+            if !isSelected && !isHovered {
+                if let lastRight = lastLabelRightByRow[row], sx < lastRight + 6 { continue }
+            }
+            lastLabelRightByRow[row] = sx + estWidth
+
+            let color = ThoughtGraphLayoutEngine.ToolCategory.reasoning.color
+            context.draw(
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(color.opacity(isSelected || isHovered ? 1 : 0.85)),
+                at: CGPoint(x: max(sx, Self.leftMargin), y: sy),
+                anchor: .leading
+            )
+        }
     }
 
     /// Short label for a reasoning beat, drawn beside its diamond. Prefers the

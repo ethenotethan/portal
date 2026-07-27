@@ -237,7 +237,7 @@ internal struct InlineTurnTimelineStrip: View {
                 diamond.addLine(to: CGPoint(x: cx - s / 2, y: cy))
                 diamond.closeSubpath()
                 context.fill(diamond, with: .color(color.opacity(0.9)))
-                continue
+                continue   // label drawn in the second pass below
             }
 
             let worldWidth = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
@@ -273,5 +273,40 @@ internal struct InlineTurnTimelineStrip: View {
                 )
             }
         }
+
+        // ── Reasoning labels (second pass, over the bars) ──
+        // Give each thought beat a short readable gist beside its diamond so
+        // the strip shows WHAT the agent thought, not just an opaque dot. Drawn
+        // after the bars (on top) and decluttered left→right so a dense burst
+        // reads as a few chips rather than an illegible pile.
+        var lastRightByRow: [Int: CGFloat] = [:]
+        for layout in engine.layouts.sorted(by: { $0.x < $1.x }) {
+            guard let node = nodeByID[layout.nodeID], node.category == .reasoning,
+                  let label = reasoningLabel(node) else { continue }
+            let cy = sy(CGFloat(layout.y))
+            let labelX = sx(layout.x + ThoughtGraphLayoutEngine.markerSize / 2) + 8
+            guard labelX < size.width - Self.sidePad else { continue }
+            let row = Int((CGFloat(layout.y) / ThoughtGraphLayoutEngine.subRowPitch).rounded())
+            if let lastRight = lastRightByRow[row], labelX < lastRight + 4 { continue }
+            let estWidth = CGFloat(label.count) * 4.6   // ~7.5pt medium
+            lastRightByRow[row] = labelX + estWidth
+            context.draw(
+                Text(label)
+                    .font(.system(size: 7.5, weight: .medium))
+                    .foregroundColor(node.category.color.opacity(0.95)),
+                at: CGPoint(x: labelX, y: cy),
+                anchor: .leading
+            )
+        }
+    }
+
+    /// Short glanceable gist for a reasoning beat — the decision label
+    /// (`context`) or the first line of its summary, capped so it stays a chip.
+    private func reasoningLabel(_ node: ThoughtGraphNode) -> String? {
+        let raw = node.context ?? node.summary?.components(separatedBy: "\n").first
+        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            return nil
+        }
+        return text.count > 32 ? String(text.prefix(32)) + "…" : text
     }
 }
