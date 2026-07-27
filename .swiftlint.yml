@@ -317,3 +317,77 @@ custom_rules:
       view property re-runs every render and stalls the main thread (#210/#217).
       Memoize via RenderMemo, or compute once in init — not per body evaluation.
     severity: warning
+
+  # ── Concurrency correctness guards (added 2026-07, from audit in #262) ───────
+  # These three rules enforce the decisions captured in issue #262. Each targets
+  # a specific bug class that a lower-effort model introduces without realising:
+  # double-registrar observation (silent double-notify), actor-escaped mutations
+  # (DispatchQueue hop bypasses Swift concurrency ownership), and unguarded
+  # ObservableObject stores (missing @MainActor lets init/stored props escape
+  # actor isolation). The rules are narrow enough to have zero or near-zero
+  # existing violations; any hit in new code is always the contributor's own.
+
+  no_observable_observableobject:
+    # Zero existing violations — `SkillStore` was the only offender and was fixed
+    # in the PR that introduced this rule. No baseline entries needed.
+    # `@Observable` generates `_$observationRegistrar`; `ObservableObject` provides
+    # `objectWillChange`. Both on the same type means two registrars: SwiftUI may
+    # track the type via the macro while Combine subscribers watch `objectWillChange`
+    # — updates through one path are invisible to the other, causing stale UI or
+    # double-fires. Remove `ObservableObject` and switch callers to `@Bindable`.
+    regex: "@Observable[\\s\\S]{0,120}?:\\s*ObservableObject|:\\s*ObservableObject[\\s\\S]{0,120}?@Observable"
+    message: >-
+      Don't combine @Observable with ObservableObject — they register two separate
+      observation mechanisms and can double-notify or miss updates. Remove
+      ObservableObject and migrate callers to @Bindable / @Observable access (#262).
+    severity: error
+
+  no_dispatch_main_in_viewmodels:
+    included: ".*/ViewModels/.*\\.swift"
+    excluded:
+      # ChatViewModel:400 — collect(.byTimeOrCount) scheduler; the inner
+      # DispatchQueue.main.async is a redundant double-hop (already on RunLoop.main)
+      # but removing it needs careful testing. Grandfathered until ChatViewModel
+      # is split (see #262 God-object item).
+      # ChatViewModel:1996 — intentional re-entrancy deferral during a layout pass;
+      # keeps SwiftUI from seeing torn message state mid-render. Documented in-file.
+      - ".*/ViewModels/ChatViewModel\\.swift"
+      # CelebrationManager:113 — single asyncAfter timer replacement; low risk.
+      # Migrate to Task.sleep when touching this file.
+      - ".*/ViewModels/CelebrationManager\\.swift"
+    # DispatchQueue hops inside @MainActor-isolated ViewModels are redundant
+    # (already on the main thread) and escape Swift concurrency's actor ownership
+    # tracking for the duration of the closure — the compiler can no longer
+    # statically verify isolation. Use `Task { @MainActor in }` or call directly.
+    regex: "DispatchQueue\\.main\\.(async|asyncAfter)"
+    message: >-
+      Don't use DispatchQueue.main inside a @MainActor ViewModel — the hop escapes
+      actor ownership tracking. Call directly, or use Task { @MainActor in } /
+      Task.sleep for deferred work (#262).
+    severity: warning
+
+  no_mainactor_missing_on_observableobject:
+    # ObservableObject classes that mutate @Published properties must be
+    # @MainActor-isolated: SwiftUI subscribes to objectWillChange on the main
+    # thread, and a mutation from any other thread is an unsynchronized write.
+    # The rule catches class declarations that have ObservableObject but lack
+    # @MainActor. It does NOT fire on structs/enums (they can't be ObservableObject)
+    # or on lines that already carry @MainActor on the same or preceding line.
+    # Existing violations are baselined below; new classes must be @MainActor.
+    excluded:
+      # SpawnNode — mutable ObservableObject used exclusively from @MainActor
+      # SpawnTreeStore but without the annotation on the class itself. Needs a
+      # dedicated fix pass (changing the class requires auditing all SpawnNode
+      # init sites). Tracked in #262.
+      - ".*/Models/SpawnNode\\.swift"
+      # SessionTree — same pattern, lives inside SpawnTreeStore.swift.
+      - ".*/ViewModels/SpawnTreeStore\\.swift"
+      # ReasoningGraphIntegrator — all methods are individually @MainActor but
+      # the class lacks the type-level annotation. Tracked in #262.
+      - ".*/Services/ReasoningGraphIntegrator\\.swift"
+    regex: "^(?!.*@MainActor)class \\w[^:]*:\\s*[^{]*ObservableObject"
+    message: >-
+      ObservableObject classes must be @MainActor — SwiftUI observes objectWillChange
+      on the main thread; a mutation from any other context is an unsynchronized
+      write. Add @MainActor to the class declaration (#262).
+    severity: warning
