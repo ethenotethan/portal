@@ -1,8 +1,8 @@
 import Testing
 @testable import Portal
 
-@Suite("HermesCapabilities")
-struct HermesCapabilitiesTests {
+@Suite("GatewayCapabilities")
+struct GatewayCapabilitiesTests {
     @Test("parses direct gateway capability booleans and version")
     func parsesDirectBooleans() {
         let payload: AnyCodable = .dictionary([
@@ -11,7 +11,7 @@ struct HermesCapabilitiesTests {
             "has_acp_image_prompts": .bool(false),
         ])
 
-        let capabilities = HermesCapabilities.from(value: payload, method: "gateway.capabilities")
+        let capabilities = GatewayCapabilities.from(value: payload, method: "gateway.capabilities")
 
         #expect(capabilities.gatewayVersion == "1.2.3")
         #expect(capabilities.hasImageInput)
@@ -35,7 +35,7 @@ struct HermesCapabilitiesTests {
             ]),
         ])
 
-        let capabilities = HermesCapabilities.from(value: payload, method: "hermes.capabilities")
+        let capabilities = GatewayCapabilities.from(value: payload, method: "hermes.capabilities")
 
         #expect(capabilities.versionDisplay == "2026.5")
         #expect(capabilities.hasImageInput)
@@ -45,7 +45,7 @@ struct HermesCapabilitiesTests {
 
     @Test("fallback is conservative for image features")
     func fallbackIsConservative() {
-        let capabilities = HermesCapabilities.fallback(reason: "unsupported")
+        let capabilities = GatewayCapabilities.fallback(reason: "unsupported")
 
         #expect(!capabilities.hasImageInput)
         #expect(!capabilities.hasACPImagePrompts)
