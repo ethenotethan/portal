@@ -14,12 +14,11 @@ internal struct SettingsView: View {
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var themeManager = ThemeManager.shared
 
-    @State private var showCFAuth = false
-    @State private var selectedSection: SettingsSection = .connection
+    @State private var selectedSection: SettingsSection = .gateways
+    @State private var selectedGateway: SavedGateway?
 
     internal enum SettingsSection: String, CaseIterable, Identifiable {
-        case connection
-        case systemPrompt
+        case gateways
         case themes
         case persona
         case notifications
@@ -28,8 +27,7 @@ internal struct SettingsView: View {
 
         internal var label: String {
             switch self {
-            case .connection: return "Connection"
-            case .systemPrompt: return "System Prompt"
+            case .gateways: return "Gateways"
             case .themes: return "Themes"
             case .persona: return "Persona"
             case .notifications: return "Notifications"
@@ -38,8 +36,7 @@ internal struct SettingsView: View {
 
         internal var icon: String {
             switch self {
-            case .connection: return "network"
-            case .systemPrompt: return "doc.text.magnifyingglass"
+            case .gateways: return "network"
             case .themes: return "paintpalette"
             case .persona: return "person.crop.circle"
             case .notifications: return "bell"
@@ -50,11 +47,6 @@ internal struct SettingsView: View {
     internal var body: some View {
         #if os(macOS)
         macBody
-            .onChange(of: settings.focusedGateway?.id) {
-                if !visibleSections.contains(selectedSection) {
-                    selectedSection = .connection
-                }
-            }
         #else
         iosBody
         #endif
@@ -63,23 +55,14 @@ internal struct SettingsView: View {
     // MARK: - macOS
 
     #if os(macOS)
-    /// System Prompt is a Hermes-only RPC — hide it for session-scoped
-    /// gateways (Centaur) that don't implement prompt_breakdown.
-    private var visibleSections: [SettingsSection] {
-        let isCentaur = settings.focusedGateway?.kind.isSessionScoped == true
-        return SettingsSection.allCases.filter { section in
-            if section == .systemPrompt && isCentaur { return false }
-            return true
-        }
-    }
-
     private var macBody: some View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 2) {
-                ForEach(visibleSections) { section in
+                ForEach(SettingsSection.allCases) { section in
                     Button {
                         selectedSection = section
+                        selectedGateway = nil
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: section.icon)
@@ -115,20 +98,22 @@ internal struct SettingsView: View {
             // Main pane
             ScrollView {
                 Group {
-                    switch selectedSection {
-                    case .connection:
-                        connectionSection
-                    case .systemPrompt:
-                        SystemPromptSection(
-                            client: gatewayClientWrapper.client,
-                            sessionID: nil
+                    if let gateway = selectedGateway {
+                        GatewayDetailPane(
+                            gateway: gateway,
+                            onBack: { selectedGateway = nil }
                         )
-                    case .themes:
-                        themesSection
-                    case .persona:
-                        personaSection
-                    case .notifications:
-                        notificationsSection
+                    } else {
+                        switch selectedSection {
+                        case .gateways:
+                            gatewaysSection
+                        case .themes:
+                            themesSection
+                        case .persona:
+                            personaSection
+                        case .notifications:
+                            notificationsSection
+                        }
                     }
                 }
                 .padding(24)
@@ -142,26 +127,11 @@ internal struct SettingsView: View {
     // MARK: - macOS Sections
 
     @State private var showAddGateway = false
-    @State private var editingGateway: SavedGateway?
 
-    private var connectionSection: some View {
+    private var gatewaysSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-            settingsHeader("Gateway Connection", icon: "network")
+            settingsHeader("Gateways", icon: "network")
 
-            VStack(alignment: .leading, spacing: 12) {
-                labeledField("Gateway URL") {
-                    TextField("ws://192.168.1.x:8642/v1/ws", text: $settings.gatewayURL)
-                        .textFieldStyle(.roundedBorder)
-                }
-                labeledField("API Key") {
-                    SecureField("Optional", text: $settings.apiKey)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            Divider()
-
-            // Saved gateways list
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Saved Gateways")
@@ -181,11 +151,6 @@ internal struct SettingsView: View {
                 }
             }
 
-            if settings.needsCFAuth {
-                Divider()
-                cfAuthSection
-            }
-
             Divider()
             capabilitiesSummary
 
@@ -201,22 +166,6 @@ internal struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
-
-            Divider()
-            Text("The API key is stored in your macOS Keychain.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .sheet(isPresented: $showCFAuth) {
-            if let host = settings.buildWebSocketURL()?.host {
-                CFAuthView(gatewayHost: host) { cookie in
-                    settings.cfAuthCookie = cookie
-                    settings.parseCFAuthEmail(from: cookie)
-                    showCFAuth = false
-                } onDismiss: {
-                    showCFAuth = false
-                }
-            }
         }
         .sheet(isPresented: $showAddGateway) {
             AddGatewaySheet { name, url, key, kind in
@@ -226,105 +175,52 @@ internal struct SettingsView: View {
                 showAddGateway = false
             }
         }
-        .sheet(item: $editingGateway) { gateway in
-            AddGatewaySheet(editing: gateway) { name, url, key, _ in
-                var updated = gateway
-                updated.name = name
-                updated.url = url
-                updated.apiKey = key
-                settings.updateGateway(updated)
-                editingGateway = nil
-            } onCancel: {
-                editingGateway = nil
-            }
-        }
     }
 
     @ViewBuilder
     private func gatewayRow(_ gateway: SavedGateway) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                settings.selectGateway(gateway)
-            } label: {
-                HStack {
-                    if gateway.kind.isSessionScoped {
-                        Image(systemName: gateway.kind.iconName)
-                            .foregroundStyle(Theme.secondary)
-                    } else {
-                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 5) {
-                            Text(gateway.displayName)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            if gateway.kind.isSessionScoped {
-                                Text(gateway.kind.displayName)
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(Theme.accent.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(Theme.accent)
-                            }
-                        }
-                        Text(gateway.url)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
-
-            if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
-                Button("Switch") { settings.selectGateway(gateway) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            }
-            Button {
-                editingGateway = gateway
-            } label: {
-                Image(systemName: "pencil")
-            }
-            .buttonStyle(.borderless)
-            .help("Rename or edit this gateway")
-            Button(role: .destructive) {
-                settings.removeGateway(gateway)
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
-        }
-        .padding(.vertical, 2)
-    }
-
-    private var cfAuthSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Cloudflare Access")
-                .font(.headline)
-            HStack {
-                if let email = settings.cfAuthEmail {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text(email).lineLimit(1)
-                } else if settings.cfAuthCookie != nil {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text("Authenticated")
+        Button {
+            selectedGateway = gateway
+        } label: {
+            HStack(spacing: 10) {
+                if gateway.kind.isSessionScoped {
+                    Image(systemName: gateway.kind.iconName)
+                        .foregroundStyle(Theme.secondary)
                 } else {
-                    Image(systemName: "lock.shield").foregroundStyle(.secondary)
-                    Text("Not authenticated").foregroundStyle(.secondary)
+                    Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                        .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
                 }
-                Spacer()
-                Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
-                    showCFAuth = true
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 5) {
+                        Text(gateway.displayName)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        if gateway.kind.isSessionScoped {
+                            Text(gateway.kind.displayName)
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Theme.accent.opacity(0.15), in: Capsule())
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                    Text(gateway.url)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .buttonStyle(.bordered)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.secondary)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
     }
 
     private var themesSection: some View {
@@ -474,9 +370,178 @@ internal struct SettingsView: View {
     }
 
     #endif
+}
+
+// MARK: - Gateway Detail Pane
+
+#if os(macOS)
+/// Per-gateway settings: URL, API key, Cloudflare auth, and (Hermes only)
+/// the System Prompt inspector. Shown in the main pane when a gateway row
+/// is tapped from the Gateways list.
+private struct GatewayDetailPane: View {
+    let gateway: SavedGateway
+    let onBack: () -> Void
+
+    @EnvironmentObject private var settings: SettingsViewModel
+    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+
+    @State private var editingGateway: SavedGateway?
+    @State private var showCFAuth = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Back nav + title
+            HStack(spacing: 8) {
+                Button(action: onBack) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Gateways")
+                            .font(.system(size: 13))
+                    }
+                    .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(.plain)
+
+                Text("/")
+                    .foregroundStyle(Theme.secondary)
+
+                Text(gateway.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+
+                if gateway.kind.isSessionScoped {
+                    Text(gateway.kind.displayName)
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Theme.accent.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Theme.accent)
+                }
+
+                Spacer()
+
+                if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
+                    Button("Switch to this gateway") { settings.selectGateway(gateway) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+
+                Button {
+                    editingGateway = gateway
+                } label: {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.borderless)
+                .help("Rename or edit URL / key")
+
+                Button(role: .destructive) {
+                    settings.removeGateway(gateway)
+                    onBack()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
+                .help("Remove this gateway")
+            }
+
+            Divider()
+
+            // Connection fields (read-only summary — edit via pencil)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("URL")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .trailing)
+                    Text(gateway.url)
+                        .font(.system(.body, design: .monospaced))
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                }
+                if !gateway.apiKey.isEmpty {
+                    HStack {
+                        Text("API Key")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 60, alignment: .trailing)
+                        Text(String(repeating: "•", count: min(gateway.apiKey.count, 24)))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            // Cloudflare Access (Hermes only, when required)
+            if !gateway.kind.isSessionScoped && settings.needsCFAuth {
+                Divider()
+                cfAuthRow
+            }
+
+            // System Prompt (Hermes only)
+            if !gateway.kind.isSessionScoped {
+                Divider()
+                SystemPromptSection(
+                    client: gatewayClientWrapper.client,
+                    sessionID: nil
+                )
+            }
+        }
+        .sheet(item: $editingGateway) { gw in
+            AddGatewaySheet(editing: gw) { name, url, key, _ in
+                var updated = gw
+                updated.name = name
+                updated.url = url
+                updated.apiKey = key
+                settings.updateGateway(updated)
+                editingGateway = nil
+            } onCancel: {
+                editingGateway = nil
+            }
+        }
+        .sheet(isPresented: $showCFAuth) {
+            if let host = settings.buildWebSocketURL()?.host {
+                CFAuthView(gatewayHost: host) { cookie in
+                    settings.cfAuthCookie = cookie
+                    settings.parseCFAuthEmail(from: cookie)
+                    showCFAuth = false
+                } onDismiss: {
+                    showCFAuth = false
+                }
+            }
+        }
+    }
+
+    private var cfAuthRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Cloudflare Access")
+                .font(.headline)
+            HStack {
+                if let email = settings.cfAuthEmail {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text(email).lineLimit(1)
+                } else if settings.cfAuthCookie != nil {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Authenticated")
+                } else {
+                    Image(systemName: "lock.shield").foregroundStyle(.secondary)
+                    Text("Not authenticated").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                    showCFAuth = true
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+}
+#endif
+
+extension SettingsView {
 
     // Shared across platforms — used by both the macOS and iOS Settings bodies.
-    private var capabilitiesSummary: some View {
+    var capabilitiesSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Gateway Capabilities")
                 .font(.headline)
@@ -505,7 +570,7 @@ internal struct SettingsView: View {
     // MARK: - iOS
 
     #if os(iOS)
-    private var iosBody: some View {
+    var iosBody: some View {
         NavigationStack {
             List {
                 Section("Connection") {
