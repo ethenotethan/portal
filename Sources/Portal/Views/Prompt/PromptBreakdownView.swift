@@ -46,7 +46,7 @@ struct PromptBreakdownView: View {
 
     private var loadingBody: some View {
         VStack(spacing: 16) {
-            HermesProgressView()
+            PortalProgressView()
                 .scaleEffect(1.2)
             Text("Loading prompt breakdown…")
                 .font(.subheadline)
@@ -573,7 +573,7 @@ struct PromptBreakdownSheet: View {
     var body: some View {
         Group {
             if isLoading {
-                HermesProgressView(label: "Loading prompt breakdown…")
+                PortalProgressView(label: "Loading prompt breakdown…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
             } else if let error {

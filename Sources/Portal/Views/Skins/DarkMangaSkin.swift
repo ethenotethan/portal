@@ -283,7 +283,7 @@ private struct DarkMangaStreamingIndicator: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(.green)
                             } else {
-                                HermesProgressView()
+                                PortalProgressView()
                             }
                         }
                         .padding(.horizontal, 10)

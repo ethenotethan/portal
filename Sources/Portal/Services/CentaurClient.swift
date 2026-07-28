@@ -57,7 +57,7 @@ final class CentaurClient: ObservableObject {
     private var lastEventID: [String: Int64]
     private var cursorFlushTask: Task<Void, Never>?
 
-    private static let cursorsKey = "hermes.centaurSSECursors"
+    private static let cursorsKey = "portal.centaurSSECursors"
 
     private static func loadCursors() -> [String: Int64] {
         let raw = UserDefaults.standard.dictionary(forKey: cursorsKey) as? [String: String] ?? [:]

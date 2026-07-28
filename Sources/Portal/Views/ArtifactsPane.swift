@@ -196,7 +196,7 @@ private struct HSplitViewCompat<Content: View>: View {
 private struct ArtifactDetailView: View {
     let artifact: LivingArtifact
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
-    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     private enum Tab: String, CaseIterable { case rendered = "Rendered", history = "History" }
     @State private var tab: Tab = .rendered
@@ -347,7 +347,7 @@ private struct ArtifactHTMLIntentView: View {
     let artifactID: String
     let actions: [ArtifactAction]
 
-    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @ObservedObject private var store = ArtifactStore.shared
     @State private var activeRequest: HTMLArtifactIntentRequest?
     @State private var showConfirmation = false
@@ -536,7 +536,7 @@ private struct ArtifactTopLevelActionBar: View {
     let actions: [ArtifactAction]
     let artifactID: String
 
-    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     private var intentActions: [ArtifactAction] {
         guard capabilitiesStore.capabilities.supportsArtifactActions else { return [] }
@@ -580,7 +580,7 @@ private struct ArtifactHistoryView: View {
         Group {
             if isLoading {
                 VStack(spacing: 8) {
-                    HermesProgressView()
+                    PortalProgressView()
                     Text("Loading history…")
                         .font(.caption)
                         .foregroundStyle(Theme.tertiary)
@@ -717,7 +717,7 @@ private struct ArtifactHistoryView: View {
                         }
                     }
                 } else {
-                    HermesProgressView()
+                    PortalProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }

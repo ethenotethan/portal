@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-private let storeLog = Logger(subsystem: "hermes", category: "ActivityStore")
+private let storeLog = Logger(subsystem: "com.ethenotethan.Portal", category: "ActivityStore")
 
 @MainActor
 final class ActivityStore {
@@ -9,8 +9,8 @@ final class ActivityStore {
 
     private let defaults = UserDefaults.standard
     private let maxItems = 500
-    private let saveKey = "hermes.activityItems"
-    private static let fileMigratedKey = "hermes.activityItems.fileMigrated"
+    private let saveKey = "portal.activityItems"
+    private static let fileMigratedKey = "portal.activityItems.fileMigrated"
     private var dirty = false
     private var saveTask: Task<Void, Never>?
 

@@ -70,8 +70,8 @@ extension PromptBreakdown {
                     id: "persona",
                     name: "Persona",
                     source: "~/.hermes/personas/default.md",
-                    contentPreview: "You are Hermes Agent, an intelligent AI assistant created by Nous Research. You are helpful, knowledgeable, and direct. You assist...",
-                    fullContent: "You are Hermes Agent, an intelligent AI assistant created by Nous Research. You are helpful, knowledgeable, and direct. You assist...",
+                    contentPreview: "You are Portal Agent, an intelligent AI assistant created by Nous Research. You are helpful, knowledgeable, and direct. You assist...",
+                    fullContent: "You are Portal Agent, an intelligent AI assistant created by Nous Research. You are helpful, knowledgeable, and direct. You assist...",
                     tokenCount: 800,
                     charCount: 472,
                     colorHex: "#7c7cff"

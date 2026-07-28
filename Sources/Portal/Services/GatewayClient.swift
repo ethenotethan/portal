@@ -752,8 +752,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Convenience Methods
 
     /// Resolve gateway-reported Hermes capabilities with conservative fallback.
-    func capabilities() async -> HermesCapabilities {
-        let methods = ["gateway.capabilities", "hermes.capabilities", "hermes.version"]
+    func capabilities() async -> GatewayCapabilities {
+        let methods = ["gateway.capabilities", "portal.capabilities", "portal.version"]
         var lastError: String?
 
         for method in methods {
@@ -766,14 +766,14 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     }
                     continue
                 }
-                return HermesCapabilities.from(result: response.result, method: method)
+                return GatewayCapabilities.from(result: response.result, method: method)
             } catch {
                 lastError = "\(method): \(error.localizedDescription)"
                 continue
             }
         }
 
-        return HermesCapabilities.fallback(reason: lastError ?? "Capabilities RPC unsupported")
+        return GatewayCapabilities.fallback(reason: lastError ?? "Capabilities RPC unsupported")
     }
 
     /// Create a new agent session.

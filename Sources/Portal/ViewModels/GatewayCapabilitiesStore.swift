@@ -1,8 +1,8 @@
 import Foundation
 
 @MainActor
-final class HermesCapabilitiesStore: ObservableObject {
-    @Published private(set) var capabilities: HermesCapabilities = .conservativeDefaults
+final class GatewayCapabilitiesStore: ObservableObject {
+    @Published private(set) var capabilities: GatewayCapabilities = .conservativeDefaults
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastRefreshError: String?
 

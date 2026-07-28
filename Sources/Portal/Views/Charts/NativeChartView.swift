@@ -799,7 +799,7 @@ private struct ZoomResetBadge: View {
 private struct StreamingPlaceholder: View {
     var body: some View {
         VStack(spacing: 8) {
-            HermesProgressView()
+            PortalProgressView()
             Text("Building chart…")
                 .font(.caption2)
                 .foregroundStyle(Theme.tertiary)

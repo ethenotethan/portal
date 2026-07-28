@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os.log
 
-private let log = Logger(subsystem: "hermes", category: "ActivityInbox")
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ActivityInbox")
 
 @MainActor
 final class ActivityInboxViewModel: ObservableObject {

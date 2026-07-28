@@ -26,12 +26,12 @@ final class NotificationService: NSObject, ObservableObject {
 
     /// Set by ChatViewModel — the session the user is currently viewing.
     var activeSessionID: String? {
-        didSet { UserDefaults.standard.set(activeSessionID, forKey: "hermes.notificationActiveSessionID") }
+        didSet { UserDefaults.standard.set(activeSessionID, forKey: "portal.notificationActiveSessionID") }
     }
 
     /// Whether the app is in the foreground.
     var isForegrounded: Bool = true {
-        didSet { UserDefaults.standard.set(isForegrounded, forKey: "hermes.notificationIsForegrounded") }
+        didSet { UserDefaults.standard.set(isForegrounded, forKey: "portal.notificationIsForegrounded") }
     }
 
     override private init() {
@@ -231,8 +231,8 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         let sessionID = notification.request.content.userInfo["session_id"] as? String
-        let isFG = UserDefaults.standard.bool(forKey: "hermes.notificationIsForegrounded")
-        let activeID = UserDefaults.standard.string(forKey: "hermes.notificationActiveSessionID")
+        let isFG = UserDefaults.standard.bool(forKey: "portal.notificationIsForegrounded")
+        let activeID = UserDefaults.standard.string(forKey: "portal.notificationActiveSessionID")
         if isFG, let sessionID, sessionID == activeID {
             completionHandler([]) // Deliver silently, no banner/sound
         } else {
@@ -306,9 +306,9 @@ extension NotificationService: UNUserNotificationCenterDelegate {
 // MARK: - Notification Names
 
 extension Notification.Name {
-    static let hermesSwitchToSession = Notification.Name("hermes.switchToSession")
-    static let hermesOpenDeepLink = Notification.Name("hermes.openDeepLink")
+    static let hermesSwitchToSession = Notification.Name("portal.switchToSession")
+    static let hermesOpenDeepLink = Notification.Name("portal.openDeepLink")
     /// Posted when the user chooses "Review with Agent" after an inline quiz in
     /// the Learning view; userInfo["reviewPrompt"] carries the prompt.
-    static let hermesReviewQuiz = Notification.Name("hermes.reviewQuiz")
+    static let hermesReviewQuiz = Notification.Name("portal.reviewQuiz")
 }

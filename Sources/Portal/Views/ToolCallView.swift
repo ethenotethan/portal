@@ -94,7 +94,7 @@ struct ToolRow: View {
                     }
 
                     if !tool.isComplete {
-                        HermesProgressView()
+                        PortalProgressView()
                     }
                 }
 

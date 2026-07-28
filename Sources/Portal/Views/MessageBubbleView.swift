@@ -220,7 +220,7 @@ private struct ThinkingTraceSection: View {
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                     if trace.isStreaming {
-                        HermesProgressView()
+                        PortalProgressView()
                             .scaleEffect(0.6)
                     }
                 }
@@ -308,7 +308,7 @@ private struct ReasoningSection: View {
                         .font(.system(.caption, weight: .medium))
                         .foregroundStyle(Theme.accent)
                     if isStreaming {
-                        HermesProgressView()
+                        PortalProgressView()
                             .scaleEffect(0.6)
                     }
                 }

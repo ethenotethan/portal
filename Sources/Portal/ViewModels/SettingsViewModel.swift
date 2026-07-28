@@ -7,7 +7,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Settin
 /// Manages connection settings: gateway URL, API key, and CF Access auth state.
 @MainActor
 final class SettingsViewModel: ObservableObject {
-    static let responseCompleteNotificationsKey = "hermes.responseCompleteNotificationsEnabled"
+    static let responseCompleteNotificationsKey = "portal.responseCompleteNotificationsEnabled"
 
     @Published var gatewayURL: String {
         didSet {
@@ -40,7 +40,7 @@ final class SettingsViewModel: ObservableObject {
             }
         }
     }
-    private static let activeGatewayIDKey = "hermes.activeGatewayID"
+    private static let activeGatewayIDKey = "portal.activeGatewayID"
 
     /// Focused session-scoped backend (Centaur), nil = the active Hermes
     /// entry is focused. Focus is the user-facing selection: the toolbar
@@ -57,7 +57,7 @@ final class SettingsViewModel: ObservableObject {
             }
         }
     }
-    private static let focusedBackendIDKey = "hermes.focusedBackendID"
+    private static let focusedBackendIDKey = "portal.focusedBackendID"
 
     /// The saved entry the UI should present as selected: the focused
     /// session-scoped backend when one is focused, else the active Hermes
@@ -75,7 +75,7 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private static let onboardingCompleteKey = "hermes.onboardingComplete"
+    private static let onboardingCompleteKey = "portal.onboardingComplete"
     var hasCompletedOnboarding: Bool {
         UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
     }

@@ -5,7 +5,7 @@ import Foundation
 /// or arbitrary URL — only the identifiers already accepted by
 /// `artifact.action.invoke`.
 internal struct HTMLArtifactIntentRequest: Equatable, Sendable {
-    internal static let scheme = "hermes-artifact-action"
+    internal static let scheme = "portal-artifact-action"
     internal static let host = "invoke"
 
     internal let bindingID: String

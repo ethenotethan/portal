@@ -39,7 +39,7 @@ final class SessionMetaSyncService {
     private let pushDebounce: TimeInterval = 2
 
     static let deviceID: String = {
-        let key = "hermes.syncDeviceID"
+        let key = "portal.syncDeviceID"
         if let existing = UserDefaults.standard.string(forKey: key) { return existing }
         let fresh = UUID().uuidString
         UserDefaults.standard.set(fresh, forKey: key)

@@ -54,8 +54,8 @@ final class SessionRunHistoryStore: ObservableObject {
 
     @Published private(set) var events: [SessionRunEvent] = []
 
-    private static let storageKey = "hermes.sessionRunHistory"
-    private static let fileMigratedKey = "hermes.sessionRunHistory.fileMigrated"
+    private static let storageKey = "portal.sessionRunHistory"
+    private static let fileMigratedKey = "portal.sessionRunHistory.fileMigrated"
     private let maxEventsPerSession = 200
     private var saveTask: Task<Void, Never>?
 

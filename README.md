@@ -1,8 +1,8 @@
-# Hermes Native
+# Portal
 
-Native macOS + iOS client for the Hermes Agent gateway — built with Swift + SwiftUI.
+Native macOS + iOS AI agent client — built with Swift + SwiftUI.
 
-Connects directly to a Hermes Gateway via WebSocket JSON-RPC (`/v1/ws`), providing the full Hermes experience from a native app with no local server, CLI, or Node.js required.
+Connects to multiple AI agent backends from a single native app: **Hermes** (WebSocket JSON-RPC) and **Centaur** (REST + SSE). No local server, CLI, or Node.js required.
 
 ## Features
 
@@ -60,7 +60,9 @@ Connects directly to a Hermes Gateway via WebSocket JSON-RPC (`/v1/ws`), providi
 
 - macOS 14 (Sonoma) / iOS 17 or later
 - Xcode 16+ / Swift 6.1+
-- A running Hermes Gateway with API server enabled (`api_server` platform) — **requires the [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent) fork**, not stock hermes-agent; see [`docs/gateway-setup.md`](docs/gateway-setup.md)
+- A supported gateway backend — see [`docs/gateway-setup.md`](docs/gateway-setup.md)
+  - **Hermes**: WebSocket JSON-RPC (`/v1/ws`) — requires [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent)
+  - **Centaur**: REST + SSE — see Centaur docs for setup
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (for the Xcode project; `brew install xcodegen`)
 
 ## Build
@@ -91,11 +93,8 @@ App entry points live in `App/MacApp.swift` and `App/IOSApp.swift`.
 
 ## Configuration
 
-> **No gateway yet?** Portal needs the WebSocket JSON-RPC endpoint (`/v1/ws`),
-> which only exists in the [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent)
-> fork. [`docs/gateway-setup.md`](docs/gateway-setup.md) walks through installing the
-> fork (or migrating an existing hermes-agent install), enabling the API server, and
-> connecting the app.
+> **No gateway yet?** See [`docs/gateway-setup.md`](docs/gateway-setup.md) for
+> setup instructions for Hermes (WebSocket JSON-RPC) or Centaur (REST + SSE).
 
 On first launch, enter your gateway URL and API key:
 
@@ -139,7 +138,7 @@ ViewModels/                   # @MainActor ObservableObjects
   ├── ActivityInboxViewModel   # Tool approvals, clarifications, notifications
   ├── SettingsViewModel        # URL, API key, saved gateways, CF auth
   ├── SkillsViewModel          # Skill discovery + management
-  ├── PersonaManager / CelebrationManager / HermesCapabilitiesStore
+  ├── PersonaManager / CelebrationManager / GatewayCapabilitiesStore
   └── Quiz/QuizViewModel       # Quiz + flashcard study modes
 
 Services/
@@ -175,7 +174,7 @@ See [`DESIGN.md`](DESIGN.md) for the connection/auth design and rationale,
 | `ActivityItem` | Inbox item for approvals, clarifications, notifications |
 | `FeedArticle` / `MediaAttachment` | Digest feed article + user-uploaded media |
 | `FlashcardDeck` / `QuizModels` | Learning content with SRS state |
-| `HermesCapabilities` | Gateway feature flags and capability detection |
+| `GatewayCapabilities` | Gateway feature flags and capability detection |
 | `JSONRPCRequest` / `JSONRPCResponse` | JSON-RPC 2.0 framing with `AnyCodable` type-erased params |
 
 ## Wire Protocol

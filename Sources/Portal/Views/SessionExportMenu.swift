@@ -110,7 +110,7 @@ struct SessionExportMenu: View {
             }
         } label: {
             if isExporting {
-                HermesProgressView()
+                PortalProgressView()
                     .scaleEffect(0.5)
             } else {
                 Label("Export", systemImage: "square.and.arrow.up")

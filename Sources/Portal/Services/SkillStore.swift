@@ -2,16 +2,16 @@ import Foundation
 import SwiftUI
 import os
 
-private let log = Logger(subsystem: "com.researchours.Portal", category: "SkillStore")
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillStore")
 
 // MARK: - Disk Persistence
 
 @MainActor
 enum SkillStoreDisk {
-    private static let key = "hermes.skillStore.v2"
-    private static let timestampKey = "hermes.skillStore.timestamp"
-    private static let versionKey = "hermes.skillStore.version"
-    private static let fileStorageKey = "hermes.skillStore.fileMigrated"
+    private static let key = "portal.skillStore.v2"
+    private static let timestampKey = "portal.skillStore.timestamp"
+    private static let versionKey = "portal.skillStore.version"
+    private static let fileStorageKey = "portal.skillStore.fileMigrated"
 
     private static let currentVersion = 2
 

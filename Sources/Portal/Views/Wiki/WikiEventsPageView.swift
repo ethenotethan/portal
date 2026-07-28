@@ -128,7 +128,7 @@ struct WikiEventsPageView: View {
     private var content: some View {
         if isLoading && eventTimeline == nil {
             Spacer()
-            HermesProgressView(label: "Loading events…")
+            PortalProgressView(label: "Loading events…")
             Spacer()
         } else if let loadError, eventTimeline == nil {
             errorState(loadError)

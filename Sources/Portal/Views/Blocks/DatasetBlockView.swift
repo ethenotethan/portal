@@ -151,7 +151,7 @@ struct ArtifactActionControls: View {
     let artifactID: String
 
     @ObservedObject private var store = ArtifactStore.shared
-    @EnvironmentObject private var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @State private var confirmingDelete = false
 
     /// Intent buttons are hidden when the gateway doesn't report the
