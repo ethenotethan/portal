@@ -16,7 +16,7 @@ import Foundation
 /// URL back out and spawns a SECOND app instance. These tests pin the routing
 /// decision so that regression can't creep back in.
 @Suite("In-app link routing")
-struct InAppLinkRoutingTests {
+internal struct InAppLinkRoutingTests {
 
     /// Mirror of the interceptor's predicate: true ⇒ handled in-process,
     /// false ⇒ deferred to `.systemAction`.
@@ -26,20 +26,20 @@ struct InAppLinkRoutingTests {
     }
 
     @Test("app-scheme session links are intercepted, not sent to the OS")
-    func sessionLinkIntercepted() {
+    internal func sessionLinkIntercepted() {
         // The exact shape an activity "Open Session" external ref would carry.
         #expect(isRoutedInProcess("hermesnative://session/20260101_000000_abcdef"))
         #expect(isRoutedInProcess("hermesnative://session/722745ed"))
     }
 
     @Test("all app-scheme routes are intercepted")
-    func allAppRoutesIntercepted() {
+    internal func allAppRoutesIntercepted() {
         #expect(isRoutedInProcess("hermesnative://new-session"))
         #expect(isRoutedInProcess("hermesnative://activity"))
     }
 
     @Test("external URLs defer to the system, never intercepted")
-    func externalLinksDeferToSystem() {
+    internal func externalLinksDeferToSystem() {
         #expect(!isRoutedInProcess("https://example.com/article"))
         #expect(!isRoutedInProcess("http://10.0.2.47:8642/health"))
         #expect(!isRoutedInProcess("mailto:someone@example.com"))
@@ -47,7 +47,7 @@ struct InAppLinkRoutingTests {
     }
 
     @Test("malformed app-scheme URLs defer to the system rather than mis-route")
-    func malformedAppLinksDeferToSystem() {
+    internal func malformedAppLinksDeferToSystem() {
         // Right scheme, unknown host / missing id — not a recognized route, so
         // the interceptor must NOT claim it (falls through to .systemAction).
         #expect(!isRoutedInProcess("hermesnative://unknown-host"))

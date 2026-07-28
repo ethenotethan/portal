@@ -584,7 +584,7 @@ extension Session {
         return false
     }
 
-    var displaySource: String {
+    internal var displaySource: String {
         if isOwned { return "Native" }
         if let source, !source.isEmpty { return source.capitalized }
         return "Unknown"
