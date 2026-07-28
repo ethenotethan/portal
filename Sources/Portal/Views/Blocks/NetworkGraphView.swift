@@ -119,6 +119,11 @@ private struct GraphCanvas: View {
     let groupColors: [String: Color]
     let hiddenGroups: Set<String>
     @Binding var selectedNodeID: String?
+    /// The canvas must report the height of the layout produced at its live
+    /// width. Using a fixed nominal width here makes the GeometryReader draw a
+    /// taller layout than SwiftUI reserves at narrow widths, so descendants
+    /// escape into the model views below it.
+    @State private var measuredWidth = NetworkGraphCanvasSizing.nominalWidth
 
     /// Node connectivity for the selection highlight: neighbors stay lit,
     /// the rest dim.
@@ -133,7 +138,8 @@ private struct GraphCanvas: View {
 
     var body: some View {
         GeometryReader { geo in
-            let layout = NetworkGraphLayout.layout(spec, width: geo.size.width)
+            let width = NetworkGraphCanvasSizing.effectiveWidth(geo.size.width)
+            let layout = NetworkGraphLayout.layout(spec, width: width)
             let visible = visibleNodeIDs(layout)
             let lit = selectedNodeID.map(neighbors(of:))
 
@@ -150,15 +156,14 @@ private struct GraphCanvas: View {
             .contentShape(Rectangle())
             .onTapGesture { selectedNodeID = nil }
         }
-        .frame(height: graphHeight)
-    }
-
-    /// Height comes from the deterministic layout at a nominal width —
-    /// stable across the container's width jitter (never derive a
-    /// representable-style height from live geometry). Adds 20pt padding so
-    /// bottom-row node labels (fixedSize text below the circle) aren't clipped.
-    private var graphHeight: CGFloat {
-        NetworkGraphLayout.layout(spec, width: 600).size.height + 20
+        .frame(height: NetworkGraphCanvasSizing.height(for: spec, width: measuredWidth))
+        .clipped()
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            NetworkGraphCanvasSizing.effectiveWidth(proxy.size.width)
+        } action: { width in
+            guard abs(width - measuredWidth) >= 1 else { return }
+            measuredWidth = width
+        }
     }
 
     private func visibleNodeIDs(_ layout: NetworkGraphLayout.Result) -> Set<String> {
@@ -243,6 +248,25 @@ private struct GraphCanvas: View {
             selectedNodeID = isSelected ? nil : node.id
         }
         .help(node.group.map { "\(node.label) — \($0)" } ?? node.label)
+    }
+}
+
+/// Pure sizing policy shared by the SwiftUI canvas and regression tests.
+/// GeometryReader lays nodes out at the live width, so the parent-reported
+/// height must come from that exact width too.
+internal enum NetworkGraphCanvasSizing {
+    internal static let nominalWidth: CGFloat = 600
+    /// Node labels sit below their circles, outside the force simulation's
+    /// point bounds. Preserve a small tail so the bottom row remains visible.
+    internal static let bottomLabelPadding: CGFloat = 20
+
+    internal static func effectiveWidth(_ width: CGFloat) -> CGFloat {
+        width.isFinite && width > 0 ? width : nominalWidth
+    }
+
+    internal static func height(for spec: NetworkGraphSpec, width: CGFloat) -> CGFloat {
+        NetworkGraphLayout.layout(spec, width: effectiveWidth(width)).size.height
+            + bottomLabelPadding
     }
 }
 
