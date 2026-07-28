@@ -249,6 +249,18 @@ final class WikiGraphViewModel: ObservableObject {
     private var loadGeneration = 0
     private var loadedWiki: String?
     private var hasLoadedOnce = false
+
+    /// On-disk cache of the last-known graph. On a cold open we paint the
+    /// cached graph instantly (so the surface isn't blank behind a "Loading…"
+    /// overlay while the serial wiki.list → wiki.scan round-trips complete),
+    /// then replace it with the fresh scan. Injectable so tests use a scratch
+    /// dir. Only the home gateway (GatewayClient) has a stable cacheIdentity;
+    /// override sources (Centaur) skip the cache.
+    private let graphCache: WikiGraphCache
+
+    internal init(graphCache: WikiGraphCache = WikiGraphCache()) {
+        self.graphCache = graphCache
+    }
     /// The source the current graph was loaded from; the reader fetches page
     /// bodies through it so override wikis (Centaur) don't hit the home gateway.
     /// Strong on purpose: ContentView rebuilds its override client on every
@@ -271,9 +283,27 @@ final class WikiGraphViewModel: ObservableObject {
         let generation = loadGeneration
         isLoading = true; error = nil
         defer { if generation == loadGeneration { isLoading = false } }
+
+        // Cold-open fast path: paint the last-known graph immediately so the
+        // surface isn't blank behind the "Loading…" overlay while the scan
+        // runs. Home gateway only — override sources have no stable identity.
+        // Skipped once we already have data on screen (warm revisit / retry).
+        let gateway = source as? GatewayClient
+        if let gateway, graph.pages.isEmpty {
+            let identity = gateway.cacheIdentity
+            if let cached = await graphCache.load(identity: identity, wiki: wiki) {
+                guard generation == loadGeneration else { return }
+                // Don't clobber a fresh graph that landed while we read disk.
+                if graph.pages.isEmpty {
+                    self.graph = cached
+                    if canvasSize != .zero { setupSimulation() }
+                }
+            }
+        }
+
         do {
             let newGraph: WikiGraph
-            if let gateway = source as? GatewayClient {
+            if let gateway {
                 newGraph = try await gateway.wikiScan(wiki: wiki)
             } else {
                 newGraph = try await source.fetchGraph()
@@ -282,6 +312,10 @@ final class WikiGraphViewModel: ObservableObject {
             guard generation == loadGeneration else { return }
             self.graph = newGraph
             if canvasSize != .zero { setupSimulation() }
+            // Refresh the cache with the fresh scan (home gateway only).
+            if let gateway {
+                graphCache.store(newGraph, identity: gateway.cacheIdentity, wiki: wiki)
+            }
         } catch {
             guard generation == loadGeneration else { return }
             log.error("wiki.scan failed: \(error.localizedDescription)")
