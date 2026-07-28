@@ -83,10 +83,12 @@ blocking regression. `metrics-baseline.json` + `scripts/check-metrics-ratchet.py
 generalize it to any measurable metric. Adding a metric is a collector script +
 a baseline entry + a handler — no new gate.
 
-Two metrics are wired today. Each runs both ratchet shapes — a **floor** (the
-whole codebase never regresses) and a **patch** (the code this PR touches meets
-the bar) — so old debt is paid down gradually while new code is held to a
-higher standard immediately.
+Four metrics are wired today. Each runs a **floor** (the whole codebase never
+regresses); the two line-oriented metrics also run a **patch** (the code this
+PR touches meets a higher bar) — so old debt is paid down gradually while new
+code is held to a higher standard immediately. The count-only metrics (skipped
+tests, dead code) are floor-only: their signal is a single number that must not
+rise.
 
 **Compiler warnings** (`warnings` key). A clean `swift build` is parsed into
 unique warning *sites* (`file:line:col:category`) by
@@ -122,15 +124,38 @@ testable layers ~35% aggregate). `scripts/collect-coverage.py` reduces
   ratio is too noisy to judge, so the patch check is skipped. Added Views,
   comments, and non-executable declarations never count toward either side.
 
-Rules mirror the lint baseline: **regenerate only to record improvement**
-(`make metrics-baseline` — warning counts must only drop, coverage only rise),
-and `make metrics-ratchet` runs the whole check locally (clean build + tests →
-collect → ratchet vs `origin/main`). The CI job is `metric-ratchet` in
-`lint.yml`; it always builds from scratch (no cache) because an incremental
-build under-counts warnings.
+**Skipped tests** (`skipped` key). `scripts/collect-skipped-tests.py` scans
+`Tests/` for the swift-testing idioms that switch a test off — `.disabled(…)`
+and `.enabled(if:)` traits, `withKnownIssue { }` — plus the XCTest `XCTSkip*`
+forms. A disabled test no longer defends the behavior it names, and disabling a
+failing test is the laziest way for an agent to make CI green.
 
-Candidate next metrics (each is one collector away): dead-code count
-(Periphery), skipped-test count, main-thread stall budget.
+- **Floor:** the count may not rise. The baseline is **0** — any skip is new
+  debt and must be justified, not slipped in. Fix and re-enable the test rather
+  than switching it off.
+
+**Dead code** (`deadcode` key). `scripts/collect-deadcode.py` reduces a
+`periphery scan` to a count of unused declarations. The raw count is large
+(~1,100) and partly noise — Periphery can't see KeyPath / reflection /
+SwiftUI-runtime uses — so, exactly like the lint baseline, the backlog is
+*frozen*, not fixed: a false positive lives harmlessly in the baseline and only
+a genuinely *new* unused declaration fails.
+
+- **Floor:** the count may only shrink. A new unused declaration means either
+  dead code to delete or a missing caller — both worth catching, since swarms
+  accrete code and rarely delete it.
+
+Rules mirror the lint baseline: **regenerate only to record improvement**
+(`make metrics-baseline` — warnings/skipped/dead-code must only drop, coverage
+only rise), and `make metrics-ratchet` runs the whole check locally (clean
+build + tests → collect → ratchet vs `origin/main`). The CI job is
+`metric-ratchet` in `lint.yml`; it always builds from scratch (no cache)
+because an incremental build under-counts warnings, and pins the Periphery
+version (`PERIPHERY_VERSION`) so a tool bump can't shift the frozen count.
+
+Candidate next metrics (each is one collector away): mutation score (verifies
+tests actually catch bugs — see issue #10), main-thread stall budget, View
+snapshot tests.
 
 | ViewModels must not construct Views | Constructing a View from a ViewModel inverts the layer direction and makes the VM untestable without a UI. | ArchitectureTests |
 | `Utils/` must not exist | Two helper directories (`Utils/` and `Utilities/`) meant every contributor guessed where shared code lived. Everything merged into `Utilities/`. | ArchitectureTests |

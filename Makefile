@@ -87,13 +87,16 @@ test:
 	swift test --disable-sandbox
 
 # Metric ratchet: fail if a tracked code-health metric regressed vs the base
-# branch. Two metrics are wired:
+# branch. Four metrics are wired:
 #   warnings — compiler warning sites (floor: no category grows; patch: no
 #              warning on a line this PR added). A CLEAN build is mandatory —
 #              incremental builds skip unchanged modules and under-count, so we
 #              wipe .build first.
 #   coverage — testable-layer line coverage (floor: aggregate can't erode;
 #              patch: >=80% of executable lines this PR added must be covered).
+#   skipped  — disabled / known-issue test count (floor: can't rise; baseline 0).
+#   deadcode — unused declarations from Periphery (floor: frozen debt may only
+#              shrink). Needs `periphery` on PATH (brew install periphery).
 # Mirrors the lint-baseline pattern; frozen values live in metrics-baseline.json.
 # See scripts/check-metrics-ratchet.py.
 metrics-ratchet:
@@ -103,7 +106,10 @@ metrics-ratchet:
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
-	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --base origin/main
+	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
+	periphery scan --format json --quiet > /tmp/portal-periphery.json
+	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
+	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --skipped /tmp/portal-skipped.json --deadcode /tmp/portal-deadcode.json --base origin/main
 
 # Resolve the coverage profdata + test binary that `swift test
 # --enable-code-coverage` produced and export the full per-line report (no
@@ -116,9 +122,9 @@ define export-coverage
 endef
 
 # Regenerate the frozen metric baseline. Run ONLY when you have deliberately
-# improved a metric (paid down warnings, added tests) and want to lock in the
-# gain, exactly like `make lint-baseline`. Requires a clean build for an honest
-# warning count. Rewrites BOTH the warnings and coverage keys.
+# improved a metric (paid down warnings, added tests, deleted dead code) and
+# want to lock in the gain, exactly like `make lint-baseline`. Requires a clean
+# build for an honest warning count. Rewrites ALL metric keys.
 metrics-baseline:
 	rm -rf .build
 	swift build 2>&1 | tee /tmp/portal-metrics-build.log
@@ -126,8 +132,11 @@ metrics-baseline:
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
-	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warning sites,', str(c['testable_pct'])+'% testable coverage')"
-	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings should only DROP, coverage only RISE."
+	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
+	periphery scan --format json --quiet > /tmp/portal-periphery.json
+	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
+	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code')"
+	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode should only DROP, coverage only RISE."
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, and baselined lint. If this is green, CI is.

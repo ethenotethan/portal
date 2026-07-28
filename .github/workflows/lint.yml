@@ -102,11 +102,33 @@ jobs:
           xcrun llvm-cov export -instr-profile "$PROF" "$EXE" > cov-export.json
           python3 scripts/collect-coverage.py cov-export.json --root "$PWD" --json coverage.json
 
+      # Skipped/disabled tests: a pure text scan, no build needed.
+      - name: Capture skipped-test snapshot
+        run: python3 scripts/collect-skipped-tests.py Tests --root "$PWD" --json skipped.json
+
+      # Dead code: Periphery reuses the build above. Pinned so a formula bump
+      # can't change the reported count out from under the frozen baseline.
+      - name: Install Periphery
+        env:
+          PERIPHERY_VERSION: 3.8.0
+        run: |
+          curl -fsSL -o periphery.zip \
+            "https://github.com/peripheryapp/periphery/releases/download/${PERIPHERY_VERSION}/periphery-${PERIPHERY_VERSION}.zip"
+          unzip -o periphery.zip -d "$HOME/periphery-bin"
+          echo "$HOME/periphery-bin" >> "$GITHUB_PATH"
+
+      - name: Capture dead-code snapshot
+        run: |
+          set -o pipefail
+          periphery scan --format json --quiet > periphery.json
+          python3 scripts/collect-deadcode.py periphery.json --root "$PWD" --json deadcode.json
+
       - name: Ratchet metrics against the base branch
         run: |
           BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
           python3 scripts/check-metrics-ratchet.py \
-            --warnings warnings.json --coverage coverage.json --base "$BASE"
+            --warnings warnings.json --coverage coverage.json \
+            --skipped skipped.json --deadcode deadcode.json --base "$BASE"
 
       - name: Upload metric snapshots
         if: always()
@@ -116,6 +138,8 @@ jobs:
           path: |
             warnings.json
             coverage.json
+            skipped.json
+            deadcode.json
             build.log
           if-no-files-found: ignore
           retention-days: 14
