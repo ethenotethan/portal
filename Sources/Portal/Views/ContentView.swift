@@ -24,10 +24,11 @@ internal struct ContentView: View {
     @StateObject private var wikiViewModel = WikiGraphViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
+    @ObservedObject private var themeManager = ThemeManager.shared
     @StateObject private var cronPoller = CronPoller()
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var showSettings = false
+    @State private var showSettingsOverlay = false
     @State private var showAddGateway = false
     @State private var isMacSidebarVisible = true
     private let macSidebarWidth: CGFloat = 352
@@ -411,13 +412,6 @@ internal struct ContentView: View {
             })
             .frame(minWidth: 640, minHeight: 620)
         }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-                .environmentObject(settings)
-                .environmentObject(personaManager)
-                .environmentObject(capabilitiesStore)
-                .frame(minWidth: 500, minHeight: 450)
-        }
         .sheet(isPresented: $showAddGateway) {
             // AddGatewaySheet is macOS-only (the toolbar switcher that
             // presents it is too); give iOS an inert branch so the shared
@@ -468,10 +462,11 @@ internal struct ContentView: View {
     private var isOverlayActive: Bool {
         showCronDashboard || showLiveSessions || showActivitySheet
             || showFeedSheet || showSkills || showWikiGraph || showLearning || showCentaurWorkflows
-            || showArtifactsPane
+            || showArtifactsPane || showSettingsOverlay
     }
 
     private var overlayTitle: String {
+        if showSettingsOverlay { return "Settings" }
         if showWikiGraph { return "Wiki Graph" }
         if showCentaurWorkflows { return "Workflows" }
         if showArtifactsPane { return "Artifacts" }
@@ -541,6 +536,7 @@ internal struct ContentView: View {
         showArtifactsPane = false
         showFeedSheet = false
         showLearning = false
+        showSettingsOverlay = false
     }
 
     private var overlayHeaderBar: some View {
@@ -722,7 +718,10 @@ internal struct ContentView: View {
                 }
             }
             Button("Add Gateway…") { showAddGateway = true }
-            Button("Manage Gateways…") { showSettings = true }
+            Button("Manage Gateways…") {
+                closeAllOverlays()
+                showSettingsOverlay = true
+            }
         } label: {
             HStack(spacing: 5) {
                 gatewayHealthDot
@@ -780,7 +779,8 @@ internal struct ContentView: View {
             gatewaySwitcher
 
             Button {
-                showSettings = true
+                closeAllOverlays()
+                showSettingsOverlay = true
             } label: {
                 Label("Settings", systemImage: "gearshape")
                     .labelStyle(.iconOnly)
@@ -1060,6 +1060,17 @@ internal struct ContentView: View {
                     .background(Theme.background)
                     .transition(.opacity)
                 #endif
+            }
+
+            if showSettingsOverlay {
+                SettingsView()
+                    .environmentObject(settings)
+                    .environmentObject(personaManager)
+                    .environmentObject(capabilitiesStore)
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
             }
 
             #if os(macOS)

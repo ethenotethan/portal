@@ -7,7 +7,7 @@ import SwiftUI
 /// click interactions work inside each panel.
 @MainActor
 internal struct ArtifactCanvasView: View {
-    var onClose: (() -> Void)?
+    internal var onClose: (() -> Void)?
 
     @ObservedObject private var store = ArtifactStore.shared
 

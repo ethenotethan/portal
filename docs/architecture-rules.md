@@ -129,8 +129,45 @@ collect → ratchet vs `origin/main`). The CI job is `metric-ratchet` in
 `lint.yml`; it always builds from scratch (no cache) because an incremental
 build under-counts warnings.
 
-Candidate next metrics (each is one collector away): dead-code count
-(Periphery), skipped-test count, main-thread stall budget.
+Candidate next metrics (each is one collector away): mutation score (see
+issue #10), main-thread stall budget.
+
+## View-snapshot gate
+
+The metric ratchet guards the testable layers, but Views are exempt from
+coverage — `swift test` never launches the app target, so a View body never
+executes and a regression in what a View *draws* is invisible to every gate
+above. The snapshot gate closes that hole for the Views that can be pinned.
+
+`ViewSnapshot` (`Tests/PortalTests/Support/ViewSnapshot.swift`) renders a View
+to a PNG **in-process** via `ImageRenderer` (macOS 13+) — no host app, no
+UI-test target, no third-party dependency (deliberately, given the dead-code
+gate's stance on dependency weight). A test hands `verify(...)` a View, a name,
+and a fixed size; it compares the fresh render against a committed golden PNG
+with a small per-pixel tolerance (sub-integer AA drift is absorbed; a real
+visual change is not).
+
+**Goldens are born on CI, never committed from a dev Mac.** Font hinting,
+antialiasing, and default-font resolution differ between machines, so a locally
+recorded golden would spuriously fail against the `macos-26` runner. The loop:
+
+1. Add a snapshot test naming a golden. With no golden yet, `verify` returns
+   `.missingGolden`, which the test treats as **non-fatal** (logged, not
+   failed) — so the PR that introduces the test can go green before the golden
+   exists.
+2. Run the **snapshot-record** workflow (`.github/workflows/snapshot-record.yml`,
+   `workflow_dispatch`) against the branch. It runs the suite under
+   `SNAPSHOT_RECORD=1` on the same runner image the verify job uses, renders
+   each golden, and pushes the PNGs back to the branch.
+3. From then on the goldens are compared on every run — verification rides
+   along with the ordinary `swift test` in the `metric-ratchet` job, so a
+   drift trips `.mismatch` and fails that job. No separate verify job needed.
+
+Scope: only Views that render deterministically from plain value inputs belong
+in the gate — no ViewModel wiring, no `.task`/`.onAppear` that mutates state, no
+animation (`GitHubLinkCard`, which takes a parsed `GitHubLink` value, is the
+seed case). Environment-coupled Views stay out until refactored to take values.
+Re-recording after an intentional change is the same workflow run again.
 
 | ViewModels must not construct Views | Constructing a View from a ViewModel inverts the layer direction and makes the VM untestable without a UI. | ArchitectureTests |
 | `Utils/` must not exist | Two helper directories (`Utils/` and `Utilities/`) meant every contributor guessed where shared code lived. Everything merged into `Utilities/`. | ArchitectureTests |

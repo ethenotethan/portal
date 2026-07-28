@@ -1,14 +1,53 @@
+// swiftlint:disable file_length
 import SwiftUI
+import os
 
-/// Settings view for gateway connection configuration.
-struct SettingsView: View {
-    @EnvironmentObject var settings: SettingsViewModel
-    @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
-    @Environment(\.dismiss) private var dismiss
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SettingsView")
+
+/// Full-window settings overlay. Sections are listed in a sidebar and
+/// render into the main pane — same pattern as macOS System Settings.
+/// Replaces the old 500×450 TabView sheet.
+internal struct SettingsView: View {
+    @EnvironmentObject internal var settings: SettingsViewModel
+    @EnvironmentObject internal var personaManager: PersonaManager
+    @EnvironmentObject internal var capabilitiesStore: GatewayCapabilitiesStore
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
+    @ObservedObject private var themeManager = ThemeManager.shared
+
     @State private var showCFAuth = false
+    @State private var selectedSection: SettingsSection = .connection
 
-    var body: some View {
+    internal enum SettingsSection: String, CaseIterable, Identifiable {
+        case connection
+        case systemPrompt
+        case themes
+        case persona
+        case notifications
+
+        internal var id: String { rawValue }
+
+        internal var label: String {
+            switch self {
+            case .connection: return "Connection"
+            case .systemPrompt: return "System Prompt"
+            case .themes: return "Themes"
+            case .persona: return "Persona"
+            case .notifications: return "Notifications"
+            }
+        }
+
+        internal var icon: String {
+            switch self {
+            case .connection: return "network"
+            case .systemPrompt: return "doc.text.magnifyingglass"
+            case .themes: return "paintpalette"
+            case .persona: return "person.crop.circle"
+            case .notifications: return "bell"
+            }
+        }
+    }
+
+    internal var body: some View {
         #if os(macOS)
         macBody
         #else
@@ -20,329 +59,139 @@ struct SettingsView: View {
 
     #if os(macOS)
     private var macBody: some View {
-        TabView {
-            connectionTab
-                .tabItem {
-                    Label("Connection", systemImage: "network")
-                }
-
-            personaTab
-                .tabItem {
-                    Label("Persona", systemImage: "person.crop.circle")
-                }
-        }
-        .frame(width: 500, height: 450)
-    }
-    #endif
-
-    // MARK: - iOS
-
-    #if os(iOS)
-    private var iosBody: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Gateway URL")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                        TextField("ws://192.168.1.x:8642/v1/ws", text: $settings.gatewayURL)
-                            .textFieldStyle(.roundedBorder)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .keyboardType(.URL)
-                            .font(.body)
-
-                        Text("API Key")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-                            .padding(.top, 4)
-                        SecureField("Optional", text: $settings.apiKey)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body)
-                    }
-
-                    if settings.savedGateways.count > 1 {
-                        Divider()
-                        iosGatewaySwitcher
-                    }
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Notifications")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-
-                        Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
-                        Text("Notify when a response finishes while the app is in the background or another session is active.")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-
-                        APNsStatusRow()
-                            .padding(.top, 4)
-                    }
-
-                    Divider()
-
-                    capabilitiesSummary
-
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Persona")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .textCase(.uppercase)
-
-                        HStack(spacing: 12) {
-                            personaManager.activePersona.bubbleAvatar(size: 36)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(personaManager.activePersona.name)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Text(personaManager.activePersona.tagline)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+        HStack(spacing: 0) {
+            // Sidebar
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(SettingsSection.allCases) { section in
+                    Button {
+                        selectedSection = section
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: section.icon)
+                                .font(.system(size: 13))
+                                .frame(width: 18)
+                                .foregroundStyle(selectedSection == section ? Theme.accent : Theme.secondary)
+                            Text(section.label)
+                                .font(.system(size: 13))
+                                .foregroundStyle(selectedSection == section ? Theme.primary : Theme.secondary)
+                            Spacer(minLength: 0)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            selectedSection == section
+                                ? Theme.accent.opacity(0.12)
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                        .contentShape(Rectangle())
                     }
-
-                    Text("The API key is stored securely on this device.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 40)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-    }
-    #endif
-
-    #if os(iOS)
-    private var iosGatewaySwitcher: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Gateways")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            ForEach(settings.savedGateways) { gateway in
-                Button {
-                    settings.selectGateway(gateway)
-                } label: {
-                    HStack {
-                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : .secondary)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(gateway.displayName)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Text(gateway.url)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-    #endif
-
-    private var capabilitiesSummary: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(capabilitiesStore.capabilities.statusDisplay, systemImage: capabilitiesStore.isRefreshing ? "arrow.triangle.2.circlepath" : "checkmark.seal")
-                    .foregroundStyle(capabilitiesStore.isRefreshing ? Theme.warning : Theme.success)
                 Spacer()
-                Text("Version: \(capabilitiesStore.capabilities.versionDisplay)")
-                    .foregroundStyle(.secondary)
             }
-            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 16)
+            .frame(width: 200)
+            .background(Theme.surface.opacity(0.5))
 
-            HStack(spacing: 8) {
-                CapabilityPill(title: "Image input", isEnabled: capabilitiesStore.hasImageInput)
-                CapabilityPill(title: "ACP image prompts", isEnabled: capabilitiesStore.hasACPImagePrompts)
-            }
+            Rectangle().fill(Theme.border).frame(width: 1)
 
-            if case .fallback(let reason) = capabilitiesStore.capabilities.source {
-                Text(reason)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            // Main pane
+            ScrollView {
+                Group {
+                    switch selectedSection {
+                    case .connection:
+                        connectionSection
+                    case .systemPrompt:
+                        SystemPromptSection(
+                            client: gatewayClientWrapper.client,
+                            sessionID: nil
+                        )
+                    case .themes:
+                        themesSection
+                    case .persona:
+                        personaSection
+                    case .notifications:
+                        notificationsSection
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background)
     }
 
-    // MARK: - Shared Tab Content (macOS)
+    // MARK: - macOS Sections
 
-    #if os(macOS)
     @State private var showAddGateway = false
     @State private var editingGateway: SavedGateway?
 
-    private var connectionTab: some View {
-        Form {
-            Section("Gateway Connection") {
-                TextField("Gateway URL", text: $settings.gatewayURL)
-                    .textFieldStyle(.roundedBorder)
-                SecureField("API Key", text: $settings.apiKey)
-                    .textFieldStyle(.roundedBorder)
+    private var connectionSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            settingsHeader("Gateway Connection", icon: "network")
+
+            VStack(alignment: .leading, spacing: 12) {
+                labeledField("Gateway URL") {
+                    TextField("ws://192.168.1.x:8642/v1/ws", text: $settings.gatewayURL)
+                        .textFieldStyle(.roundedBorder)
+                }
+                labeledField("API Key") {
+                    SecureField("Optional", text: $settings.apiKey)
+                        .textFieldStyle(.roundedBorder)
+                }
             }
 
-            Section {
-                ForEach(settings.savedGateways) { gateway in
-                    HStack {
-                        // The row itself is a button — a bare .onTapGesture on a
-                        // macOS Form row loses to the Form's own hit-testing, which
-                        // made gateways look unclickable.
-                        Button {
-                            settings.selectGateway(gateway)
-                        } label: {
-                            HStack {
-                                if gateway.kind.isSessionScoped {
-                                    // Session-scoped entries are per-session
-                                    // targets, never the app-level gateway.
-                                    Image(systemName: gateway.kind.iconName)
-                                        .foregroundStyle(Theme.secondary)
-                                } else {
-                                    Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                                        .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
-                                }
-                                VStack(alignment: .leading, spacing: 1) {
-                                    HStack(spacing: 5) {
-                                        Text(gateway.displayName)
-                                            .foregroundStyle(.primary)
-                                            .lineLimit(1)
-                                        if gateway.kind.isSessionScoped {
-                                            Text(gateway.kind.displayName)
-                                                .font(.system(size: 9, weight: .semibold))
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 1)
-                                                .background(Theme.accent.opacity(0.15), in: Capsule())
-                                                .foregroundStyle(Theme.accent)
-                                        }
-                                    }
-                                    Text(gateway.url)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer(minLength: 8)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
+            Divider()
 
-                        if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
-                            Button("Switch") { settings.selectGateway(gateway) }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                        }
-                        Button {
-                            editingGateway = gateway
-                        } label: {
-                            Image(systemName: "pencil")
-                        }
-                        .buttonStyle(.borderless)
-                        .help("Rename or edit this gateway")
-                        .accessibilityIdentifier("editGateway-\(gateway.displayName)")
-                        Button(role: .destructive) {
-                            settings.removeGateway(gateway)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
-                    }
-                }
-            } header: {
+            // Saved gateways list
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Saved Gateways")
+                        .font(.headline)
                     Spacer()
                     Button {
                         showAddGateway = true
                     } label: {
                         Label("Add", systemImage: "plus")
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                ForEach(settings.savedGateways) { gateway in
+                    gatewayRow(gateway)
                 }
             }
 
             if settings.needsCFAuth {
-                Section("Cloudflare Access") {
-                    HStack {
-                        if let email = settings.cfAuthEmail {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text(email)
-                                .lineLimit(1)
-                        } else if settings.cfAuthCookie != nil {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Authenticated")
-                        } else {
-                            Image(systemName: "lock.shield")
-                                .foregroundStyle(.secondary)
-                            Text("Not authenticated")
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
-                            showCFAuth = true
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
+                Divider()
+                cfAuthSection
             }
 
-            Section("Notifications") {
-                Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
-                Text("Notify when a response finishes while the app is in the background or another session is active.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Divider()
+            capabilitiesSummary
 
-                APNsStatusRow()
-            }
-
-            #if os(macOS)
-            Section {
+            Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Thought Graph")
+                    .font(.headline)
                 Toggle("Experimental: MLX reasoning model", isOn: $settings.mlxReasoningEnabled)
                 Text("Uses an on-device model (Gemma 3 1B, ~600MB download) to extract reasoning decisions. The default heuristic extractor is faster and needs no download.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } header: {
-                Text("Thought Graph")
-            } footer: {
                 Text("Changes take effect on the next session.")
-            }
-            #endif
-
-            Section("Gateway Capabilities") {
-                capabilitiesSummary
-            }
-
-            Section {
-                Text("The API key is stored in your macOS Keychain.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
+
+            Divider()
+            Text("The API key is stored in your macOS Keychain.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .formStyle(.grouped)
         .sheet(isPresented: $showCFAuth) {
             if let host = settings.buildWebSocketURL()?.host {
                 CFAuthView(gatewayHost: host) { cookie in
@@ -376,44 +225,741 @@ struct SettingsView: View {
         }
     }
 
-    private var personaTab: some View {
-        Form {
-            Section("Gateway Persona") {
-                HStack(spacing: 12) {
-                    personaManager.activePersona.bubbleAvatar(size: 40)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(personaManager.activePersona.name)
-                            .font(.headline)
-                        Text(personaManager.activePersona.tagline)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+    @ViewBuilder
+    private func gatewayRow(_ gateway: SavedGateway) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                settings.selectGateway(gateway)
+            } label: {
+                HStack {
+                    if gateway.kind.isSessionScoped {
+                        Image(systemName: gateway.kind.iconName)
+                            .foregroundStyle(Theme.secondary)
+                    } else {
+                        Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
                     }
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 5) {
+                            Text(gateway.displayName)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            if gateway.kind.isSessionScoped {
+                                Text(gateway.kind.displayName)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Theme.accent.opacity(0.15), in: Capsule())
+                                    .foregroundStyle(Theme.accent)
+                            }
+                        }
+                        Text(gateway.url)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
+
+            if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
+                Button("Switch") { settings.selectGateway(gateway) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+            Button {
+                editingGateway = gateway
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .help("Rename or edit this gateway")
+            Button(role: .destructive) {
+                settings.removeGateway(gateway)
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var cfAuthSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Cloudflare Access")
+                .font(.headline)
+            HStack {
+                if let email = settings.cfAuthEmail {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text(email).lineLimit(1)
+                } else if settings.cfAuthCookie != nil {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("Authenticated")
+                } else {
+                    Image(systemName: "lock.shield").foregroundStyle(.secondary)
+                    Text("Not authenticated").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
+                    showCFAuth = true
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var themesSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            settingsHeader("Themes", icon: "paintpalette")
+
+            Text("Choose a color scheme. Changes apply instantly across the entire app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            LazyVGrid(columns: [
+                GridItem(.adaptive(minimum: 160), spacing: 16)
+            ], spacing: 16) {
+                ForEach(AppTheme.allCases) { theme in
+                    themeCard(theme)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func themeCard(_ theme: AppTheme) -> some View {
+        let isSelected = themeManager.current.id == theme.id
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                themeManager.select(theme)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                // Color preview strip
+                HStack(spacing: 0) {
+                    ForEach(theme.swatches, id: \.self) { hex in
+                        Rectangle()
+                            .fill(Color(hex: hex) ?? .gray)
+                    }
+                }
+                .frame(height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(theme.displayName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                    Text(theme.description)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .padding(.top, 8)
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Theme.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isSelected ? Theme.accent : Theme.border, lineWidth: isSelected ? 2 : 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var personaSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            settingsHeader("Persona", icon: "person.crop.circle")
+
+            HStack(spacing: 14) {
+                personaManager.activePersona.bubbleAvatar(size: 48)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(personaManager.activePersona.name)
+                        .font(.title3.weight(.semibold))
+                    Text(personaManager.activePersona.tagline)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
 
             if let suffix = personaManager.activePersona.systemPromptSuffix,
                !suffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Section("Persona Prompt (from PERSONA.md)") {
-                    Text(suffix)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Persona Prompt (from PERSONA.md)")
+                        .font(.headline)
+                    ScrollView {
+                        Text(suffix)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 240)
+                    .padding(12)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
                 }
+            } else {
+                Text("No PERSONA.md is configured on this gateway.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
+    }
+
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            settingsHeader("Notifications", icon: "bell")
+
+            Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
+            Text("Notify when a response finishes while the app is in the background or another session is active.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+            APNsStatusRow()
+        }
+    }
+
+    // MARK: - Shared helpers
+
+    @ViewBuilder
+    private func settingsHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundStyle(Theme.accent)
+            Text(title)
+                .font(.title2.weight(.semibold))
+        }
+    }
+
+    @ViewBuilder
+    private func labeledField<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            content()
+        }
+    }
+
+    #endif
+
+    // Shared across platforms — used by both the macOS and iOS Settings bodies.
+    private var capabilitiesSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Gateway Capabilities")
+                .font(.headline)
+            HStack {
+                Label(capabilitiesStore.capabilities.statusDisplay, systemImage: capabilitiesStore.isRefreshing ? "arrow.triangle.2.circlepath" : "checkmark.seal")
+                    .foregroundStyle(capabilitiesStore.isRefreshing ? Theme.warning : Theme.success)
+                Spacer()
+                Text("Version: \(capabilitiesStore.capabilities.versionDisplay)")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
+            HStack(spacing: 8) {
+                CapabilityPill(title: "Image input", isEnabled: capabilitiesStore.hasImageInput)
+                CapabilityPill(title: "ACP image prompts", isEnabled: capabilitiesStore.hasACPImagePrompts)
+            }
+
+            if case .fallback(let reason) = capabilitiesStore.capabilities.source {
+                Text(reason)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - iOS
+
+    #if os(iOS)
+    private var iosBody: some View {
+        NavigationStack {
+            List {
+                Section("Connection") {
+                    TextField("Gateway URL", text: $settings.gatewayURL)
+                        .textFieldStyle(.roundedBorder)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    SecureField("API Key", text: $settings.apiKey)
+                        .textFieldStyle(.roundedBorder)
+
+                    if settings.savedGateways.count > 1 {
+                        ForEach(settings.savedGateways) { gateway in
+                            Button {
+                                settings.selectGateway(gateway)
+                            } label: {
+                                HStack {
+                                    Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
+                                        .foregroundStyle(settings.isActive(gateway) ? Theme.accent : .secondary)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(gateway.displayName)
+                                        Text(gateway.url)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Section("System Prompt") {
+                    NavigationLink {
+                        SystemPromptSection(client: gatewayClientWrapper.client, sessionID: nil)
+                    } label: {
+                        Label("View & Edit System Prompt", systemImage: "doc.text.magnifyingglass")
+                    }
+                }
+
+                Section("Themes") {
+                    ForEach(AppTheme.allCases) { theme in
+                        Button {
+                            themeManager.select(theme)
+                        } label: {
+                            HStack {
+                                HStack(spacing: 2) {
+                                    ForEach(theme.swatches, id: \.self) { hex in
+                                        Circle()
+                                            .fill(Color(hex: hex) ?? .gray)
+                                            .frame(width: 14, height: 14)
+                                    }
+                                }
+                                Text(theme.displayName)
+                                Spacer()
+                                if themeManager.current.id == theme.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Theme.accent)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                Section("Notifications") {
+                    Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
+                    APNsStatusRow()
+                }
+
+                Section("Capabilities") {
+                    capabilitiesSummary
+                }
+
+                if let suffix = personaManager.activePersona.systemPromptSuffix,
+                   !suffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Section("Persona") {
+                        HStack {
+                            personaManager.activePersona.bubbleAvatar(size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(personaManager.activePersona.name)
+                                    .fontWeight(.semibold)
+                                Text(personaManager.activePersona.tagline)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Text("The API key is stored securely on this device.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
     #endif
+}
+
+// MARK: - System Prompt Section
+
+/// Fetches the full system prompt via `session.prompt_breakdown` RPC and
+/// shows each section in an expandable list. The user can set an ephemeral
+/// override via `session.set_prompt` which is appended to every API call
+/// but not persisted to trajectories.
+internal struct SystemPromptSection: View {
+    internal let client: GatewayClient?
+    internal let sessionID: String?
+
+    @State private var breakdown: PromptBreakdown?
+    @State private var ephemeralPrompt = ""
+    @State private var originalEphemeralPrompt = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var expandedSections: Set<String> = []
+    @State private var showSaveSuccess = false
+
+    internal var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack(spacing: 10) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Theme.accent)
+                Text("System Prompt")
+                    .font(.title2.weight(.semibold))
+                Spacer()
+                Button {
+                    Task { await loadPrompt() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if isLoading {
+                HStack {
+                    ProgressView()
+                    Text("Loading system prompt…")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
+            } else if let error = errorMessage {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.title)
+                        .foregroundStyle(Theme.warning)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Retry") { Task { await loadPrompt() } }
+                        .buttonStyle(.bordered)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
+            } else if let breakdown {
+                // Token summary
+                promptTokenSummary(breakdown)
+
+                // Prompt sections
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Prompt Sections")
+                        .font(.headline)
+                    ForEach(breakdown.sortedSections) { section in
+                        promptSectionCard(section)
+                    }
+                }
+
+                // Ephemeral prompt editor
+                ephemeralPromptEditor
+            } else {
+                ContentUnavailableView(
+                    "No System Prompt Loaded",
+                    systemImage: "doc.text.magnifyingglass",
+                    description: Text("Tap Refresh to load the current system prompt from the gateway.")
+                )
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 40)
+            }
+        }
+        .task {
+            await loadPrompt()
+        }
+    }
+
+    @ViewBuilder
+    private func promptTokenSummary(_ breakdown: PromptBreakdown) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Token Usage")
+                .font(.headline)
+
+            HStack(spacing: 16) {
+                statTile("System", value: breakdown.totalSystemTokens, color: Theme.accent)
+                statTile("Tools", value: breakdown.toolDefinitionsTokenCount, color: Theme.warning)
+                statTile("History", value: breakdown.conversationHistoryTokenCount, color: Theme.success)
+                statTile("Free", value: breakdown.freeTokens, color: Theme.secondary)
+            }
+
+            // Context utilization bar
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("\(breakdown.totalUsedTokens) / \(breakdown.contextLimit) tokens")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: "%.1f%%", breakdown.utilizationPercent))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(breakdown.utilizationPercent > 85 ? Theme.warning : Theme.accent)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Theme.surfaceHover)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(breakdown.utilizationPercent > 85 ? Theme.warning : Theme.accent)
+                            .frame(width: geo.size.width * min(breakdown.utilizationPercent / 100, 1.0))
+                    }
+                }
+                .frame(height: 6)
+            }
+
+            if !breakdown.model.isEmpty {
+                Text("Model: \(breakdown.model)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func statTile(_ label: String, value: Int, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value.formatted())
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func promptSectionCard(_ section: PromptSection) -> some View {
+        let isExpanded = expandedSections.contains(section.id)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    if isExpanded {
+                        expandedSections.remove(section.id)
+                    } else {
+                        expandedSections.insert(section.id)
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(section.color)
+                        .frame(width: 4)
+
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Text(section.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    Text("\(section.tokenCount) tok")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+
+                    if !section.source.isEmpty {
+                        Text(section.source)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ScrollView {
+                    Text(section.fullContent.isEmpty ? "(empty)" : section.fullContent)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(4)
+                }
+                .frame(maxHeight: 300)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+                .transition(.opacity)
+            }
+        }
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Theme.border, lineWidth: 1)
+        )
+    }
+
+    private var ephemeralPromptEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Ephemeral Prompt Override")
+                .font(.headline)
+
+            Text("Appended to every API call for this session, but not persisted to trajectories. Setting empty clears the override.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            TextEditor(text: $ephemeralPrompt)
+                .font(.system(size: 12, design: .monospaced))
+                .frame(minHeight: 100)
+                .padding(8)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Theme.border, lineWidth: 1)
+                )
+                .scrollContentBackground(.hidden)
+
+            HStack {
+                if showSaveSuccess {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Theme.success)
+                        .transition(.opacity)
+                }
+                Spacer()
+                Button("Clear") {
+                    ephemeralPrompt = ""
+                    Task { await savePrompt() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(originalEphemeralPrompt.isEmpty && ephemeralPrompt.isEmpty)
+
+                Button("Apply") {
+                    Task { await savePrompt() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(ephemeralPrompt == originalEphemeralPrompt)
+            }
+        }
+    }
+
+    // MARK: - Data
+
+    private func loadPrompt() async {
+        guard let client else {
+            errorMessage = "Not connected to a gateway."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // If no session ID is provided, try to use the first active session.
+            let sid: String?
+            if let sessionID {
+                sid = sessionID
+            } else {
+                sid = await firstActiveSessionID(client: client)
+            }
+            guard let sid else {
+                errorMessage = "No active session. Send a message first, then refresh."
+                isLoading = false
+                return
+            }
+
+            let result = try await client.promptBreakdown(sessionID: sid)
+            await MainActor.run {
+                breakdown = result
+                // Extract the current ephemeral prompt if one exists.
+                if let ephemeral = result.sections.first(where: { $0.name.lowercased().contains("ephemeral") }) {
+                    ephemeralPrompt = ephemeral.fullContent
+                    originalEphemeralPrompt = ephemeral.fullContent
+                }
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoading = false
+            }
+        }
+    }
+
+    private func firstActiveSessionID(client: GatewayClient) async -> String? {
+        do {
+            return try await client.listSessions().first?.id
+        } catch {
+            log.warning("Unable to list sessions for system prompt settings: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func savePrompt() async {
+        guard let client else {
+            errorMessage = "Not connected to a gateway."
+            return
+        }
+        let sid: String?
+        if let sessionID {
+            sid = sessionID
+        } else {
+            sid = await firstActiveSessionID(client: client)
+        }
+        guard let sid else {
+            errorMessage = "No active session to apply the override to."
+            return
+        }
+
+        do {
+            try await client.setEphemeralPrompt(sessionID: sid, prompt: ephemeralPrompt)
+            await MainActor.run {
+                originalEphemeralPrompt = ephemeralPrompt
+                withAnimation {
+                    showSaveSuccess = true
+                }
+                Task {
+                    do {
+                        try await Task.sleep(for: .seconds(2))
+                    } catch {
+                        return
+                    }
+                    await MainActor.run {
+                        withAnimation {
+                            showSaveSuccess = false
+                        }
+                    }
+                }
+                // Reload to show the updated prompt.
+                Task { await loadPrompt() }
+            }
+            log.info("Ephemeral prompt saved for session \(sid)")
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to save: \(error.localizedDescription)"
+            }
+        }
+    }
 }
 
 #if os(macOS)
 /// Sheet for adding a new saved gateway or editing an existing one (rename,
 /// change URL/key). Presented from Settings and the toolbar gateway switcher.
-struct AddGatewaySheet: View {
+internal struct AddGatewaySheet: View {
     /// When set, the sheet edits this gateway in place instead of adding.
-    var editing: SavedGateway?
-    let onAdd: (_ name: String, _ url: String, _ apiKey: String, _ kind: BackendKind) -> Void
-    let onCancel: () -> Void
+    internal var editing: SavedGateway?
+    internal let onAdd: (_ name: String, _ url: String, _ apiKey: String, _ kind: BackendKind) -> Void
+    internal let onCancel: () -> Void
 
     @State private var name = ""
     @State private var url = ""
@@ -424,7 +970,7 @@ struct AddGatewaySheet: View {
         !url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             Form {
                 Section(editing == nil ? "New Backend" : "Edit Backend") {
@@ -434,8 +980,6 @@ struct AddGatewaySheet: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    // Kind is identity: URLs aren't portable across backend
-                    // platforms, so editing keeps the kind fixed.
                     .disabled(editing != nil)
                     TextField("Name (optional)", text: $name)
                         .textFieldStyle(.roundedBorder)
@@ -486,10 +1030,8 @@ struct AddGatewaySheet: View {
 #endif
 
 /// Remote-push (APNs) status: whether this device has an OS-granted push
-/// token and whether the connected gateway has APNs credentials. The plumbing
-/// is dormant until both are true (see docs/apns-setup.md), and nothing else
-/// in the UI says which half is missing — this row does.
-struct APNsStatusRow: View {
+/// token and whether the connected gateway has APNs credentials.
+internal struct APNsStatusRow: View {
     @ObservedObject private var push = PushRegistrationService.shared
 
     private enum PushState {
@@ -536,11 +1078,10 @@ struct APNsStatusRow: View {
 
     private var state: PushState {
         guard push.deviceTokenHex != nil else { return .noDeviceToken }
-        // Registered with the gateway; configured unless it told us otherwise.
         return push.gatewayAPNsConfigured == true ? .active : .gatewayUnconfigured
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Image(systemName: state.icon)

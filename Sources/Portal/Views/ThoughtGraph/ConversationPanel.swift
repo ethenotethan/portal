@@ -6,24 +6,20 @@ import SwiftUI
 /// observes the live `ChatViewModel`, so tokens stream in and bubbles grow here
 /// exactly as they do in the normal chat.
 ///
-/// Under EACH turn it renders that turn's inline lens rail (`InlineTurnRail`):
-/// the compact flamechart strip and skills chips, driven by the shared panel
-/// registry. Past turns replay their rail from the recorded transcript; the live
-/// turn's rail updates as it streams. Any rail lens can be peeled onto the canvas
-/// as its own panel, at which point the registry drops it from the rail — one
-/// lens definition, two placements, no duplication. This is what makes the
-/// in-chat activity targetable instead of a hardcoded live-only block.
+/// This is a plain transcript: message bubbles, and a streaming-status line
+/// under the live turn. It deliberately does NOT inject a per-turn lens rail or
+/// a docked lens section beneath the bubbles — that inline lens-embedding layer
+/// was a second place the same activity rendered (thinking already shows inside
+/// the bubble via `ReasoningSection`/`ThinkingTraceSection`), and its peel/dock
+/// affordance overlaid an extra tappable subview on the pane rather than letting
+/// the arrangement be edited in place. Turn activity now lives in one place: the
+/// bubble for reasoning/tools, and the canvas lens TILES (added from the palette,
+/// e.g. flamechart / tools / thinking) for anyone who wants the plotted view.
 ///
-/// Timer-free at this level: it re-renders on `ChatViewModel` publishes (new /
-/// grown messages, streaming toggles), never on a clock. The only timer is
-/// inside the live turn's flamechart strip, gated on a still-growing bar, so the
-/// canvas stays at one timer.
+/// Timer-free: it re-renders on `ChatViewModel` publishes (new / grown messages,
+/// streaming toggles), never on a clock.
 internal struct ConversationPanel: View {
     @ObservedObject internal var chatViewModel: ChatViewModel
-    /// The two per-turn graph integrators, observed by the live rail so it
-    /// rebuilds as nested subagent/reasoning nodes land.
-    internal var subagentGraph: SubagentGraphIntegrator
-    internal var reasoningGraph: ReasoningGraphIntegrator
     /// The identity the chat presents (harness persona for Centaur, else the
     /// user's Hermes persona) — passed in so this panel doesn't re-derive it.
     internal let persona: Persona
@@ -33,60 +29,12 @@ internal struct ConversationPanel: View {
     /// message with this id and the user prompt that opened it — instead of the
     /// whole transcript. Nil (Scroll mode) shows the full ever-growing thread.
     internal var focusedTurnID: UUID?
-    /// The shared flamechart engine (carried in each turn's context for parity
-    /// with the canvas; the inline strip owns its own layout engine).
-    internal var engine: ThoughtGraphLayoutEngine
-    /// Cross-highlight selection shared with the canvas lenses.
-    internal var selection: Binding<String?>?
-    /// The rail lenses to render under each turn — the registry's inline lenses
-    /// minus any already docked beneath the transcript.
-    internal var inlineLenses: [(kind: PanelKind, lens: InlineLens)] = []
-    /// Dock a rail lens (or the flamechart ↗ button) BELOW the transcript as a
-    /// persistent docked section. This IS the expand/peel action for the
-    /// conversation panel — the conversation is the container, so "expand" means
-    /// "dock here", not "fly out to the canvas". Nil = rail is read-only.
-    internal var onDockKind: ((PanelKind) -> Void)?
-    /// Peel a lens OUT to the canvas as a free-floating panel (bypasses dock).
-    /// When set, the flamechart ↗ button flies out to the canvas instead of docking.
-    internal var onPeelKind: ((PanelKind) -> Void)?
-
-    private let dockedRegistry = PanelRegistry.chatCanvas
-
-    // MARK: - Docked panels (attached INSIDE the conversation, below the transcript)
-
-    /// Lenses docked inside this panel — rendered as a persistent section BELOW
-    /// the transcript, resizable via a drag divider. Unlike canvas tiles they
-    /// travel with the conversation panel and are never external floating views.
-    /// The conversation is the ONLY panel that hosts a docked section.
-    internal var dockedViews: [(kind: PanelKind, content: AnyView)] = []
-    /// Remove a docked lens. Nil when there's nowhere to send the action (read-only).
-    internal var onDockedDetach: ((PanelKind) -> Void)?
-    /// Height of the docked section (controlled by the parent so it survives re-renders).
-    internal var dockedHeight: Binding<CGFloat>?
 
     /// Coalesce token-by-token auto-scroll: bucket the streaming tail so a full
     /// scroll pass fires per ~256 chars, not per delta (mirrors ChatView).
     private var streamTailKey: String {
         guard let last = chatViewModel.messages.last else { return "none" }
         return "\(last.id):\(last.content.count / 256):\(last.isStreaming)"
-    }
-
-    /// Memoized per-turn snapshots for SETTLED turns, keyed so the fold only
-    /// re-runs when the settled set actually changes (a new turn, a completed
-    /// stream, or a session switch) — never per streaming token. The live turn is
-    /// rendered separately from the integrators, so it's excluded here.
-    private static let settledTurnMemo = RenderMemo<[UUID: SessionTurn]>(limit: 8)
-
-    private var settledTurnsByID: [UUID: SessionTurn] {
-        var msgs = chatViewModel.messages
-        if chatViewModel.isStreaming, msgs.last?.isStreaming == true { msgs.removeLast() }
-        let key = "\(chatViewModel.currentSessionID ?? "none"):\(msgs.count):\(chatViewModel.isStreaming)"
-        return Self.settledTurnMemo.value(for: key) {
-            Dictionary(
-                SessionTurnBuilder.turns(from: msgs).map { ($0.id, $0) },
-                uniquingKeysWith: { first, _ in first }
-            )
-        }
     }
 
     /// The messages to render: the whole transcript in Scroll mode, or just the
@@ -112,120 +60,44 @@ internal struct ConversationPanel: View {
     }
 
     internal var body: some View {
-        VStack(spacing: 0) {
-            // ── The transcript (scroll region) ──
-            // frame(maxHeight: .infinity) ensures it takes all remaining space
-            // above the docked section, not the other way around.
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        let msgs = visibleMessages
-                        ForEach(msgs) { message in
-                            VStack(alignment: .leading, spacing: 4) {
-                                let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
-                                let prepared = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
-                                skinProvider.messageBubble(message: prepared, persona: persona)
-                                // The turn's inline lens rail, right under its reply.
-                                railUnder(message)
-                            }
-                            .id(message.id)
-                        }
-                        // Bottom anchor for auto-scroll.
-                        Color.clear.frame(height: 1).id(Self.bottomAnchor)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: .infinity)
-                .background(Theme.background)
-                .onChange(of: streamTailKey) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
-                .onChange(of: chatViewModel.messages.count) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
-                .onChange(of: focusedTurnID) { _, _ in scrollToTop(proxy) }
-                .onAppear { if showsLiveTail { scrollToBottom(proxy, animated: false) } }
-            }
-
-            // ── Docked panels (attached beneath, part of this view) ──
-            // These are lenses the user has chosen to dock INSIDE the
-            // conversation rather than as external canvas tiles. They travel
-            // with the panel and are the ONLY panels allowed to nest here.
-            if !dockedViews.isEmpty, let heightBinding = dockedHeight {
-                dockedSection(heightBinding)
-            }
-        }
-    }
-
-    /// The docked-panel section: a drag handle (divider) the user pulls to resize,
-    /// then the stacked lens views. Each lens has a detach button (× or ↗) that
-    /// calls `onDockedDetach` to promote it back to a canvas tile.
-    @ViewBuilder
-    private func dockedSection(_ heightBinding: Binding<CGFloat>) -> some View {
-        VStack(spacing: 0) {
-            // Drag handle
-            Rectangle()
-                .fill(Theme.border)
-                .frame(height: 1)
-            Color.clear
-                .frame(height: 10)
-                .contentShape(Rectangle())
-                .overlay(
-                    Capsule()
-                        .fill(Theme.tertiary.opacity(0.45))
-                        .frame(width: 36, height: 4)
-                )
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            let newH = max(80, heightBinding.wrappedValue - value.translation.height)
-                            heightBinding.wrappedValue = newH
-                        }
-                )
-                .pointerStyleDockedResize()
-
-            // The docked lenses, stacked and clipped to the docked height
+        ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(dockedViews, id: \.kind) { entry in
-                        VStack(spacing: 0) {
-                            HStack(spacing: 6) {
-                                Image(systemName: dockedRegistry.icon(for: entry.kind))
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(Theme.tertiary)
-                                Text(dockedRegistry.title(for: entry.kind))
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(Theme.secondary)
-                                Spacer()
-                                if let onDockedDetach {
-                                    Button { onDockedDetach(entry.kind) } label: {
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 9, weight: .semibold))
-                                            .foregroundStyle(Theme.tertiary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help("Remove from conversation")
-                                }
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Theme.surface.opacity(0.6))
-
-                            entry.content
-                                .frame(maxWidth: .infinity)
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    let msgs = visibleMessages
+                    ForEach(msgs) { message in
+                        VStack(alignment: .leading, spacing: 4) {
+                            let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
+                            let prepared = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
+                            skinProvider.messageBubble(message: prepared, persona: persona)
+                            // The live turn shows a streaming-status line under its
+                            // reply; settled turns show nothing extra (reasoning and
+                            // tools already render inside the bubble).
+                            streamingStatusUnder(message)
                         }
+                        .id(message.id)
                     }
+                    // Bottom anchor for auto-scroll.
+                    Color.clear.frame(height: 1).id(Self.bottomAnchor)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: heightBinding.wrappedValue)
+            .frame(maxHeight: .infinity)
             .background(Theme.background)
+            .onChange(of: streamTailKey) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
+            .onChange(of: chatViewModel.messages.count) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
+            .onChange(of: focusedTurnID) { _, _ in scrollToTop(proxy) }
+            .onAppear { if showsLiveTail { scrollToBottom(proxy, animated: false) } }
         }
     }
 
-    /// The lens rail (and, for the live turn, the streaming-status line) shown
-    /// beneath `message`. The streaming assistant message gets the live rail wired
-    /// to the integrators; a settled turn's assistant message gets a static rail
-    /// replayed from its recorded snapshot; every other message gets nothing.
+    /// The streaming-status line shown beneath the live (still-streaming) turn's
+    /// reply — the avatar state plus active tool calls, from the active skin.
+    /// Settled turns render nothing here: their reasoning and completed tools are
+    /// already part of the message bubble.
     @ViewBuilder
-    private func railUnder(_ message: ChatMessage) -> some View {
+    private func streamingStatusUnder(_ message: ChatMessage) -> some View {
         if message.isStreaming {
             skinProvider.streamingPanel(
                 state: chatViewModel.avatarState,
@@ -234,36 +106,6 @@ internal struct ConversationPanel: View {
                 accentColor: persona.accentColor
             )
             .id("conversation-streaming-status")
-
-            LiveInlineTurnRail(
-                chatViewModel: chatViewModel,
-                subagentGraph: subagentGraph,
-                reasoningGraph: reasoningGraph,
-                engine: engine,
-                selection: selection,
-                lenses: inlineLenses,
-                onDockKind: onDockKind,
-                onPeelKind: onPeelKind
-            )
-            .id("conversation-live-rail")
-        } else if let turn = settledTurnsByID[message.id] {
-            InlineTurnRail(
-                context: PanelContext(
-                    nodes: turn.nodes,
-                    compactions: turn.compactions,
-                    skills: turn.skills,
-                    isThinking: false,   // settled — no heartbeat
-                    isStreaming: false,  // …and no growing bars
-                    selection: selection,
-                    engine: engine,
-                    onJumpToTool: nil,
-                    onDock: onDockKind,
-                    onPeel: onPeelKind
-                ),
-                lenses: inlineLenses,
-                onDockKind: onDockKind
-            )
-            .id("conversation-rail-\(message.id)")
         }
     }
 
@@ -284,20 +126,5 @@ internal struct ConversationPanel: View {
     private func scrollToTop(_ proxy: ScrollViewProxy) {
         guard !showsLiveTail, let firstID = visibleMessages.first?.id else { return }
         withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(firstID, anchor: .top) }
-    }
-}
-
-// MARK: - Cursor (macOS only)
-
-private extension View {
-    @ViewBuilder
-    func pointerStyleDockedResize() -> some View {
-        #if os(macOS)
-        self.onHover { inside in
-            if inside { NSCursor.resizeUpDown.set() } else { NSCursor.arrow.set() }
-        }
-        #else
-        self
-        #endif
     }
 }
