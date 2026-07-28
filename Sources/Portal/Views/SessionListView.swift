@@ -330,31 +330,29 @@ struct SessionListView: View {
 
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 0) {
             Text("Sessions")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .textCase(.uppercase)
                 .foregroundStyle(Theme.tertiary)
-
-            HStack(spacing: 8) {
-                // Always a plain button — the gateway switcher is the single
-                // place to choose a backend; onCreateSession targets the
-                // focused one. The per-backend dropdown this replaced
-                // duplicated the switcher.
-                sidebarHeaderButton(
-                    icon: "plus",
-                    title: "New Session",
-                    accessibilityLabel: "New Session",
-                    accessibilityID: "newSessionButton",
-                    isPrimary: true,
-                    action: { onCreateSession?() }
-                )
+            Spacer(minLength: 0)
+            Button {
+                onCreateSession?()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 28, height: 28)
             }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("New Session")
+            .accessibilityIdentifier("newSessionButton")
+            .help("New Session")
         }
         .padding(.horizontal, 12)
         .padding(.top, 12)
-        .padding(.bottom, 8)
+        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.background)
     }

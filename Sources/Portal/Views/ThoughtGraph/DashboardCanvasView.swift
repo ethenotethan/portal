@@ -143,7 +143,10 @@ internal struct DashboardCanvasView: View {
             }
         }
         .frame(width: panel.frame.width, height: visibleHeight)
-        .offset(x: panel.frame.minX, y: panel.frame.minY)
+        .position(
+            x: panel.frame.minX + panel.frame.width / 2,
+            y: panel.frame.minY + visibleHeight / 2
+        )
     }
 
     /// The visual card: title bar + content, with the panel chrome. In use mode

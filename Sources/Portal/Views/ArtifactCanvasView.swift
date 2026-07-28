@@ -16,10 +16,11 @@ internal struct ArtifactCanvasView: View {
     @State private var didSeedLayout = false
     @State private var canvasBounds: CGSize = .zero
     @State private var isEditing = false
-    @State private var showsTitleBars = true
+    @State private var showsTitleBars = false
 
     // List state
     @State private var selectedID: String?
+    @State private var expandedArtifact: LivingArtifact?
 
     // Shared
     @AppStorage("artifactViewMode") private var viewMode: ViewMode = .list
@@ -46,18 +47,21 @@ internal struct ArtifactCanvasView: View {
         .onChange(of: store.sortedArtifacts.map(\.id)) { _, newIDs in
             reconcileLayout(artifactIDs: newIDs, bounds: canvasBounds)
         }
+        .sheet(item: $expandedArtifact) { artifact in
+            ArtifactExpandedSheet(artifact: artifact)
+                .environmentObject(gatewayClientWrapper)
+                .environmentObject(capabilitiesStore)
+        }
     }
+
+    // environment objects needed for the sheet
+    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     // MARK: - Toolbar
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            Image(systemName: "internaldrive")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(Theme.accent)
-            Text("Artifacts")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(Theme.primary)
             Text("\(store.sortedArtifacts.count)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
@@ -73,32 +77,35 @@ internal struct ArtifactCanvasView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.secondary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
             .help("Resync from gateway")
 
             // View mode toggle
             HStack(spacing: 2) {
                 ForEach([ViewMode.list, .canvas], id: \.rawValue) { mode in
                     Button {
-                        viewMode = mode
+                        if mode != viewMode {
+                            isEditing = false
+                            viewMode = mode
+                        }
                     } label: {
                         Image(systemName: mode == .list ? "list.bullet" : "rectangle.3.group")
                             .font(.system(size: 11))
                             .foregroundStyle(viewMode == mode ? Theme.accent : Theme.tertiary)
-                            .frame(width: 24, height: 24)
+                            .padding(6)
                             .background(
                                 viewMode == mode ? Theme.accent.opacity(0.12) : Color.clear,
                                 in: RoundedRectangle(cornerRadius: 5)
                             )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderless)
                     .help(mode == .list ? "List view" : "Canvas view")
                 }
             }
 
-            if viewMode == .canvas {
-                Divider().frame(height: 16).opacity(0.4)
+            Divider().frame(height: 16).opacity(0.4)
 
+            if viewMode == .canvas {
                 // Add panel picker — only when panels have been hidden
                 if !hiddenArtifacts.isEmpty {
                     Menu {
@@ -124,7 +131,7 @@ internal struct ArtifactCanvasView: View {
                         .font(.system(size: 11))
                 }
                 .toggleStyle(.button)
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .foregroundStyle(showsTitleBars ? Theme.accent : Theme.tertiary)
                 .help(showsTitleBars ? "Hide panel headers" : "Show panel headers")
 
@@ -137,6 +144,18 @@ internal struct ArtifactCanvasView: View {
                 .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
 
+            if viewMode == .list, let artifact = selectedArtifact {
+                Button {
+                    expandedArtifact = artifact
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Expand to full screen")
+            }
+
             if let onClose {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
@@ -145,7 +164,7 @@ internal struct ArtifactCanvasView: View {
                         .frame(width: 26, height: 26)
                         .background(Theme.surfaceHover, in: Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
             }
         }
         .padding(.horizontal, 16)
@@ -195,9 +214,11 @@ internal struct ArtifactCanvasView: View {
 
             // Detail — full renderer for selected artifact
             if let artifact = selectedArtifact {
-                ArtifactListDetail(artifact: artifact)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .id(artifact.id)
+                ArtifactListDetail(artifact: artifact) {
+                    expandedArtifact = artifact
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .id(artifact.id)
             } else {
                 Text("Select an artifact")
                     .font(.callout)
@@ -376,6 +397,13 @@ internal struct ArtifactCanvasView: View {
     /// prune stale panels, add new artifacts that have no panel yet.
     private func reconcileLayout(artifactIDs: [String], bounds: CGSize) {
         guard didSeedLayout, bounds.width > 0 else { return }
+        // If the canvas seeded before store.pull() returned (empty store), and
+        // artifacts have now arrived, re-seed with the full tiling algorithm.
+        if layout.isEmpty, !artifactIDs.isEmpty {
+            layout = Self.seededDefault(for: bounds, artifacts: store.sortedArtifacts)
+            layout.store(key: Self.layoutKey)
+            return
+        }
         let validSet = Set(artifactIDs)
         var panels = layout.panels.filter { panel in
             guard let id = Self.artifactID(from: panel.kind) else { return false }
@@ -441,6 +469,7 @@ internal struct ArtifactCanvasView: View {
 /// rendered content below.
 private struct ArtifactListDetail: View {
     let artifact: LivingArtifact
+    var onExpand: (() -> Void)?
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
@@ -448,7 +477,32 @@ private struct ArtifactListDetail: View {
     @State private var cronVM = CronListViewModel()
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            // Detail sub-header: artifact id + expand button
+            HStack {
+                Text(artifact.id)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    onExpand?()
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .help("Expand to full screen")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Theme.surface.opacity(0.3))
+
+            Divider().overlay(Theme.border.opacity(0.5))
+
             if artifact.kind == "html" {
                 VStack(alignment: .leading, spacing: 0) {
                     ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
@@ -484,6 +538,113 @@ private struct ArtifactListDetail: View {
         await cronVM.refreshJobs()
         if capabilitiesStore.capabilities.supportsActionLog {
             ArtifactStore.shared.rehydrateBadges(for: artifact.id)
+        }
+    }
+}
+
+// MARK: - Expanded full-screen sheet
+
+/// Full-screen sheet showing a single artifact. Shown from both the toolbar
+/// expand button and the detail pane chevron. Keyboard Escape dismisses.
+private struct ArtifactExpandedSheet: View {
+    let artifact: LivingArtifact
+    @Environment(\.dismiss) private var dismiss
+
+    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
+    @ObservedObject private var store = ArtifactStore.shared
+    @State private var cronVM = CronListViewModel()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
+                Image(systemName: kindIcon(for: artifact.kind))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                Text(artifact.displayName)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                if artifact.rev > 0 {
+                    Text("r\(artifact.rev)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Theme.tertiary)
+                }
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.tertiary)
+                        .frame(width: 28, height: 28)
+                        .background(Theme.surfaceHover, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(Theme.surface)
+
+            Divider().overlay(Theme.border)
+
+            // Content
+            if artifact.kind == "html" {
+                VStack(alignment: .leading, spacing: 0) {
+                    ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                        .padding(20)
+                    ArtifactKindRenderer(
+                        kind: artifact.kind,
+                        content: store.artifacts[artifact.id]?.content ?? artifact.content,
+                        actionableArtifactID: artifact.id,
+                        topLevelActions: artifact.topLevelActions
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                        ArtifactKindRenderer(
+                            kind: artifact.kind,
+                            content: store.artifacts[artifact.id]?.content ?? artifact.content,
+                            actionableArtifactID: artifact.id,
+                            topLevelActions: artifact.topLevelActions
+                        )
+                    }
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .background(Theme.background)
+        .frame(minWidth: 800, minHeight: 600)
+        .task { await refreshCrons() }
+    }
+
+    private func refreshCrons() async {
+        cronVM.setGatewayClient(gatewayClientWrapper.client)
+        await cronVM.refreshJobs()
+        if capabilitiesStore.capabilities.supportsActionLog {
+            store.rehydrateBadges(for: artifact.id)
+        }
+    }
+
+    private func kindIcon(for kind: String) -> String {
+        switch kind {
+        case "map": return "map"
+        case "chart": return "chart.xyaxis.line"
+        case "graph": return "point.3.connected.trianglepath.dotted"
+        case "stats": return "square.grid.2x2"
+        case "dataset": return "tablecells"
+        case "timeline": return "calendar.day.timeline.left"
+        case "sankey": return "arrow.triangle.branch"
+        case "model": return "cube.transparent"
+        case "html": return "globe"
+        default: return "doc.text"
         }
     }
 }
@@ -585,4 +746,5 @@ private struct ArtifactPanelContent: View {
         }
     }
 }
+
 #endif

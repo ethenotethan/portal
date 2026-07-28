@@ -110,6 +110,15 @@ internal struct ContentView: View {
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
                     await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
+                    // Auto-select the most recent session so the chat pane is
+                    // populated on launch without requiring "New Session".
+                    if sessionList.activeSessionID == nil,
+                       let recent = sessionList.sessions.max(by: {
+                           ($0.lastActive ?? $0.startedAt ?? .distantPast) <
+                           ($1.lastActive ?? $1.startedAt ?? .distantPast)
+                       }) {
+                        sessionList.selectSession(id: recent.id)
+                    }
                 }
             }
         }
@@ -477,42 +486,31 @@ internal struct ContentView: View {
 
     private var macTopChromeRow: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 0) {
-                Color.clear.frame(width: 78)
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        isMacSidebarVisible.toggle()
-                    }
-                } label: {
-                    Image(systemName: isMacSidebarVisible ? "sidebar.left" : "sidebar.right")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Toggle Sidebar")
-                .accessibilityIdentifier("sidebarToggleButton")
-
-                Spacer(minLength: 0)
-            }
-            .frame(width: isMacSidebarVisible ? macSidebarWidth : 112, height: 40)
-            .background(Theme.background)
-
-            if isMacSidebarVisible {
-                Rectangle()
-                    .fill(Theme.border)
-                    .frame(width: 1, height: 40)
-            }
-
             if isOverlayActive {
                 overlayHeaderBar
             } else {
                 HStack(spacing: 0) {
+                    // Sidebar toggle flush left
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            isMacSidebarVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isMacSidebarVisible ? "sidebar.left" : "sidebar.right")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.leading, 12)
+                    .accessibilityLabel("Toggle Sidebar")
+                    .accessibilityIdentifier("sidebarToggleButton")
+
+                    // Agent name + model right next to the toggle
                     chatToolbarPills
-                        .padding(.leading, 12)
+                        .padding(.leading, 8)
+
                     Spacer(minLength: 0)
+
                     #if os(macOS)
                     macOverlayIcons
                         .padding(.trailing, 14)
@@ -547,6 +545,7 @@ internal struct ContentView: View {
 
     private var overlayHeaderBar: some View {
         HStack(spacing: 12) {
+
             Button {
                 closeAllOverlays()
                 chatViewModel.refocusInput += 1
@@ -559,7 +558,7 @@ internal struct ContentView: View {
                 }
                 .foregroundStyle(Theme.accent)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
             .keyboardShortcut(.escape, modifiers: [])
 
             Text(overlayTitle)
@@ -596,17 +595,6 @@ internal struct ContentView: View {
                 Circle()
                     .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
                     .frame(width: 6, height: 6)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.quaternary, in: Capsule())
-
-            HStack(spacing: 4) {
-                Image(systemName: activeSkin.icon)
-                    .font(.caption2)
-                Text(activeSkin.displayName)
-                    .font(.caption2)
-                    .fontWeight(.medium)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

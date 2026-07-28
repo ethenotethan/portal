@@ -158,13 +158,8 @@ struct CronDashboardView: View {
     // MARK: - Header
 
     private var headerBar: some View {
-        HStack(spacing: 12) {
-            Text("Cron Activity")
-                .font(.headline)
-                .foregroundStyle(Theme.primary)
-
+        HStack {
             Spacer()
-
             Picker("", selection: $timeHorizon) {
                 ForEach(TimeHorizon.allCases, id: \.self) { h in
                     Text(h.rawValue).tag(h)
