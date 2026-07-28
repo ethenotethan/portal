@@ -13,8 +13,8 @@ import SwiftUI
 ///   │  (collapsible transcript below)      │
 ///   └──────────────────────────────────────┘
 #if os(macOS)
-struct CronSessionView: View {
-    let session: Session
+internal struct CronSessionView: View {
+    internal let session: Session
 
     @EnvironmentObject private var chatViewModel: ChatViewModel
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
@@ -28,7 +28,7 @@ struct CronSessionView: View {
         return runHistory.records.first { abs($0.firedAt.timeIntervalSince(firedAt)) < 120 }
     }
 
-    var body: some View {
+    internal var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header

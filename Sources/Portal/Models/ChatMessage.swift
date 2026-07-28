@@ -94,7 +94,7 @@ struct ChatMessage: Identifiable, Codable {
 
     /// True for gateway-injected cron context messages that should not
     /// be shown in the chat transcript.
-    var isCronInjection: Bool {
+    internal var isCronInjection: Bool {
         role == .user && content.hasPrefix("[IMPORTANT:") && content.contains("cron job")
     }
 }
