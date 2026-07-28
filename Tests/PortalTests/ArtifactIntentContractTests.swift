@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 // Pure-function coverage for the artifact-intent contract: the manifest
 // grammar (ArtifactAction.parse intent branch), the gateway record decode

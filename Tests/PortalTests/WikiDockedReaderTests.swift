@@ -1,6 +1,6 @@
 import CoreGraphics
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 // The macOS reader is a right-docked panel driven by the shared selection
 // plane (no per-card history). These exercise the three read-only focus levels
