@@ -48,7 +48,7 @@ struct CFAuthView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay {
                     if viewModel.isLoading {
-                        HermesProgressView(label: "Loading…")
+                        PortalProgressView(label: "Loading…")
                     } else if let error = viewModel.errorMessage {
                         VStack(spacing: 12) {
                             Image(systemName: "wifi.exclamationmark")

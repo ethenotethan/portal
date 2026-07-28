@@ -172,7 +172,7 @@ struct SkillsView: View {
 
     private var loadingState: some View {
         HStack(spacing: 8) {
-            HermesProgressView().scaleEffect(0.7)
+            PortalProgressView().scaleEffect(0.7)
             Text("Loading skills…")
                 .font(.caption)
                 .foregroundStyle(Theme.secondary)
@@ -312,7 +312,7 @@ struct SkillsView: View {
 
             if viewModel.isSearching {
                 HStack(spacing: 8) {
-                    HermesProgressView().scaleEffect(0.7)
+                    PortalProgressView().scaleEffect(0.7)
                     Text("Searching...")
                         .font(.caption)
                         .foregroundStyle(Theme.secondary)
@@ -449,7 +449,7 @@ struct SkillCard: View {
                     fallbackText(fallback)
                 }
                 HStack(spacing: 6) {
-                    HermesProgressView().scaleEffect(0.5)
+                    PortalProgressView().scaleEffect(0.5)
                     Text(SkillSummaryService.shared.isModelReady
                          ? "Summarizing with local model…"
                          : "Preparing local model (downloads ~600MB on first use)…")
@@ -557,7 +557,7 @@ struct SkillCard: View {
 
             if let status = installStatus {
                 if status == "installing" || status == "uninstalling" {
-                    HermesProgressView().scaleEffect(0.7)
+                    PortalProgressView().scaleEffect(0.7)
                 } else if status == "installed" {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Theme.success)
@@ -658,7 +658,7 @@ private struct SkillMarkdownSheet: View {
 
                 if isLoading {
                     Spacer()
-                    HermesProgressView(label: "Loading markdown…")
+                    PortalProgressView(label: "Loading markdown…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     Spacer()
                 } else if let loadError {
@@ -725,7 +725,7 @@ private struct SkillMarkdownSheet: View {
                 }
 
                 if isSaving {
-                    HermesProgressView(label: "Saving…").padding(8)
+                    PortalProgressView(label: "Saving…").padding(8)
                 }
             }
             .background(Theme.background)
@@ -816,7 +816,7 @@ private struct HubResultRow: View {
             Spacer()
             if let status = installStatus {
                 if status == "installing" {
-                    HermesProgressView().scaleEffect(0.7)
+                    PortalProgressView().scaleEffect(0.7)
                 } else if status == "installed" {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Theme.success)

@@ -15,7 +15,7 @@ struct ContentView: View {
     @EnvironmentObject var celebrationManager: CelebrationManager
     @EnvironmentObject var ttsService: TTSService
     @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
     @StateObject private var chatViewModel = ChatViewModel()
     @StateObject private var activityInbox = ActivityInboxViewModel()
     // Hoisted so the home-gateway wiki graph loads at connect time, not when
@@ -1208,7 +1208,7 @@ struct ContentView: View {
         if isCreatingSession || sessionCreationError != nil || chatViewModel.error != nil {
             HStack(spacing: 8) {
                 if isCreatingSession {
-                    HermesProgressView()
+                    PortalProgressView()
                         .scaleEffect(0.7)
                     Text("Connecting…")
                         .font(.caption)

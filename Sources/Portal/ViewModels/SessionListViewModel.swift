@@ -38,7 +38,7 @@ final class SessionListViewModel: ObservableObject {
     private let metaSync = SessionMetaSyncService()
     /// Per-session last-modified stamps for sync merge (session ID → date).
     private var metaUpdatedAt: [String: Date] = [:]
-    private static let metaUpdatedAtKey = "hermes.sessionMetaUpdatedAt"
+    private static let metaUpdatedAtKey = "portal.sessionMetaUpdatedAt"
 
     // MARK: - Local Storage (Coalesced UserDefaults)
 
@@ -48,11 +48,11 @@ final class SessionListViewModel: ObservableObject {
     /// pattern updates in-memory backing stores immediately and flushes
     /// to disk on a timer, collapsing rapid mutations into one write cycle.
 
-    private static let titlesKey = "hermes.sessionTitles"
-    private static let gatewayIDMapKey = "hermes.gatewayIDMap"
-    private static let archivedIDsKey = "hermes.archivedSessions"
-    private static let pinnedIDsKey = "hermes.pinnedSessions"
-    private static let tagsKey = "hermes.sessionTags"
+    private static let titlesKey = "portal.sessionTitles"
+    private static let gatewayIDMapKey = "portal.gatewayIDMap"
+    private static let archivedIDsKey = "portal.archivedSessions"
+    private static let pinnedIDsKey = "portal.pinnedSessions"
+    private static let tagsKey = "portal.sessionTags"
 
     // ── In-memory backing stores ──
     private var _gatewayIDMap: [String: String] = [:]

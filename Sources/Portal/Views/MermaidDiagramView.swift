@@ -202,7 +202,7 @@ private struct NativeMermaidRenderer: View {
                 ErrorCard(error: error, source: source)
             } else {
                 VStack(spacing: 8) {
-                    HermesProgressView()
+                    PortalProgressView()
                     Text("Rendering diagram…")
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
@@ -671,7 +671,7 @@ private struct WebMermaidRenderer: View {
                 ZoomableDiagram(image: image)
             } else {
                 VStack(spacing: 8) {
-                    HermesProgressView()
+                    PortalProgressView()
                     Text("Rendering diagram…")
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)

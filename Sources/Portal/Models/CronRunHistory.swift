@@ -28,8 +28,8 @@ final class CronRunHistoryStore: ObservableObject {
     @Published private(set) var records: [CronRunRecord] = []
     @Published var unreadCronRunCount: Int = 0
 
-    private static let storageKey = "hermes.cronRunHistory"
-    private static let fileMigratedKey = "hermes.cronRunHistory.fileMigrated"
+    private static let storageKey = "portal.cronRunHistory"
+    private static let fileMigratedKey = "portal.cronRunHistory.fileMigrated"
     private let maxRecordsPerJob = 500
 
     private var previousLastRuns: [String: Date] = [:]

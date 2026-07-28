@@ -4,7 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
     @Environment(\.dismiss) private var dismiss
     @State private var showCFAuth = false
 

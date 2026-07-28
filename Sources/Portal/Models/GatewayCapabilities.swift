@@ -1,7 +1,7 @@
 import Foundation
 
-/// Normalized capability data reported by the Hermes gateway.
-struct HermesCapabilities: Equatable, Sendable {
+/// Normalized capability data reported by the connected gateway.
+struct GatewayCapabilities: Equatable, Sendable {
     enum Source: Equatable, Sendable {
         case gateway(method: String)
         case fallback(reason: String)
@@ -15,14 +15,14 @@ struct HermesCapabilities: Equatable, Sendable {
     }
 
     var gatewayVersion: String?
-    var hermesVersion: String?
+    var agentVersion: String?
     var capabilityNames: Set<String>
     var hasImageInput: Bool
     var hasACPImagePrompts: Bool
     var source: Source
 
     var versionDisplay: String {
-        gatewayVersion ?? hermesVersion ?? "Unknown"
+        gatewayVersion ?? agentVersion ?? "Unknown"
     }
 
     var statusDisplay: String {
@@ -56,22 +56,22 @@ struct HermesCapabilities: Equatable, Sendable {
         })
     }
 
-    static let conservativeDefaults = HermesCapabilities(
+    static let conservativeDefaults = GatewayCapabilities(
         gatewayVersion: nil,
-        hermesVersion: nil,
+        agentVersion: nil,
         capabilityNames: [],
         hasImageInput: false,
         hasACPImagePrompts: false,
         source: .fallback(reason: "Gateway did not report capabilities")
     )
 
-    static func fallback(reason: String) -> HermesCapabilities {
+    static func fallback(reason: String) -> GatewayCapabilities {
         var capabilities = conservativeDefaults
         capabilities.source = .fallback(reason: reason)
         return capabilities
     }
 
-    static func from(result: AnyCodable?, method: String) -> HermesCapabilities {
+    static func from(result: AnyCodable?, method: String) -> GatewayCapabilities {
         guard let result else {
             var capabilities = conservativeDefaults
             capabilities.source = .gateway(method: method)
@@ -80,12 +80,12 @@ struct HermesCapabilities: Equatable, Sendable {
         return from(value: result, method: method)
     }
 
-    static func from(value: AnyCodable, method: String) -> HermesCapabilities {
+    static func from(value: AnyCodable, method: String) -> GatewayCapabilities {
         if value.dictionaryValue == nil,
            let version = value.stringValue ?? value.intValue.map({ String($0) }) ?? value.doubleValue.map({ String($0) }) {
-            return HermesCapabilities(
+            return GatewayCapabilities(
                 gatewayVersion: method.contains("gateway") ? version : nil,
-                hermesVersion: method.contains("hermes") ? version : nil,
+                agentVersion: method.contains("hermes") || method.contains("agent") ? version : nil,
                 capabilityNames: [],
                 hasImageInput: false,
                 hasACPImagePrompts: false,
@@ -106,15 +106,15 @@ struct HermesCapabilities: Equatable, Sendable {
             "gateway_version", "gatewayVersion", "version", "server_version", "serverVersion"
         ])
 
-        let hermesVersion = firstString(in: root, keys: [
+        let agentVersion = firstString(in: root, keys: [
             "hermes_version", "hermesVersion", "agent_version", "agentVersion", "version"
         ]) ?? firstString(in: capabilityContainer, keys: [
             "hermes_version", "hermesVersion", "agent_version", "agentVersion", "version"
         ])
 
-        return HermesCapabilities(
+        return GatewayCapabilities(
             gatewayVersion: gatewayVersion,
-            hermesVersion: hermesVersion,
+            agentVersion: agentVersion,
             capabilityNames: names,
             hasImageInput: boolCapability(
                 names: names,

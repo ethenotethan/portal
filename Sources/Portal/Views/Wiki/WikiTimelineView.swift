@@ -181,7 +181,7 @@ struct WikiTimelineView: View {
     private var content: some View {
         if viewModel.isLoading && viewModel.changesets.isEmpty {
             Spacer()
-            HermesProgressView(label: "Loading timeline…")
+            PortalProgressView(label: "Loading timeline…")
             Spacer()
         } else if let error = viewModel.error, viewModel.changesets.isEmpty {
             errorState(error)
@@ -288,7 +288,7 @@ struct WikiTimelineView: View {
         HStack {
             Spacer()
             if viewModel.isLoadingMore {
-                HermesProgressView()
+                PortalProgressView()
                     .scaleEffect(0.7)
             } else {
                 Button("Load more") {

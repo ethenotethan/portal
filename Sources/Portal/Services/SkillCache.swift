@@ -10,8 +10,8 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillC
 /// instantly even when the view is recreated.
 @MainActor
 enum SkillCacheDisk {
-    private static let key = "hermes.skillCache.v1"
-    private static let timestampKey = "hermes.skillCache.timestamp"
+    private static let key = "portal.skillCache.v1"
+    private static let timestampKey = "portal.skillCache.timestamp"
 
     struct CachedSkills: Codable {
         let categories: [String: [CachedSkillInfo]]

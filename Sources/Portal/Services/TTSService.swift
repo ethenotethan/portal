@@ -14,7 +14,7 @@ final class TTSService: ObservableObject {
     @Published var isSpeaking = false
 
     private let synthesizer = AVSpeechSynthesizer()
-    private let defaultsKey = "hermes.tts.enabled"
+    private let defaultsKey = "portal.tts.enabled"
 
     private init() {
         isEnabled = UserDefaults.standard.bool(forKey: defaultsKey)

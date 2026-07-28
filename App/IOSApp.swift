@@ -9,7 +9,7 @@ struct PortalAppIOS: App {
     @StateObject private var personaManager = PersonaManager()
     @StateObject private var spawnTreeStore = SpawnTreeStore()
     @StateObject private var gatewayClientWrapper = GatewayClientWrapper()
-    @StateObject private var capabilitiesStore = HermesCapabilitiesStore()
+    @StateObject private var capabilitiesStore = GatewayCapabilitiesStore()
     @StateObject private var celebrationManager = CelebrationManager.shared
     @StateObject private var ttsService = TTSService.shared
 

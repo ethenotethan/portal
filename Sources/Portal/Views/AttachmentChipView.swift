@@ -68,7 +68,7 @@ struct AttachmentChipView: View {
         switch attachment.downloadState {
         case .notStarted:
             if attachment.isRemote {
-                HermesProgressView()
+                PortalProgressView()
                     .scaleEffect(0.6)
             } else {
                 Image(systemName: attachment.category.icon)
@@ -76,7 +76,7 @@ struct AttachmentChipView: View {
                     .foregroundStyle(Theme.accent)
             }
         case .downloading:
-            HermesProgressView()
+            PortalProgressView()
                 .scaleEffect(0.6)
         case .ready:
             Image(systemName: attachment.category.icon)
@@ -316,7 +316,7 @@ struct FilePreviewView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             } else {
-                HermesProgressView()
+                PortalProgressView()
                     .scaleEffect(0.8)
                 Text("Preparing file…")
                     .font(.system(size: 12))

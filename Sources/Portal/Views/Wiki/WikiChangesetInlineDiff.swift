@@ -31,7 +31,7 @@ struct WikiChangesetInlineDiff: View {
         if state.isLoading {
             HStack {
                 Spacer()
-                HermesProgressView(label: "Loading diff…")
+                PortalProgressView(label: "Loading diff…")
                 Spacer()
             }
             .padding(.vertical, 20)

@@ -3,7 +3,7 @@ import SwiftUI
 /// A macOS-safe alternative to ProgressView that avoids the
 /// "Unable to render flattened version of PlatformViewRepresentableAdaptor<AppKitProgressView>"
 /// diagnostic by using a SwiftUI-native spinner.
-struct HermesProgressView: View {
+struct PortalProgressView: View {
     var label: String?
 
     @State private var rotation: Double = 0

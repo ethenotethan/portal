@@ -39,7 +39,7 @@ struct Persona: Codable, Identifiable, Equatable, Sendable {
     }
 
     static let defaultPersona = Persona(
-        id: "hermes", name: "Hermes", tagline: "Your AI agent",
+        id: "portal", name: "Portal", tagline: "Your AI agent",
         symbolName: "sparkles", accentColorHex: "#007AFF",
         isBuiltIn: true
     )

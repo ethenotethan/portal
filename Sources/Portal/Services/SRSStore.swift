@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.researchours.Portal", category: "SRSStore")
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SRSStore")
 
 /// Persists flashcard decks with SRS state to local disk.
 /// Files live in Application Support/portal/srs-decks/<id>.json

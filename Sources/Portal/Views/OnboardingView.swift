@@ -5,7 +5,7 @@ struct OnboardingView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
     @State private var testing = false
     @State private var testResult: String?
     @State private var showCFAuth = false
@@ -32,7 +32,7 @@ struct OnboardingView: View {
                     .font(.title)
                     .fontWeight(.bold)
 
-                Text("Connect to your Hermes Agent gateway")
+                Text("Connect to your gateway")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -87,7 +87,7 @@ struct OnboardingView: View {
                         testConnection()
                     } label: {
                         if testing {
-                            HermesProgressView()
+                            PortalProgressView()
                                 .controlSize(.small)
                         } else {
                             Text("Test Connection")
@@ -222,7 +222,7 @@ struct OnboardingView: View {
                             testConnection()
                         } label: {
                             if testing {
-                                HermesProgressView()
+                                PortalProgressView()
                                     .controlSize(.small)
                             } else {
                                 Text("Test Connection")

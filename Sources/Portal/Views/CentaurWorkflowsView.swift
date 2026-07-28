@@ -152,7 +152,7 @@ struct CentaurWorkflowsView: View {
     private var content: some View {
         if isLoading {
             VStack(spacing: 10) {
-                HermesProgressView()
+                PortalProgressView()
                 Text("Loading workflows…")
                     .font(.caption)
                     .foregroundStyle(Theme.tertiary)
@@ -354,7 +354,7 @@ private struct WorkflowGroupRow: View {
     @ViewBuilder
     private var statusGlyph: some View {
         if group.hasActiveRun {
-            HermesProgressView()
+            PortalProgressView()
                 .scaleEffect(0.55)
                 .frame(width: 18)
         } else if let latest = group.runs.first {

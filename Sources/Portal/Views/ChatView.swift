@@ -13,7 +13,7 @@ struct ChatView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
     @EnvironmentObject var ttsService: TTSService
     @State private var showSkinPicker = false
     @State private var showGatewayDebug = false
@@ -856,7 +856,7 @@ struct ChatView: View {
 
     private var creatingSessionIndicator: some View {
         HStack(spacing: 4) {
-            HermesProgressView()
+            PortalProgressView()
                 .scaleEffect(0.7)
             Text("Creating session…")
                 .font(.caption)
@@ -946,7 +946,7 @@ struct ChatView: View {
 
                             if let status = chatViewModel.transientStatus {
                                 HStack(spacing: 6) {
-                                    HermesProgressView()
+                                    PortalProgressView()
                                         .scaleEffect(0.6)
                                     Text(status)
                                         .font(.caption)
@@ -1355,7 +1355,7 @@ struct SkinPickerView: View {
 struct ChatInputBar: View {
     @EnvironmentObject var chatViewModel: ChatViewModel
     @EnvironmentObject var personaManager: PersonaManager
-    @EnvironmentObject var capabilitiesStore: HermesCapabilitiesStore
+    @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
 
     /// Harness-fixed identity (Centaur) beats the Hermes persona — the
     /// placeholder must name who the user is actually messaging.
@@ -1848,7 +1848,7 @@ struct ChatInputBar: View {
     // MARK: - Cache Helpers
 
     /// Directory for cached user-sent images.
-    private static var hermesImagesDir: String {
+    private static var gatewayImagesDir: String {
         let home = NSHomeDirectory()
         let dir = "\(home)/.hermes/images"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -1857,7 +1857,7 @@ struct ChatInputBar: View {
 
     /// Copy a file URL into the hermes images cache, returning the cached path.
     private static func copyToCache(url: URL) -> String {
-        let dir = hermesImagesDir
+        let dir = gatewayImagesDir
         let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"
@@ -1872,7 +1872,7 @@ struct ChatInputBar: View {
     }
 
     private static func saveImageDataToCache(data: Data, ext: String) -> String {
-        let dir = hermesImagesDir
+        let dir = gatewayImagesDir
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"
         do {

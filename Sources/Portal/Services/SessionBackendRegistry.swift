@@ -12,7 +12,7 @@ final class SessionBackendRegistry {
 
     static let shared = SessionBackendRegistry()
 
-    private static let storageKey = "hermes.sessionBackends"
+    private static let storageKey = "portal.sessionBackends"
 
     private var backendBySession: [String: UUID]
 

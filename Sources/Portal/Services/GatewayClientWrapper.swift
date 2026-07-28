@@ -287,7 +287,7 @@ final class GatewayClientWrapper: ObservableObject {
         // end the NEW task (wrong ID) and iOS kills apps that leak expired
         // background tasks.
         var grantedID: UIBackgroundTaskIdentifier = .invalid
-        grantedID = UIApplication.shared.beginBackgroundTask(withName: "hermes.finishTurn") { [weak self] in
+        grantedID = UIApplication.shared.beginBackgroundTask(withName: "portal.finishTurn") { [weak self] in
             Task { @MainActor in
                 guard let self else {
                     // Wrapper gone — still must end the task or iOS terminates us.
