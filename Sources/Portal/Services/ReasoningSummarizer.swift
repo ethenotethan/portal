@@ -663,11 +663,19 @@ Reasoning:
         loadTask = Task {
             do {
                 let config = LLMRegistry.gemma3_1B_qat_4bit
-                let container = try await LLMModelFactory.shared.loadContainer(
-                    from: HFHubDownloader(),
-                    using: HFTokenizerLoaderWrapper(),
-                    configuration: config
-                )
+                // Build the container OFF the main actor. This type is
+                // @MainActor, so a plain `Task {}` inherits it and would run the
+                // heavy tokenizer construction + Metal weight load on the main
+                // thread, beachballing the UI. Detaching moves it to a background
+                // thread; we hop back only to store the @MainActor state.
+                // Mirrors summarize(), which already detaches inference.
+                let container = try await Task.detached(priority: .utility) {
+                    try await LLMModelFactory.shared.loadContainer(
+                        from: HFHubDownloader(),
+                        using: HFTokenizerLoaderWrapper(),
+                        configuration: config
+                    )
+                }.value
                 self.session = ChatSession(container)
                 self.isReady = true
                 log.info("MLX Gemma 3 1B loaded (first launch downloads ~600MB)")
