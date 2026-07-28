@@ -1,0 +1,347 @@
+import SwiftUI
+
+// MARK: - Cron Job Card
+
+/// One expandable job row: header (name + schedule + status), and on expand a
+/// detail grid, prompt editor, recent runs, and pause/resume/remove actions.
+internal struct CronJobCard: View {
+    internal let job: CronJob
+    internal let isExpanded: Bool
+    internal let runRecords: [CronRunRecord]
+    internal let onToggle: () -> Void
+    internal let onPause: () -> Void
+    internal let onResume: () -> Void
+    internal let onRemove: () -> Void
+    internal let onUpdatePrompt: (String) -> Void
+
+    @State private var isEditingPrompt = false
+    @State private var editedPrompt = ""
+    @State private var selectedRunRecord: CronRunRecord?
+
+    internal init(
+        job: CronJob,
+        isExpanded: Bool,
+        runRecords: [CronRunRecord],
+        onToggle: @escaping () -> Void,
+        onPause: @escaping () -> Void,
+        onResume: @escaping () -> Void,
+        onRemove: @escaping () -> Void,
+        onUpdatePrompt: @escaping (String) -> Void
+    ) {
+        self.job = job
+        self.isExpanded = isExpanded
+        self.runRecords = runRecords
+        self.onToggle = onToggle
+        self.onPause = onPause
+        self.onResume = onResume
+        self.onRemove = onRemove
+        self.onUpdatePrompt = onUpdatePrompt
+    }
+
+    private var displayJob: CronJob { job }
+
+    internal var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            headerRow
+                .contentShape(Rectangle())
+                .onTapGesture { onToggle() }
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Divider().background(Theme.border)
+                    detailRows
+                    promptSection
+                    recentRuns
+                    actionButtons
+                }
+                .padding(.top, 8)
+                .padding(.leading, 28)
+                .padding(.trailing, 4)
+                .padding(.bottom, 4)
+            }
+        }
+        .padding(10)
+        .background(Theme.background, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: chevronName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 14)
+
+            statusDot
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(displayJob.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(1)
+
+                    if !displayJob.schedule.isEmpty {
+                        Text(displayJob.schedule)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Theme.accent.opacity(0.12))
+                            .foregroundStyle(Theme.accent)
+                            .clipShape(Capsule())
+                    }
+
+                    if !displayJob.enabled || displayJob.state == "paused" {
+                        Text(displayJob.state == "paused" ? "Paused" : "Disabled")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.1))
+                            .foregroundStyle(.secondary)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let lastRun = displayJob.lastRunAt {
+                        Text("Last: \(lastRun.relativeString)")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                    if let status = displayJob.lastStatus {
+                        Circle()
+                            .fill(status == "ok" ? Theme.success : Color.red)
+                            .frame(width: 6, height: 6)
+                    }
+                    if let nextRun = displayJob.nextRunAt {
+                        Text("Next: \(nextRun.relativeString)")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    private var chevronName: String {
+        isExpanded ? "chevron.down" : "chevron.right"
+    }
+
+    @ViewBuilder
+    private var statusDot: some View {
+        if displayJob.state == "paused" || !displayJob.enabled {
+            Image(systemName: "pause.circle.fill")
+                .foregroundStyle(.secondary)
+                .font(.body)
+        } else if displayJob.lastStatus == "error" {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+                .font(.body)
+        } else if displayJob.lastStatus == "ok" {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Theme.success)
+                .font(.body)
+        } else {
+            Image(systemName: "clock.fill")
+                .foregroundStyle(Theme.accent)
+                .font(.body)
+        }
+    }
+
+    private var detailRows: some View {
+        VStack(spacing: 0) {
+            detailRow("Job ID", value: displayJob.id)
+            detailRow("Schedule", value: displayJob.schedule.isEmpty ? "—" : displayJob.schedule)
+            detailRow("State", value: displayJob.state)
+            detailRow("Enabled", value: displayJob.enabled ? "Yes" : "No")
+            detailRow("Last run", value: displayJob.lastRunAt?.relativeString ?? "Never")
+            detailRow("Last status", value: displayJob.lastStatus ?? "—")
+            detailRow("Next run", value: displayJob.nextRunAt?.relativeString ?? "—")
+            detailRow("Deliver", value: displayJob.deliver.isEmpty ? "—" : displayJob.deliver)
+            if !runRecords.isEmpty {
+                let rate = CronRunHistoryStore.shared.successRate(for: displayJob.id)
+                detailRow("Success rate", value: String(format: "%.0f%% (%d runs)", rate, runRecords.count))
+            }
+        }
+    }
+
+    private func detailRow(_ title: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Theme.secondary)
+                .frame(width: 100, alignment: .leading)
+            Text(value)
+                .font(.caption)
+                .foregroundStyle(Theme.primary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 5)
+    }
+
+    private var promptSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Prompt")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                Spacer()
+                if job.isPromptTruncated {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.accent)
+                        Text("May be truncated")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondary)
+                    }
+                }
+                if !isEditingPrompt {
+                    Button {
+                        editedPrompt = promptText
+                        isEditingPrompt = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+
+            if isEditingPrompt {
+                promptEditor
+            } else {
+                Text(promptText)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Theme.secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(8)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var promptEditor: some View {
+        VStack(spacing: 8) {
+            TextEditor(text: $editedPrompt)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(Theme.primary)
+                .scrollContentBackground(.hidden)
+                .background(Theme.background)
+                .frame(minHeight: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Theme.border, lineWidth: 1)
+                )
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    isEditingPrompt = false
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("Save") {
+                    onUpdatePrompt(editedPrompt)
+                    isEditingPrompt = false
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(editedPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+
+    private var promptText: String {
+        let text = displayJob.prompt?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? displayJob.promptPreview?.trimmingCharacters(in: .whitespacesAndNewlines)
+            ?? ""
+        return text.isEmpty ? "No prompt available" : text
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 8) {
+            if displayJob.state == "paused" || !displayJob.enabled {
+                Button {
+                    onResume()
+                } label: {
+                    Label("Resume", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            } else {
+                Button {
+                    onPause()
+                } label: {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            Button(role: .destructive) {
+                onRemove()
+            } label: {
+                Label("Remove", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+    }
+
+    private var recentRuns: some View {
+        Group {
+            if !runRecords.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Recent Runs")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.primary)
+
+                    let recent = Array(runRecords.suffix(5).reversed())
+                    ForEach(recent) { record in
+                        Button {
+                            selectedRunRecord = record
+                        } label: {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(record.isOk ? Theme.success : Color.red)
+                                    .frame(width: 6, height: 6)
+                                Text(record.firedAt.relativeString)
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.secondary)
+                                Text(record.status)
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(record.isOk ? Theme.success : .red)
+                                if let dur = record.duration {
+                                    Text(dur < 60 ? String(format: "%.1fs", dur) : String(format: "%.1fm", dur / 60))
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundStyle(Theme.tertiary)
+                                }
+                                Spacer()
+                                if !record.isOk {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(Theme.tertiary)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(8)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                .popover(item: $selectedRunRecord) { record in
+                    CronSingleRunPopover(record: record)
+                }
+            }
+        }
+    }
+}

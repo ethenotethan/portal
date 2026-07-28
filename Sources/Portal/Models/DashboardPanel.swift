@@ -67,6 +67,19 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// Categorical breakdown of sessions by source — donut chart + legend.
     /// Host-rendered singleton on the sessions canvas.
     internal static let sessionsSourceBreakdown = PanelKind(rawValue: "sessionsSourceBreakdown")
+
+    // MARK: Cron activity canvas lenses (host-rendered singletons)
+
+    /// Total / OK / Errors / Success-rate tiles for the filtered window.
+    internal static let cronSummary = PanelKind(rawValue: "cronSummary")
+    /// Stacked OK/Error activation-volume-over-time bar chart.
+    internal static let cronVolume = PanelKind(rawValue: "cronVolume")
+    /// The live jobs list — expandable cards with pause/resume/remove/edit.
+    internal static let cronJobs = PanelKind(rawValue: "cronJobs")
+    /// Lane-per-job scatter of activations across the window.
+    internal static let cronTimeline = PanelKind(rawValue: "cronTimeline")
+    /// Per-job OK/Error split bar + success-rate + count rows.
+    internal static let cronBreakdown = PanelKind(rawValue: "cronBreakdown")
 }
 
 /// One panel on the dashboard canvas: a kind (what it shows) placed at a frame

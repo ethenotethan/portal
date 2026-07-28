@@ -10,6 +10,7 @@
 		001AA7B79E5E6D4F4B6CE163 /* GatewayClient+Wiki.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64600D585B0C0B63046BCE46 /* GatewayClient+Wiki.swift */; };
 		005166159F8DC79E8115A817 /* MaintainerRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695EB363FD91E9355CA8E88B /* MaintainerRef.swift */; };
 		00939F8905012894C8229D0D /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D16606E646CC305A7A54C3 /* GatewayClient.swift */; };
+		016C2D1A529E567470CE1AAC /* CronDashboardCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EF4125AD699B35B5916BAC /* CronDashboardCanvas.swift */; };
 		023197F0991119EA7397CB56 /* MapBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2373CAE85DB4138689E04C /* MapBlockView.swift */; };
 		0265B7B93D058ADE36785F52 /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14485242A23D31C2613033DA /* WikiTimelineView.swift */; };
 		0749648910DAAF3F6F5CC88E /* SankeyBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5662456BA937D53902E2D2 /* SankeyBlockView.swift */; };
@@ -53,8 +54,6 @@
 		1B662D52D49609AAB42516B2 /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC638C9FB93EE3E226D7FBE6 /* AttachmentChipView.swift */; };
 		1BABAE982185F611F1358BC0 /* SpawnTreeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */; };
 		1C4263ADBA8E323FC869AAD4 /* CronListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5345D4F493040CE252399895 /* CronListViewModel.swift */; };
-		9E1E065548CAD5925963451B /* CronSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8F86FD1A2F6AEE06D4F65B /* CronSessionView.swift */; };
-		A6A92D757D5DAA34B41964BA /* CronSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8F86FD1A2F6AEE06D4F65B /* CronSessionView.swift */; };
 		1D48511B29BBA075444AB4C8 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E4433A1BFCCB1AB04532BD /* ModelCatalog.swift */; };
 		1D8F4A69EB4B1460BE6DD970 /* WikiTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14485242A23D31C2613033DA /* WikiTimelineView.swift */; };
 		1DA0EFC30A4210DB5B46ED9F /* ActivityInboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB1DD49C49E3FD1E0723912 /* ActivityInboxViewModel.swift */; };
@@ -77,6 +76,7 @@
 		253E7C288467DBF8ECD8F539 /* ToolCallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDDC3902F7860A5D9A5FA98 /* ToolCallView.swift */; };
 		25B0C86C03F0F0C45057E22F /* WikiEventsPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F50238B9687A3FA94381 /* WikiEventsPageView.swift */; };
 		25EA2D7669C859A84BCE3556 /* SessionsSourceBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2851D3AA550338E15B4CB929 /* SessionsSourceBreakdown.swift */; };
+		265F8D8522974266662023B8 /* CronJobCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A38058167062C45FD8CE7BE /* CronJobCard.swift */; };
 		26856039977AF60349764DEC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4EE5AEE3206BD4B2D20FCFC /* SettingsView.swift */; };
 		26F028853933AE3ED7107901 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95450F797EE4865E40CA114A /* NativeChartView.swift */; };
 		27A0BF60984B7672F2AEDE6C /* WikiFileTreeSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2838D75C8C76F8F720111F /* WikiFileTreeSidebar.swift */; };
@@ -167,6 +167,7 @@
 		52C223E7496B4BF1F9A0D5F1 /* PortalMenuBarExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0260AF4E902B40DE01F8296 /* PortalMenuBarExtra.swift */; };
 		52C76372A0804EB9BC58E651 /* HTMLArtifactIntentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5C65263F4238FDE15E7574 /* HTMLArtifactIntentBridge.swift */; };
 		538A5958AC61C8F6696FD490 /* CentaurWikiClient+Timeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */; };
+		5397B0852563C8C584FBB258 /* CronDashboardSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */; };
 		53986676AC41B999C81D0B2B /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF801BBAE40165E72C69391 /* SessionRunEvent.swift */; };
 		539D0F53639E62A63DD7C6AA /* WikiGraphCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21732210429838245F716FAB /* WikiGraphCache.swift */; };
 		53AD4638340F7DECAD612EDD /* QuizStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC041062826FA7BF292F346A /* QuizStore.swift */; };
@@ -192,6 +193,7 @@
 		5C74289EDEBFA77C921A9C2E /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
 		5CB2C130C259164504B0C341 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */; };
 		5DABDDBD4FB0C1869D588D9E /* SkillMarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */; };
+		5EA4337E9A9161B6DB599CE1 /* CronJobCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A38058167062C45FD8CE7BE /* CronJobCard.swift */; };
 		5EF215DE76F474FB5EF8FB59 /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */; };
 		5EFA082A1D008E829CB597EC /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */; };
 		5F667BE99C65112B5BACC968 /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79DA5B81AD8A414D281027 /* ReasoningGraphIntegrator.swift */; };
@@ -274,6 +276,7 @@
 		86A3D7F43B7F94401CC21E2B /* CentaurWikiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524D795BBC83896922C37909 /* CentaurWikiClient.swift */; };
 		86D73EC693BC45C6A1855925 /* TUISkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3591C0AF41F327701D87C1 /* TUISkin.swift */; };
 		86E1CF3870AD5337089014E9 /* MermaidGraphParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5329CD364ABAAC6FBF2710 /* MermaidGraphParser.swift */; };
+		86EDDA7427DF6A8F37E935B8 /* CronSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39E1698942CA3B8E647FC444 /* CronSessionView.swift */; };
 		872422FCFADD12D3FCD368DF /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E6DAF8C84B7DEC3CD43732 /* SRSDashboardView.swift */; };
 		87C79EAADD96BB7DD6D33CD1 /* GatewayDebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1242C7F8867F3BE4B8B615 /* GatewayDebugSnapshot.swift */; };
 		88B963EC01DBCB24E168C7CF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45A3C5BEC6B99EE33B623FB /* ContentView.swift */; };
@@ -325,6 +328,7 @@
 		A4B1F930C4BEA7FECBA48753 /* WikiGraphControlsBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43767D723416DF6B72C6CC56 /* WikiGraphControlsBar.swift */; };
 		A4BA420258D03A6E59324F25 /* LongResponseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285A83F389BCACC278A806AD /* LongResponseView.swift */; };
 		A4DB6F8F248BAEA1C2175909 /* GitHubLinkCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5798D1367ED862755773F47 /* GitHubLinkCard.swift */; };
+		A59234251340BB8EE8D46A8C /* CronDashboardSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */; };
 		A622BD459A0E74035AD666A9 /* ModelBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F6AC81AD26DE5FA97BB736 /* ModelBlockView.swift */; };
 		A6CA4CFCE0D63799099E69EC /* SRSEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34F454AF5F229C910AB4021 /* SRSEngine.swift */; };
 		A6E978633D0402EF169D750D /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7170E4B05EE7B7542652519E /* GatewayClient+Push.swift */; };
@@ -410,8 +414,10 @@
 		D44C3C7A4562F53367B86062 /* CentaurWikiClient+Timeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */; };
 		D4A75DDD886A225A721622A7 /* TimelineSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C73EE9E684A12438F66485 /* TimelineSpec.swift */; };
 		D54AC68D0AA77FAF87817BD5 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 09619393314282F7D3BB52AD /* Lottie */; };
+		D568F8729B187D0ED90C4186 /* CronSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39E1698942CA3B8E647FC444 /* CronSessionView.swift */; };
 		D5F88BF463A4243A3349ED39 /* InlineTurnTimelineStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21385A8C9911C7F6BD9AB756 /* InlineTurnTimelineStrip.swift */; };
 		D72F6C73E3D3A0CD68752986 /* SessionsDashboardCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5992BF7916A67FEC7BB1AA8B /* SessionsDashboardCanvas.swift */; };
+		D7C4DA25D58CC39358593C12 /* CronDashboardCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92EF4125AD699B35B5916BAC /* CronDashboardCanvas.swift */; };
 		D7E330124AF26C2F6E55AFE2 /* ArtifactsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE662B6E86264722C3A7CF6 /* ArtifactsPanel.swift */; };
 		D9166EFFFC5C101E86EA5548 /* WikiReaderPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4416C8A5C2EA53A3D77AE83 /* WikiReaderPane.swift */; };
 		D9668DF7E33202409D20B10A /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45B7F0FB83263EA427790C6 /* ChatHistoryStore.swift */; };
@@ -568,6 +574,8 @@
 		38134D6C0CC22320A29A643B /* QuizModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModels.swift; sourceTree = "<group>"; };
 		3838A7851F34062B8D401249 /* ConversationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPanel.swift; sourceTree = "<group>"; };
 		391A2204090D298297E42D21 /* SessionsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDashboard.swift; sourceTree = "<group>"; };
+		39E1698942CA3B8E647FC444 /* CronSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionView.swift; sourceTree = "<group>"; };
+		3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardSections.swift; sourceTree = "<group>"; };
 		3AD1A24AEBBBFFCB5ADC71F5 /* WikiGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph.swift; sourceTree = "<group>"; };
 		3BDDC3902F7860A5D9A5FA98 /* ToolCallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallView.swift; sourceTree = "<group>"; };
 		408D0E6553A2BFD0735CCAA6 /* SessionsListPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsListPanel.swift; sourceTree = "<group>"; };
@@ -580,6 +588,7 @@
 		47E433D1965080CB220166FB /* QuizSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizSheet.swift; sourceTree = "<group>"; };
 		47F8D52D74A9409A5D5C498E /* SessionsTimelinePlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsTimelinePlot.swift; sourceTree = "<group>"; };
 		4A6CCAC39C4D15CE885C9BA8 /* SharedEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedEntity.swift; sourceTree = "<group>"; };
+		4A774E92BB436A30E1846009 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		4A85E0F1911D146301A8B05D /* WikiGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph3DView.swift; sourceTree = "<group>"; };
 		4B9223A5205A066F8CB68337 /* DarkMangaSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkMangaSkin.swift; sourceTree = "<group>"; };
 		4DE9B99AA5EEF98910A7787E /* LearningDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningDashboardView.swift; sourceTree = "<group>"; };
@@ -628,6 +637,7 @@
 		795E88577BB78058311CDC5C /* RenderMemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderMemo.swift; sourceTree = "<group>"; };
 		79F03A3919DBBDF2E95C23A0 /* IOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSApp.swift; sourceTree = "<group>"; };
 		79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONRPCResponse.swift; sourceTree = "<group>"; };
+		7A38058167062C45FD8CE7BE /* CronJobCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobCard.swift; sourceTree = "<group>"; };
 		7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieCharacterView.swift; sourceTree = "<group>"; };
 		8146991749E60E5DB327570E /* MapEntryTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapEntryTableView.swift; sourceTree = "<group>"; };
 		82A11CD6289A418CC185DA03 /* PortalGatewayConnectionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalGatewayConnectionUITests.swift; sourceTree = "<group>"; };
@@ -644,6 +654,7 @@
 		8F3A452B02A2F02596E98F80 /* FileTreeAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTreeAggregator.swift; sourceTree = "<group>"; };
 		8F5928C59FC1812C7C200B78 /* CronJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJob.swift; sourceTree = "<group>"; };
 		91A5D8242F20D9F2ADD0AF98 /* AgentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentModel.swift; sourceTree = "<group>"; };
+		92EF4125AD699B35B5916BAC /* CronDashboardCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardCanvas.swift; sourceTree = "<group>"; };
 		936D1CBE60BF6F9912DB275C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		94562E6D8D4F32997ACE811B /* ActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStore.swift; sourceTree = "<group>"; };
 		94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillMarkdownEditor.swift; sourceTree = "<group>"; };
@@ -663,7 +674,6 @@
 		A4416C8A5C2EA53A3D77AE83 /* WikiReaderPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiReaderPane.swift; sourceTree = "<group>"; };
 		A5A889A6C9F2939CF0220118 /* ThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailImageView.swift; sourceTree = "<group>"; };
 		A6EE7C4DEA9092105D038206 /* ModelSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSpec.swift; sourceTree = "<group>"; };
-		A94AE67D1D70D9179164652F /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		ACA37D2649DCF0677BDD8A2F /* WikiGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphView.swift; sourceTree = "<group>"; };
 		ADAA6BB991E73D9F8BC0D92D /* StreamingStatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingStatusBar.swift; sourceTree = "<group>"; };
 		AE2838D75C8C76F8F720111F /* WikiFileTreeSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiFileTreeSidebar.swift; sourceTree = "<group>"; };
@@ -725,7 +735,6 @@
 		EFE662B6E86264722C3A7CF6 /* ArtifactsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactsPanel.swift; sourceTree = "<group>"; };
 		F1390C2AEE5CAA97020CCD67 /* DashboardPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPanel.swift; sourceTree = "<group>"; };
 		F1C6BA2AFC097BB28CF709EE /* CronListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListView.swift; sourceTree = "<group>"; };
-		2F8F86FD1A2F6AEE06D4F65B /* CronSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionView.swift; sourceTree = "<group>"; };
 		F266A56E6890ECD9F5EB364B /* StatTilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatTilesView.swift; sourceTree = "<group>"; };
 		F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactsPane.swift; sourceTree = "<group>"; };
 		F4EE5AEE3206BD4B2D20FCFC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -797,15 +806,6 @@
 			path = Utilities;
 			sourceTree = "<group>";
 		};
-		03A07C73E178830767CEC108 /* portal-artifacts */ = {
-			isa = PBXGroup;
-			children = (
-				A94AE67D1D70D9179164652F /* Local.xcconfig */,
-			);
-			name = "portal-artifacts";
-			path = .;
-			sourceTree = "<group>";
-		};
 		2BB0639BBBB436E536B2D332 /* Skills */ = {
 			isa = PBXGroup;
 			children = (
@@ -819,11 +819,20 @@
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
 				61851216B4FFCF80111C87E3 /* Portal */,
-				03A07C73E178830767CEC108 /* portal-artifacts */,
+				33EF7D700CAED7E783E22241 /* portal-wikicache */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
 				47D5A51722E1CD9234679D11 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		33EF7D700CAED7E783E22241 /* portal-wikicache */ = {
+			isa = PBXGroup;
+			children = (
+				4A774E92BB436A30E1846009 /* Local.xcconfig */,
+			);
+			name = "portal-wikicache";
+			path = .;
 			sourceTree = "<group>";
 		};
 		350A2C5FDEF75D5BFC234F27 /* Skins */ = {
@@ -839,6 +848,7 @@
 		478C43A556D1BB4322590DA6 /* MissionControl */ = {
 			isa = PBXGroup;
 			children = (
+				92EF4125AD699B35B5916BAC /* CronDashboardCanvas.swift */,
 				391A2204090D298297E42D21 /* SessionsDashboard.swift */,
 				5992BF7916A67FEC7BB1AA8B /* SessionsDashboardCanvas.swift */,
 				380F9167FA9A8B879B1ECD29 /* SessionsDetailPanel.swift */,
@@ -996,9 +1006,11 @@
 				646A815661E6703CCAF37660 /* CFAuthView.swift */,
 				0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */,
 				E45A3C5BEC6B99EE33B623FB /* ContentView.swift */,
+				3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */,
 				CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */,
-				2F8F86FD1A2F6AEE06D4F65B /* CronSessionView.swift */,
+				7A38058167062C45FD8CE7BE /* CronJobCard.swift */,
 				F1C6BA2AFC097BB28CF709EE /* CronListView.swift */,
+				39E1698942CA3B8E647FC444 /* CronSessionView.swift */,
 				437F051D9AE2A5A9F53C5F29 /* FeedView.swift */,
 				2678B085DD8763495B099578 /* FlowLayout.swift */,
 				0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */,
@@ -1471,13 +1483,16 @@
 				2C93F1C632EDE1C85B02CF0D /* Constants.swift in Sources */,
 				88B963EC01DBCB24E168C7CF /* ContentView.swift in Sources */,
 				7B943E979117919DDA3AF8BA /* ConversationPanel.swift in Sources */,
+				016C2D1A529E567470CE1AAC /* CronDashboardCanvas.swift in Sources */,
+				5397B0852563C8C584FBB258 /* CronDashboardSections.swift in Sources */,
 				7F2E9F9F7D7C8DB7D62AE64D /* CronDashboardView.swift in Sources */,
 				2AFF7759D9BB3E7489F80CA0 /* CronJob.swift in Sources */,
+				265F8D8522974266662023B8 /* CronJobCard.swift in Sources */,
 				D3206BDD4BE6BDBB66428CDC /* CronListView.swift in Sources */,
-				A6A92D757D5DAA34B41964BA /* CronSessionView.swift in Sources */,
 				AEB52A4DB91661801B1AC029 /* CronListViewModel.swift in Sources */,
 				8DBB6BDD9BEEDC6A09565998 /* CronPoller.swift in Sources */,
 				CD0F703A804CCFFEFE8B3547 /* CronRunHistory.swift in Sources */,
+				D568F8729B187D0ED90C4186 /* CronSessionView.swift in Sources */,
 				B326099EB641357C0BA267DE /* DarkMangaSkin.swift in Sources */,
 				CF06A01F37A5A842382E386C /* DashboardCanvasView.swift in Sources */,
 				404201610756DB610BCAD254 /* DashboardLayout.swift in Sources */,
@@ -1720,13 +1735,16 @@
 				CC8D661A5D9C8A8A9BB2A745 /* Constants.swift in Sources */,
 				6A5F6AFD9F7DFD37E7F47C86 /* ContentView.swift in Sources */,
 				546FEFD1DCC00A5E23F98994 /* ConversationPanel.swift in Sources */,
+				D7C4DA25D58CC39358593C12 /* CronDashboardCanvas.swift in Sources */,
+				A59234251340BB8EE8D46A8C /* CronDashboardSections.swift in Sources */,
 				424FA44A6338FD9BC3C22527 /* CronDashboardView.swift in Sources */,
 				6D0FABEA1647311473E90F01 /* CronJob.swift in Sources */,
+				5EA4337E9A9161B6DB599CE1 /* CronJobCard.swift in Sources */,
 				55B759B688DDBAAB10D7D72E /* CronListView.swift in Sources */,
-				9E1E065548CAD5925963451B /* CronSessionView.swift in Sources */,
 				1C4263ADBA8E323FC869AAD4 /* CronListViewModel.swift in Sources */,
 				BFB8C9100FE2BCAA69D1D7C0 /* CronPoller.swift in Sources */,
 				AB80DB23E1386B000AC357CE /* CronRunHistory.swift in Sources */,
+				86EDDA7427DF6A8F37E935B8 /* CronSessionView.swift in Sources */,
 				F8EDCA049DFEFC703A80A951 /* DarkMangaSkin.swift in Sources */,
 				E2C46688417BF81B74521F1F /* DashboardCanvasView.swift in Sources */,
 				07CAE4578EE815412764080B /* DashboardLayout.swift in Sources */,
@@ -1945,7 +1963,7 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A94AE67D1D70D9179164652F /* Local.xcconfig */;
+			baseConfigurationReference = 4A774E92BB436A30E1846009 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -1968,7 +1986,7 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A94AE67D1D70D9179164652F /* Local.xcconfig */;
+			baseConfigurationReference = 4A774E92BB436A30E1846009 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2054,7 +2072,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A94AE67D1D70D9179164652F /* Local.xcconfig */;
+			baseConfigurationReference = 4A774E92BB436A30E1846009 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -2098,7 +2116,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A94AE67D1D70D9179164652F /* Local.xcconfig */;
+			baseConfigurationReference = 4A774E92BB436A30E1846009 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
