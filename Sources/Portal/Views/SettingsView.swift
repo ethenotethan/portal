@@ -14,39 +14,53 @@ internal struct SettingsView: View {
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var themeManager = ThemeManager.shared
 
-    @State private var selectedSection: SettingsSection = .gateways
-    @State private var selectedGateway: SavedGateway?
-
-    internal enum SettingsSection: String, CaseIterable, Identifiable {
-        case gateways
-        case themes
+    /// Unified sidebar selection — app sections plus one entry per gateway.
+    internal enum SidebarItem: Hashable, Identifiable {
+        case appearance
         case persona
         case notifications
+        case gateway(SavedGateway)
 
-        internal var id: String { rawValue }
+        internal var id: AnyHashable {
+            switch self {
+            case .appearance: return "appearance"
+            case .persona: return "persona"
+            case .notifications: return "notifications"
+            case .gateway(let g): return g.id
+            }
+        }
 
         internal var label: String {
             switch self {
-            case .gateways: return "Gateways"
-            case .themes: return "Themes"
+            case .appearance: return "Appearance"
             case .persona: return "Persona"
             case .notifications: return "Notifications"
+            case .gateway(let g): return g.displayName
             }
         }
 
         internal var icon: String {
             switch self {
-            case .gateways: return "network"
-            case .themes: return "paintpalette"
+            case .appearance: return "paintpalette"
             case .persona: return "person.crop.circle"
             case .notifications: return "bell"
+            case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
             }
         }
     }
 
+    @State private var selection: SidebarItem = .appearance
+
     internal var body: some View {
         #if os(macOS)
         macBody
+            .onChange(of: settings.savedGateways) {
+                // If the selected gateway was deleted, fall back to appearance.
+                if case .gateway(let g) = selection,
+                   !settings.savedGateways.contains(g) {
+                    selection = .appearance
+                }
+            }
         #else
         iosBody
         #endif
@@ -58,39 +72,46 @@ internal struct SettingsView: View {
     private var macBody: some View {
         HStack(spacing: 0) {
             // Sidebar
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(SettingsSection.allCases) { section in
-                    Button {
-                        selectedSection = section
-                        selectedGateway = nil
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: section.icon)
-                                .font(.system(size: 13))
-                                .frame(width: 18)
-                                .foregroundStyle(selectedSection == section ? Theme.accent : Theme.secondary)
-                            Text(section.label)
-                                .font(.system(size: 13))
-                                .foregroundStyle(selectedSection == section ? Theme.primary : Theme.secondary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(
-                            selectedSection == section
-                                ? Theme.accent.opacity(0.12)
-                                : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 6)
-                        )
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 0) {
+                sidebarGroup(header: nil, items: [.appearance, .persona, .notifications])
+
+                Divider().padding(.vertical, 8)
+
+                // Gateways section
+                Text("Gateways")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 4)
+
+                ForEach(settings.savedGateways) { gateway in
+                    sidebarRow(.gateway(gateway))
                 }
+
+                Button {
+                    showAddGateway = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12))
+                            .frame(width: 18)
+                            .foregroundStyle(Theme.secondary)
+                        Text("Add Gateway")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.secondary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
                 Spacer()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 16)
-            .frame(width: 200)
+            .frame(width: 210)
             .background(Theme.surface.opacity(0.5))
 
             Rectangle().fill(Theme.border).frame(width: 1)
@@ -98,22 +119,15 @@ internal struct SettingsView: View {
             // Main pane
             ScrollView {
                 Group {
-                    if let gateway = selectedGateway {
-                        GatewayDetailPane(
-                            gateway: gateway,
-                            onBack: { selectedGateway = nil }
-                        )
-                    } else {
-                        switch selectedSection {
-                        case .gateways:
-                            gatewaysSection
-                        case .themes:
-                            themesSection
-                        case .persona:
-                            personaSection
-                        case .notifications:
-                            notificationsSection
-                        }
+                    switch selection {
+                    case .appearance:
+                        themesSection
+                    case .persona:
+                        personaSection
+                    case .notifications:
+                        notificationsSection
+                    case .gateway(let g):
+                        GatewayDetailPane(gateway: g)
                     }
                 }
                 .padding(24)
@@ -122,54 +136,10 @@ internal struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
-    }
-
-    // MARK: - macOS Sections
-
-    @State private var showAddGateway = false
-
-    private var gatewaysSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            settingsHeader("Gateways", icon: "network")
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Saved Gateways")
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        showAddGateway = true
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-
-                ForEach(settings.savedGateways) { gateway in
-                    gatewayRow(gateway)
-                }
-            }
-
-            Divider()
-            capabilitiesSummary
-
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Thought Graph")
-                    .font(.headline)
-                Toggle("Experimental: MLX reasoning model", isOn: $settings.mlxReasoningEnabled)
-                Text("Uses an on-device model (Gemma 3 1B, ~600MB download) to extract reasoning decisions. The default heuristic extractor is faster and needs no download.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Changes take effect on the next session.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
         .sheet(isPresented: $showAddGateway) {
             AddGatewaySheet { name, url, key, kind in
-                settings.addGateway(name: name, url: url, apiKey: key, kind: kind)
+                let gw = settings.addGateway(name: name, url: url, apiKey: key, kind: kind)
+                selection = .gateway(gw)
                 showAddGateway = false
             } onCancel: {
                 showAddGateway = false
@@ -178,50 +148,52 @@ internal struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func gatewayRow(_ gateway: SavedGateway) -> some View {
-        Button {
-            selectedGateway = gateway
-        } label: {
+    private func sidebarGroup(header: String?, items: [SidebarItem]) -> some View {
+        if let header {
+            Text(header)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 4)
+        }
+        ForEach(items) { item in
+            sidebarRow(item)
+        }
+    }
+
+    @ViewBuilder
+    private func sidebarRow(_ item: SidebarItem) -> some View {
+        let isSelected = selection == item
+        Button { selection = item } label: {
             HStack(spacing: 10) {
-                if gateway.kind.isSessionScoped {
-                    Image(systemName: gateway.kind.iconName)
-                        .foregroundStyle(Theme.secondary)
-                } else {
-                    Image(systemName: settings.isActive(gateway) ? "largecircle.fill.circle" : "circle")
-                        .foregroundStyle(settings.isActive(gateway) ? Theme.accent : Theme.secondary)
+                Image(systemName: item.icon)
+                    .font(.system(size: 13))
+                    .frame(width: 18)
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.secondary)
+                Text(item.label)
+                    .font(.system(size: 13))
+                    .foregroundStyle(isSelected ? Theme.primary : Theme.secondary)
+                Spacer(minLength: 0)
+                if case .gateway(let g) = item, settings.isActive(g), !g.kind.isSessionScoped {
+                    Circle()
+                        .fill(Theme.accent)
+                        .frame(width: 6, height: 6)
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 5) {
-                        Text(gateway.displayName)
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        if gateway.kind.isSessionScoped {
-                            Text(gateway.kind.displayName)
-                                .font(.system(size: 9, weight: .semibold))
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(Theme.accent.opacity(0.15), in: Capsule())
-                                .foregroundStyle(Theme.accent)
-                        }
-                    }
-                    Text(gateway.url)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.secondary)
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.vertical, 7)
+            .background(
+                isSelected ? Theme.accent.opacity(0.12) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 6)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("gatewayRow-\(gateway.displayName)")
     }
+
+    // MARK: - macOS Sections
+
+    @State private var showAddGateway = false
 
     private var themesSection: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -375,14 +347,13 @@ internal struct SettingsView: View {
 // MARK: - Gateway Detail Pane
 
 #if os(macOS)
-/// Per-gateway settings: URL, API key, Cloudflare auth, and (Hermes only)
-/// the System Prompt inspector. Shown in the main pane when a gateway row
-/// is tapped from the Gateways list.
+/// Per-gateway settings pane. Shown in the main area when a gateway is
+/// selected in the sidebar. Hermes gateways additionally show System Prompt.
 private struct GatewayDetailPane: View {
     let gateway: SavedGateway
-    let onBack: () -> Void
 
     @EnvironmentObject private var settings: SettingsViewModel
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
 
     @State private var editingGateway: SavedGateway?
@@ -390,53 +361,50 @@ private struct GatewayDetailPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Back nav + title
-            HStack(spacing: 8) {
-                Button(action: onBack) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Gateways")
-                            .font(.system(size: 13))
-                    }
+            // Header row
+            HStack(spacing: 12) {
+                Image(systemName: gateway.kind.isSessionScoped ? gateway.kind.iconName : "server.rack")
+                    .font(.system(size: 20))
                     .foregroundStyle(Theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(gateway.displayName)
+                            .font(.title2.weight(.semibold))
+                        if gateway.kind.isSessionScoped {
+                            Text(gateway.kind.displayName)
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Theme.accent.opacity(0.15), in: Capsule())
+                                .foregroundStyle(Theme.accent)
+                        } else if settings.isActive(gateway) {
+                            Text("Active")
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Theme.success.opacity(0.15), in: Capsule())
+                                .foregroundStyle(Theme.success)
+                        }
+                    }
+                    Text(gateway.url)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .buttonStyle(.plain)
-
-                Text("/")
-                    .foregroundStyle(Theme.secondary)
-
-                Text(gateway.displayName)
-                    .font(.system(size: 13, weight: .semibold))
-
-                if gateway.kind.isSessionScoped {
-                    Text(gateway.kind.displayName)
-                        .font(.system(size: 9, weight: .semibold))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Theme.accent.opacity(0.15), in: Capsule())
-                        .foregroundStyle(Theme.accent)
-                }
-
                 Spacer()
-
                 if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
-                    Button("Switch to this gateway") { settings.selectGateway(gateway) }
+                    Button("Make Active") { settings.selectGateway(gateway) }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                 }
-
-                Button {
-                    editingGateway = gateway
-                } label: {
+                Button { editingGateway = gateway } label: {
                     Image(systemName: "pencil")
                 }
                 .buttonStyle(.borderless)
-                .help("Rename or edit URL / key")
+                .help("Edit name, URL, or API key")
 
                 Button(role: .destructive) {
                     settings.removeGateway(gateway)
-                    onBack()
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -447,39 +415,42 @@ private struct GatewayDetailPane: View {
 
             Divider()
 
-            // Connection fields (read-only summary — edit via pencil)
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("URL")
+            // API key presence indicator
+            if !gateway.apiKey.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "key.fill")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                    Text("API key configured")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(width: 60, alignment: .trailing)
-                    Text(gateway.url)
-                        .font(.system(.body, design: .monospaced))
-                        .textSelection(.enabled)
-                        .lineLimit(1)
-                }
-                if !gateway.apiKey.isEmpty {
-                    HStack {
-                        Text("API Key")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 60, alignment: .trailing)
-                        Text(String(repeating: "•", count: min(gateway.apiKey.count, 24)))
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
                 }
             }
 
-            // Cloudflare Access (Hermes only, when required)
+            // Cloudflare Access (Hermes, when gateway requires it)
             if !gateway.kind.isSessionScoped && settings.needsCFAuth {
                 Divider()
                 cfAuthRow
             }
 
-            // System Prompt (Hermes only)
+            // Capabilities summary
             if !gateway.kind.isSessionScoped {
+                Divider()
+                capabilitiesSummary
+
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Thought Graph")
+                        .font(.headline)
+                    Toggle("Experimental: MLX reasoning model", isOn: $settings.mlxReasoningEnabled)
+                    Text("Uses an on-device model (Gemma 3 1B, ~600MB download) to extract reasoning decisions. The default heuristic extractor is faster and needs no download.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Changes take effect on the next session.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+
                 Divider()
                 SystemPromptSection(
                     client: gatewayClientWrapper.client,
@@ -532,6 +503,35 @@ private struct GatewayDetailPane: View {
                     showCFAuth = true
                 }
                 .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var capabilitiesSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Capabilities")
+                .font(.headline)
+            HStack {
+                Label(
+                    capabilitiesStore.capabilities.statusDisplay,
+                    systemImage: capabilitiesStore.isRefreshing ? "arrow.triangle.2.circlepath" : "checkmark.seal"
+                )
+                .foregroundStyle(capabilitiesStore.isRefreshing ? Theme.warning : Theme.success)
+                Spacer()
+                Text("Version: \(capabilitiesStore.capabilities.versionDisplay)")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+
+            HStack(spacing: 8) {
+                CapabilityPill(title: "Image input", isEnabled: capabilitiesStore.hasImageInput)
+                CapabilityPill(title: "ACP image prompts", isEnabled: capabilitiesStore.hasACPImagePrompts)
+            }
+
+            if case .fallback(let reason) = capabilitiesStore.capabilities.source {
+                Text(reason)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
     }
