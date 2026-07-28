@@ -31,7 +31,7 @@ packages:
     from: "1.7.0"
 
 targets:
-  Portal-macOS:
+  Portal:
     type: application
     platform: macOS
     sources:
@@ -51,7 +51,7 @@ targets:
         product: Tokenizers
       - package: SwiftMath
     entitlements:
-      path: Portal-macOS.entitlements
+      path: Portal.entitlements
     configFiles:
       Debug: Local.xcconfig
       Release: Local.xcconfig
@@ -61,7 +61,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
         GENERATE_INFOPLIST_FILE: NO
-        INFOPLIST_FILE: Portal-macOS/Info.plist
+        INFOPLIST_FILE: Portal/Info.plist
         SWIFT_EMIT_LOC_STRINGS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
@@ -128,7 +128,7 @@ targets:
     sources:
       - path: Tests/PortalMacUITests
     dependencies:
-      - target: Portal-macOS
+      - target: Portal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.macOS.uitests

@@ -306,7 +306,7 @@ jobs:
           mkdir -p build
           xcodebuild archive \
             -project Portal.xcodeproj \
-            -scheme Portal-macOS \
+            -scheme Portal \
             -destination "generic/platform=macOS" \
             -archivePath build/Portal-macOS.xcarchive \
             CODE_SIGN_STYLE=Manual \
@@ -344,7 +344,7 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           ditto -c -k --keepParent \
-            build/export-macos/Portal-macOS.app \
+            build/export-macos/Portal.app \
             build/Portal-macOS.zip
 
           mkdir -p ~/.appstoreconnect/private_keys
@@ -356,11 +356,11 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --wait
 
-          xcrun stapler staple build/export-macOS/Portal-macOS.app
+          xcrun stapler staple build/export-macOS/Portal.app
 
       - name: Upload macOS App as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Portal-macOS.app
-          path: build/export-macOS/Portal-macOS.app
+          path: build/export-macOS/Portal.app
           retention-days: 30
