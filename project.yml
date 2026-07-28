@@ -122,15 +122,15 @@ targets:
   # overlay-nav surface). Launched with --hang-fatal, the MainThreadWatchdog
   # trips an assertion on any >250ms main-thread stall → the test fails → the
   # PR can't merge. That's the "can't ship a beachball" gate.
-  HermesNativeMacUITests:
+  PortalMacUITests:
     type: bundle.ui-testing
     platform: macOS
     sources:
-      - path: Tests/HermesNativeMacUITests
+      - path: Tests/PortalMacUITests
     dependencies:
-      - target: HermesNative-macOS
+      - target: Portal-macOS
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.macOS.uitests
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
