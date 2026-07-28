@@ -995,11 +995,19 @@ internal struct ContentView: View {
             }
 
             if showCronDashboard {
+                #if os(macOS)
+                CronDashboardCanvas()
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+                #else
                 CronDashboardView()
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
+                #endif
             }
 
             if showSkills {

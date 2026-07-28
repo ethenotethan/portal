@@ -92,6 +92,8 @@ internal struct DashboardLayout: Codable, Equatable {
     internal static let chatCanvasKey = "sessionChatCanvasLayout.v2"
     /// The sessions dashboard canvas layout (list + timeline panels).
     internal static let sessionsDashboardKey = "sessionsDashboardLayout.v4"
+    /// The cron activity canvas layout (summary + volume + jobs + timeline + breakdown).
+    internal static let cronDashboardKey = "cronDashboardLayout.v1"
 
     /// Load the saved layout for `key`, or `nil` if the user has never arranged
     /// one (the caller then seeds a sensible default). Corrupt JSON is logged and
@@ -192,6 +194,44 @@ internal struct DashboardLayout: Codable, Equatable {
     /// artifacts are added by the user or peeled out; while the conversation is
     /// the only panel it runs in solo mode and shows the inline live strip, so a
     /// bare canvas reads exactly like today's transcript.
+    /// First-run arrangement for the **cron activity canvas**:
+    ///
+    /// ```
+    /// ┌── Summary ──────────────┬──────────────┐
+    /// ├── Volume ───────────────┤     Jobs     │
+    /// ├── Timeline ─────────────┤              │
+    /// │            Breakdown    │              │
+    /// └─────────────────────────┴──────────────┘
+    /// ```
+    /// Left column stacks the charts (summary strip, volume, timeline,
+    /// breakdown); the jobs list rides full-height on the right.
+    internal static func seededCronDashboard(for bounds: CGSize) -> DashboardLayout {
+        let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
+        let h = max(bounds.height, DashboardPanel.minSize.height * 3 + 32)
+        let gap: CGFloat = 8
+        let rightW = max(DashboardPanel.minSize.width, w * 0.34)
+        let leftW = w - rightW - gap * 3
+        let rightX = gap + leftW + gap
+        let summaryH: CGFloat = 96
+        let remaining = h - gap * 5 - summaryH
+        let chartH = max(DashboardPanel.minSize.height, remaining / 3)
+        let volumeY = gap + summaryH + gap
+        let timelineY = volumeY + chartH + gap
+        let breakdownY = timelineY + chartH + gap
+        return DashboardLayout(panels: [
+            DashboardPanel(kind: .cronSummary,
+                frame: CGRect(x: gap, y: gap, width: leftW, height: summaryH)),
+            DashboardPanel(kind: .cronVolume,
+                frame: CGRect(x: gap, y: volumeY, width: leftW, height: chartH)),
+            DashboardPanel(kind: .cronTimeline,
+                frame: CGRect(x: gap, y: timelineY, width: leftW, height: chartH)),
+            DashboardPanel(kind: .cronBreakdown,
+                frame: CGRect(x: gap, y: breakdownY, width: leftW, height: chartH)),
+            DashboardPanel(kind: .cronJobs,
+                frame: CGRect(x: rightX, y: gap, width: rightW, height: h - gap * 2)),
+        ]).clamped(to: bounds)
+    }
+
     internal static func seededChatCanvas(for bounds: CGSize) -> DashboardLayout {
         let w = max(bounds.width, DashboardPanel.minSize.width)
         let h = max(bounds.height, DashboardPanel.minSize.height)

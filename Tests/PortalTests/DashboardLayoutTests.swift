@@ -166,4 +166,23 @@ internal struct DashboardLayoutTests {
         let flame = layout.panels.first { $0.kind == .flamechart }
         #expect(flame != nil)
     }
+
+    @Test("Seeded cron dashboard tiles all five sections inside the canvas")
+    internal func seededCronDashboardFitsBounds() {
+        let bounds = CGSize(width: 1200, height: 800)
+        let layout = DashboardLayout.seededCronDashboard(for: bounds)
+        #expect(!layout.isEmpty)
+        for panel in layout.panels {
+            #expect(panel.frame.minX >= 0)
+            #expect(panel.frame.minY >= 0)
+            #expect(panel.frame.maxX <= bounds.width + 0.5)
+            #expect(panel.frame.maxY <= bounds.height + 0.5)
+            #expect(panel.frame.width >= DashboardPanel.minSize.width)
+            #expect(panel.frame.height >= DashboardPanel.minSize.height)
+        }
+        // All five cron lenses are present exactly once.
+        let kinds = Set(layout.panels.map(\.kind))
+        #expect(kinds == [.cronSummary, .cronVolume, .cronJobs, .cronTimeline, .cronBreakdown])
+        #expect(layout.panels.count == 5)
+    }
 }
