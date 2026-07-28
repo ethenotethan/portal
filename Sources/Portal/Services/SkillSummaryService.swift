@@ -245,11 +245,22 @@ Skill definition:
 
         loadTask = Task {
             do {
-                let container = try await LLMModelFactory.shared.loadContainer(
-                    from: HFHubDownloader(),
-                    using: HFTokenizerLoaderWrapper(),
-                    configuration: LLMRegistry.gemma3_1B_qat_4bit
-                )
+                // Build the container OFF the main actor. This service is
+                // @MainActor, so a plain `Task {}` inherits it and would run the
+                // heavy tokenizer construction (AutoTokenizer/BPETokenizer vocab
+                // + merges parsing) and Metal weight load on the main thread —
+                // beachballing the UI (observed: BPETokenizer.init frames on the
+                // main thread during launch pregeneration). Detaching moves the
+                // build to a background thread; we hop back here only to store
+                // the @MainActor state. Mirrors generate(), which already
+                // detaches inference for the same reason.
+                let container = try await Task.detached(priority: .utility) {
+                    try await LLMModelFactory.shared.loadContainer(
+                        from: HFHubDownloader(),
+                        using: HFTokenizerLoaderWrapper(),
+                        configuration: LLMRegistry.gemma3_1B_qat_4bit
+                    )
+                }.value
                 self.session = ChatSession(container)
                 self.isModelReady = true
                 self.modelLoadError = nil
