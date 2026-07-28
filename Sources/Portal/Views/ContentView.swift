@@ -943,12 +943,30 @@ internal struct ContentView: View {
                         .frame(width: 1)
                 }
 
+                #if os(macOS)
+                if let activeSession = sessionList.sessions.first(where: { $0.id == sessionList.activeSessionID }),
+                   activeSession.source?.lowercased() == "cron" {
+                    CronSessionView(session: activeSession)
+                        .environmentObject(chatViewModel)
+                        .environmentObject(gatewayClientWrapper)
+                        .id(activeSession.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ChatView()
+                        .environmentObject(chatViewModel)
+                        .environmentObject(gatewayClientWrapper)
+                        .environmentObject(capabilitiesStore)
+                        .id(chatViewModel.currentSessionID)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                #else
                 ChatView()
                     .environmentObject(chatViewModel)
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(capabilitiesStore)
                     .id(chatViewModel.currentSessionID)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                #endif
             }
 
             if showLiveSessions {
