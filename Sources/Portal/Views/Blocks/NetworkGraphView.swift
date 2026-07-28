@@ -146,6 +146,7 @@ private struct GraphCanvas: View {
                     }
                 }
             }
+            .clipped()
             .contentShape(Rectangle())
             .onTapGesture { selectedNodeID = nil }
         }
@@ -154,9 +155,10 @@ private struct GraphCanvas: View {
 
     /// Height comes from the deterministic layout at a nominal width —
     /// stable across the container's width jitter (never derive a
-    /// representable-style height from live geometry).
+    /// representable-style height from live geometry). Adds 20pt padding so
+    /// bottom-row node labels (fixedSize text below the circle) aren't clipped.
     private var graphHeight: CGFloat {
-        NetworkGraphLayout.layout(spec, width: 600).size.height
+        NetworkGraphLayout.layout(spec, width: 600).size.height + 20
     }
 
     private func visibleNodeIDs(_ layout: NetworkGraphLayout.Result) -> Set<String> {

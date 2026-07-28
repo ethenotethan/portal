@@ -27,7 +27,28 @@ final class CronPoller: ObservableObject {
                 guard case .connected = client.connectionState else { return }
                 guard let jobs = try? await client.listCronJobs() else { return }
                 CronRunHistoryStore.shared.detectNewRuns(from: jobs)
+                // Auto-declare each job as a maintainer on any artifacts it wrote.
+                for job in jobs {
+                    Self.stampMaintainerForJob(job)
+                }
             }
+        }
+    }
+
+    /// Stamp `cron:<jobID>` onto any artifact whose `updatedBy` matches this
+    /// job's name or id. Only touches artifacts that don't already list this
+    /// job as a maintainer, so repeated polls are idempotent.
+    private static func stampMaintainerForJob(_ job: CronJob) {
+        let ref = MaintainerRef.cron(jobID: job.id)
+        let artifactStore = ArtifactStore.shared
+        for artifact in artifactStore.artifacts.values {
+            let by = artifact.updatedBy
+            guard by.contains(job.id) || by.contains(job.name) else { continue }
+            guard !artifact.maintainerRefs.contains(ref) else { continue }
+            artifactStore.setMaintainers(
+                artifactID: artifact.id,
+                refs: artifact.maintainerRefs + [ref]
+            )
         }
     }
 

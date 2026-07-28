@@ -41,6 +41,7 @@
 		1597866227AE35AB8AA34493 /* ModelProjections.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30C2139E2E0A931CDD88D68 /* ModelProjections.swift */; };
 		16680EF361896F9D2C4FC602 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */; };
 		167D1D5C418E74B768A4DA7E /* ArtifactsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */; };
+		26494BBD0C56443285666746 /* ArtifactCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AA552680E443D7B714E544 /* ArtifactCanvasView.swift */; };
 		169D466BB9DDA1B39FE1B258 /* GatewayCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECEC837BEDF9ED53A4FC0757 /* GatewayCapabilities.swift */; };
 		1859F6AFBA5E6A795ECF1A8F /* CronListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5345D4F493040CE252399895 /* CronListViewModel.swift */; };
 		199FE129B8D4B8290B092D7C /* SessionUsageBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCFC282B5C390338603360A /* SessionUsageBadge.swift */; };
@@ -174,6 +175,7 @@
 		54FD4FF391252555FCB1F764 /* SankeySpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC60ABE2B991E64FE767E37C /* SankeySpec.swift */; };
 		567FF10DB7869207939407B7 /* ArtifactMaintenanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */; };
 		569A13C97BE876D6E8B4C9E9 /* ArtifactsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */; };
+		8BD06223FF05463F978C687C /* ArtifactCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AA552680E443D7B714E544 /* ArtifactCanvasView.swift */; };
 		56BF6DFFC9DB36AFE023150B /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */; };
 		56F152669CB6E3B4E8B7C40E /* CentaurClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663C667A24294C6A12750412 /* CentaurClient.swift */; };
 		57B38EE91079BBF7D8E7C5AA /* WikiEventTimelineCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */; };
@@ -718,6 +720,7 @@
 		F1390C2AEE5CAA97020CCD67 /* DashboardPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardPanel.swift; sourceTree = "<group>"; };
 		F1C6BA2AFC097BB28CF709EE /* CronListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListView.swift; sourceTree = "<group>"; };
 		F266A56E6890ECD9F5EB364B /* StatTilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatTilesView.swift; sourceTree = "<group>"; };
+		36AA552680E443D7B714E544 /* ArtifactCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactCanvasView.swift; sourceTree = "<group>"; };
 		F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactsPane.swift; sourceTree = "<group>"; };
 		F4EE5AEE3206BD4B2D20FCFC /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F64B3B5059364A971B6A20A8 /* PersonaManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaManager.swift; sourceTree = "<group>"; };
@@ -970,6 +973,7 @@
 			children = (
 				FE8181164CA87FB204D1DF09 /* ActivityInboxView.swift */,
 				61DF392E7C7DDF86EDE89DC3 /* AgentPanel.swift */,
+				36AA552680E443D7B714E544 /* ArtifactCanvasView.swift */,
 				F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */,
 				FC638C9FB93EE3E226D7FBE6 /* AttachmentChipView.swift */,
 				8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */,
@@ -1422,6 +1426,7 @@
 				FCB6DB21A287AF77A1ED4A58 /* AgentBackend.swift in Sources */,
 				81C721CEBB643A33B8253A0F /* AgentModel.swift in Sources */,
 				49498ADE6B690E04B5979269 /* AgentPanel.swift in Sources */,
+				26494BBD0C56443285666746 /* ArtifactCanvasView.swift in Sources */,
 				AF717CDF83F30D9E293910D2 /* ArtifactActions.swift in Sources */,
 				C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */,
 				F24625D7FFB2855A6F5A156E /* ArtifactMaintenanceSection.swift in Sources */,
@@ -1668,6 +1673,7 @@
 				9FA8591A881DB6E955248B32 /* AgentBackend.swift in Sources */,
 				99FE71AE25A9D17989214893 /* AgentModel.swift in Sources */,
 				F902C910821BC6D3C3932206 /* AgentPanel.swift in Sources */,
+				8BD06223FF05463F978C687C /* ArtifactCanvasView.swift in Sources */,
 				4DE2CCAE5236481AA46F4129 /* ArtifactActions.swift in Sources */,
 				37C7A7B6F570AB24AC0AE923 /* ArtifactIntentSessionLink.swift in Sources */,
 				567FF10DB7869207939407B7 /* ArtifactMaintenanceSection.swift in Sources */,
