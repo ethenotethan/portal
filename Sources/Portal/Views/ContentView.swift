@@ -1059,6 +1059,8 @@ internal struct ContentView: View {
                         showCronDashboard = true
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
                 #else
                 ArtifactsPane { showArtifactsPane = false }
                     .environmentObject(gatewayClientWrapper)
@@ -1067,9 +1069,9 @@ internal struct ContentView: View {
                         selectedTab = 1
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                #endif
                     .background(Theme.background)
                     .transition(.opacity)
+                #endif
             }
 
             #if os(macOS)
