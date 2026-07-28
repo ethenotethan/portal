@@ -69,6 +69,9 @@ internal struct SessionChatCanvas: View {
     /// chatting, so the canvas opens clean — just the conversation and composer —
     /// and the bar expands on demand. Persisted so it reopens the way it was left.
     @AppStorage("sessionChatCanvasToolbarCollapsed") private var toolbarCollapsed = true
+    /// Composer ("chat bar") style, cycled from the edit toolbar. Shared app-wide
+    /// via the "composerStyle" key so `ChatInputBar` picks up the same value.
+    @AppStorage("composerStyle") private var composerStyle: ComposerStyle = .card
     /// Scroll (the ever-growing transcript, live current-turn lenses) vs. Turns
     /// (page one turn at a time; the per-turn lenses show THAT turn). Session-
     /// global panels — artifacts and the metrics badge — persist across turns
@@ -293,6 +296,18 @@ internal struct SessionChatCanvas: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(Theme.accent)
                 .popover(isPresented: $showAddPalette, arrowEdge: .bottom) { addPalette }
+
+                // Cycle the composer ("chat bar") style — an editing preference,
+                // so it lives behind Edit mode alongside panel layout.
+                Button {
+                    composerStyle = composerStyle.next
+                } label: {
+                    Label("Chat bar: \(composerStyle.displayName)", systemImage: composerStyle.icon)
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .help("Cycle the composer style (Card → Pill → Minimal)")
             }
 
             // Header toggle: hide/show every panel's title bar for a chrome-free

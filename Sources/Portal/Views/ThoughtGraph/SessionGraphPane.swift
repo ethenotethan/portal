@@ -50,6 +50,7 @@ internal struct SessionGraphPane: View {
         SessionThoughtGraphView(
             turns: turns,
             isThinking: reasoningGraph.isThinking,
+            isStreaming: chatViewModel.isStreaming || !chatViewModel.activeToolCalls.isEmpty,
             onJumpToTool: onJumpToTool
         )
     }

@@ -81,46 +81,78 @@ internal enum SessionTurnBuilder {
     }
 }
 
+// MARK: - Per-turn metrics
+
+/// The consolidated numbers for one turn, derived purely from its nodes — no
+/// invention. Drives the metrics bar so a turn reads at a glance (how long, how
+/// many tools/thoughts/subagents, what it cost) before you dive into the graph.
+private struct TurnMetrics {
+    let toolCount: Int
+    let reasoningCount: Int
+    let subagentCount: Int
+    let errorCount: Int
+    let compactionCount: Int
+    /// Wall-clock span of the turn (first start → last finish). nil when no
+    /// node carried a timestamp (a tools-only history snapshot).
+    let duration: TimeInterval?
+    /// Summed subagent token/cost rollups. nil when nothing reported usage.
+    let totalTokens: Int?
+    let totalCostUSD: Double?
+
+    init(turn: SessionTurn) {
+        let nodes = turn.nodes
+        self.toolCount = turn.toolCount
+        self.reasoningCount = nodes.filter { $0.category == .reasoning }.count
+        self.subagentCount = nodes.filter { $0.isAgent }.count
+        self.errorCount = nodes.filter { $0.isError }.count
+        self.compactionCount = turn.compactions.count
+
+        let starts = nodes.compactMap(\.startedAt)
+        let ends = nodes.compactMap { $0.completedAt ?? $0.startedAt }
+        if let first = starts.min(), let last = ends.max(), last > first {
+            self.duration = last.timeIntervalSince(first)
+        } else {
+            self.duration = nil
+        }
+
+        let tokens = nodes.compactMap(\.totalTokens).reduce(0, +)
+        self.totalTokens = tokens > 0 ? tokens : nil
+        let cost = nodes.compactMap(\.costUSD).reduce(0, +)
+        self.totalCostUSD = cost > 0 ? cost : nil
+    }
+}
+
 // MARK: - Session thought graph
 
-/// The per-session Agent Thought Graph: a session is an ensemble of per-turn
-/// flamecharts. A left rail lists every turn; selecting one drives a composable
-/// **dashboard** on the right, where the user drags and resizes panels (the
-/// flamechart, thinking beats, running tools, skills, files) to taste.
+/// The per-session Agent Thought Graph, as a **turn view**: a session is an
+/// ensemble of per-turn flamecharts, and you page through them.
 ///
-/// The flamechart is the ONLY panel that runs a 30 Hz redraw timer, so it's a
-/// singleton kind — at most one on the canvas — keeping the whole dashboard at
-/// today's one-timer cost. Every other panel is a value-driven list/tree that
-/// re-renders only on data change, so composing many is beachball-free. Paging
-/// turns via the rail re-seeds each panel's per-turn state.
+/// - A left **rail** lists every turn (prompt, tool count, live badge).
+/// - Selecting a turn shows a consolidated **metrics bar** (duration, tools,
+///   thoughts, subagents, tokens/cost, compactions, errors) — the turn at a
+///   glance — over the turn's **flamechart**, which is the main surface.
+/// - The flamechart fits its box and grows in place while streaming; it can be
+///   expanded to true fullscreen.
+///
+/// This replaces the earlier free-form multi-panel dashboard (drag/resize/add
+/// panel), which buried the per-turn story under chrome. The flamechart still
+/// owns the only 30 Hz redraw timer, so there's exactly one live graph at a time.
 internal struct SessionThoughtGraphView: View {
     internal let turns: [SessionTurn]
     /// The local reasoning model is summarizing right now (heartbeat).
     internal var isThinking: Bool = false
+    /// The session is streaming — the last turn is the live "Current turn", so
+    /// its flamechart grows in real time.
+    internal var isStreaming: Bool = false
     /// Newest turn is selected by default (most recent activity).
     @State private var selectedTurnID: UUID?
-    /// Selection shared between the timeline (when) and the file tree (where):
-    /// select a bar → its file highlights; tap a file → its bar lights.
+    /// Selection shared between the flamechart (when) and its detail panel.
     @State private var selectedNodeID: String?
-    /// The one flamechart engine, owned here and injected into the (singleton)
-    /// flamechart panel — never one-per-panel (the anti-beachball rule).
+    /// True while the flamechart is presented true-fullscreen (whole view).
+    @State private var isFlamechartFullscreen = false
+    /// The one flamechart engine, owned here — never one-per-panel (the
+    /// anti-beachball rule: exactly one 30 Hz redraw timer).
     @StateObject private var engine = ThoughtGraphLayoutEngine()
-
-    // MARK: Dashboard composition state
-
-    /// The user's panel arrangement — one personal layout, applied to whatever
-    /// turn the rail has selected. Loaded once, persisted on every drag/resize.
-    @State private var layout = DashboardLayout()
-    @State private var didLoadLayout = false
-    @State private var showAddPalette = false
-    /// Last measured canvas size, so "reset layout" can re-tile for the real
-    /// viewport even though the reset button has no geometry of its own.
-    @State private var canvasBounds: CGSize = .zero
-    /// Edit vs. use — same model as the live chat canvas. Starts in use mode so
-    /// the dashboard is immediately readable and only becomes rearrangeable on
-    /// Edit; panels don't feel grabby while you're just inspecting a turn.
-    @State private var isEditing = false
-    private let registry = PanelRegistry.standard
 
     internal var onJumpToTool: ((String) -> Void)?
 
@@ -128,19 +160,10 @@ internal struct SessionThoughtGraphView: View {
         turns.first { $0.id == selectedTurnID } ?? turns.last
     }
 
-    /// Build the render inputs for a panel from the currently-selected turn.
-    /// The heartbeat only pulses on the live (last) turn — past turns are settled.
-    private func panelContext(for panel: DashboardPanel) -> PanelContext {
-        let turn = selectedTurn
-        return PanelContext(
-            nodes: turn?.nodes ?? [],
-            compactions: turn?.compactions ?? [],
-            skills: turn?.skills ?? [],
-            isThinking: isThinking && turn?.id == turns.last?.id,
-            selection: $selectedNodeID,
-            engine: engine,
-            onJumpToTool: onJumpToTool
-        )
+    /// Whether the selected turn is the live one (last turn while streaming) —
+    /// gates the flamechart's growing right edge and the thinking heartbeat.
+    private var selectedTurnIsLive: Bool {
+        isStreaming && selectedTurn?.id == turns.last?.id
     }
 
     internal var body: some View {
@@ -151,172 +174,178 @@ internal struct SessionThoughtGraphView: View {
                 turnRail
                     .frame(width: 200)
                 Divider().overlay(Theme.border)
-                dashboard
+                turnDetail
             }
             .onAppear { if selectedTurnID == nil { selectedTurnID = turns.last?.id } }
             // Clear cross-highlight when switching turns (ids don't carry over).
             .onChange(of: selectedTurnID) { _, _ in selectedNodeID = nil }
+            // True-fullscreen flamechart: covers the whole view, close returns.
+            .overlay {
+                if isFlamechartFullscreen, let turn = selectedTurn {
+                    fullscreenFlamechart(turn: turn)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 
-    // MARK: - Dashboard
+    // MARK: - Turn detail (metrics bar + flamechart)
 
-    /// The composable canvas: a toolbar (add-panel + reset) over a free-form
-    /// `DashboardCanvasView`. Panels re-key on the selected turn so the
-    /// flamechart engine re-seeds when the user pages the rail.
-    private var dashboard: some View {
+    private var turnDetail: some View {
         VStack(spacing: 0) {
-            dashboardToolbar
-            Divider().overlay(Theme.border)
-            GeometryReader { geo in
-                DashboardCanvasView(
-                    layout: $layout,
-                    isEditing: isEditing,
-                    title: { registry.title(for: $0) },
-                    icon: { registry.icon(for: $0) },
-                    onLayoutCommitted: { layout.store() },
-                    content: { panel in
-                        AnyView(
-                            registry.content(for: panel.kind, context: panelContext(for: panel))
-                                // Re-seed a panel's inner state (e.g. the
-                                // flamechart engine) when the turn changes.
-                                .id(selectedTurn?.id)
-                        )
-                    }
-                )
-                .onAppear {
-                    canvasBounds = geo.size
-                    loadLayoutIfNeeded(bounds: geo.size)
-                }
-                .onChange(of: geo.size) { _, newSize in canvasBounds = newSize }
+            if let turn = selectedTurn {
+                metricsBar(for: turn)
+                Divider().overlay(Theme.border)
+                flamechart(for: turn, onExpand: {
+                    withAnimation(.easeInOut(duration: 0.2)) { isFlamechartFullscreen = true }
+                })
+                // Re-seed the flamechart engine when the turn changes.
+                .id(turn.id)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var dashboardToolbar: some View {
-        HStack(spacing: 10) {
-            Text(selectedTurn.map { "Turn \($0.index)" } ?? "Dashboard")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Theme.secondary)
-            Text(isEditing
-                 ? "drag a panel to move · drag an edge or corner to resize"
-                 : "using the dashboard — tap Edit to rearrange")
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiary)
-                .lineLimit(1)
-                .layoutPriority(-1)
-            Spacer()
-            if isEditing {
-                Button {
-                    showAddPalette.toggle()
-                } label: {
-                    Label("Add panel", systemImage: "plus.rectangle")
-                        .font(.system(size: 11, weight: .medium))
+    /// The turn's flamechart — the main surface. Fits its box and grows in
+    /// place; `onExpand` (when provided) shows the expand affordance.
+    private func flamechart(for turn: SessionTurn, onExpand: (() -> Void)?) -> some View {
+        ThoughtGraphView(
+            engine: engine,
+            nodes: turn.nodes,
+            compactions: turn.compactions,
+            isStreaming: selectedTurnIsLive,
+            isThinking: isThinking && selectedTurnIsLive,
+            usageSummary: nil,
+            selection: $selectedNodeID,
+            onJumpToTool: onJumpToTool,
+            onExpand: onExpand
+        )
+    }
+
+    // MARK: - Metrics bar
+
+    /// The consolidated per-turn header: turn number + prompt, then a row of
+    /// metric chips. Everything is derived from the turn's nodes — a chip is
+    /// hidden when its value is zero/unknown rather than showing a fake "0".
+    private func metricsBar(for turn: SessionTurn) -> some View {
+        let m = TurnMetrics(turn: turn)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Turn \(turn.index)")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.accent)
+                if selectedTurnIsLive {
+                    liveBadge
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.accent)
-                .popover(isPresented: $showAddPalette, arrowEdge: .bottom) {
-                    addPalette
-                }
-                Button {
-                    layout = DashboardLayout.seededDefault(for: canvasBounds)
-                    layout.store()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.tertiary)
-                .help("Reset to the default layout")
+                Text(turn.title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+                Spacer()
             }
-            Button {
-                if isEditing {
-                    layout.store()
-                    showAddPalette = false
+
+            HStack(spacing: 6) {
+                if let dur = m.duration {
+                    metricChip("timer", DurationFormatter.short(dur), Theme.secondary)
                 }
-                withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
-            } label: {
-                Label(isEditing ? "Done" : "Edit",
-                      systemImage: isEditing ? "checkmark" : "slider.horizontal.3")
-                    .font(.system(size: 11, weight: .semibold))
+                metricChip("wrench.and.screwdriver", "\(m.toolCount) tools", Theme.secondary)
+                if m.reasoningCount > 0 {
+                    metricChip("diamond.fill", "\(m.reasoningCount) thoughts", Theme.graphReasoning)
+                }
+                if m.subagentCount > 0 {
+                    metricChip("brain", "\(m.subagentCount) subagents", Theme.agentAccent)
+                }
+                if let tokens = m.totalTokens {
+                    metricChip("number.circle", "\(tokens) tok", Theme.secondary)
+                }
+                if let cost = m.totalCostUSD {
+                    metricChip("dollarsign.circle", String(format: "$%.4f", cost), Theme.secondary)
+                }
+                if m.compactionCount > 0 {
+                    metricChip("arrow.triangle.2.circlepath.circle", "\(m.compactionCount) compacted", Theme.graphCompaction)
+                }
+                if m.errorCount > 0 {
+                    metricChip("xmark.circle.fill", "\(m.errorCount) errors", .red)
+                }
+                if turn.toolsOnly {
+                    metricChip("square.dashed", "tools only", Theme.tertiary)
+                }
+                Spacer()
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
-            .help(isEditing ? "Save this arrangement and lock the dashboard" : "Rearrange the panels")
         }
-        .padding(.horizontal, 12)
-        .frame(height: 34)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(Theme.surface.opacity(0.5))
     }
 
-    /// The add-panel palette: every registered kind not already blocked (a
-    /// singleton that's present). This is where custom sub-views surface — a
-    /// registered plugin appears here automatically.
-    private var addPalette: some View {
-        let present = layout.panels.map(\.kind)
-        let options = registry.addableDescriptors(present: present)
-        return VStack(alignment: .leading, spacing: 2) {
-            Text("Add a panel")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Theme.secondary)
-                .padding(.bottom, 4)
-            if options.isEmpty {
-                Text("Every panel is already on the canvas.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.tertiary)
-            } else {
-                ForEach(options) { descriptor in
-                    Button {
-                        addPanel(descriptor)
-                        showAddPalette = false
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: descriptor.icon)
-                                .frame(width: 16)
-                                .foregroundStyle(Theme.accent)
-                            Text(descriptor.title)
-                                .foregroundStyle(Theme.primary)
-                            Spacer()
-                        }
-                        .font(.system(size: 12))
-                        .contentShape(Rectangle())
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+    private func metricChip(_ icon: String, _ text: String, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9))
+            Text(text)
+                .font(.system(size: 10, weight: .medium).monospacedDigit())
         }
-        .padding(12)
-        .frame(width: 200)
+        .foregroundStyle(color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.10), in: Capsule())
     }
 
-    // MARK: Layout lifecycle
-
-    /// Load the saved layout once the canvas has a real size — or seed the
-    /// default tiling on first run — clamping either into the viewport.
-    private func loadLayoutIfNeeded(bounds: CGSize) {
-        guard !didLoadLayout else { return }
-        didLoadLayout = true
-        let loaded = DashboardLayout.loadStored() ?? DashboardLayout.seededDefault(for: bounds)
-        layout = loaded.clamped(to: bounds)
+    private var liveBadge: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(Theme.warning)
+                .frame(width: 5, height: 5)
+            Text("live")
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(Theme.warning)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Theme.warning.opacity(0.12), in: Capsule())
     }
 
-    /// Drop a new panel into the first vacant slot so it doesn't overlap an
-    /// existing one (the no-overlap rule applies to new panels too).
-    private func addPanel(_ descriptor: PanelDescriptor) {
-        let size = CGSize(width: min(360, max(DashboardPanel.minSize.width, canvasBounds.width * 0.4)),
-                          height: min(300, max(DashboardPanel.minSize.height, canvasBounds.height * 0.5)))
-        let frame = PanelResizeMath.vacantSlot(
-            size: size,
-            others: layout.panels.map(\.frame),
-            bounds: canvasBounds
-        )
-        let panel = DashboardPanel(kind: descriptor.kind, frame: frame).clamped(to: canvasBounds)
-        layout.panels.append(panel)
-        layout.store()
+    // MARK: - Fullscreen flamechart
+
+    /// True-fullscreen flamechart: fills the whole session-graph view, opaque
+    /// background, with a close button. No expand affordance here (already
+    /// expanded). Its own engine instance so it doesn't fight the inline one's
+    /// camera/layout state.
+    @StateObject private var fullscreenEngine = ThoughtGraphLayoutEngine()
+
+    private func fullscreenFlamechart(turn: SessionTurn) -> some View {
+        ZStack(alignment: .topLeading) {
+            Theme.background.ignoresSafeArea()
+            ThoughtGraphView(
+                engine: fullscreenEngine,
+                nodes: turn.nodes,
+                compactions: turn.compactions,
+                isStreaming: selectedTurnIsLive,
+                isThinking: isThinking && selectedTurnIsLive,
+                usageSummary: nil,
+                selection: $selectedNodeID,
+                onJumpToTool: onJumpToTool
+            )
+            .id(turn.id)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { isFlamechartFullscreen = false }
+            } label: {
+                Image(systemName: "arrow.down.right.and.arrow.up.left")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(Theme.surface, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Exit fullscreen")
+            .padding(.top, 64)
+            .padding(.leading, 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    // MARK: - Turn rail
 
     private var turnRail: some View {
         ScrollView {
@@ -332,11 +361,18 @@ internal struct SessionThoughtGraphView: View {
 
     private func turnRow(_ turn: SessionTurn) -> some View {
         let isSelected = turn.id == (selectedTurn?.id)
+        let isLive = isStreaming && turn.id == turns.last?.id
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Text("Turn \(turn.index)")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundStyle(isSelected ? Theme.accent : Theme.primary)
+                if isLive {
+                    Circle()
+                        .fill(Theme.warning)
+                        .frame(width: 5, height: 5)
+                        .help("Current turn — streaming now")
+                }
                 Spacer()
                 Text("\(turn.toolCount)")
                     .font(.system(size: 9, design: .monospaced))

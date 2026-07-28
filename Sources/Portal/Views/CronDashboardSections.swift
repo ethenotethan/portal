@@ -655,6 +655,9 @@ internal struct CronSingleRunPopover: View {
             if !record.isOk {
                 errorDetail
             }
+
+            Divider()
+            CronOpenSessionButton(record: record)
         }
         .padding(10)
         .frame(width: 280)

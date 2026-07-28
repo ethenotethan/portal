@@ -48,6 +48,11 @@ struct ThoughtGraphView: View {
     /// Invoked with a tool-call ID when the user taps "Jump to tool in chat".
     var onJumpToTool: ((String) -> Void)?
 
+    /// Invoked when the user taps the expand affordance — the host takes the
+    /// graph true-fullscreen. nil hides the expand button (e.g. when already
+    /// presented fullscreen).
+    var onExpand: (() -> Void)?
+
     /// Live cost/token rollup for the current turn. nil hides the chip.
     var usageSummary: String?
 
@@ -75,7 +80,8 @@ struct ThoughtGraphView: View {
         isThinking: Bool = false,
         usageSummary: String? = nil,
         selection: Binding<String?>? = nil,
-        onJumpToTool: ((String) -> Void)? = nil
+        onJumpToTool: ((String) -> Void)? = nil,
+        onExpand: (() -> Void)? = nil
     ) {
         self.engine = engine
         self.nodes = nodes
@@ -85,6 +91,7 @@ struct ThoughtGraphView: View {
         self.usageSummary = usageSummary
         self.externalSelection = selection
         self.onJumpToTool = onJumpToTool
+        self.onExpand = onExpand
         self.nodeIndex = Dictionary(
             nodes.map { ($0.id, $0) },
             uniquingKeysWith: { _, latest in latest }
@@ -109,11 +116,7 @@ struct ThoughtGraphView: View {
         }
     }
     @State private var hoveredNodeID: String?
-    @State private var showReasoningBeats: Bool = true
     @State private var collapsedAgentIDs: Set<String> = []
-
-    /// Camera tails the newest activity while streaming until the user pans.
-    @State private var autoFollow: Bool = true
 
     /// Set once we've framed the graph to fit, so we don't re-fit (and fight
     /// the user's manual zoom/pan) on every layout pass. Reset when the graph
@@ -162,10 +165,11 @@ struct ThoughtGraphView: View {
 
     // MARK: - Visible Nodes
 
-    /// Nodes after collapse/reasoning filtering — what actually lays out.
+    /// Nodes after collapse filtering — what actually lays out. Reasoning beats
+    /// always render (the thoughts are the point of the graph); only collapsed
+    /// subagent loops are hidden.
     private var visibleNodes: [ThoughtGraphNode] {
         nodes.filter { node in
-            if !showReasoningBeats && node.category == .reasoning { return false }
             if let owner = node.ownerAgentID, collapsedAgentIDs.contains(owner) { return false }
             return true
         }
@@ -180,7 +184,7 @@ struct ThoughtGraphView: View {
 
     /// Layout trigger key — changes when the visible node set changes.
     private var layoutKey: String {
-        "\(visibleNodes.count)-\(showReasoningBeats)-\(collapsedAgentIDs.sorted().joined(separator: ","))"
+        "\(visibleNodes.count)-\(collapsedAgentIDs.sorted().joined(separator: ","))"
     }
 
     // MARK: - Body
@@ -259,15 +263,19 @@ struct ThoughtGraphView: View {
 
         // ── Controls overlay ──
         .overlay(alignment: .bottomTrailing) {
-            HStack(alignment: .bottom, spacing: 8) {
-                reasoningToggle
-                zoomControls
+            zoomControls
+        }
+
+        // ── Expand affordance (top-trailing, clear of the header chrome) ──
+        .overlay(alignment: .topTrailing) {
+            if let onExpand {
+                expandButton(action: onExpand)
             }
         }
 
-        // ── Follow pill (re-engage the camera) ──
+        // ── Fit pill (re-engage auto-fit after the user pans/zooms) ──
         .overlay(alignment: .bottomLeading) {
-            if !autoFollow && isStreaming {
+            if hasUserAdjustedCamera && isStreaming {
                 followPill
             }
         }
@@ -321,8 +329,10 @@ struct ThoughtGraphView: View {
         }
     }
 
-    /// One 30Hz frame: advance the clock (running bars grow + pulse) and ease
-    /// the follow-cam horizontally toward the newest activity.
+    /// One 30Hz frame: advance the clock (running bars grow + pulse) and keep
+    /// the WHOLE graph framed as it grows — the graph fills its box instead of
+    /// scrolling off the right edge, so you never have to pan to follow live
+    /// activity. Manual zoom/pan opts out (hasUserAdjustedCamera).
     private func advanceMotion(to t: TimeInterval) {
         let appearing = nodeAppearTimes.values.contains { t - $0 < Self.appearDuration }
         // Running bars are recomputed from `now` at draw time, so we only need
@@ -331,15 +341,24 @@ struct ThoughtGraphView: View {
         guard needsFrame else { return }
         now = t
 
-        guard autoFollow, isStreaming, canvasSize.width > 0 else { return }
-        // Keep the rightmost live edge near the anchor line.
+        // Re-fit continuously while streaming so the growing turn always fills
+        // the panel width. Cheap: pure arithmetic on the laid-out bounds, no
+        // relayout. Skipped once the user takes manual control of the camera.
+        guard isStreaming, !hasUserAdjustedCamera, canvasSize.width > 0 else { return }
+        fitToView(animated: false)
+    }
+
+    /// The graph's used width RIGHT NOW, including running bars that have grown
+    /// past their laid-out width toward the live clock. Fitting to this (rather
+    /// than the settled `engine.totalSize.width`) keeps the live edge on-screen
+    /// as a bar extends, so the graph compresses to fit instead of overflowing.
+    private func liveContentWidth() -> CGFloat {
         let nowDate = Date()
-        let maxRight = engine.layouts.map { layout -> Double in
+        let liveMax = engine.layouts.map { layout -> Double in
             guard let node = nodeIndex[layout.nodeID] else { return layout.x + layout.width }
             return layout.x + engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
         }.max() ?? 0
-        let targetPanX = canvasSize.width * Self.followAnchorX - Self.leftMargin - maxRight * zoom
-        panOffset.width += (targetPanX - panOffset.width) * 0.08
+        return max(engine.totalSize.width, CGFloat(liveMax))
     }
 
     // MARK: - Graph Canvas
@@ -952,12 +971,13 @@ struct ThoughtGraphView: View {
 
     private var followPill: some View {
         Button {
-            autoFollow = true
+            hasUserAdjustedCamera = false
+            fitToView(animated: true)
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: "arrow.right.to.line")
+                Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
                     .font(.system(size: 10, weight: .semibold))
-                Text("Follow")
+                Text("Fit")
                     .font(.caption2.weight(.medium))
             }
             .foregroundStyle(Theme.background)
@@ -1022,36 +1042,22 @@ struct ThoughtGraphView: View {
         .padding(12)
     }
 
-    // MARK: - Reasoning Toggle
+    // MARK: - Expand Button
 
-    private var reasoningToggle: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.15)) {
-                showReasoningBeats.toggle()
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "diamond")
-                    .font(.system(size: 10, weight: .medium))
-                Text("Thoughts")
-                    .font(.caption2)
-                if showReasoningBeats {
-                    Circle()
-                        .fill(Theme.graphReasoning)
-                        .frame(width: 5, height: 5)
-                }
-            }
-            .foregroundStyle(showReasoningBeats ? Theme.primary : Theme.tertiary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(
-                showReasoningBeats
-                    ? Theme.graphReasoning.opacity(0.18)
-                    : Theme.surface.opacity(0.6),
-                in: RoundedRectangle(cornerRadius: 6)
-            )
+    /// Take the graph true-fullscreen. Sits top-trailing, below the header
+    /// chrome, mirroring the artifact canvas's expand affordance.
+    private func expandButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .padding(8)
+                .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.borderless)
+        .help("Expand to fullscreen")
+        // Clear the header material (~64pt tall) that hugs the top edge.
+        .padding(.top, 64)
         .padding(.trailing, 12)
     }
 
@@ -1323,6 +1329,10 @@ struct ThoughtGraphView: View {
     /// yanked away by the camera.
     private func fitToView(animated: Bool) {
         var world = engine.totalSize
+        // Use the LIVE width (includes running bars grown toward `now`) so a
+        // still-extending turn stays fully framed as it grows, not just the
+        // settled layout width.
+        world.width = liveContentWidth()
         // Reserve room for the shared-entity pill row drawn below the lanes so
         // fit-to-view frames it too instead of clipping it off the bottom.
         if !sharedEntities.isEmpty { world.height += 58 }
@@ -1345,7 +1355,6 @@ struct ThoughtGraphView: View {
             height: max(0, (availH - scaledH) / 2)
         )
 
-        autoFollow = false
         if animated {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                 zoom = targetZoom
@@ -1398,7 +1407,6 @@ struct ThoughtGraphView: View {
         case .deciding:
             if dist > 5 {
                 mouseState = .panning
-                autoFollow = false
                 hasUserAdjustedCamera = true
             }
         case .panning:
@@ -1449,7 +1457,6 @@ struct ThoughtGraphView: View {
                     let dist = hypot(value.translation.width, value.translation.height)
                     if dist > 5 {
                         iosMouseState = .panning
-                        autoFollow = false
                         hasUserAdjustedCamera = true
                     }
                 case .panning:

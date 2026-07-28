@@ -995,15 +995,26 @@ internal struct ContentView: View {
             }
 
             if showCronDashboard {
+                let cronNavigator = CronSessionNavigator(
+                    sessions: sessionList.sessions,
+                    open: { sessionID in
+                        closeAllOverlays()
+                        sessionList.selectSession(id: sessionID)
+                    }
+                )
                 #if os(macOS)
                 CronDashboardCanvas()
                     .environmentObject(gatewayClientWrapper)
+                    .environmentObject(sessionList)
+                    .cronSessionNavigator(cronNavigator)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
                 #else
                 CronDashboardView()
                     .environmentObject(gatewayClientWrapper)
+                    .environmentObject(sessionList)
+                    .cronSessionNavigator(cronNavigator)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
