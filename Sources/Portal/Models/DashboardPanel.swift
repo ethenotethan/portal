@@ -69,16 +69,22 @@ internal struct DashboardPanel: Codable, Identifiable, Equatable {
     internal let id: UUID
     internal var kind: PanelKind
     internal var frame: CGRect
+    /// When `true` the panel shows only its title bar; the content is hidden.
+    /// The frame is preserved so expanding snaps the panel back to its previous size.
+    internal var isCollapsed: Bool
 
-    internal init(id: UUID = UUID(), kind: PanelKind, frame: CGRect) {
+    internal init(id: UUID = UUID(), kind: PanelKind, frame: CGRect, isCollapsed: Bool = false) {
         self.id = id
         self.kind = kind
         self.frame = frame
+        self.isCollapsed = isCollapsed
     }
 
     /// Smallest a panel may be shrunk to — keeps the chrome (title bar + grips)
     /// usable and the content non-degenerate.
     internal static let minSize = CGSize(width: 200, height: 140)
+    /// Height of the title bar — the visible height when a panel is collapsed.
+    internal static let titleBarHeight: CGFloat = 28
 
     /// Return this panel with its frame clamped so it stays at least partially
     /// on-canvas and no smaller than `minSize`. Used on load (a saved layout may
@@ -90,6 +96,6 @@ internal struct DashboardPanel: Codable, Identifiable, Equatable {
         // Keep the whole frame inside the canvas when it fits; otherwise pin to origin.
         f.origin.x = min(max(0, f.origin.x), max(0, bounds.width - f.size.width))
         f.origin.y = min(max(0, f.origin.y), max(0, bounds.height - f.size.height))
-        return DashboardPanel(id: id, kind: kind, frame: f)
+        return DashboardPanel(id: id, kind: kind, frame: f, isCollapsed: isCollapsed)
     }
 }

@@ -113,45 +113,51 @@ internal struct DashboardCanvasView: View {
         // Only the frontmost panel "focuses" (accent chrome) — and only while
         // editing, since use mode has no movable/selected panel.
         let isFocused = isEditing && layout.panels.last?.id == panel.id
+        // Collapsed panels render only their title bar; the full frame is kept in
+        // the layout so expanding snaps back to the original size.
+        let visibleHeight: CGFloat = panel.isCollapsed ? Self.titleBarHeight : panel.frame.height
         ZStack(alignment: .topLeading) {
-            card(panel, isFocused: isFocused)
+            card(panel, isFocused: isFocused, visibleHeight: visibleHeight)
 
             if isEditing {
-                // 2. Move layer — a transparent sheet over the whole panel. Drag
-                // anywhere to move; content beneath is covered so there's no
-                // scroll-vs-move fight. Sits ABOVE the card, BELOW the handles.
+                // 2. Move layer — sized to the visible area so the grab zone matches
+                // what the user sees (no invisible drag surface below a collapsed bar).
                 Color.clear
-                    .frame(width: panel.frame.width, height: panel.frame.height)
+                    .frame(width: panel.frame.width, height: visibleHeight)
                     .contentShape(Rectangle())
                     .gesture(dragGesture(.move, panel: panel, bounds: bounds))
                     .pointerStyleGrab()
 
-                // 3. Resize handles — thin strips pinned to each edge/corner.
-                resizeGrips(panel, bounds: bounds, isFocused: isFocused)
-                    .frame(width: panel.frame.width, height: panel.frame.height)
+                // 3. Resize handles — only meaningful on the expanded card.
+                if !panel.isCollapsed {
+                    resizeGrips(panel, bounds: bounds, isFocused: isFocused)
+                        .frame(width: panel.frame.width, height: panel.frame.height)
+                }
 
                 // 4. Delete — topmost, so its click is never eaten by the move layer.
                 deleteButton(panel)
-                    .frame(width: panel.frame.width, height: panel.frame.height, alignment: .topTrailing)
+                    .frame(width: panel.frame.width, height: visibleHeight, alignment: .topTrailing)
             }
         }
-        .frame(width: panel.frame.width, height: panel.frame.height)
+        .frame(width: panel.frame.width, height: visibleHeight)
         .offset(x: panel.frame.minX, y: panel.frame.minY)
     }
 
     /// The visual card: title bar + content, with the panel chrome. In use mode
     /// its content is fully interactive; in edit mode the move layer above covers
     /// it, so hit-testing here doesn't matter.
-    private func card(_ panel: DashboardPanel, isFocused: Bool) -> some View {
+    private func card(_ panel: DashboardPanel, isFocused: Bool, visibleHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             if showsTitleBars {
                 titleBar(panel, isFocused: isFocused)
             }
-            content(panel)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipped()
+            if !panel.isCollapsed {
+                content(panel)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .clipped()
+            }
         }
-        .frame(width: panel.frame.width, height: panel.frame.height)
+        .frame(width: panel.frame.width, height: visibleHeight)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(panelBorder(isFocused: isFocused))
         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -193,9 +199,10 @@ internal struct DashboardCanvasView: View {
             )
     }
 
-    /// Title bar — pure chrome (icon + name). Moving is handled by the move layer
-    /// above, and deleting by the delete layer, so the bar itself owns no gesture.
-    /// The grip glyph in edit mode signals "this whole panel is draggable now".
+    /// Title bar — chrome (icon + name + collapse chevron). In use mode a tap on
+    /// the bar toggles the panel collapsed/expanded. In edit mode the move layer
+    /// sits above so the tap falls through to the drag gesture instead — collapse
+    /// is intentionally disabled while rearranging.
     private func titleBar(_ panel: DashboardPanel, isFocused: Bool) -> some View {
         HStack(spacing: 6) {
             if isEditing {
@@ -211,6 +218,14 @@ internal struct DashboardCanvasView: View {
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
             Spacer(minLength: 4)
+            // Collapse chevron — only in use mode; edit mode uses the move layer.
+            if !isEditing {
+                Image(systemName: panel.isCollapsed ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
             // Leave room for the delete layer's × so the title doesn't run under it.
             if isEditing { Color.clear.frame(width: 22, height: 1) }
         }
@@ -218,6 +233,14 @@ internal struct DashboardCanvasView: View {
         .frame(height: Self.titleBarHeight)
         .frame(maxWidth: .infinity)
         .background(isFocused ? Theme.surfaceHover : Theme.surface.opacity(0.6))
+        // Tap the title bar to collapse/expand in use mode.
+        .onTapGesture {
+            guard !isEditing else { return }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                layout.toggleCollapsed(panel.id)
+            }
+            onLayoutCommitted()
+        }
     }
 
     // MARK: - Resize grips (4 edges + 4 corners)

@@ -573,11 +573,8 @@ struct SessionsDashboard: View {
 extension Session {
     var isLive: Bool {
         guard endedAt == nil else { return false }
-        if let runState, runState.isActive { return true }
-        if let last = lastActive {
-            return Date().timeIntervalSince(last) < 300  // 5 min
-        }
-        return true  // No timing info — assume live until endedAt is set
+        guard let runState else { return false }
+        return runState.isActive
     }
 
     var displaySource: String {

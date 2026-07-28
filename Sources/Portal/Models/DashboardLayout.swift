@@ -43,6 +43,12 @@ internal struct DashboardLayout: Codable, Equatable {
         panels[idx].frame = frame
     }
 
+    /// Toggle the collapsed state of a panel in place.
+    internal mutating func toggleCollapsed(_ id: UUID) {
+        guard let idx = panels.firstIndex(where: { $0.id == id }) else { return }
+        panels[idx].isCollapsed.toggle()
+    }
+
     /// Clamp every panel into the given canvas bounds (window resized, or a
     /// layout saved on a bigger screen is being restored on a smaller one).
     internal func clamped(to bounds: CGSize) -> DashboardLayout {
