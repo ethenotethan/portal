@@ -8,7 +8,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Conten
 
 /// Root content view — TabView on iOS with first-class app surfaces,
 /// custom split layout on macOS with app-owned chrome.
-struct ContentView: View {
+internal struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
