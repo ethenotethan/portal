@@ -127,6 +127,15 @@ internal struct ContentView: View {
             if connected {
                 Task { await sessionList.refreshSessions() }
                 Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }
+                // Warm the wiki graph now, at connect, so the surface is already
+                // populated the first time it's opened instead of scanning on
+                // .onAppear and showing a blank "Loading…" until the round-trip
+                // returns. Home gateway only (override/Centaur sources load per
+                // session); guarded on an empty graph so a live graph is never
+                // re-fetched, and it's a no-op when nothing opens the wiki.
+                if wikiViewModel.graph.pages.isEmpty {
+                    Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }
+                }
                 // Register this device's APNs token with whichever gateway we
                 // just connected to (no-op until the OS grants a token, and
                 // once per gateway+token thereafter).
@@ -184,6 +193,7 @@ internal struct ContentView: View {
         chatViewModel.saveHistory()
         chatViewModel.resetForGatewaySwitch()
         sessionList.resetForGatewaySwitch()
+        wikiViewModel.resetForGatewaySwitch()
         activityInbox.clearAll()
 
         Task {

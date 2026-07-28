@@ -361,6 +361,25 @@ final class WikiGraphViewModel: ObservableObject {
         showEventsPage = false
     }
 
+    /// Drop the graph and all navigation state on a gateway switch. The graph
+    /// belongs to the previous gateway; without this the stale graph both stays
+    /// on screen and blocks the connect-time prefetch / onAppear reload (both
+    /// guard on an empty graph), so the new gateway's wiki would never load.
+    /// Bumps the generation so any in-flight scan for the old gateway is dropped.
+    func resetForGatewaySwitch() {
+        loadGeneration += 1
+        graph = .empty
+        simNodes.removeAll()
+        loadedSource = nil
+        loadedWiki = nil
+        hasLoadedOnce = false
+        availableWikis = []
+        selectedWikiPath = nil
+        isLoading = false
+        error = nil
+        clearPageSelection()
+    }
+
     /// Navigates the shared reader to a page, pushing the current page onto
     /// the back stack. Also mirrors the selection into the graph node.
     func navigate(to path: String) {

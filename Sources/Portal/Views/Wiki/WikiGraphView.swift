@@ -96,8 +96,11 @@ struct WikiGraphView: View {
             .onAppear {
                 // For override sources (Centaur), always load — the source
                 // changes per session and the VM is shared from ContentView.
-                // For the home gateway, skip if already loaded eagerly at
-                // connect time so opening the panel doesn't re-fetch.
+                // For the home gateway, skip if the graph is already populated:
+                // ContentView warms it at connect (see the isConnected handler),
+                // so opening the panel usually finds it loaded and paints
+                // instantly instead of re-fetching. Only cold cases (prefetch
+                // still in flight, or it failed) fall through to load here.
                 guard isOverride || viewModel.graph.pages.isEmpty else { return }
                 Task { await attemptInitialLoad() }
             }
