@@ -70,8 +70,8 @@ jobs:
       - name: Build
         run: swift build -c release
 
-  warning-ratchet:
-    name: Compiler warning ratchet
+  metric-ratchet:
+    name: Metric ratchet
     runs-on: macos-26
     steps:
       # Full history so `git show <base>:metrics-baseline.json` and the
@@ -87,20 +87,35 @@ jobs:
         run: |
           set -o pipefail
           swift build 2>&1 | tee build.log
+          python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
 
-      - name: Ratchet warnings against the base branch
+      # Coverage: run the package tests with instrumentation, then export the
+      # full per-line report (no -summary-only — the patch check needs segments)
+      # and reduce it to the testable-layer snapshot.
+      - name: Test with coverage and capture snapshot
+        run: |
+          set -o pipefail
+          swift test --enable-code-coverage 2>&1 | tail -5
+          PROF=$(find .build -name '*.profdata' | head -1)
+          BIN=$(find .build -name '*.xctest' -type d | head -1)
+          EXE="$BIN/Contents/MacOS/$(basename "$BIN" .xctest)"
+          xcrun llvm-cov export -instr-profile "$PROF" "$EXE" > cov-export.json
+          python3 scripts/collect-coverage.py cov-export.json --root "$PWD" --json coverage.json
+
+      - name: Ratchet metrics against the base branch
         run: |
           BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
-          python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
-          python3 scripts/check-metrics-ratchet.py warnings.json "$BASE"
+          python3 scripts/check-metrics-ratchet.py \
+            --warnings warnings.json --coverage coverage.json --base "$BASE"
 
-      - name: Upload warning snapshot
+      - name: Upload metric snapshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: warning-snapshot
+          name: metric-snapshots
           path: |
             warnings.json
+            coverage.json
             build.log
           if-no-files-found: ignore
           retention-days: 14

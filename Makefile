@@ -86,26 +86,48 @@ test:
 	swift build --build-tests
 	swift test --disable-sandbox
 
-# Metric ratchet: fail if the build gained compiler warnings vs the base branch
-# (floor), or if any warning sits on a line this branch added (patch). A CLEAN
-# build is mandatory — incremental builds skip unchanged modules and under-count
-# warnings, so we wipe .build first. Mirrors the lint-baseline pattern; the
-# frozen counts live in metrics-baseline.json. See scripts/check-metrics-ratchet.py.
+# Metric ratchet: fail if a tracked code-health metric regressed vs the base
+# branch. Two metrics are wired:
+#   warnings — compiler warning sites (floor: no category grows; patch: no
+#              warning on a line this PR added). A CLEAN build is mandatory —
+#              incremental builds skip unchanged modules and under-count, so we
+#              wipe .build first.
+#   coverage — testable-layer line coverage (floor: aggregate can't erode;
+#              patch: >=80% of executable lines this PR added must be covered).
+# Mirrors the lint-baseline pattern; frozen values live in metrics-baseline.json.
+# See scripts/check-metrics-ratchet.py.
 metrics-ratchet:
 	rm -rf .build
 	swift build 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
-	python3 scripts/check-metrics-ratchet.py /tmp/portal-warnings.json origin/main
+	swift test --enable-code-coverage 2>&1 | tail -3
+	$(call export-coverage)
+	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
+	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --base origin/main
+
+# Resolve the coverage profdata + test binary that `swift test
+# --enable-code-coverage` produced and export the full per-line report (no
+# -summary-only — the patch check needs segments). Shared by the two targets.
+define export-coverage
+	PROF=$$(find .build -name '*.profdata' | head -1); \
+	BIN=$$(find .build -name '*.xctest' -type d | head -1); \
+	EXE="$$BIN/Contents/MacOS/$$(basename "$$BIN" .xctest)"; \
+	xcrun llvm-cov export -instr-profile "$$PROF" "$$EXE" > /tmp/portal-cov-export.json
+endef
 
 # Regenerate the frozen metric baseline. Run ONLY when you have deliberately
-# improved a metric (paid down warnings) and want to lock in the gain, exactly
-# like `make lint-baseline`. Requires a clean build for an honest warning count.
+# improved a metric (paid down warnings, added tests) and want to lock in the
+# gain, exactly like `make lint-baseline`. Requires a clean build for an honest
+# warning count. Rewrites BOTH the warnings and coverage keys.
 metrics-baseline:
 	rm -rf .build
 	swift build 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
-	@python3 -c "import json; s=json.load(open('/tmp/portal-warnings.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=s; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', s['total'], 'warning sites')"
-	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — counts should only DROP."
+	swift test --enable-code-coverage 2>&1 | tail -3
+	$(call export-coverage)
+	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
+	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warning sites,', str(c['testable_pct'])+'% testable coverage')"
+	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings should only DROP, coverage only RISE."
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, and baselined lint. If this is green, CI is.

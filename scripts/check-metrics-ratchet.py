@@ -7,11 +7,13 @@ reusable ratchet over ANY measurable metric. Metrics live in a committed
 baseline (floor: never regress globally) and the PR's own diff (patch: leave
 touched code at least as clean as you found it).
 
-The only metric wired today is `warnings` (compiler warning sites, produced by
-collect-warnings.py). Adding another metric is a collector + a baseline entry +
-a handler here — no new gate, no new workflow.
+Metrics wired today: `warnings` (compiler warning sites, from
+collect-warnings.py) and `coverage` (testable-layer line coverage, from
+collect-coverage.py). Adding another is a collector + a baseline entry + a
+handler here — no new gate, no new workflow.
 
-Two independent checks run for `warnings`:
+Each metric runs a FLOOR check (never regress vs base) and a PATCH check
+(touched code must be clean). For `warnings`:
 
   FLOOR  — per-category site counts in the CURRENT build must not exceed the
            base branch's baseline counts. Per-category (not just the total) for
@@ -26,13 +28,26 @@ Two independent checks run for `warnings`:
            half: new code carries zero new warnings even while old debt is paid
            down gradually under the floor.
 
-Usage:
-    check-metrics-ratchet.py CURRENT_SNAPSHOT [BASE_REF]
+For `coverage` (scoped to testable layers — Views are unreachable by
+`swift test`, so they're excluded entirely):
 
-CURRENT_SNAPSHOT is collect-warnings.py's JSON for THIS build. BASE_REF
-defaults to origin/main; the base baseline is read via
-`git show BASE_REF:metrics-baseline.json`. If absent there (guard predates it),
-the floor check is skipped with a note — same grace the lint guard gives.
+  FLOOR  — aggregate testable-layer line coverage must not drop more than
+           COVERAGE_FLOOR_TOLERANCE points vs base.
+  PATCH  — of the executable lines this PR ADDED in testable-layer files, at
+           least COVERAGE_PATCH_THRESHOLD must be covered (not 100% — defensive
+           branches are legitimately hard to hit; a ratio matches industry
+           patch-coverage gates). Skipped below COVERAGE_PATCH_MIN_LINES added
+           executable lines, where the ratio is too noisy. Added Views,
+           comments, and non-executable lines never count toward either side.
+
+Usage:
+    check-metrics-ratchet.py [--warnings SNAP] [--coverage SNAP] [--base REF]
+    check-metrics-ratchet.py SNAP [BASE]      # back-compat: warnings only
+
+Snapshots are the collector scripts' JSON for THIS build. BASE defaults to
+origin/main; the base baseline is read via
+`git show BASE:metrics-baseline.json`. If absent there (guard predates it),
+each floor check is skipped with a note — same grace the lint guard gives.
 """
 import json
 import re
@@ -121,45 +136,150 @@ def check_warnings_patch(current: dict, added: dict[str, set[int]]) -> list[str]
     return fails
 
 
-def main() -> int:
-    if len(sys.argv) < 2:
-        print(__doc__)
-        return 2
-    snapshot_path = sys.argv[1]
-    base_ref = sys.argv[2] if len(sys.argv) > 2 else "origin/main"
+# A PR may drop testable-layer coverage by at most this much (percentage
+# points) before the floor fails. A small band absorbs measurement jitter and
+# the arithmetic dilution of adding a large, well-tested file that still lands
+# just under the current average — without letting real erosion through.
+COVERAGE_FLOOR_TOLERANCE = 0.5
 
-    current = json.loads(Path(snapshot_path).read_text())
-    base_raw = git_show(base_ref, BASELINE)
-    base_doc = json.loads(base_raw) if base_raw else None
-    base_warnings = base_doc.get("warnings") if base_doc else None
 
-    print("Warning ratchet:")
-    floor_fails = check_warnings_floor(current, base_warnings)
+def check_coverage_floor(current: dict, base: dict | None) -> list[str]:
+    """Fail if aggregate testable-layer coverage dropped past the tolerance."""
+    if base is None:
+        print("  Floor: no coverage baseline on base ref; skipping (initial freeze).")
+        return []
+    base_pct = base.get("testable_pct", 0.0)
+    cur_pct = current.get("testable_pct", 0.0)
+    delta = cur_pct - base_pct
+    arrow = "→"
+    print(f"  Floor: {base_pct}% {arrow} {cur_pct}% testable-layer coverage "
+          f"({'+' if delta >= 0 else ''}{round(delta, 2)} pts).")
+    if delta < -COVERAGE_FLOOR_TOLERANCE:
+        return [f"  coverage dropped {round(-delta, 2)} pts "
+                f"(> {COVERAGE_FLOOR_TOLERANCE} pt tolerance): {base_pct}% → {cur_pct}%"]
+    return []
 
-    added = added_lines(base_ref)
-    patch_fails = check_warnings_patch(current, added)
 
+# A PR's ADDED executable lines in testable layers must be at least this
+# fraction covered. Not 100%: defensive branches (catch blocks, nil-coalescing
+# fallbacks) are legitimately hard to exercise, and a zero-tolerance rule taxes
+# every feature PR. A threshold matches industry patch-coverage gates and still
+# blocks a PR that ships a meaningful chunk of untested logic. Only enforced
+# once the PR adds enough executable lines to measure meaningfully.
+COVERAGE_PATCH_THRESHOLD = 0.80
+COVERAGE_PATCH_MIN_LINES = 10
+
+
+def check_coverage_patch(current: dict, added: dict[str, set[int]]) -> list[str]:
+    """Fail if too small a fraction of PR-added testable-layer lines are covered.
+
+    Denominator = added lines that are EXECUTABLE in a testable-layer file
+    (the collector's `covered_lines` ∪ `uncovered`, intersected with the diff).
+    Added comments, blanks, and non-executable declarations aren't in either
+    set, so they're excluded. Views aren't tracked at all, so adding a View is
+    always clean. Below COVERAGE_PATCH_MIN_LINES added executable lines the
+    ratio is too noisy to judge, so the check is skipped.
+    """
+    uncovered = current.get("uncovered", {})
+    covered = current.get("covered_lines", {})
+    added_uncovered, added_covered = [], 0
+    for f, add in added.items():
+        miss = set(uncovered.get(f, [])) & add
+        hit = set(covered.get(f, [])) & add
+        added_covered += len(hit)
+        for ln in sorted(miss):
+            added_uncovered.append(f"{f}:{ln}")
+    total = added_covered + len(added_uncovered)
+    if total < COVERAGE_PATCH_MIN_LINES:
+        print(f"  Patch: {total} added executable line(s) in testable layers "
+              f"(< {COVERAGE_PATCH_MIN_LINES}; too few to judge, skipping).")
+        return []
+    ratio = added_covered / total
+    print(f"  Patch: {added_covered}/{total} added executable lines covered "
+          f"({round(100 * ratio, 1)}%; need {int(COVERAGE_PATCH_THRESHOLD * 100)}%).")
+    if ratio < COVERAGE_PATCH_THRESHOLD:
+        head = added_uncovered[:15]
+        more = f"\n  … and {len(added_uncovered) - 15} more" if len(added_uncovered) > 15 else ""
+        return [f"  patch coverage {round(100 * ratio, 1)}% < "
+                f"{int(COVERAGE_PATCH_THRESHOLD * 100)}%; uncovered added lines:"]  \
+               + [f"    {u}" for u in head] + ([more] if more else [])
+    return []
+
+
+def _report(kind: str, floor_fails: list[str], patch_fails: list[str],
+            floor_hint: str, patch_hint: str) -> bool:
     ok = True
     if floor_fails:
         ok = False
-        print("\n✗ FLOOR regressed — a warning category grew vs base:")
+        print(f"\n✗ {kind} FLOOR regressed:")
         print("\n".join(floor_fails))
-        print(
-            "\n  The build must not gain warnings overall. Fix the new warning,\n"
-            "  or if a category legitimately moved, pay another down so the\n"
-            "  count holds. Regenerate the baseline only to record paydown."
-        )
+        print(floor_hint)
     if patch_fails:
         ok = False
-        print(f"\n✗ PATCH not clean — {len(patch_fails)} warning(s) on lines this PR added:")
+        print(f"\n✗ {kind} PATCH not clean — {len(patch_fails)} issue(s) on lines this PR added:")
         print("\n".join(patch_fails))
-        print(
+        print(patch_hint)
+    return ok
+
+
+def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description="Metric ratchet: floor + patch checks.")
+    ap.add_argument("--warnings", help="collect-warnings.py snapshot for THIS build")
+    ap.add_argument("--coverage", help="collect-coverage.py snapshot for THIS build")
+    ap.add_argument("--base", default="origin/main", help="base ref (default origin/main)")
+    # Back-compat: `check-metrics-ratchet.py SNAPSHOT [BASE]` still runs the
+    # warnings check, so the existing Makefile/CI invocation keeps working.
+    ap.add_argument("pos_snapshot", nargs="?", help=argparse.SUPPRESS)
+    ap.add_argument("pos_base", nargs="?", help=argparse.SUPPRESS)
+    args = ap.parse_args()
+
+    warnings_path = args.warnings or args.pos_snapshot
+    base_ref = args.base if args.base != "origin/main" else (args.pos_base or "origin/main")
+
+    if not warnings_path and not args.coverage:
+        ap.print_help()
+        return 2
+
+    base_raw = git_show(base_ref, BASELINE)
+    base_doc = json.loads(base_raw) if base_raw else None
+    added = added_lines(base_ref)
+
+    ok = True
+
+    if warnings_path:
+        current = json.loads(Path(warnings_path).read_text())
+        base_warnings = base_doc.get("warnings") if base_doc else None
+        print("Warning ratchet:")
+        floor = check_warnings_floor(current, base_warnings)
+        patch = check_warnings_patch(current, added)
+        ok &= _report(
+            "Warning", floor, patch,
+            "\n  The build must not gain warnings overall. Fix the new warning,\n"
+            "  or if a category legitimately moved, pay another down so the\n"
+            "  count holds. Regenerate the baseline only to record paydown.",
             "\n  New code must compile warning-free even while old debt lingers.\n"
-            "  Resolve these before merging."
+            "  Resolve these before merging.",
+        )
+
+    if args.coverage:
+        current = json.loads(Path(args.coverage).read_text())
+        base_cov = base_doc.get("coverage") if base_doc else None
+        print("Coverage ratchet:")
+        floor = check_coverage_floor(current, base_cov)
+        patch = check_coverage_patch(current, added)
+        ok &= _report(
+            "Coverage", floor, patch,
+            "\n  Aggregate coverage of the testable layers (Models, Services,\n"
+            "  ViewModels, Utilities) must not erode. Add tests, or regenerate\n"
+            "  the baseline only to record a real gain.",
+            "\n  Executable lines you ADDED in a testable layer must be covered\n"
+            "  by a test. (Views are exempt — swift test can't reach them.)\n"
+            "  Add a test that exercises these lines.",
         )
 
     if ok:
-        print("\n✓ Warning ratchet passed: no category grew, no warning on added lines.")
+        print("\n✓ Metric ratchet passed.")
         return 0
     return 1
 
