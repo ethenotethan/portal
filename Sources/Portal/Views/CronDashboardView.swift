@@ -528,27 +528,41 @@ struct CronDashboardView: View {
             Divider()
 
             ForEach(records) { record in
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(record.isOk ? Theme.success : Color.red)
-                        .frame(width: 6, height: 6)
-                    Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondary)
-                    Spacer()
-                    Text(record.status)
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(record.isOk ? Theme.success : .red)
-                    if record.duration != nil {
-                        Text(record.durationLabel)
+                Button {
+                    selectedRecord = record
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(record.isOk ? Theme.success : Color.red)
+                            .frame(width: 6, height: 6)
+                        Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondary)
+                        Spacer()
+                        Text(record.status)
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(Theme.tertiary)
+                            .foregroundStyle(record.isOk ? Theme.success : .red)
+                        if record.duration != nil {
+                            Text(record.durationLabel)
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        if !record.isOk {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(Theme.tertiary)
+                        }
                     }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(10)
-        .frame(width: 260)
+        .frame(width: 280)
+        .popover(item: $selectedRecord) { record in
+            singleRunPopover(record: record)
+        }
     }
 
     @ViewBuilder
@@ -573,14 +587,32 @@ struct CronDashboardView: View {
             detailRow("Job ID", value: String(record.jobID.prefix(12)))
 
             if !record.isOk {
-                Text("Check session logs for error details.")
-                    .font(.caption2)
-                    .foregroundStyle(.red.opacity(0.8))
-                    .padding(.top, 4)
+                if let msg = record.errorMessage, !msg.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Error")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.red)
+                        ScrollView {
+                            Text(msg)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.red.opacity(0.85))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
+                    }
+                    .padding(6)
+                    .background(.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Text("No error detail available — check session logs.")
+                        .font(.caption2)
+                        .foregroundStyle(.red.opacity(0.7))
+                        .padding(.top, 2)
+                }
             }
         }
         .padding(10)
-        .frame(width: 240)
+        .frame(width: 280)
     }
 
     private func detailRow(_ title: String, value: String) -> some View {
@@ -800,14 +832,11 @@ private struct CronJobCard: View {
             if isEditingPrompt {
                 promptEditor
             } else {
-                ScrollView([.vertical]) {
-                    Text(promptText)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Theme.secondary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 300, alignment: .top)
+                Text(promptText)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Theme.secondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(8)
@@ -821,7 +850,7 @@ private struct CronJobCard: View {
                 .foregroundStyle(Theme.primary)
                 .scrollContentBackground(.hidden)
                 .background(Theme.background)
-                .frame(minHeight: 120, maxHeight: 300)
+                .frame(minHeight: 180)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
@@ -884,6 +913,8 @@ private struct CronJobCard: View {
         }
     }
 
+    @State private var selectedRunRecord: CronRunRecord?
+
     private var recentRuns: some View {
         Group {
             if !runRecords.isEmpty {
@@ -894,28 +925,96 @@ private struct CronJobCard: View {
 
                     let recent = Array(runRecords.suffix(5).reversed())
                     ForEach(recent) { record in
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(record.isOk ? Theme.success : Color.red)
-                                .frame(width: 6, height: 6)
-                            Text(record.firedAt.relativeString)
-                                .font(.caption2)
-                                .foregroundStyle(Theme.secondary)
-                            Text(record.status)
-                                .font(.caption2.monospacedDigit())
-                                .foregroundStyle(Theme.tertiary)
-                            if let dur = record.duration {
-                                Text(dur < 60 ? String(format: "%.1fs", dur) : String(format: "%.1fm", dur / 60))
+                        Button {
+                            selectedRunRecord = record
+                        } label: {
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(record.isOk ? Theme.success : Color.red)
+                                    .frame(width: 6, height: 6)
+                                Text(record.firedAt.relativeString)
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.secondary)
+                                Text(record.status)
                                     .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(Theme.tertiary)
+                                    .foregroundStyle(record.isOk ? Theme.success : .red)
+                                if let dur = record.duration {
+                                    Text(dur < 60 ? String(format: "%.1fs", dur) : String(format: "%.1fm", dur / 60))
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundStyle(Theme.tertiary)
+                                }
+                                Spacer()
+                                if !record.isOk {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(Theme.tertiary)
+                                }
                             }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(8)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                .popover(item: $selectedRunRecord) { record in
+                    runRecordDetailPopover(record: record)
+                }
             }
         }
+    }
+
+    private func runRecordDetailPopover(record: CronRunRecord) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(record.isOk ? Theme.success : Color.red)
+                    .frame(width: 8, height: 8)
+                Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+            }
+            Divider()
+            HStack {
+                Text("Status")
+                    .font(.caption2).foregroundStyle(Theme.tertiary).frame(width: 60, alignment: .leading)
+                Text(record.status.capitalized)
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(record.isOk ? Theme.success : .red)
+            }
+            if let dur = record.duration {
+                HStack {
+                    Text("Duration")
+                        .font(.caption2).foregroundStyle(Theme.tertiary).frame(width: 60, alignment: .leading)
+                    Text(record.durationLabel)
+                        .font(.caption2.monospacedDigit()).foregroundStyle(Theme.primary)
+                }
+            }
+            if !record.isOk {
+                if let msg = record.errorMessage, !msg.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Error")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.red)
+                        ScrollView {
+                            Text(msg)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.red.opacity(0.85))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
+                    }
+                    .padding(6)
+                    .background(.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Text("No error detail recorded for this run.")
+                        .font(.caption2).foregroundStyle(.red.opacity(0.7)).padding(.top, 2)
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: 280)
     }
 }
 
