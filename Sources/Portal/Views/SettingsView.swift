@@ -50,6 +50,11 @@ internal struct SettingsView: View {
     internal var body: some View {
         #if os(macOS)
         macBody
+            .onChange(of: settings.focusedGateway?.id) {
+                if !visibleSections.contains(selectedSection) {
+                    selectedSection = .connection
+                }
+            }
         #else
         iosBody
         #endif
@@ -58,11 +63,21 @@ internal struct SettingsView: View {
     // MARK: - macOS
 
     #if os(macOS)
+    /// System Prompt is a Hermes-only RPC — hide it for session-scoped
+    /// gateways (Centaur) that don't implement prompt_breakdown.
+    private var visibleSections: [SettingsSection] {
+        let isCentaur = settings.focusedGateway?.kind.isSessionScoped == true
+        return SettingsSection.allCases.filter { section in
+            if section == .systemPrompt && isCentaur { return false }
+            return true
+        }
+    }
+
     private var macBody: some View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 2) {
-                ForEach(SettingsSection.allCases) { section in
+                ForEach(visibleSections) { section in
                     Button {
                         selectedSection = section
                     } label: {
@@ -413,7 +428,7 @@ internal struct SettingsView: View {
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
                 }
             } else {
-                Text("No PERSONA.md is configured on this gateway.")
+                Text("The agent's persona is set by the gateway. Add a PERSONA.md to your gateway to customise the agent name, tagline, and system prompt suffix.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
