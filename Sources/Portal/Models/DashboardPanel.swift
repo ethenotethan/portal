@@ -48,6 +48,25 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// Opened as an in-canvas tile rather than a fullscreen sheet, so it docks
     /// beside the conversation like any other lens.
     internal static let sessionGraph = PanelKind(rawValue: "sessionGraph")
+    /// The sessions search + filter panel — text search and status/source filter
+    /// pills. Drives the shared `SessionsFilterState` which the list and timeline
+    /// panels both observe. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsSearch = PanelKind(rawValue: "sessionsSearch")
+    /// The sessions list panel — the card-based session browser filtered by the
+    /// shared `SessionsFilterState`. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsList = PanelKind(rawValue: "sessionsList")
+    /// A horizontal time plot of all sessions — start → end bars grouped by source
+    /// lane. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsTimeline = PanelKind(rawValue: "sessionsTimeline")
+    /// Aggregate stat tiles — sessions today, avg duration, message count, error
+    /// rate. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsStats = PanelKind(rawValue: "sessionsStats")
+    /// Inline session inspector — shows metadata and run-state detail for the
+    /// session selected in the list or timeline. Host-rendered singleton.
+    internal static let sessionsDetail = PanelKind(rawValue: "sessionsDetail")
+    /// Categorical breakdown of sessions by source — donut chart + legend.
+    /// Host-rendered singleton on the sessions canvas.
+    internal static let sessionsSourceBreakdown = PanelKind(rawValue: "sessionsSourceBreakdown")
 }
 
 /// One panel on the dashboard canvas: a kind (what it shows) placed at a frame
@@ -59,16 +78,22 @@ internal struct DashboardPanel: Codable, Identifiable, Equatable {
     internal let id: UUID
     internal var kind: PanelKind
     internal var frame: CGRect
+    /// When `true` the panel shows only its title bar; the content is hidden.
+    /// The frame is preserved so expanding snaps the panel back to its previous size.
+    internal var isCollapsed: Bool
 
-    internal init(id: UUID = UUID(), kind: PanelKind, frame: CGRect) {
+    internal init(id: UUID = UUID(), kind: PanelKind, frame: CGRect, isCollapsed: Bool = false) {
         self.id = id
         self.kind = kind
         self.frame = frame
+        self.isCollapsed = isCollapsed
     }
 
     /// Smallest a panel may be shrunk to — keeps the chrome (title bar + grips)
     /// usable and the content non-degenerate.
     internal static let minSize = CGSize(width: 200, height: 140)
+    /// Height of the title bar — the visible height when a panel is collapsed.
+    internal static let titleBarHeight: CGFloat = 28
 
     /// Return this panel with its frame clamped so it stays at least partially
     /// on-canvas and no smaller than `minSize`. Used on load (a saved layout may
@@ -80,6 +105,6 @@ internal struct DashboardPanel: Codable, Identifiable, Equatable {
         // Keep the whole frame inside the canvas when it fits; otherwise pin to origin.
         f.origin.x = min(max(0, f.origin.x), max(0, bounds.width - f.size.width))
         f.origin.y = min(max(0, f.origin.y), max(0, bounds.height - f.size.height))
-        return DashboardPanel(id: id, kind: kind, frame: f)
+        return DashboardPanel(id: id, kind: kind, frame: f, isCollapsed: isCollapsed)
     }
 }

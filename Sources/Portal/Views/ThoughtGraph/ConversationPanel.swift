@@ -46,6 +46,9 @@ internal struct ConversationPanel: View {
     /// conversation panel — the conversation is the container, so "expand" means
     /// "dock here", not "fly out to the canvas". Nil = rail is read-only.
     internal var onDockKind: ((PanelKind) -> Void)?
+    /// Peel a lens OUT to the canvas as a free-floating panel (bypasses dock).
+    /// When set, the flamechart ↗ button flies out to the canvas instead of docking.
+    internal var onPeelKind: ((PanelKind) -> Void)?
 
     private let dockedRegistry = PanelRegistry.chatCanvas
 
@@ -239,7 +242,8 @@ internal struct ConversationPanel: View {
                 engine: engine,
                 selection: selection,
                 lenses: inlineLenses,
-                onDockKind: onDockKind
+                onDockKind: onDockKind,
+                onPeelKind: onPeelKind
             )
             .id("conversation-live-rail")
         } else if let turn = settledTurnsByID[message.id] {
@@ -253,7 +257,8 @@ internal struct ConversationPanel: View {
                     selection: selection,
                     engine: engine,
                     onJumpToTool: nil,
-                    onDock: onDockKind
+                    onDock: onDockKind,
+                    onPeel: onPeelKind
                 ),
                 lenses: inlineLenses,
                 onDockKind: onDockKind

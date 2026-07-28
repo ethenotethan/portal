@@ -573,31 +573,39 @@ struct SessionsDashboard: View {
 extension Session {
     var isLive: Bool {
         guard endedAt == nil else { return false }
-        if let runState, runState.isActive { return true }
+        // Explicit run state is the strongest signal.
+        if let runState { return runState.isActive }
+        // No explicit state — only treat as live if lastActive is very recent
+        // (gateway didn't GC the session yet but also never sent run state).
+        // 2-minute window avoids the common stale-open-session false positive.
         if let last = lastActive {
-            return Date().timeIntervalSince(last) < 300  // 5 min
+            return Date().timeIntervalSince(last) < 120
         }
-        return true  // No timing info — assume live until endedAt is set
+        return false
     }
 
-    var displaySource: String {
+    internal var displaySource: String {
         if isOwned { return "Native" }
         if let source, !source.isEmpty { return source.capitalized }
         return "Unknown"
+    }
+
+    internal var isCron: Bool {
+        source?.lowercased() == "cron"
     }
 }
 
 // MARK: - SessionRunState Extensions
 
 extension SessionRunState {
-    var isActive: Bool {
+    internal var isActive: Bool {
         switch self {
         case .streaming, .toolRunning, .queued, .waitingForUser: return true
         case .idle, .failed, .canceled: return false
         }
     }
 
-    var displayName: String {
+    internal var displayName: String {
         switch self {
         case .queued: return "Queued"
         case .streaming: return "Streaming"

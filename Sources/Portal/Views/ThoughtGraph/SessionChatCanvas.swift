@@ -145,11 +145,13 @@ internal struct SessionChatCanvas: View {
                 nodes: turn.nodes,
                 compactions: turn.compactions,
                 skills: turn.skills,
-                isThinking: false,       // a settled past turn isn't thinking
-                isStreaming: false,      // …and isn't streaming — no growing bars
+                isThinking: false,
+                isStreaming: false,
                 selection: $selectedNodeID,
                 engine: engine,
-                onJumpToTool: nil
+                onJumpToTool: nil,
+                onDock: dockLens,
+                onPeel: peelLens
             )
         }
         return PanelContext(
@@ -160,7 +162,9 @@ internal struct SessionChatCanvas: View {
             isStreaming: chatViewModel.isStreaming,
             selection: $selectedNodeID,
             engine: engine,
-            onJumpToTool: nil
+            onJumpToTool: nil,
+            onDock: dockLens,
+            onPeel: peelLens
         )
     }
 
@@ -186,7 +190,10 @@ internal struct SessionChatCanvas: View {
                     canvasBounds = geo.size
                     loadLayoutIfNeeded(bounds: geo.size)
                 }
-                .onChange(of: geo.size) { _, newSize in canvasBounds = newSize }
+                .onChange(of: geo.size) { _, newSize in
+                    canvasBounds = newSize
+                    loadLayoutIfNeeded(bounds: newSize)
+                }
             }
 
             Divider().overlay(Theme.border)
@@ -223,6 +230,7 @@ internal struct SessionChatCanvas: View {
                     // lens leaves the rail, never shown twice.
                     inlineLenses: registry.inlineLenses(peeled: dockedKinds),
                     onDockKind: dockLens,
+                    onPeelKind: peelLens,
                     dockedViews: docked,
                     onDockedDetach: detachFromDock,
                     dockedHeight: $dockedSectionHeight
@@ -613,7 +621,7 @@ internal struct SessionChatCanvas: View {
     // MARK: - Layout lifecycle
 
     private func loadLayoutIfNeeded(bounds: CGSize) {
-        guard !didLoadLayout else { return }
+        guard !didLoadLayout, bounds.width > 0, bounds.height > 0 else { return }
         didLoadLayout = true
         let loaded = DashboardLayout.loadStored(key: DashboardLayout.chatCanvasKey)
             ?? DashboardLayout.seededChatCanvas(for: bounds)

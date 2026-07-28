@@ -8,7 +8,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Conten
 
 /// Root content view — TabView on iOS with first-class app surfaces,
 /// custom split layout on macOS with app-owned chrome.
-struct ContentView: View {
+internal struct ContentView: View {
     @EnvironmentObject var settings: SettingsViewModel
     @EnvironmentObject var sessionList: SessionListViewModel
     @EnvironmentObject var spawnTreeStore: SpawnTreeStore
@@ -972,7 +972,8 @@ struct ContentView: View {
             }
 
             if showLiveSessions {
-                SessionsDashboard(onOpenSession: { sessionID in
+                #if os(macOS)
+                SessionsDashboardCanvas(onOpenSession: { sessionID in
                     showLiveSessions = false
                     sessionList.selectSession(id: sessionID)
                 })
@@ -981,6 +982,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
+                #endif
             }
 
             if showCronDashboard {
