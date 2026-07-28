@@ -84,6 +84,8 @@ internal struct DashboardLayout: Codable, Equatable {
     /// separate so arranging one surface never disturbs the other. v2 for the
     /// same reason as `dashboardKey` — drop stale overlapping arrangements.
     internal static let chatCanvasKey = "sessionChatCanvasLayout.v2"
+    /// The sessions dashboard canvas layout (list + timeline panels).
+    internal static let sessionsDashboardKey = "sessionsDashboardLayout.v1"
 
     /// Load the saved layout for `key`, or `nil` if the user has never arranged
     /// one (the caller then seeds a sensible default). Corrupt JSON is logged and
@@ -135,6 +137,26 @@ internal struct DashboardLayout: Codable, Equatable {
             DashboardPanel(
                 kind: .skills,
                 frame: CGRect(x: rightX, y: gap * 2 + halfH, width: rightColumnWidth, height: halfH)
+            )
+        ]).clamped(to: bounds)
+    }
+
+    /// First-run arrangement for the **sessions dashboard canvas**: the session
+    /// list fills the left two-thirds; the timeline fills the right third.
+    internal static func seededSessionsDashboard(for bounds: CGSize) -> DashboardLayout {
+        let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
+        let h = max(bounds.height, DashboardPanel.minSize.height)
+        let gap: CGFloat = 8
+        let timelineWidth = max(DashboardPanel.minSize.width, w * 0.35)
+        let listWidth = w - timelineWidth - gap * 3
+        return DashboardLayout(panels: [
+            DashboardPanel(
+                kind: .sessionsList,
+                frame: CGRect(x: gap, y: gap, width: listWidth, height: h - gap * 2)
+            ),
+            DashboardPanel(
+                kind: .sessionsTimeline,
+                frame: CGRect(x: listWidth + gap * 2, y: gap, width: timelineWidth, height: h - gap * 2)
             )
         ]).clamped(to: bounds)
     }

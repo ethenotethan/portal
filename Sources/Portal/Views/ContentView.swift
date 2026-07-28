@@ -972,7 +972,7 @@ struct ContentView: View {
             }
 
             if showLiveSessions {
-                SessionsDashboard(onOpenSession: { sessionID in
+                SessionsDashboardCanvas(onOpenSession: { sessionID in
                     showLiveSessions = false
                     sessionList.selectSession(id: sessionID)
                 })

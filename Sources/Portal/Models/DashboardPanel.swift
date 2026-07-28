@@ -48,6 +48,13 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// Opened as an in-canvas tile rather than a fullscreen sheet, so it docks
     /// beside the conversation like any other lens.
     internal static let sessionGraph = PanelKind(rawValue: "sessionGraph")
+    /// The sessions list panel — the card-based session browser (the same content
+    /// as the old modal SessionsDashboard) rendered as a resizable canvas tile.
+    /// Host-rendered singleton on the sessions canvas.
+    internal static let sessionsList = PanelKind(rawValue: "sessionsList")
+    /// A horizontal time plot of all sessions — start → end bars grouped by source
+    /// lane. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsTimeline = PanelKind(rawValue: "sessionsTimeline")
 }
 
 /// One panel on the dashboard canvas: a kind (what it shows) placed at a frame
