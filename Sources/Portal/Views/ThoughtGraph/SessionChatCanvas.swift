@@ -51,12 +51,6 @@ internal struct SessionChatCanvas: View {
     @State private var didLoadLayout = false
     @State private var showAddPalette = false
     @State private var canvasBounds: CGSize = .zero
-    /// Lenses docked INSIDE the conversation panel (attached beneath the
-    /// transcript). These kinds are removed from the canvas tiles — a docked
-    /// lens is part of the conversation, not an external floating panel.
-    @State private var dockedKinds: [PanelKind] = []
-    /// Height of the docked section inside the conversation panel.
-    @State private var dockedSectionHeight: CGFloat = 220
     /// Edit vs. use. Starts in **use** mode: the canvas is immediately usable
     /// (scroll the chat, read the lenses) and only becomes rearrangeable when the
     /// user taps Edit. This is the "go into edit mode, make changes, save, then
@@ -149,9 +143,7 @@ internal struct SessionChatCanvas: View {
                 isStreaming: false,
                 selection: $selectedNodeID,
                 engine: engine,
-                onJumpToTool: nil,
-                onDock: dockLens,
-                onPeel: peelLens
+                onJumpToTool: nil
             )
         }
         return PanelContext(
@@ -162,9 +154,7 @@ internal struct SessionChatCanvas: View {
             isStreaming: chatViewModel.isStreaming,
             selection: $selectedNodeID,
             engine: engine,
-            onJumpToTool: nil,
-            onDock: dockLens,
-            onPeel: peelLens
+            onJumpToTool: nil
         )
     }
 
@@ -209,31 +199,13 @@ internal struct SessionChatCanvas: View {
     /// context.
     private func panelContent(_ panel: DashboardPanel) -> AnyView {
         if panel.kind == .conversation {
-            let docked = dockedKinds.map { kind -> (kind: PanelKind, content: AnyView) in
-                let ctx = panelContext
-                let view = registry.content(for: kind, context: ctx)
-                return (kind, view)
-            }
             return AnyView(
                 ConversationPanel(
                     chatViewModel: chatViewModel,
-                    subagentGraph: subagentGraph,
-                    reasoningGraph: reasoningGraph,
                     persona: persona,
                     skinProvider: skinProvider,
                     // Turns mode isolates the selected turn; Scroll shows it all.
-                    focusedTurnID: displayMode == .turns ? selectedTurn?.id : nil,
-                    engine: engine,
-                    selection: $selectedNodeID,
-                    // Each turn's inline rail shows the registry's inline lenses
-                    // MINUS any already docked beneath the transcript — a docked
-                    // lens leaves the rail, never shown twice.
-                    inlineLenses: registry.inlineLenses(peeled: dockedKinds),
-                    onDockKind: dockLens,
-                    onPeelKind: peelLens,
-                    dockedViews: docked,
-                    onDockedDetach: detachFromDock,
-                    dockedHeight: $dockedSectionHeight
+                    focusedTurnID: displayMode == .turns ? selectedTurn?.id : nil
                 )
             )
         }
@@ -521,17 +493,12 @@ internal struct SessionChatCanvas: View {
     private var addPalette: some View {
         let presentOnCanvas = layout.panels.map(\.kind)
         let options = registry.addableDescriptors(present: presentOnCanvas)
-        // Dockable: non-singleton lenses from the standard set that aren't
-        // already docked or a conversation/artifacts/sessionGraph panel
-        // (those are session-global and must live on the canvas).
-        let nonDockable: Set<PanelKind> = [.conversation, .artifacts, .sessionGraph]
-        let dockOptions = options.filter { !nonDockable.contains($0.kind) && !dockedKinds.contains($0.kind) }
         return VStack(alignment: .leading, spacing: 2) {
             Text("Add to canvas")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
                 .padding(.bottom, 4)
-            if options.isEmpty && dockOptions.isEmpty {
+            if options.isEmpty {
                 Text("Every panel is already visible.")
                     .font(.caption)
                     .foregroundStyle(Theme.tertiary)
@@ -547,39 +514,6 @@ internal struct SessionChatCanvas: View {
                                 .foregroundStyle(Theme.accent)
                             Text(descriptor.title)
                                 .foregroundStyle(Theme.primary)
-                            Spacer()
-                        }
-                        .font(.system(size: 12))
-                        .contentShape(Rectangle())
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 6)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            // ── Dock inside conversation ──
-            // The conversation panel is the only one that hosts nested panels,
-            // so docking is a separate section — visually distinct from "add to canvas".
-            if !dockOptions.isEmpty {
-                Divider().padding(.vertical, 4)
-                Text("Dock inside conversation")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.secondary)
-                    .padding(.bottom, 2)
-                ForEach(dockOptions) { descriptor in
-                    Button {
-                        dockLens(descriptor.kind)
-                        showAddPalette = false
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: descriptor.icon)
-                                .frame(width: 16)
-                                .foregroundStyle(Theme.tertiary)
-                            Text(descriptor.title)
-                                .foregroundStyle(Theme.primary)
-                            Image(systemName: "arrow.down.to.line")
-                                .font(.system(size: 9))
-                                .foregroundStyle(Theme.tertiary)
                             Spacer()
                         }
                         .font(.system(size: 12))
@@ -651,42 +585,6 @@ internal struct SessionChatCanvas: View {
         layout.panels.append(panel)
         layout.bringToFront(panel.id)
         layout.store(key: DashboardLayout.chatCanvasKey)
-    }
-
-    /// Peel a rail lens onto the canvas as its own panel. Adds a panel of that
-    /// kind (in the first vacant slot) if it isn't already present, else raises
-    /// the existing one. Because the conversation's rail is fed
-    /// `inlineLenses(peeled:)`, the lens leaves the rail the moment its panel
-    /// exists — the rail↔canvas move is driven entirely by what's on the canvas,
-    /// so there's no separate "peeled" state to keep in sync.
-    private func peelLens(_ kind: PanelKind) {
-        withAnimation(.easeInOut(duration: 0.18)) {
-            if let existing = layout.panels.first(where: { $0.kind == kind }) {
-                layout.bringToFront(existing.id)
-                layout.store(key: DashboardLayout.chatCanvasKey)
-            } else {
-                addPanel(kind: kind)
-            }
-        }
-    }
-
-    /// Dock a lens INSIDE the conversation panel (attached beneath the transcript)
-    /// rather than as an external canvas tile. Removes any existing canvas tile for
-    /// that kind so it doesn't exist in both places.
-    internal func dockLens(_ kind: PanelKind) {
-        withAnimation(.easeInOut(duration: 0.18)) {
-            layout.remove(kind)
-            if !dockedKinds.contains(kind) { dockedKinds.append(kind) }
-            layout.store(key: DashboardLayout.chatCanvasKey)
-        }
-    }
-
-    /// Detach a docked lens, promoting it back onto the canvas as a regular tile.
-    private func detachFromDock(_ kind: PanelKind) {
-        withAnimation(.easeInOut(duration: 0.18)) {
-            dockedKinds.removeAll { $0 == kind }
-            addPanel(kind: kind)
-        }
     }
 
     /// True when the Session Graph tile is already on the canvas — the toolbar
