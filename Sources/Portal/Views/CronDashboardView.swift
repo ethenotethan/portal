@@ -5,7 +5,13 @@ import Charts
 
 struct CronDashboardView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var sessionList: SessionListViewModel
     @ObservedObject var store: CronRunHistoryStore = .shared
+
+    /// Invoked when the user asks to open the session behind an activation.
+    /// The host (ContentView) selects the session and closes this overlay.
+    var onOpenSession: ((String) -> Void)?
+
     @State private var cronListVM = CronListViewModel()
     @State private var timeHorizon: TimeHorizon = .day
     @State private var expandedJobID: String?
@@ -315,6 +321,8 @@ struct CronDashboardView: View {
                     job: job,
                     isExpanded: expandedJobID == job.id,
                     runRecords: store.records(for: job.id),
+                    sessionForRecord: { session(for: $0) },
+                    onOpenSession: onOpenSession,
                     onToggle: {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             expandedJobID = expandedJobID == job.id ? nil : job.id
@@ -511,6 +519,61 @@ struct CronDashboardView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Run → Session resolution
+
+    /// Best-effort match from an activation record to the cron session it
+    /// produced. The gateway exposes no run→session link, so we correlate by
+    /// firing time — the same ±120s window CronSessionView uses in reverse.
+    private func session(for record: CronRunRecord) -> Session? {
+        sessionList.sessions
+            .filter { $0.source?.lowercased() == "cron" }
+            .filter { session in
+                guard let started = session.startedAt else { return false }
+                return abs(started.timeIntervalSince(record.firedAt)) < 120
+            }
+            .min { lhs, rhs in
+                let l = lhs.startedAt.map { abs($0.timeIntervalSince(record.firedAt)) } ?? .infinity
+                let r = rhs.startedAt.map { abs($0.timeIntervalSince(record.firedAt)) } ?? .infinity
+                return l < r
+            }
+    }
+
+    @ViewBuilder
+    private func openSessionButton(for record: CronRunRecord) -> some View {
+        if let match = session(for: record) {
+            Button {
+                onOpenSession?(match.id)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("View session")
+                        .font(.caption.weight(.medium))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(Theme.accent)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity)
+                .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.badge.questionmark")
+                    .font(.system(size: 10))
+                Text("No session recorded for this run")
+                    .font(.caption2)
+            }
+            .foregroundStyle(Theme.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
+        }
+    }
+
     // MARK: - Run Detail Popovers
 
     @ViewBuilder
@@ -605,6 +668,9 @@ struct CronDashboardView: View {
                         .padding(.top, 2)
                 }
             }
+
+            Divider()
+            openSessionButton(for: record)
         }
         .padding(10)
         .frame(width: 280)
@@ -641,6 +707,8 @@ private struct CronJobCard: View {
     let job: CronJob
     let isExpanded: Bool
     let runRecords: [CronRunRecord]
+    let sessionForRecord: (CronRunRecord) -> Session?
+    let onOpenSession: ((String) -> Void)?
     let onToggle: () -> Void
     let onPause: () -> Void
     let onResume: () -> Void
@@ -1007,9 +1075,48 @@ private struct CronJobCard: View {
                         .font(.caption2).foregroundStyle(.red.opacity(0.7)).padding(.top, 2)
                 }
             }
+
+            Divider()
+            openSessionButton(for: record)
         }
         .padding(10)
         .frame(width: 280)
+    }
+
+    @ViewBuilder
+    private func openSessionButton(for record: CronRunRecord) -> some View {
+        if let match = sessionForRecord(record) {
+            Button {
+                onOpenSession?(match.id)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("View session")
+                        .font(.caption.weight(.medium))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(Theme.accent)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity)
+                .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.badge.questionmark")
+                    .font(.system(size: 10))
+                Text("No session recorded for this run")
+                    .font(.caption2)
+            }
+            .foregroundStyle(Theme.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
+        }
     }
 }
 

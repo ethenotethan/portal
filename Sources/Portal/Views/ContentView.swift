@@ -995,8 +995,12 @@ internal struct ContentView: View {
             }
 
             if showCronDashboard {
-                CronDashboardView()
+                CronDashboardView(onOpenSession: { sessionID in
+                    closeAllOverlays()
+                    sessionList.selectSession(id: sessionID)
+                })
                     .environmentObject(gatewayClientWrapper)
+                    .environmentObject(sessionList)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)

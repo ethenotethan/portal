@@ -1358,6 +1358,10 @@ struct ChatInputBar: View {
     @EnvironmentObject var personaManager: PersonaManager
     @EnvironmentObject var capabilitiesStore: GatewayCapabilitiesStore
 
+    /// Composer container look, toggled from the canvas edit toolbar. Shared
+    /// app-wide via the "composerStyle" key.
+    @AppStorage("composerStyle") private var composerStyle: ComposerStyle = .card
+
     /// Harness-fixed identity (Centaur) beats the Hermes persona — the
     /// placeholder must name who the user is actually messaging.
     private var displayPersona: Persona {
@@ -1399,6 +1403,9 @@ struct ChatInputBar: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 6)
             }
+            if composerStyle.showsTopDivider {
+                Divider().overlay(Theme.border)
+            }
             HStack(alignment: .bottom, spacing: 10) {
                 if chatViewModel.backendCapabilities.supportsAttachments {
                     attachButton
@@ -1411,12 +1418,7 @@ struct ChatInputBar: View {
             .padding(.vertical, 9)
         }
         .frame(maxWidth: 760)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Theme.border.opacity(0.9), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.28), radius: 18, x: 0, y: 8)
+        .composerContainer(composerStyle)
         .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
             handleDrop(providers: providers)
         }
@@ -1434,6 +1436,9 @@ struct ChatInputBar: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 6)
             }
+            if composerStyle.showsTopDivider {
+                Divider().overlay(Theme.border)
+            }
             HStack(alignment: .bottom, spacing: 10) {
                 if chatViewModel.backendCapabilities.supportsAttachments {
                     attachButton
@@ -1443,7 +1448,10 @@ struct ChatInputBar: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(.bar)
+            // Card/pill draw their own fill; minimal falls back to the system
+            // bar material so the row stays legible over content.
+            .background(composerStyle.fill == nil ? AnyShapeStyle(.bar) : AnyShapeStyle(Color.clear))
+            .composerContainer(composerStyle)
         }
         #endif
     }
@@ -1643,22 +1651,46 @@ struct ChatInputBar: View {
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
     }
 
-    // MARK: - Send Button
+    // MARK: - Send / Stop Button
 
+    /// The composer's primary action. While streaming it becomes a Stop button
+    /// so the user can interrupt right where they're typing, instead of reaching
+    /// for the Stop control at the top of the screen. Otherwise it sends.
     private var sendButton: some View {
-        Button {
-            Task { await chatViewModel.submitPrompt() }
-        } label: {
-            Image(systemName: "arrow.up")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(isSendDisabled ? Theme.tertiary : Theme.primary)
-                .frame(width: 30, height: 30)
-                .background(isSendDisabled ? Theme.surfaceHover : Theme.accent, in: Circle())
+        Group {
+            if chatViewModel.isStreaming {
+                Button {
+                    Task { await chatViewModel.interrupt() }
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(Color.red, in: Circle())
+                }
+                .accessibilityLabel("Stop")
+                .accessibilityIdentifier("composerStopButton")
+                .help("Stop the current response")
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                Button {
+                    Task { await chatViewModel.submitPrompt() }
+                } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(isSendDisabled ? Theme.tertiary : Theme.primary)
+                        .frame(width: 30, height: 30)
+                        .background(isSendDisabled ? Theme.surfaceHover : Theme.accent, in: Circle())
+                }
+                .accessibilityLabel("Send")
+                .accessibilityIdentifier("sendButton")
+                .disabled(isSendDisabled)
+                .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
+            }
         }
-        .accessibilityLabel("Send")
-        .accessibilityIdentifier("sendButton")
-        .disabled(isSendDisabled)
-        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.18), value: chatViewModel.isStreaming)
     }
 
     // MARK: - macOS File Picker
