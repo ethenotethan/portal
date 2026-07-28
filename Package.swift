@@ -45,7 +45,12 @@ let package = Package(
         ),
         .testTarget(
             name: "PortalTests",
-            dependencies: ["Portal"]
+            dependencies: ["Portal"],
+            // Golden PNGs for the View-snapshot gate. ViewSnapshot reads them by
+            // absolute source path (#filePath-resolved), never via Bundle, so
+            // they must NOT be bundled — left in, SwiftPM flags them as unhandled
+            // resources, a build warning the metric ratchet would then catch.
+            exclude: ["__Snapshots__"]
         ),
     ]
 )

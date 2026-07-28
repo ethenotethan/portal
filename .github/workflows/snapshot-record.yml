@@ -1,0 +1,81 @@
+name: Snapshot Record
+
+# Generate View-snapshot goldens ON the CI runner and commit them.
+#
+# Why this is a separate, manual workflow rather than something the verify job
+# does automatically: goldens must be *born on CI*. Font hinting, antialiasing,
+# and default-font resolution differ between a dev Mac and the macos-26 runner,
+# so a golden recorded anywhere but here would spuriously fail verification. The
+# verify side rides along with the ordinary `swift test` in the metric-ratchet
+# job (a committed golden that drifts trips ViewSnapshot's .mismatch → the test
+# fails). This workflow only produces/refreshes the reference images.
+#
+# Loop: land the snapshot test (its golden absent → non-fatal) → run this
+# workflow against the PR branch → it renders each View under SNAPSHOT_RECORD=1
+# and pushes the resulting PNGs → the verify gate goes live on the next run.
+#
+# Run it from the Actions tab ("Run workflow"), picking the branch to record on.
+# It MUST run on the same runner image the verify job uses (macos-26).
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit and push the regenerated goldens back to the branch"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # push the committed goldens back to the branch
+
+jobs:
+  record:
+    name: Record snapshot goldens
+    # Pin to the SAME image as the verify job (metric-ratchet in lint.yml). A
+    # different macOS image renders text differently and the goldens wouldn't
+    # match at verify time — the whole point of recording on CI.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Check out the branch the workflow was dispatched against, with write
+          # access, so the commit below can push straight back to it.
+          ref: ${{ github.ref_name }}
+
+      - name: Render and write goldens
+        # SNAPSHOT_RECORD=1 flips ViewSnapshot into record mode: every snapshot
+        # test overwrites its golden instead of asserting. Only the snapshot
+        # tests write files; the rest of the suite runs harmlessly.
+        env:
+          SNAPSHOT_RECORD: "1"
+        run: swift test --disable-sandbox
+
+      - name: Show what changed
+        run: git status --porcelain Tests/PortalTests/__Snapshots__
+
+      - name: Commit goldens
+        if: ${{ inputs.commit }}
+        run: |
+          if git diff --quiet -- Tests/PortalTests/__Snapshots__; then
+            echo "No golden changes to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Tests/PortalTests/__Snapshots__/*.png
+          git commit -m "test(snapshots): record CI-born View-snapshot goldens
+
+Generated on the macos-26 runner via SNAPSHOT_RECORD=1 so they match the
+environment the verify job renders in. Do not regenerate locally."
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload goldens as artifact
+        # Also expose them as a downloadable artifact — useful when running with
+        # commit=false to eyeball the images before letting them land.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-goldens
+          path: Tests/PortalTests/__Snapshots__/*.png
+          if-no-files-found: warn
+          retention-days: 14
