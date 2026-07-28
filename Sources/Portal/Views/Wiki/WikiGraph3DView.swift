@@ -384,7 +384,7 @@ private final class Coordinator: NSObject {
     @MainActor
     private func clampCamera(_ scnView: SCNView) {
         guard let cameraNode = scnView.pointOfView ?? scnView.scene?.rootNode.childNodes.first(where: { $0.camera != nil }),
-              let camera = cameraNode.camera else { return }
+              cameraNode.camera != nil else { return }
         let dist = simd_length(cameraNode.simdPosition)
         if dist < cameraMinDistance || dist > cameraMaxDistance {
             let clamped = simd_clamp(dist, cameraMinDistance, cameraMaxDistance)

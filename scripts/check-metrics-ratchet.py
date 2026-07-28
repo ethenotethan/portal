@@ -49,6 +49,8 @@ origin/main; the base baseline is read via
 `git show BASE:metrics-baseline.json`. If absent there (guard predates it),
 each floor check is skipped with a note — same grace the lint guard gives.
 """
+from __future__ import annotations
+
 import json
 import re
 import subprocess

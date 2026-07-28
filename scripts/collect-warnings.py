@@ -29,6 +29,8 @@ Only the working-tree-relative path is stored so the snapshot is portable
 across checkouts (CI runs under /Users/runner/work/..., local under /tmp/...) —
 the same portability fix the lint baseline needed.
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -64,11 +66,18 @@ def categorize(msg: str) -> str:
 
 
 def relativize(path: str, root: str) -> str:
-    """Repo-relative, forward-slash path so snapshots compare across checkouts."""
+    """Repo-relative, forward-slash path so snapshots compare across checkouts.
+
+    macOS is case-insensitive but case-preserving, and the Swift compiler
+    normalizes paths to lowercase (e.g. ``projects`` vs ``Projects``), so a
+    plain ``startswith`` leaves absolute paths in the snapshot. Compare
+    case-insensitively when stripping.
+    """
     p = path
-    # Absolute paths under the build root → relative.
-    if p.startswith(root):
-        p = p[len(root):]
+    # Absolute paths under the build root → relative (case-insensitive:
+    # compiler may lowercase the path while $(PWD) preserves the original case).
+    if p.lower().startswith(root.lower().rstrip("/") + "/"):
+        p = p[len(root.rstrip("/")):]
     p = p.lstrip("/")
     # A leading ./ from some emitters.
     if p.startswith("./"):
