@@ -74,6 +74,64 @@ Rules for the baseline:
   commit the workflow + baseline together.
 - `make check` runs the full local gate (build + tests + baselined lint +
   baseline-growth guard); if it's green, CI is green.
+
+## The metric ratchet (self-improving benchmarks)
+
+The lint baseline is one instance of a general pattern — a **ratchet**: a
+committed benchmark that CI compares each PR against, allowing improvement and
+blocking regression. `metrics-baseline.json` + `scripts/check-metrics-ratchet.py`
+generalize it to any measurable metric. Adding a metric is a collector script +
+a baseline entry + a handler — no new gate.
+
+Two metrics are wired today. Each runs both ratchet shapes — a **floor** (the
+whole codebase never regresses) and a **patch** (the code this PR touches meets
+the bar) — so old debt is paid down gradually while new code is held to a
+higher standard immediately.
+
+**Compiler warnings** (`warnings` key). A clean `swift build` is parsed into
+unique warning *sites* (`file:line:col:category`) by
+`scripts/collect-warnings.py` — SwiftPM re-emits each warning per recompiled
+module, so a raw line count over-counts (685 lines → 52 real sites here).
+
+- **Floor:** no warning category's site count may exceed the base branch's.
+  Per-category, not just total — fixing one category while adding another nets
+  flat but is the regression to catch. A category absent from base is an
+  *initial freeze* (expected), never a failure. Same shape as
+  `check-baseline-growth.py`.
+- **Patch:** no warning may sit on a line this PR *added* (from
+  `git diff --unified=0 base...HEAD`). New code compiles warning-free even
+  while old debt is paid down gradually under the floor.
+
+**Test coverage** (`coverage` key), scoped to the *testable layers* — Models,
+Services, ViewModels, Utilities. Views are excluded entirely: `swift test`
+never launches the app target, so View bodies never execute and a global
+percentage would be dominated by unreachable code (Views measure ~3%,
+testable layers ~35% aggregate). `scripts/collect-coverage.py` reduces
+`llvm-cov export` to per-line covered/uncovered sets in those layers.
+
+- **Floor:** aggregate testable-layer coverage may not drop more than 0.5
+  points vs base — a small band that absorbs measurement jitter and the
+  arithmetic dilution of adding a large well-tested file, without letting real
+  erosion through.
+- **Patch:** of the executable lines this PR *added* in a testable layer, at
+  least **80%** must be covered. Deliberately not 100%: defensive branches
+  (catch blocks, `??` fallbacks) are legitimately hard to exercise, and a
+  zero-tolerance rule would tax every feature PR — the same reason the lint
+  rules are baselined rather than absolute. The ratio matches industry
+  patch-coverage gates (Codecov et al.). Below 10 added executable lines the
+  ratio is too noisy to judge, so the patch check is skipped. Added Views,
+  comments, and non-executable declarations never count toward either side.
+
+Rules mirror the lint baseline: **regenerate only to record improvement**
+(`make metrics-baseline` — warning counts must only drop, coverage only rise),
+and `make metrics-ratchet` runs the whole check locally (clean build + tests →
+collect → ratchet vs `origin/main`). The CI job is `metric-ratchet` in
+`lint.yml`; it always builds from scratch (no cache) because an incremental
+build under-counts warnings.
+
+Candidate next metrics (each is one collector away): dead-code count
+(Periphery), skipped-test count, main-thread stall budget.
+
 | ViewModels must not construct Views | Constructing a View from a ViewModel inverts the layer direction and makes the VM untestable without a UI. | ArchitectureTests |
 | `Utils/` must not exist | Two helper directories (`Utils/` and `Utilities/`) meant every contributor guessed where shared code lived. Everything merged into `Utilities/`. | ArchitectureTests |
 | Every `GatewayEvent` wire type is documented | `docs/rpc-reference.md` is the contract clients and the gateway build against. The test parses the `case "x.y":` strings from `GatewayEvent.from(type:)` and asserts each appears in the doc — the sync we used to do by hand. | ArchitectureTests |

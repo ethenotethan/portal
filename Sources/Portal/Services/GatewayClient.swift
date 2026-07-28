@@ -256,6 +256,17 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         LeakTracker.track(self)
     }
 
+    /// Stable identity for on-disk caches keyed to a specific backend (e.g.
+    /// the wiki graph cache). The host+port of the socket URL distinguishes
+    /// gateways without leaking the auth key or per-launch state, and it
+    /// survives restarts so cold-open caches actually hit.
+    internal var cacheIdentity: String {
+        let comps = URLComponents(url: gatewayURL, resolvingAgainstBaseURL: false)
+        let host = comps?.host ?? gatewayURL.absoluteString
+        let port = comps?.port.map { ":\($0)" } ?? ""
+        return "\(host)\(port)"
+    }
+
     // MARK: - Debug Telemetry
 
     private var stateDescription: String {

@@ -319,4 +319,45 @@ struct WikiGraphViewModelTests {
         await vm.ensureContentLoaded(client: GatewayClient(), path: "concepts/alpha.md")
         #expect(weakStub?.pageFetches == 1, "page reads must route to the override source, not the home gateway")
     }
+
+    // MARK: - Cold-open disk cache
+
+    /// On a cold open the graph should paint from the disk cache instantly and
+    /// survive a failing scan, so the surface is never blank behind "Loading…".
+    /// A default (disconnected) GatewayClient throws .notConnected from
+    /// wiki.scan immediately, standing in for the cold-network path.
+    @Test("Cold open paints the cached graph and it survives a scan failure")
+    internal func coldOpenPaintsCache() async {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wiki-cache-vm-\(UUID().uuidString)", isDirectory: true)
+        let cache = WikiGraphCache(directory: dir)
+        let client = GatewayClient()  // disconnected → wiki.scan throws
+
+        // Seed the cache under this client's identity + wiki selection.
+        let seeded = WikiGraph(pages: [page("alpha", path: "concepts/alpha.md")], links: [])
+        cache.store(seeded, identity: client.cacheIdentity, wiki: "main")
+        for _ in 0..<50 {
+            if await cache.load(identity: client.cacheIdentity, wiki: "main") != nil { break }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        let vm = WikiGraphViewModel(graphCache: cache)
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(client: client, wiki: "main")
+
+        // Scan failed, but the cached graph must remain on screen (not wiped).
+        #expect(vm.graph.pages.contains { $0.id == "alpha" },
+                "cold-open graph should be painted from the disk cache")
+        #expect(!vm.graph.pages.isEmpty, "a failing scan must not blank the cached graph")
+    }
+
+    @Test("No cache entry leaves an empty graph for the overlay to catch")
+    internal func coldOpenNoCache() async {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wiki-cache-vm-\(UUID().uuidString)", isDirectory: true)
+        let vm = WikiGraphViewModel(graphCache: WikiGraphCache(directory: dir))
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(client: GatewayClient(), wiki: "main")
+        #expect(vm.graph.pages.isEmpty, "no cache + failed scan → empty graph (overlay shows)")
+    }
 }
