@@ -497,11 +497,11 @@ private struct ExportModelView: View {
     }
 }
 
-private struct ExportTableView: View {
-    let headers: [String]
-    let rows: [[String]]
+internal struct ExportTableView: View {
+    internal let headers: [String]
+    internal let rows: [[String]]
 
-    var body: some View {
+    internal var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
                 ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
@@ -548,11 +548,11 @@ private struct ExportTableView: View {
 
 /// Code block without the horizontal ScrollView or copy button — long lines
 /// wrap so nothing is clipped on the page.
-private struct ExportCodeText: View {
-    let language: String
-    let code: String
+internal struct ExportCodeText: View {
+    internal let language: String
+    internal let code: String
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if !language.isEmpty {
                 Text(language)
@@ -573,11 +573,11 @@ private struct ExportCodeText: View {
     }
 }
 
-private struct ExportImageRow: View {
-    let image: NSImage
-    let caption: String
+internal struct ExportImageRow: View {
+    internal let image: NSImage
+    internal let caption: String
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Image(nsImage: image)
                 .resizable()
