@@ -47,6 +47,16 @@ struct PortalAppMac: App {
                 .environmentObject(personaManager)
                 .environmentObject(capabilitiesStore)
         }
+
+        // A menu-bar item that stays reachable when every window is closed
+        // (the app keeps running in the background). Shows live connection +
+        // session state and routes quick actions through the deep-link scheme.
+        MenuBarExtra {
+            PortalMenuBarContent(sessionList: sessionList, gateway: gatewayClientWrapper)
+        } label: {
+            PortalMenuBarLabel()
+        }
+        .menuBarExtraStyle(.window)
     }
 }
 
