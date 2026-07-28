@@ -66,8 +66,8 @@ internal struct SessionsTimelinePlot: View {
         Chart(bars) { bar in
             BarMark(
                 xStart: .value("Start", bar.start),
-                xEnd:   .value("End",   bar.end),
-                y:      .value("Source", bar.lane)
+                xEnd: .value("End", bar.end),
+                y: .value("Source", bar.lane)
             )
             .foregroundStyle(barColor(bar))
             .cornerRadius(3)

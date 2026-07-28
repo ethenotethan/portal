@@ -41,7 +41,7 @@ internal struct SessionsDashboardCanvas: View {
                     isEditing: isEditing,
                     showsTitleBars: showsTitleBars,
                     title: { registry.title(for: $0) },
-                    icon:  { registry.icon(for: $0) },
+                    icon: { registry.icon(for: $0) },
                     onLayoutCommitted: { layout.store(key: DashboardLayout.sessionsDashboardKey) },
                     content: { panel in panelContent(panel) }
                 )

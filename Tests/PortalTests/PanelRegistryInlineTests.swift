@@ -1,5 +1,5 @@
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 /// The inline-lens contract that drives the per-turn rail ↔ canvas peel: which
 /// lenses render inline, in what order, and how peeling one (adding its panel to

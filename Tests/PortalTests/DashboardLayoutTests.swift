@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 @Suite("Dashboard layout model")
 internal struct DashboardLayoutTests {

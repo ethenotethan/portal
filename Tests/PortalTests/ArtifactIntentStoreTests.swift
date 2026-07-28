@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 // The artifact-action intent state machine (invoke → pending → outcome,
 // idempotency-key reuse, confirm round-trip) is driven entirely through the

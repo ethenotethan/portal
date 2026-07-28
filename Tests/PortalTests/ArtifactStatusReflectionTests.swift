@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 // Pure coverage for the native→page status write-back and the intent→session
 // click-through: the reflection JS builder (value-in / string-out, same shape

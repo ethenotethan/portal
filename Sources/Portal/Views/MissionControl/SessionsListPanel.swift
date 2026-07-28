@@ -53,7 +53,7 @@ internal struct SessionsListPanel: View {
     }
 
     private var totalCount: Int { filteredSessions.count }
-    private var liveCount:  Int { filteredSessions.filter { $0.isLive }.count }
+    private var liveCount: Int { filteredSessions.filter { $0.isLive }.count }
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -116,7 +116,7 @@ internal struct SessionsListPanel: View {
     private var statusSections: some View {
         if !liveSessions.isEmpty {
             sectionHeader("Live", count: liveSessions.count, icon: "bolt.fill", color: Theme.success)
-            ForEach(liveSessions)  { sessionCard($0) }
+            ForEach(liveSessions) { sessionCard($0) }
         }
         if !endedSessions.isEmpty {
             sectionHeader("Ended", count: endedSessions.count, icon: "moon.zzz.fill", color: Theme.secondary)

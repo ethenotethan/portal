@@ -972,6 +972,7 @@ struct ContentView: View {
             }
 
             if showLiveSessions {
+                #if os(macOS)
                 SessionsDashboardCanvas(onOpenSession: { sessionID in
                     showLiveSessions = false
                     sessionList.selectSession(id: sessionID)
@@ -981,6 +982,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
+                #endif
             }
 
             if showCronDashboard {
