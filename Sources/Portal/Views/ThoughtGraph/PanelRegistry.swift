@@ -22,6 +22,10 @@ internal struct PanelContext {
     /// (singleton) flamechart panel — never created per-panel.
     internal let engine: ThoughtGraphLayoutEngine
     internal let onJumpToTool: ((String) -> Void)?
+    /// Take the per-turn graph true-fullscreen (window-fill). The host owns the
+    /// fullscreen overlay so it covers the whole canvas, not just the panel's
+    /// bounds. Nil hides the expand affordance.
+    internal var onExpand: (() -> Void)?
 }
 
 /// One entry in the panel catalog: what a kind is called, its icon, whether the
@@ -135,15 +139,15 @@ internal final class PanelRegistry {
             singleton: true
         ) { ctx in
             AnyView(
-                ThoughtGraphView(
+                TurnFlamechartView(
                     engine: ctx.engine,
                     nodes: ctx.nodes,
                     compactions: ctx.compactions,
                     isStreaming: ctx.isStreaming,
                     isThinking: ctx.isThinking,
-                    usageSummary: nil,
                     selection: ctx.selection,
-                    onJumpToTool: ctx.onJumpToTool
+                    onJumpToTool: ctx.onJumpToTool,
+                    onExpand: ctx.onExpand
                 )
             )
         })
@@ -208,12 +212,13 @@ internal final class PanelRegistry {
             singleton: true,
             build: nil  // host-rendered — see SessionChatCanvas
         ))
-        // Session Graph — the macro all-turns plot, session-global and
-        // host-rendered (needs both integrators + jump-to-tool). Docked as a
-        // canvas tile instead of a fullscreen sheet.
+        // Thought Graph — the per-turn flamechart for the turn the canvas pager
+        // is on. Host-rendered (the host feeds it the pager-driven panelContext
+        // and owns the window-fill fullscreen overlay) so it has no turn rail of
+        // its own; the canvas is the single source of turn truth.
         registry.register(PanelDescriptor(
             kind: .sessionGraph,
-            title: "Session Graph",
+            title: "Thought Graph",
             icon: "chart.bar.xaxis",
             singleton: true,
             build: nil  // host-rendered — see SessionChatCanvas

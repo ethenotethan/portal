@@ -99,13 +99,18 @@ private struct TurnMetrics {
     let totalTokens: Int?
     let totalCostUSD: Double?
 
-    init(turn: SessionTurn) {
-        let nodes = turn.nodes
-        self.toolCount = turn.toolCount
+    /// Build from raw nodes + compaction folds. `toolCount` is authoritative
+    /// when the caller knows it (a persisted turn's `message.toolCalls.count`);
+    /// otherwise it's derived from the nodes (main-loop tool bars only — not
+    /// subagents, reasoning beats, or a subagent's own steps).
+    init(nodes: [ThoughtGraphNode], compactions: [CompactionMarker], toolCount: Int? = nil) {
+        self.toolCount = toolCount ?? nodes.filter {
+            !$0.isAgent && $0.category != .reasoning && $0.ownerAgentID == nil
+        }.count
         self.reasoningCount = nodes.filter { $0.category == .reasoning }.count
         self.subagentCount = nodes.filter { $0.isAgent }.count
         self.errorCount = nodes.filter { $0.isError }.count
-        self.compactionCount = turn.compactions.count
+        self.compactionCount = compactions.count
 
         let starts = nodes.compactMap(\.startedAt)
         let ends = nodes.compactMap { $0.completedAt ?? $0.startedAt }
@@ -119,6 +124,128 @@ private struct TurnMetrics {
         self.totalTokens = tokens > 0 ? tokens : nil
         let cost = nodes.compactMap(\.costUSD).reduce(0, +)
         self.totalCostUSD = cost > 0 ? cost : nil
+    }
+
+    init(turn: SessionTurn) {
+        self.init(nodes: turn.nodes, compactions: turn.compactions, toolCount: turn.toolCount)
+    }
+}
+
+// MARK: - Shared per-turn UI (metrics bar + bare flamechart)
+
+/// A live "streaming" chip — a pulsing dot + "live", shared by the rail view's
+/// header and the canvas's turn flamechart so the current turn reads the same
+/// everywhere.
+internal struct TurnLiveBadge: View {
+    internal var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(Theme.warning)
+                .frame(width: 5, height: 5)
+            Text("live")
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(Theme.warning)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Theme.warning.opacity(0.12), in: Capsule())
+    }
+}
+
+/// The row of metric chips for one turn — duration, tools, thoughts, subagents,
+/// tokens/cost, compactions, errors. A chip is hidden when its value is
+/// zero/unknown rather than showing a fake "0". Shared by the rail view and the
+/// canvas turn flamechart. Shows a leading live badge when `isLive`.
+private struct TurnMetricsBar: View {
+    let metrics: TurnMetrics
+    var isLive: Bool = false
+    var toolsOnly: Bool = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isLive { TurnLiveBadge() }
+            if let dur = metrics.duration {
+                chip("timer", DurationFormatter.short(dur), Theme.secondary)
+            }
+            chip("wrench.and.screwdriver", "\(metrics.toolCount) tools", Theme.secondary)
+            if metrics.reasoningCount > 0 {
+                chip("diamond.fill", "\(metrics.reasoningCount) thoughts", Theme.graphReasoning)
+            }
+            if metrics.subagentCount > 0 {
+                chip("brain", "\(metrics.subagentCount) subagents", Theme.agentAccent)
+            }
+            if let tokens = metrics.totalTokens {
+                chip("number.circle", "\(tokens) tok", Theme.secondary)
+            }
+            if let cost = metrics.totalCostUSD {
+                chip("dollarsign.circle", String(format: "$%.4f", cost), Theme.secondary)
+            }
+            if metrics.compactionCount > 0 {
+                chip("arrow.triangle.2.circlepath.circle", "\(metrics.compactionCount) compacted", Theme.graphCompaction)
+            }
+            if metrics.errorCount > 0 {
+                chip("xmark.circle.fill", "\(metrics.errorCount) errors", .red)
+            }
+            if toolsOnly {
+                chip("square.dashed", "tools only", Theme.tertiary)
+            }
+            Spacer()
+        }
+    }
+
+    private func chip(_ icon: String, _ text: String, _ color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9))
+            Text(text)
+                .font(.system(size: 10, weight: .medium).monospacedDigit())
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.10), in: Capsule())
+    }
+}
+
+/// One turn as a **shape**: a slim metrics chip row over the turn's flamechart —
+/// no turn rail. This is what the canvas shows for the turn its own pager is on,
+/// so the turn is tracked in exactly one place (the canvas) instead of being
+/// re-tracked by a rail wrapped around the graph. `onExpand`, when provided,
+/// surfaces the flamechart's expand affordance (the host takes it fullscreen).
+internal struct TurnFlamechartView: View {
+    let engine: ThoughtGraphLayoutEngine
+    let nodes: [ThoughtGraphNode]
+    let compactions: [CompactionMarker]
+    let isStreaming: Bool
+    var isThinking: Bool = false
+    let selection: Binding<String?>?
+    var onJumpToTool: ((String) -> Void)?
+    var onExpand: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TurnMetricsBar(
+                metrics: TurnMetrics(nodes: nodes, compactions: compactions),
+                isLive: isStreaming
+            )
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Theme.surface.opacity(0.5))
+
+            Divider().overlay(Theme.border)
+
+            ThoughtGraphView(
+                engine: engine,
+                nodes: nodes,
+                compactions: compactions,
+                isStreaming: isStreaming,
+                isThinking: isThinking,
+                usageSummary: nil,
+                selection: selection,
+                onJumpToTool: onJumpToTool,
+                onExpand: onExpand
+            )
+        }
     }
 }
 
@@ -228,14 +355,13 @@ internal struct SessionThoughtGraphView: View {
     /// metric chips. Everything is derived from the turn's nodes — a chip is
     /// hidden when its value is zero/unknown rather than showing a fake "0".
     private func metricsBar(for turn: SessionTurn) -> some View {
-        let m = TurnMetrics(turn: turn)
-        return VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text("Turn \(turn.index)")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Theme.accent)
                 if selectedTurnIsLive {
-                    liveBadge
+                    TurnLiveBadge()
                 }
                 Text(turn.title)
                     .font(.system(size: 12))
@@ -244,65 +370,11 @@ internal struct SessionThoughtGraphView: View {
                 Spacer()
             }
 
-            HStack(spacing: 6) {
-                if let dur = m.duration {
-                    metricChip("timer", DurationFormatter.short(dur), Theme.secondary)
-                }
-                metricChip("wrench.and.screwdriver", "\(m.toolCount) tools", Theme.secondary)
-                if m.reasoningCount > 0 {
-                    metricChip("diamond.fill", "\(m.reasoningCount) thoughts", Theme.graphReasoning)
-                }
-                if m.subagentCount > 0 {
-                    metricChip("brain", "\(m.subagentCount) subagents", Theme.agentAccent)
-                }
-                if let tokens = m.totalTokens {
-                    metricChip("number.circle", "\(tokens) tok", Theme.secondary)
-                }
-                if let cost = m.totalCostUSD {
-                    metricChip("dollarsign.circle", String(format: "$%.4f", cost), Theme.secondary)
-                }
-                if m.compactionCount > 0 {
-                    metricChip("arrow.triangle.2.circlepath.circle", "\(m.compactionCount) compacted", Theme.graphCompaction)
-                }
-                if m.errorCount > 0 {
-                    metricChip("xmark.circle.fill", "\(m.errorCount) errors", .red)
-                }
-                if turn.toolsOnly {
-                    metricChip("square.dashed", "tools only", Theme.tertiary)
-                }
-                Spacer()
-            }
+            TurnMetricsBar(metrics: TurnMetrics(turn: turn), toolsOnly: turn.toolsOnly)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Theme.surface.opacity(0.5))
-    }
-
-    private func metricChip(_ icon: String, _ text: String, _ color: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 9))
-            Text(text)
-                .font(.system(size: 10, weight: .medium).monospacedDigit())
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.10), in: Capsule())
-    }
-
-    private var liveBadge: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(Theme.warning)
-                .frame(width: 5, height: 5)
-            Text("live")
-                .font(.system(size: 9, weight: .semibold))
-        }
-        .foregroundStyle(Theme.warning)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(Theme.warning.opacity(0.12), in: Capsule())
     }
 
     // MARK: - Fullscreen flamechart

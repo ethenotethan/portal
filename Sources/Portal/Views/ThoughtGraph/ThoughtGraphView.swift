@@ -123,6 +123,12 @@ struct ThoughtGraphView: View {
     /// identity changes (a different turn/session loads).
     @State private var hasFitted: Bool = false
 
+    /// Whether the color legend is expanded. Defaults collapsed: the legend is a
+    /// one-time "what do the colors mean" reference, not something you watch —
+    /// so the graph opens as just the growing shape, and the legend is a tap
+    /// away. Persisted app-wide so it reopens the way it was left.
+    @AppStorage("thoughtGraphLegendExpanded") private var legendExpanded = false
+
     /// True once the user manually zooms/pans — suppresses auto-refit so we
     /// never yank the camera out from under them.
     @State private var hasUserAdjustedCamera: Bool = false
@@ -932,21 +938,36 @@ struct ThoughtGraphView: View {
                 }
 
                 Spacer()
+
+                // Legend disclosure — collapsed by default so the header is just
+                // the status line and the graph is the star.
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { legendExpanded.toggle() }
+                } label: {
+                    Image(systemName: legendExpanded ? "list.bullet.circle.fill" : "list.bullet.circle")
+                        .font(.system(size: 13))
+                        .foregroundStyle(legendExpanded ? Theme.accent : Theme.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help(legendExpanded ? "Hide legend" : "Show legend")
             }
 
-            // Legend
-            HStack(spacing: 12) {
-                legendItem(icon: "arrow.triangle.2.circlepath", color: Theme.warning, label: "running")
-                legendItem(icon: "checkmark.circle.fill", color: Theme.success, label: "completed")
-                legendItem(icon: "xmark.circle.fill", color: Color.red, label: "error")
-                legendItem(icon: "brain", color: Theme.agentAccent, label: "subagent")
-                legendItem(icon: "diamond.fill", color: Theme.graphReasoning, label: "thought")
-                if !compactions.isEmpty {
-                    legendItem(icon: "arrow.triangle.2.circlepath.circle", color: Theme.graphCompaction, label: "compacted")
+            // Legend — hidden by default, revealed by the disclosure button.
+            if legendExpanded {
+                HStack(spacing: 12) {
+                    legendItem(icon: "arrow.triangle.2.circlepath", color: Theme.warning, label: "running")
+                    legendItem(icon: "checkmark.circle.fill", color: Theme.success, label: "completed")
+                    legendItem(icon: "xmark.circle.fill", color: Color.red, label: "error")
+                    legendItem(icon: "brain", color: Theme.agentAccent, label: "subagent")
+                    legendItem(icon: "diamond.fill", color: Theme.graphReasoning, label: "thought")
+                    if !compactions.isEmpty {
+                        legendItem(icon: "arrow.triangle.2.circlepath.circle", color: Theme.graphCompaction, label: "compacted")
+                    }
+                    Text("← width = duration →")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
                 }
-                Text("← width = duration →")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.tertiary)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.horizontal, 14)
