@@ -103,6 +103,8 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 | `Ratchet / Security` | Ratchet | Secrets | `.gitleaksignore` | gitleaks + `check-secret-baseline-growth.py` |
 | `Ratchet / Warnings` | Ratchet | Compiler-warning health | `metrics-baseline.json` `warnings` | `check-metrics-ratchet.py --warnings` |
 | `Ratchet / Coverage` | Ratchet | Test coverage | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
+| `Ratchet / Skipped Tests` | Ratchet | Disabled/known-issue tests | `metrics-baseline.json` `skipped` | `collect-skipped-tests.py` + `check-metrics-ratchet.py --skipped` |
+| `Ratchet / Dead Code` | Ratchet | Unused declarations | `metrics-baseline.json` `deadcode` | Periphery + `check-metrics-ratchet.py --deadcode` |
 | `Ratchet / Performance` | Ratchet | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
 | `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
 
@@ -123,10 +125,10 @@ Rules of the taxonomy:
   into an existing job. The separation is the point: a red check names the
   attribute that regressed.
 - **Shared engine where the math is identical, separate scripts where the
-  concern differs.** Warnings and Coverage share `check-metrics-ratchet.py`
-  (same floor/patch/diff logic, different metric key) — duplicating it would
-  rot. Security and Quality are genuinely different benchmarks, so they keep
-  their own scripts.
+  concern differs.** Warnings, Coverage, Skipped Tests, and Dead Code share
+  `check-metrics-ratchet.py` while remaining separate CI jobs — duplicating the
+  comparison machinery would rot. Security and Quality are genuinely different
+  benchmarks, so they keep their own scripts.
 - **Each check pins its tool** (SwiftLint, gitleaks) for the same reason the
   baseline is pinned — a newer tool detects more and fails CI on debt it never
   recorded (the #222 drift).
@@ -138,13 +140,13 @@ The rest of this section details each posture's benchmark.
 The lint baseline is one instance of a general pattern — a **ratchet**: a
 committed benchmark that CI compares each PR against, allowing improvement and
 blocking regression. `metrics-baseline.json` + `scripts/check-metrics-ratchet.py`
-generalize it to any measurable metric. Adding a metric is a collector script +
-a baseline entry + a handler — no new gate.
+generalize it to any measurable metric. Adding a metric is a collector script,
+a baseline entry, an engine handler, and its own named posture job.
 
-Two metrics are wired today. Each runs both ratchet shapes — a **floor** (the
-whole codebase never regresses) and a **patch** (the code this PR touches meets
-the bar) — so old debt is paid down gradually while new code is held to a
-higher standard immediately.
+Four metrics are wired today. Warnings and coverage run both ratchet shapes — a
+**floor** (the whole codebase never regresses) and a **patch** (the code this PR
+touches meets the bar). Skipped tests and dead code are deterministic counts,
+so they use a floor only.
 
 **Compiler warnings** (`warnings` key). A clean `swift build` is parsed into
 unique warning *sites* (`file:line:col:category`) by
@@ -180,16 +182,37 @@ testable layers ~35% aggregate). `scripts/collect-coverage.py` reduces
   ratio is too noisy to judge, so the patch check is skipped. Added Views,
   comments, and non-executable declarations never count toward either side.
 
+**Skipped tests** (`skipped` key). `scripts/collect-skipped-tests.py` scans
+`Tests/` for swift-testing escape hatches (`.disabled(…)`, `.enabled(if:)`, and
+`withKnownIssue`) plus XCTest's `XCTSkip*` forms. A disabled or known-issue test
+no longer defends the behavior it names; switching off a failing test must not
+be a route to green CI.
+
+- **Floor:** the count may not rise. The initial baseline is **0**, so a new
+  escape hatch blocks until the test is fixed and re-enabled.
+
+**Dead code** (`deadcode` key). `scripts/collect-deadcode.py` reduces a pinned
+Periphery scan to an unused-declaration count and stable, repo-relative sites.
+Periphery has false positives around KeyPaths, reflection, and SwiftUI runtime
+uses, so the existing backlog is frozen rather than treated as immediately
+actionable.
+
+- **Floor:** the count may only shrink. A new finding is either code to remove
+  or evidence of a missing caller. Periphery is pinned at **3.8.0** because a
+  tool change can alter the frozen finding set.
+
 Rules mirror the lint baseline: **regenerate only to record improvement**
-(`make metrics-baseline` — warning counts must only drop, coverage only rise),
+(`make metrics-baseline` — warning/skipped/dead-code counts must only drop and
+coverage may only rise),
 and `make metrics-ratchet` runs the whole check locally (clean build + tests →
 collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`
-and `Coverage` jobs in `ratchet.yml`, fed by the shared `Measure` job (see the
-posture taxonomy above); the build is always from scratch (no cache) because an
-incremental build under-counts warnings.
+and `Coverage` jobs fed by the shared `Measure` job, plus standalone `Skipped
+Tests` and `Dead Code` jobs in `ratchet.yml` (see the posture taxonomy above).
+The warnings build is always from scratch because an incremental build
+under-counts warnings.
 
-Candidate next metrics (each is one collector away): mutation score (see
-issue #10). Performance is deliberately *not* one of these — algorithmic work is
+Candidate next metric: mutation score (see issue #10). Performance is
+deliberately *not* one of these — algorithmic work is
 a different concern with a different build (the `PERF_COUNTERS` flag), so it's
 its own posture and its own script; see "The performance ratchet" below.
 

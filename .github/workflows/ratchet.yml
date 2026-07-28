@@ -180,6 +180,72 @@ jobs:
           BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
           python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base "$BASE"
 
+  # ── Skipped-test posture ──────────────────────────────────────────────────
+  # A disabled, conditionally enabled, known-issue, or XCTest-skipped test no
+  # longer defends its behavior. This text-only collector is intentionally its
+  # own concern/check rather than being hidden inside Measure.
+  skipped-tests:
+    name: Skipped Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Capture skipped-test snapshot
+        run: python3 scripts/collect-skipped-tests.py Tests --root "$PWD" --json skipped.json
+
+      - name: Ratchet skipped tests against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --skipped skipped.json --base "$BASE"
+
+  # ── Dead-code posture ─────────────────────────────────────────────────────
+  # Periphery's existing findings are frozen debt; only growth fails. Keep this
+  # separate because it owns a distinct tool/build and a distinct code-health
+  # concern. The exact Periphery version is pinned to keep the floor stable.
+  dead-code:
+    name: Dead Code
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Periphery
+        env:
+          PERIPHERY_VERSION: 3.8.0
+        run: |
+          curl -fsSL -o periphery.zip \
+            "https://github.com/peripheryapp/periphery/releases/download/${PERIPHERY_VERSION}/periphery-${PERIPHERY_VERSION}.zip"
+          unzip -o periphery.zip -d "$HOME/periphery-bin"
+          echo "$HOME/periphery-bin" >> "$GITHUB_PATH"
+
+      - name: Verify Periphery version
+        run: periphery version
+
+      - name: Capture dead-code snapshot
+        run: |
+          set -o pipefail
+          periphery scan --format json --quiet > periphery.json
+          python3 scripts/collect-deadcode.py periphery.json --root "$PWD" --json deadcode.json
+
+      - name: Ratchet dead code against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --deadcode deadcode.json --base "$BASE"
+
+      - name: Upload dead-code snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deadcode-snapshot
+          path: |
+            periphery.json
+            deadcode.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   # ── Performance posture ───────────────────────────────────────────────────
   # Algorithmic work count: the hot pure layout paths must not do MORE
   # operations than base for a fixed input (floor). The metric is an integer op
