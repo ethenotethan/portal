@@ -211,6 +211,7 @@ private struct ArtifactDetailView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 190)
                 Spacer()
+                ArtifactExportMenu(artifact: artifact)
                 Text(artifact.id)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Theme.tertiary)
