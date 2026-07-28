@@ -91,6 +91,12 @@ struct ChatMessage: Identifiable, Codable {
         self.status = status
         self.userAttachments = userAttachments
     }
+
+    /// True for gateway-injected cron context messages that should not
+    /// be shown in the chat transcript.
+    var isCronInjection: Bool {
+        role == .user && content.hasPrefix("[IMPORTANT:") && content.contains("cron job")
+    }
 }
 
 /// Structured model/gateway-provided thinking/reasoning trace for a single assistant turn.

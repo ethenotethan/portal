@@ -1100,6 +1100,7 @@ struct ChatView: View {
 
     private var renderedMessages: [(offset: Int, element: ChatMessage)] {
         let enumerated = Array(chatViewModel.messages.enumerated())
+            .filter { !$0.element.isCronInjection }
         guard ProcessInfo.processInfo.arguments.contains("--virtualize-transcript") else {
             return enumerated
         }
