@@ -158,6 +158,7 @@ private struct SankeyCard: View {
                 }
             }
         }
+        .clipped()
         .contentShape(Rectangle())
         .onTapGesture { selectedNode = nil }
     }
