@@ -623,6 +623,9 @@ final class WikiGraphViewModel: ObservableObject {
         }
         recomputeRadii()
         alpha = 1.0
+        // Invalidate any physics frame still computing against the old node set.
+        physicsGeneration += 1
+        physicsInFlight = false
         updateFilteredNodes()
         // Rebuilding invalidates node indices; carry the shared page
         // selection back into the fresh sim so mode switches keep context.
@@ -631,15 +634,65 @@ final class WikiGraphViewModel: ObservableObject {
 
     func tick() { if is3D { tick3D() } else { tick2D() } }
 
+    /// True while a 2D physics frame is being computed off the main thread.
+    /// The Timer tick skips kicking off a new frame while one is in flight, so
+    /// slow frames drop cleanly instead of queueing up main-thread work.
+    private var physicsInFlight = false
+    /// Bumped whenever the node set is rebuilt (setup / mode switch). A physics
+    /// frame computed against a stale generation is discarded on completion, so
+    /// a reload mid-drag can't write old positions over the fresh graph.
+    private var physicsGeneration = 0
+
+    /// Advance the 2D layout one frame — OFF the main thread. The O(n²) force
+    /// integration used to run synchronously here on @MainActor, so dragging
+    /// (which keeps alpha hot) saturated the same thread that processes mouse
+    /// events and redraws the Canvas — the choppy-navigation regression on
+    /// large graphs. Now the step runs on a background executor via the
+    /// `nonisolated static stepPhysics2D`, and only the (cheap) position
+    /// write-back and single @Published publish happen on main.
     private func tick2D() {
-        guard canvasSize != .zero, simNodes.count > 1 else { return }
+        guard !physicsInFlight, canvasSize != .zero, simNodes.count > 1 else { return }
         let anyDragging = simNodes.contains { $0.isDragging }
         guard alpha > alphaMin || anyDragging else { return }
-        // Simulate into a local copy so the @Published publisher fires once per tick.
-        simNodes = Self.stepPhysics2D(
-            nodes: simNodes, links: simLinks, alpha: alpha,
-            canvasSize: canvasSize, iterations: iterationsPerFrame, params: physicsParams
-        )
+
+        physicsInFlight = true
+        let generation = physicsGeneration
+        let snapshot = simNodes
+        let links = simLinks
+        let currentAlpha = alpha
+        let size = canvasSize
+        let iterations = iterationsPerFrame
+        let params = physicsParams
+
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let stepped = Self.stepPhysics2D(
+                nodes: snapshot, links: links, alpha: currentAlpha,
+                canvasSize: size, iterations: iterations, params: params
+            )
+            await self?.applyPhysicsFrame(stepped, generation: generation)
+        }
+    }
+
+    /// Merge an off-main physics frame back into the published node set. Runs
+    /// on the main actor. Nodes the user is actively dragging keep their LIVE
+    /// position (the drag moved them since the snapshot) — the physics step
+    /// already froze them, but the user may have dragged further meanwhile.
+    private func applyPhysicsFrame(_ stepped: [SimNode], generation: Int) {
+        // A stale frame (graph rebuilt underneath us) must not release the
+        // in-flight guard — a newer frame already owns it. Bail without
+        // touching the flag or the node set.
+        guard generation == physicsGeneration else { return }
+        physicsInFlight = false
+        // Drop the frame if we flipped to 3D or the node set changed shape.
+        guard !is3D, stepped.count == simNodes.count else { return }
+
+        let anyDragging = simNodes.contains { $0.isDragging }
+        var merged = simNodes
+        for i in merged.indices where !merged[i].isDragging {
+            merged[i].position = stepped[i].position
+            merged[i].velocity = stepped[i].velocity
+        }
+        simNodes = merged
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
