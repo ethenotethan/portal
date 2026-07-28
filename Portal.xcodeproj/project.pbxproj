@@ -167,11 +167,13 @@
 		52C76372A0804EB9BC58E651 /* HTMLArtifactIntentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5C65263F4238FDE15E7574 /* HTMLArtifactIntentBridge.swift */; };
 		52D58DA38EBD8359B251E489 /* ThoughtGraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 650546E180D4C6DF60914D3C /* ThoughtGraphLayoutEngine.swift */; };
 		538A5958AC61C8F6696FD490 /* CentaurWikiClient+Timeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */; };
+		539D0F53639E62A63DD7C6AA /* WikiGraphCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21732210429838245F716FAB /* WikiGraphCache.swift */; };
 		545B35AE1BA2F54FE6406066 /* PortalVisionDemoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057A9F9FF732C18057AFB23 /* PortalVisionDemoUITests.swift */; };
 		547AA5E2B6FE1CACC466C10C /* CentaurWorkflowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FE9BB8CC70B170B8EA708F /* CentaurWorkflowsView.swift */; };
 		54BD21C39526D1859A0312BA /* SubagentGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5753A652B70A5134A6AD1E1E /* SubagentGraphIntegrator.swift */; };
 		54F47B94C6A703B196BF825A /* DatasetBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000F61BAD56D4B9BFE92BF37 /* DatasetBlockView.swift */; };
 		54FD4FF391252555FCB1F764 /* SankeySpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC60ABE2B991E64FE767E37C /* SankeySpec.swift */; };
+		5519E4D0E2DDCE99BFD2B4DB /* WikiGraphCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21732210429838245F716FAB /* WikiGraphCache.swift */; };
 		567FF10DB7869207939407B7 /* ArtifactMaintenanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */; };
 		569A13C97BE876D6E8B4C9E9 /* ArtifactsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */; };
 		56BF6DFFC9DB36AFE023150B /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */; };
@@ -503,6 +505,7 @@
 		02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
 		0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
 		02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLayout.swift; sourceTree = "<group>"; };
+		04096B720BF84A671AC5E21B /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGraphSpec.swift; sourceTree = "<group>"; };
 		04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExporter.swift; sourceTree = "<group>"; };
 		054EA87213F72FA39BED81CB /* PortalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PortalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -535,6 +538,7 @@
 		1BCFC282B5C390338603360A /* SessionUsageBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionUsageBadge.swift; sourceTree = "<group>"; };
 		1D03E0CA1FFD6072E3A68B7E /* SRSStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSStore.swift; sourceTree = "<group>"; };
 		21385A8C9911C7F6BD9AB756 /* InlineTurnTimelineStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineTurnTimelineStrip.swift; sourceTree = "<group>"; };
+		21732210429838245F716FAB /* WikiGraphCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphCache.swift; sourceTree = "<group>"; };
 		250EB09F699471E388BC10E3 /* PortalOfflineSmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalOfflineSmokeUITests.swift; sourceTree = "<group>"; };
 		252743FDE501DDF9275ED4EE /* PromptBreakdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBreakdownView.swift; sourceTree = "<group>"; };
 		262CF3C4067F3C1E15554122 /* SessionMetaSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMetaSyncService.swift; sourceTree = "<group>"; };
@@ -583,7 +587,6 @@
 		524D795BBC83896922C37909 /* CentaurWikiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWikiClient.swift; sourceTree = "<group>"; };
 		5345D4F493040CE252399895 /* CronListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListViewModel.swift; sourceTree = "<group>"; };
 		55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeModels.swift; sourceTree = "<group>"; };
-		55C40F5FCC544780E74160B6 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineCharts.swift; sourceTree = "<group>"; };
 		56BAA567637217364E09C42C /* DiagramExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagramExplorerView.swift; sourceTree = "<group>"; };
 		5753A652B70A5134A6AD1E1E /* SubagentGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubagentGraphIntegrator.swift; sourceTree = "<group>"; };
@@ -800,8 +803,8 @@
 			isa = PBXGroup;
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
+				EC420DB82F3343AB7A53C0A7 /* portal */,
 				61851216B4FFCF80111C87E3 /* Portal */,
-				EF8397195C28972C230697A6 /* portal-rename */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
 				47D5A51722E1CD9234679D11 /* Products */,
@@ -1056,6 +1059,7 @@
 				2C02A031706B1EC8320D4D5B /* TTSService.swift */,
 				CC635A4BD8C52946B1E85901 /* VideoCache.swift */,
 				ED4EB0DFFC78682EEAB2515C /* WikiChangesetSource.swift */,
+				21732210429838245F716FAB /* WikiGraphCache.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1202,12 +1206,12 @@
 			path = JSONRPC;
 			sourceTree = "<group>";
 		};
-		EF8397195C28972C230697A6 /* portal-rename */ = {
+		EC420DB82F3343AB7A53C0A7 /* portal */ = {
 			isa = PBXGroup;
 			children = (
-				55C40F5FCC544780E74160B6 /* Local.xcconfig */,
+				04096B720BF84A671AC5E21B /* Local.xcconfig */,
 			);
-			name = "portal-rename";
+			name = portal;
 			path = .;
 			sourceTree = "<group>";
 		};
@@ -1626,6 +1630,7 @@
 				AB85D5823B4AC02C12423D91 /* WikiGraph.swift in Sources */,
 				C15278B2A0A967BFF33437FF /* WikiGraph2DCanvas.swift in Sources */,
 				F663B2C117DDB55E29582550 /* WikiGraph3DView.swift in Sources */,
+				539D0F53639E62A63DD7C6AA /* WikiGraphCache.swift in Sources */,
 				A4B1F930C4BEA7FECBA48753 /* WikiGraphControlsBar.swift in Sources */,
 				34A11733DEDCA3D557CB3CE4 /* WikiGraphView.swift in Sources */,
 				37AD4088033E20618F52D72F /* WikiGraphViewModel.swift in Sources */,
@@ -1872,6 +1877,7 @@
 				B10AF7D4589143BF7A4860C6 /* WikiGraph.swift in Sources */,
 				EC9B81931753E673B1B15529 /* WikiGraph2DCanvas.swift in Sources */,
 				C2191977AA5DAEEC5ADBBEE6 /* WikiGraph3DView.swift in Sources */,
+				5519E4D0E2DDCE99BFD2B4DB /* WikiGraphCache.swift in Sources */,
 				B648ADCB2DBF092A18D5D1A8 /* WikiGraphControlsBar.swift in Sources */,
 				B623AC1E8B2E39453EF1F32C /* WikiGraphView.swift in Sources */,
 				B04BF1C14D44982A1650DB79 /* WikiGraphViewModel.swift in Sources */,
@@ -1901,7 +1907,7 @@
 /* Begin XCBuildConfiguration section */
 		0F4581CAE38EFEB16A1CBF47 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 55C40F5FCC544780E74160B6 /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-macOS.entitlements";
@@ -2005,7 +2011,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 55C40F5FCC544780E74160B6 /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -2049,7 +2055,7 @@
 		};
 		6D64AE8F1EBEB001E29EC0AD /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 55C40F5FCC544780E74160B6 /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-macOS.entitlements";
@@ -2072,7 +2078,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 55C40F5FCC544780E74160B6 /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
