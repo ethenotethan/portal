@@ -58,6 +58,15 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// A horizontal time plot of all sessions — start → end bars grouped by source
     /// lane. Host-rendered singleton on the sessions canvas.
     internal static let sessionsTimeline = PanelKind(rawValue: "sessionsTimeline")
+    /// Aggregate stat tiles — sessions today, avg duration, message count, error
+    /// rate. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsStats = PanelKind(rawValue: "sessionsStats")
+    /// Inline session inspector — shows metadata and run-state detail for the
+    /// session selected in the list or timeline. Host-rendered singleton.
+    internal static let sessionsDetail = PanelKind(rawValue: "sessionsDetail")
+    /// Categorical breakdown of sessions by source — donut chart + legend.
+    /// Host-rendered singleton on the sessions canvas.
+    internal static let sessionsSourceBreakdown = PanelKind(rawValue: "sessionsSourceBreakdown")
 }
 
 /// One panel on the dashboard canvas: a kind (what it shows) placed at a frame

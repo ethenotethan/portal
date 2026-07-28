@@ -124,6 +124,8 @@ internal struct LiveInlineTurnRail: View {
         )
     }
 
+    internal var onPeelKind: ((PanelKind) -> Void)?
+
     internal var body: some View {
         InlineTurnRail(
             context: PanelContext(
@@ -135,7 +137,8 @@ internal struct LiveInlineTurnRail: View {
                 selection: selection,
                 engine: engine,
                 onJumpToTool: nil,
-                onDock: onDockKind
+                onDock: onDockKind,
+                onPeel: onPeelKind
             ),
             lenses: lenses,
             onDockKind: onDockKind

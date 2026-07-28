@@ -91,7 +91,10 @@ internal struct DashboardCanvasView: View {
                 // arrangement stays full (no dead space going fullscreen) and a
                 // shrunk window packs panels back in. Never reflow mid-drag —
                 // that would fight the user's hand.
-                guard activeDrag == nil else { return }
+                // Skip the zero→real transition: the layout hasn't been seeded
+                // yet at that point, and reflowed(from:.zero) would clamped()
+                // an empty layout and stomp the seed that's about to land.
+                guard activeDrag == nil, oldSize.width > 0, oldSize.height > 0 else { return }
                 layout = layout.reflowed(from: oldSize, to: newSize)
             }
         }

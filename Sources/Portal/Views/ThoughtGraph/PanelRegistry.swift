@@ -27,6 +27,9 @@ internal struct PanelContext {
     /// "expand" affordance. Nil when the context isn't inside a conversation
     /// panel that supports docking (e.g. the session-graph dashboard).
     internal var onDock: ((PanelKind) -> Void)?
+    /// Peel a lens out onto the canvas as a free-floating panel. Used by
+    /// inline lens builders to wire ↗ to a canvas tile rather than a dock.
+    internal var onPeel: ((PanelKind) -> Void)?
 }
 
 /// Where a lens sits when it renders inline in the conversation feed (the rail
@@ -193,10 +196,9 @@ internal final class PanelRegistry {
                         nodes: ctx.nodes,
                         compactions: ctx.compactions,
                         isStreaming: ctx.isStreaming,
-                        // Tapping ↗ on the strip docks the full flamechart
-                        // below the transcript — the conversation panel IS the
-                        // container, so docking is the right "expand" action.
-                        onExpand: ctx.onDock.map { dock in { dock(.flamechart) } }
+                        // ↗ peels the flamechart out as a free canvas panel.
+                        // Falls back to dock if peel isn't available.
+                        onExpand: (ctx.onPeel ?? ctx.onDock).map { action in { action(.flamechart) } }
                     )
                 )
             }

@@ -91,7 +91,7 @@ internal struct DashboardLayout: Codable, Equatable {
     /// same reason as `dashboardKey` — drop stale overlapping arrangements.
     internal static let chatCanvasKey = "sessionChatCanvasLayout.v2"
     /// The sessions dashboard canvas layout (list + timeline panels).
-    internal static let sessionsDashboardKey = "sessionsDashboardLayout.v1"
+    internal static let sessionsDashboardKey = "sessionsDashboardLayout.v4"
 
     /// Load the saved layout for `key`, or `nil` if the user has never arranged
     /// one (the caller then seeds a sensible default). Corrupt JSON is logged and
@@ -150,38 +150,34 @@ internal struct DashboardLayout: Codable, Equatable {
     /// First-run arrangement for the **sessions dashboard canvas**:
     ///
     /// ```
-    /// ┌──────────────────┬──────────────┐
-    /// │  Search (narrow) │              │
-    /// ├──────────────────┤   Timeline   │
-    /// │  Sessions list   │              │
-    /// └──────────────────┴──────────────┘
+    /// ┌────────────────┬─────────────┬──────────────┐
+    /// │  Search        │   Stats     │              │
+    /// ├────────────────┼─────────────┤   Timeline   │
+    /// │  Sessions list │  Breakdown  │              │
+    /// └────────────────┴─────────────┴──────────────┘
     /// ```
-    ///
-    /// The search panel sits above the list in the left column; the timeline
-    /// fills the right column top-to-bottom.
     internal static func seededSessionsDashboard(for bounds: CGSize) -> DashboardLayout {
-        let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
+        let w = max(bounds.width, DashboardPanel.minSize.width * 3 + 32)
         let h = max(bounds.height, DashboardPanel.minSize.height * 2 + 24)
         let gap: CGFloat = 8
-        let timelineWidth = max(DashboardPanel.minSize.width, w * 0.35)
-        let leftWidth = w - timelineWidth - gap * 3
-        let timelineX = leftWidth + gap * 2
-        let searchHeight: CGFloat = 100
-        let listY = gap + searchHeight + gap
-        let listHeight = h - listY - gap
+        // columns: left 38%, mid 27%, right 35%
+        let rightW = max(DashboardPanel.minSize.width, w * 0.35)
+        let midW   = max(DashboardPanel.minSize.width, w * 0.27)
+        let leftW  = w - rightW - midW - gap * 4
+        let midX   = gap + leftW + gap
+        let rightX = midX + midW + gap
+        let statsH: CGFloat   = 200
+        let breakdownY = gap + statsH + gap
+        let breakdownH = h - breakdownY - gap
         return DashboardLayout(panels: [
-            DashboardPanel(
-                kind: .sessionsSearch,
-                frame: CGRect(x: gap, y: gap, width: leftWidth, height: searchHeight)
-            ),
-            DashboardPanel(
-                kind: .sessionsList,
-                frame: CGRect(x: gap, y: listY, width: leftWidth, height: listHeight)
-            ),
-            DashboardPanel(
-                kind: .sessionsTimeline,
-                frame: CGRect(x: timelineX, y: gap, width: timelineWidth, height: h - gap * 2)
-            )
+            DashboardPanel(kind: .sessionsList,
+                frame: CGRect(x: gap, y: gap, width: leftW, height: h - gap * 2)),
+            DashboardPanel(kind: .sessionsStats,
+                frame: CGRect(x: midX, y: gap, width: midW, height: statsH)),
+            DashboardPanel(kind: .sessionsSourceBreakdown,
+                frame: CGRect(x: midX, y: breakdownY, width: midW, height: breakdownH)),
+            DashboardPanel(kind: .sessionsTimeline,
+                frame: CGRect(x: rightX, y: gap, width: rightW, height: h - gap * 2)),
         ]).clamped(to: bounds)
     }
 
