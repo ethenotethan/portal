@@ -94,14 +94,14 @@ struct ContentView: View {
                 wireUpClient()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
-                    await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client)
+                    await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
                 }
             }
         }
         .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
             if connected {
                 Task { await sessionList.refreshSessions() }
-                Task { await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client) }
+                Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }
                 // Register this device's APNs token with whichever gateway we
                 // just connected to (no-op until the OS grants a token, and
                 // once per gateway+token thereafter).
@@ -135,6 +135,11 @@ struct ContentView: View {
             guard oldID != nil, newID != nil, settings.isConfigured else { return }
             handleGatewaySwitch()
         }
+        .onChange(of: settings.focusedBackendID) { _, focused in
+            // Propagate the focused gateway to the artifact store so it can
+            // scope sortedArtifacts and stamp new artifacts with the right owner.
+            updateArtifactGatewayScope(focusedID: focused)
+        }
         .onReceive(PushRegistrationService.shared.$deviceTokenHex) { token in
             // The OS usually grants the APNs token AFTER the first connect
             // completes — re-sync when it lands so cold launch registers too.
@@ -163,7 +168,7 @@ struct ContentView: View {
             wireUpClient()
             if gatewayClientWrapper.isConnected {
                 await sessionList.refreshSessions()
-                await wikiViewModel.eagerLoad(client: gatewayClientWrapper.client)
+                await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
             }
         }
     }
@@ -234,6 +239,7 @@ struct ContentView: View {
     private var iOSSessionStack: some View {
         NavigationStack(path: $iOSNavigationPath) {
             SessionListView(
+                currentSessionID: chatViewModel.currentSessionID,
                 onCreateSession: {
                     let focused = settings.focusedGateway
                     Task {
@@ -247,8 +253,6 @@ struct ContentView: View {
                 }
             )
             .environmentObject(sessionList)
-            .environmentObject(chatViewModel)
-            .environmentObject(gatewayClientWrapper)
             .navigationTitle("Sessions")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top) {
@@ -921,6 +925,7 @@ struct ContentView: View {
             HStack(spacing: 0) {
                 if isMacSidebarVisible {
                     SessionListView(
+                        currentSessionID: chatViewModel.currentSessionID,
                         onCreateSession: {
                             let focused = settings.focusedGateway
                             Task {
@@ -935,8 +940,6 @@ struct ContentView: View {
                         }
                     )
                     .environmentObject(sessionList)
-                    .environmentObject(chatViewModel)
-                    .environmentObject(gatewayClientWrapper)
                     .frame(width: macSidebarWidth)
                     .transition(.move(edge: .leading).combined(with: .opacity))
 
@@ -1368,6 +1371,21 @@ struct ContentView: View {
         observeChatRunState()
 spawnTreeStore.subscribe(to: client)
         cronPoller.setGatewayClient(client)
+        updateArtifactGatewayScope(focusedID: settings.focusedBackendID)
+    }
+
+    /// Scope the artifact store to the currently-focused gateway so the UI only
+    /// shows artifacts that belong to the selected backend. Session-scoped
+    /// (Centaur) gateways get their own artifact namespace; Hermes (nil focus)
+    /// shows legacy/unscoped artifacts.
+    private func updateArtifactGatewayScope(focusedID: UUID?) {
+        guard let focusedID,
+              let entry = settings.savedGateways.first(where: { $0.id == focusedID }),
+              entry.kind.isSessionScoped else {
+            ArtifactStore.shared.focusedGatewayID = nil
+            return
+        }
+        ArtifactStore.shared.focusedGatewayID = focusedID
     }
 
     private func observeChatRunState() {

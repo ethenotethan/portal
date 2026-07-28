@@ -34,6 +34,10 @@ struct ThoughtGraphView: View {
     /// tool/reasoning/subagent events arrive.
     let nodes: [ThoughtGraphNode]
 
+    /// Context-compaction folds for this turn, drawn as full-height rules
+    /// across the flamechart at the moment each fold happened.
+    internal let compactions: [CompactionMarker]
+
     /// Whether the conversation turn is still streaming.
     let isStreaming: Bool
 
@@ -66,6 +70,7 @@ struct ThoughtGraphView: View {
     init(
         engine: ThoughtGraphLayoutEngine,
         nodes: [ThoughtGraphNode],
+        compactions: [CompactionMarker] = [],
         isStreaming: Bool,
         isThinking: Bool = false,
         usageSummary: String? = nil,
@@ -74,6 +79,7 @@ struct ThoughtGraphView: View {
     ) {
         self.engine = engine
         self.nodes = nodes
+        self.compactions = compactions
         self.isStreaming = isStreaming
         self.isThinking = isThinking
         self.usageSummary = usageSummary
@@ -147,6 +153,12 @@ struct ThoughtGraphView: View {
     private static let labelZoomThreshold: CGFloat = 0.5
     /// While following, keep the newest activity this far across the viewport.
     private static let followAnchorX: CGFloat = 0.72
+    /// Zoom range. The lower bound is intentionally tiny so `fitToView` can
+    /// frame a long turn onto ONE screen — a wide flamechart must compress to
+    /// fit, never force horizontal panning to traverse it. Manual zoom shares
+    /// the same range so the user can always zoom back out to the fitted whole.
+    private static let minZoom: CGFloat = 0.05
+    private static let maxZoom: CGFloat = 4.0
 
     // MARK: - Visible Nodes
 
@@ -191,12 +203,11 @@ struct ThoughtGraphView: View {
                         onMouseDown: { pt in handleMouseDown(at: pt) },
                         onMouseDragged: { pt in handleMouseDragged(to: pt) },
                         onMouseUp: { pt in handleMouseUp(at: pt) },
-                        onScrollWheel: { delta in
-                            panOffset.width += delta.width
-                            panOffset.height += delta.height
-                            autoFollow = false
-                            hasUserAdjustedCamera = true
-                        },
+                        // Scroll wheel disabled: the graph fits its panel by
+                        // default. Double-tap reframes; zoom controls zoom.
+                        // Two-finger scroll would fight the fit-to-window model
+                        // (the graph expands to fill whatever window it's in).
+                        onScrollWheel: nil,
                         onMouseMoved: { pt in
                             if mouseState == .idle {
                                 hoveredNodeID = hitTest(point: pt)
@@ -229,7 +240,7 @@ struct ThoughtGraphView: View {
             MagnificationGesture()
                 .onChanged { value in
                     let targetZoom = lastPinchScale * value
-                    let clamped = max(0.25, min(4.0, targetZoom))
+                    let clamped = max(Self.minZoom, min(Self.maxZoom, targetZoom))
                     let oldZoom = zoom
                     guard abs(clamped - oldZoom) > 0.001 else { return }
                     let c = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
@@ -278,10 +289,18 @@ struct ThoughtGraphView: View {
         .onChange(of: layoutKey) { _, _ in
             engine.layout(nodes: visibleNodes, now: Date())
             seedAppearTimes(animated: true)
-            // A filter toggle (collapse/reasoning) changed the graph — reframe
-            // it unless the user has taken manual control of the camera.
+            // Layout changed (new nodes, filter toggle, collapse) — reframe
+            // unless the user has taken manual control of the camera.
             if !hasUserAdjustedCamera { hasFitted = false }
             fitIfNeeded(animated: true)
+        }
+        // When the graph panel opens (or a turn is selected) it may have zero
+        // nodes initially, then nodes arrive. Re-fit once nodes land so the
+        // graph fills its panel rather than sitting at an arbitrary zoom.
+        .onChange(of: nodes.count) { old, new in
+            guard new > 0, !hasUserAdjustedCamera else { return }
+            hasFitted = false
+            fitIfNeeded(animated: old == 0)
         }
 
         // ── 30Hz motion tick: grow running bars, pulse, follow-cam ──
@@ -338,37 +357,54 @@ struct ThoughtGraphView: View {
                 // ── 0. Time axis (screen space, top) ──
                 drawTimeAxis(context: context, size: size)
 
-                context.translateBy(x: Self.leftMargin + panOffset.width,
-                                    y: Self.topMargin + panOffset.height)
-                context.scaleBy(x: zoom, y: zoom)
+                // Pristine screen-space context for overlays that must NOT
+                // scale with zoom — reasoning labels stay legible even when a
+                // long turn is fitted to one screen at a tiny zoom, where
+                // world-space text would shrink to nothing.
+                let screenContext = context
+
+                var world = context
+                world.translateBy(x: Self.leftMargin + panOffset.width,
+                                  y: Self.topMargin + panOffset.height)
+                world.scaleBy(x: zoom, y: zoom)
 
                 // ── 1. Lane bands + titles ──
-                drawLanes(context: context, showLabels: showLabels)
+                drawLanes(context: world, showLabels: showLabels)
 
                 // ── 2. Spawn edges ──
                 for edge in engine.edges {
-                    drawSpawnEdge(edge, context: context, lineage: lineage, selectedID: selectedID)
+                    drawSpawnEdge(edge, context: world, lineage: lineage, selectedID: selectedID)
                 }
 
                 // ── 2b. Concept links (reasoning ↔ tools, under the bars) ──
-                drawConceptLinks(context: context, selectedID: selectedID)
+                drawConceptLinks(context: world, selectedID: selectedID)
 
                 // ── 3. Bars ──
                 for layout in engine.layouts {
                     guard let node = nodeIndex[layout.nodeID] else { continue }
                     drawBar(
-                        node: node, layout: layout, context: context,
+                        node: node, layout: layout, context: world,
                         pulse: pulse, showLabel: showLabels,
                         lineage: lineage, selectedID: selectedID, now: nowDate
                     )
                 }
 
                 // ── 4. Shared-entity shapes + edges (deterministic overlay) ──
-                drawSharedEntities(context: context, selectedID: selectedID)
+                drawSharedEntities(context: world, selectedID: selectedID)
+
+                // ── 5. Context-compaction folds (screen space, full height) ──
+                drawCompactionFolds(context: screenContext, size: size)
+
+                // ── 6. Reasoning-beat labels (screen space, fixed size) ──
+                drawReasoningLabels(context: screenContext, size: size, selectedID: selectedID)
             }
             .onAppear { canvasSize = geo.size; fitIfNeeded(animated: false) }
             .onChange(of: geo.size) { _, newSize in
                 canvasSize = newSize
+                // Re-fit on every size change unless the user has taken manual
+                // control of the camera — this keeps the graph filling its panel
+                // on window resize without fighting a user-chosen zoom/pan.
+                if !hasUserAdjustedCamera { hasFitted = false }
                 fitIfNeeded(animated: false)
             }
         }
@@ -495,10 +531,10 @@ struct ThoughtGraphView: View {
         let isHovered = hoveredNodeID == node.id
         let color = node.category.color
 
-        // Reasoning beats: a diamond marker + the beat's label inline, so the
-        // gist ("planning · wiki status retrieval") is readable without
-        // clicking. The diamond anchors the moment in time; the text spills to
-        // its right.
+        // Reasoning beats: a diamond marker anchoring the moment in time. Its
+        // label is drawn separately in `drawReasoningLabels` (screen space, so
+        // it stays legible at any zoom) rather than here in the world context,
+        // where a fitted long turn would shrink the text to nothing.
         if node.category == .reasoning {
             let s = ThoughtGraphLayoutEngine.markerSize
             let c = CGPoint(x: layout.x + s / 2, y: layout.y)
@@ -511,15 +547,6 @@ struct ThoughtGraphView: View {
             ctx.fill(diamond, with: .color(color.opacity(0.9)))
             if isSelected || isHovered {
                 ctx.stroke(diamond, with: .color(Theme.primary.opacity(0.9)), lineWidth: 1.5)
-            }
-            if showLabel, let label = reasoningLabel(node), !label.isEmpty {
-                ctx.draw(
-                    Text(label)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(color.opacity(isSelected ? 1 : 0.85)),
-                    at: CGPoint(x: c.x + s / 2 + 4, y: c.y),
-                    anchor: .leading
-                )
             }
             return
         }
@@ -560,6 +587,122 @@ struct ThoughtGraphView: View {
             at: CGPoint(x: rect.minX + 6, y: rect.midY),
             anchor: .leading
         )
+    }
+
+    /// Context-compaction folds: a full-height vertical rule across every lane
+    /// at the moment the agent compacted its context. Drawn in SCREEN space
+    /// (fixed width, legible at any zoom) and positioned by the SAME time→x
+    /// scale as the time axis — `timeOrigin` + `pixelsPerSecond * zoom` — so a
+    /// fold sits under the same tick as the bars it falls between. A compaction
+    /// reshapes the whole turn's context, not one actor's step, which is why it
+    /// spans all lanes rather than living in a lane like a node.
+    ///
+    /// Honest by construction: markers come only from real gateway signals (a
+    /// live `/compress` or the `usage.compressions` counter delta) — see
+    /// `CompactionMarker`. When the turn has no real timestamps (`timeOrigin`
+    /// nil, e.g. a history snapshot) a fold can't be placed in time, so it's
+    /// skipped rather than faked.
+    private func drawCompactionFolds(context: GraphicsContext, size: CGSize) {
+        guard !compactions.isEmpty, let t0 = engine.timeOrigin else { return }
+        let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * zoom
+        let originX = Self.leftMargin + panOffset.width
+            + ThoughtGraphLayoutEngine.leftGutter * zoom
+        let top = Self.topMargin - 8
+
+        for marker in compactions {
+            let x = originX + marker.at.timeIntervalSince(t0) * pps
+            // Cull folds off the plot (left of the lane titles or past the edge).
+            guard x >= Self.leftMargin - 1, x <= size.width + 1 else { continue }
+
+            var rule = Path()
+            rule.move(to: CGPoint(x: x, y: top))
+            rule.addLine(to: CGPoint(x: x, y: size.height))
+
+            let color = Theme.graphCompaction
+            // A manual /compress is a deliberate user act — draw it solid and a
+            // touch bolder than an automatic fold the agent did on its own
+            // (dashed, quieter) so the two read as distinct at a glance.
+            let solid = marker.trigger == .manual
+            context.stroke(
+                rule,
+                with: .color(color.opacity(solid ? 0.7 : 0.5)),
+                style: StrokeStyle(
+                    lineWidth: solid ? 1.6 : 1.2,
+                    lineCap: .round,
+                    dash: solid ? [] : [5, 4]
+                )
+            )
+
+            // A short tab near the top so the fold reads as a labeled event,
+            // not a stray gridline. The "⟳" mirrors the glyph the gateway
+            // prints when it compacts. Flip the anchor near the right edge so
+            // the label never runs off-screen.
+            let label = marker.detail ?? "context compacted"
+            let nearRight = x > size.width - 96
+            context.draw(
+                Text("⟳ \(label)")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundColor(color),
+                at: CGPoint(x: nearRight ? x - 4 : x + 4, y: top + 6),
+                anchor: nearRight ? .trailing : .leading
+            )
+        }
+    }
+
+    /// Reasoning-beat labels, drawn in SCREEN space (not the zoom-scaled world)
+    /// so the gist of each thought stays legible however far the turn is zoomed
+    /// out — the whole point of the change: a beat used to be an unreadable
+    /// diamond wedged between two bars. The diamond itself is still drawn in
+    /// `drawBar` (world space, so it tracks its moment on the time axis); here
+    /// we only place the text beside its projected screen position.
+    ///
+    /// Beats are visited left→right and a label is skipped when it would collide
+    /// with the previous one on the same row — so a dense thinking burst reads
+    /// as a few legible chips instead of an illegible pile. Selecting/hovering a
+    /// beat always draws its label (bypassing the declutter) so you can always
+    /// read the one you're pointing at.
+    private func drawReasoningLabels(context: GraphicsContext, size: CGSize, selectedID: String?) {
+        let originX = Self.leftMargin + panOffset.width
+        let originY = Self.topMargin + panOffset.height
+        let s = ThoughtGraphLayoutEngine.markerSize
+
+        // Track the right edge of the last drawn label per row (rounded world-y)
+        // so we can skip labels that would overlap the previous one.
+        var lastLabelRightByRow: [Int: CGFloat] = [:]
+        let approxCharWidth: CGFloat = 5.4   // ~9pt medium
+
+        for layout in engine.layouts.sorted(by: { $0.x < $1.x }) {
+            guard let node = nodeIndex[layout.nodeID], node.category == .reasoning,
+                  let label = reasoningLabel(node), !label.isEmpty else { continue }
+
+            let diamondCenterWorldX = layout.x + s / 2
+            let labelWorldX = diamondCenterWorldX + s / 2 + 4
+            let sx = labelWorldX * zoom + originX
+            let sy = layout.y * zoom + originY
+
+            // Cull off-screen (above the axis band or beyond the viewport).
+            guard sy > Self.topMargin - 10, sy < size.height + 10,
+                  sx < size.width else { continue }
+
+            let isSelected = selectedID == node.id
+            let isHovered = hoveredNodeID == node.id
+            let row = Int((layout.y / ThoughtGraphLayoutEngine.subRowPitch).rounded())
+            let estWidth = CGFloat(label.count) * approxCharWidth
+
+            if !isSelected && !isHovered {
+                if let lastRight = lastLabelRightByRow[row], sx < lastRight + 6 { continue }
+            }
+            lastLabelRightByRow[row] = sx + estWidth
+
+            let color = ThoughtGraphLayoutEngine.ToolCategory.reasoning.color
+            context.draw(
+                Text(label)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(color.opacity(isSelected || isHovered ? 1 : 0.85)),
+                at: CGPoint(x: max(sx, Self.leftMargin), y: sy),
+                anchor: .leading
+            )
+        }
     }
 
     /// Short label for a reasoning beat, drawn beside its diamond. Prefers the
@@ -779,6 +922,9 @@ struct ThoughtGraphView: View {
                 legendItem(icon: "xmark.circle.fill", color: Color.red, label: "error")
                 legendItem(icon: "brain", color: Theme.agentAccent, label: "subagent")
                 legendItem(icon: "diamond.fill", color: Theme.graphReasoning, label: "thought")
+                if !compactions.isEmpty {
+                    legendItem(icon: "arrow.triangle.2.circlepath.circle", color: Theme.graphCompaction, label: "compacted")
+                }
                 Text("← width = duration →")
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
@@ -1068,14 +1214,14 @@ struct ThoughtGraphView: View {
                     .foregroundStyle(Theme.secondary)
             }
 
-            if node.costUSD != nil || node.tokenTotal != nil {
+            if node.costUSD != nil || node.totalTokens != nil {
                 HStack(spacing: 10) {
                     if let cost = node.costUSD {
                         Label(String(format: "$%.4f", cost), systemImage: "dollarsign.circle")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(Theme.secondary)
                     }
-                    if let tokens = node.tokenTotal {
+                    if let tokens = node.totalTokens {
                         Label("\(tokens) tok", systemImage: "number.circle")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(Theme.secondary)
@@ -1188,7 +1334,7 @@ struct ThoughtGraphView: View {
         let availW = max(1, canvasSize.width - Self.leftMargin - padding)
         let availH = max(1, canvasSize.height - Self.topMargin - padding)
         let fit = min(availW / world.width, availH / world.height)
-        let targetZoom = max(0.25, min(4.0, fit))
+        let targetZoom = max(Self.minZoom, min(Self.maxZoom, fit))
 
         // Center the scaled world in the available area (world origin sits at
         // leftMargin/topMargin, then panOffset shifts from there).
@@ -1224,7 +1370,7 @@ struct ThoughtGraphView: View {
         guard factor.isFinite, factor > 0 else { return }
         hasUserAdjustedCamera = true
         let oldZoom = zoom
-        let newZoom = max(0.25, min(4.0, oldZoom * factor))
+        let newZoom = max(Self.minZoom, min(Self.maxZoom, oldZoom * factor))
         guard newZoom != oldZoom else { return }
         // Keep the point under the cursor stable across the zoom.
         panOffset.width += (point.x - Self.leftMargin - panOffset.width)
@@ -1357,6 +1503,14 @@ struct ThoughtGraphViewPreviews: PreviewProvider {
         return ThoughtGraphView(
             engine: engine,
             nodes: sampleNodes,
+            compactions: [
+                CompactionMarker(
+                    id: "c1",
+                    at: Date(timeIntervalSinceNow: -48),
+                    trigger: .automatic,
+                    detail: "context compacted"
+                )
+            ],
             isStreaming: true
         )
         .frame(width: 900, height: 700)

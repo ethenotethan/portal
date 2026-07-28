@@ -1484,21 +1484,27 @@ struct InlineHTMLView: View {
     /// revision previews omit the callback, so inert binding markers cannot
     /// invoke anything outside the current authoritative artifact.
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    /// Current intent status per inert control, reflected onto the page as
+    /// `data-hermes-status` in the isolated content world. Empty for
+    /// transcript/preview HTML (no live intents).
+    internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
 
     internal init(
         html: String,
-        onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil
+        onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
+        statusMarks: [HTMLArtifactIntentBridge.StatusMark] = []
     ) {
         self.html = html
         self.onArtifactIntent = onArtifactIntent
+        self.statusMarks = statusMarks
     }
 
     var body: some View {
         #if os(macOS)
-        InlineHTMLNSView(html: html, onArtifactIntent: onArtifactIntent)
+        InlineHTMLNSView(html: html, onArtifactIntent: onArtifactIntent, statusMarks: statusMarks)
             .background(Theme.background)
         #else
-        InlineHTMLUIView(html: html, onArtifactIntent: onArtifactIntent)
+        InlineHTMLUIView(html: html, onArtifactIntent: onArtifactIntent, statusMarks: statusMarks)
             .background(Theme.background)
         #endif
     }
@@ -1508,6 +1514,7 @@ struct InlineHTMLView: View {
 struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1523,7 +1530,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
                 source: HTMLArtifactIntentBridge.userScriptSource(nonce: context.coordinator.nonce),
                 injectionTime: .atDocumentEnd,
                 forMainFrameOnly: true,
-                in: WKContentWorld.world(name: "HermesArtifactIntentBridge")
+                in: WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
             ))
         }
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -1535,15 +1542,20 @@ struct InlineHTMLNSView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
-        guard context.coordinator.lastLoadedHTML != html else { return }
-        context.coordinator.lastLoadedHTML = html
-        webView.loadHTMLString(html, baseURL: nil)
+        if context.coordinator.lastLoadedHTML != html {
+            context.coordinator.lastLoadedHTML = html
+            webView.loadHTMLString(html, baseURL: nil)
+            // Marks re-apply from didFinish once the new DOM exists.
+            return
+        }
+        context.coordinator.applyStatusMarks(statusMarks, to: webView)
     }
 }
 #else
 struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1558,7 +1570,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
                 source: HTMLArtifactIntentBridge.userScriptSource(nonce: context.coordinator.nonce),
                 injectionTime: .atDocumentEnd,
                 forMainFrameOnly: true,
-                in: WKContentWorld.world(name: "HermesArtifactIntentBridge")
+                in: WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
             ))
         }
         // Match macOS: embedded media plays inline instead of hijacking the
@@ -1578,9 +1590,13 @@ struct InlineHTMLUIView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
-        guard context.coordinator.lastLoadedHTML != html else { return }
-        context.coordinator.lastLoadedHTML = html
-        webView.loadHTMLString(html, baseURL: nil)
+        if context.coordinator.lastLoadedHTML != html {
+            context.coordinator.lastLoadedHTML = html
+            webView.loadHTMLString(html, baseURL: nil)
+            // Marks re-apply from didFinish once the new DOM exists.
+            return
+        }
+        context.coordinator.applyStatusMarks(statusMarks, to: webView)
     }
 }
 #endif
@@ -1593,8 +1609,50 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     /// the native navigation delegate. The page cannot auto-submit an action.
     internal let nonce = UUID().uuidString
 
+    /// Marks currently reflected onto the page. Kept so a diff only re-runs JS
+    /// on change, and so `didFinish` can re-stamp after a (re)load rebuilds the
+    /// DOM (the attribute would otherwise be lost).
+    private var appliedMarks: [HTMLArtifactIntentBridge.StatusMark] = []
+    private weak var reflectionWebView: WKWebView?
+
     internal init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
         self.onArtifactIntent = onArtifactIntent
+    }
+
+    /// Reflect `marks` onto the page's inert controls via `data-hermes-status`,
+    /// diffing against what's already applied. Runs in the SAME isolated
+    /// content world as the click-capture script, so the page can style the
+    /// attribute but cannot observe or forge the write.
+    internal func applyStatusMarks(
+        _ marks: [HTMLArtifactIntentBridge.StatusMark],
+        to webView: WKWebView
+    ) {
+        reflectionWebView = webView
+        guard marks != appliedMarks else { return }
+        // Clear stamps that are no longer present, then (re)stamp current ones.
+        let removed = appliedMarks.filter { old in
+            !marks.contains { $0.bindingID == old.bindingID && $0.entityRef == old.entityRef }
+        }
+        appliedMarks = marks
+        let world = WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
+        for mark in removed {
+            let js = HTMLArtifactIntentBridge.statusReflectionScript(
+                bindingID: mark.bindingID, entityRef: mark.entityRef, status: nil)
+            webView.evaluateJavaScript(js, in: nil, in: world) { _ in }
+        }
+        for mark in marks {
+            let js = HTMLArtifactIntentBridge.statusReflectionScript(
+                bindingID: mark.bindingID, entityRef: mark.entityRef, status: mark.status)
+            webView.evaluateJavaScript(js, in: nil, in: world) { _ in }
+        }
+    }
+
+    // swiftlint:disable:next implicitly_unwrapped_optional
+    internal func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // A fresh DOM has no reflected attributes — re-stamp the current marks.
+        let marks = appliedMarks
+        appliedMarks = []
+        applyStatusMarks(marks, to: webView)
     }
 
     func webView(

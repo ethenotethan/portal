@@ -294,7 +294,7 @@ internal struct IntentButton: View {
                 ProgressView()
                     .scaleEffect(0.6)
                     .frame(width: 28, height: 16)
-            case .succeeded(let message):
+            case .succeeded(let message, let sessionID):
                 HStack(spacing: 3) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 9, weight: .bold))
@@ -302,14 +302,25 @@ internal struct IntentButton: View {
                     if let message {
                         Text(message)
                             .font(.caption2)
-                            .foregroundStyle(Theme.secondary)
+                            .foregroundStyle(sessionID == nil ? Theme.secondary : Theme.accent)
                             .lineLimit(1)
+                    }
+                    if sessionID != nil {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(Theme.accent)
                     }
                 }
                 .onTapGesture {
-                    store.clearIntentState(
-                        artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey
-                    )
+                    // A contained run → jump into it; otherwise the tap just
+                    // dismisses the badge as before.
+                    if let sessionID {
+                        ArtifactIntentSessionLink.open(sessionID: sessionID)
+                    } else {
+                        store.clearIntentState(
+                            artifactID: artifactID, bindingID: action.bindingID, entryKey: entryKey
+                        )
+                    }
                 }
             case .failed(let reason):
                 HStack(spacing: 3) {

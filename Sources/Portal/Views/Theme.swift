@@ -31,6 +31,12 @@ enum Theme {
     static let graphTerminal = Color(hex: "9d7cff")!  // violet — executing
     static let graphReasoning = Color(hex: "8a8f98")! // slate — thinking
     static let graphOther = Color(hex: "7d8597")!     // gray-blue — misc
+    /// Context-compaction "fold" rule. Deliberately a DESATURATED parchment —
+    /// every tool color above is a saturated jewel tone, so a muted tan reads
+    /// as chrome/structure (a seam in the timeline), not as another tool bar.
+    /// RGB literal (not `Color(hex:)!`) to avoid a force-unwrap in new code —
+    /// this is #cdb891.
+    internal static let graphCompaction = Color(red: 0.804, green: 0.722, blue: 0.569)
 
     // MARK: - Borders
     static let border = Color(hex: "3a3a3a")!

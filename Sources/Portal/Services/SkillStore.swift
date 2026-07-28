@@ -150,7 +150,7 @@ enum SkillStoreDisk {
 
 @MainActor
 @Observable
-final class SkillStore: ObservableObject {
+internal final class SkillStore {
     static let shared = SkillStore()
 
     var skills: [SkillInfo] = []

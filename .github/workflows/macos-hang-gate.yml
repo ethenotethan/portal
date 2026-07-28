@@ -1,0 +1,73 @@
+name: macOS Hang Gate
+
+# The beachball gate. Launches the macOS app under the MainThreadWatchdog with
+# --hang-fatal so any >250ms main-thread stall trips an assertion and fails the
+# test — before it can reach a user. Every hang this app has shipped was macOS,
+# so this runs on the platform that actually beachballs.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: macos-hang-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hang-gate:
+    name: macOS main-thread hang gate
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run macOS hang gate (--hang-fatal)
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HangGate.xcresult"
+          xcodebuild test \
+            -project HermesNative.xcodeproj \
+            -scheme HermesNative-macOS \
+            -destination 'platform=macOS' \
+            -only-testing:HermesNativeMacUITests/MainThreadHangGateUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee "${RUNNER_TEMP}/hang-gate.log" | xcpretty
+
+      # Guard against a silent no-op: a UI-test target that never attaches would
+      # "pass" with zero executed tests, gating nothing while looking green.
+      # Assert the hang test actually RAN.
+      - name: Assert the hang test actually executed
+        if: always()
+        run: |
+          set -euo pipefail
+          LOG="${RUNNER_TEMP}/hang-gate.log"
+          if ! grep -qE "Test Case .*MainThreadHangGateUITests.* (passed|started)" "$LOG"; then
+            echo "::error::Hang-gate test did not execute — the UI-test runner never attached."
+            echo "This gate is a no-op in that state; failing so it isn't silently green."
+            echo "----- hang-gate.log tail -----"
+            tail -60 "$LOG" || true
+            exit 1
+          fi
+          echo "Hang-gate test executed."
+
+      - name: Upload hang-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-hang-gate-artifacts
+          path: |
+            ${{ runner.temp }}/HangGate.xcresult
+            ${{ runner.temp }}/hang-gate.log
+          if-no-files-found: ignore
+          retention-days: 14

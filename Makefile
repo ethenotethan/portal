@@ -11,7 +11,7 @@ SCHEME_MAC := Portal-macOS
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -27,9 +27,17 @@ build: generate
 
 # Rebuild from current source, then relaunch. Kills any running instance first
 # so you never end up staring at a stale binary.
+#
+# We ask xcodebuild itself where the product is (BUILT_PRODUCTS_DIR) instead of
+# `find`-ing DerivedData: there is one HermesNative-<hash> dir PER checkout path,
+# and `find | head -1` returns them in inode order, NOT by build time — so it
+# repeatedly launched a stale sibling checkout's app while today's build sat in a
+# different hash dir. -showBuildSettings resolves the exact dir for THIS project.
 run: kill build
-	@APP=$$(find $(DERIVED)/Portal-*/Build/Products/$(CONFIG) \
-		-name "$(SCHEME_MAC).app" -maxdepth 1 2>/dev/null | head -1); \
+	@DIR=$$(xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration $(CONFIG) \
+		-destination 'platform=macOS' -showBuildSettings 2>/dev/null \
+		| awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $$2; exit}'); \
+	APP="$$DIR/$(SCHEME_MAC).app"; \
 	echo "launching $$APP"; \
 	open "$$APP"
 
@@ -88,3 +96,11 @@ check: lint lint-baseline-guard
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) clean
+
+# Beachball triage in one shot. When the UI spins, this assembles the context
+# a programming agent needs to localize it WITHOUT a debugger: (1) the
+# MainThreadWatchdog's captured hang stacks from the unified log, (2) a static
+# scan for the known hang anti-patterns, (3) recent Views/perf churn. Pass a
+# look-back window in minutes: `make diagnose-hang MIN=30`.
+diagnose-hang:
+	@bash scripts/diagnose-hang.sh $(MIN)

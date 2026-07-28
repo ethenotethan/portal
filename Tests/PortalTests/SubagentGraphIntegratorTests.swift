@@ -79,7 +79,7 @@ struct SubagentGraphIntegratorTests {
         let node = integrator.agentNodes[0]
         #expect(node.isComplete)
         #expect(node.costUSD == 0.05)
-        #expect(node.tokenTotal == 1500)
+        #expect(node.totalTokens == 1500)
     }
 
     @Test("thinking with nil subagentID falls back to the running agent")

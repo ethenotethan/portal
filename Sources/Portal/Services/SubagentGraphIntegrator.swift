@@ -97,7 +97,7 @@ final class SubagentGraphIntegrator: ObservableObject {
         }
         run.node.costUSD = payload.costUSD
         if let i = payload.inputTokens, let o = payload.outputTokens {
-            run.node.tokenTotal = i + o
+            run.node.totalTokens = i + o
         }
         runs[sid] = run
         publish()

@@ -13,8 +13,12 @@ struct ArtifactsPane: View {
 
     @State private var selectedID: String?
 
+    private var visibleArtifacts: [LivingArtifact] { store.sortedArtifacts }
+
     private var selected: LivingArtifact? {
-        selectedID.flatMap { store.artifacts[$0] } ?? store.sortedArtifacts.first
+        selectedID.flatMap { store.artifacts[$0] }.flatMap { a in
+            visibleArtifacts.contains(where: { $0.id == a.id }) ? a : nil
+        } ?? visibleArtifacts.first
     }
 
     var body: some View {
@@ -23,7 +27,7 @@ struct ArtifactsPane: View {
             VStack(spacing: 0) {
                 header
                 Divider().overlay(Theme.border)
-                if store.artifacts.isEmpty {
+                if visibleArtifacts.isEmpty {
                     emptyState
                 } else {
                     HSplitViewCompat {
@@ -53,7 +57,7 @@ struct ArtifactsPane: View {
             Text("Artifacts")
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Theme.primary)
-            Text("\(store.artifacts.count)")
+            Text("\(visibleArtifacts.count)")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
                 .padding(.horizontal, 6)
@@ -103,7 +107,7 @@ struct ArtifactsPane: View {
     private var artifactList: some View {
         ScrollView {
             VStack(spacing: 3) {
-                ForEach(store.sortedArtifacts) { artifact in
+                ForEach(visibleArtifacts) { artifact in
                     artifactRow(artifact)
                 }
             }
@@ -369,6 +373,19 @@ private struct ArtifactHTMLIntentView: View {
         return HTMLArtifactIntentBridge.resolve(activeRequest, actions: actions)
     }
 
+    /// Every live intent slot for this artifact projected to a page mark, so
+    /// each inert control reflects its own status (`data-hermes-status`)
+    /// independently — not just the one the user last clicked.
+    private var statusMarks: [HTMLArtifactIntentBridge.StatusMark] {
+        store.intentSlots(artifactID: artifactID).map { slot in
+            HTMLArtifactIntentBridge.StatusMark(
+                bindingID: slot.bindingID,
+                entityRef: slot.entryKey,
+                status: HTMLArtifactIntentBridge.StatusToken(slot.state)
+            )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Backward-compatible fallback for existing HTML artifacts that
@@ -379,7 +396,7 @@ private struct ArtifactHTMLIntentView: View {
             if let activeState {
                 inlineStatus(activeState)
             }
-            InlineHTMLView(html: html, onArtifactIntent: handleRequest)
+            InlineHTMLView(html: html, onArtifactIntent: handleRequest, statusMarks: statusMarks)
                 .frame(minHeight: 320)
         }
         .confirmationDialog(
@@ -446,9 +463,27 @@ private struct ArtifactHTMLIntentView: View {
             case .needsConfirmation:
                 Image(systemName: "checkmark.shield")
                 Text("Waiting for confirmation")
-            case .succeeded(let message):
+            case .succeeded(let message, let sessionID):
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.success)
-                Text(message ?? "Intent succeeded")
+                if let sessionID {
+                    // The gateway ran this intent as a contained session —
+                    // offer click-through into the live run. Navigation goes
+                    // through the same in-process notification the sidebar and
+                    // inbox use, so no gateway object is threaded into the page.
+                    Button {
+                        ArtifactIntentSessionLink.open(sessionID: sessionID)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(message ?? "Started run")
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accent)
+                } else {
+                    Text(message ?? "Intent succeeded")
+                }
             case .failed(let reason):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.warning)
                 Text(reason)

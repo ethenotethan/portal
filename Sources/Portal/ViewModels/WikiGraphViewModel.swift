@@ -17,9 +17,22 @@ final class WikiGraphViewModel: ObservableObject {
     // attachment — the reader opens on selection, the file tree is a
     // toggleable sidebar, and the changeset timeline is a drawer.
 
-    /// Reader visibility: true presents the reader for `selectedPath`
-    /// (macOS side panel / iOS sheet) over the always-alive graph.
+    /// Reader visibility: true presents the reader for `selectedPath` over the
+    /// always-alive graph — a right-docked panel on macOS, a sheet on iOS. One
+    /// reader, driven by the shared selection plane (no per-card history).
     @Published var showPageDetail = false
+    /// macOS: the docked reader fills over the whole graph. A pure toggle —
+    /// Peek (docked beside the graph) ⇄ fullscreen (reader owns the surface).
+    /// iOS presents a sheet, so this stays false there.
+    @Published internal var readerFullscreen = false
+    /// macOS: width of the right-docked reader panel, set by dragging its
+    /// divider. Clamped by `setReaderWidth` against the live surface on drag.
+    @Published internal var readerWidth: CGFloat = 460
+    /// macOS Compare: additional pages pinned beside the active reader. The
+    /// grid renders these plus the current `selectedPath`; empty = plain Peek.
+    /// Read-only snapshots keyed by path — no per-tile history, unlike the
+    /// retired floating cards.
+    @Published internal private(set) var pinnedPaths: [String] = []
     /// Folder-tree sidebar (macOS) / browse sheet (iOS) visibility.
     @Published var showFileTree = false
     /// Changeset-timeline drawer (macOS) / sheet (iOS) visibility.
@@ -248,15 +261,6 @@ final class WikiGraphViewModel: ObservableObject {
         await load(source: client, wiki: wiki)
     }
 
-    /// Called by ContentView at gateway-connect time so the graph is ready
-    /// before the user opens the wiki panel. Skips if a load is already in
-    /// flight or data is present — safe to call on every reconnect.
-    internal func eagerLoad(client: GatewayClient) async {
-        guard !isLoading, graph.pages.isEmpty else { return }
-        await discoverWikis(client: client)
-        await load(client: client, wiki: selectedWikiPath)
-    }
-
     /// Source-generic load: Hermes (GatewayClient) and Centaur
     /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
     /// Hermes-only (multi-wiki gateways); other sources ignore it.
@@ -316,6 +320,8 @@ final class WikiGraphViewModel: ObservableObject {
         contentCache.removeAll()
         failedPath = nil
         showPageDetail = false
+        readerFullscreen = false
+        pinnedPaths.removeAll()
         selectedNodeIndex = nil
         // Wiki switch: the events surface belongs to the previous source.
         showEventsPage = false
@@ -350,6 +356,8 @@ final class WikiGraphViewModel: ObservableObject {
         backStack.removeAll()
         forwardStack.removeAll()
         showPageDetail = false
+        readerFullscreen = false
+        pinnedPaths.removeAll()
         selectedNodeIndex = nil
     }
 
@@ -419,11 +427,58 @@ final class WikiGraphViewModel: ObservableObject {
         )
     }
 
-    /// Opens the reader for the currently selected page: on the graph modes
-    /// this presents the reader sheet, elsewhere the inline reader shows it.
+    /// Opens the reader for the currently selected page: a right-docked panel
+    /// on macOS, the reader sheet on iOS. Every "jump into a page" path funnels
+    /// through here, so the two platforms diverge in exactly one place.
     func openReaderForSelection() {
         guard selectedPath != nil else { return }
         showPageDetail = true
+    }
+
+    // MARK: - Docked reader (macOS)
+
+    /// Peek ⇄ fullscreen. Inert when no page is open, so the toggle can't strand
+    /// the surface on a fullscreen blank.
+    internal func toggleReaderFullscreen() {
+        guard showPageDetail, selectedPath != nil else { return }
+        readerFullscreen.toggle()
+    }
+
+    /// Clamp the docked reader width to the surface as the divider drags. The
+    /// panel never eats more than ~70% of the width or shrinks below its floor.
+    internal func setReaderWidth(_ width: CGFloat, surfaceWidth: CGFloat) {
+        let maxWidth = max(Self.minReaderWidth, surfaceWidth * 0.7)
+        readerWidth = min(max(Self.minReaderWidth, width), maxWidth)
+    }
+
+    internal static let minReaderWidth: CGFloat = 320
+
+    // MARK: - Compare (macOS)
+
+    /// Pages shown together in the reader: the active page first, then every
+    /// pinned page (de-duplicated). One entry = plain Peek; more = the grid.
+    internal var comparePaths: [String] {
+        guard let active = selectedPath else { return pinnedPaths }
+        return [active] + pinnedPaths.filter { $0 != active }
+    }
+
+    internal var isComparing: Bool { comparePaths.count > 1 }
+    internal func isPinned(_ path: String) -> Bool { pinnedPaths.contains(path) }
+
+    /// Pin the current page so opening another keeps it on-screen for
+    /// side-by-side reading. No-op if there's nothing selected or it's already
+    /// pinned.
+    internal func pinCurrentPage() {
+        guard let path = selectedPath, !pinnedPaths.contains(path) else { return }
+        pinnedPaths.append(path)
+    }
+
+    internal func unpin(_ path: String) {
+        pinnedPaths.removeAll { $0 == path }
+    }
+
+    internal func clearComparison() {
+        pinnedPaths.removeAll()
     }
 
     // MARK: - Cross-surface affordances
@@ -432,6 +487,7 @@ final class WikiGraphViewModel: ObservableObject {
     /// selected and centered on the 2D canvas.
     func showCurrentPageInGraph() {
         showPageDetail = false
+        readerFullscreen = false
         if is3D { is3D = false; setupSimulation() }
         syncNodeSelection(toPath: selectedPath)
         if let idx = selectedNodeIndex { centerOnNode(idx) }
@@ -655,6 +711,7 @@ final class WikiGraphViewModel: ObservableObject {
     func deactivateSelection() {
         selectedNodeIndex = nil
         showPageDetail = false
+        readerFullscreen = false
     }
 
     func deselectNode() { selectedNodeIndex = nil }

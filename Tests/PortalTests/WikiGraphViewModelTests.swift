@@ -223,6 +223,8 @@ struct WikiGraphViewModelTests {
         }
         vm.activateNode(idx)
         #expect(vm.selectedPath == "concepts/alpha.md")
+        // The reader opens over the always-alive graph: a right-docked panel on
+        // macOS, the sheet on iOS — both keyed off showPageDetail.
         #expect(vm.showPageDetail)
     }
 

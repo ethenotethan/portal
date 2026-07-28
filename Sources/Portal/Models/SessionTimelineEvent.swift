@@ -49,15 +49,19 @@ struct SessionTimelineEvent: Identifiable, Codable {
 
 // MARK: - Session Timeline
 
-struct SessionTimeline: Codable {
+struct SessionTimeline: Codable, TokenAccountable {
     let sessionID: String
     let events: [SessionTimelineEvent]
     let totalDurationSeconds: Double
     let toolCalls: Int
-    let inputTokens: Int
-    let outputTokens: Int
+    let inputTokens: Int?
+    let outputTokens: Int?
     let costUSD: Double?
 
+    var totalTokens: Int? {
+        guard let i = inputTokens, let o = outputTokens else { return nil }
+        return i + o
+    }
     var toolCallsCount: Int { toolCalls }
 
     static func mock(sessionID: String) -> SessionTimeline {

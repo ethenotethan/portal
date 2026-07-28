@@ -13,7 +13,7 @@ func colorForStatus(_ status: NodeStatus) -> Color {
 
 /// A node in the agent's spawn tree — represents a root prompt or a subagent.
 /// Recursive structure: root prompt → children (delegated subagents) → their children, etc.
-class SpawnNode: Identifiable, ObservableObject, Hashable {
+class SpawnNode: Identifiable, ObservableObject, Hashable, TokenAccountable {
     let id: String
     let goal: String
     let depth: Int
@@ -141,10 +141,10 @@ enum NodeStatus: String, Equatable {
 
 // MARK: - Node Tool Call
 
-struct NodeToolCall: Identifiable {
+struct NodeToolCall: Identifiable, ToolCallRepresentable {
     let id: String
     let name: String
-    var preview: String?
+    var context: String?
     var summary: String?
     var durationSeconds: Double?
     var isComplete: Bool
@@ -152,14 +152,14 @@ struct NodeToolCall: Identifiable {
     init(
         id: String = UUID().uuidString,
         name: String,
-        preview: String? = nil,
+        context: String? = nil,
         summary: String? = nil,
         durationSeconds: Double? = nil,
         isComplete: Bool = false
     ) {
         self.id = id
         self.name = name
-        self.preview = preview
+        self.context = context
         self.summary = summary
         self.durationSeconds = durationSeconds
         self.isComplete = isComplete

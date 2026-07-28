@@ -68,6 +68,33 @@ internal struct SessionTurnBuilderTests {
         #expect((turns.first?.nodes.count ?? 0) >= 2)
     }
 
+    @Test("compaction folds on a snapshot flow through to the turn")
+    internal func compactionsCarryThrough() {
+        let when = Date()
+        let snap = TurnGraphSnapshot(
+            agentNodes: [],
+            reasoningNodes: [],
+            compactions: [
+                CompactionMarker(id: "c1", at: when, trigger: .automatic, detail: "context compacted"),
+            ]
+        )
+        let turns = SessionTurnBuilder.turns(from: [
+            user("q"), assistant("a", tools: [tool("t1")], snapshot: snap),
+        ])
+        #expect(turns.first?.compactions.count == 1)
+        #expect(turns.first?.compactions.first?.trigger == .automatic)
+        // A snapshot that carries ONLY compactions still counts as full-depth.
+        #expect(turns.first?.toolsOnly == false)
+    }
+
+    @Test("a turn with no snapshot has no compaction folds")
+    internal func noCompactionsWithoutSnapshot() {
+        let turns = SessionTurnBuilder.turns(from: [
+            user("q"), assistant("a", tools: [tool("t1")]),
+        ])
+        #expect(turns.first?.compactions.isEmpty == true)
+    }
+
     @Test("empty assistant turns (no tools, no content) are skipped")
     internal func skipsEmptyTurns() {
         let turns = SessionTurnBuilder.turns(from: [

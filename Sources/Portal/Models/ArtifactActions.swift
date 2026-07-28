@@ -102,8 +102,10 @@ internal struct ArtifactActionInvokeResult {
     internal enum Outcome {
         /// Handler needs native confirmation before proceeding.
         case needsConfirmation(challenge: String, prompt: String)
-        /// Handler completed successfully.
-        case succeeded(message: String?)
+        /// Handler completed successfully. `sessionID` is present when the
+        /// gateway ran the intent as a contained agent session (rather than a
+        /// one-off), so the client can offer click-through into that run.
+        case succeeded(message: String?, sessionID: String?)
         /// Handler failed (user-visible reason).
         case failed(reason: String)
         /// Artifact changed since button was rendered — refresh and retry.
@@ -122,7 +124,8 @@ internal struct ArtifactActionInvokeResult {
             let prompt = d["prompt"]?.stringValue ?? "Confirm action?"
             return .init(outcome: .needsConfirmation(challenge: challenge, prompt: prompt))
         case "succeeded":
-            return .init(outcome: .succeeded(message: d["message"]?.stringValue))
+            let sessionID = d["session_id"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
+            return .init(outcome: .succeeded(message: d["message"]?.stringValue, sessionID: sessionID))
         case "failed":
             return .init(outcome: .failed(reason: d["reason"]?.stringValue ?? "Action failed"))
         case "conflict":

@@ -31,7 +31,7 @@ final class ArtifactStore: ObservableObject {
     internal enum IntentInvocationState: Equatable {
         case pending
         case needsConfirmation(challenge: String, prompt: String)
-        case succeeded(message: String?)
+        case succeeded(message: String?, sessionID: String?)
         case failed(reason: String)
         case conflict
         case unsupported
@@ -41,7 +41,7 @@ final class ArtifactStore: ObservableObject {
         /// which shouldn't be re-displayed after a restart.
         internal static func from(ledgerOutcome: String, reason: String?) -> IntentInvocationState? {
             switch ledgerOutcome {
-            case "succeeded": return .succeeded(message: nil)
+            case "succeeded": return .succeeded(message: nil, sessionID: nil)
             case "failed":    return .failed(reason: reason ?? "Unknown error")
             case "conflict":  return .conflict
             case "unsupported": return .unsupported
@@ -50,7 +50,7 @@ final class ArtifactStore: ObservableObject {
         }
     }
 
-    private weak var client: GatewayClient?
+    private weak var client: (any ArtifactGateway)?
     private var syncAvailable: Bool?
     private var pushTask: Task<Void, Never>?
     private let pushDebounce: TimeInterval = 2
@@ -61,17 +61,39 @@ final class ArtifactStore: ObservableObject {
     /// original result rather than executing twice.
     private var idempotencyKeys: [String: String] = [:]
 
-    /// Artifacts sorted by recency for pickers.
+    /// The gateway that is currently "focused" in the UI. When non-nil,
+    /// `sortedArtifacts` returns only artifacts owned by this gateway (plus
+    /// legacy nil-gateway artifacts under the Hermes home gateway). New
+    /// artifacts created while a gateway is focused are stamped with its id.
+    @Published internal var focusedGatewayID: UUID?
+
+    /// Artifacts sorted by recency for pickers, scoped to the focused
+    /// gateway when one is set. Legacy artifacts (nil gatewayID) are
+    /// treated as belonging to the Hermes home gateway and shown when no
+    /// session-scoped gateway is focused.
     var sortedArtifacts: [LivingArtifact] {
-        artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
+        let all = artifacts.values.sorted { $0.updatedAt > $1.updatedAt }
+        guard let focused = focusedGatewayID else { return all }
+        // Session-scoped backend focused: show only its artifacts.
+        // Nil-gateway (legacy/Hermes) artifacts are excluded when a
+        // session-scoped gateway is active — they belong to Hermes.
+        return all.filter { $0.gatewayID == focused }
     }
 
-    private init() {
+    private convenience init() {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: "/tmp")
         let folder = dir.appendingPathComponent("portal", isDirectory: true)
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        fileURL = folder.appendingPathComponent("artifacts.json")
+        self.init(fileURL: folder.appendingPathComponent("artifacts.json"))
+    }
+
+    /// Isolated-store initializer for tests: back the store with a scratch
+    /// `fileURL` (e.g. a temp dir) so a test drives its own `artifacts`,
+    /// `intentStates`, and disk cache without touching the shared singleton or
+    /// the production Application Support JSON.
+    internal init(fileURL: URL) {
+        self.fileURL = fileURL
         loadFromDisk()
     }
 
@@ -93,7 +115,8 @@ final class ArtifactStore: ObservableObject {
             title: title ?? artifacts[id]?.title ?? "",
             content: merged,
             updatedAt: Date(),
-            updatedBy: SessionMetaSyncService.deviceID
+            updatedBy: SessionMetaSyncService.deviceID,
+            gatewayID: artifacts[id]?.gatewayID ?? focusedGatewayID
         )
         // Preserve a non-empty title over an incoming nil/empty one.
         if artifact.title.isEmpty, let existingTitle = artifacts[id]?.title {
@@ -283,8 +306,8 @@ final class ArtifactStore: ObservableObject {
         switch result.outcome {
         case .needsConfirmation(let challenge, let prompt):
             intentStates[slot] = .needsConfirmation(challenge: challenge, prompt: prompt)
-        case .succeeded(let message):
-            intentStates[slot] = .succeeded(message: message)
+        case .succeeded(let message, let sessionID):
+            intentStates[slot] = .succeeded(message: message, sessionID: sessionID)
             // Refresh the artifact so the UI reflects any server-side mutation
             // (tombstone, field update, etc.). Do not imply the refresh is part
             // of the external action result — they are separate outcomes.
@@ -323,6 +346,26 @@ final class ArtifactStore: ObservableObject {
     /// Expose slot key construction to views so they can look up state.
     internal func intentSlotKey(artifactID: String, bindingID: String, entryKey: String) -> String {
         slotKey(artifactID, bindingID, entryKey)
+    }
+
+    /// Every live intent slot for one artifact, decoded back into its
+    /// `(bindingID, entryKey)` components plus current state. Lets the HTML
+    /// host reflect each control's status without knowing the composite-key
+    /// format. `bindingID` never contains "/" (validated on the bridge), so the
+    /// first separator after the known artifact prefix splits it from the entry
+    /// key cleanly even when the entry key itself contains slashes.
+    internal func intentSlots(
+        artifactID: String
+    ) -> [(bindingID: String, entryKey: String, state: IntentInvocationState)] {
+        let prefix = "\(artifactID)/"
+        return intentStates.compactMap { key, state in
+            guard key.hasPrefix(prefix) else { return nil }
+            let remainder = key.dropFirst(prefix.count)
+            guard let slash = remainder.firstIndex(of: "/") else { return nil }
+            let bindingID = String(remainder[remainder.startIndex..<slash])
+            let entryKey = String(remainder[remainder.index(after: slash)...])
+            return (bindingID, entryKey, state)
+        }
     }
 
     /// Set the artifact's maintainers (the crons that keep it current),
@@ -398,7 +441,31 @@ final class ArtifactStore: ObservableObject {
 
     // MARK: - Gateway sync (artifact.* RPCs + artifact.changed events)
 
-    func setClient(_ client: GatewayClient) {
+    /// Inject a gateway for tests WITHOUT `setClient`'s side effects (no
+    /// `pull()`, no event subscription), so intent state-machine tests stay
+    /// deterministic. Marks sync available so `invokeIntent` proceeds.
+    internal func injectClientForTesting(_ client: any ArtifactGateway) {
+        self.client = client
+        syncAvailable = true
+    }
+
+    /// Seed a fully-formed artifact (with a specific `rev`) directly, for
+    /// tests that need to assert the pinned revision an intent invoke sends.
+    /// Bypasses the upsert/merge path so `rev` is exactly as given.
+    internal func seedArtifactForTesting(_ artifact: LivingArtifact) {
+        artifacts[artifact.id] = artifact
+    }
+
+    /// Seed an intent slot's state directly, for tests that exercise slot
+    /// decode / reflection without driving a full invoke round-trip.
+    internal func seedIntentStateForTesting(
+        artifactID: String, bindingID: String, entryKey: String,
+        state: IntentInvocationState
+    ) {
+        intentStates[slotKey(artifactID, bindingID, entryKey)] = state
+    }
+
+    internal func setClient(_ client: any ArtifactGateway) {
         guard self.client !== client else { return }
         self.client = client
         syncAvailable = nil
@@ -421,12 +488,17 @@ final class ArtifactStore: ObservableObject {
             return
         }
         guard let client else { return }
-        Task {
+        let preservedGatewayID = artifacts[id]?.gatewayID ?? focusedGatewayID
+        Task { [weak self] in
+            guard let self else { return }
             guard let fresh = try? await client.artifactGet(id: id) else { return }
             // Ignore events for our own just-pushed writes only if stale:
             // rev is monotonic, so an older rev never overwrites a newer one.
             if let current = artifacts[id], current.rev >= fresh.rev, fresh.rev > 0 { return }
-            artifacts[id] = fresh
+            // Preserve the local gateway-ownership stamp.
+            var stamped = fresh
+            stamped.gatewayID = preservedGatewayID
+            artifacts[id] = stamped
             persistToDisk()
         }
     }
@@ -449,7 +521,12 @@ final class ArtifactStore: ObservableObject {
                 let local = artifacts[summary.id]
                 if local == nil || summary.rev > (local?.rev ?? 0) {
                     if let full = try? await client.artifactGet(id: summary.id) {
-                        artifacts[summary.id] = full
+                        // Preserve the local gateway-ownership stamp — it is a
+                        // client-side annotation and is not round-tripped through
+                        // the gateway wire format.
+                        var stamped = full
+                        stamped.gatewayID = local?.gatewayID ?? focusedGatewayID
+                        artifacts[summary.id] = stamped
                         changed = true
                     }
                 }

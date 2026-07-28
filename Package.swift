@@ -35,6 +35,9 @@ let package = Package(
             resources: [
                 .process("Resources/Lottie"),
             ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+            ],
             linkerSettings: [
                 .linkedFramework("SceneKit"),
                 .linkedFramework("SpriteKit"),
