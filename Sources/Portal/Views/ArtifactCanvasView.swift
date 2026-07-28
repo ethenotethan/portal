@@ -51,6 +51,9 @@ internal struct ArtifactCanvasView: View {
             ArtifactExpandedSheet(artifact: artifact)
                 .environmentObject(gatewayClientWrapper)
                 .environmentObject(capabilitiesStore)
+                #if os(macOS)
+                .modifier(HTMLFullscreenPresentation(isHTML: artifact.kind == "html"))
+                #endif
         }
     }
 
@@ -648,6 +651,27 @@ private struct ArtifactExpandedSheet: View {
         }
     }
 }
+
+// MARK: - Presentation size helper
+
+#if os(macOS)
+/// Applies `.presentationSizing(.fitted)` for HTML artifacts so the sheet
+/// expands to fill the available screen area, matching a full-screen feel.
+private struct HTMLFullscreenPresentation: ViewModifier {
+    let isHTML: Bool
+    func body(content: Content) -> some View {
+        if isHTML {
+            if #available(macOS 15.0, *) {
+                content.presentationSizing(.fitted)
+            } else {
+                content.frame(minWidth: 900, minHeight: 700)
+            }
+        } else {
+            content
+        }
+    }
+}
+#endif
 
 // MARK: - Per-artifact panel content
 

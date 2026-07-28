@@ -18,6 +18,17 @@ extension EnvironmentValues {
         get { self[OpenCronKey.self] }
         set { self[OpenCronKey.self] = newValue }
     }
+
+    /// Navigate directly to the most-recent cron session for a job.
+    /// The String is the job name — used to match session titles.
+    internal var openCronSession: (@MainActor (String) -> Void)? {
+        get { self[OpenCronSessionKey.self] }
+        set { self[OpenCronSessionKey.self] = newValue }
+    }
+}
+
+private struct OpenCronSessionKey: EnvironmentKey {
+    static let defaultValue: (@MainActor (String) -> Void)? = nil
 }
 
 // MARK: - Maintenance section
@@ -36,6 +47,7 @@ struct ArtifactMaintenanceSection: View {
     /// All known cron jobs (from CronListViewModel), used to resolve refs.
     let jobs: [CronJob]
     @Environment(\.openCron) private var openCron
+    @Environment(\.openCronSession) private var openCronSession
     @ObservedObject private var store = ArtifactStore.shared
 
     @State private var isLinking = false
@@ -133,6 +145,17 @@ struct ArtifactMaintenanceSection: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 4)
+                if let openCronSession {
+                    Button {
+                        openCronSession(job.name)
+                    } label: {
+                        Image(systemName: "clock.arrow.2.circlepath")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.accent)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open last cron session")
+                }
                 if openCron != nil {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .semibold))

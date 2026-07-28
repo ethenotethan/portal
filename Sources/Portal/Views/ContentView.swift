@@ -1046,6 +1046,21 @@ internal struct ContentView: View {
                         closeAllOverlays()
                         showCronDashboard = true
                     }
+                    .environment(\.openCronSession) { jobName in
+                        // Find the most recent cron session whose title contains
+                        // the job name, then navigate to it.
+                        let match = sessionList.sessions
+                            .filter { $0.source?.lowercased() == "cron" }
+                            .filter { ($0.title ?? "").localizedCaseInsensitiveContains(jobName) }
+                            .max(by: {
+                                ($0.lastActive ?? $0.startedAt ?? .distantPast) <
+                                ($1.lastActive ?? $1.startedAt ?? .distantPast)
+                            })
+                        if let session = match {
+                            closeAllOverlays()
+                            sessionList.selectSession(id: session.id)
+                        }
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
