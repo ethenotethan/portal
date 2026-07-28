@@ -120,8 +120,14 @@ struct WikiGraphView: View {
     /// retry-on-connect path guards on an empty graph so this never stacks
     /// redundant loads over live data.
     private func attemptInitialLoad() async {
-        await viewModel.discoverWikis(client: gatewayClientWrapper.client)
-        await loadGraph(wiki: viewModel.selectedWikiPath)
+        // wiki.list (the picker/taxonomy chrome) and wiki.scan (the graph) are
+        // independent RPCs. Running them concurrently instead of serially means
+        // the graph no longer waits on the list — it paints as soon as the scan
+        // returns (or instantly from cache). Override sources ignore the list.
+        let client = gatewayClientWrapper.client
+        async let wikis: Void = isOverride ? () : viewModel.discoverWikis(client: client)
+        async let graph: Void = loadGraph(wiki: viewModel.selectedWikiPath)
+        _ = await (wikis, graph)
     }
 
     // MARK: - Adaptive layout
