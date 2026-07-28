@@ -458,6 +458,9 @@ internal struct SettingsView: View {
         }
     }
 
+    #endif
+
+    // Shared across platforms — used by both the macOS and iOS Settings bodies.
     private var capabilitiesSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Gateway Capabilities")
@@ -483,8 +486,6 @@ internal struct SettingsView: View {
             }
         }
     }
-
-    #endif
 
     // MARK: - iOS
 
