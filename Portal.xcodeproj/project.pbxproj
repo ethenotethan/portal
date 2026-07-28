@@ -162,6 +162,7 @@
 		51E0F580C8616D99FAC74AA9 /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346A28CBBF871D9A0AAF2E76 /* SkillModels.swift */; };
 		5242AFD0AEF20219A31493FB /* happy.json in Resources */ = {isa = PBXBuildFile; fileRef = D027A76A9893BCE52E346D6E /* happy.json */; };
 		5242B99D508CDC7699222E51 /* NetworkGraphSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */; };
+		52C223E7496B4BF1F9A0D5F1 /* PortalMenuBarExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0260AF4E902B40DE01F8296 /* PortalMenuBarExtra.swift */; };
 		52C76372A0804EB9BC58E651 /* HTMLArtifactIntentBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5C65263F4238FDE15E7574 /* HTMLArtifactIntentBridge.swift */; };
 		538A5958AC61C8F6696FD490 /* CentaurWikiClient+Timeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */; };
 		53986676AC41B999C81D0B2B /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF801BBAE40165E72C69391 /* SessionRunEvent.swift */; };
@@ -245,6 +246,7 @@
 		7A2C4E886B9BB72C5D54170A /* SessionTimelineEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2EE0ECBF324FCB40A2E1B2 /* SessionTimelineEvent.swift */; };
 		7AF901759016A04579C321AE /* SessionFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065153606F5A316A339DCD71 /* SessionFolder.swift */; };
 		7B4E158468AE29872BD6E32B /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2678B085DD8763495B099578 /* FlowLayout.swift */; };
+		7B6EC5182D888DCE1A78CEC4 /* PortalMenuBarExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0260AF4E902B40DE01F8296 /* PortalMenuBarExtra.swift */; };
 		7B943E979117919DDA3AF8BA /* ConversationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3838A7851F34062B8D401249 /* ConversationPanel.swift */; };
 		7C0449B6FE73DC595660A734 /* WikiPageReaderBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F784842A1B4EAFDF79893A2 /* WikiPageReaderBody.swift */; };
 		7C5910F518EA1FD40505483D /* PanelResizeMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06978D532A89D7EC02AC9581 /* PanelResizeMath.swift */; };
@@ -652,6 +654,7 @@
 		9EF489663ABB9AEAB01A353A /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		9F09A419D2108A3B75A0392C /* DashboardCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCanvasView.swift; sourceTree = "<group>"; };
 		9F784842A1B4EAFDF79893A2 /* WikiPageReaderBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPageReaderBody.swift; sourceTree = "<group>"; };
+		A0260AF4E902B40DE01F8296 /* PortalMenuBarExtra.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalMenuBarExtra.swift; sourceTree = "<group>"; };
 		A057A9F9FF732C18057AFB23 /* PortalVisionDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalVisionDemoUITests.swift; sourceTree = "<group>"; };
 		A1717BE151F82544A60DE7A1 /* SessionFileTreePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFileTreePane.swift; sourceTree = "<group>"; };
 		A1A334AF9706F31C81931156 /* Portal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Portal.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1020,6 +1023,7 @@
 				6D57CB5C0873AEC57CBFCC53 /* Charts */,
 				FB6E90D116D900F079442E44 /* Diagram */,
 				AA6D83F9F97EC9B9F6FB849A /* Learning */,
+				DB1CA07754B6D16CE4A2F373 /* MenuBar */,
 				478C43A556D1BB4322590DA6 /* MissionControl */,
 				8E71FAB0EF88E45BA40BE335 /* Prompt */,
 				9CAC7007E06EB18ECD16FBFA /* Quiz */,
@@ -1196,6 +1200,14 @@
 			);
 			name = PortalUITests;
 			path = Tests/PortalUITests;
+			sourceTree = "<group>";
+		};
+		DB1CA07754B6D16CE4A2F373 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				A0260AF4E902B40DE01F8296 /* PortalMenuBarExtra.swift */,
+			);
+			path = MenuBar;
 			sourceTree = "<group>";
 		};
 		DBD769B0DF02EACAD59C8EEC /* Quiz */ = {
@@ -1537,6 +1549,7 @@
 				387FB1C16542813EB85BE1D0 /* Persona.swift in Sources */,
 				714686EE0BD6CD22F7DFCE51 /* PersonaManager.swift in Sources */,
 				DAA5EB1831526B7302C05F5E /* PlatformCompat.swift in Sources */,
+				52C223E7496B4BF1F9A0D5F1 /* PortalMenuBarExtra.swift in Sources */,
 				7D98EEB08C14A1357A14BF6D /* PortalProgressView.swift in Sources */,
 				674111BE05C5339D7DC3645E /* PromptBreakdown.swift in Sources */,
 				6A2A74DFAB26152129A5958D /* PromptBreakdownView.swift in Sources */,
@@ -1784,6 +1797,7 @@
 				ACC7F38F308B9ADFC4AEB887 /* Persona.swift in Sources */,
 				4837D656B8C38B9E4EF29DE4 /* PersonaManager.swift in Sources */,
 				94270D9CAB1F9CB8BF5235CF /* PlatformCompat.swift in Sources */,
+				7B6EC5182D888DCE1A78CEC4 /* PortalMenuBarExtra.swift in Sources */,
 				B19DB794AF3E07EF8C13CAA4 /* PortalProgressView.swift in Sources */,
 				B01F45BE3F0A38A9CB5DBCFD /* PromptBreakdown.swift in Sources */,
 				2DBA4B2C68340F359C2B06CB /* PromptBreakdownView.swift in Sources */,
