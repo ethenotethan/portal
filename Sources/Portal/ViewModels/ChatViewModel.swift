@@ -270,15 +270,17 @@ final class ChatViewModel: ObservableObject {
     var fileDownloadManager = FileDownloadManager()
     /// Live reasoning summarization — extracts decision structure from agent
     /// thought traces during streaming; results feed the ThoughtGraphView.
-    /// macOS runs the on-device MLX model (Gemma 3 1B); iOS falls back to the
-    /// zero-dependency heuristic (MLX is jetsam-banned there). The MLX path
-    /// itself degrades to the heuristic when the model isn't loaded yet.
+    /// Uses the heuristic pattern-matcher by default (instant, zero deps).
+    /// On macOS, the user can opt in to the experimental MLX model (Gemma 3 1B)
+    /// via Settings → Thought Graph → Experimental. The MLX path itself degrades
+    /// to the heuristic when the model isn't loaded yet.
     internal lazy var reasoningGraph: ReasoningGraphIntegrator = {
         #if canImport(MLXLLM) && os(macOS)
-        return ReasoningGraphIntegrator(summarizer: MLXReasoningSummarizer())
-        #else
-        return ReasoningGraphIntegrator(summarizer: HeuristicReasoningSummarizer())
+        if UserDefaults.standard.bool(forKey: "portal.mlxReasoningEnabled") {
+            return ReasoningGraphIntegrator(summarizer: MLXReasoningSummarizer())
+        }
         #endif
+        return ReasoningGraphIntegrator(summarizer: HeuristicReasoningSummarizer())
     }()
     /// Live subagent dispatch tracking — folds subagent.* events into agent
     /// subtrees rendered inside the ThoughtGraphView. Turn-scoped like

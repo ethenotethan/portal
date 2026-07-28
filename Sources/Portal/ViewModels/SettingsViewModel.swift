@@ -8,6 +8,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Settin
 @MainActor
 final class SettingsViewModel: ObservableObject {
     static let responseCompleteNotificationsKey = "portal.responseCompleteNotificationsEnabled"
+    internal static let mlxReasoningKey = "portal.mlxReasoningEnabled"
 
     @Published var gatewayURL: String {
         didSet {
@@ -75,6 +76,17 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// Off by default. When enabled on macOS with Apple Silicon, the thought
+    /// graph uses an on-device MLX model (Gemma 3 1B) for reasoning extraction
+    /// instead of the heuristic pattern-matcher. Downloads ~600MB on first use.
+    @Published internal var mlxReasoningEnabled: Bool {
+        didSet {
+            if didCompleteInit {
+                UserDefaults.standard.set(mlxReasoningEnabled, forKey: Self.mlxReasoningKey)
+            }
+        }
+    }
+
     private static let onboardingCompleteKey = "portal.onboardingComplete"
     var hasCompletedOnboarding: Bool {
         UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
@@ -122,6 +134,7 @@ final class SettingsViewModel: ObservableObject {
         self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
+        self.mlxReasoningEnabled = UserDefaults.standard.bool(forKey: Self.mlxReasoningKey)
 
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)

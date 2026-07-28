@@ -319,6 +319,19 @@ struct SettingsView: View {
                 APNsStatusRow()
             }
 
+            #if os(macOS)
+            Section {
+                Toggle("Experimental: MLX reasoning model", isOn: $settings.mlxReasoningEnabled)
+                Text("Uses an on-device model (Gemma 3 1B, ~600MB download) to extract reasoning decisions. The default heuristic extractor is faster and needs no download.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Thought Graph")
+            } footer: {
+                Text("Changes take effect on the next session.")
+            }
+            #endif
+
             Section("Gateway Capabilities") {
                 capabilitiesSummary
             }

@@ -85,7 +85,28 @@ final class ReasoningGraphIntegrator: ObservableObject {
         guard let summary = await summarizer.summarize() else { return }
         await summarizer.reset()
 
-        for decision in summary.decisions {
+        // Filter out template/placeholder values that the MLX model echoes
+        // from its few-shot example when it finds no real decisions.
+        let placeholderLabels: Set<String> = [
+            "choose x over y",
+            "choose x over y.",
+        ]
+        let placeholderReasons: Set<String> = [
+            "x is faster than y",
+        ]
+
+        let filtered = summary.decisions.filter { decision in
+            let lowerLabel = decision.label.lowercased().trimmingCharacters(in: .whitespaces)
+            let lowerReason = decision.reasoning.lowercased().trimmingCharacters(in: .whitespaces)
+            let isPlaceholder = placeholderLabels.contains(lowerLabel)
+                || placeholderReasons.contains(lowerReason)
+            if isPlaceholder {
+                log.debug("Skipping placeholder reasoning decision: \(decision.label)")
+            }
+            return !isPlaceholder
+        }
+
+        for decision in filtered {
             idCounter += 1
             let nodeID = "reasoning-\(decision.id)"
             let parentIDs = reasoningNodes.last.map { [$0.id] } ?? []
@@ -103,6 +124,8 @@ final class ReasoningGraphIntegrator: ObservableObject {
             reasoningNodes.append(node)
         }
 
-        log.debug("Extracted reasoning nodes from summarization")
+        if !reasoningNodes.isEmpty {
+            log.debug("Extracted reasoning nodes from summarization")
+        }
     }
 }
