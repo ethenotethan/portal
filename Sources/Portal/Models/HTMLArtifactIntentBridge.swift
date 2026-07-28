@@ -5,7 +5,12 @@ import Foundation
 /// or arbitrary URL — only the identifiers already accepted by
 /// `artifact.action.invoke`.
 internal struct HTMLArtifactIntentRequest: Equatable, Sendable {
-    internal static let scheme = "portal-artifact-action"
+    // Internal JS↔Swift control-message scheme. Must stay in lockstep with the
+    // scheme the injected script navigates to (see userScriptSource, which
+    // interpolates this constant) and with the `data-hermes-*` attribute
+    // convention authored into HTML artifacts. Not an OS-registered scheme —
+    // the navigation is always cancelled client-side.
+    internal static let scheme = "hermes-artifact-action"
     internal static let host = "invoke"
 
     internal let bindingID: String
@@ -106,7 +111,7 @@ internal enum HTMLArtifactIntentBridge {
         const query = new URLSearchParams({ binding_id: bindingID });
         if (entityRef) query.set('entity_ref', entityRef);
         query.set('nonce', nonce);
-        window.location.href = 'hermes-artifact-action://invoke?' + query.toString();
+        window.location.href = '\#(HTMLArtifactIntentRequest.scheme)://\#(HTMLArtifactIntentRequest.host)?' + query.toString();
       }, true);
     })();
     """#

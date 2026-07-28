@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 // The storm detector's core is a busy-fraction sum over a rolling window: the
 // signature no single-turn hang threshold can see (#254's SessionList relayout

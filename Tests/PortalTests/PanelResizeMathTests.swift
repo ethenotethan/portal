@@ -1,6 +1,6 @@
 import CoreGraphics
 import Testing
-@testable import HermesNative
+@testable import Portal
 
 @Suite("Panel resize math")
 internal struct PanelResizeMathTests {
