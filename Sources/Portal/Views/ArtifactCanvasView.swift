@@ -1,28 +1,30 @@
 #if os(macOS)
 import SwiftUI
 
-/// Free-form canvas surface for living artifacts — one resizable panel per
-/// artifact, arranged by the user. Replaces the fixed split-pane `ArtifactsPane`
-/// with a Grafana-style layout: drag panels anywhere, resize from any edge,
-/// collapse to a title bar. Layout is persisted so a user's arrangement
-/// survives restarts.
-///
-/// Each panel kind is "artifact:<id>" — a lightweight encoding that lets the
-/// standard `DashboardCanvasView` machinery manage frames without knowing
-/// anything about artifact semantics. The canvas host resolves ids back to
-/// artifacts and dispatches to `ArtifactKindRenderer`.
+/// Artifacts surface — switchable between a free-form canvas (one resizable
+/// panel per artifact) and a classic list+detail split. The canvas opens in
+/// edit mode so panels are immediately draggable; Done locks them so scroll/
+/// click interactions work inside each panel.
 @MainActor
 internal struct ArtifactCanvasView: View {
     var onClose: (() -> Void)?
 
     @ObservedObject private var store = ArtifactStore.shared
 
+    // Canvas state
     @State private var layout = DashboardLayout()
     @State private var didSeedLayout = false
     @State private var canvasBounds: CGSize = .zero
-    @State private var isEditing = false
+    @State private var isEditing = true      // open in edit mode — panels draggable immediately
     @State private var showsTitleBars = true
 
+    // List state
+    @State private var selectedID: String?
+
+    // Shared
+    @AppStorage("artifactViewMode") private var viewMode: ViewMode = .canvas
+
+    private enum ViewMode: String { case canvas, list }
     private static let layoutKey = "artifactCanvasLayout.v1"
 
     internal var body: some View {
@@ -32,33 +34,15 @@ internal struct ArtifactCanvasView: View {
             if store.sortedArtifacts.isEmpty {
                 emptyState
             } else {
-                GeometryReader { geo in
-                    DashboardCanvasView(
-                        layout: $layout,
-                        isEditing: isEditing,
-                        showsTitleBars: showsTitleBars,
-                        title: { panelTitle(for: $0) },
-                        icon: { panelIcon(for: $0) },
-                        onLayoutCommitted: { layout.store(key: Self.layoutKey) },
-                        content: { panel in AnyView(panelContent(panel)) }
-                    )
-                    .onAppear {
-                        canvasBounds = geo.size
-                        seedLayoutIfNeeded(bounds: geo.size)
-                    }
-                    .onChange(of: geo.size) { _, newSize in
-                        canvasBounds = newSize
-                        seedLayoutIfNeeded(bounds: newSize)
-                    }
+                switch viewMode {
+                case .canvas: canvasBody
+                case .list:   listBody
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(Theme.background)
         .frame(minWidth: 700, minHeight: 480)
         .task { await store.pull() }
-        // When artifacts are added/removed, reconcile the canvas layout so new
-        // artifacts get a panel and deleted artifacts' panels are pruned.
         .onChange(of: store.sortedArtifacts.map(\.id)) { _, newIDs in
             reconcileLayout(artifactIDs: newIDs, bounds: canvasBounds)
         }
@@ -92,50 +76,74 @@ internal struct ArtifactCanvasView: View {
             .buttonStyle(.plain)
             .help("Resync from gateway")
 
-            // Add panel picker
-            if !hiddenArtifacts.isEmpty {
-                Menu {
-                    ForEach(hiddenArtifacts) { artifact in
-                        Button {
-                            addPanel(for: artifact)
-                        } label: {
-                            Label(artifact.displayName, systemImage: kindIcon(for: artifact.kind))
-                        }
+            // View mode toggle
+            HStack(spacing: 2) {
+                ForEach([ViewMode.list, .canvas], id: \.rawValue) { mode in
+                    Button {
+                        viewMode = mode
+                    } label: {
+                        Image(systemName: mode == .list ? "list.bullet" : "rectangle.3.group")
+                            .font(.system(size: 11))
+                            .foregroundStyle(viewMode == mode ? Theme.accent : Theme.tertiary)
+                            .frame(width: 24, height: 24)
+                            .background(
+                                viewMode == mode ? Theme.accent.opacity(0.12) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 5)
+                            )
                     }
-                } label: {
-                    Label("Add", systemImage: "plus.rectangle.on.rectangle")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
+                    .buttonStyle(.plain)
+                    .help(mode == .list ? "List view" : "Canvas view")
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .help("Add a hidden artifact panel back to the canvas")
             }
 
-            Divider().frame(height: 16).opacity(0.4)
+            if viewMode == .canvas {
+                Divider().frame(height: 16).opacity(0.4)
 
-            Toggle(isOn: $showsTitleBars) {
-                Image(systemName: showsTitleBars ? "rectangle.topthird.inset.filled" : "rectangle")
-                    .font(.system(size: 11))
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.plain)
-            .foregroundStyle(showsTitleBars ? Theme.accent : Theme.tertiary)
-            .help(showsTitleBars ? "Hide panel headers" : "Show panel headers")
+                // Add panel picker — only when panels have been hidden
+                if !hiddenArtifacts.isEmpty {
+                    Menu {
+                        ForEach(hiddenArtifacts) { artifact in
+                            Button {
+                                addPanel(for: artifact)
+                            } label: {
+                                Label(artifact.displayName, systemImage: kindIcon(for: artifact.kind))
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "plus.rectangle.on.rectangle")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Add a hidden artifact panel back to the canvas")
+                }
 
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
-            } label: {
-                Text(isEditing ? "Done" : "Edit")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(isEditing ? Theme.accent.opacity(0.12) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 6))
+                Toggle(isOn: $showsTitleBars) {
+                    Image(systemName: showsTitleBars ? "rectangle.topthird.inset.filled" : "rectangle")
+                        .font(.system(size: 11))
+                }
+                .toggleStyle(.button)
+                .buttonStyle(.plain)
+                .foregroundStyle(showsTitleBars ? Theme.accent : Theme.tertiary)
+                .help(showsTitleBars ? "Hide panel headers" : "Show panel headers")
+
+                Button {
+                    isEditing.toggle()
+                } label: {
+                    Text(isEditing ? "Done" : "Edit")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            isEditing ? Theme.accent.opacity(0.12) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
-            .buttonStyle(.plain)
-            .help(isEditing ? "Lock layout and enable panel interactions" : "Enter layout edit mode")
 
             if let onClose {
                 Button(action: onClose) {
@@ -150,6 +158,124 @@ internal struct ArtifactCanvasView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Canvas body
+
+    private var canvasBody: some View {
+        GeometryReader { geo in
+            DashboardCanvasView(
+                layout: $layout,
+                isEditing: isEditing,
+                showsTitleBars: showsTitleBars,
+                title: { panelTitle(for: $0) },
+                icon: { panelIcon(for: $0) },
+                onLayoutCommitted: { layout.store(key: Self.layoutKey) },
+                content: { panel in AnyView(panelContent(panel)) }
+            )
+            .onAppear {
+                canvasBounds = geo.size
+                seedLayoutIfNeeded(bounds: geo.size)
+            }
+            .onChange(of: geo.size) { _, newSize in
+                canvasBounds = newSize
+                seedLayoutIfNeeded(bounds: newSize)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - List body
+
+    private var listBody: some View {
+        HSplitView {
+            // Sidebar — compact artifact list
+            ScrollView {
+                VStack(spacing: 3) {
+                    ForEach(store.sortedArtifacts) { artifact in
+                        listRow(artifact)
+                    }
+                }
+                .padding(10)
+            }
+            .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
+            .background(Theme.surface.opacity(0.4))
+
+            // Detail — full renderer for selected artifact
+            if let artifact = selectedArtifact {
+                ArtifactListDetail(artifact: artifact)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(artifact.id)
+            } else {
+                Text("Select an artifact")
+                    .font(.callout)
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            if selectedID == nil { selectedID = store.sortedArtifacts.first?.id }
+        }
+    }
+
+    private var selectedArtifact: LivingArtifact? {
+        selectedID.flatMap { store.artifacts[$0] }
+            ?? store.sortedArtifacts.first
+    }
+
+    private func listRow(_ artifact: LivingArtifact) -> some View {
+        let isSelected = artifact.id == selectedArtifact?.id
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 7) {
+                Image(systemName: kindIcon(for: artifact.kind))
+                    .font(.system(size: 11))
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.secondary)
+                    .frame(width: 16)
+                Text(artifact.displayName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Spacer()
+                if artifact.rev > 0 {
+                    Text("r\(artifact.rev)")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(Theme.tertiary)
+                }
+            }
+            HStack(spacing: 5) {
+                Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiary)
+                if !artifact.updatedBy.isEmpty {
+                    Text("· \(artifact.updatedBy)")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                        .lineLimit(1)
+                }
+                if !artifact.maintainerRefs.isEmpty {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 8))
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            .padding(.leading, 23)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            isSelected ? Theme.accent.opacity(0.10) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { selectedID = artifact.id }
+        .contextMenu {
+            Button(role: .destructive) {
+                store.remove(id: artifact.id)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 
     // MARK: - Empty state
@@ -314,6 +440,59 @@ internal struct ArtifactCanvasView: View {
         let x = min(offset, max(0, bounds.width - w - 8))
         let y = min(offset, max(0, bounds.height - h - 8))
         return CGRect(x: x, y: y, width: w, height: h)
+    }
+}
+
+// MARK: - List detail view
+
+/// Full-size detail pane used in list mode: maintenance section on top,
+/// rendered content below.
+private struct ArtifactListDetail: View {
+    let artifact: LivingArtifact
+
+    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
+
+    @State private var cronVM = CronListViewModel()
+
+    var body: some View {
+        Group {
+            if artifact.kind == "html" {
+                VStack(alignment: .leading, spacing: 0) {
+                    ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                        .padding(16)
+                    ArtifactKindRenderer(
+                        kind: artifact.kind, content: artifact.content,
+                        actionableArtifactID: artifact.id,
+                        topLevelActions: artifact.topLevelActions
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+                        ArtifactKindRenderer(
+                            kind: artifact.kind, content: artifact.content,
+                            actionableArtifactID: artifact.id,
+                            topLevelActions: artifact.topLevelActions
+                        )
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .task { await refreshCrons() }
+    }
+
+    private func refreshCrons() async {
+        cronVM.setGatewayClient(gatewayClientWrapper.client)
+        await cronVM.refreshJobs()
+        if capabilitiesStore.capabilities.supportsActionLog {
+            ArtifactStore.shared.rehydrateBadges(for: artifact.id)
+        }
     }
 }
 
