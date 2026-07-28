@@ -15,14 +15,14 @@ internal struct ArtifactCanvasView: View {
     @State private var layout = DashboardLayout()
     @State private var didSeedLayout = false
     @State private var canvasBounds: CGSize = .zero
-    @State private var isEditing = true      // open in edit mode — panels draggable immediately
+    @State private var isEditing = false
     @State private var showsTitleBars = true
 
     // List state
     @State private var selectedID: String?
 
     // Shared
-    @AppStorage("artifactViewMode") private var viewMode: ViewMode = .canvas
+    @AppStorage("artifactViewMode") private var viewMode: ViewMode = .list
 
     private enum ViewMode: String { case canvas, list }
     private static let layoutKey = "artifactCanvasLayout.v1"
@@ -128,20 +128,12 @@ internal struct ArtifactCanvasView: View {
                 .foregroundStyle(showsTitleBars ? Theme.accent : Theme.tertiary)
                 .help(showsTitleBars ? "Hide panel headers" : "Show panel headers")
 
-                Button {
+                Button(isEditing ? "Done" : "Edit") {
                     isEditing.toggle()
-                } label: {
-                    Text(isEditing ? "Done" : "Edit")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            isEditing ? Theme.accent.opacity(0.12) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 6)
-                        )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(isEditing ? Theme.accent : nil)
                 .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
 
