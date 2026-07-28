@@ -94,12 +94,14 @@ struct ContentView: View {
                 wireUpClient()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
+                    await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
                 }
             }
         }
         .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
             if connected {
                 Task { await sessionList.refreshSessions() }
+                Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }
                 // Register this device's APNs token with whichever gateway we
                 // just connected to (no-op until the OS grants a token, and
                 // once per gateway+token thereafter).
@@ -166,6 +168,7 @@ struct ContentView: View {
             wireUpClient()
             if gatewayClientWrapper.isConnected {
                 await sessionList.refreshSessions()
+                await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
             }
         }
     }
