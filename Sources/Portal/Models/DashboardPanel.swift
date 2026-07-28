@@ -48,9 +48,12 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// Opened as an in-canvas tile rather than a fullscreen sheet, so it docks
     /// beside the conversation like any other lens.
     internal static let sessionGraph = PanelKind(rawValue: "sessionGraph")
-    /// The sessions list panel — the card-based session browser (the same content
-    /// as the old modal SessionsDashboard) rendered as a resizable canvas tile.
-    /// Host-rendered singleton on the sessions canvas.
+    /// The sessions search + filter panel — text search and status/source filter
+    /// pills. Drives the shared `SessionsFilterState` which the list and timeline
+    /// panels both observe. Host-rendered singleton on the sessions canvas.
+    internal static let sessionsSearch = PanelKind(rawValue: "sessionsSearch")
+    /// The sessions list panel — the card-based session browser filtered by the
+    /// shared `SessionsFilterState`. Host-rendered singleton on the sessions canvas.
     internal static let sessionsList = PanelKind(rawValue: "sessionsList")
     /// A horizontal time plot of all sessions — start → end bars grouped by source
     /// lane. Host-rendered singleton on the sessions canvas.

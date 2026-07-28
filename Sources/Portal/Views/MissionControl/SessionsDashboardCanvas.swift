@@ -2,21 +2,20 @@
 import SwiftUI
 
 /// The sessions dashboard expressed as a free-form canvas — the same
-/// `DashboardCanvasView` driver used by the chat canvas, giving the sessions
-/// view the same drag/resize/add/edit model as the conversation canvas.
+/// `DashboardCanvasView` driver used by the chat canvas.
 ///
-/// Two built-in panels:
-///   - **Sessions List** — the card-based browser (the body of the old modal)
-///   - **Sessions Timeline** — horizontal Gantt plot of session start→end spans
-///
-/// Both are host-rendered singletons: they need `SessionListViewModel` and the
-/// `onOpenSession` callback, which the `PanelContext` doesn't carry.
+/// Three built-in panels, all host-rendered singletons:
+///   - **Search** — text field + status/source filter pills; drives the shared `SessionsFilterState`
+///   - **Sessions List** — card browser, responds to `SessionsFilterState`
+///   - **Timeline** — horizontal Gantt plot of session start→end spans
 @MainActor
 internal struct SessionsDashboardCanvas: View {
     @EnvironmentObject private var sessionList: SessionListViewModel
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
 
     internal var onOpenSession: ((String) -> Void)?
+
+    @StateObject private var filterState = SessionsFilterState()
 
     @State private var layout = DashboardLayout()
     @State private var didLoadLayout = false
@@ -55,14 +54,20 @@ internal struct SessionsDashboardCanvas: View {
     // MARK: - Panel content
 
     private func panelContent(_ panel: DashboardPanel) -> AnyView {
-        if panel.kind == .sessionsList {
+        switch panel.kind {
+        case .sessionsSearch:
             return AnyView(
-                SessionsDashboard(onOpenSession: onOpenSession)
+                SessionsSearchPanel()
+                    .environmentObject(filterState)
                     .environmentObject(sessionList)
-                    .environmentObject(gatewayClientWrapper)
             )
-        }
-        if panel.kind == .sessionsTimeline {
+        case .sessionsList:
+            return AnyView(
+                SessionsListPanel(onOpenSession: onOpenSession)
+                    .environmentObject(filterState)
+                    .environmentObject(sessionList)
+            )
+        case .sessionsTimeline:
             return AnyView(
                 SessionsTimelinePlot(
                     sessions: sessionList.sessions.filter { !$0.isArchived },
@@ -70,11 +75,12 @@ internal struct SessionsDashboardCanvas: View {
                     onSelect: onOpenSession
                 )
             )
+        default:
+            return AnyView(PanelEmptyState(
+                icon: "questionmark.square.dashed",
+                message: "Unknown panel: \(panel.kind.rawValue)"
+            ))
         }
-        return AnyView(PanelEmptyState(
-            icon: "questionmark.square.dashed",
-            message: "Unknown panel: \(panel.kind.rawValue)"
-        ))
     }
 
     // MARK: - Toolbar
@@ -87,7 +93,7 @@ internal struct SessionsDashboardCanvas: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.secondary)
-            .help("Reset to the default two-panel layout")
+            .help("Reset to the default layout")
 
             Spacer()
 
@@ -189,7 +195,7 @@ internal struct SessionsDashboardCanvas: View {
 
     private func addPanel(kind: PanelKind) {
         let size = CGSize(
-            width: min(400, max(DashboardPanel.minSize.width, canvasBounds.width * 0.4)),
+            width: min(360, max(DashboardPanel.minSize.width, canvasBounds.width * 0.3)),
             height: min(400, max(DashboardPanel.minSize.height, canvasBounds.height * 0.5))
         )
         let frame = PanelResizeMath.vacantSlot(
@@ -213,6 +219,13 @@ internal struct SessionsDashboardCanvas: View {
 
     private static func makeRegistry() -> PanelRegistry {
         let registry = PanelRegistry()
+        registry.register(PanelDescriptor(
+            kind: .sessionsSearch,
+            title: "Search",
+            icon: "magnifyingglass",
+            singleton: true,
+            build: nil  // host-rendered
+        ))
         registry.register(PanelDescriptor(
             kind: .sessionsList,
             title: "Sessions",

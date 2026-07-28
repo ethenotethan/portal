@@ -141,22 +141,40 @@ internal struct DashboardLayout: Codable, Equatable {
         ]).clamped(to: bounds)
     }
 
-    /// First-run arrangement for the **sessions dashboard canvas**: the session
-    /// list fills the left two-thirds; the timeline fills the right third.
+    /// First-run arrangement for the **sessions dashboard canvas**:
+    ///
+    /// ```
+    /// ┌──────────────────┬──────────────┐
+    /// │  Search (narrow) │              │
+    /// ├──────────────────┤   Timeline   │
+    /// │  Sessions list   │              │
+    /// └──────────────────┴──────────────┘
+    /// ```
+    ///
+    /// The search panel sits above the list in the left column; the timeline
+    /// fills the right column top-to-bottom.
     internal static func seededSessionsDashboard(for bounds: CGSize) -> DashboardLayout {
         let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
-        let h = max(bounds.height, DashboardPanel.minSize.height)
+        let h = max(bounds.height, DashboardPanel.minSize.height * 2 + 24)
         let gap: CGFloat = 8
         let timelineWidth = max(DashboardPanel.minSize.width, w * 0.35)
-        let listWidth = w - timelineWidth - gap * 3
+        let leftWidth = w - timelineWidth - gap * 3
+        let timelineX = leftWidth + gap * 2
+        let searchHeight: CGFloat = 100
+        let listY = gap + searchHeight + gap
+        let listHeight = h - listY - gap
         return DashboardLayout(panels: [
             DashboardPanel(
+                kind: .sessionsSearch,
+                frame: CGRect(x: gap, y: gap, width: leftWidth, height: searchHeight)
+            ),
+            DashboardPanel(
                 kind: .sessionsList,
-                frame: CGRect(x: gap, y: gap, width: listWidth, height: h - gap * 2)
+                frame: CGRect(x: gap, y: listY, width: leftWidth, height: listHeight)
             ),
             DashboardPanel(
                 kind: .sessionsTimeline,
-                frame: CGRect(x: listWidth + gap * 2, y: gap, width: timelineWidth, height: h - gap * 2)
+                frame: CGRect(x: timelineX, y: gap, width: timelineWidth, height: h - gap * 2)
             )
         ]).clamped(to: bounds)
     }
