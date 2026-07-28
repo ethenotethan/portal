@@ -83,6 +83,21 @@ struct ContentView: View {
                 )
             }
         }
+        // Intercept in-app `hermesnative://` links (e.g. an activity item's
+        // "Open Session" external ref in the notifications tab) and route them
+        // IN-PROCESS. A plain SwiftUI `Link`/`openURL` hands the URL to the
+        // default OpenURLAction, which on macOS is NSWorkspace.open → Launch
+        // Services. Because `hermesnative` is a registered scheme, that bounces
+        // the URL back out and spawns a SECOND app instance instead of reusing
+        // this one — the notification-tab "separate application instance" bug.
+        // Everything that isn't our scheme falls through to `.systemAction`
+        // (browser, mail, etc.). The OS-delivered URL path stays on
+        // `.onOpenURL` in each layout; this only governs in-app taps.
+        .environment(\.openURL, OpenURLAction { url in
+            guard PortalDeepLink(url: url) != nil else { return .systemAction }
+            handleDeepLink(url)
+            return .handled
+        })
         .task {
             if settings.isConfigured {
                 // Bounded retry: a cold-start connect can fail before the
