@@ -23,12 +23,17 @@ internal struct SessionsDashboardCanvas: View {
     @State private var isEditing = false
     @State private var showsTitleBars = true
     @State private var showAddPalette = false
+    @AppStorage("sessionsDashboardToolbarCollapsed") private var toolbarCollapsed = false
 
     private let registry = SessionsDashboardCanvas.makeRegistry()
 
     internal var body: some View {
         VStack(spacing: 0) {
-            toolbar
+            if toolbarCollapsed {
+                collapsedToolbar
+            } else {
+                toolbar
+            }
             Divider().overlay(Theme.border)
             GeometryReader { geo in
                 DashboardCanvasView(
@@ -141,9 +146,41 @@ internal struct SessionsDashboardCanvas: View {
             .buttonStyle(.plain)
             .foregroundStyle(isEditing ? Theme.accent : Theme.secondary)
             .help(isEditing ? "Save arrangement and lock the canvas" : "Rearrange panels")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { toolbarCollapsed = true }
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 22, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Collapse the toolbar")
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
+        .background(Theme.surface.opacity(0.5))
+    }
+
+    private var collapsedToolbar: some View {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { toolbarCollapsed = false }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 22, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Show the toolbar")
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 22)
         .background(Theme.surface.opacity(0.5))
     }
 
