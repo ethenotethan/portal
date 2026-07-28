@@ -13,7 +13,7 @@ internal struct RunningToolsPanel: View {
     internal var selection: Binding<String?>?
 
     private var toolNodes: [ThoughtGraphNode] {
-        nodes.filter { $0.category != .reasoning && !$0.isAgent }
+        nodes.filter { !$0.isReasoning && !$0.isAgent }
     }
 
     private var running: [ThoughtGraphNode] {

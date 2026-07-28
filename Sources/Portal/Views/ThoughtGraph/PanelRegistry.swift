@@ -22,47 +22,12 @@ internal struct PanelContext {
     /// (singleton) flamechart panel — never created per-panel.
     internal let engine: ThoughtGraphLayoutEngine
     internal let onJumpToTool: ((String) -> Void)?
-    /// Dock a lens kind inside the conversation panel (expand inline → dock
-    /// below the transcript). Used by inline lens builders to wire their own
-    /// "expand" affordance. Nil when the context isn't inside a conversation
-    /// panel that supports docking (e.g. the session-graph dashboard).
-    internal var onDock: ((PanelKind) -> Void)?
-    /// Peel a lens out onto the canvas as a free-floating panel. Used by
-    /// inline lens builders to wire ↗ to a canvas tile rather than a dock.
-    internal var onPeel: ((PanelKind) -> Void)?
-}
-
-/// Where a lens sits when it renders inline in the conversation feed (the rail
-/// under each turn), as opposed to peeled out into a full canvas panel. `.wide`
-/// lenses (the time-plot flamechart) fill the rail's width; `.side` lenses (the
-/// skills chips) sit in a fixed-width trailing column beside them — the same
-/// two-column shape the streaming turn always showed, now generalized so a new
-/// lens picks its slot instead of the layout being hardcoded.
-internal enum InlineSlot {
-    case wide
-    case side
-}
-
-/// A lens's **inline** placement: how it renders compactly in the per-turn rail.
-/// The builder returns `nil` when this turn has nothing for the lens (no nodes,
-/// no skills) so the rail simply omits it — an empty turn shows no rail, exactly
-/// as the old live-only strip rendered nothing until there was activity.
-internal struct InlineLens {
-    internal let slot: InlineSlot
-    internal let build: (PanelContext) -> AnyView?
-
-    internal init(slot: InlineSlot, build: @escaping (PanelContext) -> AnyView?) {
-        self.slot = slot
-        self.build = build
-    }
 }
 
 /// One entry in the panel catalog: what a kind is called, its icon, whether the
 /// dashboard allows more than one on the canvas at once, and how to build its
-/// content view from a `PanelContext` — in BOTH placements a lens can take: the
-/// full canvas `build`, and the compact `inline` rail form. A lens "plugs in
-/// once" here and is then available both under a turn (inline) and peeled onto
-/// the canvas (panel).
+/// content view from a `PanelContext`. A lens "plugs in once" here and is then
+/// available as a canvas panel.
 internal struct PanelDescriptor: Identifiable {
     internal let kind: PanelKind
     internal let title: String
@@ -77,11 +42,6 @@ internal struct PanelDescriptor: Identifiable {
     /// the host supplies those views directly and the registry only tracks their
     /// title/icon/singleton metadata.
     internal let build: ((PanelContext) -> AnyView)?
-    /// The lens's compact inline form for the per-turn rail. `nil` for
-    /// panel-only lenses (thinking/tools/files today) — those are added from the
-    /// palette or peeled, and never clutter the rail. A lens with an `inline`
-    /// form appears under every turn until it's peeled onto the canvas.
-    internal let inline: InlineLens?
 
     internal var id: String { kind.rawValue }
 
@@ -94,14 +54,12 @@ internal struct PanelDescriptor: Identifiable {
         title: String,
         icon: String,
         singleton: Bool = false,
-        inline: InlineLens? = nil,
         build: ((PanelContext) -> AnyView)? = nil
     ) {
         self.kind = kind
         self.title = title
         self.icon = icon
         self.singleton = singleton
-        self.inline = inline
         self.build = build
     }
 }
@@ -166,18 +124,6 @@ internal final class PanelRegistry {
         return descriptors.filter { !($0.singleton && presentSet.contains($0.kind)) }
     }
 
-    /// The lenses that render in the per-turn inline rail, minus any whose kind
-    /// is already a panel on the canvas — a peeled lens leaves the rail so it's
-    /// never shown twice. Registration order is preserved, so the rail's lenses
-    /// keep a stable left-to-right order across turns.
-    internal func inlineLenses(peeled: [PanelKind]) -> [(kind: PanelKind, lens: InlineLens)] {
-        let peeledSet = Set(peeled)
-        return descriptors.compactMap { descriptor in
-            guard let inline = descriptor.inline, !peeledSet.contains(descriptor.kind) else { return nil }
-            return (descriptor.kind, inline)
-        }
-    }
-
     // MARK: - The standard catalog (built-in lenses)
 
     internal static let standard: PanelRegistry = {
@@ -186,22 +132,7 @@ internal final class PanelRegistry {
             kind: .flamechart,
             title: "Flamechart",
             icon: "chart.bar.xaxis",
-            singleton: true,
-            // Inline: the compact fit-to-width strip (the live timeline the chat
-            // has always shown), now rendered under EVERY turn — live or settled
-            // — from that turn's nodes. Nil for an empty turn so the rail omits it.
-            inline: InlineLens(slot: .wide) { ctx in
-                ctx.nodes.isEmpty ? nil : AnyView(
-                    InlineTurnTimelineStrip(
-                        nodes: ctx.nodes,
-                        compactions: ctx.compactions,
-                        isStreaming: ctx.isStreaming,
-                        // ↗ peels the flamechart out as a free canvas panel.
-                        // Falls back to dock if peel isn't available.
-                        onExpand: (ctx.onPeel ?? ctx.onDock).map { action in { action(.flamechart) } }
-                    )
-                )
-            }
+            singleton: true
         ) { ctx in
             AnyView(
                 ThoughtGraphView(
@@ -233,14 +164,7 @@ internal final class PanelRegistry {
         registry.register(PanelDescriptor(
             kind: .skills,
             title: "Skills",
-            icon: "sparkles",
-            // Inline: the skills chips in the rail's trailing column (the fixed-
-            // width lens the streaming turn always pinned right). Nil when the
-            // turn recorded no skills — past turns don't persist them yet, so an
-            // empty list means "not recorded" and the rail just omits the column.
-            inline: InlineLens(slot: .side) { ctx in
-                ctx.skills.isEmpty ? nil : AnyView(TurnSkillsLens(skills: ctx.skills))
-            }
+            icon: "sparkles"
         ) { ctx in
             AnyView(SkillsPanel(skills: ctx.skills))
         })

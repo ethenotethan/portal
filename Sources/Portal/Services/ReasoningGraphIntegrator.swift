@@ -119,7 +119,8 @@ final class ReasoningGraphIntegrator: ObservableObject {
                 depth: reasoningNodes.count,
                 parentIDs: parentIDs,
                 startedAt: Date(),
-                completedAt: Date()
+                completedAt: Date(),
+                role: .reasoning
             )
             reasoningNodes.append(node)
         }

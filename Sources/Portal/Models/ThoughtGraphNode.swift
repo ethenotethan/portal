@@ -46,6 +46,20 @@ struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAcco
     // call executed INSIDE that subagent's loop. Plain parent-session tool
     // calls have neither.
 
+    /// What KIND of thing this node is — set explicitly at construction so a
+    /// node's role never has to be inferred from its `name`.
+    ///
+    /// History: reasoning beats used to be identified only by the magic string
+    /// `name == "reasoning"` (see `ToolCategory.classify`). Any reasoning node
+    /// whose name wasn't exactly that string — e.g. a harness reasoning item
+    /// that slipped through an adapter's default tool branch — fell through the
+    /// tool-list filters (`category != .reasoning`) and drew a phantom "thinking"
+    /// tool row. An explicit role closes that seam: reasoning is reasoning
+    /// because it was built as reasoning, not because of how it happens to be
+    /// named. Optional + decoded-if-present so sessions persisted before this
+    /// field load cleanly (see `category` for the legacy name-based fallback).
+    internal var role: Role?
+
     /// The `subagent_id` when this node represents a spawned subagent.
     var agentID: String?
 
@@ -67,8 +81,31 @@ struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAcco
 
     // MARK: - Computed
 
+    /// The role of a thought-graph node. A node is reasoning/agent/tool because
+    /// it was BUILT that way — not because of how its `name` reads.
+    internal enum Role: String, Codable {
+        case tool       // a tool invocation (the default)
+        case reasoning  // an interleaved thought beat
+        case agent      // a spawned subagent subtree
+    }
+
     /// Whether this node represents a spawned subagent (vs. a tool call).
+    /// `agentID` remains the source of truth for the subagent SUBTREE identity;
+    /// `role == .agent` is set alongside it so the role is self-describing too.
     var isAgent: Bool { agentID != nil }
+
+    /// Whether this node is a reasoning beat. True when the role is explicitly
+    /// reasoning OR the name classifies as reasoning. The name check is a
+    /// defensive fallback (no real tool is ever named exactly "reasoning"), so a
+    /// node persisted before `role` existed, or any caller that still builds a
+    /// bare `name: "reasoning"` node without setting the role, still reads as
+    /// reasoning — and stays consistent with `category`, which also treats that
+    /// name as reasoning. Explicit `role` is what catches a reasoning beat whose
+    /// name is anything ELSE, which is the seam the phantom-tool-row bug rode.
+    internal var isReasoning: Bool {
+        if role == .reasoning { return true }
+        return ThoughtGraphLayoutEngine.ToolCategory.classify(name: name) == .reasoning
+    }
 
     /// Derived node status for rendering.
     var status: ThoughtNodeStatus {
@@ -84,9 +121,13 @@ struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAcco
     /// Whether this is a root node (no parent dependencies).
     var isRoot: Bool { depth == 0 && parentIDs.isEmpty }
 
-    /// Tool category derived from the tool name, used for color coding in the graph.
+    /// Tool category derived from the node's role first, then its name. Role
+    /// wins so a reasoning/agent node can never be miscategorised as a tool just
+    /// because of its name; only genuine tool nodes fall through to the
+    /// name-based classifier for their read/write/search/etc. sub-category.
     var category: ThoughtGraphLayoutEngine.ToolCategory {
         if isAgent { return .agent }
+        if isReasoning { return .reasoning }
         return ThoughtGraphLayoutEngine.ToolCategory.classify(name: name)
     }
 
@@ -158,6 +199,7 @@ struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAcco
         parentIDs: [String] = [],
         startedAt: Date? = nil,
         completedAt: Date? = nil,
+        role: Role = .tool,
         agentID: String? = nil,
         ownerAgentID: String? = nil,
         modelName: String? = nil,
@@ -176,6 +218,9 @@ struct ThoughtGraphNode: Identifiable, Codable, ToolCallRepresentable, TokenAcco
         self.parentIDs = parentIDs
         self.startedAt = startedAt
         self.completedAt = completedAt
+        // A node with an agentID is a subagent regardless of what the caller
+        // passed; otherwise honour the explicit role (default .tool).
+        self.role = agentID != nil ? .agent : role
         self.agentID = agentID
         self.ownerAgentID = ownerAgentID
         self.modelName = modelName
