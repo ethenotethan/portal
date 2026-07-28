@@ -36,10 +36,10 @@ jobs:
           set -o pipefail
           RESULT_BUNDLE="${RUNNER_TEMP}/HangGate.xcresult"
           xcodebuild test \
-            -project HermesNative.xcodeproj \
-            -scheme HermesNative-macOS \
+            -project Portal.xcodeproj \
+            -scheme Portal-macOS \
             -destination 'platform=macOS' \
-            -only-testing:HermesNativeMacUITests/MainThreadHangGateUITests \
+            -only-testing:PortalMacUITests/MainThreadHangGateUITests \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath "$RESULT_BUNDLE" \
             2>&1 | tee "${RUNNER_TEMP}/hang-gate.log" | xcpretty
