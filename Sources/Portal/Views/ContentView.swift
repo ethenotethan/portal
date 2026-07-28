@@ -396,13 +396,6 @@ internal struct ContentView: View {
             GatewayDebugPanelView(client: gatewayClientWrapper.client)
                 .frame(minWidth: 560, minHeight: 620)
         }
-        .sheet(isPresented: $showActivitySheet) {
-            ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
-                showActivitySheet = false
-                sessionList.selectSession(id: sessionID)
-            })
-            .frame(minWidth: 640, minHeight: 620)
-        }
         .sheet(isPresented: $showAddGateway) {
             // AddGatewaySheet is macOS-only (the toolbar switcher that
             // presents it is too); give iOS an inert branch so the shared
@@ -526,12 +519,10 @@ internal struct ContentView: View {
     /// `macSplitContent`), so opening B while A is still set can leave A
     /// covering B. Every open path routes through here first to keep exactly
     /// one surface active — mutual exclusion the boolean model doesn't give us.
-    /// `keepActivitySheet` spares the Activity sheet, which floats above the
-    /// stack and composes with whatever surface is beneath it.
-    private func closeAllOverlays(keepActivitySheet: Bool = false) {
+    private func closeAllOverlays() {
         showCronDashboard = false
         showLiveSessions = false
-        if !keepActivitySheet { showActivitySheet = false }
+        showActivitySheet = false
         showSkills = false
         showWikiGraph = false
         showCentaurWorkflows = false
@@ -841,6 +832,7 @@ internal struct ContentView: View {
                 .accessibilityLabel("Cron Dashboard")
 
                 Button {
+                    closeAllOverlays()
                     showActivitySheet = true
                 } label: {
                     Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
@@ -983,6 +975,17 @@ internal struct ContentView: View {
                     .background(Theme.background)
                     .transition(.opacity)
                 #endif
+            }
+
+            if showActivitySheet {
+                ActivityInboxView(viewModel: activityInbox, onOpenSession: { sessionID in
+                    showActivitySheet = false
+                    sessionList.selectSession(id: sessionID)
+                })
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
             }
 
             if showCronDashboard {
