@@ -69,3 +69,38 @@ jobs:
 
       - name: Build
         run: swift build -c release
+
+  warning-ratchet:
+    name: Compiler warning ratchet
+    runs-on: macos-26
+    steps:
+      # Full history so `git show <base>:metrics-baseline.json` and the
+      # base...HEAD diff (patch check) resolve; default checkout is shallow.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A clean build is mandatory: SwiftPM skips unchanged modules on an
+      # incremental build and would under-count warnings, so this job always
+      # compiles from scratch (no cache restore).
+      - name: Build and capture warnings
+        run: |
+          set -o pipefail
+          swift build 2>&1 | tee build.log
+
+      - name: Ratchet warnings against the base branch
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
+          python3 scripts/check-metrics-ratchet.py warnings.json "$BASE"
+
+      - name: Upload warning snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warning-snapshot
+          path: |
+            warnings.json
+            build.log
+          if-no-files-found: ignore
+          retention-days: 14

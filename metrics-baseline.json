@@ -1,0 +1,336 @@
+{
+  "_comment": "Metric ratchet baseline. See scripts/check-metrics-ratchet.py. Each metric is compared per-key against the base branch (floor: never regress) and against PR-added lines (patch: new code stays clean). Regenerate only to record improvement (make metrics-baseline).",
+  "warnings": {
+    "counts": {
+      "ActorIsolatedCall": 18,
+      "DeprecatedDeclaration": 2,
+      "SendableClosureCaptures": 2,
+      "msg:consider-using-asynchronous-alternative-function": 1,
+      "msg:converting-non-sendable-function-value-to": 1,
+      "msg:immutable-value-x-was-never-used": 2,
+      "msg:main-actor-isolated-property-x-can": 16,
+      "msg:no-x-operations-occur-within-x": 3,
+      "msg:passing-closure-as-a-x-parameter": 2,
+      "msg:stored-property-x-of-x-conforming": 1,
+      "msg:variable-x-was-never-mutated-consider": 1,
+      "msg:x-is-unnecessary-for-a-constant": 1,
+      "msg:x-on-conformance-to-x-has": 1,
+      "msg:x-pattern-has-no-effect-sub": 1
+    },
+    "total": 52,
+    "sites": [
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 96,
+        "col": 53,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 97,
+        "col": 54,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 98,
+        "col": 98,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 98,
+        "col": 118,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 98,
+        "col": 143,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/HermesNativeApp.swift",
+        "line": 99,
+        "col": 19,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Services/ChatHistoryStore.swift",
+        "line": 109,
+        "col": 19,
+        "category": "msg:no-x-operations-occur-within-x"
+      },
+      {
+        "file": "Sources/Portal/Services/NotificationService.swift",
+        "line": 200,
+        "col": 48,
+        "category": "msg:consider-using-asynchronous-alternative-function"
+      },
+      {
+        "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
+        "line": 84,
+        "col": 9,
+        "category": "msg:no-x-operations-occur-within-x"
+      },
+      {
+        "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
+        "line": 86,
+        "col": 9,
+        "category": "msg:no-x-operations-occur-within-x"
+      },
+      {
+        "file": "Sources/Portal/Services/ReasoningSummarizer.swift",
+        "line": 253,
+        "col": 43,
+        "category": "msg:passing-closure-as-a-x-parameter"
+      },
+      {
+        "file": "Sources/Portal/Services/SessionPDFExporter.swift",
+        "line": 368,
+        "col": 13,
+        "category": "msg:variable-x-was-never-mutated-consider"
+      },
+      {
+        "file": "Sources/Portal/Services/SkillSummaryService.swift",
+        "line": 223,
+        "col": 43,
+        "category": "msg:passing-closure-as-a-x-parameter"
+      },
+      {
+        "file": "Sources/Portal/Services/TTSService.swift",
+        "line": 84,
+        "col": 14,
+        "category": "msg:stored-property-x-of-x-conforming"
+      },
+      {
+        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
+        "line": 168,
+        "col": 43,
+        "category": "msg:converting-non-sendable-function-value-to"
+      },
+      {
+        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
+        "line": 179,
+        "col": 17,
+        "category": "msg:x-on-conformance-to-x-has"
+      },
+      {
+        "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
+        "line": 2694,
+        "col": 38,
+        "category": "msg:immutable-value-x-was-never-used"
+      },
+      {
+        "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
+        "line": 2694,
+        "col": 46,
+        "category": "msg:x-pattern-has-no-effect-sub"
+      },
+      {
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
+        "line": 369,
+        "col": 18,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
+        "line": 370,
+        "col": 12,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
+        "line": 370,
+        "col": 32,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
+        "line": 371,
+        "col": 19,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/Blocks/MapExportRenderer.swift",
+        "line": 56,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1736,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1742,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1751,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1756,
+        "col": 31,
+        "category": "SendableClosureCaptures"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1759,
+        "col": 55,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1773,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1794,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1800,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1811,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1818,
+        "col": 24,
+        "category": "SendableClosureCaptures"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1821,
+        "col": 55,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/ChatView.swift",
+        "line": 1836,
+        "col": 47,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/FeedView.swift",
+        "line": 654,
+        "col": 22,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/MarkdownContentView.swift",
+        "line": 842,
+        "col": 5,
+        "category": "msg:x-is-unnecessary-for-a-constant"
+      },
+      {
+        "file": "Sources/Portal/Views/MermaidDiagramView.swift",
+        "line": 391,
+        "col": 16,
+        "category": "DeprecatedDeclaration"
+      },
+      {
+        "file": "Sources/Portal/Views/MermaidDiagramView.swift",
+        "line": 391,
+        "col": 35,
+        "category": "DeprecatedDeclaration"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 54,
+        "col": 19,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 55,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 57,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 61,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 62,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 63,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 71,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 81,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 92,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 96,
+        "col": 13,
+        "category": "msg:main-actor-isolated-property-x-can"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 99,
+        "col": 17,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 100,
+        "col": 13,
+        "category": "ActorIsolatedCall"
+      },
+      {
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "line": 387,
+        "col": 19,
+        "category": "msg:immutable-value-x-was-never-used"
+      }
+    ]
+  }
+}
