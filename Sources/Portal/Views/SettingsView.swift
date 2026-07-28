@@ -970,7 +970,14 @@ internal struct SystemPromptSection: View {
             }
         } catch {
             await MainActor.run {
-                errorMessage = error.localizedDescription
+                let msg = error.localizedDescription
+                // 4001 = session not found — happens when the session list is
+                // stale or the gateway restarted. Surface a friendly nudge.
+                if msg.contains("4001") || msg.lowercased().contains("session not found") {
+                    errorMessage = "No active session found. Start a conversation first, then tap Refresh."
+                } else {
+                    errorMessage = msg
+                }
                 isLoading = false
             }
         }
