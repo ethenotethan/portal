@@ -70,31 +70,31 @@ jobs:
         run: |
           # Target-scoped PROVISIONING_PROFILE_SPECIFIER is silently ignored by
           # xcodebuild. Instead, patch the xcodegen-generated pbxproj directly
-          # so the setting only applies to HermesNative-iOS, not SPM deps.
+          # so the setting only applies to Portal-iOS, not SPM deps.
           python3 - "${{ env.PROFILE_UUID }}" << 'PYEOF'
           import sys, plistlib, os
 
           UUID = sys.argv[1]
-          pbxproj = "HermesNative.xcodeproj/project.pbxproj"
+          pbxproj = "Portal.xcodeproj/project.pbxproj"
 
           # Read the pbxproj (it's a plist-in-text format, not standard plist)
           with open(pbxproj) as f:
               data = f.read()
 
-          # Find the HermesNative-iOS native target section and its build config list
+          # Find the Portal-iOS native target section and its build config list
           import re
 
           # Find the target's buildConfigurationList ID
           # The native target section looks like:
           # /* Begin PBXNativeTarget section */
-          #   A1B2C3D4 /* HermesNative-iOS */ = { ... buildConfigurationList = XYZ /* Build configuration list for PBXNativeTarget "HermesNative-iOS" */ ... };
+          #   A1B2C3D4 /* Portal-iOS */ = { ... buildConfigurationList = XYZ /* Build configuration list for PBXNativeTarget "Portal-iOS" */ ... };
           target_match = re.search(
-              r'/\* HermesNative-iOS \*/.*?buildConfigurationList = ([A-F0-9]+) ',
+              r'/\* Portal-iOS \*/.*?buildConfigurationList = ([A-F0-9]+) ',
               data,
               re.DOTALL
           )
           if not target_match:
-              print("ERROR: Could not find HermesNative-iOS target")
+              print("ERROR: Could not find Portal-iOS target")
               print("Available targets:")
               for m in re.finditer(r'/\* (\w[^\*]+) \*/.*?buildConfigurationList', data):
                   print(f"  {m.group(1)}")
@@ -176,17 +176,17 @@ jobs:
           with open(pbxproj, 'w') as f:
               f.write(data)
 
-          print(f"Patched pbxproj: set PROVISIONING_PROFILE_SPECIFIER={UUID} on HermesNative-iOS Release")
+          print(f"Patched pbxproj: set PROVISIONING_PROFILE_SPECIFIER={UUID} on Portal-iOS Release")
           PYEOF
 
       - name: Archive iOS App
         run: |
           mkdir -p build
           xcodebuild archive \
-            -project HermesNative.xcodeproj \
-            -scheme HermesNative-iOS \
+            -project Portal.xcodeproj \
+            -scheme Portal-iOS \
             -destination "generic/platform=iOS" \
-            -archivePath build/HermesNative.xcarchive \
+            -archivePath build/Portal.xcarchive \
             -xcconfig .github/ci-signing.xcconfig \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
@@ -208,7 +208,7 @@ jobs:
             <string>manual</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>com.researchoors.HermesNative.iOS</key>
+              <key>com.ethenotethan.Portal.iOS</key>
               <string>${{ env.PROFILE_UUID }}</string>
             </dict>
             <key>stripSwiftSymbols</key>
@@ -224,7 +224,7 @@ jobs:
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
-            -archivePath build/HermesNative.xcarchive \
+            -archivePath build/Portal.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist
 
@@ -235,7 +235,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          BUNDLE_ID: com.researchoors.HermesNative.iOS
+          BUNDLE_ID: com.ethenotethan.Portal.iOS
         run: |
           CURRENT_BUILD=$(ruby .github/scripts/distribute_testflight.rb --print-latest-build)
           echo "PREVIOUS_BUILD_NUMBER=$CURRENT_BUILD" >> "$GITHUB_ENV"
@@ -254,7 +254,7 @@ jobs:
 
           xcrun altool --upload-app \
             -t ios \
-            -f build/export/HermesNative-iOS.ipa \
+            -f build/export/Portal-iOS.ipa \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
@@ -264,10 +264,10 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          BUNDLE_ID: com.researchoors.HermesNative.iOS
+          BUNDLE_ID: com.ethenotethan.Portal.iOS
           APP_VERSION: "1.0"
           PREVIOUS_BUILD_NUMBER: ${{ env.PREVIOUS_BUILD_NUMBER }}
-          WHAT_TO_TEST: "HermesNative CI build from ${{ github.sha }}."
+          WHAT_TO_TEST: "Portal CI build from ${{ github.sha }}."
           MAX_WAIT_SECONDS: "900"
           POLL_SECONDS: "30"
         run: ruby .github/scripts/distribute_testflight.rb
@@ -276,8 +276,8 @@ jobs:
       - name: Upload IPA as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HermesNative-iOS.ipa
-          path: build/export/HermesNative-iOS.ipa
+          name: Portal-iOS.ipa
+          path: build/export/Portal-iOS.ipa
           retention-days: 30
 
   # ── macOS Notarized Build (needs Developer ID cert, disabled for now) ──
@@ -305,10 +305,10 @@ jobs:
         run: |
           mkdir -p build
           xcodebuild archive \
-            -project HermesNative.xcodeproj \
-            -scheme HermesNative-macOS \
+            -project Portal.xcodeproj \
+            -scheme Portal-macOS \
             -destination "generic/platform=macOS" \
-            -archivePath build/HermesNative-macOS.xcarchive \
+            -archivePath build/Portal-macOS.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
@@ -333,7 +333,7 @@ jobs:
           PLIST
 
           xcodebuild -exportArchive \
-            -archivePath build/HermesNative-macOS.xcarchive \
+            -archivePath build/Portal-macOS.xcarchive \
             -exportPath build/export-macos \
             -exportOptionsPlist build/ExportOptions-macOS.plist
 
@@ -344,23 +344,23 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           ditto -c -k --keepParent \
-            build/export-macos/HermesNative-macOS.app \
-            build/HermesNative-macOS.zip
+            build/export-macos/Portal-macOS.app \
+            build/Portal-macOS.zip
 
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > \
             ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
 
-          xcrun notarytool submit build/HermesNative-macOS.zip \
+          xcrun notarytool submit build/Portal-macOS.zip \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --wait
 
-          xcrun stapler staple build/export-macOS/HermesNative-macOS.app
+          xcrun stapler staple build/export-macOS/Portal-macOS.app
 
       - name: Upload macOS App as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HermesNative-macOS.app
-          path: build/export-macOS/HermesNative-macOS.app
+          name: Portal-macOS.app
+          path: build/export-macOS/Portal-macOS.app
           retention-days: 30

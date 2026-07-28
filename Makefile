@@ -6,8 +6,8 @@
 # masked already-fixed bugs (e.g. the chat-input beachball) behind an old
 # build. `make run` guarantees you're running current source.
 
-PROJECT := HermesNative.xcodeproj
-SCHEME_MAC := HermesNative-macOS
+PROJECT := Portal.xcodeproj
+SCHEME_MAC := Portal-macOS
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
@@ -28,7 +28,7 @@ build: generate
 # Rebuild from current source, then relaunch. Kills any running instance first
 # so you never end up staring at a stale binary.
 run: kill build
-	@APP=$$(find $(DERIVED)/HermesNative-*/Build/Products/$(CONFIG) \
+	@APP=$$(find $(DERIVED)/Portal-*/Build/Products/$(CONFIG) \
 		-name "$(SCHEME_MAC).app" -maxdepth 1 2>/dev/null | head -1); \
 	echo "launching $$APP"; \
 	open "$$APP"

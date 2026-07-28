@@ -7,7 +7,7 @@ excluded:
   - .git
   - google-cloud-sdk
   - App
-  - Tests/HermesNativeUITests
+  - Tests/PortalUITests
 
 opt_in_rules:
   - empty_count

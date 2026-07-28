@@ -16,7 +16,7 @@ PRIVATE_KEY = ENV.fetch("APP_STORE_CONNECT_PRIVATE_KEY").gsub("\\n", "\n")
 BUNDLE_ID = ENV.fetch("BUNDLE_ID")
 APP_VERSION = ENV.fetch("APP_VERSION", "1.0")
 BUILD_NUMBER = ENV.fetch("BUILD_NUMBER", "latest")
-WHAT_TO_TEST = ENV.fetch("WHAT_TO_TEST", "Latest HermesNative build.")
+WHAT_TO_TEST = ENV.fetch("WHAT_TO_TEST", "Latest Portal build.")
 MAX_WAIT_SECONDS = Integer(ENV.fetch("MAX_WAIT_SECONDS", "900"))
 POLL_SECONDS = Integer(ENV.fetch("POLL_SECONDS", "30"))
 

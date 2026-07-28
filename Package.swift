@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "HermesNative",
+    name: "Portal",
     platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(
-            name: "HermesNative",
-            targets: ["HermesNative"]
+            name: "Portal",
+            targets: ["Portal"]
         ),
     ],
     dependencies: [
@@ -21,7 +21,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "HermesNative",
+            name: "Portal",
             dependencies: [
                 .product(name: "Lottie", package: "lottie-spm"),
                 .product(name: "Highlightr", package: "Highlightr"),
@@ -41,8 +41,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "HermesNativeTests",
-            dependencies: ["HermesNative"]
+            name: "PortalTests",
+            dependencies: ["Portal"]
         ),
     ]
 )

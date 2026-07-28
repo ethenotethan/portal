@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 
 @main
-struct HermesNativeAppMac: App {
-    @NSApplicationDelegateAdaptor(HermesNativeAppDelegate.self) private var appDelegate
+struct PortalAppMac: App {
+    @NSApplicationDelegateAdaptor(PortalAppDelegate.self) private var appDelegate
     @StateObject private var settings = SettingsViewModel()
     @StateObject private var sessionList = SessionListViewModel()
     @StateObject private var personaManager = PersonaManager()
@@ -14,9 +14,9 @@ struct HermesNativeAppMac: App {
     @StateObject private var ttsService = TTSService.shared
 
     init() {
-        configureHermesNativeMacApplication()
-        requestHermesNativeNotificationAuthorization()
-        startHermesNativePerfInstrumentation()
+        configurePortalMacApplication()
+        requestPortalNotificationAuthorization()
+        startPortalPerfInstrumentation()
     }
 
     var body: some Scene {
@@ -61,7 +61,7 @@ struct HermesNativeAppMac: App {
 ///      `hermesnative://` URLs. SwiftUI's `.onOpenURL` already handles this,
 ///      but having the delegate in place keeps the activation flow reliable
 ///      across the whole app lifecycle.
-final class HermesNativeAppDelegate: NSObject, NSApplicationDelegate {
+final class PortalAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Ask the OS for an APNs device token. Silently unavailable when the
         // build lacks the push entitlement/provisioning (e.g. unsigned CI

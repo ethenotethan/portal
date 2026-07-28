@@ -2,8 +2,8 @@ import SwiftUI
 import UIKit
 
 @main
-struct HermesNativeAppIOS: App {
-    @UIApplicationDelegateAdaptor(HermesNativeIOSAppDelegate.self) private var appDelegate
+struct PortalAppIOS: App {
+    @UIApplicationDelegateAdaptor(PortalIOSAppDelegate.self) private var appDelegate
     @StateObject private var settings = SettingsViewModel()
     @StateObject private var sessionList = SessionListViewModel()
     @StateObject private var personaManager = PersonaManager()
@@ -14,8 +14,8 @@ struct HermesNativeAppIOS: App {
     @StateObject private var ttsService = TTSService.shared
 
     init() {
-        requestHermesNativeNotificationAuthorization()
-        startHermesNativePerfInstrumentation()
+        requestPortalNotificationAuthorization()
+        startPortalPerfInstrumentation()
     }
 
     var body: some Scene {
@@ -37,7 +37,7 @@ struct HermesNativeAppIOS: App {
 /// UIKit-level hooks for APNs device-token registration. Remote notification
 /// payloads carry `session_id` in userInfo, so taps route through the same
 /// UNUserNotificationCenter delegate path as local notifications.
-final class HermesNativeIOSAppDelegate: NSObject, UIApplicationDelegate {
+final class PortalIOSAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil

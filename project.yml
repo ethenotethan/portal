@@ -1,6 +1,6 @@
-name: HermesNative
+name: Portal
 options:
-  bundleIdPrefix: com.researchoors
+  bundleIdPrefix: com.ethenotethan
   deploymentTarget:
     macOS: "14.0"
     iOS: "17.0"
@@ -31,11 +31,11 @@ packages:
     from: "1.7.0"
 
 targets:
-  HermesNative-macOS:
+  Portal-macOS:
     type: application
     platform: macOS
     sources:
-      - path: Sources/HermesNative
+      - path: Sources/Portal
       - path: App/MacApp.swift
     dependencies:
       - package: Lottie
@@ -51,27 +51,27 @@ targets:
         product: Tokenizers
       - package: SwiftMath
     entitlements:
-      path: HermesNative-macOS.entitlements
+      path: Portal-macOS.entitlements
     configFiles:
       Debug: Local.xcconfig
       Release: Local.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.macOS
+        PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.macOS
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
         GENERATE_INFOPLIST_FILE: NO
-        INFOPLIST_FILE: HermesNative-macOS/Info.plist
+        INFOPLIST_FILE: Portal-macOS/Info.plist
         SWIFT_EMIT_LOC_STRINGS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
 
-  HermesNative-iOS:
+  Portal-iOS:
     type: application
     platform: iOS
     sources:
-      - path: Sources/HermesNative
+      - path: Sources/Portal
       - path: App/IOSApp.swift
     dependencies:
       - package: Lottie
@@ -87,31 +87,31 @@ targets:
         product: Tokenizers
       - package: SwiftMath
     entitlements:
-      path: HermesNative-iOS.entitlements
+      path: Portal-iOS.entitlements
     configFiles:
       Debug: Local.xcconfig
       Release: Local.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.researchoors.HermesNative.iOS
+        PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.iOS
         SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
         GENERATE_INFOPLIST_FILE: NO
-        INFOPLIST_FILE: HermesNative-iOS/Info.plist
+        INFOPLIST_FILE: Portal-iOS/Info.plist
         SWIFT_EMIT_LOC_STRINGS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
 
-  HermesNativeUITests:
+  PortalUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: Tests/HermesNativeUITests
+      - path: Tests/PortalUITests
     dependencies:
-      - target: HermesNative-iOS
+      - target: Portal-iOS
     settings:
       base:
         CODE_SIGN_STYLE: Automatic

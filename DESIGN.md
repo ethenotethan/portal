@@ -9,7 +9,7 @@ decisions. For the exhaustive RPC method + event catalog, see
 
 ```
 ┌──────────────────────────────────────────┐
-│              HermesNative App              │
+│              Portal App              │
 │        (Swift + SwiftUI, no Electron)      │
 ├──────────────────────────────────────────┤
 │  Views (SwiftUI)                           │
@@ -102,15 +102,15 @@ used in most RPCs) and the **database-format** `session_key`
 ## Project Structure
 
 ```
-hermes-native/
+portal/
 ├── Package.swift                  # SwiftPM manifest (library target + deps)
 ├── project.yml                    # xcodegen source of truth for the Xcode project
 ├── Makefile                       # generate / build / run / kill / lint / test / clean
 ├── App/
 │   ├── MacApp.swift               # macOS @main, owns @StateObjects
 │   └── IOSApp.swift               # iOS @main
-├── Sources/HermesNative/
-│   ├── HermesNativeApp.swift      # Shared app helpers (notifications, perf, window)
+├── Sources/Portal/
+│   ├── PortalApp.swift      # Shared app helpers (notifications, perf, window)
 │   ├── Models/                    # GatewayEvent, ChatMessage, Session, WikiGraph,
 │   │   └── JSONRPC/               #   SavedGateway, … + JSON-RPC envelopes
 │   ├── Services/                  # GatewayClient(+Wiki/+Feed), GatewayClientWrapper,
@@ -123,8 +123,8 @@ hermes-native/
 │   │                              #   DocumentTextExtractor, PerfInstrumentation, DeepLink
 │   └── Utils/                     # PlatformCompat, MacInputTextField, scroll introspection
 ├── Tests/
-│   ├── HermesNativeTests/         # Unit tests (Session, Skill, Capabilities, …)
-│   └── HermesNativeUITests/       # Smoke / offline / gateway-connection UI tests
+│   ├── PortalTests/         # Unit tests (Session, Skill, Capabilities, …)
+│   └── PortalUITests/       # Smoke / offline / gateway-connection UI tests
 └── docs/
     └── rpc-reference.md           # Full RPC method + event catalog
 ```

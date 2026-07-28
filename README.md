@@ -51,7 +51,7 @@ Connects directly to a Hermes Gateway via WebSocket JSON-RPC (`/v1/ws`), providi
 - **macOS/iOS Keychain** — API key + gateway URL + saved gateways stored securely via the Security framework
 - **Notifications** — native push notifications for approvals, clarifications, and response completions
 - **Auto-reconnect** — WebSocket keepalive with ping/pong and exponential backoff (1s → 2s → 4s → max 30s)
-- **Session history** — local persistence of messages per session in `Application Support/hermes-native/sessions/`
+- **Session history** — local persistence of messages per session in `Application Support/portal/sessions/`
 - **Cross-device sync** — session metadata (titles, pins, archives, tags) synced via the gateway KV store, last-writer-wins
 - **Cross-platform** — macOS 14+ and iOS 17+ from a single SwiftUI codebase
 - **Swift 6 strict concurrency** — `@MainActor`, `Sendable`, no data races
@@ -66,8 +66,8 @@ Connects directly to a Hermes Gateway via WebSocket JSON-RPC (`/v1/ws`), providi
 ## Build
 
 ```bash
-git clone https://github.com/researchoors/hermes-native.git
-cd hermes-native
+git clone https://github.com/ethenotethan/portal.git
+cd portal
 
 # SwiftPM library build (fastest; what CI lints)
 swift build
@@ -86,12 +86,12 @@ make build
 make run     # regenerate project, kill running instances, rebuild, launch (macOS)
 ```
 
-Or open `HermesNative.xcodeproj` in Xcode, select a target (macOS or iOS), and hit ▶.
+Or open `Portal.xcodeproj` in Xcode, select a target (macOS or iOS), and hit ▶.
 App entry points live in `App/MacApp.swift` and `App/IOSApp.swift`.
 
 ## Configuration
 
-> **No gateway yet?** HermesNative needs the WebSocket JSON-RPC endpoint (`/v1/ws`),
+> **No gateway yet?** Portal needs the WebSocket JSON-RPC endpoint (`/v1/ws`),
 > which only exists in the [`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent)
 > fork. [`docs/gateway-setup.md`](docs/gateway-setup.md) walks through installing the
 > fork (or migrating an existing hermes-agent install), enabling the API server, and
@@ -114,7 +114,7 @@ App Entry Points (App/)
 ├── MacApp.swift              # macOS @main — NSApplication lifecycle, owns @StateObjects
 └── IOSApp.swift              # iOS @main — App lifecycle + scene phases
 
-HermesNativeApp.swift         # Shared app helpers (notifications, perf instrumentation, window config)
+PortalApp.swift         # Shared app helpers (notifications, perf instrumentation, window config)
   └── ContentView             # iOS TabView (Sessions + Cron) / macOS custom split layout
       ├── SessionListView      # Sidebar session list (owned/archived/cron/other)
       ├── ChatView             # Main chat — skin-aware, streaming panel, message bubbles
