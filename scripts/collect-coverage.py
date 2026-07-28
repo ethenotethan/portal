@@ -34,6 +34,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional
 
 # Layers under Sources/Portal/ that `swift test` can actually exercise. Views
 # are deliberately excluded — untestable without launching the app target.
@@ -41,7 +42,7 @@ TESTABLE_LAYERS = {"Models", "Services", "ViewModels", "Utilities"}
 MARKER = "/Sources/Portal/"
 
 
-def layer_of(path: str) -> str | None:
+def layer_of(path: str) -> Optional[str]:
     """The Sources/Portal/<layer> bucket for a path, or None if not ours."""
     if MARKER not in path:
         return None
@@ -50,16 +51,16 @@ def layer_of(path: str) -> str | None:
 
 
 def relativize(path: str, root: str) -> str:
-    if path.startswith(root):
-        path = path[len(root):]
+    if path.lower().startswith(root.lower().rstrip("/") + "/"):
+        path = path[len(root.rstrip("/")):]
     return path.lstrip("/")
 
 
 def collect(export: dict, root: str) -> dict:
     files = export["data"][0]["files"]
-    layers: dict[str, list[int]] = {}  # layer -> [covered, count]
-    uncovered: dict[str, list[int]] = {}
-    covered_lines: dict[str, list[int]] = {}
+    layers: Dict[str, List[int]] = {}  # layer -> [covered, count]
+    uncovered: Dict[str, List[int]] = {}
+    covered_lines: Dict[str, List[int]] = {}
 
     for f in files:
         layer = layer_of(f["filename"])

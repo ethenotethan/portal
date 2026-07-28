@@ -365,7 +365,7 @@ private struct ExportMathView: View {
 
     @MainActor
     static func typeset(_ tex: String) -> PlatformImage? {
-        var renderer = MTMathImage(
+        let renderer = MTMathImage(
             latex: tex,
             fontSize: 32,   // 2x the on-screen 16pt for print resolution
             textColor: mtColor(Theme.primary),
