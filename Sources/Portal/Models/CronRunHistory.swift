@@ -10,6 +10,7 @@ struct CronRunRecord: Identifiable, Codable {
     let firedAt: Date
     var status: String
     var duration: TimeInterval?
+    var errorMessage: String?
 
     var durationLabel: String {
         guard let d = duration else { return "—" }
@@ -75,7 +76,8 @@ final class CronRunHistoryStore: ObservableObject {
                         jobName: job.name,
                         firedAt: lastRun,
                         status: job.lastStatus ?? "unknown",
-                        duration: nil
+                        duration: nil,
+                        errorMessage: job.lastError
                     ))
                     trim(jobID: job.id)
                     didChange = true
@@ -92,7 +94,8 @@ final class CronRunHistoryStore: ObservableObject {
                         jobName: job.name,
                         firedAt: lastRun,
                         status: job.lastStatus ?? "unknown",
-                        duration: nil
+                        duration: nil,
+                        errorMessage: job.lastError
                     )
                     records.append(record)
                     trim(jobID: job.id)
@@ -122,7 +125,8 @@ final class CronRunHistoryStore: ObservableObject {
                     jobName: job.name,
                     firedAt: lastRun,
                     status: job.lastStatus ?? "unknown",
-                    duration: nil
+                    duration: nil,
+                    errorMessage: job.lastError
                 )
                 records.append(record)
                 trim(jobID: job.id)

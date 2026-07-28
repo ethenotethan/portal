@@ -240,15 +240,24 @@ struct CronJobDetailView: View {
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
+    @State private var selectedRecord: CronRunRecord?
+
+    private var runRecords: [CronRunRecord] {
+        runStore.records(for: job.id).reversed()
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 detailCard
+                if !runRecords.isEmpty {
+                    runHistoryCard
+                }
                 promptCard
                 actionButtons
             }
@@ -290,8 +299,123 @@ struct CronJobDetailView: View {
             detailRow("Last status", value: job.lastStatus ?? "—")
             detailRow("Next run", value: job.nextRunAt?.relativeString ?? "—")
             detailRow("Deliver", value: job.deliver.isEmpty ? "—" : job.deliver)
+            if let err = job.lastError, !err.isEmpty {
+                errorDetailRow(err)
+            }
         }
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func errorDetailRow(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Last error")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.red.opacity(0.85))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private var runHistoryCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Run History")
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+
+            ForEach(Array(runRecords.prefix(20))) { record in
+                Button {
+                    selectedRecord = record
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(record.isOk ? Theme.success : Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.primary)
+                        Spacer()
+                        Text(record.status.capitalized)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(record.isOk ? Theme.success : .red)
+                        if record.duration != nil {
+                            Text(record.durationLabel)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        if !record.isOk {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    record.isOk ? Color.clear : Color.red.opacity(0.04),
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+            }
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .popover(item: $selectedRecord) { record in
+            runDetailPopover(record: record)
+        }
+    }
+
+    private func runDetailPopover(record: CronRunRecord) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(record.isOk ? Theme.success : Color.red)
+                    .frame(width: 10, height: 10)
+                Text(record.firedAt, format: .dateTime.month().day().hour().minute().second())
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+            }
+            Divider()
+            HStack {
+                Text("Status").font(.caption).foregroundStyle(Theme.tertiary).frame(width: 70, alignment: .leading)
+                Text(record.status.capitalized).font(.caption.monospacedDigit())
+                    .foregroundStyle(record.isOk ? Theme.success : .red)
+            }
+            if record.duration != nil {
+                HStack {
+                    Text("Duration").font(.caption).foregroundStyle(Theme.tertiary).frame(width: 70, alignment: .leading)
+                    Text(record.durationLabel).font(.caption.monospacedDigit()).foregroundStyle(Theme.primary)
+                }
+            }
+            if !record.isOk {
+                if let msg = record.errorMessage, !msg.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Error").font(.caption.weight(.semibold)).foregroundStyle(.red)
+                        ScrollView {
+                            Text(msg)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.red.opacity(0.85))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 160)
+                    }
+                    .padding(8)
+                    .background(.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Text("No error detail recorded for this run.")
+                        .font(.caption).foregroundStyle(.red.opacity(0.7))
+                }
+            }
+        }
+        .padding(14)
+        .frame(width: 320)
     }
 
     private var promptCard: some View {
@@ -342,7 +466,7 @@ struct CronJobDetailView: View {
                 .foregroundStyle(Theme.primary)
                 .scrollContentBackground(.hidden)
                 .background(Theme.background)
-                .frame(minHeight: 180, maxHeight: 420)
+                .frame(minHeight: 240)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -369,34 +493,29 @@ struct CronJobDetailView: View {
     }
 
     private var promptDisplay: some View {
-        Group {
-            VStack(alignment: .leading, spacing: 6) {
-                if job.isPromptTruncated {
-                    HStack(spacing: 4) {
-                        Image(systemName: "info.circle")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.accent)
-                        Text("Prompt may be truncated — edit to save the full version")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.secondary)
-                        Button("Edit Now") {
-                            editedPrompt = promptText
-                            isEditingPrompt = true
-                        }
+        VStack(alignment: .leading, spacing: 6) {
+            if job.isPromptTruncated {
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
                         .font(.caption2)
-                        .buttonStyle(.borderless)
-                    }
-                    .padding(.horizontal, 2)
-                }
-                ScrollView([.vertical]) {
-                    Text(promptText)
-                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(Theme.accent)
+                    Text("Prompt may be truncated — edit to save the full version")
+                        .font(.caption2)
                         .foregroundStyle(Theme.secondary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Edit Now") {
+                        editedPrompt = promptText
+                        isEditingPrompt = true
+                    }
+                    .font(.caption2)
+                    .buttonStyle(.borderless)
                 }
-                .frame(maxHeight: 420, alignment: .top)
+                .padding(.horizontal, 2)
             }
+            Text(promptText)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

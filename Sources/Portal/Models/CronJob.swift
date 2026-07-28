@@ -13,6 +13,8 @@ struct CronJob: Identifiable, Equatable, Hashable {
     var deliver: String         // "local", "telegram:...", etc
     var promptPreview: String?
     var prompt: String?
+    /// The error detail from the last failed run, if the gateway reported one.
+    var lastError: String?
 
     /// True when the full prompt is identical to the preview, meaning the gateway
     /// only stores a truncated version server-side.

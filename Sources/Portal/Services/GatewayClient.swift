@@ -923,6 +923,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 return candidates.compactMap { $0 }.first
             }()
 
+            let lastError: String? = [
+                d["last_error"]?.stringValue,
+                d["error_message"]?.stringValue,
+                d["error"]?.stringValue,
+                d["last_error_message"]?.stringValue
+            ].compactMap { $0 }.first
+
             return CronJob(
                 id: jobID,
                 name: d["name"]?.stringValue ?? jobID,
@@ -934,7 +941,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                 state: d["state"]?.stringValue ?? "scheduled",
                 deliver: d["deliver"]?.stringValue ?? "local",
                 promptPreview: d["prompt_preview"]?.stringValue,
-                prompt: promptValue
+                prompt: promptValue,
+                lastError: lastError
             )
         }
     }
