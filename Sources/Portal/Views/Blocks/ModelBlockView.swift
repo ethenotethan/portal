@@ -126,6 +126,10 @@ private struct ModelCard: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, idx == spec.views.count - 1 ? 12 : 0)
                     .frame(height: height(for: view))
+                    // Fixed-height canvas panes are viewports. SwiftUI does
+                    // not clip overflowing descendants by default, which let
+                    // graph labels paint over following table/markdown views.
+                    .clipped()
             }
             if let ref = selectedRef {
                 selectionPanel(ref)
@@ -194,13 +198,19 @@ private struct ModelCard: View {
             if let json = projection(view, ModelProjections.graphJSON(spec: spec, view: view)) {
                 // Graph node ids are "set/key" — the bus's ref encoding —
                 // so translation is a straight parse, no set resolution.
-                NetworkGraphView(
-                    json: json, isStreaming: false,
-                    externalSelection: Binding(
-                        get: { selectedRef.map { "\($0.set)/\($0.key)" } },
-                        set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
+                // The model pane remains resizable, while an internal scroll
+                // viewport keeps every node and legend reachable when the
+                // width-aware graph is taller than the chosen pane height.
+                ScrollView(.vertical) {
+                    NetworkGraphView(
+                        json: json, isStreaming: false,
+                        externalSelection: Binding(
+                            get: { selectedRef.map { "\($0.set)/\($0.key)" } },
+                            set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
+                        )
                     )
-                )
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
             }
         case .chart:
             if let json = projection(view, ModelProjections.chartJSON(spec: spec, view: view)) {
