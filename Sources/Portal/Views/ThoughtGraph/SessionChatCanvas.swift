@@ -83,6 +83,14 @@ internal struct SessionChatCanvas: View {
     @State private var selectedTurnID: UUID?
     /// Cross-highlight shared between the flamechart, tools, and files panels.
     @State private var selectedNodeID: String?
+    /// True while a per-turn graph is expanded to fill the whole canvas. Hosted
+    /// here (not inside the panel) so "expand" covers the entire window instead
+    /// of just the tile's bounds — the fix for expand only filling the panel.
+    @State private var isGraphFullscreen = false
+    /// Dedicated engine for the fullscreen graph so it doesn't fight the docked
+    /// flamechart panel's camera/layout state (the anti-beachball rule still
+    /// holds: only one of the two is on screen at a time).
+    @StateObject private var fullscreenEngine = ThoughtGraphLayoutEngine()
     private let registry = PanelRegistry.chatCanvas
 
     /// The session split into turns (one assistant message = one turn), rebuilt
@@ -146,7 +154,8 @@ internal struct SessionChatCanvas: View {
                 isStreaming: false,
                 selection: $selectedNodeID,
                 engine: engine,
-                onJumpToTool: nil
+                onJumpToTool: nil,
+                onExpand: expandGraph
             )
         }
         return PanelContext(
@@ -157,8 +166,17 @@ internal struct SessionChatCanvas: View {
             isStreaming: chatViewModel.isStreaming,
             selection: $selectedNodeID,
             engine: engine,
-            onJumpToTool: nil
+            onJumpToTool: nil,
+            onExpand: expandGraph
         )
+    }
+
+    /// The per-turn graph context the fullscreen overlay renders — the same
+    /// nodes/compactions the docked flamechart panel shows (selected turn in
+    /// Turns mode, live turn in Scroll), so expanding is a true zoom of what's
+    /// already on the canvas, not a different graph.
+    private func expandGraph() {
+        withAnimation(.easeInOut(duration: 0.2)) { isGraphFullscreen = true }
     }
 
     internal var body: some View {
@@ -195,6 +213,50 @@ internal struct SessionChatCanvas: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
+        // True-fullscreen per-turn graph: covers the WHOLE canvas (toolbar,
+        // panels, composer), not just the graph tile — the fix for expand only
+        // filling the panel's own bounds.
+        .overlay {
+            if isGraphFullscreen {
+                fullscreenGraph
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    /// The expanded per-turn graph filling the whole canvas, with a close button.
+    /// Renders the same turn the docked flamechart shows (via `panelContext`) on
+    /// its own engine, and offers no further expand (it's already fullscreen).
+    private var fullscreenGraph: some View {
+        ZStack(alignment: .topLeading) {
+            Theme.background.ignoresSafeArea()
+
+            TurnFlamechartView(
+                engine: fullscreenEngine,
+                nodes: panelContext.nodes,
+                compactions: panelContext.compactions,
+                isStreaming: panelContext.isStreaming,
+                isThinking: panelContext.isThinking,
+                selection: $selectedNodeID,
+                onJumpToTool: nil,
+                onExpand: nil
+            )
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { isGraphFullscreen = false }
+            } label: {
+                Image(systemName: "arrow.down.right.and.arrow.up.left")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 30, height: 30)
+                    .background(Theme.surface, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Exit fullscreen")
+            .padding(.top, 64)
+            .padding(.leading, 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// Render a panel's content: the conversation is host-supplied (the live
@@ -218,17 +280,13 @@ internal struct SessionChatCanvas: View {
         if panel.kind == .artifacts {
             return AnyView(ArtifactsPanel())
         }
-        // Session Graph — the macro all-turns plot, host-rendered (needs both
-        // integrators + jump-to-tool). Docked in-canvas rather than a sheet.
+        // Session Graph — the per-turn flamechart for the turn the CANVAS pager
+        // is on. It has no turn rail of its own: the turn is tracked in exactly
+        // one place (this canvas's Scroll/Turns pager), so the graph is just the
+        // shape of the current turn, not a graph re-wrapped in its own turn list.
+        // Driven by the same `panelContext` as the flamechart lens.
         if panel.kind == .sessionGraph {
-            return AnyView(
-                SessionGraphPane(
-                    chatViewModel: chatViewModel,
-                    subagentGraph: subagentGraph,
-                    reasoningGraph: reasoningGraph,
-                    onJumpToTool: { selectedNodeID = $0 }
-                )
-            )
+            return registry.content(for: .flamechart, context: panelContext)
         }
         return registry.content(for: panel.kind, context: panelContext)
     }
@@ -249,17 +307,17 @@ internal struct SessionChatCanvas: View {
             .foregroundStyle(Theme.secondary)
             .help("Reset to the default view — a single full-width conversation")
 
-            // Session Graph opener — reveals the all-turns graph as an IN-CANVAS
-            // panel (docked beside the conversation), not a fullscreen sheet. If
-            // it's already on the canvas this brings it to front instead of
-            // adding a duplicate (it's a singleton kind).
+            // Graph opener — docks the per-turn thought graph as an IN-CANVAS
+            // panel (the shape of the turn the pager is on), not a fullscreen
+            // sheet. If it's already on the canvas this brings it to front
+            // instead of adding a duplicate (it's a singleton kind).
             Button(action: revealSessionGraph) {
-                Label("Session Graph", systemImage: "chart.bar.xaxis")
+                Label("Thought Graph", systemImage: "chart.bar.xaxis")
                     .font(.system(size: 11, weight: .medium))
             }
             .buttonStyle(.plain)
             .foregroundStyle(hasSessionGraphPanel ? Theme.accent : Theme.secondary)
-            .help("Show the all-turns Session Graph as a panel")
+            .help("Show the per-turn thought graph as a panel")
 
             // Session-global metrics: cumulative tokens / cost / context %.
             // Pinned here so it persists across turns and scroll — it never

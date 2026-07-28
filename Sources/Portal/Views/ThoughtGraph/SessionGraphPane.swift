@@ -1,8 +1,12 @@
 import SwiftUI
 
-/// The macro all-turns Session Graph, extracted so it can be hosted either as a
-/// fullscreen sheet (iOS) or as an in-canvas panel (macOS Canvas). It observes
-/// the two per-turn graph integrators DIRECTLY — a parent that only observes
+/// The macro all-turns Session Graph — the rail-based overview (turn list +
+/// per-turn metrics + flamechart). Hosted as the standalone fullscreen surface:
+/// iOS `.fullScreenCover` and the macOS `.sheet`, opened from the inline
+/// timeline's expand. (The macOS Canvas no longer embeds this — it docks the
+/// railless per-turn `TurnFlamechartView` driven by the canvas pager instead, so
+/// turns are tracked in one place.) It observes the two per-turn graph
+/// integrators DIRECTLY — a parent that only observes
 /// `ChatViewModel` won't re-render when nested subagent/reasoning publishes land
 /// — so the graph rebuilds live as agent subtrees grow.
 ///
