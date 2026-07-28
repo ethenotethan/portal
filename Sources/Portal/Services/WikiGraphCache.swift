@@ -35,11 +35,18 @@ internal struct WikiGraphCache {
     internal func load(identity: String, wiki: String?) async -> WikiGraph? {
         let url = fileURL(identity: identity, wiki: wiki)
         return await Task.detached(priority: .userInitiated) {
-            guard let data = try? Data(contentsOf: url),
-                  let graph = try? JSONDecoder().decode(WikiGraph.self, from: data) else {
+            // A missing file is the ordinary cache-miss path (no prior scan for
+            // this key) and stays quiet; a present-but-unreadable file is a real
+            // fault worth a log. Either way we return nil — the cache is a pure
+            // optimization and the live scan is the source of truth.
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+            do {
+                let data = try Data(contentsOf: url)
+                return try JSONDecoder().decode(WikiGraph.self, from: data)
+            } catch {
+                log.error("wiki graph cache read failed: \(error.localizedDescription)")
                 return nil
             }
-            return graph
         }.value
     }
 

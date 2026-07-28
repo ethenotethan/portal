@@ -3,7 +3,7 @@ import Foundation
 @testable import Portal
 
 @Suite("Wiki Graph Disk Cache")
-struct WikiGraphCacheTests {
+internal struct WikiGraphCacheTests {
 
     private func page(_ id: String) -> WikiPage {
         WikiPage(
@@ -14,13 +14,12 @@ struct WikiGraphCacheTests {
     }
 
     private func scratchDir() -> URL {
-        let dir = FileManager.default.temporaryDirectory
+        FileManager.default.temporaryDirectory
             .appendingPathComponent("wiki-cache-test-\(UUID().uuidString)", isDirectory: true)
-        return dir
     }
 
     @Test("Round-trips a graph through disk")
-    func roundTrip() async throws {
+    internal func roundTrip() async throws {
         let cache = WikiGraphCache(directory: scratchDir())
         let graph = WikiGraph(
             pages: [page("alpha"), page("beta")],
@@ -40,14 +39,14 @@ struct WikiGraphCacheTests {
     }
 
     @Test("Missing key returns nil, never throws")
-    func missingKey() async {
+    internal func missingKey() async {
         let cache = WikiGraphCache(directory: scratchDir())
         let loaded = await cache.load(identity: "never-written", wiki: nil)
         #expect(loaded == nil)
     }
 
     @Test("Distinct identity or wiki maps to distinct entries")
-    func keyIsolation() {
+    internal func keyIsolation() {
         let a = WikiGraphCache.slug(identity: "gw-a", wiki: "main")
         let b = WikiGraphCache.slug(identity: "gw-b", wiki: "main")
         let c = WikiGraphCache.slug(identity: "gw-a", wiki: "other")
@@ -58,7 +57,7 @@ struct WikiGraphCacheTests {
     }
 
     @Test("Slug is stable across calls (survives restart)")
-    func slugStable() {
+    internal func slugStable() {
         #expect(
             WikiGraphCache.slug(identity: "gw-a", wiki: "main")
             == WikiGraphCache.slug(identity: "gw-a", wiki: "main")
@@ -66,7 +65,7 @@ struct WikiGraphCacheTests {
     }
 
     @Test("Stored graph is overwritten by a later store to the same key")
-    func overwrite() async throws {
+    internal func overwrite() async throws {
         let cache = WikiGraphCache(directory: scratchDir())
         cache.store(WikiGraph(pages: [page("old")], links: []), identity: "gw", wiki: nil)
         // Let the first write settle.

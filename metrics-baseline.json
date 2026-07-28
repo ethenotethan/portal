@@ -334,9 +334,9 @@
     ]
   },
   "coverage": {
-    "testable_pct": 34.9,
-    "testable_covered": 7467,
-    "testable_count": 21394,
+    "testable_pct": 34.93,
+    "testable_covered": 7478,
+    "testable_count": 21409,
     "layers": {
       "Models": {
         "covered": 3326,
@@ -344,9 +344,9 @@
         "pct": 58.4
       },
       "Services": {
-        "covered": 2076,
-        "count": 8367,
-        "pct": 24.81
+        "covered": 2087,
+        "count": 8382,
+        "pct": 24.9
       },
       "Utilities": {
         "covered": 205,
@@ -3749,7 +3749,9 @@
         84
       ],
       "Sources/Portal/Services/WikiGraphCache.swift": [
-        58
+        46,
+        47,
+        65
       ],
       "Sources/Portal/Utilities/Constants.swift": [
         5
@@ -7960,25 +7962,27 @@
         30,
         35,
         37,
-        39,
-        41,
         42,
         43,
+        44,
+        45,
         49,
-        52,
-        53,
-        54,
-        55,
+        50,
         56,
-        57,
         59,
         60,
+        61,
+        62,
         63,
+        64,
+        66,
+        67,
         70,
-        71,
-        73,
-        75,
-        76
+        77,
+        78,
+        80,
+        82,
+        83
       ],
       "Sources/Portal/Utilities/ChatLayoutMath.swift": [
         17,

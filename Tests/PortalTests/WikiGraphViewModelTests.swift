@@ -327,7 +327,7 @@ struct WikiGraphViewModelTests {
     /// A default (disconnected) GatewayClient throws .notConnected from
     /// wiki.scan immediately, standing in for the cold-network path.
     @Test("Cold open paints the cached graph and it survives a scan failure")
-    func coldOpenPaintsCache() async {
+    internal func coldOpenPaintsCache() async {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("wiki-cache-vm-\(UUID().uuidString)", isDirectory: true)
         let cache = WikiGraphCache(directory: dir)
@@ -352,7 +352,7 @@ struct WikiGraphViewModelTests {
     }
 
     @Test("No cache entry leaves an empty graph for the overlay to catch")
-    func coldOpenNoCache() async {
+    internal func coldOpenNoCache() async {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("wiki-cache-vm-\(UUID().uuidString)", isDirectory: true)
         let vm = WikiGraphViewModel(graphCache: WikiGraphCache(directory: dir))
