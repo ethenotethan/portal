@@ -37,7 +37,7 @@ jobs:
           RESULT_BUNDLE="${RUNNER_TEMP}/HangGate.xcresult"
           xcodebuild test \
             -project Portal.xcodeproj \
-            -scheme Portal-macOS \
+            -scheme Portal \
             -destination 'platform=macOS' \
             -only-testing:PortalMacUITests/MainThreadHangGateUITests \
             CODE_SIGNING_ALLOWED=NO \
