@@ -7,7 +7,7 @@
 # build. `make run` guarantees you're running current source.
 
 PROJECT := Portal.xcodeproj
-SCHEME_MAC := Portal-macOS
+SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 

@@ -35,7 +35,7 @@ jobs:
           set -o pipefail
           xcodebuild build \
             -project Portal.xcodeproj \
-            -scheme Portal-macOS \
+            -scheme Portal \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="-" \
             2>&1 | tee build-macos.log | xcpretty
