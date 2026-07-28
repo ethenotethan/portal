@@ -541,7 +541,7 @@ private struct GatewayDetailPane: View {
 extension SettingsView {
 
     // Shared across platforms — used by both the macOS and iOS Settings bodies.
-    var capabilitiesSummary: some View {
+    internal var capabilitiesSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Gateway Capabilities")
                 .font(.headline)
@@ -570,7 +570,7 @@ extension SettingsView {
     // MARK: - iOS
 
     #if os(iOS)
-    var iosBody: some View {
+    internal var iosBody: some View {
         NavigationStack {
             List {
                 Section("Connection") {
