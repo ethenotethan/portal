@@ -1555,23 +1555,38 @@ struct InlineHTMLView: View {
     /// `data-hermes-status` in the isolated content world. Empty for
     /// transcript/preview HTML (no live intents).
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    /// Expanded interactive canvases use the next trusted canvas click to
+    /// acquire Pointer Lock. Ordinary inline HTML leaves this disabled.
+    internal let capturesPointerInput: Bool
 
     internal init(
         html: String,
         onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
-        statusMarks: [HTMLArtifactIntentBridge.StatusMark] = []
+        statusMarks: [HTMLArtifactIntentBridge.StatusMark] = [],
+        capturesPointerInput: Bool = false
     ) {
         self.html = html
         self.onArtifactIntent = onArtifactIntent
         self.statusMarks = statusMarks
+        self.capturesPointerInput = capturesPointerInput
     }
 
     var body: some View {
         #if os(macOS)
-        InlineHTMLNSView(html: html, onArtifactIntent: onArtifactIntent, statusMarks: statusMarks)
+        InlineHTMLNSView(
+            html: html,
+            onArtifactIntent: onArtifactIntent,
+            statusMarks: statusMarks,
+            capturesPointerInput: capturesPointerInput
+        )
             .background(Theme.background)
         #else
-        InlineHTMLUIView(html: html, onArtifactIntent: onArtifactIntent, statusMarks: statusMarks)
+        InlineHTMLUIView(
+            html: html,
+            onArtifactIntent: onArtifactIntent,
+            statusMarks: statusMarks,
+            capturesPointerInput: capturesPointerInput
+        )
             .background(Theme.background)
         #endif
     }
@@ -1582,6 +1597,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    internal let capturesPointerInput: Bool
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1600,10 +1616,19 @@ struct InlineHTMLNSView: NSViewRepresentable {
                 in: WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
             ))
         }
-        let webView = WKWebView(frame: .zero, configuration: config)
+        if capturesPointerInput {
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLPointerLockBridge.userScriptSource,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
+            ))
+        }
+        let webView = InputCapturingWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false
+        webView.capturesInput = capturesPointerInput
         return webView
     }
 
@@ -1618,11 +1643,28 @@ struct InlineHTMLNSView: NSViewRepresentable {
         context.coordinator.applyStatusMarks(statusMarks, to: webView)
     }
 }
+
+/// WKWebView does not reliably become first responder when SwiftUI creates it
+/// inside an expanded overlay. Pointer Lock and keyboard events both require
+/// that focus, so claim it only for the opted-in interactive canvas host.
+private final class InputCapturingWebView: WKWebView {
+    fileprivate var capturesInput = false
+
+    override var acceptsFirstResponder: Bool { capturesInput || super.acceptsFirstResponder }
+
+    override func mouseDown(with event: NSEvent) {
+        if capturesInput {
+            window?.makeFirstResponder(self)
+        }
+        super.mouseDown(with: event)
+    }
+}
 #else
 struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    internal let capturesPointerInput: Bool
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)

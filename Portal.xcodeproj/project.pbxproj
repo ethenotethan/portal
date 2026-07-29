@@ -139,6 +139,7 @@
 		3CE05496ED78AFE782FAE3BB /* QuizModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38134D6C0CC22320A29A643B /* QuizModels.swift */; };
 		3D10397D2674A2C43471452A /* SkillCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B45EF877901FAA086110A90 /* SkillCache.swift */; };
 		3E42ECCC62FE3A8122655040 /* WikiEventTimelineCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */; };
+		3ED4C9B95FC14F8FFF96B14E /* HTMLPointerLockBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */; };
 		3F398AB2B1EDC713FAA6E7FF /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EF489663ABB9AEAB01A353A /* NotificationService.swift */; };
 		3F636ECA4346D21BD8EF307A /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 1628348DF37A47E95CE7098E /* Highlightr */; };
 		3F7E6832BC79E31B4674A10E /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */; };
@@ -307,6 +308,7 @@
 		7DAEDA96FC74705C23FDCF8F /* FileTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2504B580901B94687349B4 /* FileTreeView.swift */; };
 		7DEDFD5D57C2E03C12827F8F /* StatTilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F266A56E6890ECD9F5EB364B /* StatTilesView.swift */; };
 		7E1890FF6ADDF043A012F1B8 /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = D68791031BB82AA01D51B222 /* HuggingFace */; };
+		7E2D66CED8827F1D34EE4FBD /* ArtifactTopLevelActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */; };
 		7F2E9F9F7D7C8DB7D62AE64D /* CronDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */; };
 		7FC8303A9E74F97000A161F8 /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C5A6BD9058FFBC73F6DA5D /* QuizViewModel.swift */; };
 		80E479037050EFD43F2DE88A /* ArtifactMaintenanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */; };
@@ -540,12 +542,14 @@
 		DEFA1B4962475B953A49584E /* IOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F03A3919DBBDF2E95C23A0 /* IOSApp.swift */; };
 		DFFBCDB2BCBF19AB1BA8D576 /* FlashcardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A942B80C820875BEF8FA828 /* FlashcardModels.swift */; };
 		E13E75BDE8639A73256718E0 /* TurnSkillsLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DF29D74D5D721EF473D0D3 /* TurnSkillsLens.swift */; };
+		E1A70D24AD167E4487B0673B /* ArtifactExpandedOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2C5B6EAB6FD92661BC700F /* ArtifactExpandedOverlay.swift */; };
 		E1EB8D6AE667ABE17040EE99 /* WriterRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB758FC85F5888574E37E901 /* WriterRef.swift */; };
 		E2C46688417BF81B74521F1F /* DashboardCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F09A419D2108A3B75A0392C /* DashboardCanvasView.swift */; };
 		E2E88965B48A0458EB0AC99E /* ArtifactParseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC40744C7D94DBBF78EEA6B8 /* ArtifactParseError.swift */; };
 		E2F850B785A78B791C66C9C1 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7FB945E773A940CC79BB9A /* SavedGateway.swift */; };
 		E37D224091DC0BAD06581BC9 /* SessionsStatsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3218DA57BA3CD1EDBF30526 /* SessionsStatsPanel.swift */; };
 		E4291E47476A22BEA172D4A6 /* WikiGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1453EC6C9E872F3B4AE74ED8 /* WikiGraphViewModel.swift */; };
+		E66777571CD1892C77BFD07B /* HTMLPointerLockBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */; };
 		E6F2E3A4C1903D95562271ED /* HarnessPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C3C6AD6F18D1A7BA71169E /* HarnessPresentationTests.swift */; };
 		E7E64D3ECAB0417DE3C93933 /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */; };
 		E80704E610AC22E3BB829807 /* ArtifactExportMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53C79AD615D5B3D90F5E1D6 /* ArtifactExportMenu.swift */; };
@@ -584,8 +588,10 @@
 		F3825A3EFA1BF04470738DC1 /* HermesNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C645744B05EA678BF49FD4 /* HermesNativeApp.swift */; };
 		F3BB8FDF6FBAC794F94B12EB /* WikiGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA37D2649DCF0677BDD8A2F /* WikiGraphView.swift */; };
 		F40BE43F65E77E0D248AAD29 /* CentaurWorkflowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FE9BB8CC70B170B8EA708F /* CentaurWorkflowsView.swift */; };
+		F4DE79AF276BBB6C126C6D32 /* ArtifactTopLevelActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */; };
 		F4EDDB2452084ADA05B565C6 /* PerfCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139EF846BE7D5E3C53A27D45 /* PerfCounter.swift */; };
 		F52384FC55F2D495BBB97281 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */; };
+		F54C579B8BCD4D39BBB4FA4B /* ArtifactExpandedOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2C5B6EAB6FD92661BC700F /* ArtifactExpandedOverlay.swift */; };
 		F57D557C919AA022CC6B8977 /* ArtifactExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52CE43DF56DCEA3FB7D6928C /* ArtifactExporter.swift */; };
 		F6356EC391F0F1A471440B4D /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7170E4B05EE7B7542652519E /* GatewayClient+Push.swift */; };
 		F644268EE0A863BC4C6A07C3 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 4E145722FFFF6CBCE740C147 /* README.md */; };
@@ -704,6 +710,7 @@
 		2D55E2098792DCE66D3CF1E5 /* SkillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsView.swift; sourceTree = "<group>"; };
 		2E6B51D703A3C1CB7D49A22E /* LearningComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningComponents.swift; sourceTree = "<group>"; };
 		2F97A07E7D49A9EBBE2C83CB /* confused.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = confused.json; sourceTree = "<group>"; };
+		2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPointerLockBridge.swift; sourceTree = "<group>"; };
 		31AA97E9F0544A37C426EB22 /* MacInputTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacInputTextField.swift; sourceTree = "<group>"; };
 		32BA1CA8CCACEEBB1C97B7EF /* PushRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRegistrationService.swift; sourceTree = "<group>"; };
 		331F03820AA7EF768E091175 /* GatewayPersonaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayPersonaTests.swift; sourceTree = "<group>"; };
@@ -787,6 +794,7 @@
 		6CE5937B5B14121625B3DEFD /* WriterRefTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriterRefTests.swift; sourceTree = "<group>"; };
 		6D09F1E257892B5EC054D814 /* ChatSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSkin.swift; sourceTree = "<group>"; };
 		6E11DEEDAE91D4B8CE4FB732 /* SessionPDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPDFExporter.swift; sourceTree = "<group>"; };
+		6E2C5B6EAB6FD92661BC700F /* ArtifactExpandedOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactExpandedOverlay.swift; sourceTree = "<group>"; };
 		6EB864C3C84925748D5EB6EB /* LivingArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifact.swift; sourceTree = "<group>"; };
 		6EDA2632CA57A266F027D530 /* GatewayEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayEventDecodingTests.swift; sourceTree = "<group>"; };
 		6EE0C45339C8364B54C1BA18 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -935,6 +943,7 @@
 		E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphLayoutEngineTests.swift; sourceTree = "<group>"; };
 		E9403B0AABD3D56F6AF07759 /* InAppLinkRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppLinkRoutingTests.swift; sourceTree = "<group>"; };
 		EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CentaurWikiClient+Timeline.swift"; sourceTree = "<group>"; };
+		EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactTopLevelActionBar.swift; sourceTree = "<group>"; };
 		EB352F7F788884359CE97E43 /* Portal-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Portal-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB758FC85F5888574E37E901 /* WriterRef.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriterRef.swift; sourceTree = "<group>"; };
 		EC041062826FA7BF292F346A /* QuizStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizStore.swift; sourceTree = "<group>"; };
@@ -1152,6 +1161,7 @@
 				9D1242C7F8867F3BE4B8B615 /* GatewayDebugSnapshot.swift */,
 				FD718CB90FC46FEC2F22A03D /* GatewayEvent.swift */,
 				9A5C65263F4238FDE15E7574 /* HTMLArtifactIntentBridge.swift */,
+				2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */,
 				8CEA112C173DC783B4B36F40 /* Identicon.swift */,
 				CCC7E280843A5A93FBA01693 /* KanbanSpec.swift */,
 				6EB864C3C84925748D5EB6EB /* LivingArtifact.swift */,
@@ -1235,9 +1245,11 @@
 				FE8181164CA87FB204D1DF09 /* ActivityInboxView.swift */,
 				61DF392E7C7DDF86EDE89DC3 /* AgentPanel.swift */,
 				194FFCA4DF6D02ECF2AE60E3 /* ArtifactCanvasView.swift */,
+				6E2C5B6EAB6FD92661BC700F /* ArtifactExpandedOverlay.swift */,
 				52CE43DF56DCEA3FB7D6928C /* ArtifactExporter.swift */,
 				F53C79AD615D5B3D90F5E1D6 /* ArtifactExportMenu.swift */,
 				F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */,
+				EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */,
 				FC638C9FB93EE3E226D7FBE6 /* AttachmentChipView.swift */,
 				8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */,
 				4771AF472C6EBB3988409889 /* CentaurWorkflowActivityChart.swift */,
@@ -1826,6 +1838,7 @@
 				49498ADE6B690E04B5979269 /* AgentPanel.swift in Sources */,
 				AF717CDF83F30D9E293910D2 /* ArtifactActions.swift in Sources */,
 				FFD8790994486F746D7A3A02 /* ArtifactCanvasView.swift in Sources */,
+				E1A70D24AD167E4487B0673B /* ArtifactExpandedOverlay.swift in Sources */,
 				6629411834FC0CB967D16231 /* ArtifactExportMenu.swift in Sources */,
 				4FBE086429BCFD1E8CE721E2 /* ArtifactExporter.swift in Sources */,
 				C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */,
@@ -1833,6 +1846,7 @@
 				DBF737D082B6975F7B97D978 /* ArtifactPanel.swift in Sources */,
 				7AE15FD1286665E958DF5801 /* ArtifactParseError.swift in Sources */,
 				F01D5AED671BA701DC7176C2 /* ArtifactStore.swift in Sources */,
+				F4DE79AF276BBB6C126C6D32 /* ArtifactTopLevelActionBar.swift in Sources */,
 				167D1D5C418E74B768A4DA7E /* ArtifactsPane.swift in Sources */,
 				49B057AC0BCDB053A9D91D78 /* ArtifactsPanel.swift in Sources */,
 				1B662D52D49609AAB42516B2 /* AttachmentChipView.swift in Sources */,
@@ -1913,6 +1927,7 @@
 				07D139EB10D613FEE45017A1 /* GatewayEvent.swift in Sources */,
 				A4DB6F8F248BAEA1C2175909 /* GitHubLinkCard.swift in Sources */,
 				52C76372A0804EB9BC58E651 /* HTMLArtifactIntentBridge.swift in Sources */,
+				E66777571CD1892C77BFD07B /* HTMLPointerLockBridge.swift in Sources */,
 				6277488C7D744C82597B6AF0 /* HermesNativeApp.swift in Sources */,
 				20161F2E875925475F638E2E /* HermesNativeDeepLink.swift in Sources */,
 				5D13B4AF0AC7BC33CA42C6EE /* HermesStandardClient.swift in Sources */,
@@ -2174,6 +2189,7 @@
 				4E65C3BAD8CEC66F1FD679F2 /* AgentPanel.swift in Sources */,
 				8215ECC61F713DB4DD570048 /* ArtifactActions.swift in Sources */,
 				364C7AD1C0A9F608B8F81306 /* ArtifactCanvasView.swift in Sources */,
+				F54C579B8BCD4D39BBB4FA4B /* ArtifactExpandedOverlay.swift in Sources */,
 				E80704E610AC22E3BB829807 /* ArtifactExportMenu.swift in Sources */,
 				F57D557C919AA022CC6B8977 /* ArtifactExporter.swift in Sources */,
 				B29C577C8E2751D987EBAEC9 /* ArtifactIntentSessionLink.swift in Sources */,
@@ -2181,6 +2197,7 @@
 				DA9E33B100B6C5D0FCF0B30B /* ArtifactPanel.swift in Sources */,
 				E2E88965B48A0458EB0AC99E /* ArtifactParseError.swift in Sources */,
 				22E6B5648871B75AABF8230E /* ArtifactStore.swift in Sources */,
+				7E2D66CED8827F1D34EE4FBD /* ArtifactTopLevelActionBar.swift in Sources */,
 				1AD9262BED2955F88A1F905C /* ArtifactsPane.swift in Sources */,
 				D7E330124AF26C2F6E55AFE2 /* ArtifactsPanel.swift in Sources */,
 				197532BC3B2E4D4122C576A2 /* AttachmentChipView.swift in Sources */,
@@ -2261,6 +2278,7 @@
 				325AB54F679A4BB802FF1275 /* GatewayEvent.swift in Sources */,
 				C9A2F0F561B31711CF1357D8 /* GitHubLinkCard.swift in Sources */,
 				41A3305D902F43A66B044A4C /* HTMLArtifactIntentBridge.swift in Sources */,
+				3ED4C9B95FC14F8FFF96B14E /* HTMLPointerLockBridge.swift in Sources */,
 				F3825A3EFA1BF04470738DC1 /* HermesNativeApp.swift in Sources */,
 				8B6A172DB737B75B17AB23FC /* HermesNativeDeepLink.swift in Sources */,
 				A5D26796A40F47962313101B /* HermesStandardClient.swift in Sources */,
