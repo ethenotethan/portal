@@ -175,7 +175,50 @@ jobs:
           python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base "$BASE"
 
   # ── Performance posture ───────────────────────────────────────────────────
-  # Reserved. When a perf benchmark lands (main-thread stall budget, cold-start
-  # time, …) it gets its OWN job here + its own collector — never folded into
-  # Warnings or Coverage. Left unimplemented on purpose so the taxonomy shows
-  # the intended shape; add the job when the collector exists.
+  # Algorithmic work count: the hot pure layout paths must not do MORE
+  # operations than base for a fixed input (floor). The metric is an integer op
+  # count, not wall-clock time — deterministic on any runner (no timing flake)
+  # and it catches the regression that hurts: O(n)→O(n²). It does NOT catch
+  # constant-factor slowdowns (that's the hang gate, macos-hang-gate.yml).
+  #
+  # Its OWN job with its OWN build: the harness compiles with -DPERF_COUNTERS,
+  # a flag the Measure job deliberately does NOT set (production must stay
+  # zero-cost), so this cannot share the measure snapshot — a different concern
+  # with a different build, exactly as the taxonomy intends. Runs on Linux: the
+  # counts are machine-independent, so the cheaper runner is fine.
+  performance:
+    name: Performance
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so the ratchet's `git show <base>:perf-baseline.json`
+      # resolves (default checkout is shallow).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1"
+
+      - name: Run the instrumented perf harness
+        # -DPERF_COUNTERS activates PerfCounter's tallies (a no-op otherwise).
+        # PERF_COUNTS_OUT tells the harness where to write the op-count
+        # snapshot. Filtering to the harness keeps this fast — the rest of the
+        # suite already runs in Measure.
+        run: |
+          PERF_COUNTS_OUT="$PWD/perf-counts.json" \
+            swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests
+
+      - name: Ratchet algorithmic op counts against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-perf-ratchet.py perf-counts.json --base "$BASE"
+
+      - name: Upload perf snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-counts
+          path: perf-counts.json
+          if-no-files-found: ignore
+          retention-days: 14

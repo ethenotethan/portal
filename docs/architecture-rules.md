@@ -90,7 +90,7 @@ differ only in what they measure and which script measures it.
 | `Ratchet / Security` | Secrets | `.gitleaksignore` | gitleaks + `check-secret-baseline-growth.py` |
 | `Ratchet / Warnings` | Compiler-warning health | `metrics-baseline.json` `warnings` | `check-metrics-ratchet.py --warnings` |
 | `Ratchet / Coverage` | Test quality | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
-| `Ratchet / Performance` | *(reserved)* | — | — |
+| `Ratchet / Performance` | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
 
 Two workflows, split by cost and cadence: **`lint.yml`** is the fast
 style/debt gate; **`ratchet.yml`** holds the posture ratchets. Within
@@ -172,7 +172,9 @@ posture taxonomy above); the build is always from scratch (no cache) because an
 incremental build under-counts warnings.
 
 Candidate next metrics (each is one collector away): mutation score (see
-issue #10), main-thread stall budget.
+issue #10). Performance is deliberately *not* one of these — algorithmic work is
+a different concern with a different build (the `PERF_COUNTERS` flag), so it's
+its own posture and its own script; see "The performance ratchet" below.
 
 ## The secret-scan ratchet
 
@@ -208,6 +210,53 @@ authz logic, IDOR, SSRF, or design flaws — a green scan is a floor, not a
 posture. Candidate next security ratchets (each is a separate gate): dependency
 advisories over `Package.resolved`, and a handful of security-focused swiftlint
 custom rules.
+
+## The performance ratchet (algorithmic work count)
+
+Defends one attribute the other gates can't see: whether a hot pure path
+quietly got **algorithmically** more expensive. The metric is an integer
+operation **count**, not wall-clock time — chosen deliberately.
+
+- **Why a count, not a timing.** A timing on a shared CI runner is noisy;
+  noisy checks get muted, and a muted gate defends nothing. A work count over a
+  *fixed* input is deterministic to the integer on any machine, so it never
+  flakes and needs no averaging or warm-up. It catches the regression that
+  actually hurts a layout path — an `O(n)` loop becoming `O(n²)` blows the
+  count up by orders of magnitude. It explicitly does **not** catch
+  constant-factor slowdowns (a slower per-iteration body at the same
+  complexity); that's the job of the main-thread hang gate
+  (`macos-hang-gate.yml`), which this complements rather than duplicates.
+- **What's instrumented.** `PerfCounter` (Utilities) tallies the dominant loop
+  of each hot pure path: `sankey.relax` and `sankey.pack` in
+  `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
+  in `NetworkGraphLayout`. Counts are added *once per loop* (the accumulated
+  total), never once per iteration, so even the instrumented build pays no
+  locked call inside a hot loop.
+- **Zero cost in production.** Every `PerfCounter` call is gated on the
+  `PERF_COUNTERS` compile flag. A normal build (`swift build`, `make build`,
+  the shipped app) never defines it, so the calls compile to an
+  `@inline(__always)` empty body the optimizer deletes — the instrumentation
+  does not exist in the binary. Only `make perf-ratchet` and the CI job build
+  with `-Xswiftc -DPERF_COUNTERS`.
+- **The harness.** `PerfCountHarnessTests` drives fixed-size fixtures through
+  the instrumented paths, and — under the flag, when `PERF_COUNTS_OUT` is set —
+  writes the tally to a JSON snapshot. In an ordinary `swift test` (no flag)
+  the snapshot is a no-op `[:]` and the test just asserts the layouts run clean
+  on the fixtures, so it costs the normal suite nothing.
+- **FLOOR only.** `check-perf-ratchet.py` fails a PR whose snapshot count for
+  any counter exceeds the **base branch's** `perf-baseline.json` (read via
+  `git show base:…`, so bumping the file in your own PR can't wave a regression
+  through). There is no patch half: an op count isn't attributable to specific
+  added lines. A counter absent from base is an *initial freeze* (a newly
+  instrumented path), never a failure — the same grace the other ratchets give.
+- **Locally:** `make perf-ratchet` (builds with the flag, runs the harness,
+  ratchets vs `origin/main`). **CI:** the `Performance` job in `ratchet.yml` —
+  its OWN build with the perf flag, deliberately NOT sharing the `Measure`
+  snapshot, because Measure must stay production-representative and must not set
+  the flag. **Regenerate** with `make perf-baseline`, and only to lock in a win
+  (fewer ops — a faster algorithm) or a deliberate, PR-justified fixture-size
+  change; the committed fixture sizes in the harness are what the counts are
+  keyed to.
 
 ## View-snapshot gate
 

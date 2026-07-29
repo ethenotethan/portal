@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -147,6 +147,34 @@ metrics-baseline:
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
 	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warning sites,', str(c['testable_pct'])+'% testable coverage')"
 	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings should only DROP, coverage only RISE."
+
+# Performance ratchet: fail if a hot pure layout path does MORE algorithmic work
+# than base for a fixed input. The metric is an integer OP COUNT, not time — the
+# harness (PerfCountHarnessTests) runs fixed-size fixtures through the
+# instrumented paths under -DPERF_COUNTERS and records how many operations each
+# performs. Deterministic on any machine, so it never flakes; it catches
+# O(n)→O(n²) regressions but NOT constant-factor slowdowns (that's the hang
+# gate). FLOOR only — op counts aren't attributable to added lines. The ceiling
+# is read from the BASE branch's perf-baseline.json, so bumping the file in your
+# own PR can't wave a regression through. See scripts/check-perf-ratchet.py.
+#
+# In CI this is the Ratchet / Performance job (ratchet.yml) — its own build with
+# the perf flag, deliberately separate from Measure (which must stay
+# zero-cost/production-representative and does NOT set the flag).
+perf-ratchet:
+	PERF_COUNTS_OUT="/tmp/portal-perf-counts.json" \
+		swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests
+	python3 scripts/check-perf-ratchet.py /tmp/portal-perf-counts.json --base origin/main
+
+# Regenerate the frozen perf ceiling. Run ONLY to lock in an improvement (fewer
+# ops — a faster algorithm) or after a DELIBERATE, justified fixture/size
+# change. Like the other baselines, the diff should tell a clean story: counts
+# DROP for a win, and any rise is explained in the PR. Requires the perf flag.
+perf-baseline:
+	PERF_COUNTS_OUT="/tmp/portal-perf-counts.json" \
+		swift test -Xswiftc -DPERF_COUNTERS --filter PerfCountHarnessTests
+	@python3 -c "import json; s=json.load(open('/tmp/portal-perf-counts.json')); b=json.load(open('perf-baseline.json')); b['counts']=s['counts']; open('perf-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('perf-baseline.json updated:', ', '.join(f'{k}={v}' for k,v in sorted(s['counts'].items())))"
+	@echo "Baseline rewritten. Check 'git diff perf-baseline.json' — counts should only DROP (a faster path) unless a size change is intended."
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
 # strict-concurrency build, tests, baselined lint, and the security posture.

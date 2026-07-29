@@ -138,6 +138,9 @@ enum SankeyLayout {
                 }
             }
         }
+        // Column relaxation is the potentially-quadratic step (passes × links);
+        // count the total link visits so the ratchet catches it degrading.
+        PerfCounter.add("sankey.relax", passes * spec.links.count)
         let columnCount = (column.values.max() ?? 0) + 1
 
         // Throughput per node.
@@ -161,6 +164,9 @@ enum SankeyLayout {
         for node in nodes { columnTotals[node.column, default: 0] += node.throughput }
         let maxTotal = columnTotals.values.max() ?? 1
 
+        // Per-column packing rescans every node for each column — O(columns ×
+        // nodes). Count the scan so a switch to naive nested growth is caught.
+        PerfCounter.add("sankey.pack", columnCount * nodes.count)
         for columnIndex in 0..<columnCount {
             let members = nodes.indices.filter { nodes[$0].column == columnIndex }
             let total = members.reduce(0.0) { $0 + nodes[$1].throughput }
