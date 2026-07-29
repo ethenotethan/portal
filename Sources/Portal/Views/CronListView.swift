@@ -3,6 +3,11 @@ import SwiftUI
 struct CronListView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @State private var cronViewModel = CronListViewModel()
+    @StateObject private var filterState = CronFilterState()
+
+    private var filteredJobs: [CronJob] {
+        filterState.apply(to: cronViewModel.jobs)
+    }
 
     var body: some View {
         List {
@@ -12,8 +17,11 @@ struct CronListView: View {
             } else if cronViewModel.jobs.isEmpty {
                 emptyState
                     .listRowBackground(Color.clear)
+            } else if filteredJobs.isEmpty {
+                noMatchesState
+                    .listRowBackground(Color.clear)
             } else {
-                ForEach(cronViewModel.jobs) { job in
+                ForEach(filteredJobs) { job in
                     NavigationLink(value: job) {
                         CronJobRow(job: job)
                     }
@@ -29,6 +37,11 @@ struct CronListView: View {
                     }
                     #endif
                 }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !cronViewModel.jobs.isEmpty {
+                CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
             }
         }
         #if os(macOS)
@@ -82,6 +95,29 @@ struct CronListView: View {
             Text("Cron jobs will appear here when scheduled")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private var noMatchesState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
+            Text("No Matching Jobs")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text("No cron jobs match the current search or filters")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            Button("Clear Filters") {
+                filterState.searchText = ""
+                filterState.filterStatus = .all
+                filterState.timeWindow = .all
+            }
+            .font(.caption)
+            .buttonStyle(.borderless)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -254,6 +290,10 @@ struct CronJobDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                if !runRecords.isEmpty {
+                    statsStrip
+                    healthBar
+                }
                 detailCard
                 if !runRecords.isEmpty {
                     runHistoryCard
@@ -287,6 +327,83 @@ struct CronJobDetailView: View {
                     .textSelection(.enabled)
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Stats
+
+    private var successRate: Double {
+        runStore.successRate(for: job.id)
+    }
+
+    private var failureCount: Int {
+        runRecords.filter { !$0.isOk }.count
+    }
+
+    private var averageIntervalLabel: String? {
+        guard let interval = runStore.averageInterval(for: job.id), interval > 0 else { return nil }
+        if interval < 90 { return String(format: "%.0fs", interval) }
+        if interval < 5_400 { return String(format: "%.0fm", interval / 60) }
+        if interval < 172_800 { return String(format: "%.1fh", interval / 3_600) }
+        return String(format: "%.1fd", interval / 86_400)
+    }
+
+    private var statsStrip: some View {
+        HStack(spacing: 10) {
+            statTile(
+                "Success",
+                value: String(format: "%.0f%%", successRate),
+                tint: successRate >= 80 ? Theme.success : (successRate >= 50 ? Theme.warning : .red)
+            )
+            statTile("Runs", value: "\(runRecords.count)", tint: Theme.accent)
+            statTile(
+                "Failures",
+                value: "\(failureCount)",
+                tint: failureCount == 0 ? Theme.success : .red
+            )
+            if let interval = averageIntervalLabel {
+                statTile("Avg gap", value: interval, tint: Theme.secondary)
+            }
+        }
+    }
+
+    private func statTile(_ label: String, value: String, tint: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var healthBar: some View {
+        Group {
+            if runRecords.count > 1 {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Run health")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Theme.tertiary)
+                    HStack(spacing: 2) {
+                        let recent = Array(runRecords.reversed().suffix(40))
+                        ForEach(recent) { record in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(record.isOk ? Theme.success : Color.red)
+                                .frame(height: 16)
+                                .opacity(record.isOk ? 0.85 : 1)
+                        }
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+            }
         }
     }
 
