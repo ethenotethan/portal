@@ -110,6 +110,7 @@
 		34A11733DEDCA3D557CB3CE4 /* WikiGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA37D2649DCF0677BDD8A2F /* WikiGraphView.swift */; };
 		3500E229145AE9C0B36F6C00 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3772BAD993D4BE7106C8635C /* Session.swift */; };
 		364C7AD1C0A9F608B8F81306 /* ArtifactCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194FFCA4DF6D02ECF2AE60E3 /* ArtifactCanvasView.swift */; };
+		36CEBB400CC97E6B08BB6F3B /* ThemedSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */; };
 		37AD4088033E20618F52D72F /* WikiGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1453EC6C9E872F3B4AE74ED8 /* WikiGraphViewModel.swift */; };
 		37DABD505B0D114B6349EC0C /* FlashcardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A942B80C820875BEF8FA828 /* FlashcardModels.swift */; };
 		3815CA6F951B724F2FAEB15B /* DomainProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5244CE7F599F79F273FC22D /* DomainProtocols.swift */; };
@@ -493,6 +494,7 @@
 		ECB6E8DCD18A3C5CAEEB616B /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE0C45339C8364B54C1BA18 /* ChatViewModel.swift */; };
 		ECC4FE3096054E480AD19662 /* SRSDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36E6DAF8C84B7DEC3CD43732 /* SRSDashboardView.swift */; };
 		ECFAB2FCCEB2DA96DF88B937 /* WikiPathPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA4EB9807531D0D23815A0E /* WikiPathPickerSheet.swift */; };
+		EE411EAD67DF189422BB3200 /* ThemedSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */; };
 		EED03C100C2EB1A7DF291595 /* ThoughtGraphNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE618A82E60385625B36F89 /* ThoughtGraphNode.swift */; };
 		EF23E7CBD46A3D76DB75F7B8 /* StatTileSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15A88948F5D06F0A1D967759 /* StatTileSpec.swift */; };
 		EFF90FB2505E5AA851CB04A2 /* PortalOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250EB09F699471E388BC10E3 /* PortalOfflineSmokeUITests.swift */; };
@@ -699,6 +701,7 @@
 		834BA31940CE15D7D075854E /* FeedViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedViewModel.swift; sourceTree = "<group>"; };
 		83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetInlineDiff.swift; sourceTree = "<group>"; };
 		8485FAE36D7BCE60C7B49956 /* DelegationBatchRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegationBatchRecord.swift; sourceTree = "<group>"; };
+		8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemedSegmentedControl.swift; sourceTree = "<group>"; };
 		8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 		87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactMaintenanceSection.swift; sourceTree = "<group>"; };
 		8A42555FC2D58C23D24FF073 /* WikiEventsKnowledgePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsKnowledgePane.swift; sourceTree = "<group>"; };
@@ -1111,6 +1114,7 @@
 				2D55E2098792DCE66D3CF1E5 /* SkillsView.swift */,
 				ADAA6BB991E73D9F8BC0D92D /* StreamingStatusBar.swift */,
 				5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */,
+				8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */,
 				A5A889A6C9F2939CF0220118 /* ThumbnailImageView.swift */,
 				3BDDC3902F7860A5D9A5FA98 /* ToolCallView.swift */,
 				8DC8A5590D3552402FA4965F /* ToolPillView.swift */,
@@ -1752,6 +1756,7 @@
 				A3D6B855E77642F9DC29DF6B /* TTSService.swift in Sources */,
 				432605BB40DBEE5380FD14A3 /* TUISkin.swift in Sources */,
 				FC4A196620EF0C9F8262C587 /* Theme.swift in Sources */,
+				36CEBB400CC97E6B08BB6F3B /* ThemedSegmentedControl.swift in Sources */,
 				6823BA7EAE284AAE72744F64 /* ThinkingBeatsPanel.swift in Sources */,
 				B3BB26510DCED6CCC8351DF3 /* ThoughtGraphLayoutEngine.swift in Sources */,
 				AE550F55A7E1CA8CC7D505F4 /* ThoughtGraphNode.swift in Sources */,
@@ -2027,6 +2032,7 @@
 				C10593DE88A9448DA0962D33 /* TTSService.swift in Sources */,
 				86D73EC693BC45C6A1855925 /* TUISkin.swift in Sources */,
 				722D1A26F3ADA6E9C5C83299 /* Theme.swift in Sources */,
+				EE411EAD67DF189422BB3200 /* ThemedSegmentedControl.swift in Sources */,
 				9F74981E963CA515094A52E8 /* ThinkingBeatsPanel.swift in Sources */,
 				F74EB54ADDB6D88AC501ECF2 /* ThoughtGraphLayoutEngine.swift in Sources */,
 				EED03C100C2EB1A7DF291595 /* ThoughtGraphNode.swift in Sources */,
