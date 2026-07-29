@@ -407,6 +407,7 @@
 		C277086193AF7389B955998E /* AgentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A5D8242F20D9F2ADD0AF98 /* AgentModel.swift */; };
 		C2B95E50CD04EDC65F1B1B75 /* NetworkGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5ACC8E6438A5E3567D2886 /* NetworkGraphView.swift */; };
 		C33FF627DD4CE604FDDDD88A /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EEF4FE45ED2AF8CF940B9D2 /* SettingsViewModel.swift */; };
+		C368AAECE6D6A489B5C4FE7F /* WriterRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB758FC85F5888574E37E901 /* WriterRef.swift */; };
 		C38097D0F4AF2916C06E8A02 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D55E2098792DCE66D3CF1E5 /* SkillsView.swift */; };
 		C38E52A99D7D9D43458C04F6 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */; };
 		C41440E71AF06455A281B928 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */; };
@@ -467,6 +468,7 @@
 		DEFA1B4962475B953A49584E /* IOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F03A3919DBBDF2E95C23A0 /* IOSApp.swift */; };
 		DFFBCDB2BCBF19AB1BA8D576 /* FlashcardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A942B80C820875BEF8FA828 /* FlashcardModels.swift */; };
 		E13E75BDE8639A73256718E0 /* TurnSkillsLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DF29D74D5D721EF473D0D3 /* TurnSkillsLens.swift */; };
+		E1EB8D6AE667ABE17040EE99 /* WriterRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB758FC85F5888574E37E901 /* WriterRef.swift */; };
 		E2C46688417BF81B74521F1F /* DashboardCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F09A419D2108A3B75A0392C /* DashboardCanvasView.swift */; };
 		E2E88965B48A0458EB0AC99E /* ArtifactParseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC40744C7D94DBBF78EEA6B8 /* ArtifactParseError.swift */; };
 		E2F850B785A78B791C66C9C1 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7FB945E773A940CC79BB9A /* SavedGateway.swift */; };
@@ -782,6 +784,7 @@
 		E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBlockView.swift; sourceTree = "<group>"; };
 		EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CentaurWikiClient+Timeline.swift"; sourceTree = "<group>"; };
 		EB352F7F788884359CE97E43 /* Portal-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Portal-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB758FC85F5888574E37E901 /* WriterRef.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriterRef.swift; sourceTree = "<group>"; };
 		EC041062826FA7BF292F346A /* QuizStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizStore.swift; sourceTree = "<group>"; };
 		ECEC837BEDF9ED53A4FC0757 /* GatewayCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayCapabilities.swift; sourceTree = "<group>"; };
 		ED2EE0ECBF324FCB40A2E1B2 /* SessionTimelineEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineEvent.swift; sourceTree = "<group>"; };
@@ -1006,6 +1009,7 @@
 				01C73EE9E684A12438F66485 /* TimelineSpec.swift */,
 				F860E18D4A7E50128104782D /* WikiEventTimeline.swift */,
 				3AD1A24AEBBBFFCB5ADC71F5 /* WikiGraph.swift */,
+				EB758FC85F5888574E37E901 /* WriterRef.swift */,
 				DD5098E2BEDDDFE9F2901EEC /* JSONRPC */,
 				9A8460C05FBBB613AAF6B796 /* Quiz */,
 			);
@@ -1772,6 +1776,7 @@
 				D9166EFFFC5C101E86EA5548 /* WikiReaderPane.swift in Sources */,
 				0265B7B93D058ADE36785F52 /* WikiTimelineView.swift in Sources */,
 				9336F13D313D7A22F888C81D /* WikiTimelineViewModel.swift in Sources */,
+				C368AAECE6D6A489B5C4FE7F /* WriterRef.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2044,6 +2049,7 @@
 				2FAC04E91AAE2934667A2EC2 /* WikiReaderPane.swift in Sources */,
 				1D8F4A69EB4B1460BE6DD970 /* WikiTimelineView.swift in Sources */,
 				0D730F1EAF645269349415E3 /* WikiTimelineViewModel.swift in Sources */,
+				E1EB8D6AE667ABE17040EE99 /* WriterRef.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1089,7 +1089,7 @@ internal struct ContentView: View {
 
             if showArtifactsPane {
                 #if os(macOS)
-                ArtifactCanvasView { showArtifactsPane = false }
+                ArtifactCanvasView()
                     .environmentObject(gatewayClientWrapper)
                     .environmentObject(capabilitiesStore)
                     .environment(\.openCron) { _ in

@@ -41,6 +41,33 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(narrowHeight != wideHeight)
     }
 
+    @Test("a fit height bounds the layout box and every node lands inside it")
+    internal func fitHeightBoundsLayout() throws {
+        let spec = try #require(NetworkGraphSpec.parse(fixture))
+        let fitHeight: CGFloat = 200
+        let result = NetworkGraphLayout.layout(spec, width: 600, fitHeight: fitHeight)
+
+        #expect(result.size.height == fitHeight)
+        for placed in result.placed {
+            #expect(placed.position.y >= 0)
+            #expect(placed.position.y <= fitHeight)
+            #expect(placed.position.x >= 0)
+            #expect(placed.position.x <= 600)
+        }
+    }
+
+    @Test("fit-height layout is cached separately from intrinsic layout")
+    internal func fitHeightMemoKeyIsDistinct() throws {
+        let spec = try #require(NetworkGraphSpec.parse(fixture))
+        let intrinsic = NetworkGraphLayout.layout(spec, width: 600)
+        let fitted = NetworkGraphLayout.layout(spec, width: 600, fitHeight: 150)
+
+        // The intrinsic layout of this 9-node chain is far taller than 150,
+        // so a shared memo entry would return the wrong geometry.
+        #expect(intrinsic.size.height != fitted.size.height)
+        #expect(fitted.size.height == 150)
+    }
+
     @Test("invalid transient widths fall back to the stable nominal width")
     internal func invalidWidthFallback() throws {
         let spec = try #require(NetworkGraphSpec.parse(fixture))

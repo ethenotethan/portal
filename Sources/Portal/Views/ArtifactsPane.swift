@@ -9,7 +9,7 @@ struct ArtifactsPane: View {
     var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = ArtifactStore.shared
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
     @State private var selectedID: String?
 
@@ -21,7 +21,7 @@ struct ArtifactsPane: View {
         } ?? visibleArtifacts.first
     }
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
@@ -139,8 +139,8 @@ struct ArtifactsPane: View {
                 Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
-                if !artifact.updatedBy.isEmpty {
-                    Text("· \(artifact.updatedBy)")
+                if let writer = WriterRef.parse(artifact.updatedBy) {
+                    Text("· \(writer.label(cronName: { _ in nil }))")
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                         .lineLimit(1)
@@ -196,16 +196,18 @@ private struct HSplitViewCompat<Content: View>: View {
 
 // MARK: - Detail (Rendered / History)
 
-private struct ArtifactDetailView: View {
-    let artifact: LivingArtifact
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+/// Shared by the iOS pane and the macOS canvas's list mode — one detail
+/// surface (Rendered / History) everywhere artifacts are inspected.
+internal struct ArtifactDetailView: View {
+    internal let artifact: LivingArtifact
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     private enum Tab: String, CaseIterable { case rendered = "Rendered", history = "History" }
     @State private var tab: Tab = .rendered
     @State private var cronVM = CronListViewModel()
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Picker("", selection: $tab) {
@@ -227,7 +229,8 @@ private struct ArtifactDetailView: View {
             case .rendered:
                 renderedTab
             case .history:
-                ArtifactHistoryView(artifact: artifact)
+                ArtifactHistoryView(artifact: artifact, jobs: cronVM.jobs)
+                    .task { await refreshCrons() }
             }
         }
         // Tab resets when switching artifacts.
@@ -577,6 +580,8 @@ private struct ArtifactTopLevelActionBar: View {
 
 private struct ArtifactHistoryView: View {
     let artifact: LivingArtifact
+    /// Known cron jobs — resolves a `cron:<jobId>` writer to its display name.
+    var jobs: [CronJob] = []
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
 
     @State private var revisions: [ArtifactRevision] = []
@@ -657,11 +662,16 @@ private struct ArtifactHistoryView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
             }
-            if !revision.updatedBy.isEmpty {
-                Text(revision.updatedBy)
-                    .font(.caption2)
-                    .foregroundStyle(Theme.tertiary)
-                    .lineLimit(1)
+            if let writer = WriterRef.parse(revision.updatedBy) {
+                HStack(spacing: 4) {
+                    Image(systemName: writer.icon)
+                        .font(.system(size: 8))
+                        .foregroundStyle(writerTint(writer))
+                    Text(writer.label(cronName: cronName))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(8)
@@ -674,6 +684,18 @@ private struct ArtifactHistoryView: View {
         .onTapGesture {
             selectedRevision = revision
             Task { await loadRevisionContent(revision) }
+        }
+    }
+
+    private func cronName(_ jobID: String) -> String? {
+        jobs.first { $0.id == jobID }?.name
+    }
+
+    private func writerTint(_ writer: WriterRef) -> Color {
+        switch writer {
+        case .cron: return Theme.accent
+        case .session: return Theme.secondary
+        default: return Theme.tertiary
         }
     }
 

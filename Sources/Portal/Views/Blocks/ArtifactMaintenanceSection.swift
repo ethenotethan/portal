@@ -29,16 +29,19 @@ extension EnvironmentValues {
 ///   last status, tappable through to the cron surface.
 /// - A declared cron that no longer exists → shown as "missing" so a broken
 ///   link is visible, not silent.
-/// - None declared → a quiet "Not on a schedule" line, with a link affordance
-///   on JSON artifacts so a human can attach the maintaining cron.
+/// - None declared → a quiet "Not on a schedule" line.
+///
+/// Maintainers are DECLARATIVE: a cron that writes an artifact stamps itself
+/// into the content's `maintainers` array on the gateway. There's no manual
+/// "link a cron" affordance — the link exists because the cron actually tends
+/// the artifact, not because someone remembered to wire it up. Unlink remains
+/// as an escape hatch for stale declarations.
 struct ArtifactMaintenanceSection: View {
     let artifact: LivingArtifact
     /// All known cron jobs (from CronListViewModel), used to resolve refs.
     let jobs: [CronJob]
     @Environment(\.openCron) private var openCron
     @ObservedObject private var store = ArtifactStore.shared
-
-    @State private var isLinking = false
 
     private var refs: [MaintainerRef] { artifact.maintainerRefs }
 
@@ -68,9 +71,6 @@ struct ArtifactMaintenanceSection: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
             Spacer()
-            if artifact.supportsMaintainers {
-                linkMenu
-            }
         }
     }
 
@@ -176,36 +176,6 @@ struct ArtifactMaintenanceSection: View {
         }
         .buttonStyle(.plain)
         .help("Unlink this maintainer")
-    }
-
-    // MARK: Link menu
-
-    @ViewBuilder
-    private var linkMenu: some View {
-        let linkable = jobs.filter { job in !refs.contains(.cron(jobID: job.id)) }
-        Menu {
-            if linkable.isEmpty {
-                Text("No other cron jobs to link")
-            } else {
-                ForEach(linkable) { job in
-                    Button {
-                        store.setMaintainers(
-                            artifactID: artifact.id,
-                            refs: refs + [.cron(jobID: job.id)]
-                        )
-                    } label: {
-                        Label(job.name, systemImage: "clock.arrow.circlepath")
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "plus.circle")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Theme.accent)
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .help("Link a cron job that maintains this artifact")
     }
 
     // MARK: Presentation helpers
