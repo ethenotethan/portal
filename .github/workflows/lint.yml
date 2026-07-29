@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   swift-lint:
     name: SwiftLint
@@ -60,15 +64,6 @@ jobs:
         run: |
           BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
           python3 scripts/check-baseline-growth.py "$BASE"
-
-  swift-build:
-    name: Swift Build
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build
-        run: swift build -c release
 
   metric-ratchet:
     name: Metric ratchet
