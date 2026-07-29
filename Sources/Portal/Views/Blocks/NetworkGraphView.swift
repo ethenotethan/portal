@@ -10,10 +10,13 @@ struct NetworkGraphView: View {
     /// Host-owned node selection (ensemble models share one selection bus
     /// across stacked views); nil = the card keeps private state.
     var externalSelection: Binding<String?>?
+    /// Fixed-height hosts (model panes) pass their canvas height so the
+    /// layout scales to fit inside it; nil = intrinsic height (chat blocks).
+    internal var fitHeight: CGFloat?
 
     var body: some View {
         if let spec = NetworkGraphSpec.parse(json) {
-            GraphCard(spec: spec, externalSelection: externalSelection)
+            GraphCard(spec: spec, externalSelection: externalSelection, fitHeight: fitHeight)
         } else if Self.looksLikeMermaid(json) {
             // Models sometimes put mermaid `graph TD` syntax in a ```graph
             // fence. That's a diagram, not our JSON — route it to mermaid.
@@ -38,6 +41,7 @@ struct NetworkGraphView: View {
 private struct GraphCard: View {
     let spec: NetworkGraphSpec
     var externalSelection: Binding<String?>?
+    var fitHeight: CGFloat?
     @State private var localSelection: String?
     /// Groups hidden via legend chips.
     @State private var hiddenGroups: Set<String> = []
@@ -72,7 +76,8 @@ private struct GraphCard: View {
                 spec: spec,
                 groupColors: groupColors,
                 hiddenGroups: hiddenGroups,
-                selectedNodeID: selectionBinding
+                selectedNodeID: selectionBinding,
+                fillsHeight: fitHeight != nil
             )
             if !spec.groups.isEmpty {
                 legendChips
@@ -119,6 +124,10 @@ private struct GraphCanvas: View {
     let groupColors: [String: Color]
     let hiddenGroups: Set<String>
     @Binding var selectedNodeID: String?
+    /// true when the host owns the height (a model pane): the canvas fills
+    /// whatever it's given and scales the layout to fit inside it, instead of
+    /// reporting an intrinsic height.
+    var fillsHeight = false
     /// The canvas must report the height of the layout produced at its live
     /// width. Using a fixed nominal width here makes the GeometryReader draw a
     /// taller layout than SwiftUI reserves at narrow widths, so descendants
@@ -137,33 +146,47 @@ private struct GraphCanvas: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let width = NetworkGraphCanvasSizing.effectiveWidth(geo.size.width)
-            let layout = NetworkGraphLayout.layout(spec, width: width)
-            let visible = visibleNodeIDs(layout)
-            let lit = selectedNodeID.map(neighbors(of:))
+        if fillsHeight {
+            // Host-sized: fill the pane; the layout scales to fit its live
+            // height (minus the bottom label tail) so nothing gets clipped.
+            GeometryReader { geo in
+                let width = NetworkGraphCanvasSizing.effectiveWidth(geo.size.width)
+                let fit = max(60, geo.size.height - NetworkGraphCanvasSizing.bottomLabelPadding)
+                canvasContent(layout: NetworkGraphLayout.layout(spec, width: width, fitHeight: fit))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+        } else {
+            GeometryReader { geo in
+                let width = NetworkGraphCanvasSizing.effectiveWidth(geo.size.width)
+                canvasContent(layout: NetworkGraphLayout.layout(spec, width: width))
+            }
+            .frame(height: NetworkGraphCanvasSizing.height(for: spec, width: measuredWidth))
+            .clipped()
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                NetworkGraphCanvasSizing.effectiveWidth(proxy.size.width)
+            } action: { width in
+                guard abs(width - measuredWidth) >= 1 else { return }
+                measuredWidth = width
+            }
+        }
+    }
 
-            ZStack(alignment: .topLeading) {
-                edgeCanvas(layout: layout, visible: visible, lit: lit)
-                ForEach(layout.placed) { placed in
-                    if visible.contains(placed.id) {
-                        nodeView(placed, lit: lit)
-                            .position(placed.position)
-                    }
+    private func canvasContent(layout: NetworkGraphLayout.Result) -> some View {
+        let visible = visibleNodeIDs(layout)
+        let lit = selectedNodeID.map(neighbors(of:))
+        return ZStack(alignment: .topLeading) {
+            edgeCanvas(layout: layout, visible: visible, lit: lit)
+            ForEach(layout.placed) { placed in
+                if visible.contains(placed.id) {
+                    nodeView(placed, lit: lit)
+                        .position(placed.position)
                 }
             }
-            .clipped()
-            .contentShape(Rectangle())
-            .onTapGesture { selectedNodeID = nil }
         }
-        .frame(height: NetworkGraphCanvasSizing.height(for: spec, width: measuredWidth))
         .clipped()
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            NetworkGraphCanvasSizing.effectiveWidth(proxy.size.width)
-        } action: { width in
-            guard abs(width - measuredWidth) >= 1 else { return }
-            measuredWidth = width
-        }
+        .contentShape(Rectangle())
+        .onTapGesture { selectedNodeID = nil }
     }
 
     private func visibleNodeIDs(_ layout: NetworkGraphLayout.Result) -> Set<String> {

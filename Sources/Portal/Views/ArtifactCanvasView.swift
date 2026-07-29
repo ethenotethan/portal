@@ -7,8 +7,6 @@ import SwiftUI
 /// click interactions work inside each panel.
 @MainActor
 internal struct ArtifactCanvasView: View {
-    internal var onClose: (() -> Void)?
-
     @ObservedObject private var store = ArtifactStore.shared
 
     // Canvas state
@@ -47,14 +45,21 @@ internal struct ArtifactCanvasView: View {
         .onChange(of: store.sortedArtifacts.map(\.id)) { _, newIDs in
             reconcileLayout(artifactIDs: newIDs, bounds: canvasBounds)
         }
-        .sheet(item: $expandedArtifact) { artifact in
-            ArtifactExpandedSheet(artifact: artifact)
+        // Expand fills THIS surface edge-to-edge — an in-place takeover, not
+        // a floating sheet, so "expand" actually reads as full screen.
+        .overlay {
+            if let artifact = expandedArtifact {
+                ArtifactExpandedOverlay(artifact: artifact) {
+                    expandedArtifact = nil
+                }
                 .environmentObject(gatewayClientWrapper)
                 .environmentObject(capabilitiesStore)
+                .transition(.opacity)
+            }
         }
     }
 
-    // environment objects needed for the sheet
+    // environment objects needed for the expanded overlay
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
@@ -144,6 +149,8 @@ internal struct ArtifactCanvasView: View {
                 .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
 
+            // The overlay's Back button (ContentView) is the one way out of
+            // this surface — no duplicate xmark here.
             if viewMode == .list, let artifact = selectedArtifact {
                 Button {
                     expandedArtifact = artifact
@@ -154,17 +161,6 @@ internal struct ArtifactCanvasView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Expand to full screen")
-            }
-
-            if let onClose {
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Theme.tertiary)
-                        .frame(width: 26, height: 26)
-                        .background(Theme.surfaceHover, in: Circle())
-                }
-                .buttonStyle(.borderless)
             }
         }
         .padding(.horizontal, 16)
@@ -213,12 +209,13 @@ internal struct ArtifactCanvasView: View {
             .background(Theme.surface.opacity(0.4))
 
             // Detail — full renderer for selected artifact
+            // Same Rendered/History detail surface the iOS pane uses, so
+            // revision attribution (who's revising: a cron, an agent session,
+            // or you) is inspectable on macOS too.
             if let artifact = selectedArtifact {
-                ArtifactListDetail(artifact: artifact) {
-                    expandedArtifact = artifact
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .id(artifact.id)
+                ArtifactDetailView(artifact: artifact)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(artifact.id)
             } else {
                 Text("Select an artifact")
                     .font(.callout)
@@ -260,8 +257,8 @@ internal struct ArtifactCanvasView: View {
                 Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
-                if !artifact.updatedBy.isEmpty {
-                    Text("· \(artifact.updatedBy)")
+                if let writer = WriterRef.parse(artifact.updatedBy) {
+                    Text("· \(writer.label(cronName: { _ in nil }))")
                         .font(.caption2)
                         .foregroundStyle(Theme.tertiary)
                         .lineLimit(1)
@@ -463,92 +460,14 @@ internal struct ArtifactCanvasView: View {
     }
 }
 
-// MARK: - List detail view
+// MARK: - Expanded full-screen overlay
 
-/// Full-size detail pane used in list mode: maintenance section on top,
-/// rendered content below.
-private struct ArtifactListDetail: View {
+/// Full-screen takeover showing a single artifact, layered over the artifacts
+/// surface (not a floating sheet — expand means the artifact fills the
+/// window). Collapse via the header button or Escape.
+private struct ArtifactExpandedOverlay: View {
     let artifact: LivingArtifact
-    var onExpand: (() -> Void)?
-
-    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
-    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
-
-    @State private var cronVM = CronListViewModel()
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Detail sub-header: artifact id + expand button
-            HStack {
-                Text(artifact.id)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(Theme.tertiary)
-                    .lineLimit(1)
-                Spacer()
-                Button {
-                    onExpand?()
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.secondary)
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
-                .help("Expand to full screen")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Theme.surface.opacity(0.3))
-
-            Divider().overlay(Theme.border.opacity(0.5))
-
-            if artifact.kind == "html" {
-                VStack(alignment: .leading, spacing: 0) {
-                    ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
-                        .padding(16)
-                    ArtifactKindRenderer(
-                        kind: artifact.kind, content: artifact.content,
-                        actionableArtifactID: artifact.id,
-                        topLevelActions: artifact.topLevelActions
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
-                        ArtifactKindRenderer(
-                            kind: artifact.kind, content: artifact.content,
-                            actionableArtifactID: artifact.id,
-                            topLevelActions: artifact.topLevelActions
-                        )
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-        .task { await refreshCrons() }
-    }
-
-    private func refreshCrons() async {
-        cronVM.setGatewayClient(gatewayClientWrapper.client)
-        await cronVM.refreshJobs()
-        if capabilitiesStore.capabilities.supportsActionLog {
-            ArtifactStore.shared.rehydrateBadges(for: artifact.id)
-        }
-    }
-}
-
-// MARK: - Expanded full-screen sheet
-
-/// Full-screen sheet showing a single artifact. Shown from both the toolbar
-/// expand button and the detail pane chevron. Keyboard Escape dismisses.
-private struct ArtifactExpandedSheet: View {
-    let artifact: LivingArtifact
-    @Environment(\.dismiss) private var dismiss
+    let onDismiss: () -> Void
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
@@ -572,10 +491,8 @@ private struct ArtifactExpandedSheet: View {
                         .foregroundStyle(Theme.tertiary)
                 }
                 Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
+                Button(action: onDismiss) {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Theme.tertiary)
                         .frame(width: 28, height: 28)
@@ -583,6 +500,7 @@ private struct ArtifactExpandedSheet: View {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.escape, modifiers: [])
+                .help("Collapse")
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
@@ -621,7 +539,7 @@ private struct ArtifactExpandedSheet: View {
             }
         }
         .background(Theme.background)
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await refreshCrons() }
     }
 

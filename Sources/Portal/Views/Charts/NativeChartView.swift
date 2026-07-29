@@ -114,8 +114,11 @@ private struct ChartCard: View {
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
             }
+            // Ideal height for unconstrained hosts (chat transcript); inside a
+            // fixed-height model pane the plot compresses or stretches to fit
+            // instead of overflowing into .clipped().
             styledChart
-                .frame(height: 280)
+                .frame(minHeight: 100, idealHeight: 280, maxHeight: .infinity)
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .topTrailing) {
                     if let readout {
