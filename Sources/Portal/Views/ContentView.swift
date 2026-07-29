@@ -608,17 +608,9 @@ internal struct ContentView: View {
             ModelPickerMenu()
                 .environmentObject(chatViewModel)
 
-            if chatViewModel.isStreaming {
-                Button {
-                    Task { await chatViewModel.interrupt() }
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .accessibilityIdentifier("stopButton")
-            }
+            // Stopping a run lives on the composer's send/stop toggle
+            // (bottom-right), right where the user is typing — no duplicate
+            // Stop control up here in the toolbar.
         }
         .frame(height: 40)
     }
