@@ -42,6 +42,9 @@ test only for a genuine end-to-end path.**
 ## What CI enforces on every PR
 
 - `tests.yml` — the behavior gates, one workflow, one check each:
+  - `Tests / Build (macOS + iOS)` — both platforms compile. A macOS-only local
+    `swift build` can pass while the iOS target (`Portal-iOS`) fails; build iOS
+    locally before pushing UI changes.
   - `Tests / Swift package tests` — the unit suite (layer 1).
   - `Tests / SwiftLint` — `swiftlint --strict` gated on `.swiftlint-baseline`.
   - `Tests / iOS simulator smoke tests` — the hermetic offline + gateway + E2E
@@ -50,9 +53,6 @@ test only for a genuine end-to-end path.**
 - `ratchet.yml` — posture floors, incl. `Ratchet / Quality` (the baseline-growth
   guard: a new violation must be fixed, not baselined). See the CI posture
   taxonomy in architecture-rules.md.
-- `build.yml` — builds the **iOS Simulator** target (`Portal-iOS`). A macOS-only
-  local `swift build` can pass while iOS CI fails; build the iOS target locally
-  before pushing UI changes.
 - `snapshot-record.yml` — records/verifies view goldens (layer 2).
 
 `make check` runs lint + baseline-guard + build + tests locally, mirroring CI.

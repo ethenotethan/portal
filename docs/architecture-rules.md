@@ -83,8 +83,9 @@ CI checks are organized so the PR checks list reads by **intent**, split into
 two families:
 
 - **Tests** (`tests.yml`) — does it *work*? Things that run and pass/fail on
-  behavior: the lint run, the unit suite, the iOS simulator smoke/E2E flows,
-  the macOS main-thread hang gate. Each is its own `Tests / <name>` check.
+  behavior: the macOS + iOS build, the lint run, the unit suite, the iOS
+  simulator smoke/E2E flows, the macOS main-thread hang gate. Each is its own
+  `Tests / <name>` check.
 - **Ratchet** (`ratchet.yml`) — did a tracked metric get *worse*? Posture
   floors, each a committed benchmark that may improve but never regress. Each
   is its own `Ratchet / <name>` check.
@@ -96,6 +97,7 @@ floor that its baseline can't be *grown* to silence one is a ratchet
 
 | Check (workflow / job) | Family | Defends / does | Benchmark | Script |
 |---|---|---|---|---|
+| `Tests / Build (macOS + iOS)` | Tests | Both platforms compile | — | xcodebuild build |
 | `Tests / SwiftLint` | Tests | Strict lint run (new violations fail) | `.swiftlint-baseline` | swiftlint |
 | `Tests / Swift package tests` | Tests | SwiftPM unit suite | — | swift test |
 | `Tests / iOS simulator smoke tests` | Tests | Offline + gateway + E2E flows | — | xcodebuild test |
