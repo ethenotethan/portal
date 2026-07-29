@@ -293,6 +293,72 @@ internal enum NetworkGraphCanvasSizing {
     }
 }
 
+// MARK: - Artifact explorer (interactive)
+
+/// Renders a graph ARTIFACT through the interactive wiki-graph explorer — the
+/// same live force simulation the wiki surface and diagram explorer use (pan,
+/// zoom, node drag, tap-to-select with click-through neighbors, 2D/3D). Chat
+/// and transcript blocks keep the static layout above: a block should settle
+/// and hold still. Artifact surfaces are where graphs get inspected, so they
+/// get the navigable renderer.
+///
+/// The host must give this a bounded height (artifact panes treat "graph" as
+/// a fill-height kind, like "html") — the explorer's GeometryReader collapses
+/// under an unbounded ScrollView height proposal.
+internal struct GraphExplorerBlockView: View {
+    internal let json: String
+
+    internal var body: some View {
+        if let spec = NetworkGraphSpec.parse(json) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let title = spec.title {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
+                InteractiveGraphView(graph: spec.wikiGraph)
+                    .frame(minHeight: 340)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Theme.border, lineWidth: 0.5)
+                    )
+            }
+        } else if NetworkGraphView.looksLikeMermaid(json) {
+            // Same fallback as chat: mermaid `graph TD` syntax in a graph
+            // artifact is a diagram, not our JSON.
+            MermaidDiagramView(mermaidCode: json, isStreaming: false)
+        } else {
+            GraphErrorNote(source: json)
+        }
+    }
+}
+
+internal extension NetworkGraphSpec {
+    /// Project the spec onto the wiki-graph model so artifact graphs render
+    /// through the interactive explorer. Node group → page type (drives the
+    /// hashed group colors); edge label → link type.
+    var wikiGraph: WikiGraph {
+        let pages = nodes.map { node in
+            WikiPage(
+                id: node.id,
+                title: node.label,
+                type: node.group ?? "node",
+                tags: node.group.map { [$0] } ?? [],
+                path: node.id,
+                created: nil,
+                updated: nil,
+                confidence: nil,
+                contested: false,
+                tagPath: node.group.map { [$0] } ?? [],
+                integrationLinks: []
+            )
+        }
+        let links = edges.map { WikiLink(source: $0.from, target: $0.to, type: $0.label ?? "edge") }
+        return WikiGraph(pages: pages, links: links)
+    }
+}
+
 // MARK: - Error note
 
 private struct GraphErrorNote: View {

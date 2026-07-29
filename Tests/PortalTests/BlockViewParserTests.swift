@@ -241,6 +241,33 @@ struct NetworkGraphSpecTests {
         #expect(NetworkGraphView.looksLikeMermaid("flowchart LR\n  A --> B"))
         #expect(!NetworkGraphView.looksLikeMermaid("{\"nodes\": []}"))
     }
+
+    @Test("Spec projects onto a WikiGraph for the interactive explorer")
+    private func wikiGraphProjection() {
+        let graph = NetworkGraphSpec.parse("""
+        {"nodes": [
+           {"id": "api", "label": "API", "group": "backend"},
+           {"id": "db"},
+           {"id": "cache", "group": "backend"}
+         ],
+         "edges": [{"from": "api", "to": "db", "label": "reads"},
+                   {"from": "api", "to": "cache"}]}
+        """)?.wikiGraph
+        #expect(graph?.pages.count == 3)
+        #expect(graph?.links.count == 2)
+        let api = graph?.pages.first { $0.id == "api" }
+        #expect(api?.title == "API")
+        #expect(api?.type == "backend")        // group → page type (drives color)
+        #expect(api?.path == "api")            // selection plane keys on path
+        let db = graph?.pages.first { $0.id == "db" }
+        #expect(db?.type == "node")            // no group → neutral type
+        #expect(db?.tagPath.isEmpty == true)
+        let reads = graph?.links.first { $0.target == "db" }
+        #expect(reads?.source == "api")
+        #expect(reads?.type == "reads")        // edge label → link type
+        let unlabeled = graph?.links.first { $0.target == "cache" }
+        #expect(unlabeled?.type == "edge")
+    }
 }
 
 @Suite("Living Artifacts")

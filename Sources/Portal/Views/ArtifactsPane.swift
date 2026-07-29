@@ -240,11 +240,11 @@ internal struct ArtifactDetailView: View {
         .id(artifact.id)
     }
 
-    /// Kinds whose content is a full document that manages its own scrolling
-    /// (a WKWebView for html) — they must FILL the pane with a bounded height
-    /// rather than sit in the outer ScrollView, where an unbounded height
-    /// proposal collapses them to a clipped rectangle.
-    private var kindFillsHeight: Bool { artifact.kind == "html" }
+    /// Kinds whose content manages its own scrolling/gestures (a WKWebView
+    /// for html, the force-directed explorer for graph) — they must FILL the
+    /// pane with a bounded height rather than sit in the outer ScrollView,
+    /// where an unbounded height proposal collapses them.
+    private var kindFillsHeight: Bool { ArtifactKindRenderer.kindFillsHeight(artifact.kind) }
 
     @ViewBuilder
     private var renderedTab: some View {
@@ -300,6 +300,14 @@ struct ArtifactKindRenderer: View {
     /// trusted SwiftUI chrome above the HTML document; no JS bridge involved.
     internal var topLevelActions: [ArtifactAction] = []
 
+    /// Kinds whose content is an interactive viewport that manages its own
+    /// scrolling and gestures (a WKWebView document, a force-directed graph
+    /// explorer) — they must be given a bounded height to FILL, never sit in
+    /// an outer ScrollView where the unbounded height proposal breaks them.
+    internal static func kindFillsHeight(_ kind: String) -> Bool {
+        kind == "html" || kind == "graph"
+    }
+
     internal var body: some View {
         switch kind {
         case "map":
@@ -307,10 +315,12 @@ struct ArtifactKindRenderer: View {
         case "chart":
             NativeChartView(json: content, isStreaming: false, interactive: true)
         case "graph":
-            NetworkGraphView(json: content, isStreaming: false)
+            // Artifacts get the interactive explorer (pan/zoom/drag, click-
+            // through neighbors) — chat blocks keep the static NetworkGraphView.
+            GraphExplorerBlockView(json: content)
         case "stats":
             StatTilesView(json: content, isStreaming: false)
-        case "dataset":
+        case "dataset", "table":
             DatasetBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         case "checklist":
             ChecklistBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
@@ -726,9 +736,9 @@ private struct ArtifactHistoryView: View {
                 .padding(.vertical, 8)
                 Divider().overlay(Theme.border.opacity(0.4))
                 if let content = selectedContent {
-                    if artifact.kind == "html" {
-                        // Full-document kinds fill and scroll internally; a diff
-                        // chip pins above the rendered page.
+                    if ArtifactKindRenderer.kindFillsHeight(artifact.kind) {
+                        // Full-document / interactive kinds fill and manage
+                        // their own scrolling; a diff chip pins above them.
                         VStack(alignment: .leading, spacing: 0) {
                             if let diff = ArtifactDiff.describe(
                                 kind: artifact.kind, old: content, new: artifact.content

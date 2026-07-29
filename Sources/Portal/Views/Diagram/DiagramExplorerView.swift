@@ -7,21 +7,7 @@ struct DiagramExplorerView: View {
     let graph: WikiGraph
     let title: String
 
-    @StateObject private var viewModel = WikiGraphViewModel()
     @Environment(\.dismiss) private var dismiss
-
-    @State private var mouseState = MouseState.idle
-    @State private var dragStartPan: CGSize = .zero
-    @State private var dragStartPoint: CGPoint = .zero
-    @State private var dragNodeIndex: Int?
-    @State private var lastPinchScale: CGFloat = 1.0
-    @State private var is3DMode = false
-
-    private enum MouseState {
-        case idle, deciding, panning, draggingNode
-    }
-
-    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
     init(graph: WikiGraph, title: String) {
         self.graph = graph
@@ -38,19 +24,7 @@ struct DiagramExplorerView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            HStack(spacing: 0) {
-                graphArea
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if let selIdx = viewModel.selectedNodeIndex,
-                   viewModel.simNodes.indices.contains(selIdx) {
-                    Divider()
-                    selectionPanel(nodeIndex: selIdx)
-                        .frame(width: 240)
-                        .background(Theme.background)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                }
-            }
+            InteractiveGraphView(graph: graph)
         }
         .background(Theme.background)
         // Minimum size is macOS-only: 640pt exceeds an iPhone's portrait
@@ -59,13 +33,6 @@ struct DiagramExplorerView: View {
         #if os(macOS)
         .frame(minWidth: 640, minHeight: 480)
         #endif
-        .onReceive(timer) { _ in
-            guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
-            viewModel.tick()
-        }
-        .onChange(of: viewModel.zoom) { _, _ in
-            lastPinchScale = viewModel.zoom
-        }
     }
 
     // MARK: - Header
@@ -84,30 +51,6 @@ struct DiagramExplorerView: View {
 
             Spacer()
 
-            Button {
-                is3DMode.toggle()
-                viewModel.is3D = is3DMode
-                viewModel.setupSimulation()
-            } label: {
-                Image(systemName: is3DMode ? "square.grid.2x2" : "cube.transparent")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help(is3DMode ? "Switch to 2D" : "Switch to 3D")
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    viewModel.resetView()
-                }
-            } label: {
-                Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.secondary)
-            }
-            .buttonStyle(.borderless)
-            .help("Reset view")
-
             Button("Done") {
                 dismiss()
             }
@@ -117,6 +60,101 @@ struct DiagramExplorerView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(Theme.surface)
+    }
+}
+
+// MARK: - Shared interactive explorer
+
+/// The interactive graph surface shared by the diagram explorer sheet and
+/// graph-kind artifacts: the wiki's live force simulation with pan, zoom,
+/// node drag, tap-to-select with click-through neighbors, and an optional 3D
+/// SceneKit rendering of the same graph. Owns its WikiGraphViewModel and
+/// re-runs the layout when `graph` changes (living artifacts update in place).
+///
+/// The host MUST give this view a bounded height — the GeometryReader inside
+/// collapses under an unbounded (ScrollView) height proposal.
+internal struct InteractiveGraphView: View {
+    internal let graph: WikiGraph
+
+    @StateObject private var viewModel = WikiGraphViewModel()
+    @State private var mouseState = MouseState.idle
+    @State private var dragStartPan: CGSize = .zero
+    @State private var dragStartPoint: CGPoint = .zero
+    @State private var dragNodeIndex: Int?
+    @State private var lastPinchScale: CGFloat = 1.0
+    @State private var is3DMode = false
+
+    private enum MouseState {
+        case idle, deciding, panning, draggingNode
+    }
+
+    private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
+    internal var body: some View {
+        HStack(spacing: 0) {
+            graphArea
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) { controlStrip }
+
+            if let selIdx = viewModel.selectedNodeIndex,
+               viewModel.simNodes.indices.contains(selIdx) {
+                Divider()
+                selectionPanel(nodeIndex: selIdx)
+                    .frame(width: 240)
+                    .background(Theme.background)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .onReceive(timer) { _ in
+            guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
+            viewModel.tick()
+        }
+        .onChange(of: viewModel.zoom) { _, _ in
+            lastPinchScale = viewModel.zoom
+        }
+        .onChange(of: graph) { _, newGraph in
+            viewModel.graph = newGraph
+            viewModel.setupSimulation()
+        }
+    }
+
+    // MARK: - Controls (2D/3D + reset, floating over the canvas)
+
+    private var controlStrip: some View {
+        HStack(spacing: 4) {
+            Button {
+                is3DMode.toggle()
+                viewModel.is3D = is3DMode
+                viewModel.setupSimulation()
+            } label: {
+                Image(systemName: is3DMode ? "square.grid.2x2" : "cube.transparent")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 26, height: 26)
+            }
+            .buttonStyle(.plain)
+            .help(is3DMode ? "Switch to 2D" : "Switch to 3D")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    viewModel.resetView()
+                }
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 26, height: 26)
+            }
+            .buttonStyle(.plain)
+            .help("Reset view")
+        }
+        .padding(3)
+        .background(Theme.surface.opacity(0.85), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Theme.border.opacity(0.5), lineWidth: 0.5)
+        )
+        .padding(10)
     }
 
     // MARK: - Graph Area
