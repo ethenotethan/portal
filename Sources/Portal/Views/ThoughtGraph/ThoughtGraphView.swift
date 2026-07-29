@@ -163,10 +163,15 @@ struct ThoughtGraphView: View {
     // MARK: - Constants
 
     private static let appearDuration: TimeInterval = 0.3
-    /// Screen-space origin of world (0,0): room for the header + time axis on
-    /// top, and lane titles on the left.
-    private static let topMargin: CGFloat = 96
-    private static let leftMargin: CGFloat = 118
+    /// Screen-space origin of world (0,0) under FULL chrome: room for the
+    /// header + time axis on top, and lane titles on the left.
+    private static let fullTopMargin: CGFloat = 96
+    private static let fullLeftMargin: CGFloat = 118
+    /// Widget chrome has no header bar — just the time ruler on top and a
+    /// slim gutter on the left, so the plot actually fills the small box
+    /// instead of leaving an empty quadrant where the big margins were.
+    private static let widgetTopMargin: CGFloat = 22
+    private static let widgetLeftMargin: CGFloat = 8
     /// Below this zoom, bar labels are dropped (bars stay, just quieter).
     private static let labelZoomThreshold: CGFloat = 0.5
     /// While following, keep the newest activity this far across the viewport.
@@ -182,6 +187,18 @@ struct ThoughtGraphView: View {
     /// lane tall enough to fill the whole viewport height — the time axis never
     /// needs to zoom that far, but the lane axis does when there are few lanes.
     private static let maxZoomY: CGFloat = 24.0
+
+    // MARK: - Chrome level (widget vs fullscreen)
+
+    /// A surface that can be EXPANDED (`onExpand != nil`) is a pre-expansion
+    /// WIDGET: compact margins, no header bar, no zoom controls — the host
+    /// already shows the turn's metrics, and the graph simply fills its box.
+    /// A fullscreen surface (`onExpand == nil`, already expanded) gets the
+    /// full chrome: header bar, zoom controls, hover previews.
+    private var isWidget: Bool { onExpand != nil }
+
+    private var topMargin: CGFloat { isWidget ? Self.widgetTopMargin : Self.fullTopMargin }
+    private var leftMargin: CGFloat { isWidget ? Self.widgetLeftMargin : Self.fullLeftMargin }
 
     // MARK: - Visible Nodes
 
@@ -263,6 +280,9 @@ struct ThoughtGraphView: View {
         .gesture(
             MagnificationGesture()
                 .onChanged { value in
+                    // Pinch-zoom is fullscreen chrome — a pre-expansion widget
+                    // fits itself, so a pinch here does nothing.
+                    guard !isWidget else { return }
                     let targetZoom = lastPinchScale * value
                     let clamped = max(Self.minZoom, min(Self.maxZoom, targetZoom))
                     let oldZoom = zoom
@@ -276,15 +296,28 @@ struct ThoughtGraphView: View {
         )
         #endif
 
-        // ── Header overlay ──
+        // ── Header overlay (fullscreen chrome only — a pre-expansion widget
+        // leaves the metrics to its host) ──
         .overlay(alignment: .top) {
-            headerBar
+            if !isWidget { headerBar }
         }
 
-        // ── Controls overlay ──
+        // ── Controls overlay (fullscreen only — a widget just fills its box;
+        // zooming a fitted widget has no merit) ──
         .overlay(alignment: .bottomTrailing) {
-            zoomControls
+            if !isWidget { zoomControls }
         }
+
+        // ── Hover preview (fullscreen, macOS): peek a node's status/context
+        // on hover instead of committing a click ──
+        #if os(macOS)
+        .overlay(alignment: .topTrailing) {
+            if !isWidget, selectedNodeID == nil,
+               let hoverID = hoveredNodeID, let node = nodeIndex[hoverID] {
+                hoverPreview(node: node)
+            }
+        }
+        #endif
 
         // ── Expand affordance (top-trailing, clear of the header chrome) ──
         .overlay(alignment: .topTrailing) {
@@ -299,6 +332,9 @@ struct ThoughtGraphView: View {
                 followPill
             }
         }
+
+        // Hover changes fade the preview card (and the bar's hover stroke).
+        .animation(.easeOut(duration: 0.12), value: hoveredNodeID)
 
         // ── Double-tap reset (macOS) ──
         #if os(macOS)
@@ -399,13 +435,13 @@ struct ThoughtGraphView: View {
 
     /// Project a world x (time axis) to a screen x. The time axis uses `zoom`.
     private func screenX(_ worldX: CGFloat) -> CGFloat {
-        worldX * zoom + Self.leftMargin + panOffset.width
+        worldX * zoom + leftMargin + panOffset.width
     }
 
     /// Project a world y (lane axis) to a screen y. The lane axis uses `zoomY`,
     /// which fits height independently of the time axis so lanes fill the box.
     private func screenY(_ worldY: CGFloat) -> CGFloat {
-        worldY * zoomY + Self.topMargin + panOffset.height
+        worldY * zoomY + topMargin + panOffset.height
     }
 
     /// Project a world point to screen space (x through the time scale, y through
@@ -496,21 +532,21 @@ struct ThoughtGraphView: View {
         let candidates: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
         let interval = candidates.first { $0 * pps >= 70 } ?? 600
 
-        let originX = Self.leftMargin + panOffset.width
+        let originX = leftMargin + panOffset.width
             + ThoughtGraphLayoutEngine.leftGutter * zoom
         var second = 0.0
         var gridlines = Path()
         while true {
             let x = originX + second * pps
             if x > size.width { break }
-            if x >= Self.leftMargin - 1 {
-                gridlines.move(to: CGPoint(x: x, y: Self.topMargin - 8))
+            if x >= leftMargin - 1 {
+                gridlines.move(to: CGPoint(x: x, y: topMargin - 8))
                 gridlines.addLine(to: CGPoint(x: x, y: size.height))
                 context.draw(
                     Text(tickLabel(second))
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundColor(Theme.tertiary),
-                    at: CGPoint(x: x + 3, y: Self.topMargin - 14),
+                    at: CGPoint(x: x + 3, y: topMargin - 14),
                     anchor: .leading
                 )
             }
@@ -701,14 +737,14 @@ struct ThoughtGraphView: View {
     private func drawCompactionFolds(context: GraphicsContext, size: CGSize) {
         guard !compactions.isEmpty, let t0 = engine.timeOrigin else { return }
         let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * zoom
-        let originX = Self.leftMargin + panOffset.width
+        let originX = leftMargin + panOffset.width
             + ThoughtGraphLayoutEngine.leftGutter * zoom
-        let top = Self.topMargin - 8
+        let top = topMargin - 8
 
         for marker in compactions {
             let x = originX + marker.at.timeIntervalSince(t0) * pps
             // Cull folds off the plot (left of the lane titles or past the edge).
-            guard x >= Self.leftMargin - 1, x <= size.width + 1 else { continue }
+            guard x >= leftMargin - 1, x <= size.width + 1 else { continue }
 
             var rule = Path()
             rule.move(to: CGPoint(x: x, y: top))
@@ -775,7 +811,7 @@ struct ThoughtGraphView: View {
             let sy = screenY(layout.y)
 
             // Cull off-screen (above the axis band or beyond the viewport).
-            guard sy > Self.topMargin - 10, sy < size.height + 10,
+            guard sy > topMargin - 10, sy < size.height + 10,
                   sx < size.width else { continue }
 
             let isSelected = selectedID == node.id
@@ -793,7 +829,7 @@ struct ThoughtGraphView: View {
                 Text(label)
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(color.opacity(isSelected || isHovered ? 1 : 0.85)),
-                at: CGPoint(x: max(sx, Self.leftMargin), y: sy),
+                at: CGPoint(x: max(sx, leftMargin), y: sy),
                 anchor: .leading
             )
         }
@@ -1152,9 +1188,57 @@ struct ThoughtGraphView: View {
         }
         .buttonStyle(.borderless)
         .help("Expand to fullscreen")
-        // Clear the header material (~64pt tall) that hugs the top edge.
+        // Full chrome: clear the header material (~64pt tall) hugging the top
+        // edge. A widget has no header, so sit near the top.
+        .padding(.top, isWidget ? 12 : 64)
+        .padding(.trailing, 12)
+    }
+
+    // MARK: - Hover Preview
+
+    /// Lightweight peek at a node on HOVER — name, status, duration, and its
+    /// context (or the reasoning gist) — so the expanded graph explains itself
+    /// without a click. Click still pins the full detail popover; the preview
+    /// is suppressed while one is open (they'd overlap on the trailing edge).
+    private func hoverPreview(node: ThoughtGraphNode) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                statusBadge(for: node.status)
+                Text(node.isAgent ? "◆ \(node.name)" : node.name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Text(node.status.displayName.lowercased())
+                    .font(.caption2)
+                    .foregroundStyle(statusColor(for: node.status))
+                if let dur = node.durationSeconds {
+                    Text("· \(DurationFormatter.short(dur))")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.tertiary)
+                }
+            }
+            if let gist = node.context ?? node.summary, !gist.isEmpty {
+                Text(gist)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: 260, alignment: .leading)
+        .background(Theme.surface.opacity(0.96), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Theme.border, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 8, y: 2)
+        // Clear the header material, mirroring the expand affordance's offset.
         .padding(.top, 64)
         .padding(.trailing, 12)
+        // Pure preview: never intercepts the mouse, so hover tracks through it.
+        .allowsHitTesting(false)
+        .transition(.opacity)
     }
 
     // MARK: - Detail Popover
@@ -1437,8 +1521,8 @@ struct ThoughtGraphView: View {
 
         // Available plot area inside the chrome margins, with a little padding.
         let padding: CGFloat = 24
-        let availW = max(1, canvasSize.width - Self.leftMargin - padding)
-        let availH = max(1, canvasSize.height - Self.topMargin - padding)
+        let availW = max(1, canvasSize.width - leftMargin - padding)
+        let availH = max(1, canvasSize.height - topMargin - padding)
 
         // Fit the two axes INDEPENDENTLY. X (time) fills the width; Y (lanes)
         // fills the height. This is the whole point: with one uniform scale the
@@ -1492,9 +1576,9 @@ struct ThoughtGraphView: View {
         let appliedFactor = newZoom / oldZoom
         let newZoomY = max(Self.minZoom, min(Self.maxZoomY, zoomY * appliedFactor))
         // Keep the point under the cursor stable across the zoom (per axis).
-        panOffset.width += (point.x - Self.leftMargin - panOffset.width)
+        panOffset.width += (point.x - leftMargin - panOffset.width)
             * (1 - newZoom / oldZoom)
-        panOffset.height += (point.y - Self.topMargin - panOffset.height)
+        panOffset.height += (point.y - topMargin - panOffset.height)
             * (1 - newZoomY / zoomY)
         zoom = newZoom
         zoomY = newZoomY
