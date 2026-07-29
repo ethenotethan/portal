@@ -244,6 +244,7 @@ struct FeedHeroImage: View {
 struct FeedCard: View {
     let article: FeedArticle
     @State private var isExpanded = false
+    @State private var browserLink: InAppBrowserLink?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -324,13 +325,9 @@ struct FeedCard: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Divider()
-                    if let validURL = URL(string: article.url), !article.url.isEmpty {
+                    if !article.url.isEmpty {
                         Button {
-                            #if os(macOS)
-                            NSWorkspace.shared.open(validURL)
-                            #else
-                            UIApplication.shared.open(validURL)
-                            #endif
+                            browserLink = InAppBrowserLink(urlString: article.url, title: article.title)
                         } label: {
                             HStack {
                                 Image(systemName: "safari")
@@ -350,13 +347,9 @@ struct FeedCard: View {
             }
 
             HStack(spacing: 24) {
-                if let validURL = URL(string: article.url), !article.url.isEmpty {
+                if !article.url.isEmpty {
                     Button {
-                        #if os(macOS)
-                        NSWorkspace.shared.open(validURL)
-                        #else
-                        UIApplication.shared.open(validURL)
-                        #endif
+                        browserLink = InAppBrowserLink(urlString: article.url, title: article.title)
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "safari").font(.caption2)
@@ -388,6 +381,9 @@ struct FeedCard: View {
         .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.25)) { isExpanded.toggle() } }
+        .sheet(item: $browserLink) { link in
+            InAppBrowserView(link: link)
+        }
     }
 
     private func sourceColor(_ s: String) -> Color {
