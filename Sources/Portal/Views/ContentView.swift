@@ -622,8 +622,12 @@ internal struct ContentView: View {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if case .connected = client.connectionState { return true }
-            if Task.isCancelled { return false }
-            try? await Task.sleep(nanoseconds: 100_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 100_000_000)
+            } catch {
+                // Cancellation (the only error Task.sleep throws) ends the wait.
+                return false
+            }
         }
         if case .connected = client.connectionState { return true }
         return false

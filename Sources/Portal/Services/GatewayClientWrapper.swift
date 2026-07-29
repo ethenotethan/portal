@@ -77,7 +77,7 @@ final class GatewayClientWrapper: ObservableObject {
     /// Note: the server gates `/api/ws` behind an embedded-chat opt-in and
     /// closes with 4403 when it's off (4401 on a bad token). The returned
     /// client surfaces that as a connection error like any other WS failure.
-    func standardChatClient(for entry: SavedGateway) -> GatewayClient? {
+    internal func standardChatClient(for entry: SavedGateway) -> GatewayClient? {
         guard entry.kind == .hermesStandard, let wsURL = entry.hermesStandardChatURL else {
             return nil
         }
@@ -98,7 +98,7 @@ final class GatewayClientWrapper: ObservableObject {
 
     /// Tear down every Standard chat socket (e.g. when leaving all Standard
     /// focus). Idempotent; the app-level Hermes socket is unaffected.
-    func disconnectStandardChatClients() {
+    internal func disconnectStandardChatClients() {
         for (_, entry) in standardChatClients {
             entry.client.disconnect()
         }

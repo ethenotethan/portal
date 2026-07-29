@@ -1,7 +1,7 @@
 import Foundation
 
 /// Top-level Portal surfaces a backend can honestly serve.
-enum BackendNavigationCapability: String, Codable, CaseIterable, Sendable {
+internal enum BackendNavigationCapability: String, Codable, CaseIterable, Sendable {
     case chat
     case sessions
     case cron
@@ -43,12 +43,12 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
 
     /// Management-scoped backends are selectable without replacing the
     /// app-level Hermes Gateway WebSocket.
-    var isManagementScoped: Bool { self == .hermesStandard }
+    internal var isManagementScoped: Bool { self == .hermesStandard }
 
     /// A focused backend is either session-scoped or management-scoped.
-    var isFocusScoped: Bool { isSessionScoped || isManagementScoped }
+    internal var isFocusScoped: Bool { isSessionScoped || isManagementScoped }
 
-    var navigationCapabilities: [BackendNavigationCapability] {
+    internal var navigationCapabilities: [BackendNavigationCapability] {
         switch self {
         case .hermes:
             return BackendNavigationCapability.allCases
@@ -161,7 +161,7 @@ struct SavedGateway: Codable, Identifiable, Equatable, Hashable {
     ///
     /// Returns nil for non-Standard kinds or an unparseable/insecure URL.
     /// A `nil` here means "no chat" — the caller keeps the app-level gateway.
-    var hermesStandardChatURL: URL? {
+    internal var hermesStandardChatURL: URL? {
         guard kind == .hermesStandard,
               var components = URLComponents(string: url.trimmingCharacters(in: .whitespaces)) else {
             return nil
