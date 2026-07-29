@@ -3,10 +3,10 @@ import Foundation
 @testable import Portal
 
 @Suite("Backend Kind")
-struct BackendKindTests {
+internal struct BackendKindTests {
 
     @Test("legacy SavedGateway JSON without kind decodes as hermes")
-    func legacyEntriesDecodeAsHermes() throws {
+    internal func legacyEntriesDecodeAsHermes() throws {
         let legacy = """
         {"id":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F","name":"Home","url":"ws://x:8642","apiKey":"k"}
         """
@@ -16,16 +16,39 @@ struct BackendKindTests {
     }
 
     @Test("kind round-trips through encode/decode")
-    func kindRoundTrips() throws {
-        let entry = SavedGateway(name: "Sandbox", url: "https://centaur.example.com", apiKey: "jwt", kind: .centaur)
-        let data = try JSONEncoder().encode(entry)
-        let decoded = try JSONDecoder().decode(SavedGateway.self, from: data)
-        #expect(decoded.kind == .centaur)
+    internal func kindRoundTrips() throws {
+        for kind in BackendKind.allCases {
+            let entry = SavedGateway(name: kind.displayName, url: "https://example.com", apiKey: String("test-key"), kind: kind)
+            let data = try JSONEncoder().encode(entry)
+            let decoded = try JSONDecoder().decode(SavedGateway.self, from: data)
+            #expect(decoded.kind == kind)
+        }
+    }
+
+    @Test("Hermes product names distinguish Gateway from Standard")
+    internal func hermesProductNames() {
+        #expect(BackendKind.hermes.displayName == "Hermes Gateway")
+        #expect(BackendKind.hermesStandard.displayName == "Hermes Standard")
+        #expect(BackendKind.hermesStandard.urlFieldLabel == "Hermes Standard URL (https://…)")
+        #expect(BackendKind.hermesStandard.keyFieldLabel == "Dashboard session token")
+    }
+
+    @Test("Hermes Standard exposes only its management surface")
+    internal func standardManagementSurface() {
+        #expect(BackendKind.hermesStandard.isManagementScoped)
+        #expect(!BackendKind.hermesStandard.isSessionScoped)
+        #expect(BackendKind.hermesStandard.navigationCapabilities == [
+            .sessions, .cron, .notifications, .skills, .settings,
+        ])
+        #expect(BackendKind.hermes.navigationCapabilities.contains(.chat))
+        #expect(BackendKind.hermes.navigationCapabilities.contains(.wiki))
+        #expect(!BackendKind.hermesStandard.navigationCapabilities.contains(.chat))
+        #expect(!BackendKind.hermesStandard.navigationCapabilities.contains(.wiki))
     }
 
     @Test("selectGateway focuses centaur without moving the app-level connection")
     @MainActor
-    func selectFocusesCentaur() {
+    internal func selectFocusesCentaur() {
         let settings = SettingsViewModel()
         let before = settings.activeGatewayID
         let centaur = settings.addGateway(
@@ -45,9 +68,26 @@ struct BackendKindTests {
         #expect(settings.focusedBackendID == nil)
     }
 
-    @Test("Selecting a hermes entry clears session-scoped focus")
+    @Test("Selecting a management backend focuses it without moving the app-level gateway")
     @MainActor
-    func hermesSelectionClearsFocus() {
+    internal func selectFocusesHermesStandard() {
+        let settings = SettingsViewModel()
+        let before = settings.activeGatewayID
+        let standard = settings.addGateway(
+            name: "Upstream", url: "https://standard.example.com", apiKey: String("test-key"),
+            kind: .hermesStandard, makeActive: true
+        )
+        settings.selectGateway(standard)
+        #expect(settings.activeGatewayID == before)
+        #expect(settings.focusedBackendID == standard.id)
+        #expect(settings.managementScopedBackends.contains { $0.id == standard.id })
+        #expect(!settings.sessionScopedBackends.contains { $0.id == standard.id })
+        settings.removeGateway(standard)
+    }
+
+    @Test("Selecting a hermes entry clears scoped focus")
+    @MainActor
+    internal func hermesSelectionClearsFocus() {
         let settings = SettingsViewModel()
         let centaur = settings.addGateway(
             name: "Sandbox", url: "https://c.example.com", apiKey: "k",
@@ -72,7 +112,7 @@ struct BackendKindTests {
 
     @Test("sessionScopedBackends filters by kind")
     @MainActor
-    func sessionScopedBackendsFilter() {
+    internal func sessionScopedBackendsFilter() {
         let settings = SettingsViewModel()
         let centaur = settings.addGateway(
             name: "Sandbox", url: "https://c.example.com", apiKey: "k",
@@ -84,7 +124,7 @@ struct BackendKindTests {
     }
 
     @Test("kind presentation lives on the model, not in views")
-    func kindPresentation() {
+    internal func kindPresentation() {
         #expect(BackendKind.hermes.isSessionScoped == false)
         #expect(BackendKind.centaur.isSessionScoped == true)
         #expect(BackendKind.centaur.sessionScopedFootnote != nil)
@@ -93,7 +133,7 @@ struct BackendKindTests {
 
     @Test("session backend registry binds and persists lookups")
     @MainActor
-    func registryBindsAndForgets() {
+    internal func registryBindsAndForgets() {
         let registry = SessionBackendRegistry.shared
         let backendID = UUID()
         registry.bind(sessionID: "test-thread-1", backendID: backendID)
