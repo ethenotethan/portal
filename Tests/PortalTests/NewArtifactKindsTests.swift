@@ -62,6 +62,27 @@ private struct KanbanSpecTests {
         #expect(spec?.cards[0].tag == "feat")
     }
 
+    @Test("Card detail + extra scalar fields populate for inline expansion")
+    private func expandableDetail() throws {
+        let spec = try #require(KanbanSpec.parse("""
+        {"cards": [
+          {"id": "A", "title": "Rich", "column": "Todo", "desc": "long body",
+           "assignee": "me", "points": 3, "blocked": true, "sub": {"x": 1}},
+          {"id": "B", "title": "Bare", "column": "Todo"}
+        ]}
+        """))
+        let rich = try #require(spec.cards.first { $0.id == "A" })
+        #expect(rich.detail == "long body")           // desc → detail
+        #expect(rich.hasDetail)
+        // Extras are sorted by key; reserved keys and nested objects excluded.
+        #expect(rich.extra.map(\.key) == ["assignee", "blocked", "points"])
+        #expect(rich.extra.first { $0.key == "points" }?.value == "3")
+        #expect(rich.extra.first { $0.key == "blocked" }?.value == "true")
+        let bare = try #require(spec.cards.first { $0.id == "B" })
+        #expect(!bare.hasDetail)                       // nothing to expand
+        #expect(bare.extra.isEmpty)
+    }
+
     @Test("No columns declared derives from cards; malformed returns nil")
     private func derivesColumns() {
         let spec = KanbanSpec.parse("""

@@ -37,8 +37,12 @@ final class SpawnTreeStore: ObservableObject {
     /// panel reads it back through this store.
     internal let batchHistory: DelegationBatchHistoryStore
 
-    internal init(batchHistory: DelegationBatchHistoryStore = DelegationBatchHistoryStore()) {
-        self.batchHistory = batchHistory
+    // `batchHistory` defaults to nil (not a fresh instance) because a default
+    // argument is evaluated in a nonisolated context, where the @MainActor
+    // DelegationBatchHistoryStore initializer can't be called. Construct it
+    // here inside the @MainActor init instead; tests still inject their own.
+    internal init(batchHistory: DelegationBatchHistoryStore? = nil) {
+        self.batchHistory = batchHistory ?? DelegationBatchHistoryStore()
     }
 
     /// The active session tree (if any).
