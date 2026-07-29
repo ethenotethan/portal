@@ -68,6 +68,13 @@ private struct DelegationBatchContent: View {
 /// clock advances the time axis so open lanes visibly grow.
 private struct DelegationBatchRow: View {
     internal let batch: DelegationBatch
+    /// The subagent whose detail is expanded inline below the lanes. Tapping a
+    /// lane toggles it; nil = collapsed. Local to each batch row.
+    @State private var selectedSubagentID: String?
+
+    private var selectedNode: SpawnNode? {
+        batch.subagents.first { $0.id == selectedSubagentID }
+    }
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -80,6 +87,10 @@ private struct DelegationBatchRow: View {
                 }
             } else {
                 lanes(asOf: batch.endedAt ?? batch.startedAt)
+            }
+            if let node = selectedNode {
+                DelegationSubagentDetail(node: node)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(10)
@@ -136,7 +147,17 @@ private struct DelegationBatchRow: View {
         let span = max(batch.duration(asOf: now), 0.001)
         return VStack(spacing: 4) {
             ForEach(batch.subagents) { node in
-                DelegationLaneView(node: node, batchStart: batch.startedAt, span: span, now: now)
+                DelegationLaneView(
+                    node: node,
+                    batchStart: batch.startedAt,
+                    span: span,
+                    now: now,
+                    isSelected: node.id == selectedSubagentID
+                ) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedSubagentID = selectedSubagentID == node.id ? nil : node.id
+                    }
+                }
             }
         }
     }
@@ -155,12 +176,14 @@ private struct DelegationBatchRow: View {
 
 /// A single subagent's lane: a bar offset by its start and sized by its runtime,
 /// with the goal overlaid. Observes its own node so status/duration/cost updates
-/// redraw just this lane.
+/// redraw just this lane. Tapping it toggles the batch's inline detail.
 private struct DelegationLaneView: View {
     @ObservedObject internal var node: SpawnNode
     internal let batchStart: Date
     internal let span: TimeInterval
     internal let now: Date
+    internal let isSelected: Bool
+    internal let onTap: () -> Void
 
     internal var body: some View {
         HStack(spacing: 6) {
@@ -178,7 +201,7 @@ private struct DelegationLaneView: View {
 
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Theme.surface)
+                        .fill(isSelected ? Theme.accent.opacity(0.12) : Theme.surface)
                     RoundedRectangle(cornerRadius: 4)
                         .fill(colorForStatus(node.status).opacity(node.status.isRunning ? 0.35 : 0.5))
                         .frame(width: w)
@@ -191,6 +214,10 @@ private struct DelegationLaneView: View {
                         .padding(.leading, 6)
                         .padding(.trailing, 4)
                 }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Theme.accent, lineWidth: isSelected ? 1 : 0)
+                )
             }
             .frame(height: 20)
 
@@ -199,5 +226,82 @@ private struct DelegationLaneView: View {
                 .foregroundStyle(Theme.tertiary)
                 .frame(width: 34, alignment: .trailing)
         }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+}
+
+/// Inline detail for the tapped subagent lane: its full goal, status/timing, and
+/// what it did — token/cost accounting, the tools it called, and the files it
+/// read or wrote. Observes the node so a still-running subagent's detail fills in
+/// live. This is the "click into a batch and introspect its runtime" surface.
+private struct DelegationSubagentDetail: View {
+    @ObservedObject internal var node: SpawnNode
+
+    internal var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(node.goal.isEmpty ? "subagent \(node.taskIndex)" : node.goal)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                stat(node.status.rawValue, systemImage: node.status.iconName, tint: colorForStatus(node.status))
+                stat(node.durationString, systemImage: "clock")
+                if let model = node.model, !model.isEmpty { stat(model, systemImage: "cpu") }
+            }
+
+            if node.totalTokens != nil || node.costUSD != nil || node.apiCalls != nil {
+                HStack(spacing: 10) {
+                    if let t = node.totalTokens { stat("\(t) tok", systemImage: "number") }
+                    if let cost = node.costUSD, cost > 0 { stat(String(format: "$%.4f", cost), systemImage: "dollarsign.circle") }
+                    if let calls = node.apiCalls { stat("\(calls) calls", systemImage: "arrow.left.arrow.right") }
+                }
+            }
+
+            if !node.toolCalls.isEmpty {
+                detailRow(
+                    label: "Tools",
+                    value: node.toolCalls.map(\.name).joined(separator: ", ")
+                )
+            }
+            if !node.filesWritten.isEmpty {
+                detailRow(label: "Wrote", value: fileList(node.filesWritten))
+            }
+            if !node.filesRead.isEmpty {
+                detailRow(label: "Read", value: fileList(node.filesRead))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(Theme.background.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func stat(_ text: String, systemImage: String, tint: Color = Theme.tertiary) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.system(size: 10))
+            .foregroundStyle(tint)
+            .lineLimit(1)
+    }
+
+    private func detailRow(label: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 40, alignment: .leading)
+            Text(value)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Show file basenames (paths get long); cap the list so a chatty subagent
+    /// doesn't blow out the panel.
+    private func fileList(_ paths: [String]) -> String {
+        let names = paths.map { ($0 as NSString).lastPathComponent }
+        let shown = names.prefix(6).joined(separator: ", ")
+        return names.count > 6 ? "\(shown) +\(names.count - 6) more" : shown
     }
 }
