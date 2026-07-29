@@ -210,11 +210,13 @@ internal struct ArtifactDetailView: View {
     internal var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Picker("", selection: $tab) {
-                    ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 190)
+                ThemedSegmentedControl(
+                    selection: $tab,
+                    options: Tab.allCases,
+                    label: { $0.rawValue },
+                    icon: { $0 == .rendered ? "doc.richtext" : "clock.arrow.circlepath" }
+                )
+                .frame(width: 210)
                 Spacer()
                 ArtifactExportMenu(artifact: artifact)
                 Text(artifact.id)
