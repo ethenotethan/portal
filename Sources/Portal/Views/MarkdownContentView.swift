@@ -1105,18 +1105,21 @@ struct TableView: View {
 
         return ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                // Header row — click a column to sort (asc → desc → source order)
+                // Header row — click a column to sort (asc → desc → source order).
+                // The sort chevron is OVERLAID inside the cell's frame, not
+                // appended in an HStack: appending widened the sorted column's
+                // header past its body cells and broke column alignment.
                 HStack(spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { index, header in
                         Button {
                             toggleSort(column: index)
                         } label: {
-                            HStack(spacing: 3) {
-                                tableCell(
-                                    text: header,
-                                    width: columnWidth(at: index, from: widths),
-                                    isHeader: true
-                                )
+                            tableCell(
+                                text: header,
+                                width: columnWidth(at: index, from: widths),
+                                isHeader: true
+                            )
+                            .overlay(alignment: .trailing) {
                                 if sortColumn == index {
                                     Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
                                         .font(.system(size: 8, weight: .bold))
@@ -1128,7 +1131,6 @@ struct TableView: View {
                         .buttonStyle(.plain)
                         .help("Sort by \(header)")
                     }
-                    copyButton
                 }
                 .background(Theme.accent.opacity(0.08))
 
@@ -1171,6 +1173,13 @@ struct TableView: View {
                 }
             }
             .frame(width: tableWidth, alignment: .leading)
+            // Copy pinned to the header's top-right as an overlay — NOT an
+            // HStack member. As a member it added width the body rows lacked,
+            // so the header ran longer than every row and past the border.
+            .overlay(alignment: .topTrailing) {
+                copyButton
+                    .padding(.top, 6)
+            }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 6)
@@ -1200,8 +1209,11 @@ struct TableView: View {
         )
         .textSelection(.enabled)
         .lineLimit(nil)
-        .multilineTextAlignment(isHeader ? .center : .leading)
-        .frame(minWidth: width, alignment: isHeader ? .center : .leading)
+        // Header and body share center alignment so a column reads as one
+        // vertical stack. Previously headers were centered and body cells
+        // left-aligned, staggering the text within each column.
+        .multilineTextAlignment(.center)
+        .frame(minWidth: width, alignment: .center)
         .padding(.horizontal, 10)
         .padding(.vertical, isHeader ? 8 : 7)
     }
