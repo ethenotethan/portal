@@ -134,3 +134,37 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.macOS.uitests
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+
+  PortalTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/PortalTests
+    dependencies:
+      - target: Portal
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ethenotethan.Portal.macOS.tests
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Portal:
+    build:
+      targets:
+        Portal: all
+    test:
+      targets:
+        - PortalTests
+    run:
+      config: Debug
+  Portal-iOS:
+    build:
+      targets:
+        Portal-iOS: all
+    test:
+      targets:
+        - PortalUITests
+    run:
+      config: Debug

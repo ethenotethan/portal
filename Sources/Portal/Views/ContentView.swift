@@ -975,7 +975,14 @@ internal struct ContentView: View {
                 }
 
                 #if os(macOS)
-                if let activeSession = sessionList.sessions.first(where: { $0.id == sessionList.activeSessionID }),
+                if let standard = focusedHermesStandardGateway {
+                    // Management-scoped backend is focused: show the management
+                    // dashboard instead of chat. The app-level Hermes WebSocket
+                    // stays connected underneath for ambient services.
+                    HermesStandardManagementView(entry: standard)
+                        .id(standard.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let activeSession = sessionList.sessions.first(where: { $0.id == sessionList.activeSessionID }),
                    activeSession.source?.lowercased() == "cron" {
                     CronSessionView(session: activeSession)
                         .environmentObject(chatViewModel)
