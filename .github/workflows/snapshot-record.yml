@@ -6,9 +6,9 @@ name: Snapshot Record
 # does automatically: goldens must be *born on CI*. Font hinting, antialiasing,
 # and default-font resolution differ between a dev Mac and the macos-26 runner,
 # so a golden recorded anywhere but here would spuriously fail verification. The
-# verify side rides along with the ordinary `swift test` in the metric-ratchet
-# job (a committed golden that drifts trips ViewSnapshot's .mismatch → the test
-# fails). This workflow only produces/refreshes the reference images.
+# verify side rides along with the ordinary `swift test` in the Measure job
+# (ratchet.yml) — a committed golden that drifts trips ViewSnapshot's .mismatch
+# → the test fails. This workflow only produces/refreshes the reference images.
 #
 # Loop: land the snapshot test (its golden absent → non-fatal) → run this
 # workflow against the PR branch → it renders each View under SNAPSHOT_RECORD=1
@@ -31,7 +31,7 @@ permissions:
 jobs:
   record:
     name: Record snapshot goldens
-    # Pin to the SAME image as the verify job (metric-ratchet in lint.yml). A
+    # Pin to the SAME image as the verify job (the Measure job in ratchet.yml). A
     # different macOS image renders text differently and the goldens wouldn't
     # match at verify time — the whole point of recording on CI.
     runs-on: macos-26

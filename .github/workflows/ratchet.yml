@@ -1,0 +1,181 @@
+name: Ratchet
+
+# Posture ratchets, one job per attribute we defend. Each job is its own
+# GitHub check so the PR checks list reads by CONCERN — Security, Warnings,
+# Coverage — instead of one opaque "metric ratchet" pass/fail. Every ratchet
+# has the same shape: a committed benchmark CI compares each PR against,
+# allowing improvement and blocking regression (docs/architecture-rules.md).
+#
+# Adding a posture = one job here + its collector/guard script. Do NOT fold a
+# new concern into an existing job; the separation is the whole point.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ratchet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Security posture ──────────────────────────────────────────────────────
+  # Secrets that must never enter the tree. gitleaks scan + a growth guard on
+  # the accepted-findings list. Its own script (check-secret-baseline-growth),
+  # distinct from the metric ratchet — a different concern with a different
+  # benchmark, deliberately not sharing the metrics engine.
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so the growth guard's `git show <base>:.gitleaksignore`
+      # resolves (default checkout is shallow).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        # PINNED to an exact version. A newer gitleaks ships MORE detection
+        # rules than the one .gitleaksignore was curated against, so an
+        # unpinned bump can fail CI on findings the config author never saw —
+        # the same drift that broke the swiftlint baseline in #222. Bumping:
+        # change GITLEAKS_VERSION, install the same tag locally, re-run
+        # `make secret-scan`, re-curate .gitleaksignore if needed, commit.
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Verify gitleaks version
+        run: gitleaks version
+
+      - name: Scan working tree for secrets
+        # `dir` scans the checked-out tree (not history). .gitleaksignore freezes
+        # ACCEPTED false-positive fingerprints so only NEW findings fail. Exit 1
+        # on any un-accepted finding fails the PR. Regenerate the ignore list
+        # only to REMOVE fingerprints (fixed findings) — never to wave a new
+        # secret through. See docs/architecture-rules.md.
+        run: |
+          gitleaks dir . --config .gitleaks.toml \
+            --gitleaks-ignore-path .gitleaksignore \
+            --report-format sarif --report-path gitleaks.sarif \
+            --redact --exit-code 1
+
+      - name: Check the secret ignore-list did not grow
+        # Even if the scan passes, fail the PR if .gitleaksignore GAINED accepted
+        # fingerprints vs base — a new finding waved through instead of removed.
+        # Runs always() so a scan failure doesn't mask an ignore-list regression.
+        if: always()
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-secret-baseline-growth.py "$BASE"
+
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── Measure (shared build) ────────────────────────────────────────────────
+  # Warnings and Coverage both need a from-scratch compile, and coverage needs
+  # the test run on top. Building twice (once per posture job) would double the
+  # slowest step, so this job compiles + tests ONCE and publishes the snapshots;
+  # the posture jobs below just ratchet those snapshots against base. A clean
+  # build is mandatory — SwiftPM skips unchanged modules incrementally and would
+  # under-count warnings — so there is no cache restore here.
+  measure:
+    name: Measure (build + test)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and capture warnings
+        run: |
+          set -o pipefail
+          swift build 2>&1 | tee build.log
+          python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
+
+      - name: Test with coverage and capture snapshot
+        # Full per-line export (no -summary-only — the patch check needs
+        # segments), reduced to the testable-layer snapshot.
+        run: |
+          set -o pipefail
+          swift test --enable-code-coverage 2>&1 | tail -5
+          PROF=$(find .build -name '*.profdata' | head -1)
+          BIN=$(find .build -name '*.xctest' -type d | head -1)
+          EXE="$BIN/Contents/MacOS/$(basename "$BIN" .xctest)"
+          xcrun llvm-cov export -instr-profile "$PROF" "$EXE" > cov-export.json
+          python3 scripts/collect-coverage.py cov-export.json --root "$PWD" --json coverage.json
+
+      - name: Publish metric snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: metric-snapshots
+          path: |
+            warnings.json
+            coverage.json
+            build.log
+          if-no-files-found: error
+          retention-days: 14
+
+  # ── Warnings posture ──────────────────────────────────────────────────────
+  # Compiler-warning health: no category regresses vs base (floor) and new code
+  # compiles warning-free (patch). Consumes the measure snapshot; the shared
+  # metric engine runs the warnings check only.
+  warnings:
+    name: Warnings
+    runs-on: ubuntu-latest
+    needs: measure
+    steps:
+      # Full history so the ratchet's base-baseline read + base...HEAD diff
+      # (patch check) resolve.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download metric snapshots
+        uses: actions/download-artifact@v4
+        with:
+          name: metric-snapshots
+
+      - name: Ratchet compiler warnings against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --warnings warnings.json --base "$BASE"
+
+  # ── Coverage posture ──────────────────────────────────────────────────────
+  # Test quality: aggregate testable-layer coverage doesn't erode (floor) and a
+  # PR's added executable lines are covered (patch). Consumes the same measure
+  # snapshot; the shared engine runs the coverage check only.
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: measure
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download metric snapshots
+        uses: actions/download-artifact@v4
+        with:
+          name: metric-snapshots
+
+      - name: Ratchet test coverage against base
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-metrics-ratchet.py --coverage coverage.json --base "$BASE"
+
+  # ── Performance posture ───────────────────────────────────────────────────
+  # Reserved. When a perf benchmark lands (main-thread stall budget, cold-start
+  # time, …) it gets its OWN job here + its own collector — never folded into
+  # Warnings or Coverage. Left unimplemented on purpose so the taxonomy shows
+  # the intended shape; add the job when the collector exists.
