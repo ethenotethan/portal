@@ -97,6 +97,19 @@ internal struct SessionChatCanvas: View {
     @StateObject private var fullscreenEngine = ThoughtGraphLayoutEngine()
     private let registry = PanelRegistry.chatCanvas
 
+    /// The persistence key for the layout currently on screen — Scroll and Turns
+    /// are two separate canvases now, so each mode arranges independently and
+    /// flipping the toggle swaps the whole board (see `switchLayout(to:)`).
+    private func layoutKey(for mode: CanvasDisplayMode) -> String {
+        switch mode {
+        case .scroll: return DashboardLayout.chatScrollKey
+        case .turns: return DashboardLayout.chatTurnsKey
+        }
+    }
+
+    /// The key for the layout on screen right now.
+    private var currentLayoutKey: String { layoutKey(for: displayMode) }
+
     /// The session split into turns (one assistant message = one turn), rebuilt
     /// from the live transcript. Empty until the first turn completes enough to
     /// graph.
@@ -198,7 +211,7 @@ internal struct SessionChatCanvas: View {
                     showsTitleBars: showsTitleBars,
                     title: { registry.title(for: $0) },
                     icon: { registry.icon(for: $0) },
-                    onLayoutCommitted: { layout.store(key: DashboardLayout.chatCanvasKey) },
+                    onLayoutCommitted: { layout.store(key: currentLayoutKey) },
                     content: { panel in panelContent(panel) }
                 )
                 .onAppear {
@@ -208,6 +221,11 @@ internal struct SessionChatCanvas: View {
                 .onChange(of: geo.size) { _, newSize in
                     canvasBounds = newSize
                     loadLayoutIfNeeded(bounds: newSize)
+                }
+                // Scroll and Turns are separate canvases: swap the whole board
+                // when the toggle flips, persisting the one we leave.
+                .onChange(of: displayMode) { oldMode, newMode in
+                    switchLayout(from: oldMode, to: newMode)
                 }
             }
 
@@ -399,7 +417,7 @@ internal struct SessionChatCanvas: View {
             // locks the canvas for use.
             Button {
                 if isEditing {
-                    layout.store(key: DashboardLayout.chatCanvasKey)
+                    layout.store(key: currentLayoutKey)
                     showAddPalette = false
                 }
                 withAnimation(.easeInOut(duration: 0.15)) { isEditing.toggle() }
@@ -479,7 +497,9 @@ internal struct SessionChatCanvas: View {
             selectedTurnID = nil
             isEditing = false
         }
-        layout.store(key: DashboardLayout.chatCanvasKey)
+        // Reset lands us in Scroll, so persist the fresh board under Scroll's key.
+        // Turns keeps its own arrangement — reset is per-canvas, not global.
+        layout.store(key: DashboardLayout.chatScrollKey)
     }
 
     /// Response style (deep map / balanced / direct) — a SESSION-global setting:
@@ -645,9 +665,25 @@ internal struct SessionChatCanvas: View {
     private func loadLayoutIfNeeded(bounds: CGSize) {
         guard !didLoadLayout, bounds.width > 0, bounds.height > 0 else { return }
         didLoadLayout = true
-        let loaded = DashboardLayout.loadStored(key: DashboardLayout.chatCanvasKey)
+        layout = loadedLayout(for: displayMode, bounds: bounds)
+    }
+
+    /// The stored (or migrated, or freshly-seeded) layout for a mode, clamped to
+    /// the canvas. Scroll and Turns each persist their own arrangement; both fall
+    /// back once to the pre-split combined layout so nobody loses their setup.
+    private func loadedLayout(for mode: CanvasDisplayMode, bounds: CGSize) -> DashboardLayout {
+        let loaded = DashboardLayout.loadStoredChatMode(layoutKey(for: mode))
             ?? DashboardLayout.seededChatCanvas(for: bounds)
-        layout = loaded.clamped(to: bounds)
+        return loaded.clamped(to: bounds)
+    }
+
+    /// Swap the on-screen board when the Scroll↔Turns toggle flips: persist the
+    /// mode we're leaving, then load the mode we're entering. This is what makes
+    /// them two separate canvases — arranging one never disturbs the other.
+    private func switchLayout(from old: CanvasDisplayMode, to new: CanvasDisplayMode) {
+        guard old != new, canvasBounds.width > 0, canvasBounds.height > 0 else { return }
+        layout.store(key: layoutKey(for: old))
+        layout = loadedLayout(for: new, bounds: canvasBounds)
     }
 
     private func addPanel(_ descriptor: PanelDescriptor) {
@@ -672,7 +708,7 @@ internal struct SessionChatCanvas: View {
         let panel = DashboardPanel(kind: kind, frame: frame).clamped(to: canvasBounds)
         layout.panels.append(panel)
         layout.bringToFront(panel.id)
-        layout.store(key: DashboardLayout.chatCanvasKey)
+        layout.store(key: currentLayoutKey)
     }
 
     /// True when the Session Graph tile is already on the canvas — the toolbar
@@ -687,7 +723,7 @@ internal struct SessionChatCanvas: View {
         withAnimation(.easeInOut(duration: 0.18)) {
             if let existing = layout.panels.first(where: { $0.kind == .sessionGraph }) {
                 layout.bringToFront(existing.id)
-                layout.store(key: DashboardLayout.chatCanvasKey)
+                layout.store(key: currentLayoutKey)
             } else {
                 addPanel(kind: .sessionGraph)
             }

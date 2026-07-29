@@ -89,7 +89,19 @@ internal struct DashboardLayout: Codable, Equatable {
     /// The live chat canvas's layout (conversation panel + live lenses). Kept
     /// separate so arranging one surface never disturbs the other. v2 for the
     /// same reason as `dashboardKey` — drop stale overlapping arrangements.
+    ///
+    /// Legacy: pre-split, Scroll and Turns shared this single key, so arranging
+    /// one silently rearranged the other. It's now only read as a one-time
+    /// migration seed for the two mode-specific keys below (see `chatScrollKey` /
+    /// `chatTurnsKey`) — never written to.
     internal static let chatCanvasKey = "sessionChatCanvasLayout.v2"
+    /// The live chat canvas's **Scroll** layout — the ever-growing transcript
+    /// board where per-turn blocks peel out and layer into the scroll. Separate
+    /// from Turns so rearranging one mode never disturbs the other.
+    internal static let chatScrollKey = "sessionChatCanvasLayout.scroll.v1"
+    /// The live chat canvas's **Turns** layout — the one-settled-turn-at-a-time
+    /// board. Its own persisted arrangement, independent of Scroll.
+    internal static let chatTurnsKey = "sessionChatCanvasLayout.turns.v1"
     /// The sessions dashboard canvas layout (list + timeline panels).
     internal static let sessionsDashboardKey = "sessionsDashboardLayout.v4"
     /// The cron activity canvas layout (summary + volume + jobs + timeline + breakdown).
@@ -108,6 +120,16 @@ internal struct DashboardLayout: Codable, Equatable {
             layoutLog.error("dashboard layout load failed: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    /// Load a chat-canvas mode's stored layout (`chatScrollKey` / `chatTurnsKey`),
+    /// falling back once to the pre-split combined layout (`chatCanvasKey`) so a
+    /// user who arranged the canvas before the Scroll/Turns split doesn't lose it
+    /// — both modes seed from the old arrangement, then diverge as each is edited.
+    /// Returns `nil` only when neither the mode key nor the legacy key has data
+    /// (the caller then seeds the tiled default).
+    internal static func loadStoredChatMode(_ modeKey: String) -> DashboardLayout? {
+        loadStored(key: modeKey) ?? loadStored(key: chatCanvasKey)
     }
 
     /// Persist this layout under `key`. Logs and no-ops on an encode failure —
