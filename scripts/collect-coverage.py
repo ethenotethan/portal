@@ -30,6 +30,8 @@ LLVM_COV_EXPORT_JSON is the output of:
     xcrun llvm-cov export -instr-profile <profdata> <test-binary>
 (no -summary-only — we need per-line segments for the patch check).
 """
+from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -50,8 +52,8 @@ def layer_of(path: str) -> str | None:
 
 
 def relativize(path: str, root: str) -> str:
-    if path.startswith(root):
-        path = path[len(root):]
+    if path.lower().startswith(root.lower().rstrip("/") + "/"):
+        path = path[len(root.rstrip("/")):]
     return path.lstrip("/")
 
 
