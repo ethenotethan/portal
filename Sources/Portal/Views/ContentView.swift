@@ -394,14 +394,20 @@ internal struct ContentView: View {
             .presentationDetents([.large])
         }
         .sheet(isPresented: $showLiveSessions) {
-            SessionsDashboard(onOpenSession: { sessionID in
-                showLiveSessions = false
-                selectedTab = 0
-                sessionList.selectSession(id: sessionID)
-            })
-                .environmentObject(sessionList)
-                .environmentObject(gatewayClientWrapper)
-                .presentationDetents([.large])
+            Group {
+                if let standard = focusedHermesStandardGateway {
+                    HermesStandardSessionsView(gateway: standard)
+                } else {
+                    SessionsDashboard(onOpenSession: { sessionID in
+                        showLiveSessions = false
+                        selectedTab = 0
+                        sessionList.selectSession(id: sessionID)
+                    })
+                    .environmentObject(sessionList)
+                    .environmentObject(gatewayClientWrapper)
+                }
+            }
+            .presentationDetents([.large])
         }
     }
 
@@ -546,6 +552,16 @@ internal struct ContentView: View {
         showFeedSheet = false
         showLearning = false
         showSettingsOverlay = false
+    }
+
+    /// A management-scoped Standard backend changes only management surfaces;
+    /// the app-level Gateway connection and its chat session list stay intact.
+    private var focusedHermesStandardGateway: SavedGateway? {
+        guard let focused = settings.focusedGateway,
+              focused.kind == .hermesStandard else {
+            return nil
+        }
+        return focused
     }
 
     private var overlayHeaderBar: some View {
@@ -986,15 +1002,21 @@ internal struct ContentView: View {
 
             if showLiveSessions {
                 #if os(macOS)
-                SessionsDashboardCanvas(onOpenSession: { sessionID in
-                    showLiveSessions = false
-                    sessionList.selectSession(id: sessionID)
-                })
-                    .environmentObject(sessionList)
-                    .environmentObject(gatewayClientWrapper)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.background)
-                    .transition(.opacity)
+                Group {
+                    if let standard = focusedHermesStandardGateway {
+                        HermesStandardSessionsView(gateway: standard)
+                    } else {
+                        SessionsDashboardCanvas(onOpenSession: { sessionID in
+                            showLiveSessions = false
+                            sessionList.selectSession(id: sessionID)
+                        })
+                        .environmentObject(sessionList)
+                        .environmentObject(gatewayClientWrapper)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.background)
+                .transition(.opacity)
                 #endif
             }
 

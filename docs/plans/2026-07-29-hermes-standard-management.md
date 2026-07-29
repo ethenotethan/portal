@@ -50,6 +50,13 @@ Route sessions, cron, skills, settings, and advertised notification SSE through 
 
 **Exit:** fixture-backed request/response tests pass for each route, SSE framing/reconnect is tested, and unsupported notification streaming has an honest UI state.
 
+## Current checkpoint
+
+- **Transport complete:** nine focused client tests cover typed decoding, same-origin token auth, cross-origin redirect rejection, cancellation, structured errors, secret redaction, and the honest unavailable-notifications state.
+- **Sessions complete:** selecting a Hermes Standard entry and opening Sessions now loads a separate read-only management view. It supports refresh, search, live/ended filtering, explicit loading/error states, and never mutates or replaces the app-level Hermes Gateway chat list.
+- **Fresh qualification:** 596 SwiftPM tests pass; macOS and iOS Simulator builds succeed; lint-baseline growth is zero; `git diff --check` passes.
+- **Still pending:** Cron, Skills, bounded Settings editing, full navigation capability wiring, and Notifications until upstream advertises a compatible SSE endpoint.
+
 ## Acceptance gates
 
 1. `BackendKind` migration and labels are covered by tests.
