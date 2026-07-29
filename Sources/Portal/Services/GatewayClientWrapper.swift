@@ -105,6 +105,27 @@ final class GatewayClientWrapper: ObservableObject {
         standardChatClients.removeAll()
     }
 
+    /// The live backend currently serving this entry, for status/diagnostics
+    /// display — or nil when nothing is connected on its behalf. Read-only:
+    /// unlike `standardChatClient(for:)`/`sessionScopedBackend(for:)`, this
+    /// never builds or connects a client, so a settings pane can show "offline"
+    /// without spinning up a socket. Resolution mirrors where each kind's
+    /// transport lives:
+    /// - `.hermes` — the app-level socket, but only while this entry is the
+    ///   active home gateway (`isActive`); other Hermes entries aren't dialed.
+    /// - `.hermesStandard` — its `/api/ws` chat sidecar, once focused.
+    /// - session-scoped — its lazily-built client, once a session has opened.
+    internal func liveClient(for entry: SavedGateway, isActive: Bool) -> (any AgentBackend)? {
+        switch entry.kind {
+        case .hermes:
+            return isActive ? client : nil
+        case .hermesStandard:
+            return standardChatClients[entry.id]?.client
+        case .centaur:
+            return scopedClients[entry.id]?.client
+        }
+    }
+
     struct LogEntry: Identifiable {
         let id = UUID()
         let text: String

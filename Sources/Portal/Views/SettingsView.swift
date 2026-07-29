@@ -167,10 +167,10 @@ internal struct SettingsView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(isSelected ? Theme.primary : Theme.secondary)
                 Spacer(minLength: 0)
-                if case .gateway(let g) = item, settings.isActive(g), !g.kind.isSessionScoped {
-                    Circle()
-                        .fill(Theme.accent)
-                        .frame(width: 6, height: 6)
+                if case .gateway(let g) = item {
+                    HarnessStatusDot(
+                        backend: gatewayClientWrapper.liveClient(for: g, isActive: settings.isActive(g))
+                    )
                 }
             }
             .padding(.horizontal, 12)
@@ -368,6 +368,11 @@ private struct GatewayDetailPane: View {
 
             Divider()
 
+            // Live connection status + link into the full transport log.
+            HarnessConnectionSection(gateway: gateway)
+
+            Divider()
+
             // Persona avatar (name = persona name; upload or use the identicon)
             GatewayAvatarPicker(gateway: gateway)
 
@@ -555,6 +560,12 @@ extension SettingsView {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
+                                    HarnessStatusDot(
+                                        backend: gatewayClientWrapper.liveClient(
+                                            for: gateway,
+                                            isActive: settings.isActive(gateway)
+                                        )
+                                    )
                                 }
                             }
                             .buttonStyle(.plain)
