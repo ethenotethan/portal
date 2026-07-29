@@ -176,7 +176,15 @@ enum NetworkGraphLayout {
                           positions: Dictionary(uniqueKeysWithValues: placed.map { ($0.id, $0.position) }))
         }
 
+        // Pair-visits per settle iteration: the O(n²) repulsion inner loop.
+        // Tallied once per iteration (not per pair) so even the instrumented
+        // build adds no locked call inside the hot loop. This is the dominant
+        // cost and the number the ratchet defends — swap this sim for a
+        // Barnes-Hut approximation and the count drops, which the floor allows.
+        let pairsPerIteration = n * (n - 1) / 2
+        var settleIterations = 0
         for _ in 0..<300 {
+            settleIterations += 1
             var fx = [Double](repeating: 0, count: n)
             var fy = [Double](repeating: 0, count: n)
             // Pairwise repulsion.
@@ -212,6 +220,8 @@ enum NetworkGraphLayout {
             alpha *= 0.985
             if alpha < 0.02 { break }
         }
+        // Repulsion pair-visits actually performed (respects the early break).
+        PerfCounter.add("graph.forceSim", settleIterations * pairsPerIteration)
 
         // Normalize into a padded box; scale down (never up) to fit width —
         // and the fit height too, when the host constrains it.
