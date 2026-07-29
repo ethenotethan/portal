@@ -70,7 +70,7 @@ private struct TypesetTeX: View {
                     .textSelection(.enabled)
                 Text(parseError)
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.warning)
             }
         } else {
             MathLabel(tex: tex)

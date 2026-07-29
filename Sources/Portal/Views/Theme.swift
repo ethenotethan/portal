@@ -166,6 +166,20 @@ internal struct AppTheme: Identifiable, Codable, Sendable {
         graphOtherHex: "7d8597"
     )
 
+    /// Highlightr syntax theme paired to this palette. Hand-picked per preset
+    /// so highlighted code text sits in the same color family as the app chrome
+    /// instead of the fixed `atom-one-dark` that ignored the selected theme.
+    /// All are dark themes (every preset is dark).
+    internal var codeHighlightTheme: String {
+        switch id {
+        case "cosmic": return "tomorrow-night-eighties"
+        case "ocean": return "nord"
+        case "forest": return "gruvbox-dark"
+        case "rose": return "tomorrow-night"
+        default: return "atom-one-dark"  // midnight + any future fallback
+        }
+    }
+
     // Dimensions are shared — not theme-dependent.
     internal static let bubbleRadius: CGFloat = 16
     internal static let bubblePaddingH: CGFloat = 20
@@ -266,6 +280,11 @@ internal struct ThemeColors: Sendable {
 /// Each property delegates to `ThemeManager.shared.colors`.
 internal enum Theme {
     private static var colors: ThemeColors { ThemeManager.shared.colors }
+
+    /// The active palette itself — for renderers (diagrams, syntax highlighting)
+    /// that need raw hex values or the paired code-highlight theme name rather
+    /// than pre-decoded `Color`s.
+    internal static var active: AppTheme { ThemeManager.shared.current }
 
     // MARK: Backgrounds
     internal static var background: Color { colors.background }

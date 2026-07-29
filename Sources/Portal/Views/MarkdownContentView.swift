@@ -739,19 +739,15 @@ struct CodeBlockView: View {
         )
     }
 
+    // Language dot uses theme colors only (accent, with warning as a second
+    // tint) so it tracks the selected scheme instead of the old fixed
+    // per-language system colors.
     private var languageColor: Color {
         switch language {
-        case "swift": return .orange
-        case "python", "py": return .yellow
-        case "rust": return Theme.accent
-        case "go": return .cyan
-        case "bash", "sh", "zsh": return .green
-        case "json": return Theme.warning
-        case "yaml", "yml": return .pink
-        case "html": return .red
-        case "css": return .purple
-        case "javascript", "js", "typescript", "ts": return .yellow
-        default: return Theme.accent
+        case "json", "yaml", "yml", "bash", "sh", "zsh":
+            return Theme.warning
+        default:
+            return Theme.accent
         }
     }
 
@@ -856,26 +852,37 @@ struct DiagramPreviewBlock: View {
 // MARK: - Code Highlighter (Highlightr)
 
 private enum CodeHighlighter {
-    nonisolated(unsafe) private static let highlightr: Highlightr? = {
-        let h = Highlightr()
-        h?.setTheme(to: "atom-one-dark")
-        return h
-    }()
+    nonisolated(unsafe) private static let highlightr: Highlightr? = Highlightr()
+
+    /// Syntax theme currently loaded into `highlightr`. Tracked so we only pay
+    /// the `setTheme` cost when the app theme's paired code theme changes.
+    nonisolated(unsafe) private static var loadedSyntaxTheme: String?
 
     /// Highlightr runs JavaScriptCore synchronously on the main thread and was
     /// previously called uncached in `body`, so every layout/scroll pass on a
     /// resumed transcript re-highlighted every visible code block — the single
     /// most expensive per-block op behind the resume beachball. Cache by
-    /// (language + code); results are a pure function of both.
+    /// (syntax theme + language + code); results are a pure function of all three.
     nonisolated(unsafe) private static let cache = RenderMemo<AttributedString>(limit: 128)
 
     static func highlight(_ code: String, language: String) -> AttributedString {
-        cache.value(for: "\(language)\u{1F}\(code)") {
-            computeHighlight(code, language: language)
+        // Syntax theme paired to the active app theme so highlighted code
+        // follows the selected scheme (was pinned to atom-one-dark).
+        let syntaxTheme = Theme.active.codeHighlightTheme
+        return cache.value(for: "\(syntaxTheme)\u{1F}\(language)\u{1F}\(code)") {
+            computeHighlight(code, language: language, syntaxTheme: syntaxTheme)
         }
     }
 
-    private static func computeHighlight(_ code: String, language: String) -> AttributedString {
+    private static func computeHighlight(
+        _ code: String,
+        language: String,
+        syntaxTheme: String
+    ) -> AttributedString {
+        if loadedSyntaxTheme != syntaxTheme {
+            highlightr?.setTheme(to: syntaxTheme)
+            loadedSyntaxTheme = syntaxTheme
+        }
         guard let highlightr,
               let attributed = highlightr.highlight(code, as: mapLanguage(language))
         else {
@@ -1260,10 +1267,10 @@ struct HTMLBlockView: View {
             HStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.red.opacity(0.14))
+                        .fill(Theme.accent.opacity(0.14))
                     Image(systemName: "safari")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.accent)
                 }
                 .frame(width: 30, height: 30)
 
