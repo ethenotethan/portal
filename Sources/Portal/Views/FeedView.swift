@@ -2,33 +2,12 @@ import SwiftUI
 import AVKit
 import os
 
-// MARK: - Snapshot service injection
-
-/// Environment slot for the feed's shared page-snapshot renderer. `FeedView`
-/// injects one instance so every card shares its cache and render queue; the
-/// default is `nil` (the key can't build a `@MainActor` value in a nonisolated
-/// static), so a preview shown without `FeedView` simply skips snapshots.
-private struct WebPageSnapshotServiceKey: EnvironmentKey {
-    static let defaultValue: WebPageSnapshotService? = nil
-}
-
-extension EnvironmentValues {
-    internal var webPageSnapshotService: WebPageSnapshotService? {
-        get { self[WebPageSnapshotServiceKey.self] }
-        set { self[WebPageSnapshotServiceKey.self] = newValue }
-    }
-}
-
 // MARK: - Feed View
 
 /// Social-media-style curated feed from the digest pipeline.
 struct FeedView: View {
     @StateObject private var vm = FeedViewModel()
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
-    /// One page-snapshot renderer for the whole feed — its cache and serialized
-    /// render queue are shared across every card via the environment (injected,
-    /// not a global singleton, so it can be swapped in tests/previews).
-    @State private var snapshotService = WebPageSnapshotService()
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -61,7 +40,6 @@ struct FeedView: View {
         }
         .navigationTitle("Feed")
         .background(Theme.background)
-        .environment(\.webPageSnapshotService, snapshotService)
         .task { if vm.articles.isEmpty { await vm.loadFeed(client: gatewayClientWrapper.client) } }
     }
 
@@ -222,79 +200,50 @@ struct SourcePill: View {
     }
 }
 
-// MARK: - Hero Image
+// MARK: - Source Icon
 
-/// A live snapshot of the article's actual web page, captured offscreen and
-/// cached. Shows the page thumbnail once rendered; until then (or if the render
-/// fails) it falls back to the article's hero/OG image so the card is never
-/// blank. This is the "preview of the webpage" at the top of the card.
-internal struct FeedPagePreview: View {
-    internal let pageURL: URL
-    internal let fallbackImageURL: URL?
-    internal var height: CGFloat = 200
-
-    @Environment(\.webPageSnapshotService) private var snapshotService
-    @State private var snapshot: SnapshotImage?
-    @State private var triedSnapshot = false
+/// The card's small site mark: the article's favicon in a tinted circle,
+/// falling back to the per-source SF Symbol while the favicon loads or when
+/// the article has no host. Replaces the old full-page screenshot preview — a
+/// site is now a small icon, not an arbitrary crop of its top.
+internal struct FeedSourceIcon: View {
+    internal let faviconURL: URL?
+    internal let fallbackSymbol: String
+    internal let tint: Color
 
     internal var body: some View {
-        Group {
-            if let snapshot {
-                snapshotImage(snapshot)
-            } else if let fallbackImageURL {
-                FeedHeroImage(url: fallbackImageURL, height: height)
-            } else {
-                placeholder
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
-        )
-        .onAppear(perform: requestSnapshot)
-    }
+        ZStack {
+            Circle()
+                .fill(tint.opacity(0.15))
+                .frame(width: 36, height: 36)
 
-    private func snapshotImage(_ image: SnapshotImage) -> some View {
-        #if os(macOS)
-        Image(nsImage: image)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(maxWidth: .infinity, maxHeight: height, alignment: .top)
-            .clipped()
-        #else
-        Image(uiImage: image)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(maxWidth: .infinity, maxHeight: height, alignment: .top)
-            .clipped()
-        #endif
-    }
-
-    private var placeholder: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(Color.secondary.opacity(0.08))
-            .overlay {
-                if !triedSnapshot {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: "safari")
-                        .font(.system(size: 26))
-                        .foregroundStyle(.secondary.opacity(0.5))
+            if let faviconURL {
+                AsyncImage(url: faviconURL, transaction: Transaction(animation: .easeIn(duration: 0.15))) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    default:
+                        fallback
+                    }
                 }
+            } else {
+                fallback
             }
+        }
     }
 
-    private func requestSnapshot() {
-        guard snapshot == nil, !triedSnapshot, let snapshotService else { return }
-        snapshotService.snapshot(for: pageURL) { image in
-            triedSnapshot = true
-            if let image { snapshot = image }
-        }
+    private var fallback: some View {
+        Image(systemName: fallbackSymbol)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(tint)
     }
 }
+
+// MARK: - Hero Image
 
 /// Async-loaded article/release image with rounded social-card styling.
 /// Collapses to nothing on failure so broken URLs never leave a gap.
@@ -357,26 +306,12 @@ struct FeedCard: View {
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ── Webpage preview (top) — the "photo" of the post ──
-            if showsPagePreview, let pageURL = articleURL {
-                FeedPagePreview(
-                    pageURL: pageURL,
-                    fallbackImageURL: article.heroImageURL,
-                    height: isExpanded ? 320 : 200
-                )
-                .padding(.bottom, 12)
-                .animation(.easeInOut(duration: 0.25), value: isExpanded)
-            }
-
             HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(sourceColor(article.source).opacity(0.15))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: article.sourceIcon)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(sourceColor(article.source))
-                }
+                FeedSourceIcon(
+                    faviconURL: article.faviconURL,
+                    fallbackSymbol: article.sourceIcon,
+                    tint: sourceColor(article.source)
+                )
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(article.twitterAuthor ?? article.sourceLabel)
