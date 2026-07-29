@@ -53,12 +53,13 @@ Rules for the baseline:
 
 - **Never add entries to silence a new violation.** Fix the code instead. The
   baseline is a record of *old* debt, not an escape hatch for new debt. This is
-  now *enforced*, not just policy: the **Baseline growth guard** CI job
+  now *enforced*, not just policy: the **`Ratchet / Quality`** CI job
   (`scripts/check-baseline-growth.py`, also `make lint-baseline-guard`) fails
   the PR if any rule's frozen-entry count grew versus main. Per-rule, so paying
   down one rule can't mask freezing a new violation in another. A genuinely
   intended new entry (rare) must be called out in the PR description — it can
-  no longer slip in silently.
+  no longer slip in silently. (It's a ratchet, not a test: a frozen baseline
+  plus a floor that only shrinks — see the posture taxonomy below.)
 - **Regenerate only to pay debt down** — `make lint-baseline` after you've
   fixed some existing violations. The git diff should only ever *remove* rows.
 - **Always regenerate via `make lint-baseline`, never raw
@@ -68,7 +69,7 @@ Rules for the baseline:
   every frozen violation fails. The make target strips the repo prefix to
   repo-relative paths (and asserts none survive) so the baseline is portable.
 - **The SwiftLint version is pinned** (`SWIFTLINT_VERSION` in
-  `.github/workflows/lint.yml`) and must match the version behind
+  `.github/workflows/tests.yml`) and must match the version behind
   `make lint-baseline`. A newer SwiftLint detects *more* violations than the
   baseline froze, so an unpinned bump fails CI on debt it never recorded. To
   upgrade: bump the pin, install the same version locally, `make lint-baseline`,
@@ -78,38 +79,54 @@ Rules for the baseline:
 
 ## CI posture taxonomy (which check defends what)
 
-CI checks are organized by the **attribute each one defends**, so the PR checks
-list reads as posture — not one opaque global pass/fail. Every check is a
-ratchet (a committed benchmark; improvement allowed, regression blocked); they
-differ only in what they measure and which script measures it.
+CI checks are organized so the PR checks list reads by **intent**, split into
+two families:
 
-| Check (workflow / job) | Posture | Benchmark | Script |
-|---|---|---|---|
-| `Lint / SwiftLint` | Code style | `.swiftlint-baseline` | swiftlint |
-| `Lint / Baseline growth guard` | Code style (debt) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
-| `Ratchet / Security` | Secrets | `.gitleaksignore` | gitleaks + `check-secret-baseline-growth.py` |
-| `Ratchet / Warnings` | Compiler-warning health | `metrics-baseline.json` `warnings` | `check-metrics-ratchet.py --warnings` |
-| `Ratchet / Coverage` | Test quality | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
-| `Ratchet / Performance` | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
+- **Tests** (`tests.yml`) — does it *work*? Things that run and pass/fail on
+  behavior: the lint run, the unit suite, the iOS simulator smoke/E2E flows,
+  the macOS main-thread hang gate. Each is its own `Tests / <name>` check.
+- **Ratchet** (`ratchet.yml`) — did a tracked metric get *worse*? Posture
+  floors, each a committed benchmark that may improve but never regress. Each
+  is its own `Ratchet / <name>` check.
 
-Two workflows, split by cost and cadence: **`lint.yml`** is the fast
-style/debt gate; **`ratchet.yml`** holds the posture ratchets. Within
-`ratchet.yml`, Warnings and Coverage both need a from-scratch compile (+ tests
-for coverage), so a single `Measure (build + test)` job builds ONCE and
+The line between them is subtle for SwiftLint and worth stating: SwiftLint's
+*run* is a test (`Tests / SwiftLint` — it fails on a new violation), while the
+floor that its baseline can't be *grown* to silence one is a ratchet
+(`Ratchet / Quality`). Same tool, two intents, two checks.
+
+| Check (workflow / job) | Family | Defends / does | Benchmark | Script |
+|---|---|---|---|---|
+| `Tests / SwiftLint` | Tests | Strict lint run (new violations fail) | `.swiftlint-baseline` | swiftlint |
+| `Tests / Swift package tests` | Tests | SwiftPM unit suite | — | swift test |
+| `Tests / iOS simulator smoke tests` | Tests | Offline + gateway + E2E flows | — | xcodebuild test |
+| `Tests / macOS main-thread hang gate` | Tests | >250ms main-thread stall = fail | — | xcodebuild test |
+| `Ratchet / Security` | Ratchet | Secrets | `.gitleaksignore` | gitleaks + `check-secret-baseline-growth.py` |
+| `Ratchet / Warnings` | Ratchet | Compiler-warning health | `metrics-baseline.json` `warnings` | `check-metrics-ratchet.py --warnings` |
+| `Ratchet / Coverage` | Ratchet | Test coverage | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
+| `Ratchet / Performance` | Ratchet | Algorithmic work | `perf-baseline.json` | `check-perf-ratchet.py` |
+| `Ratchet / Quality` | Ratchet | Lint debt (baseline only shrinks) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
+
+Within `ratchet.yml`, Warnings and Coverage both need a from-scratch compile (+
+tests for coverage), so a single `Measure (build + test)` job builds ONCE and
 publishes snapshots as an artifact; the Warnings and Coverage jobs download
 those and ratchet each independently. That keeps them separate green/red checks
 without paying for two builds.
 
 Rules of the taxonomy:
 
-- **One concern per job.** A new posture (performance, dependency advisories, …)
-  gets its OWN job + its own collector/guard script — never folded into an
-  existing job. The separation is the point: a red check names the attribute
-  that regressed.
+- **Tests run; ratchets compare.** If a check answers "does it work?" it's a
+  Tests job; if it answers "did a committed metric regress?" it's a Ratchet
+  job. A frozen baseline paired with a floor that it only shrinks is always a
+  ratchet (that's what `Quality` and `Security`'s growth guards are).
+- **One concern per job.** A new posture (dependency advisories, mutation
+  score, …) gets its OWN job + its own collector/guard script — never folded
+  into an existing job. The separation is the point: a red check names the
+  attribute that regressed.
 - **Shared engine where the math is identical, separate scripts where the
   concern differs.** Warnings and Coverage share `check-metrics-ratchet.py`
   (same floor/patch/diff logic, different metric key) — duplicating it would
-  rot. Security is a genuinely different benchmark, so it keeps its own script.
+  rot. Security and Quality are genuinely different benchmarks, so they keep
+  their own scripts.
 - **Each check pins its tool** (SwiftLint, gitleaks) for the same reason the
   baseline is pinned — a newer tool detects more and fails CI on debt it never
   recorded (the #222 drift).
@@ -225,7 +242,8 @@ operation **count**, not wall-clock time — chosen deliberately.
   count up by orders of magnitude. It explicitly does **not** catch
   constant-factor slowdowns (a slower per-iteration body at the same
   complexity); that's the job of the main-thread hang gate
-  (`macos-hang-gate.yml`), which this complements rather than duplicates.
+  (the `Tests / macOS main-thread hang gate` job), which this complements
+  rather than duplicates.
 - **What's instrumented.** `PerfCounter` (Utilities) tallies the dominant loop
   of each hot pure path: `sankey.relax` and `sankey.pack` in
   `SankeyLayout.layout`, and `graph.forceSim` — the O(n²) pairwise repulsion —
