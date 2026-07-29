@@ -312,7 +312,24 @@ struct WikiGraphView: View {
     /// nodes exist.
     @ViewBuilder
     private var graphStatusOverlay: some View {
-        if viewModel.graph.pages.isEmpty {
+        if !viewModel.graph.pages.isEmpty && viewModel.isSettling {
+            // The graph is loaded but the 2D canvas hides itself (opacity 0)
+            // while it relaxes the layout off-thread — see graphSurface's
+            // `.opacity(isSettling ? 0 : 1)`. Without this the surface is a
+            // blank rectangle for the settle window (hundreds of ms up to a
+            // couple seconds on a large graph) on first open, since the
+            // empty-graph branch below doesn't fire. Show a spinner so the
+            // surface reads as "laying out", not broken.
+            VStack(spacing: 10) {
+                ProgressView()
+                Text("Laying out…")
+                    .font(.callout)
+                    .foregroundStyle(Theme.secondary)
+            }
+            .padding(24)
+            .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 12))
+            .transition(.opacity)
+        } else if viewModel.graph.pages.isEmpty {
             VStack(spacing: 10) {
                 if viewModel.isLoading {
                     ProgressView()
