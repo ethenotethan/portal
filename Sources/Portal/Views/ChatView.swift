@@ -1425,6 +1425,7 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
+                composerLogo
                 if chatViewModel.backendCapabilities.supportsAttachments {
                     attachButton
                 }
@@ -1458,6 +1459,7 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
+                composerLogo
                 if chatViewModel.backendCapabilities.supportsAttachments {
                     attachButton
                 }
@@ -1521,6 +1523,25 @@ struct ChatInputBar: View {
     }
 
     // MARK: - Attach Button
+
+    // MARK: - Composer Logo
+
+    /// The harness/persona logo, sitting at the leading edge of the composer as
+    /// the app's mark on the chat bar. Decorative — switching harnesses stays in
+    /// the top-left selector; this just carries the identity into the composer.
+    /// A small status dot (green connected / orange streaming) rides the avatar,
+    /// echoing the persona badge without repeating the name (the placeholder
+    /// already reads "Message \(name)…").
+    private var composerLogo: some View {
+        displayPersona.bubbleAvatar(size: 28)
+            .overlay(alignment: .bottomTrailing) {
+                Circle()
+                    .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(Theme.surface, lineWidth: 1.5))
+            }
+            .accessibilityHidden(true)
+    }
 
     private var attachButton: some View {
         #if os(macOS)
