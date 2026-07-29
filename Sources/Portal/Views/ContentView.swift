@@ -173,6 +173,14 @@ internal struct ContentView: View {
             // Propagate the focused gateway to the artifact store so it can
             // scope sortedArtifacts and stamp new artifacts with the right owner.
             updateArtifactGatewayScope(focusedID: focused)
+            // The focused gateway is who the user is now messaging — adopt its
+            // persona (name + avatar) so the chat chrome follows the selection.
+            refreshPersona()
+        }
+        .onChange(of: settings.savedGateways) { _, _ in
+            // A gateway was renamed or had its avatar changed in Settings —
+            // re-adopt so the header/menu-bar picture updates without a switch.
+            refreshPersona()
         }
         .onReceive(PushRegistrationService.shared.$deviceTokenHex) { token in
             // The OS usually grants the APNs token AFTER the first connect
@@ -575,10 +583,10 @@ internal struct ContentView: View {
     }
 
 
-    /// Identity the chat chrome presents — harness-fixed for session-scoped
-    /// backends (Centaur), persona-driven for Hermes.
+    /// Identity the chat chrome presents — an adopted gateway persona wins, else
+    /// the harness-fixed identity for session-scoped backends (Centaur).
     private var displayPersona: Persona {
-        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
     }
 
     private var chatToolbarPills: some View {
@@ -1443,6 +1451,18 @@ internal struct ContentView: View {
 spawnTreeStore.subscribe(to: client)
         cronPoller.setGatewayClient(client)
         updateArtifactGatewayScope(focusedID: settings.focusedBackendID)
+        refreshPersona()
+    }
+
+    /// Adopt the persona of the currently-focused gateway so all chat chrome
+    /// (header badge, composer placeholder, menu bar) presents that gateway by
+    /// name and picture. The gateway's name *is* the persona name; a gateway
+    /// with no uploaded avatar gets a stable identicon. Called whenever the
+    /// focused/active gateway changes.
+    @MainActor
+    private func refreshPersona() {
+        guard let gateway = settings.focusedGateway else { return }
+        personaManager.adoptGatewayPersona(gateway)
     }
 
     /// Scope the artifact store to the currently-focused gateway so the UI only

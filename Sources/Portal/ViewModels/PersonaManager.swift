@@ -12,6 +12,48 @@ final class PersonaManager: ObservableObject {
 
     init() {}
 
+    /// Adopt the persona for a saved gateway. The gateway's **name is the
+    /// persona name** ("Hank, Bob" → a persona called "Hank, Bob"), its `id`
+    /// seeds the identicon so every gateway gets a distinct default face, and an
+    /// uploaded `avatarImagePath` becomes the persona picture. This gateway
+    /// persona always wins over the built-in Portal/Centaur glyph — clicking
+    /// into a gateway addresses that persona.
+    ///
+    /// `isBuiltIn: false` marks it as identicon-eligible (see `Persona.avatar`).
+    internal func adoptGatewayPersona(_ gateway: SavedGateway) {
+        activePersona = Self.persona(for: gateway)
+    }
+
+    /// The identity chat chrome should present, given the current backend's
+    /// optional harness-fixed persona (`BackendCapabilities.harnessPersona`).
+    ///
+    /// A gateway persona — one adopted via `adoptGatewayPersona`, marked
+    /// `isBuiltIn == false` — **always wins**: clicking into a gateway addresses
+    /// that gateway's persona by name, even over a built-in harness identity
+    /// like Centaur. The harness persona is used only as a fallback while no
+    /// gateway persona has been adopted yet (e.g. the launch default).
+    internal func chromePersona(harness: Persona?) -> Persona {
+        if !activePersona.isBuiltIn { return activePersona }
+        return harness ?? activePersona
+    }
+
+    /// Build (without adopting) the persona a saved gateway represents. Pure so
+    /// it's testable and reusable by menu-bar / header previews — `nonisolated`
+    /// because it touches no actor state.
+    nonisolated internal static func persona(for gateway: SavedGateway) -> Persona {
+        Persona(
+            id: gateway.id.uuidString,
+            name: gateway.displayName,
+            tagline: gateway.kind.displayName,
+            symbolName: gateway.kind.iconName,
+            accentColorHex: "#5856D6",
+            imagePath: gateway.avatarImagePath,
+            systemPromptSuffix: nil,
+            isBuiltIn: false,
+            isAgentDefault: false
+        )
+    }
+
     /// Derive the persona from the connected Hermes Agent config.
     func syncFromGateway(_ client: GatewayClient) async {
         var personalityName = "default"

@@ -95,11 +95,11 @@ struct ChatView: View {
         chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
     }
 
-    /// The identity all chat chrome presents: harness-fixed for backends
-    /// like Centaur (the user is not messaging Hermes there), otherwise the
-    /// user's active Hermes persona.
+    /// The identity all chat chrome presents. An adopted gateway persona wins;
+    /// the backend's harness-fixed identity (Centaur) is the fallback while none
+    /// has been adopted. See `PersonaManager.chromePersona(harness:)`.
     private var displayPersona: Persona {
-        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
     }
 
     // MARK: - Thought Graph Helpers
@@ -1362,10 +1362,10 @@ struct ChatInputBar: View {
     /// app-wide via the "composerStyle" key.
     @AppStorage("composerStyle") private var composerStyle: ComposerStyle = .card
 
-    /// Harness-fixed identity (Centaur) beats the Hermes persona — the
-    /// placeholder must name who the user is actually messaging.
+    /// The identity the composer placeholder names — an adopted gateway persona
+    /// wins, else the backend's harness-fixed identity (Centaur).
     private var displayPersona: Persona {
-        chatViewModel.backendCapabilities.harnessPersona ?? personaManager.activePersona
+        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
     }
 
     /// On macOS, the focus binding is owned by ChatView so that clicks

@@ -74,18 +74,33 @@ struct SavedGateway: Codable, Identifiable, Equatable, Hashable {
     var url: String
     var apiKey: String
     var kind: BackendKind
+    /// Absolute path to a user-uploaded avatar image for this gateway's persona.
+    /// `nil` → the persona falls back to a deterministic identicon generated from
+    /// `id`. The gateway name doubles as the persona name (see `PersonaManager`),
+    /// so this is the persona's picture. Stored as a path (not image bytes)
+    /// because `SavedGateway` lives in the Keychain — see `PersonaImage`.
+    internal var avatarImagePath: String?
 
-    init(id: UUID = UUID(), name: String, url: String, apiKey: String, kind: BackendKind = .hermes) {
+    internal init(
+        id: UUID = UUID(),
+        name: String,
+        url: String,
+        apiKey: String,
+        kind: BackendKind = .hermes,
+        avatarImagePath: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.url = url
         self.apiKey = apiKey
         self.kind = kind
+        self.avatarImagePath = avatarImagePath
     }
 
-    // Custom decode: entries persisted before `kind` existed are hermes.
+    // Custom decode: entries persisted before `kind`/`avatarImagePath` existed
+    // decode as hermes with no avatar (identicon fallback).
     private enum CodingKeys: String, CodingKey {
-        case id, name, url, apiKey, kind
+        case id, name, url, apiKey, kind, avatarImagePath
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +110,7 @@ struct SavedGateway: Codable, Identifiable, Equatable, Hashable {
         self.url = try c.decode(String.self, forKey: .url)
         self.apiKey = try c.decode(String.self, forKey: .apiKey)
         self.kind = try c.decodeIfPresent(BackendKind.self, forKey: .kind) ?? .hermes
+        self.avatarImagePath = try c.decodeIfPresent(String.self, forKey: .avatarImagePath)
     }
 
     /// A short label for display when `name` is empty — falls back to the host.
