@@ -32,16 +32,16 @@ struct OnboardingView: View {
                     .font(.title)
                     .fontWeight(.bold)
 
-                Text("Connect to your gateway")
+                Text("Connect to your harness")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 Form {
-                    Section("Gateway") {
+                    Section("Harness") {
                         TextField("URL", text: $settings.gatewayURL)
                             .textFieldStyle(.roundedBorder)
                             .placeholder(when: settings.gatewayURL.isEmpty) {
-                                Text("wss://your-gateway.example.com/v1/ws").foregroundStyle(.tertiary)
+                                Text("wss://your-harness.example.com/v1/ws").foregroundStyle(.tertiary)
                             }
                     }
 
@@ -149,15 +149,15 @@ struct OnboardingView: View {
                         Text(personaManager.activePersona.name)
                             .font(.title3)
                             .fontWeight(.bold)
-                        Text("Connect to your gateway")
+                        Text("Connect to your harness")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.top, 20)
 
-                    // Gateway URL
+                    // Harness URL
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Gateway URL")
+                        Text("Harness URL")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
@@ -316,12 +316,12 @@ struct OnboardingView: View {
                 if let error = error {
                     testResult = "✗ \(error.localizedDescription)"
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                    testResult = "✓ Gateway reachable"
+                    testResult = "✓ Harness reachable"
                     Task {
                         if let client = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) {
                             await capabilitiesStore.refresh(using: client)
                         } else {
-                            capabilitiesStore.reset(reason: "Gateway is reachable, but WebSocket did not connect")
+                            capabilitiesStore.reset(reason: "Harness is reachable, but WebSocket did not connect")
                         }
                     }
                 } else if let http = response as? HTTPURLResponse, http.statusCode == 401 {

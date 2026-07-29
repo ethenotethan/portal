@@ -132,7 +132,7 @@ final class CFAuthViewModel: ObservableObject {
             guard !Task.isCancelled else { return }
             if isLoading {
                 isLoading = false
-                errorMessage = "Connection timed out — check that the gateway is reachable and uses HTTPS"
+                errorMessage = "Connection timed out — check that the harness is reachable and uses HTTPS"
             }
         }
     }
@@ -196,11 +196,11 @@ final class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
             case .timedOut:
                 viewModel.errorMessage = "Connection timed out"
             case .secureConnectionFailed:
-                viewModel.errorMessage = "Secure connection failed — check the gateway URL uses HTTPS"
+                viewModel.errorMessage = "Secure connection failed — check the harness URL uses HTTPS"
             case .cannotConnectToHost:
                 viewModel.errorMessage = "Cannot connect to host"
             case .appTransportSecurityRequiresSecureConnection:
-                viewModel.errorMessage = "HTTP not allowed — gateway must use HTTPS"
+                viewModel.errorMessage = "HTTP not allowed — harness must use HTTPS"
             default:
                 viewModel.errorMessage = urlError.localizedDescription
             }

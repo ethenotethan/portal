@@ -321,7 +321,7 @@ struct WikiGraphView: View {
                         .foregroundStyle(Theme.secondary)
                 } else if !isOverride && !gatewayClientWrapper.isConnected {
                     ProgressView()
-                    Text(gatewayClientWrapper.isConnecting ? "Connecting to gateway…" : "Waiting for gateway…")
+                    Text(gatewayClientWrapper.isConnecting ? "Connecting to harness…" : "Waiting for harness…")
                         .font(.callout)
                         .foregroundStyle(Theme.secondary)
                 } else if let error = viewModel.error {

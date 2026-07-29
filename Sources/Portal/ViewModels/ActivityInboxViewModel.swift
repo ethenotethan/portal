@@ -228,7 +228,7 @@ final class ActivityInboxViewModel: ObservableObject {
                 kind: "error",
                 severity: .error,
                 source: "gateway",
-                title: "Gateway Error",
+                title: "Harness Error",
                 summary: message.truncated(to: 120),
                 sessionID: eventSessionID,
                 isRead: false,

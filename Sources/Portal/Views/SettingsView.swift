@@ -9,7 +9,6 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Settin
 /// Replaces the old 500×450 TabView sheet.
 internal struct SettingsView: View {
     @EnvironmentObject internal var settings: SettingsViewModel
-    @EnvironmentObject internal var personaManager: PersonaManager
     @EnvironmentObject internal var capabilitiesStore: GatewayCapabilitiesStore
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject private var themeManager = ThemeManager.shared
@@ -17,14 +16,12 @@ internal struct SettingsView: View {
     /// Unified sidebar selection — app sections plus one entry per gateway.
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
-        case persona
         case notifications
         case gateway(SavedGateway)
 
         internal var id: AnyHashable {
             switch self {
             case .appearance: return "appearance"
-            case .persona: return "persona"
             case .notifications: return "notifications"
             case .gateway(let g): return g.id
             }
@@ -33,7 +30,6 @@ internal struct SettingsView: View {
         internal var label: String {
             switch self {
             case .appearance: return "Appearance"
-            case .persona: return "Persona"
             case .notifications: return "Notifications"
             case .gateway(let g): return g.displayName
             }
@@ -42,7 +38,6 @@ internal struct SettingsView: View {
         internal var icon: String {
             switch self {
             case .appearance: return "paintpalette"
-            case .persona: return "person.crop.circle"
             case .notifications: return "bell"
             case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
             }
@@ -73,12 +68,12 @@ internal struct SettingsView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup(header: nil, items: [.appearance, .persona, .notifications])
+                sidebarGroup(header: nil, items: [.appearance, .notifications])
 
                 Divider().padding(.vertical, 8)
 
-                // Gateways section
-                Text("Gateways")
+                // Harnesses section
+                Text("Harnesses")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.secondary)
                     .padding(.horizontal, 14)
@@ -96,7 +91,7 @@ internal struct SettingsView: View {
                             .font(.system(size: 12))
                             .frame(width: 18)
                             .foregroundStyle(Theme.secondary)
-                        Text("Add Gateway")
+                        Text("Add Harness")
                             .font(.system(size: 13))
                             .foregroundStyle(Theme.secondary)
                         Spacer(minLength: 0)
@@ -122,8 +117,6 @@ internal struct SettingsView: View {
                     switch selection {
                     case .appearance:
                         themesSection
-                    case .persona:
-                        personaSection
                     case .notifications:
                         notificationsSection
                     case .gateway(let g):
@@ -263,46 +256,6 @@ internal struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    private var personaSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            settingsHeader("Persona", icon: "person.crop.circle")
-
-            HStack(spacing: 14) {
-                personaManager.activePersona.bubbleAvatar(size: 48)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(personaManager.activePersona.name)
-                        .font(.title3.weight(.semibold))
-                    Text(personaManager.activePersona.tagline)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let suffix = personaManager.activePersona.systemPromptSuffix,
-               !suffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Divider()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Persona Prompt (from PERSONA.md)")
-                        .font(.headline)
-                    ScrollView {
-                        Text(suffix)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 240)
-                    .padding(12)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
-                }
-            } else {
-                Text("The agent's persona is set by the gateway. Add a PERSONA.md to your gateway to customise the agent name, tagline, and system prompt suffix.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private var notificationsSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             settingsHeader("Notifications", icon: "bell")
@@ -410,7 +363,7 @@ private struct GatewayDetailPane: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(!gateway.kind.isSessionScoped && settings.hermesBackends.count <= 1)
-                .help("Remove this gateway")
+                .help("Remove this harness")
             }
 
             Divider()
@@ -548,7 +501,7 @@ extension SettingsView {
     // Shared across platforms — used by both the macOS and iOS Settings bodies.
     internal var capabilitiesSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Gateway Capabilities")
+            Text("Harness Capabilities")
                 .font(.headline)
             HStack {
                 Label(capabilitiesStore.capabilities.statusDisplay, systemImage: capabilitiesStore.isRefreshing ? "arrow.triangle.2.circlepath" : "checkmark.seal")
@@ -579,7 +532,7 @@ extension SettingsView {
         NavigationStack {
             List {
                 Section("Connection") {
-                    TextField("Gateway URL", text: $settings.gatewayURL)
+                    TextField("Harness URL", text: $settings.gatewayURL)
                         .textFieldStyle(.roundedBorder)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -649,22 +602,6 @@ extension SettingsView {
 
                 Section("Capabilities") {
                     capabilitiesSummary
-                }
-
-                if let suffix = personaManager.activePersona.systemPromptSuffix,
-                   !suffix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Section("Persona") {
-                        HStack {
-                            personaManager.activePersona.bubbleAvatar(size: 36)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(personaManager.activePersona.name)
-                                    .fontWeight(.semibold)
-                                Text(personaManager.activePersona.tagline)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
                 }
 
                 Section {
@@ -757,7 +694,7 @@ internal struct SystemPromptSection: View {
                 ContentUnavailableView(
                     "No System Prompt Loaded",
                     systemImage: "doc.text.magnifyingglass",
-                    description: Text("Tap Refresh to load the current system prompt from the gateway.")
+                    description: Text("Tap Refresh to load the current system prompt from the harness.")
                 )
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
@@ -943,7 +880,7 @@ internal struct SystemPromptSection: View {
 
     private func loadPrompt() async {
         guard let client else {
-            errorMessage = "Not connected to a gateway."
+            errorMessage = "Not connected to a harness."
             return
         }
         isLoading = true
@@ -999,7 +936,7 @@ internal struct SystemPromptSection: View {
 
     private func savePrompt() async {
         guard let client else {
-            errorMessage = "Not connected to a gateway."
+            errorMessage = "Not connected to a harness."
             return
         }
         let sid: String?
@@ -1150,7 +1087,7 @@ internal struct APNsStatusRow: View {
         var label: String {
             switch self {
             case .active: return "Remote push active"
-            case .gatewayUnconfigured: return "Remote push: gateway not configured"
+            case .gatewayUnconfigured: return "Remote push: harness not configured"
             case .noDeviceToken: return "Remote push off (no device token)"
             }
         }
@@ -1160,7 +1097,7 @@ internal struct APNsStatusRow: View {
             case .active:
                 return "Approvals, turn completions, and cron results are pushed via APNs even when the app is closed."
             case .gatewayUnconfigured:
-                return "This device registered its token, but the gateway has no APNs credentials (APNS_* env vars). See docs/apns-setup.md."
+                return "This device registered its token, but the harness has no APNs credentials (APNS_* env vars). See docs/apns-setup.md."
             case .noDeviceToken:
                 return "The OS hasn't granted a push token — expected without the push entitlement. "
                     + "Local notifications still work while the app runs. See docs/apns-setup.md."

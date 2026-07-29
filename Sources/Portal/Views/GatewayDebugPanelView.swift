@@ -36,7 +36,7 @@ struct GatewayDebugPanelView: View {
             Image(systemName: "wave.3.right.circle.fill")
                 .foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Gateway Debug")
+                Text("Harness Debug")
                     .font(.headline)
                 Text("Single WebSocket transport diagnostics")
                     .font(.caption)

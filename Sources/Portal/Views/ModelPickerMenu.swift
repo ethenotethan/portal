@@ -52,7 +52,7 @@ struct ModelPickerMenu: View {
             #if os(macOS)
             .fixedSize()
             #endif
-            .help("Model: \(currentModel.isEmpty ? "gateway default" : currentModel). Click to switch this session's model.")
+            .help("Model: \(currentModel.isEmpty ? "harness default" : currentModel). Click to switch this session's model.")
             .task {
                 await chatViewModel.refreshModelCatalog()
             }

@@ -658,7 +658,7 @@ client.eventStream
     /// Create a new session on the gateway.
     func createSession() async {
         guard let client = gatewayClient else {
-            self.error = "No gateway client"
+            self.error = "No harness client"
             return
         }
         log.info("ChatViewModel createSession invoked state=\(String(describing: client.connectionState))")
@@ -755,14 +755,14 @@ if restoreSessionState(displayID: key) {
     func resumeSession(key: String, generation: Int) async -> Bool {
         guard let client = gatewayClient else {
             if generation == sessionSwitchGeneration {
-                self.error = "No gateway client"
+                self.error = "No harness client"
             }
             return false
         }
         guard case .connected = client.connectionState else {
             if generation == sessionSwitchGeneration {
                 needsGatewayResume = true
-                self.error = "Not connected to gateway"
+                self.error = "Not connected to harness"
             }
             return false
         }

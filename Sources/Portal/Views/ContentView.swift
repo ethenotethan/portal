@@ -325,7 +325,7 @@ internal struct ContentView: View {
                     } label: {
                         Image(systemName: "wave.3.right.circle")
                     }
-                    .accessibilityLabel("Gateway Debug")
+                    .accessibilityLabel("Harness Debug")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -591,19 +591,7 @@ internal struct ContentView: View {
 
     private var chatToolbarPills: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 6) {
-                displayPersona.bubbleAvatar(size: 22)
-                Text(displayPersona.name)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
-                Circle()
-                    .fill(chatViewModel.isStreaming ? Color.orange : Color.green)
-                    .frame(width: 6, height: 6)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(.quaternary, in: Capsule())
+            identityChip
 
             ModelPickerMenu()
                 .environmentObject(chatViewModel)
@@ -613,6 +601,44 @@ internal struct ContentView: View {
             // Stop control up here in the toolbar.
         }
         .frame(height: 40)
+    }
+
+    /// The single identity chip: harness persona avatar + name + a status dot.
+    /// On macOS it doubles as the harness switcher — clicking opens the list of
+    /// saved harnesses. This is the one place the active harness is shown;
+    /// there used to be a second, redundant control on the right (box icon +
+    /// name) that has been folded into this chip.
+    @ViewBuilder
+    private var identityChip: some View {
+        #if os(macOS)
+        Menu {
+            harnessSwitcherMenu
+        } label: {
+            chipLabel(dot: gatewayHealthColor)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help(gatewayHealthHelp)
+        .accessibilityIdentifier("gatewaySwitcher")
+        #else
+        chipLabel(dot: chatViewModel.isStreaming ? Color.orange : Color.green)
+        #endif
+    }
+
+    private func chipLabel(dot: Color) -> some View {
+        HStack(spacing: 6) {
+            displayPersona.bubbleAvatar(size: 22)
+            Text(displayPersona.name)
+                .font(.caption)
+                .fontWeight(.medium)
+                .lineLimit(1)
+            Circle()
+                .fill(dot)
+                .frame(width: 6, height: 6)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.quaternary, in: Capsule())
     }
 
     /// Wiki source for the visible chat's backend: a Centaur session gets a
@@ -688,65 +714,46 @@ internal struct ContentView: View {
         }
     }
 
+    /// Menu contents for switching harnesses — the list of saved harnesses plus
+    /// reconnect/add/manage actions. Rendered as the identity chip's menu (the
+    /// chip is the single control that both shows the active harness and lets
+    /// the operator click to switch between harnesses).
     @ViewBuilder
-    private var gatewaySwitcher: some View {
-        // Always visible (even with a single saved gateway) so adding a second
-        // gateway is discoverable from the toolbar, not buried in Settings.
-        Menu {
-            ForEach(settings.savedGateways) { gateway in
-                Button {
-                    switchToGateway(gateway)
-                } label: {
-                    // Checkmark follows FOCUS (what the user selected), not
-                    // the underlying connection — selecting Centaur checks
-                    // Centaur even though the Hermes socket stays up.
-                    if settings.isFocused(gateway) {
-                        Label(gateway.displayName, systemImage: "checkmark")
-                    } else {
-                        Label(gateway.displayName, systemImage: gateway.kind.iconName)
-                    }
+    private var harnessSwitcherMenu: some View {
+        ForEach(settings.savedGateways) { gateway in
+            Button {
+                switchToGateway(gateway)
+            } label: {
+                // Checkmark follows FOCUS (what the user selected), not
+                // the underlying connection — selecting Centaur checks
+                // Centaur even though the Hermes socket stays up.
+                if settings.isFocused(gateway) {
+                    Label(gateway.displayName, systemImage: "checkmark")
+                } else {
+                    Label(gateway.displayName, systemImage: gateway.kind.iconName)
                 }
-            }
-            if !settings.savedGateways.isEmpty {
-                Divider()
-            }
-            if !gatewayClientWrapper.isConnected && !gatewayClientWrapper.isConnecting {
-                Button("Reconnect") {
-                    Task {
-                        await gatewayClientWrapper.connectWithRetry(using: settings)
-                        wireUpClient()
-                    }
-                }
-            }
-            Button("Add Gateway…") { showAddGateway = true }
-            Button("Manage Gateways…") {
-                closeAllOverlays()
-                showSettingsOverlay = true
-            }
-        } label: {
-            HStack(spacing: 5) {
-                gatewayHealthDot
-                Image(systemName: "server.rack")
-                    .font(.caption)
-                Text(activeGatewayLabel)
-                    .font(.caption)
-                    .lineLimit(1)
             }
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .help(gatewayHealthHelp)
-        .accessibilityIdentifier("gatewaySwitcher")
+        if !settings.savedGateways.isEmpty {
+            Divider()
+        }
+        if !gatewayClientWrapper.isConnected && !gatewayClientWrapper.isConnecting {
+            Button("Reconnect") {
+                Task {
+                    await gatewayClientWrapper.connectWithRetry(using: settings)
+                    wireUpClient()
+                }
+            }
+        }
+        Button("Add Harness…") { showAddGateway = true }
+        Button("Manage Harnesses…") {
+            closeAllOverlays()
+            showSettingsOverlay = true
+        }
     }
 
-    /// Health dot: green = connected (pulsing amber if RTT is degraded),
+    /// Health color: green = connected (amber if RTT is degraded),
     /// amber = connecting, red = disconnected.
-    private var gatewayHealthDot: some View {
-        Circle()
-            .fill(gatewayHealthColor)
-            .frame(width: 7, height: 7)
-    }
-
     private var gatewayHealthColor: Color {
         if gatewayClientWrapper.isConnected {
             // Degraded when the keepalive RTT crosses 750ms.
@@ -761,23 +768,21 @@ internal struct ContentView: View {
     private var gatewayHealthHelp: String {
         if gatewayClientWrapper.isConnected {
             if let rtt = gatewayClientWrapper.lastPingRTT {
-                return String(format: "Connected — %.0fms round-trip. Click to switch gateway.", rtt * 1000)
+                return String(format: "Connected — %.0fms round-trip. Click to switch harness.", rtt * 1000)
             }
-            return "Connected. Click to switch gateway."
+            return "Connected. Click to switch harness."
         }
         if gatewayClientWrapper.isConnecting {
             return "Connecting…"
         }
-        return "Disconnected — open the menu to reconnect or switch gateway."
-    }
-
-    private var activeGatewayLabel: String {
-        settings.focusedGateway?.displayName ?? "Gateway"
+        return "Disconnected — open the menu to reconnect or switch harness."
     }
 
     private var macOverlayIcons: some View {
         HStack(spacing: 8) {
-            gatewaySwitcher
+            // The harness switcher lives on the identity chip (chatToolbarPills),
+            // the single control that shows the active harness and switches
+            // between them — no separate switcher button here.
 
             Button {
                 closeAllOverlays()
@@ -1365,7 +1370,7 @@ internal struct ContentView: View {
         await gatewayClientWrapper.connectWithRetry(using: settings)
         guard let connectedClient = await gatewayClientWrapper.connectedClient(using: settings, timeout: 12) else {
             log.error("createAndSwitchToNewSession failed: gateway not connected")
-            sessionCreationError = "Gateway is not connected"
+            sessionCreationError = "Harness is not connected"
             return
         }
         wireUpClient(connectedClient)
