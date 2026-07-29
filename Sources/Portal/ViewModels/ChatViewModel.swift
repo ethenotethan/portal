@@ -262,6 +262,11 @@ final class ChatViewModel: ObservableObject {
 
 
     private var gatewayClient: (any AgentBackend)?
+    /// True when the chat pipeline is already driven by `client`. Lets routing
+    /// code (ContentView) avoid a redundant reset+re-subscribe when re-applying
+    /// the same backend — `setGatewayClient` is identity-guarded, but the reset
+    /// that precedes it is not, so callers check identity first.
+    func isDriven(by client: any AgentBackend) -> Bool { gatewayClient === client }
     private var sessionID: String?
     private var stableSessionByGatewayID: [String: String] = [:]
     private var gatewayIDByStableSession: [String: String] = [:]

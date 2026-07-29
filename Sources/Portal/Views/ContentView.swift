@@ -176,6 +176,9 @@ internal struct ContentView: View {
             // The focused gateway is who the user is now messaging — adopt its
             // persona (name + avatar) so the chat chrome follows the selection.
             refreshPersona()
+            // Route the chat pipeline: a focused Standard backend chats over its
+            // own /api/ws sidecar; anything else falls back to the home gateway.
+            applyFocusedChatBackend()
         }
         .onChange(of: settings.savedGateways) { _, _ in
             // A gateway was renamed or had its avatar changed in Settings —
@@ -284,26 +287,21 @@ internal struct ContentView: View {
     /// the NavigationStack modifier chain type-checks in reasonable time.
     @ViewBuilder
     private var iOSRootContent: some View {
-        if let standard = focusedHermesStandardGateway {
-            HermesStandardManagementView(entry: standard)
-                .id(standard.id)
-        } else {
-            SessionListView(
-                currentSessionID: chatViewModel.currentSessionID,
-                onCreateSession: {
-                    let focused = settings.focusedGateway
-                    Task {
-                        await createAndSwitchToNewSession(
-                            on: focused?.kind.isSessionScoped == true ? focused : nil
-                        )
-                    }
-                },
-                onOpenPanel: {
-                    showCronSheet = true
+        SessionListView(
+            currentSessionID: chatViewModel.currentSessionID,
+            onCreateSession: {
+                let focused = settings.focusedGateway
+                Task {
+                    await createAndSwitchToNewSession(
+                        on: focused?.kind.isSessionScoped == true ? focused : nil
+                    )
                 }
-            )
-            .environmentObject(sessionList)
-        }
+            },
+            onOpenPanel: {
+                showCronSheet = true
+            }
+        )
+        .environmentObject(sessionList)
     }
 
     private var iOSSessionStack: some View {
@@ -575,6 +573,29 @@ internal struct ContentView: View {
             return nil
         }
         return focused
+    }
+
+    /// Point the chat pipeline at whatever backend the focused gateway implies.
+    /// A focused Hermes Standard backend chats over its own `/api/ws` sidecar (a
+    /// second WebSocket, wire-compatible with the gateway); every other focus
+    /// falls back to the app-level home client. Chat state is dropped on the
+    /// swap so a Standard turn never renders on top of a Hermes transcript.
+    @MainActor
+    private func applyFocusedChatBackend() {
+        if let standard = focusedHermesStandardGateway,
+           let chatClient = gatewayClientWrapper.standardChatClient(for: standard) {
+            guard !chatViewModel.isDriven(by: chatClient) else { return }
+            chatViewModel.saveHistory()
+            chatViewModel.resetForGatewaySwitch()
+            chatViewModel.setGatewayClient(chatClient)
+        } else if !chatViewModel.isDriven(by: gatewayClientWrapper.client) {
+            // Left Standard focus (or its sidecar was unavailable): restore the
+            // home gateway. The Standard socket is torn down lazily on the next
+            // rebuild; leave it be here so a quick re-focus reuses it.
+            chatViewModel.saveHistory()
+            chatViewModel.resetForGatewaySwitch()
+            chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+        }
     }
 
     private var overlayHeaderBar: some View {
@@ -988,14 +1009,7 @@ internal struct ContentView: View {
                 }
 
                 #if os(macOS)
-                if let standard = focusedHermesStandardGateway {
-                    // Management-scoped backend is focused: show the management
-                    // dashboard instead of chat. The app-level Hermes WebSocket
-                    // stays connected underneath for ambient services.
-                    HermesStandardManagementView(entry: standard)
-                        .id(standard.id)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let activeSession = sessionList.sessions.first(where: { $0.id == sessionList.activeSessionID }),
+                if let activeSession = sessionList.sessions.first(where: { $0.id == sessionList.activeSessionID }),
                    activeSession.source?.lowercased() == "cron" {
                     CronSessionView(session: activeSession)
                         .environmentObject(chatViewModel)

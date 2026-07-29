@@ -59,6 +59,52 @@ final class GatewayClientWrapper: ObservableObject {
         return client
     }
 
+    /// Live chat clients for focused Hermes Standard backends, keyed by entry
+    /// ID. A Standard chat client is a *second*, independent WebSocket to the
+    /// dashboard's `/api/ws` sidecar — the app-level Hermes socket above stays
+    /// connected underneath so ambient services (HTTP cron/skills, the home
+    /// session list) keep working while chat targets Standard. Rebuilt when the
+    /// entry's URL/token change.
+    private var standardChatClients: [UUID: (signature: String, client: GatewayClient)] = [:]
+
+    /// Returns a connected `GatewayClient` for a focused Hermes Standard
+    /// backend's chat sidecar, or nil when the entry isn't Standard or its URL
+    /// can't form a `/api/ws` endpoint. The upstream sidecar is wire-compatible
+    /// with the Hermes gateway (newline-delimited JSON-RPC), so a plain
+    /// `GatewayClient` drives it — no bespoke backend needed. Auth rides as the
+    /// `?token=` query item built into the URL.
+    ///
+    /// Note: the server gates `/api/ws` behind an embedded-chat opt-in and
+    /// closes with 4403 when it's off (4401 on a bad token). The returned
+    /// client surfaces that as a connection error like any other WS failure.
+    func standardChatClient(for entry: SavedGateway) -> GatewayClient? {
+        guard entry.kind == .hermesStandard, let wsURL = entry.hermesStandardChatURL else {
+            return nil
+        }
+        let signature = wsURL.absoluteString
+        if let existing = standardChatClients[entry.id], existing.signature == signature {
+            return existing.client
+        }
+        // URL/token changed — tear down the stale socket before replacing it.
+        standardChatClients[entry.id]?.client.disconnect()
+        // The token travels in the URL query, so the client's apiKey stays empty
+        // (an empty Bearer header would otherwise be sent and ignored).
+        let client = GatewayClient(gatewayURL: wsURL, apiKey: "")
+        standardChatClients[entry.id] = (signature, client)
+        client.connect()
+        appendLog("Standard chat: \(entry.displayName) (\(wsURL.absoluteString))")
+        return client
+    }
+
+    /// Tear down every Standard chat socket (e.g. when leaving all Standard
+    /// focus). Idempotent; the app-level Hermes socket is unaffected.
+    func disconnectStandardChatClients() {
+        for (_, entry) in standardChatClients {
+            entry.client.disconnect()
+        }
+        standardChatClients.removeAll()
+    }
+
     struct LogEntry: Identifiable {
         let id = UUID()
         let text: String
