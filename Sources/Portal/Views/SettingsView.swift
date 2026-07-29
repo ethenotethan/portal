@@ -415,6 +415,11 @@ private struct GatewayDetailPane: View {
 
             Divider()
 
+            // Persona avatar (name = persona name; upload or use the identicon)
+            GatewayAvatarPicker(gateway: gateway)
+
+            Divider()
+
             // API key presence indicator
             if !gateway.apiKey.isEmpty {
                 HStack(spacing: 6) {

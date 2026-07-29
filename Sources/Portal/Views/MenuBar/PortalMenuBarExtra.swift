@@ -16,6 +16,7 @@ import AppKit
 internal struct PortalMenuBarContent: View {
     @ObservedObject internal var sessionList: SessionListViewModel
     @ObservedObject internal var gateway: GatewayClientWrapper
+    @ObservedObject internal var personaManager: PersonaManager
     @Environment(\.openURL) private var openURL
 
     /// Sessions currently mid-run (streaming / working), for the activity line.
@@ -41,20 +42,26 @@ internal struct PortalMenuBarContent: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Portal")
-                .font(.system(size: 13, weight: .semibold))
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(gateway.isConnected ? Color.green : (gateway.isConnecting ? Color.orange : Color.secondary))
-                    .frame(width: 7, height: 7)
-                Text(connectionLabel)
+        HStack(alignment: .top, spacing: 10) {
+            // The active gateway's persona face — uploaded picture or identicon.
+            personaManager.activePersona.bubbleAvatar(size: 32)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(personaManager.activePersona.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(gateway.isConnected ? Color.green : (gateway.isConnecting ? Color.orange : Color.secondary))
+                        .frame(width: 7, height: 7)
+                    Text(connectionLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Text(sessionSummary)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
-            Text(sessionSummary)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
         }
     }
 

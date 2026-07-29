@@ -24,18 +24,58 @@ struct Persona: Codable, Identifiable, Equatable, Sendable {
 
     var accentColor: Color { Color(hex: accentColorHex) ?? .accentColor }
 
-    @ViewBuilder
-    var avatar: some View {
-        Image(systemName: symbolName)
+    /// True when this persona has a usable uploaded avatar image on disk.
+    /// Custom images and identicons are self-contained pictures; the SF Symbol
+    /// path is the last-resort fallback for built-in personas with neither.
+    internal var hasCustomImage: Bool {
+        guard let path = imagePath, !path.isEmpty else { return false }
+        return FileManager.default.fileExists(atPath: path)
     }
 
+    /// The plain avatar glyph, unadorned. Resolution order:
+    /// 1. uploaded image (`imagePath`) — the user's own picture,
+    /// 2. deterministic identicon seeded from `id` — for gateway personas that
+    ///    have no uploaded picture (a stable, unique face per gateway),
+    /// 3. the SF Symbol — built-in personas (Portal, Centaur) keep their glyph.
+    @ViewBuilder
+    var avatar: some View {
+        if hasCustomImage, let path = imagePath, let image = PersonaImage.load(path: path) {
+            image
+                .resizable()
+                .scaledToFill()
+        } else if usesIdenticon {
+            IdenticonView(seed: id)
+        } else {
+            Image(systemName: symbolName)
+        }
+    }
+
+    /// Gateway-derived personas (not the built-in Portal/Centaur glyphs) show an
+    /// identicon when they have no uploaded image, so every gateway reads as a
+    /// distinct face rather than a shared `sparkles` symbol.
+    private var usesIdenticon: Bool { !isBuiltIn }
+
+    /// The avatar sized into a circle for chat bubbles / headers. An uploaded
+    /// image or identicon fills the circle edge-to-edge; a symbol sits centered
+    /// on the accent color.
     @ViewBuilder
     func bubbleAvatar(size: CGFloat = 28) -> some View {
-        avatar
-            .font(.caption)
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(accentColor, in: Circle())
+        if hasCustomImage, let path = imagePath, let image = PersonaImage.load(path: path) {
+            image
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else if usesIdenticon {
+            IdenticonView(seed: id, size: size)
+                .clipShape(Circle())
+        } else {
+            Image(systemName: symbolName)
+                .font(.caption)
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+                .background(accentColor, in: Circle())
+        }
     }
 
     static let defaultPersona = Persona(

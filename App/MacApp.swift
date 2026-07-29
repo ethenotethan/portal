@@ -52,7 +52,11 @@ struct PortalAppMac: App {
         // (the app keeps running in the background). Shows live connection +
         // session state and routes quick actions through the deep-link scheme.
         MenuBarExtra {
-            PortalMenuBarContent(sessionList: sessionList, gateway: gatewayClientWrapper)
+            PortalMenuBarContent(
+                sessionList: sessionList,
+                gateway: gatewayClientWrapper,
+                personaManager: personaManager
+            )
         } label: {
             PortalMenuBarLabel()
         }
