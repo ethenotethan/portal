@@ -37,8 +37,16 @@ final class SpawnTreeStore: ObservableObject {
     /// panel reads it back through this store.
     internal let batchHistory: DelegationBatchHistoryStore
 
-    internal init(batchHistory: DelegationBatchHistoryStore = DelegationBatchHistoryStore()) {
+    internal init(batchHistory: DelegationBatchHistoryStore) {
         self.batchHistory = batchHistory
+    }
+
+    // Not a default argument: default-argument expressions evaluate in the
+    // CALLER's isolation, and xcodebuild (Swift 6 mode) rejects constructing
+    // the MainActor-isolated history store there. This overload's body runs
+    // on the main actor, where the construction is legal.
+    internal convenience init() {
+        self.init(batchHistory: DelegationBatchHistoryStore())
     }
 
     /// The active session tree (if any).

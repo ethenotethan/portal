@@ -252,7 +252,6 @@ final class HeuristicReasoningSummarizer: ReasoningSummarizing {
             let matches = pattern.matches(in: text, range: r)
             if matches.count >= 2 {
                 for m in matches {
-                    let stepNum = (text as NSString).substring(with: m.range(at: 1))
                     let body = clean((text as NSString).substring(with: m.range(at: 2)))
                     guard !body.isEmpty else { continue }
                     results.append(ReasoningDecision(
