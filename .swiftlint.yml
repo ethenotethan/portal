@@ -366,6 +366,29 @@ custom_rules:
       Task.sleep for deferred work (#262).
     severity: warning
 
+  no_ordering_comparison_on_generation:
+    included: ".*/(ViewModels|Services)/.*\\.swift"
+    # The generation-counter idiom (bump before an await, capture into a local,
+    # `guard captured == self.counter else { return }` after) uses the counter as
+    # an IDENTITY token: is this the completion for the load I'm still waiting on,
+    # or a stale one? That question is `==` / `!=`, never ordering. An ordering
+    # comparison (`<`, `<=`, `>`, `>=`) on a *Generation value is the tell that
+    # the version-number idiom (ArtifactStore's `fresh.rev >= current.rev`
+    # last-writer-wins) was copy-pasted into a generation context, where it's a
+    # bug: generations aren't monotonic-comparable across concurrent operations,
+    # so `>=` admits stale completions the `==` guard would have dropped. Zero
+    # existing violations — every current site uses `==`. The whole-file
+    # "bumped-but-never-compared" invariant is enforced by ArchitectureTests
+    # (regex can't see a compare that lives on a different line than the bump).
+    regex: "\\b\\w*[Gg]eneration\\b\\s*(?:<=|>=|<|>)|(?:<=|>=|<|>)\\s*(?:self\\.)?\\w*[Gg]eneration\\b"
+    message: >-
+      Compare a generation counter with == / != , not ordering (<, <=, >, >=).
+      A generation is an identity token for "is this completion stale?", not a
+      monotonic version — ordering comparisons admit stale results the == guard
+      drops. (Version-number last-writer-wins, à la ArtifactStore.rev, is a
+      different idiom — use a field named `rev`/`version`, not `generation`.)
+    severity: warning
+
   no_mainactor_missing_on_observableobject:
     # ObservableObject classes that mutate @Published properties must be
     # @MainActor-isolated: SwiftUI subscribes to objectWillChange on the main
