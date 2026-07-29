@@ -49,8 +49,8 @@ final class GatewayClientWrapper: ObservableObject {
         }
         let client: any AgentBackend
         switch entry.kind {
-        case .hermes:
-            return nil  // hermes is the app-level gateway, never session-scoped
+        case .hermes, .hermesStandard:
+            return nil  // management/app backends are never session-scoped
         case .centaur:
             client = CentaurClient(baseURL: url, apiKey: entry.apiKey)
         }

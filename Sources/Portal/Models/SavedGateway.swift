@@ -1,16 +1,32 @@
 import Foundation
 
+/// Top-level Portal surfaces a backend can honestly serve.
+enum BackendNavigationCapability: String, Codable, CaseIterable, Sendable {
+    case chat
+    case sessions
+    case cron
+    case notifications
+    case skills
+    case settings
+    case wiki
+    case artifacts
+}
+
 /// Which agent platform a saved backend entry speaks.
 enum BackendKind: String, Codable, CaseIterable, Sendable {
     /// Hermes gateway — WebSocket JSON-RPC, full feature surface. The app's
     /// "home" backend: session list, wiki, skills, cron all live here.
     case hermes
+    /// Upstream/default Hermes dashboard — authenticated HTTP management API
+    /// plus an optional advertised SSE notification stream.
+    case hermesStandard
     /// Centaur control plane — REST + SSE, chat-only surface.
     case centaur
 
     var displayName: String {
         switch self {
-        case .hermes: return "Hermes"
+        case .hermes: return "Hermes Gateway"
+        case .hermesStandard: return "Hermes Standard"
         case .centaur: return "Centaur"
         }
     }
@@ -20,8 +36,26 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
     /// this — never on concrete kinds — so new platforms only touch this file.
     var isSessionScoped: Bool {
         switch self {
-        case .hermes: return false
+        case .hermes, .hermesStandard: return false
         case .centaur: return true
+        }
+    }
+
+    /// Management-scoped backends are selectable without replacing the
+    /// app-level Hermes Gateway WebSocket.
+    var isManagementScoped: Bool { self == .hermesStandard }
+
+    /// A focused backend is either session-scoped or management-scoped.
+    var isFocusScoped: Bool { isSessionScoped || isManagementScoped }
+
+    var navigationCapabilities: [BackendNavigationCapability] {
+        switch self {
+        case .hermes:
+            return BackendNavigationCapability.allCases
+        case .hermesStandard:
+            return [.sessions, .cron, .notifications, .skills, .settings]
+        case .centaur:
+            return [.chat, .sessions]
         }
     }
 
@@ -29,6 +63,7 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
     var iconName: String {
         switch self {
         case .hermes: return "server.rack"
+        case .hermesStandard: return "server.rack"
         case .centaur: return "shippingbox"
         }
     }
@@ -37,7 +72,8 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
 
     var urlFieldLabel: String {
         switch self {
-        case .hermes: return "Harness URL"
+        case .hermes: return "Hermes Gateway URL"
+        case .hermesStandard: return "Hermes Standard URL (https://…)"
         case .centaur: return "Centaur URL (https://…)"
         }
     }
@@ -45,6 +81,7 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
     var keyFieldLabel: String {
         switch self {
         case .hermes: return "API Key"
+        case .hermesStandard: return "Dashboard session token"
         case .centaur: return "API key / console JWT"
         }
     }
@@ -54,6 +91,8 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
         switch self {
         case .hermes:
             return nil
+        case .hermesStandard:
+            return "Hermes Standard is management-only: Sessions, Cron, Notifications, Skills, and Settings."
         case .centaur:
             return "Centaur backends host individual sessions (chosen from the New Session menu). "
                 + "Wiki, skills, attachments, and interactive prompts are unavailable on Centaur sessions."

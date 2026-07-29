@@ -112,6 +112,10 @@ final class SettingsViewModel: ObservableObject {
         savedGateways.filter { $0.kind.isSessionScoped }
     }
 
+    var managementScopedBackends: [SavedGateway] {
+        savedGateways.filter { $0.kind.isManagementScoped }
+    }
+
     var hermesBackends: [SavedGateway] {
         savedGateways.filter { $0.kind == .hermes }
     }
@@ -179,7 +183,7 @@ final class SettingsViewModel: ObservableObject {
         self.focusedBackendID = UserDefaults.standard.string(forKey: Self.focusedBackendIDKey)
             .flatMap(UUID.init(uuidString:))
             .flatMap { id in
-                loadedGateways.first { $0.id == id && $0.kind.isSessionScoped }?.id
+                loadedGateways.first { $0.id == id && $0.kind.isFocusScoped }?.id
             }
 
         didCompleteInit = true
@@ -223,7 +227,7 @@ final class SettingsViewModel: ObservableObject {
     func selectGateway(_ gateway: SavedGateway) {
         guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
 
-        if gateway.kind.isSessionScoped {
+        if gateway.kind.isFocusScoped {
             focusedBackendID = gateway.id
             return
         }
