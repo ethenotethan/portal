@@ -108,6 +108,10 @@ internal struct ContentView: View {
                 // until the user taps something that reconnects.
                 await gatewayClientWrapper.connectWithRetry(using: settings)
                 wireUpClient()
+                // Focus persists across launches: if a Standard backend was
+                // focused when the app quit, route chat to its /api/ws sidecar
+                // now (the change-only onChange above never fires on launch).
+                applyFocusedChatBackend()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
                     await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
@@ -405,19 +409,16 @@ internal struct ContentView: View {
             .presentationDetents([.large])
         }
         .sheet(isPresented: $showLiveSessions) {
-            Group {
-                if let standard = focusedHermesStandardGateway {
-                    HermesStandardSessionsView(gateway: standard)
-                } else {
-                    SessionsDashboard(onOpenSession: { sessionID in
-                        showLiveSessions = false
-                        selectedTab = 0
-                        sessionList.selectSession(id: sessionID)
-                    })
-                    .environmentObject(sessionList)
-                    .environmentObject(gatewayClientWrapper)
-                }
-            }
+            // The dashboard reads from `sessionList`, which follows the Standard
+            // sidecar when a Standard backend is focused — real Standard
+            // sessions, no bespoke pane.
+            SessionsDashboard(onOpenSession: { sessionID in
+                showLiveSessions = false
+                selectedTab = 0
+                sessionList.selectSession(id: sessionID)
+            })
+            .environmentObject(sessionList)
+            .environmentObject(gatewayClientWrapper)
             .presentationDetents([.large])
         }
     }
@@ -575,27 +576,57 @@ internal struct ContentView: View {
         return focused
     }
 
-    /// Point the chat pipeline at whatever backend the focused gateway implies.
-    /// A focused Hermes Standard backend chats over its own `/api/ws` sidecar (a
-    /// second WebSocket, wire-compatible with the gateway); every other focus
-    /// falls back to the app-level home client. Chat state is dropped on the
-    /// swap so a Standard turn never renders on top of a Hermes transcript.
+    /// The `GatewayClient` that should drive the session list, chat, and
+    /// create/resume RPC right now. A focused Hermes Standard backend routes
+    /// everything session-related to its `/api/ws` sidecar (wire-compatible
+    /// with the gateway, so the same `session.*` RPC works); every other focus
+    /// uses the app-level home client. Cron/Skills are unaffected — they stay
+    /// on their own HTTP path regardless.
+    ///
+    /// Returns the home client if a focused Standard backend has no usable
+    /// sidecar URL, so callers always get a live client to talk to.
+    private var effectiveSessionsClient: GatewayClient {
+        if let standard = focusedHermesStandardGateway,
+           let sidecar = gatewayClientWrapper.standardChatClient(for: standard) {
+            return sidecar
+        }
+        return gatewayClientWrapper.client
+    }
+
+    /// Point the chat pipeline AND the session list at whatever backend the
+    /// focused gateway implies. A focused Hermes Standard backend serves both
+    /// over its own `/api/ws` sidecar (a second WebSocket, wire-compatible with
+    /// the gateway); every other focus falls back to the app-level home client.
+    /// Chat state is dropped on the swap so a Standard turn never renders on top
+    /// of a Hermes transcript.
     @MainActor
     private func applyFocusedChatBackend() {
-        if let standard = focusedHermesStandardGateway,
-           let chatClient = gatewayClientWrapper.standardChatClient(for: standard) {
-            guard !chatViewModel.isDriven(by: chatClient) else { return }
-            chatViewModel.saveHistory()
-            chatViewModel.resetForGatewaySwitch()
-            chatViewModel.setGatewayClient(chatClient)
-        } else if !chatViewModel.isDriven(by: gatewayClientWrapper.client) {
-            // Left Standard focus (or its sidecar was unavailable): restore the
-            // home gateway. The Standard socket is torn down lazily on the next
-            // rebuild; leave it be here so a quick re-focus reuses it.
-            chatViewModel.saveHistory()
-            chatViewModel.resetForGatewaySwitch()
-            chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+        let target = effectiveSessionsClient
+        guard !chatViewModel.isDriven(by: target) else { return }
+        chatViewModel.saveHistory()
+        chatViewModel.resetForGatewaySwitch()
+        chatViewModel.setGatewayClient(target)
+        // The sidebar must list the sessions the user can actually open in the
+        // chat now on screen, so it follows the same client. Cron/Skills VMs
+        // keep their independent HTTP source — untouched here.
+        sessionList.resetForGatewaySwitch()
+        sessionList.setGatewayClient(target)
+        Task { await sessionList.refreshSessions() }
+    }
+
+    /// Poll a client's connection state until it reports `.connected` or the
+    /// timeout elapses. Used for the Standard chat sidecar, which connects
+    /// asynchronously and has no wrapper-managed wait like the home client.
+    @MainActor
+    private func waitForConnection(of client: GatewayClient, timeout seconds: TimeInterval) async -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if case .connected = client.connectionState { return true }
+            if Task.isCancelled { return false }
+            try? await Task.sleep(nanoseconds: 100_000_000)
         }
+        if case .connected = client.connectionState { return true }
+        return false
     }
 
     private var overlayHeaderBar: some View {
@@ -1036,18 +1067,15 @@ internal struct ContentView: View {
 
             if showLiveSessions {
                 #if os(macOS)
-                Group {
-                    if let standard = focusedHermesStandardGateway {
-                        HermesStandardSessionsView(gateway: standard)
-                    } else {
-                        SessionsDashboardCanvas(onOpenSession: { sessionID in
-                            showLiveSessions = false
-                            sessionList.selectSession(id: sessionID)
-                        })
-                        .environmentObject(sessionList)
-                        .environmentObject(gatewayClientWrapper)
-                    }
-                }
+                // The dashboard reads from `sessionList`, which follows the
+                // Standard sidecar when a Standard backend is focused — so it
+                // shows real Standard sessions without a bespoke pane.
+                SessionsDashboardCanvas(onOpenSession: { sessionID in
+                    showLiveSessions = false
+                    sessionList.selectSession(id: sessionID)
+                })
+                .environmentObject(sessionList)
+                .environmentObject(gatewayClientWrapper)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.background)
                 .transition(.opacity)
@@ -1276,12 +1304,16 @@ internal struct ContentView: View {
             }
             return
         }
-        // Hermes session: clear any session-scoped focus so the badge names
+        // A focused Standard backend serves its sessions over the sidecar:
+        // keep the focus (don't fall back to the home badge) and drive chat
+        // from the same client the session list uses. Otherwise this is a home
+        // Hermes session — clear any session-scoped focus so the badge names
         // the gateway serving the visible chat again.
-        if let active = settings.savedGateways.first(where: { settings.isActive($0) }) {
+        if focusedHermesStandardGateway == nil,
+           let active = settings.savedGateways.first(where: { settings.isActive($0) }) {
             settings.selectGateway(active)
         }
-        chatViewModel.setGatewayClient(gatewayClientWrapper.client)
+        chatViewModel.setGatewayClient(effectiveSessionsClient)
 
         if session.isOwned {
             // Don't resume the session we just finished creating — the sentinel
@@ -1415,6 +1447,47 @@ internal struct ContentView: View {
             } else {
                 sessionCreationError = "Backend '\(entry.displayName)' has an invalid URL"
             }
+            return
+        }
+
+        // A focused Hermes Standard backend creates over its /api/ws sidecar,
+        // which speaks the same session.create RPC as the gateway. The sidecar
+        // connects asynchronously, so wait for it before creating; a closed
+        // socket (embedded chat disabled server-side) surfaces as a timeout.
+        if let standard = focusedHermesStandardGateway {
+            guard let sidecar = gatewayClientWrapper.standardChatClient(for: standard) else {
+                sessionCreationError = "\(standard.displayName) has an invalid chat URL"
+                return
+            }
+            guard await waitForConnection(of: sidecar, timeout: 12) else {
+                sessionCreationError = "\(standard.displayName) chat is unavailable "
+                    + "(the dashboard may have embedded chat disabled)"
+                return
+            }
+            if !chatViewModel.isDriven(by: sidecar) {
+                chatViewModel.setGatewayClient(sidecar)
+                sessionList.setGatewayClient(sidecar)
+            }
+            shouldSuppressNextCreateGenerationPush = true
+            pendingCreatedSessionID = "__creating__"
+            await chatViewModel.createSession()
+            if let error = chatViewModel.error {
+                shouldSuppressNextCreateGenerationPush = false
+                pendingCreatedSessionID = nil
+                sessionCreationError = error
+                return
+            }
+            guard let sid = chatViewModel.currentSessionID else {
+                shouldSuppressNextCreateGenerationPush = false
+                pendingCreatedSessionID = nil
+                sessionCreationError = "Session create returned no session ID"
+                return
+            }
+            pendingCreatedSessionID = sid
+            sessionList.registerOwnedSession(shortHexID: sid)
+            sessionList.setRunState(.queued, for: sid)
+            sessionList.selectSession(id: sid)
+            pushOwnedSessionOnIOS(sid)
             return
         }
 

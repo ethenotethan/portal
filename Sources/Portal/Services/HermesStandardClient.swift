@@ -158,7 +158,12 @@ internal struct HermesStandardSkill: Decodable, Identifiable, Equatable {
 /// HTTP management client for upstream/default Hermes. It intentionally does
 /// not conform to AgentBackend: this surface manages a Hermes installation but
 /// cannot create or stream Portal chat sessions.
-internal final class HermesStandardClient {
+// `@unchecked Sendable`: every stored property is a `let` set once at init and
+// never mutated, but two of them (`URLSession`, `JSONDecoder`) aren't `Sendable`
+// themselves, so the compiler can't prove it. Declared here (not on the
+// `HermesStandard*Managing` protocol extensions, which live in other files)
+// because a `Sendable` conformance must sit in the type's own module file.
+internal final class HermesStandardClient: @unchecked Sendable {
     private let origin: URL
     private let sessionToken: String
     private let redirectDelegate: HermesStandardRedirectDelegate
