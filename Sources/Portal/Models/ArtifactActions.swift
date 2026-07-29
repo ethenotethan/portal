@@ -191,6 +191,10 @@ enum ArtifactActionEngine {
 
         let listField: String
         let keyField: String
+        // Fallback identity fields, tried in order when the primary key field
+        // is absent on an entry — mirrors the specs' id→label/title fallback so
+        // an entry the agent emitted without an explicit id still matches.
+        var fallbackKeys: [String] = []
         switch kind {
         case "dataset":
             listField = "rows"
@@ -198,14 +202,27 @@ enum ArtifactActionEngine {
         case "map":
             listField = "markers"
             keyField = "label"
+        case "checklist":
+            listField = "items"
+            keyField = "id"
+            fallbackKeys = ["label"]
+        case "kanban":
+            listField = "cards"
+            keyField = "id"
+            fallbackKeys = ["title", "label"]
+        case "calendar":
+            listField = "events"
+            keyField = "id"
+            fallbackKeys = ["title"]
         default:
             return nil
         }
         guard var entries = obj[listField] as? [[String: Any]] else { return nil }
 
         let target = normalize(entryKey)
-        guard let index = entries.firstIndex(where: {
-            normalize(String(describing: $0[keyField] ?? "")) == target
+        guard let index = entries.firstIndex(where: { entry in
+            let identity = entry[keyField] ?? fallbackKeys.lazy.compactMap { entry[$0] }.first
+            return normalize(String(describing: identity ?? "")) == target
         }) else { return nil }
 
         mutate(&entries[index])

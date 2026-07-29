@@ -177,8 +177,75 @@ enum ArtifactMerge {
             return mergeDataset(existing: existing, incoming: incoming)
         case "model":
             return mergeModel(existing: existing, incoming: incoming)
+        case "checklist":
+            return mergeKeyedList(existing: existing, incoming: incoming, listField: "items", keyField: "id")
+        case "kanban":
+            return mergeKeyedList(existing: existing, incoming: incoming, listField: "cards", keyField: "id")
+        case "calendar":
+            return mergeKeyedList(existing: existing, incoming: incoming, listField: "events", keyField: "id")
         default:
             return incoming
+        }
+    }
+
+    /// Union a top-level list keyed by `keyField`, preserving first-appearance
+    /// order — the shape checklist/kanban/calendar share.
+    ///
+    /// Entries merge at the FIELD level (existing fields preserved, incoming
+    /// wins on conflict), unlike dataset/map where an incoming entry replaces
+    /// wholesale. That's deliberate: a user's edit lives IN the content (a
+    /// checklist `done` toggle, a kanban `column` move), and the agent that
+    /// later re-emits the list generally doesn't know about it — field-level
+    /// merge lets the toggle survive an omitting re-emit, while an incoming
+    /// entry that DOES set the field still wins. These kinds are client-only
+    /// with small, flat schemas, so field accretion is safe (dataset mirrors a
+    /// gateway merge contract and must stay replace-semantics).
+    ///
+    /// Top-level fields (title/columns/…) come from incoming when present, else
+    /// carry over. Unparseable JSON on either side → incoming (never brick).
+    private static func mergeKeyedList(
+        existing: String, incoming: String, listField: String, keyField: String
+    ) -> String {
+        guard let old = parse(existing), let new = parse(incoming) else { return incoming }
+        var merged = old.merging(new) { _, n in n }
+
+        var byKey: [String: [String: Any]] = [:]
+        var order: [String] = []
+        let oldItems = (old[listField] as? [[String: Any]]) ?? []
+        let newItems = (new[listField] as? [[String: Any]]) ?? []
+        for item in oldItems + newItems {
+            // Match the specs' id fallback: an entry without an explicit id is
+            // identified by its display text (label/title).
+            let rawKey = item[keyField] ?? item["label"] ?? item["title"]
+            let key = String(describing: rawKey ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+            guard !key.isEmpty, key != "nil" else { continue }
+            if byKey[key] == nil { order.append(key) }
+            byKey[key] = mergeEntryFields(existing: byKey[key], incoming: item)
+        }
+        merged[listField] = order.compactMap { byKey[$0] }
+        return reserialize(merged) ?? incoming
+    }
+
+    /// Field-level union of two entries: existing fields carry over, incoming
+    /// wins on conflict, and a user's tombstone survives an omitting re-emit
+    /// (see `carryTombstone`).
+    private static func mergeEntryFields(
+        existing: [String: Any]?, incoming: [String: Any]
+    ) -> [String: Any] {
+        guard let existing else { return incoming }
+        let unioned = existing.merging(incoming) { _, new in new }
+        return carryTombstone(from: existing, into: unioned)
+    }
+
+    /// Sorted-keys JSON string of a merged object, or nil if it isn't a valid
+    /// JSON object / fails to encode (caller falls back to the incoming body).
+    private static func reserialize(_ object: [String: Any]) -> String? {
+        guard JSONSerialization.isValidJSONObject(object) else { return nil }
+        do {
+            let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            return String(data: data, encoding: .utf8)
+        } catch {
+            return nil
         }
     }
 
@@ -233,12 +300,7 @@ enum ArtifactMerge {
             merged["relations"] = relationOrder.compactMap { byTriple[$0] }
         }
 
-        guard JSONSerialization.isValidJSONObject(merged),
-              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
-              let json = String(data: data, encoding: .utf8) else {
-            return incoming
-        }
-        return json
+        return reserialize(merged) ?? incoming
     }
 
     /// Union rows by the dataset's declared key field (mirror of the
@@ -261,12 +323,7 @@ enum ArtifactMerge {
         }
         merged["rows"] = order.compactMap { byKey[$0] }
 
-        guard JSONSerialization.isValidJSONObject(merged),
-              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
-              let json = String(data: data, encoding: .utf8) else {
-            return incoming
-        }
-        return json
+        return reserialize(merged) ?? incoming
     }
 
     /// Union markers by label (case-insensitive); incoming wins on conflict.
@@ -291,12 +348,7 @@ enum ArtifactMerge {
         }
         merged["markers"] = order.compactMap { byLabel[$0] }
 
-        guard JSONSerialization.isValidJSONObject(merged),
-              let data = try? JSONSerialization.data(withJSONObject: merged, options: [.sortedKeys]),
-              let json = String(data: data, encoding: .utf8) else {
-            return incoming
-        }
-        return json
+        return reserialize(merged) ?? incoming
     }
 
     /// A user's tombstone (`_deleted: true`) survives an agent re-emitting
