@@ -2,9 +2,15 @@ name: Ratchet
 
 # Posture ratchets, one job per attribute we defend. Each job is its own
 # GitHub check so the PR checks list reads by CONCERN — Security, Warnings,
-# Coverage — instead of one opaque "metric ratchet" pass/fail. Every ratchet
-# has the same shape: a committed benchmark CI compares each PR against,
-# allowing improvement and blocking regression (docs/architecture-rules.md).
+# Coverage, Performance, Quality — instead of one opaque "metric ratchet"
+# pass/fail. Every ratchet has the same shape: a committed benchmark CI
+# compares each PR against, allowing improvement and blocking regression
+# (docs/architecture-rules.md).
+#
+# A ratchet asks "did a tracked metric get WORSE?" — distinct from a test
+# (tests.yml), which asks "does it work?". SwiftLint's run is a test; the floor
+# that its baseline can't be grown to silence a new violation is the Quality
+# ratchet below.
 #
 # Adding a posture = one job here + its collector/guard script. Do NOT fold a
 # new concern into an existing job; the separation is the whole point.
@@ -179,7 +185,7 @@ jobs:
   # operations than base for a fixed input (floor). The metric is an integer op
   # count, not wall-clock time — deterministic on any runner (no timing flake)
   # and it catches the regression that hurts: O(n)→O(n²). It does NOT catch
-  # constant-factor slowdowns (that's the hang gate, macos-hang-gate.yml).
+  # constant-factor slowdowns (that's the Tests / macOS hang gate).
   #
   # Its OWN job with its OWN build: the harness compiles with -DPERF_COUNTERS,
   # a flag the Measure job deliberately does NOT set (production must stay
@@ -222,3 +228,29 @@ jobs:
           path: perf-counts.json
           if-no-files-found: ignore
           retention-days: 14
+
+  # ── Quality posture ───────────────────────────────────────────────────────
+  # Lint-debt floor: the frozen SwiftLint baseline (.swiftlint-baseline) may
+  # only SHRINK. The SwiftLint run itself is a test (Tests / SwiftLint) — it
+  # fails on a new violation. But `make lint-baseline` can silence that new
+  # violation by freezing it, turning the test green while the rule quietly
+  # rots. This ratchet is the lock on that escape hatch: it fails a PR whose
+  # baseline gained entries vs base, so a new violation must be FIXED, not
+  # baselined. Same shape as Security's ignore-list growth guard — a frozen
+  # baseline paired with a floor that it only shrinks. See
+  # docs/architecture-rules.md.
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so `git show <base>:.swiftlint-baseline` can read the
+      # baseline as it exists on the target branch (default checkout is shallow
+      # and wouldn't have the base ref).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the lint baseline did not grow
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+          python3 scripts/check-baseline-growth.py "$BASE"

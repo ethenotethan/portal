@@ -1,4 +1,16 @@
-name: iOS Simulator Tests
+name: Tests
+
+# Everything that RUNS and can pass/fail on behavior, in one workflow so the PR
+# checks list reads as one "Tests" group instead of four separate workflows.
+# Each job is its own GitHub check (Tests / <name>) and they run in parallel —
+# consolidation is organizational, not a serialization.
+#
+# This is the behavior half of CI. The posture half — floors that a committed
+# baseline must not regress (Security, Warnings, Coverage, Performance, Quality)
+# — lives in ratchet.yml. A test here asks "does it work?"; a ratchet there asks
+# "did a tracked metric get worse?". SwiftLint's *run* is a test (it either
+# passes clean or flags a new violation); the guard that its baseline can't be
+# grown to silence one is a ratchet (Ratchet / Quality).
 
 on:
   push:
@@ -8,11 +20,74 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ios-simulator-tests-${{ github.ref }}
+  group: tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  smoke:
+  # ── SwiftLint ───────────────────────────────────────────────────────────────
+  # Strict lint gated on the frozen baseline: only NEWLY introduced violations
+  # fail. The floor that the baseline can't be grown to silence one is a separate
+  # ratchet (Ratchet / Quality in ratchet.yml).
+  swift-lint:
+    name: SwiftLint
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        # PINNED to an exact version. `brew install swiftlint` grabs the latest
+        # formula, and a newer SwiftLint detects MORE violations than the one
+        # the baseline was generated with — so an unpinned bump makes CI fail on
+        # violations that aren't in .swiftlint-baseline (the 0.63→0.65 drift that
+        # broke #222). The baseline only matches the version that wrote it, so
+        # the CI version and the version behind `make lint-baseline` must agree.
+        # Bumping: change SWIFTLINT_VERSION here, `brew install swiftlint` (or
+        # download the same tag) locally, run `make lint-baseline`, commit both.
+        env:
+          SWIFTLINT_VERSION: 0.65.0
+        run: |
+          curl -fsSL -o swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          unzip -o swiftlint.zip -d "$HOME/swiftlint-bin"
+          echo "$HOME/swiftlint-bin" >> "$GITHUB_PATH"
+
+      - name: Verify SwiftLint version
+        run: swiftlint version
+
+      - name: Run SwiftLint
+        # --baseline freezes pre-existing violations (.swiftlint-baseline) so
+        # only NEWLY introduced ones fail. Regenerate the baseline locally with
+        # `make lint-baseline` and only ever to REMOVE entries (paying down
+        # debt), never to silence a new violation.
+        run: swiftlint lint --strict --baseline .swiftlint-baseline --reporter github-actions-logging
+
+  # ── Swift package tests ─────────────────────────────────────────────────────
+  # The SwiftPM unit suite (swift-testing + XCTest), auto-discovered. Layer 1 of
+  # the testing strategy (docs/testing-strategy.md).
+  swift-test:
+    name: Swift package tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Swift unit tests
+        run: |
+          set -o pipefail
+          swift test --disable-sandbox 2>&1 | tee swift-test.log
+
+      - name: Upload Swift test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-test-log
+          path: swift-test.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── iOS simulator smoke tests ───────────────────────────────────────────────
+  # Hermetic offline + local-gateway smoke and E2E flows on a simulator, backed
+  # by a local Hermes API server. Layer 3.
+  ios-smoke:
     name: iOS simulator smoke tests
     runs-on: macos-15
     env:
@@ -218,3 +293,63 @@ jobs:
           if [ -f "$RUNNER_TEMP/hermes-api-server.pid" ]; then
             kill "$(cat "$RUNNER_TEMP/hermes-api-server.pid")" 2>/dev/null || true
           fi
+
+  # ── macOS main-thread hang gate ─────────────────────────────────────────────
+  # The beachball gate. Launches the macOS app under the MainThreadWatchdog with
+  # --hang-fatal so any >250ms main-thread stall trips an assertion and fails the
+  # test — before it can reach a user. Every hang this app has shipped was macOS,
+  # so this runs on the platform that actually beachballs. Layer 4.
+  hang-gate:
+    name: macOS main-thread hang gate
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run macOS hang gate (--hang-fatal)
+        run: |
+          set -o pipefail
+          RESULT_BUNDLE="${RUNNER_TEMP}/HangGate.xcresult"
+          xcodebuild test \
+            -project Portal.xcodeproj \
+            -scheme Portal \
+            -destination 'platform=macOS' \
+            -only-testing:PortalMacUITests/MainThreadHangGateUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            2>&1 | tee "${RUNNER_TEMP}/hang-gate.log" | xcpretty
+
+      # Guard against a silent no-op: a UI-test target that never attaches would
+      # "pass" with zero executed tests, gating nothing while looking green.
+      # Assert the hang test actually RAN.
+      - name: Assert the hang test actually executed
+        if: always()
+        run: |
+          set -euo pipefail
+          LOG="${RUNNER_TEMP}/hang-gate.log"
+          if ! grep -qE "Test Case .*MainThreadHangGateUITests.* (passed|started)" "$LOG"; then
+            echo "::error::Hang-gate test did not execute — the UI-test runner never attached."
+            echo "This gate is a no-op in that state; failing so it isn't silently green."
+            echo "----- hang-gate.log tail -----"
+            tail -60 "$LOG" || true
+            exit 1
+          fi
+          echo "Hang-gate test executed."
+
+      - name: Upload hang-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-hang-gate-artifacts
+          path: |
+            ${{ runner.temp }}/HangGate.xcresult
+            ${{ runner.temp }}/hang-gate.log
+          if-no-files-found: ignore
+          retention-days: 14
