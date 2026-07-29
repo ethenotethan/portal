@@ -34,16 +34,16 @@ internal struct InlineTurnTimelineLive: View {
     }
 }
 
-/// A compact live flamechart of the CURRENT turn, meant to sit inline in the
-/// chat beside the streaming tool trace — the timeline fills in as tools run
-/// and subagents take turns, without breaking out to the full-screen graph.
+/// A compact, HIGH-LEVEL overview of the current turn — a small "chart filling
+/// in" that sits inline in the chat so you can glance at what's happening
+/// without breaking out to the full graph.
 ///
-/// It shares the time-plot geometry of `ThoughtGraphView` (x = start time,
-/// width = duration, lanes stacked by actor) but strips all the full-screen
-/// chrome: no header, no zoom/follow controls, no detail popover, no
-/// interception layer. Fixed short height; horizontal scroll auto-pinned to
-/// the live right edge while streaming so new bars stay in view. Tapping the
-/// strip opens the full session graph.
+/// Deliberately NOT a miniature of the expanded flamechart: it drops the full
+/// view's detail chrome — the elapsed-time ruler and "Ns" tick labels, the
+/// per-reasoning-beat text gists, and the inline bar name labels. What's left
+/// is the shape of the turn filling in over time: bars (x = start time, width =
+/// duration, lanes stacked by actor) plus reasoning dots and compaction folds.
+/// Tapping the strip opens the full session graph, where all that detail lives.
 internal struct InlineTurnTimelineStrip: View {
     /// The current turn's composed nodes (tools + subagent lanes + reasoning),
     /// rebuilt by the caller as live events arrive.
@@ -63,10 +63,6 @@ internal struct InlineTurnTimelineStrip: View {
     private static let topPad: CGFloat = 6
     private static let bottomPad: CGFloat = 6
     private static let sidePad: CGFloat = 8
-    /// A thin ruler band under the bars for elapsed-time tick labels ("0s",
-    /// "10s", …), so the strip reads as a time plot — you can see WHEN each bar
-    /// started and the idle lapses between them, not just their order.
-    private static let axisBandHeight: CGFloat = 13
     /// Max drawable world-rows shown inline before the strip caps its height
     /// (deeper packing/lanes clip; the full graph shows everything).
     private static let maxStripWorldHeight: CGFloat = 132
@@ -78,7 +74,7 @@ internal struct InlineTurnTimelineStrip: View {
     }
 
     private var contentHeight: CGFloat {
-        Self.topPad + Self.bottomPad + drawableHeight + Self.axisBandHeight
+        Self.topPad + Self.bottomPad + drawableHeight
     }
 
     /// A bar is still growing only if the turn is streaming AND some non-
@@ -166,49 +162,6 @@ internal struct InlineTurnTimelineStrip: View {
 
     // MARK: - Draw
 
-    /// Elapsed-time ruler for the strip: vertical gridlines at "nice" second
-    /// intervals across the plot, with an "Ns" label in the bottom band under
-    /// each line. Uses the same time→x scale as the bars (world x=0 sits at
-    /// `leftGutter`), and picks the interval so labels stay ~56pt apart at the
-    /// current fit — the whole point the user asked for: seeing the lapse
-    /// between tool calls, not just their order.
-    private func drawTimeAxis(context: GraphicsContext, size: CGSize, scale: CGFloat) {
-        let pps = ThoughtGraphLayoutEngine.pixelsPerSecond * scale   // screen px per second
-        guard pps > 0.5 else { return }   // too compressed to label — skip quietly
-
-        let candidates: [Double] = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
-        let interval = candidates.first { $0 * pps >= 56 } ?? 600
-
-        // world x=0 (t0) → screen. leftGutter is the pad before the first bar.
-        let originX = Self.sidePad + ThoughtGraphLayoutEngine.leftGutter * scale
-        let axisTop = size.height - Self.axisBandHeight
-
-        var gridlines = Path()
-        var second = 0.0
-        while true {
-            let x = originX + second * pps
-            if x > size.width - Self.sidePad { break }
-            gridlines.move(to: CGPoint(x: x, y: Self.topPad))
-            gridlines.addLine(to: CGPoint(x: x, y: axisTop))
-            context.draw(
-                Text(tickLabel(second))
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundColor(Theme.tertiary),
-                at: CGPoint(x: x + 2, y: axisTop + Self.axisBandHeight / 2),
-                anchor: .leading
-            )
-            second += interval
-        }
-        context.stroke(gridlines, with: .color(Theme.primary.opacity(0.06)), lineWidth: 1)
-    }
-
-    private func tickLabel(_ seconds: Double) -> String {
-        if seconds < 60 { return "\(Int(seconds))s" }
-        let m = Int(seconds) / 60
-        let s = Int(seconds) % 60
-        return s == 0 ? "\(m)m" : "\(m)m\(s)s"
-    }
-
     private func draw(context: GraphicsContext, size: CGSize) {
         let nowDate = Date()
         let nodeByID = Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
@@ -220,10 +173,6 @@ internal struct InlineTurnTimelineStrip: View {
         let worldH = max(CGFloat(engine.totalSize.height), 1)
         let yScale = min(1, drawableHeight / worldH)
         func sy(_ worldY: CGFloat) -> CGFloat { Self.topPad + worldY * yScale }
-
-        // Time ruler behind the bars: faint gridlines + elapsed-second labels
-        // so the lapse between bars is legible, not just their order.
-        drawTimeAxis(context: context, size: size, scale: scale)
 
         for layout in engine.layouts {
             guard let node = nodeByID[layout.nodeID] else { continue }
@@ -240,7 +189,7 @@ internal struct InlineTurnTimelineStrip: View {
                 diamond.addLine(to: CGPoint(x: cx - s / 2, y: cy))
                 diamond.closeSubpath()
                 context.fill(diamond, with: .color(color.opacity(0.9)))
-                continue   // label drawn in the second pass below
+                continue   // just the dot — the beat's gist lives in the full graph
             }
 
             let worldWidth = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
@@ -262,19 +211,8 @@ internal struct InlineTurnTimelineStrip: View {
             if node.status == .error {
                 ctx.stroke(shape, with: .color(.red), lineWidth: 1.2)
             }
-
-            // Inline label only when the fitted bar has room.
-            if w >= 30 {
-                var labelCtx = ctx
-                labelCtx.clip(to: shape)
-                labelCtx.draw(
-                    Text(node.name)
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(.white.opacity(0.95)),
-                    at: CGPoint(x: rect.minX + 4, y: rect.midY),
-                    anchor: .leading
-                )
-            }
+            // No inline bar label here — the high-level strip shows the SHAPE of
+            // the turn filling in; names/gists/timings live in the full graph.
         }
 
         // ── Compaction folds (over the bars) ──
@@ -283,31 +221,6 @@ internal struct InlineTurnTimelineStrip: View {
         // steps. Mirrors the full graph; the strip is where the user WATCHES a
         // compaction happen, so it must show up live.
         drawCompactionFolds(context: context, size: size, scale: scale)
-
-        // ── Reasoning labels (second pass, over the bars) ──
-        // Give each thought beat a short readable gist beside its diamond so
-        // the strip shows WHAT the agent thought, not just an opaque dot. Drawn
-        // after the bars (on top) and decluttered left→right so a dense burst
-        // reads as a few chips rather than an illegible pile.
-        var lastRightByRow: [Int: CGFloat] = [:]
-        for layout in engine.layouts.sorted(by: { $0.x < $1.x }) {
-            guard let node = nodeByID[layout.nodeID], node.category == .reasoning,
-                  let label = reasoningLabel(node) else { continue }
-            let cy = sy(CGFloat(layout.y))
-            let labelX = sx(layout.x + ThoughtGraphLayoutEngine.markerSize / 2) + 8
-            guard labelX < size.width - Self.sidePad else { continue }
-            let row = Int((CGFloat(layout.y) / ThoughtGraphLayoutEngine.subRowPitch).rounded())
-            if let lastRight = lastRightByRow[row], labelX < lastRight + 4 { continue }
-            let estWidth = CGFloat(label.count) * 4.6   // ~7.5pt medium
-            lastRightByRow[row] = labelX + estWidth
-            context.draw(
-                Text(label)
-                    .font(.system(size: 7.5, weight: .medium))
-                    .foregroundColor(node.category.color.opacity(0.95)),
-                at: CGPoint(x: labelX, y: cy),
-                anchor: .leading
-            )
-        }
     }
 
     /// Full-height compaction rules for the strip, positioned by the same
@@ -318,7 +231,7 @@ internal struct InlineTurnTimelineStrip: View {
     private func drawCompactionFolds(context: GraphicsContext, size: CGSize, scale: CGFloat) {
         guard !compactions.isEmpty, let t0 = engine.timeOrigin else { return }
         func sx(_ worldX: CGFloat) -> CGFloat { Self.sidePad + worldX * scale }
-        let axisTop = size.height - Self.axisBandHeight
+        let ruleBottom = size.height - Self.bottomPad
 
         for marker in compactions {
             let worldX = ThoughtGraphLayoutEngine.leftGutter
@@ -328,7 +241,7 @@ internal struct InlineTurnTimelineStrip: View {
 
             var rule = Path()
             rule.move(to: CGPoint(x: x, y: Self.topPad))
-            rule.addLine(to: CGPoint(x: x, y: axisTop))
+            rule.addLine(to: CGPoint(x: x, y: ruleBottom))
             let solid = marker.trigger == .manual
             context.stroke(
                 rule,
@@ -348,15 +261,5 @@ internal struct InlineTurnTimelineStrip: View {
                 anchor: .center
             )
         }
-    }
-
-    /// Short glanceable gist for a reasoning beat — the decision label
-    /// (`context`) or the first line of its summary, capped so it stays a chip.
-    private func reasoningLabel(_ node: ThoughtGraphNode) -> String? {
-        let raw = node.context ?? node.summary?.components(separatedBy: "\n").first
-        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-            return nil
-        }
-        return text.count > 32 ? String(text.prefix(32)) + "…" : text
     }
 }

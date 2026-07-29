@@ -107,9 +107,9 @@ private struct DarkMangaMessageBubble: View {
                     }
                 }
 
-                if !message.toolCalls.isEmpty && !message.isStreaming {
-                    DarkMangaInlineToolCalls(tools: message.toolCalls)
-                }
+                // Tool calls are no longer inline in the transcript — they live
+                // in the opt-in "Tools" canvas panel (`PanelKind.runningTools`),
+                // so the default chat is just conversation + thinking + response.
             }
             .padding(.horizontal, Layout.bubblePaddingH)
             .padding(.vertical, Layout.bubblePaddingV)
@@ -174,64 +174,6 @@ private struct DarkMangaThinkingBlock: View {
                 .frame(height: 1),
             alignment: .bottom
         )
-    }
-}
-
-// MARK: - Inline Tool Calls
-
-private struct DarkMangaInlineToolCalls: View {
-    let tools: [ToolCallRecord]
-    @State private var isExpanded = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.secondary)
-                    Image(systemName: "wrench.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.accent)
-                    Text("Tool calls")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.secondary)
-                    Text("(\(tools.count))")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiary)
-                }
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                VStack(spacing: 4) {
-                    ForEach(tools) { tool in
-                        HStack(spacing: 8) {
-                            Image(systemName: "wrench.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(Theme.accent)
-                            Text(tool.name)
-                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(Theme.primary)
-                            Text(tool.context ?? tool.name)
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.tertiary)
-                                .lineLimit(1)
-                            Spacer()
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.green)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 6))
-                    }
-                }
-            }
-        }
-        .padding(.top, 8)
     }
 }
 
