@@ -228,6 +228,7 @@
 		5CB2C130C259164504B0C341 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */; };
 		5D13B4AF0AC7BC33CA42C6EE /* HermesStandardClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C731594AC06AB4D5256EBC /* HermesStandardClient.swift */; };
 		5DABDDBD4FB0C1869D588D9E /* SkillMarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */; };
+		5E6D991941E234EEF68EF071 /* Model3DBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */; };
 		5EA4337E9A9161B6DB599CE1 /* CronJobCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A38058167062C45FD8CE7BE /* CronJobCard.swift */; };
 		5EF215DE76F474FB5EF8FB59 /* LottieCharacterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */; };
 		5EFA082A1D008E829CB597EC /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */; };
@@ -449,6 +450,7 @@
 		B9703B8A7F23C964D3360070 /* DelegationBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A204BF583ED8B0A03BBC2B2E /* DelegationBatch.swift */; };
 		BA7F8E347D777C77D3CB870C /* FileTreeAggregatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4034C1A7BA21EE59A4B2DFF3 /* FileTreeAggregatorTests.swift */; };
 		BAD988379FCDF8B0C5409C5E /* WikiEventsKnowledgePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A42555FC2D58C23D24FF073 /* WikiEventsKnowledgePane.swift */; };
+		BB4285DB3E0CCD5B6B4235F6 /* Model3DTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969D7459C6EAEA7FAB4E80B0 /* Model3DTemplate.swift */; };
 		BB74802C5B347E2EBD9680DB /* TurnSkillsLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DF29D74D5D721EF473D0D3 /* TurnSkillsLens.swift */; };
 		BCFF2A726BE287BD45000E60 /* ActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94562E6D8D4F32997ACE811B /* ActivityStore.swift */; };
 		BDC88A99CB1C3D1B70CC0BEA /* SubagentGraphIntegratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD63814BE6C5063E6D308021 /* SubagentGraphIntegratorTests.swift */; };
@@ -497,6 +499,7 @@
 		D0B222482A69D9720278AFAC /* Skill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A4500C837BEE83EE7D26533 /* Skill.swift */; };
 		D0D42928F052C020A460A52E /* JSONObjectParse.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEABB965F0E5A2D57EE42D85 /* JSONObjectParse.swift */; };
 		D0DD07A2CD769C5FBB992516 /* QuizSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E433D1965080CB220166FB /* QuizSheet.swift */; };
+		D145FF26F602B261BBC31C35 /* Model3DTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969D7459C6EAEA7FAB4E80B0 /* Model3DTemplate.swift */; };
 		D1864390C7FB4E7052CD58BA /* LearningComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E6B51D703A3C1CB7D49A22E /* LearningComponents.swift */; };
 		D1CED236F30A24AB12CF2458 /* SessionThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5AE1DB0A3F2D38511AB9FD /* SessionThoughtGraphView.swift */; };
 		D2576FF48A5D74EC89C8EDF3 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 936D1CBE60BF6F9912DB275C /* OnboardingView.swift */; };
@@ -561,6 +564,7 @@
 		ECFAB2FCCEB2DA96DF88B937 /* WikiPathPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFA4EB9807531D0D23815A0E /* WikiPathPickerSheet.swift */; };
 		EE3F3B6D4EF4623AF48D9277 /* HTMLArtifactIntentBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F319608FB4D928EF5CC94542 /* HTMLArtifactIntentBridgeTests.swift */; };
 		EE411EAD67DF189422BB3200 /* ThemedSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */; };
+		EE7EF5B802901CD77086FD72 /* Model3DBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */; };
 		EED03C100C2EB1A7DF291595 /* ThoughtGraphNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE618A82E60385625B36F89 /* ThoughtGraphNode.swift */; };
 		EF23E7CBD46A3D76DB75F7B8 /* StatTileSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15A88948F5D06F0A1D967759 /* StatTileSpec.swift */; };
 		EF5BA1B008BD8BA64D51BEFB /* ClarifyRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06E9202DE8361A6F71A9F7E /* ClarifyRequestTests.swift */; };
@@ -637,6 +641,7 @@
 
 /* Begin PBXFileReference section */
 		000F61BAD56D4B9BFE92BF37 /* DatasetBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetBlockView.swift; sourceTree = "<group>"; };
+		009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model3DBlockView.swift; sourceTree = "<group>"; };
 		0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeStore.swift; sourceTree = "<group>"; };
 		015E6939E5C8CBC3F89CF1B3 /* WikiEventTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineTests.swift; sourceTree = "<group>"; };
 		01C73EE9E684A12438F66485 /* TimelineSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineSpec.swift; sourceTree = "<group>"; };
@@ -833,6 +838,7 @@
 		94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillMarkdownEditor.swift; sourceTree = "<group>"; };
 		95450F797EE4865E40CA114A /* NativeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChartView.swift; sourceTree = "<group>"; };
 		966F0221DEACC5BE86FA501E /* CalendarSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSpec.swift; sourceTree = "<group>"; };
+		969D7459C6EAEA7FAB4E80B0 /* Model3DTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model3DTemplate.swift; sourceTree = "<group>"; };
 		9A3B7C2CDA9BA958D0AEFE82 /* ThinkingBeatsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingBeatsPanel.swift; sourceTree = "<group>"; };
 		9A5C65263F4238FDE15E7574 /* HTMLArtifactIntentBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLArtifactIntentBridge.swift; sourceTree = "<group>"; };
 		9A79DA5B81AD8A414D281027 /* ReasoningGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningGraphIntegrator.swift; sourceTree = "<group>"; };
@@ -1437,6 +1443,8 @@
 				8146991749E60E5DB327570E /* MapEntryTableView.swift */,
 				19775F8FF34D0C811D1A5218 /* MapExportRenderer.swift */,
 				0D55468F628900177771F916 /* MathView.swift */,
+				009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */,
+				969D7459C6EAEA7FAB4E80B0 /* Model3DTemplate.swift */,
 				F8F6AC81AD26DE5FA97BB736 /* ModelBlockView.swift */,
 				FD5ACC8E6438A5E3567D2886 /* NetworkGraphView.swift */,
 				EF5662456BA937D53902E2D2 /* SankeyBlockView.swift */,
@@ -1941,6 +1949,8 @@
 				A46985F27E4904EF73F7B1DE /* MermaidDiagramView.swift in Sources */,
 				86E1CF3870AD5337089014E9 /* MermaidGraphParser.swift in Sources */,
 				93010B2028CAB6F01D127CCC /* MessageBubbleView.swift in Sources */,
+				EE7EF5B802901CD77086FD72 /* Model3DBlockView.swift in Sources */,
+				D145FF26F602B261BBC31C35 /* Model3DTemplate.swift in Sources */,
 				A622BD459A0E74035AD666A9 /* ModelBlockView.swift in Sources */,
 				1D48511B29BBA075444AB4C8 /* ModelCatalog.swift in Sources */,
 				C649BB7C7806970FE83100B5 /* ModelPickerMenu.swift in Sources */,
@@ -2287,6 +2297,8 @@
 				9B3D3396CC8913B0E5E977B7 /* MermaidDiagramView.swift in Sources */,
 				2986FEC3EBAAD940C9093BCF /* MermaidGraphParser.swift in Sources */,
 				62FE50CA1F12964907FEEA60 /* MessageBubbleView.swift in Sources */,
+				5E6D991941E234EEF68EF071 /* Model3DBlockView.swift in Sources */,
+				BB4285DB3E0CCD5B6B4235F6 /* Model3DTemplate.swift in Sources */,
 				0C6933C0E413DAC179850247 /* ModelBlockView.swift in Sources */,
 				FFDBB7B763D1371844A34481 /* ModelCatalog.swift in Sources */,
 				85BDF73E3C332EA1AA5BE275 /* ModelPickerMenu.swift in Sources */,
