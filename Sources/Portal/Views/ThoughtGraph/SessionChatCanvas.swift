@@ -41,6 +41,10 @@ internal struct SessionChatCanvas: View {
     /// session-global chrome (usage, response style, export) now that the canvas
     /// IS the chat and owns the whole toolbar.
     @EnvironmentObject internal var ttsService: TTSService
+    /// The app-level spawn/delegation tree store, for the Delegation Batches
+    /// lens. Session-global — the panel reads this session's tree, not the
+    /// per-turn PanelContext.
+    @EnvironmentObject internal var spawnTreeStore: SpawnTreeStore
     /// Composer focus wiring, owned by ChatView (so canvas clicks can restore
     /// first-responder just like the normal transcript).
     internal var isInputFocused: FocusState<Bool>.Binding
@@ -279,6 +283,17 @@ internal struct SessionChatCanvas: View {
         // per-turn PanelContext.
         if panel.kind == .artifacts {
             return AnyView(ArtifactsPanel())
+        }
+        // Delegation Batches — session-global, reads this session's spawn tree
+        // from the app-level store (not the per-turn PanelContext) so it persists
+        // across scroll/turn paging and updates live as subagents stream in.
+        if panel.kind == .delegationBatch {
+            return AnyView(
+                DelegationBatchPanel(
+                    store: spawnTreeStore,
+                    sessionID: chatViewModel.currentSessionID
+                )
+            )
         }
         // Session Graph — the per-turn flamechart for the turn the CANVAS pager
         // is on. It has no turn rail of its own: the turn is tracked in exactly

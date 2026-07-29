@@ -223,6 +223,17 @@ internal final class PanelRegistry {
             singleton: true,
             build: nil  // host-rendered — see SessionChatCanvas
         ))
+        // Delegation Batches — session-global, host-rendered (it reads the
+        // session's SpawnTreeStore tree, not the per-turn PanelContext) so it
+        // persists across scroll/turn paging and updates live as subagents
+        // stream in.
+        registry.register(PanelDescriptor(
+            kind: .delegationBatch,
+            title: "Delegation Batches",
+            icon: "bolt.horizontal.circle",
+            singleton: true,
+            build: nil  // host-rendered — see SessionChatCanvas
+        ))
         return registry
     }()
 }
