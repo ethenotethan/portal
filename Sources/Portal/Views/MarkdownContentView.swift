@@ -863,7 +863,7 @@ private enum CodeHighlighter {
     /// resumed transcript re-highlighted every visible code block — the single
     /// most expensive per-block op behind the resume beachball. Cache by
     /// (syntax theme + language + code); results are a pure function of all three.
-    nonisolated(unsafe) private static let cache = RenderMemo<AttributedString>(limit: 128)
+    private static let cache = RenderMemo<AttributedString>(limit: 128)
 
     static func highlight(_ code: String, language: String) -> AttributedString {
         // Syntax theme paired to the active app theme so highlighted code

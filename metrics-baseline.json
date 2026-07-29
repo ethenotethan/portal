@@ -12,301 +12,294 @@
       "msg:main-actor-isolated-property-x-can": 16,
       "msg:no-x-operations-occur-within-x": 3,
       "msg:stored-property-x-of-x-conforming": 1,
-      "msg:x-is-unnecessary-for-a-constant": 1,
       "msg:x-on-conformance-to-x-has": 1
     },
-    "total": 49,
+    "total": 48,
     "sites": [
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 96,
         "col": 53,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 97,
         "col": 54,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 98,
         "col": 98,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 98,
         "col": 118,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 98,
         "col": 143,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/HermesNativeApp.swift",
+        "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 99,
         "col": 19,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ChatHistoryStore.swift",
+        "file": "Sources/Portal/Services/ChatHistoryStore.swift",
         "line": 109,
         "col": 19,
         "category": "msg:no-x-operations-occur-within-x"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/NotificationService.swift",
+        "file": "Sources/Portal/Services/NotificationService.swift",
         "line": 200,
         "col": 48,
         "category": "msg:consider-using-asynchronous-alternative-function"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningGraphIntegrator.swift",
+        "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
         "line": 84,
         "col": 9,
         "category": "msg:no-x-operations-occur-within-x"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningGraphIntegrator.swift",
+        "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
         "line": 86,
         "col": 9,
         "category": "msg:no-x-operations-occur-within-x"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningSummarizer.swift",
+        "file": "Sources/Portal/Services/ReasoningSummarizer.swift",
         "line": 637,
         "col": 43,
         "category": "SendingClosureRisksDataRace"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SkillSummaryService.swift",
+        "file": "Sources/Portal/Services/SkillSummaryService.swift",
         "line": 223,
         "col": 43,
         "category": "SendingClosureRisksDataRace"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/TTSService.swift",
+        "file": "Sources/Portal/Services/TTSService.swift",
         "line": 84,
         "col": 14,
         "category": "msg:stored-property-x-of-x-conforming"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MacInputTextField.swift",
+        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
         "line": 168,
         "col": 43,
         "category": "msg:converting-non-sendable-function-value-to"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MacInputTextField.swift",
+        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
         "line": 179,
         "col": 17,
         "category": "msg:x-on-conformance-to-x-has"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ActivityInboxView.swift",
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
         "line": 369,
         "col": 18,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ActivityInboxView.swift",
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
         "line": 370,
         "col": 12,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ActivityInboxView.swift",
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
         "line": 370,
         "col": 32,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ActivityInboxView.swift",
+        "file": "Sources/Portal/Views/ActivityInboxView.swift",
         "line": 371,
         "col": 19,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ArtifactExporter.swift",
+        "file": "Sources/Portal/Views/ArtifactExporter.swift",
         "line": 292,
         "col": 13,
         "category": "msg:application-of-result-builder-x-disabled"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Blocks/MapExportRenderer.swift",
+        "file": "Sources/Portal/Views/Blocks/MapExportRenderer.swift",
         "line": 56,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1787,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1793,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1802,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1807,
         "col": 31,
         "category": "SendableClosureCaptures"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1810,
         "col": 55,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1824,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1845,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1851,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1862,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1869,
         "col": 24,
         "category": "SendableClosureCaptures"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1872,
         "col": 55,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/ChatView.swift",
+        "file": "Sources/Portal/Views/ChatView.swift",
         "line": 1887,
         "col": 47,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/FeedView.swift",
-        "line": 654,
+        "file": "Sources/Portal/Views/FeedView.swift",
+        "line": 771,
         "col": 22,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 866,
-        "col": 5,
-        "category": "msg:x-is-unnecessary-for-a-constant"
-      },
-      {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/MermaidDiagramView.swift",
+        "file": "Sources/Portal/Views/MermaidDiagramView.swift",
         "line": 404,
         "col": 16,
         "category": "DeprecatedDeclaration"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/MermaidDiagramView.swift",
+        "file": "Sources/Portal/Views/MermaidDiagramView.swift",
         "line": 404,
         "col": 35,
         "category": "DeprecatedDeclaration"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 54,
         "col": 19,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 55,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 57,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 61,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 62,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 63,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 71,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 81,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 92,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 96,
         "col": 13,
         "category": "msg:main-actor-isolated-property-x-can"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 99,
         "col": 17,
         "category": "ActorIsolatedCall"
       },
       {
-        "file": "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
         "line": 100,
         "col": 13,
         "category": "ActorIsolatedCall"
@@ -314,33 +307,33 @@
     ]
   },
   "coverage": {
-    "testable_pct": 37.27,
-    "testable_covered": 8465,
-    "testable_count": 22713,
+    "testable_pct": 36.95,
+    "testable_covered": 8484,
+    "testable_count": 22961,
     "layers": {
       "Models": {
-        "covered": 3994,
-        "count": 6581,
-        "pct": 60.69
+        "covered": 4010,
+        "count": 6597,
+        "pct": 60.79
       },
       "Services": {
         "covered": 2364,
-        "count": 8691,
-        "pct": 27.2
+        "count": 8832,
+        "pct": 26.77
       },
       "Utilities": {
-        "covered": 213,
-        "count": 1286,
-        "pct": 16.56
+        "covered": 216,
+        "count": 1290,
+        "pct": 16.74
       },
       "ViewModels": {
         "covered": 1894,
-        "count": 6155,
-        "pct": 30.77
+        "count": 6242,
+        "pct": 30.34
       }
     },
     "uncovered": {
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ActivityItem.swift": [
+      "Sources/Portal/Models/ActivityItem.swift": [
         19,
         23,
         24,
@@ -363,7 +356,7 @@
         143,
         144
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ActivityStore.swift": [
+      "Sources/Portal/Models/ActivityStore.swift": [
         19,
         24,
         36,
@@ -394,20 +387,20 @@
         133,
         135
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ArtifactActions.swift": [
+      "Sources/Portal/Models/ArtifactActions.swift": [
         170,
         213,
         217,
         236
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/CentaurWorkflow.swift": [
+      "Sources/Portal/Models/CentaurWorkflow.swift": [
         20,
         36,
         81,
         109,
         110
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ChartSpec.swift": [
+      "Sources/Portal/Models/ChartSpec.swift": [
         37,
         38,
         40,
@@ -429,7 +422,7 @@
         276,
         342
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ChatMessage.swift": [
+      "Sources/Portal/Models/ChatMessage.swift": [
         97,
         98,
         156,
@@ -513,17 +506,17 @@
         560,
         564
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ConceptLinker.swift": [
+      "Sources/Portal/Models/ConceptLinker.swift": [
         20,
         112
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/CronJob.swift": [
+      "Sources/Portal/Models/CronJob.swift": [
         21,
         22,
         23,
         26
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/CronRunHistory.swift": [
+      "Sources/Portal/Models/CronRunHistory.swift": [
         15,
         16,
         17,
@@ -628,7 +621,7 @@
         242,
         243
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DashboardLayout.swift": [
+      "Sources/Portal/Models/DashboardLayout.swift": [
         36,
         37,
         47,
@@ -649,10 +642,10 @@
         161,
         235
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DashboardPanel.swift": [
+      "Sources/Portal/Models/DashboardPanel.swift": [
         12
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DelegationBatchHistoryStore.swift": [
+      "Sources/Portal/Models/DelegationBatchHistoryStore.swift": [
         34,
         39,
         41,
@@ -693,7 +686,7 @@
         145,
         146
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DelegationBatchRecord.swift": [
+      "Sources/Portal/Models/DelegationBatchRecord.swift": [
         47,
         48,
         49,
@@ -702,13 +695,13 @@
         55,
         56
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DomainProtocols.swift": [
+      "Sources/Portal/Models/DomainProtocols.swift": [
         56,
         57,
         62,
         63
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/FeedArticle.swift": [
+      "Sources/Portal/Models/FeedArticle.swift": [
         17,
         23,
         31,
@@ -767,10 +760,10 @@
         175,
         176
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/FileTreeAggregator.swift": [
+      "Sources/Portal/Models/FileTreeAggregator.swift": [
         115
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayCapabilities.swift": [
+      "Sources/Portal/Models/GatewayCapabilities.swift": [
         9,
         10,
         11,
@@ -797,12 +790,12 @@
         170,
         212
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayDebugSnapshot.swift": [
+      "Sources/Portal/Models/GatewayDebugSnapshot.swift": [
         6,
         23,
         45
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayEvent.swift": [
+      "Sources/Portal/Models/GatewayEvent.swift": [
         8,
         9,
         10,
@@ -955,12 +948,12 @@
         610,
         611
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/HTMLArtifactIntentBridge.swift": [
+      "Sources/Portal/Models/HTMLArtifactIntentBridge.swift": [
         87,
         167,
         222
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Identicon.swift": [
+      "Sources/Portal/Models/Identicon.swift": [
         62,
         64,
         65,
@@ -973,7 +966,7 @@
         91,
         93
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift": [
+      "Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift": [
         56,
         77,
         78,
@@ -986,10 +979,10 @@
         85,
         86
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift": [
+      "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift": [
         10
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/LivingArtifact.swift": [
+      "Sources/Portal/Models/LivingArtifact.swift": [
         82,
         87,
         91,
@@ -1006,11 +999,11 @@
         158,
         247
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/MaintainerRef.swift": [
+      "Sources/Portal/Models/MaintainerRef.swift": [
         22,
         80
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/MediaAttachment.swift": [
+      "Sources/Portal/Models/MediaAttachment.swift": [
         53,
         54,
         55,
@@ -1019,12 +1012,12 @@
         69,
         76
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelCatalog.swift": [
+      "Sources/Portal/Models/ModelCatalog.swift": [
         26,
         73,
         86
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelProjections.swift": [
+      "Sources/Portal/Models/ModelProjections.swift": [
         88,
         90,
         91,
@@ -1051,17 +1044,17 @@
         130,
         136
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelSpec.swift": [
+      "Sources/Portal/Models/ModelSpec.swift": [
         68
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/NetworkGraphSpec.swift": [
+      "Sources/Portal/Models/NetworkGraphSpec.swift": [
         39,
         172,
         173,
         174,
         176
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Persona.swift": [
+      "Sources/Portal/Models/Persona.swift": [
         25,
         41,
         42,
@@ -1075,7 +1068,7 @@
         72,
         78
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/PersonaImage.swift": [
+      "Sources/Portal/Models/PersonaImage.swift": [
         15,
         17,
         18,
@@ -1111,7 +1104,7 @@
         75,
         76
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/PromptBreakdown.swift": [
+      "Sources/Portal/Models/PromptBreakdown.swift": [
         16,
         19,
         39,
@@ -1126,7 +1119,7 @@
         62,
         127
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Quiz/FlashcardModels.swift": [
+      "Sources/Portal/Models/Quiz/FlashcardModels.swift": [
         15,
         39,
         40,
@@ -1183,7 +1176,7 @@
         212,
         213
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Quiz/QuizModels.swift": [
+      "Sources/Portal/Models/Quiz/QuizModels.swift": [
         11,
         20,
         22,
@@ -1234,7 +1227,7 @@
         197,
         201
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ResponseStyle.swift": [
+      "Sources/Portal/Models/ResponseStyle.swift": [
         15,
         17,
         18,
@@ -1255,7 +1248,7 @@
         37,
         38
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SankeySpec.swift": [
+      "Sources/Portal/Models/SankeySpec.swift": [
         30,
         32,
         73,
@@ -1263,7 +1256,7 @@
         95,
         108
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SavedGateway.swift": [
+      "Sources/Portal/Models/SavedGateway.swift": [
         38,
         39,
         40,
@@ -1273,7 +1266,7 @@
         47,
         48
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Session.swift": [
+      "Sources/Portal/Models/Session.swift": [
         32,
         88,
         89,
@@ -1283,10 +1276,10 @@
         104,
         123
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SessionFolder.swift": [
+      "Sources/Portal/Models/SessionFolder.swift": [
         10
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SessionRunEvent.swift": [
+      "Sources/Portal/Models/SessionRunEvent.swift": [
         25,
         26,
         27,
@@ -1326,7 +1319,7 @@
         166,
         167
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SessionTimelineEvent.swift": [
+      "Sources/Portal/Models/SessionTimelineEvent.swift": [
         13,
         14,
         15,
@@ -1349,7 +1342,7 @@
         65,
         67
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SharedEntity.swift": [
+      "Sources/Portal/Models/SharedEntity.swift": [
         23,
         24,
         25,
@@ -1361,10 +1354,10 @@
         116,
         117
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Skill.swift": [
+      "Sources/Portal/Models/Skill.swift": [
         4
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SkillModels.swift": [
+      "Sources/Portal/Models/SkillModels.swift": [
         20,
         21,
         22,
@@ -1413,7 +1406,7 @@
         142,
         143
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SpawnNode.swift": [
+      "Sources/Portal/Models/SpawnNode.swift": [
         4,
         5,
         6,
@@ -1449,7 +1442,7 @@
         138,
         176
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SpawnTreeModels.swift": [
+      "Sources/Portal/Models/SpawnTreeModels.swift": [
         6,
         14,
         15,
@@ -1489,11 +1482,11 @@
         127,
         128
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/StatTileSpec.swift": [
+      "Sources/Portal/Models/StatTileSpec.swift": [
         29,
         47
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ThoughtGraphNode.swift": [
+      "Sources/Portal/Models/ThoughtGraphNode.swift": [
         76,
         77,
         122,
@@ -1523,11 +1516,11 @@
         356,
         374
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/TimelineSpec.swift": [
+      "Sources/Portal/Models/TimelineSpec.swift": [
         29,
         30
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WikiEventTimeline.swift": [
+      "Sources/Portal/Models/WikiEventTimeline.swift": [
         21,
         22,
         23,
@@ -1540,7 +1533,7 @@
         64,
         102
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WikiGraph.swift": [
+      "Sources/Portal/Models/WikiGraph.swift": [
         24,
         52,
         54,
@@ -1558,7 +1551,7 @@
         87,
         88
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WriterRef.swift": [
+      "Sources/Portal/Models/WriterRef.swift": [
         37,
         55,
         56,
@@ -1571,7 +1564,7 @@
         75,
         77
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/AgentBackend.swift": [
+      "Sources/Portal/Services/AgentBackend.swift": [
         162,
         166,
         167,
@@ -1581,7 +1574,7 @@
         181,
         185
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ArtifactStore.swift": [
+      "Sources/Portal/Services/ArtifactStore.swift": [
         74,
         75,
         76,
@@ -1698,7 +1691,7 @@
         580,
         581
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurClient.swift": [
+      "Sources/Portal/Services/CentaurClient.swift": [
         70,
         72,
         73,
@@ -1850,7 +1843,7 @@
         748,
         761
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurWikiClient+Timeline.swift": [
+      "Sources/Portal/Services/CentaurWikiClient+Timeline.swift": [
         31,
         32,
         33,
@@ -1861,7 +1854,7 @@
         55,
         56
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurWikiClient.swift": [
+      "Sources/Portal/Services/CentaurWikiClient.swift": [
         29,
         30,
         33,
@@ -1900,7 +1893,7 @@
         186,
         187
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ChatHistoryStore.swift": [
+      "Sources/Portal/Services/ChatHistoryStore.swift": [
         17,
         37,
         45,
@@ -1933,7 +1926,7 @@
         117,
         119
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CronPoller.swift": [
+      "Sources/Portal/Services/CronPoller.swift": [
         13,
         16,
         20,
@@ -1953,7 +1946,7 @@
         52,
         55
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/FileDownloadManager.swift": [
+      "Sources/Portal/Services/FileDownloadManager.swift": [
         29,
         34,
         43,
@@ -2007,7 +2000,7 @@
         180,
         182
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient+Feed.swift": [
+      "Sources/Portal/Services/GatewayClient+Feed.swift": [
         6,
         8,
         9,
@@ -2034,7 +2027,7 @@
         43,
         44
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient+Push.swift": [
+      "Sources/Portal/Services/GatewayClient+Push.swift": [
         24,
         29,
         30,
@@ -2049,7 +2042,7 @@
         48,
         49
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient+Wiki.swift": [
+      "Sources/Portal/Services/GatewayClient+Wiki.swift": [
         39,
         41,
         42,
@@ -2172,7 +2165,7 @@
         342,
         343
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient.swift": [
+      "Sources/Portal/Services/GatewayClient.swift": [
         60,
         61,
         62,
@@ -2861,7 +2854,7 @@
         2021,
         2023
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClientWrapper.swift": [
+      "Sources/Portal/Services/GatewayClientWrapper.swift": [
         40,
         43,
         45,
@@ -2944,7 +2937,7 @@
         269,
         271
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/KeychainStore.swift": [
+      "Sources/Portal/Services/KeychainStore.swift": [
         18,
         20,
         30,
@@ -2965,7 +2958,7 @@
         145,
         183
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/NotificationService.swift": [
+      "Sources/Portal/Services/NotificationService.swift": [
         29,
         34,
         44,
@@ -3016,7 +3009,7 @@
         301,
         302
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/PushRegistrationService.swift": [
+      "Sources/Portal/Services/PushRegistrationService.swift": [
         33,
         35,
         40,
@@ -3044,7 +3037,7 @@
         97,
         98
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/QuizStore.swift": [
+      "Sources/Portal/Services/QuizStore.swift": [
         12,
         15,
         16,
@@ -3083,10 +3076,10 @@
         88,
         90
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/RawEventLog.swift": [
+      "Sources/Portal/Services/RawEventLog.swift": [
         63
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningGraphIntegrator.swift": [
+      "Sources/Portal/Services/ReasoningGraphIntegrator.swift": [
         35,
         41,
         65,
@@ -3105,7 +3098,7 @@
         128,
         130
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningSummarizer.swift": [
+      "Sources/Portal/Services/ReasoningSummarizer.swift": [
         18,
         518,
         523,
@@ -3162,7 +3155,7 @@
         684,
         686
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SRSEngine.swift": [
+      "Sources/Portal/Services/SRSEngine.swift": [
         29,
         35,
         39,
@@ -3190,7 +3183,7 @@
         92,
         93
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SRSStore.swift": [
+      "Sources/Portal/Services/SRSStore.swift": [
         13,
         16,
         17,
@@ -3234,20 +3227,20 @@
         104,
         106
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionBackendRegistry.swift": [
+      "Sources/Portal/Services/SessionBackendRegistry.swift": [
         37,
         38
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionExporter+PDF.swift": [
+      "Sources/Portal/Services/SessionExporter+PDF.swift": [
         211
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionExporter.swift": [
+      "Sources/Portal/Services/SessionExporter.swift": [
         132,
         185,
         210,
         277
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionMetaSyncService.swift": [
+      "Sources/Portal/Services/SessionMetaSyncService.swift": [
         25,
         26,
         49,
@@ -3291,7 +3284,7 @@
         155,
         164
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionPDFExporter.swift": [
+      "Sources/Portal/Services/SessionPDFExporter.swift": [
         51,
         53,
         57,
@@ -3392,7 +3385,7 @@
         544,
         545
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SkillCache.swift": [
+      "Sources/Portal/Services/SkillCache.swift": [
         35,
         36,
         37,
@@ -3461,7 +3454,7 @@
         217,
         219
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SkillStore.swift": [
+      "Sources/Portal/Services/SkillStore.swift": [
         19,
         20,
         22,
@@ -3676,7 +3669,7 @@
         542,
         546
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SkillSummaryService.swift": [
+      "Sources/Portal/Services/SkillSummaryService.swift": [
         17,
         18,
         19,
@@ -3771,13 +3764,13 @@
         274,
         276
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SubagentGraphIntegrator.swift": [
+      "Sources/Portal/Services/SubagentGraphIntegrator.swift": [
         56,
         57,
         58,
         60
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/TTSService.swift": [
+      "Sources/Portal/Services/TTSService.swift": [
         41,
         44,
         46,
@@ -3794,7 +3787,7 @@
         93,
         95
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/VideoCache.swift": [
+      "Sources/Portal/Services/VideoCache.swift": [
         20,
         24,
         26,
@@ -3816,15 +3809,61 @@
         83,
         84
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/WikiGraphCache.swift": [
+      "Sources/Portal/Services/WebPageSnapshotService.swift": [
+        23,
+        27,
+        28,
+        32,
+        33,
+        44,
+        47,
+        52,
+        58,
+        59,
+        62,
+        63,
+        66,
+        71,
+        72,
+        78,
+        80,
+        81,
+        83,
+        85,
+        87,
+        107,
+        115,
+        123,
+        124,
+        125,
+        126,
+        128,
+        129,
+        131,
+        137,
+        139,
+        140,
+        141,
+        142,
+        144,
+        145,
+        147,
+        150,
+        154,
+        159,
+        162,
+        164,
+        167
+      ],
+      "Sources/Portal/Services/WikiGraphCache.swift": [
         46,
         47,
         65
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/Constants.swift": [
+      "Sources/Portal/Utilities/Constants.swift": [
         5
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/DocumentTextExtractor.swift": [
+      "Sources/Portal/Utilities/DocumentTextExtractor.swift": [
         24,
         28,
         29,
@@ -3860,7 +3899,7 @@
         93,
         95
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/Extensions.swift": [
+      "Sources/Portal/Utilities/Extensions.swift": [
         21,
         44,
         45,
@@ -3874,7 +3913,7 @@
         54,
         55
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/HermesNativeDeepLink.swift": [
+      "Sources/Portal/Utilities/HermesNativeDeepLink.swift": [
         34,
         35,
         36,
@@ -3884,14 +3923,14 @@
         41,
         42
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/InlineMath.swift": [
+      "Sources/Portal/Utilities/InlineMath.swift": [
         79,
         85,
         91,
         104,
         107
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MacInputTextField.swift": [
+      "Sources/Portal/Utilities/MacInputTextField.swift": [
         27,
         29,
         37,
@@ -4014,7 +4053,7 @@
         473,
         476
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MacScrollViewIntrospection.swift": [
+      "Sources/Portal/Utilities/MacScrollViewIntrospection.swift": [
         8,
         10,
         14,
@@ -4028,7 +4067,7 @@
         40,
         42
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MainThreadWatchdog.swift": [
+      "Sources/Portal/Utilities/MainThreadWatchdog.swift": [
         82,
         87,
         96,
@@ -4125,7 +4164,10 @@
         447,
         456
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/PerfInstrumentation.swift": [
+      "Sources/Portal/Utilities/PerfCounter.swift": [
+        57
+      ],
+      "Sources/Portal/Utilities/PerfInstrumentation.swift": [
         47,
         50,
         52,
@@ -4214,7 +4256,7 @@
         387,
         390
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/ActivityInboxViewModel.swift": [
+      "Sources/Portal/ViewModels/ActivityInboxViewModel.swift": [
         24,
         25,
         28,
@@ -4250,7 +4292,7 @@
         107,
         263
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/CelebrationManager.swift": [
+      "Sources/Portal/ViewModels/CelebrationManager.swift": [
         28,
         29,
         30,
@@ -4281,7 +4323,7 @@
         133,
         138
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/ChatViewModel.swift": [
+      "Sources/Portal/ViewModels/ChatViewModel.swift": [
         325,
         326,
         328,
@@ -4887,7 +4929,54 @@
         2725,
         2727
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/CronListViewModel.swift": [
+      "Sources/Portal/ViewModels/CronFilterState.swift": [
+        10,
+        11,
+        12,
+        13,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        41,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        53,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        75,
+        76,
+        78,
+        79,
+        83,
+        84,
+        90,
+        95,
+        96,
+        98,
+        101,
+        102,
+        103,
+        104,
+        105,
+        107,
+        108,
+        109,
+        115,
+        116
+      ],
+      "Sources/Portal/ViewModels/CronListViewModel.swift": [
         10,
         11,
         15,
@@ -4927,7 +5016,7 @@
         81,
         82
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/FeedViewModel.swift": [
+      "Sources/Portal/ViewModels/FeedViewModel.swift": [
         9,
         10,
         12,
@@ -4968,7 +5057,7 @@
         97,
         98
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift": [
+      "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift": [
         5,
         6,
         9,
@@ -4980,7 +5069,7 @@
         28,
         30
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/PersonaManager.swift": [
+      "Sources/Portal/ViewModels/PersonaManager.swift": [
         58,
         63,
         64,
@@ -5008,7 +5097,7 @@
         136,
         140
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/Quiz/QuizViewModel.swift": [
+      "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift": [
         17,
         22,
         23,
@@ -5040,7 +5129,7 @@
         141,
         142
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SessionListViewModel.swift": [
+      "Sources/Portal/ViewModels/SessionListViewModel.swift": [
         71,
         72,
         77,
@@ -5245,7 +5334,7 @@
         760,
         762
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SettingsViewModel.swift": [
+      "Sources/Portal/ViewModels/SettingsViewModel.swift": [
         14,
         15,
         18,
@@ -5297,7 +5386,7 @@
         376,
         377
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SkillsViewModel.swift": [
+      "Sources/Portal/ViewModels/SkillsViewModel.swift": [
         10,
         25,
         30,
@@ -5388,7 +5477,7 @@
         199,
         200
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SpawnTreeStore.swift": [
+      "Sources/Portal/ViewModels/SpawnTreeStore.swift": [
         8,
         12,
         16,
@@ -5581,7 +5670,7 @@
         534,
         535
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/WikiGraphViewModel.swift": [
+      "Sources/Portal/ViewModels/WikiGraphViewModel.swift": [
         72,
         73,
         74,
@@ -5707,7 +5796,7 @@
         858,
         919
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/WikiTimelineViewModel.swift": [
+      "Sources/Portal/ViewModels/WikiTimelineViewModel.swift": [
         10,
         11,
         12,
@@ -5753,7 +5842,7 @@
       ]
     },
     "covered_lines": {
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ActivityItem.swift": [
+      "Sources/Portal/Models/ActivityItem.swift": [
         27,
         28,
         29,
@@ -5785,7 +5874,7 @@
         123,
         124
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ActivityStore.swift": [
+      "Sources/Portal/Models/ActivityStore.swift": [
         10,
         11,
         12,
@@ -5826,7 +5915,7 @@
         126,
         127
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/AgentModel.swift": [
+      "Sources/Portal/Models/AgentModel.swift": [
         31,
         39,
         46,
@@ -5840,7 +5929,7 @@
         69,
         71
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ArtifactActions.swift": [
+      "Sources/Portal/Models/ArtifactActions.swift": [
         51,
         52,
         58,
@@ -5926,14 +6015,14 @@
         239,
         242
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ArtifactIntentSessionLink.swift": [
+      "Sources/Portal/Models/ArtifactIntentSessionLink.swift": [
         19,
         21,
         22,
         30,
         31
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/CalendarSpec.swift": [
+      "Sources/Portal/Models/CalendarSpec.swift": [
         33,
         34,
         35,
@@ -5957,7 +6046,7 @@
         74,
         76
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/CentaurWorkflow.swift": [
+      "Sources/Portal/Models/CentaurWorkflow.swift": [
         23,
         24,
         25,
@@ -6007,7 +6096,7 @@
         125,
         126
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ChartSpec.swift": [
+      "Sources/Portal/Models/ChartSpec.swift": [
         13,
         14,
         15,
@@ -6104,7 +6193,7 @@
         361,
         362
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ChatMessage.swift": [
+      "Sources/Portal/Models/ChatMessage.swift": [
         24,
         27,
         29,
@@ -6166,7 +6255,7 @@
         572,
         574
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ChecklistSpec.swift": [
+      "Sources/Portal/Models/ChecklistSpec.swift": [
         31,
         37,
         38,
@@ -6188,7 +6277,7 @@
         67,
         68
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ConceptLinker.swift": [
+      "Sources/Portal/Models/ConceptLinker.swift": [
         28,
         33,
         35,
@@ -6226,7 +6315,7 @@
         111,
         114
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DashboardLayout.swift": [
+      "Sources/Portal/Models/DashboardLayout.swift": [
         14,
         18,
         24,
@@ -6248,12 +6337,12 @@
         128,
         208
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DashboardPanel.swift": [
+      "Sources/Portal/Models/DashboardPanel.swift": [
         14,
         105,
         121
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DelegationBatch.swift": [
+      "Sources/Portal/Models/DelegationBatch.swift": [
         41,
         45,
         46,
@@ -6291,7 +6380,7 @@
         126,
         127
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DelegationBatchHistoryStore.swift": [
+      "Sources/Portal/Models/DelegationBatchHistoryStore.swift": [
         19,
         25,
         29,
@@ -6319,7 +6408,7 @@
         98,
         101
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/DelegationBatchRecord.swift": [
+      "Sources/Portal/Models/DelegationBatchRecord.swift": [
         24,
         25,
         26,
@@ -6328,7 +6417,7 @@
         86,
         90
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/FileTreeAggregator.swift": [
+      "Sources/Portal/Models/FileTreeAggregator.swift": [
         17,
         18,
         19,
@@ -6381,7 +6470,7 @@
         141,
         142
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayCapabilities.swift": [
+      "Sources/Portal/Models/GatewayCapabilities.swift": [
         24,
         25,
         28,
@@ -6443,7 +6532,7 @@
         214,
         217
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayDebugSnapshot.swift": [
+      "Sources/Portal/Models/GatewayDebugSnapshot.swift": [
         29,
         30,
         31,
@@ -6454,7 +6543,7 @@
         42,
         43
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/GatewayEvent.swift": [
+      "Sources/Portal/Models/GatewayEvent.swift": [
         51,
         52,
         56,
@@ -6537,7 +6626,7 @@
         538,
         539
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/HTMLArtifactIntentBridge.swift": [
+      "Sources/Portal/Models/HTMLArtifactIntentBridge.swift": [
         19,
         24,
         28,
@@ -6584,7 +6673,7 @@
         221,
         224
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Identicon.swift": [
+      "Sources/Portal/Models/Identicon.swift": [
         19,
         21,
         24,
@@ -6597,7 +6686,7 @@
         53,
         54
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift": [
+      "Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift": [
         5,
         10,
         31,
@@ -6624,7 +6713,7 @@
         71,
         72
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/KanbanSpec.swift": [
+      "Sources/Portal/Models/KanbanSpec.swift": [
         40,
         41,
         55,
@@ -6672,7 +6761,7 @@
         132,
         133
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/LivingArtifact.swift": [
+      "Sources/Portal/Models/LivingArtifact.swift": [
         24,
         31,
         37,
@@ -6827,7 +6916,7 @@
         372,
         373
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/MaintainerRef.swift": [
+      "Sources/Portal/Models/MaintainerRef.swift": [
         25,
         26,
         27,
@@ -6854,7 +6943,7 @@
         82,
         83
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/MediaAttachment.swift": [
+      "Sources/Portal/Models/MediaAttachment.swift": [
         18,
         19,
         20,
@@ -6870,7 +6959,7 @@
         35,
         44
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelCatalog.swift": [
+      "Sources/Portal/Models/ModelCatalog.swift": [
         36,
         37,
         41,
@@ -6896,7 +6985,7 @@
         107,
         108
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelProjections.swift": [
+      "Sources/Portal/Models/ModelProjections.swift": [
         12,
         14,
         15,
@@ -6944,7 +7033,7 @@
         138,
         139
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ModelSpec.swift": [
+      "Sources/Portal/Models/ModelSpec.swift": [
         38,
         44,
         45,
@@ -7014,7 +7103,7 @@
         221,
         222
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/NetworkGraphSpec.swift": [
+      "Sources/Portal/Models/NetworkGraphSpec.swift": [
         30,
         31,
         32,
@@ -7054,29 +7143,29 @@
         158,
         162,
         177,
-        179,
-        183,
-        184,
+        186,
         191,
         192,
-        194,
+        199,
         200,
         202,
-        203,
-        204,
-        207,
         208,
+        210,
         211,
-        213,
-        214,
-        224,
-        229,
-        231,
-        235,
-        240,
-        244
+        212,
+        215,
+        216,
+        219,
+        221,
+        222,
+        234,
+        239,
+        241,
+        245,
+        250,
+        254
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Persona.swift": [
+      "Sources/Portal/Models/Persona.swift": [
         23,
         30,
         31,
@@ -7084,7 +7173,7 @@
         98,
         101
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Quiz/FlashcardModels.swift": [
+      "Sources/Portal/Models/Quiz/FlashcardModels.swift": [
         166,
         175,
         180,
@@ -7100,7 +7189,7 @@
         224,
         225
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Quiz/QuizModels.swift": [
+      "Sources/Portal/Models/Quiz/QuizModels.swift": [
         96,
         106,
         111,
@@ -7118,7 +7207,7 @@
         159,
         160
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ResponseStyle.swift": [
+      "Sources/Portal/Models/ResponseStyle.swift": [
         42,
         43,
         44,
@@ -7132,7 +7221,7 @@
         84,
         86
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SankeySpec.swift": [
+      "Sources/Portal/Models/SankeySpec.swift": [
         36,
         39,
         41,
@@ -7169,36 +7258,36 @@
         138,
         139,
         140,
-        141,
-        146,
-        147,
-        148,
+        144,
         149,
+        150,
         151,
         152,
-        153,
         154,
-        161,
-        162,
+        155,
+        156,
+        157,
         164,
         165,
-        166,
+        170,
+        171,
         172,
-        177,
         178,
-        182,
-        187,
-        189,
-        190,
-        192,
-        194,
-        197,
+        183,
+        184,
+        188,
+        193,
+        195,
+        196,
         198,
-        201,
-        202,
-        204
+        200,
+        203,
+        204,
+        207,
+        208,
+        210
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SavedGateway.swift": [
+      "Sources/Portal/Models/SavedGateway.swift": [
         11,
         12,
         13,
@@ -7231,7 +7320,7 @@
         120,
         121
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Session.swift": [
+      "Sources/Portal/Models/Session.swift": [
         28,
         34,
         35,
@@ -7260,7 +7349,7 @@
         115,
         119
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SessionRunEvent.swift": [
+      "Sources/Portal/Models/SessionRunEvent.swift": [
         37,
         55,
         59,
@@ -7288,7 +7377,7 @@
         159,
         160
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SharedEntity.swift": [
+      "Sources/Portal/Models/SharedEntity.swift": [
         54,
         56,
         57,
@@ -7317,7 +7406,7 @@
         119,
         120
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/Skill.swift": [
+      "Sources/Portal/Models/Skill.swift": [
         17,
         19,
         20,
@@ -7336,7 +7425,7 @@
         60,
         61
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/SpawnNode.swift": [
+      "Sources/Portal/Models/SpawnNode.swift": [
         27,
         28,
         29,
@@ -7352,7 +7441,7 @@
         127,
         159
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/StatTileSpec.swift": [
+      "Sources/Portal/Models/StatTileSpec.swift": [
         35,
         36,
         37,
@@ -7392,7 +7481,7 @@
         118,
         119
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/ThoughtGraphNode.swift": [
+      "Sources/Portal/Models/ThoughtGraphNode.swift": [
         95,
         105,
         106,
@@ -7420,7 +7509,7 @@
         237,
         365
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/TimelineSpec.swift": [
+      "Sources/Portal/Models/TimelineSpec.swift": [
         37,
         39,
         43,
@@ -7457,7 +7546,7 @@
         106,
         109
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WikiEventTimeline.swift": [
+      "Sources/Portal/Models/WikiEventTimeline.swift": [
         17,
         18,
         65,
@@ -7507,10 +7596,10 @@
         243,
         244
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WikiGraph.swift": [
+      "Sources/Portal/Models/WikiGraph.swift": [
         36
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Models/WriterRef.swift": [
+      "Sources/Portal/Models/WriterRef.swift": [
         17,
         19,
         20,
@@ -7542,7 +7631,7 @@
         76,
         78
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ArtifactStore.swift": [
+      "Sources/Portal/Services/ArtifactStore.swift": [
         22,
         29,
         42,
@@ -7627,7 +7716,7 @@
         555,
         556
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurClient.swift": [
+      "Sources/Portal/Services/CentaurClient.swift": [
         33,
         36,
         62,
@@ -7739,7 +7828,7 @@
         797,
         798
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurWikiClient+Timeline.swift": [
+      "Sources/Portal/Services/CentaurWikiClient+Timeline.swift": [
         66,
         68,
         70,
@@ -7752,7 +7841,7 @@
         79,
         82
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/CentaurWikiClient.swift": [
+      "Sources/Portal/Services/CentaurWikiClient.swift": [
         69,
         90,
         91,
@@ -7769,7 +7858,7 @@
         122,
         123
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ChatHistoryStore.swift": [
+      "Sources/Portal/Services/ChatHistoryStore.swift": [
         13,
         16,
         22,
@@ -7790,19 +7879,19 @@
         68,
         95
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/FileDownloadManager.swift": [
+      "Sources/Portal/Services/FileDownloadManager.swift": [
         15,
         18,
         23,
         26
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient+Wiki.swift": [
+      "Sources/Portal/Services/GatewayClient+Wiki.swift": [
         104,
         106,
         108,
         165
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClient.swift": [
+      "Sources/Portal/Services/GatewayClient.swift": [
         21,
         26,
         28,
@@ -7885,7 +7974,7 @@
         2044,
         2045
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/GatewayClientWrapper.swift": [
+      "Sources/Portal/Services/GatewayClientWrapper.swift": [
         17,
         18,
         19,
@@ -7893,7 +7982,7 @@
         74,
         206
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/KeychainStore.swift": [
+      "Sources/Portal/Services/KeychainStore.swift": [
         11,
         13,
         33,
@@ -7911,7 +8000,7 @@
         190,
         198
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/NotificationService.swift": [
+      "Sources/Portal/Services/NotificationService.swift": [
         33,
         37,
         39,
@@ -7931,7 +8020,7 @@
         171,
         172
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/RawEventLog.swift": [
+      "Sources/Portal/Services/RawEventLog.swift": [
         24,
         29,
         32,
@@ -7959,7 +8048,7 @@
         89,
         91
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningGraphIntegrator.swift": [
+      "Sources/Portal/Services/ReasoningGraphIntegrator.swift": [
         16,
         21,
         24,
@@ -7970,7 +8059,7 @@
         76,
         79
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/ReasoningSummarizer.swift": [
+      "Sources/Portal/Services/ReasoningSummarizer.swift": [
         14,
         15,
         17,
@@ -8081,7 +8170,7 @@
         498,
         504
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionBackendRegistry.swift": [
+      "Sources/Portal/Services/SessionBackendRegistry.swift": [
         19,
         20,
         21,
@@ -8092,7 +8181,7 @@
         46,
         47
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionExporter+PDF.swift": [
+      "Sources/Portal/Services/SessionExporter+PDF.swift": [
         21,
         33,
         35,
@@ -8146,7 +8235,7 @@
         245,
         248
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionExporter.swift": [
+      "Sources/Portal/Services/SessionExporter.swift": [
         35,
         62,
         72,
@@ -8227,7 +8316,7 @@
         264,
         269
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionMetaSyncService.swift": [
+      "Sources/Portal/Services/SessionMetaSyncService.swift": [
         36,
         38,
         39,
@@ -8242,7 +8331,7 @@
         96,
         99
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SessionPDFExporter.swift": [
+      "Sources/Portal/Services/SessionPDFExporter.swift": [
         22,
         23,
         28,
@@ -8335,7 +8424,7 @@
         377,
         378
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SkillStore.swift": [
+      "Sources/Portal/Services/SkillStore.swift": [
         75,
         76,
         78,
@@ -8350,7 +8439,7 @@
         171,
         177
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/SubagentGraphIntegrator.swift": [
+      "Sources/Portal/Services/SubagentGraphIntegrator.swift": [
         20,
         26,
         27,
@@ -8394,7 +8483,7 @@
         171,
         174
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/TTSService.swift": [
+      "Sources/Portal/Services/TTSService.swift": [
         13,
         14,
         16,
@@ -8411,7 +8500,7 @@
         67,
         68
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Services/WikiGraphCache.swift": [
+      "Sources/Portal/Services/WikiGraphCache.swift": [
         21,
         22,
         24,
@@ -8441,7 +8530,7 @@
         82,
         83
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/ChatLayoutMath.swift": [
+      "Sources/Portal/Utilities/ChatLayoutMath.swift": [
         17,
         25,
         32,
@@ -8453,7 +8542,7 @@
         55,
         56
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/Extensions.swift": [
+      "Sources/Portal/Utilities/Extensions.swift": [
         7,
         8,
         9,
@@ -8481,7 +8570,7 @@
         83,
         84
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/HermesNativeDeepLink.swift": [
+      "Sources/Portal/Utilities/HermesNativeDeepLink.swift": [
         14,
         15,
         16,
@@ -8497,7 +8586,7 @@
         29,
         30
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/InlineMath.swift": [
+      "Sources/Portal/Utilities/InlineMath.swift": [
         17,
         18,
         22,
@@ -8552,7 +8641,7 @@
         123,
         124
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/JSONObjectParse.swift": [
+      "Sources/Portal/Utilities/JSONObjectParse.swift": [
         9,
         10,
         11,
@@ -8560,21 +8649,26 @@
         13,
         15
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/MainThreadWatchdog.swift": [
+      "Sources/Portal/Utilities/MainThreadWatchdog.swift": [
         281,
         283,
         286,
         287,
         288
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/PerfInstrumentation.swift": [
+      "Sources/Portal/Utilities/PerfCounter.swift": [
+        56,
+        58,
+        59
+      ],
+      "Sources/Portal/Utilities/PerfInstrumentation.swift": [
         33,
         34,
         38,
         210,
         211
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/Utilities/RenderMemo.swift": [
+      "Sources/Portal/Utilities/RenderMemo.swift": [
         10,
         11,
         12,
@@ -8588,7 +8682,7 @@
         36,
         38
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/ActivityInboxViewModel.swift": [
+      "Sources/Portal/ViewModels/ActivityInboxViewModel.swift": [
         9,
         11,
         14,
@@ -8630,7 +8724,7 @@
         264,
         265
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/CelebrationManager.swift": [
+      "Sources/Portal/ViewModels/CelebrationManager.swift": [
         17,
         18,
         19,
@@ -8641,7 +8735,7 @@
         58,
         66
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/ChatViewModel.swift": [
+      "Sources/Portal/ViewModels/ChatViewModel.swift": [
         162,
         163,
         164,
@@ -8951,7 +9045,7 @@
         2711,
         2712
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/PersonaManager.swift": [
+      "Sources/Portal/ViewModels/PersonaManager.swift": [
         11,
         13,
         23,
@@ -8960,7 +9054,7 @@
         37,
         43
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SessionListViewModel.swift": [
+      "Sources/Portal/ViewModels/SessionListViewModel.swift": [
         13,
         15,
         16,
@@ -9035,7 +9129,7 @@
         766,
         775
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SettingsViewModel.swift": [
+      "Sources/Portal/ViewModels/SettingsViewModel.swift": [
         29,
         34,
         38,
@@ -9094,7 +9188,7 @@
         308,
         326
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/SkillsViewModel.swift": [
+      "Sources/Portal/ViewModels/SkillsViewModel.swift": [
         8,
         9,
         14,
@@ -9109,7 +9203,7 @@
         44,
         45
       ],
-      "private/tmp/portal-pr63-repair-1785315180/Sources/Portal/ViewModels/WikiGraphViewModel.swift": [
+      "Sources/Portal/ViewModels/WikiGraphViewModel.swift": [
         11,
         12,
         23,
