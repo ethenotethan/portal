@@ -49,6 +49,9 @@ internal struct CronJobCard: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
                     Divider().background(Theme.border)
+                    statsStrip
+                    healthBar
+                    errorBanner
                     detailRows
                     promptSection
                     recentRuns
@@ -151,6 +154,110 @@ internal struct CronJobCard: View {
         }
     }
 
+    // MARK: - Derived stats
+
+    private var successRate: Double {
+        CronRunHistoryStore.shared.successRate(for: displayJob.id)
+    }
+
+    private var failureCount: Int {
+        runRecords.filter { !$0.isOk }.count
+    }
+
+    private var averageIntervalLabel: String? {
+        guard let interval = CronRunHistoryStore.shared.averageInterval(for: displayJob.id),
+              interval > 0 else { return nil }
+        if interval < 90 { return String(format: "%.0fs", interval) }
+        if interval < 5_400 { return String(format: "%.0fm", interval / 60) }
+        if interval < 172_800 { return String(format: "%.1fh", interval / 3_600) }
+        return String(format: "%.1fd", interval / 86_400)
+    }
+
+    /// Compact metric tiles summarizing the job's run health at a glance —
+    /// the "informative card" beyond just prompt + recent runs.
+    private var statsStrip: some View {
+        Group {
+            if !runRecords.isEmpty {
+                HStack(spacing: 8) {
+                    statTile(
+                        "Success",
+                        value: String(format: "%.0f%%", successRate),
+                        tint: successRate >= 80 ? Theme.success : (successRate >= 50 ? Theme.warning : .red)
+                    )
+                    statTile("Runs", value: "\(runRecords.count)", tint: Theme.accent)
+                    statTile(
+                        "Failures",
+                        value: "\(failureCount)",
+                        tint: failureCount == 0 ? Theme.success : .red
+                    )
+                    if let interval = averageIntervalLabel {
+                        statTile("Avg gap", value: interval, tint: Theme.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func statTile(_ label: String, value: String, tint: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(Theme.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Sparkline-style pass/fail ribbon of the most recent runs (oldest → newest).
+    private var healthBar: some View {
+        Group {
+            if runRecords.count > 1 {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Run health")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Theme.tertiary)
+                    HStack(spacing: 2) {
+                        let recent = Array(runRecords.suffix(24))
+                        ForEach(recent) { record in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(record.isOk ? Theme.success : Color.red)
+                                .frame(height: 14)
+                                .opacity(record.isOk ? 0.85 : 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Surface the last failure inline so a broken job is legible without
+    /// drilling into a run popover.
+    private var errorBanner: some View {
+        Group {
+            if displayJob.lastStatus == "error", let err = displayJob.lastError, !err.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                    Text(err)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.red.opacity(0.9))
+                        .lineLimit(3)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
     private var detailRows: some View {
         VStack(spacing: 0) {
             detailRow("Job ID", value: displayJob.id)
@@ -161,10 +268,6 @@ internal struct CronJobCard: View {
             detailRow("Last status", value: displayJob.lastStatus ?? "—")
             detailRow("Next run", value: displayJob.nextRunAt?.relativeString ?? "—")
             detailRow("Deliver", value: displayJob.deliver.isEmpty ? "—" : displayJob.deliver)
-            if !runRecords.isEmpty {
-                let rate = CronRunHistoryStore.shared.successRate(for: displayJob.id)
-                detailRow("Success rate", value: String(format: "%.0f%% (%d runs)", rate, runRecords.count))
-            }
         }
     }
 
