@@ -2,14 +2,35 @@ import SwiftUI
 import AVKit
 import os
 
+// MARK: - Snapshot service injection
+
+/// Environment slot for the feed's shared page-snapshot renderer. `FeedView`
+/// injects one instance so every card shares its cache and render queue; the
+/// default is `nil` (the key can't build a `@MainActor` value in a nonisolated
+/// static), so a preview shown without `FeedView` simply skips snapshots.
+private struct WebPageSnapshotServiceKey: EnvironmentKey {
+    static let defaultValue: WebPageSnapshotService? = nil
+}
+
+extension EnvironmentValues {
+    internal var webPageSnapshotService: WebPageSnapshotService? {
+        get { self[WebPageSnapshotServiceKey.self] }
+        set { self[WebPageSnapshotServiceKey.self] = newValue }
+    }
+}
+
 // MARK: - Feed View
 
 /// Social-media-style curated feed from the digest pipeline.
 struct FeedView: View {
     @StateObject private var vm = FeedViewModel()
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    /// One page-snapshot renderer for the whole feed — its cache and serialized
+    /// render queue are shared across every card via the environment (injected,
+    /// not a global singleton, so it can be swapped in tests/previews).
+    @State private var snapshotService = WebPageSnapshotService()
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             SourceFilterBar(
                 sources: vm.sourceCounts,
@@ -40,6 +61,7 @@ struct FeedView: View {
         }
         .navigationTitle("Feed")
         .background(Theme.background)
+        .environment(\.webPageSnapshotService, snapshotService)
         .task { if vm.articles.isEmpty { await vm.loadFeed(client: gatewayClientWrapper.client) } }
     }
 
@@ -101,7 +123,7 @@ struct FeedView: View {
 
 struct SkeletonCard: View {
     @State private var shimmer = false
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.15)).frame(width: 28, height: 28)
@@ -143,7 +165,7 @@ struct SourceFilterBar: View {
         return result
     }
 
-    var body: some View {
+    internal var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 SourcePill(label: "All", count: sources.values.reduce(0, +),
@@ -187,7 +209,7 @@ struct SourceFilterBar: View {
 
 struct SourcePill: View {
     let label: String; let count: Int; let isSelected: Bool; let icon: String
-    var body: some View {
+    internal var body: some View {
         HStack(spacing: 4) {
             Image(systemName: icon).font(.caption2)
             Text(label).font(.caption)
@@ -202,13 +224,86 @@ struct SourcePill: View {
 
 // MARK: - Hero Image
 
+/// A live snapshot of the article's actual web page, captured offscreen and
+/// cached. Shows the page thumbnail once rendered; until then (or if the render
+/// fails) it falls back to the article's hero/OG image so the card is never
+/// blank. This is the "preview of the webpage" at the top of the card.
+internal struct FeedPagePreview: View {
+    internal let pageURL: URL
+    internal let fallbackImageURL: URL?
+    internal var height: CGFloat = 200
+
+    @Environment(\.webPageSnapshotService) private var snapshotService
+    @State private var snapshot: SnapshotImage?
+    @State private var triedSnapshot = false
+
+    internal var body: some View {
+        Group {
+            if let snapshot {
+                snapshotImage(snapshot)
+            } else if let fallbackImageURL {
+                FeedHeroImage(url: fallbackImageURL, height: height)
+            } else {
+                placeholder
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.secondary.opacity(0.12), lineWidth: 0.5)
+        )
+        .onAppear(perform: requestSnapshot)
+    }
+
+    private func snapshotImage(_ image: SnapshotImage) -> some View {
+        #if os(macOS)
+        Image(nsImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(maxWidth: .infinity, maxHeight: height, alignment: .top)
+            .clipped()
+        #else
+        Image(uiImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(maxWidth: .infinity, maxHeight: height, alignment: .top)
+            .clipped()
+        #endif
+    }
+
+    private var placeholder: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.secondary.opacity(0.08))
+            .overlay {
+                if !triedSnapshot {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "safari")
+                        .font(.system(size: 26))
+                        .foregroundStyle(.secondary.opacity(0.5))
+                }
+            }
+    }
+
+    private func requestSnapshot() {
+        guard snapshot == nil, !triedSnapshot, let snapshotService else { return }
+        snapshotService.snapshot(for: pageURL) { image in
+            triedSnapshot = true
+            if let image { snapshot = image }
+        }
+    }
+}
+
 /// Async-loaded article/release image with rounded social-card styling.
 /// Collapses to nothing on failure so broken URLs never leave a gap.
 struct FeedHeroImage: View {
     let url: URL
+    internal var height: CGFloat = 280
     @State private var failed = false
 
-    var body: some View {
+    internal var body: some View {
         if !failed {
             AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.2))) { phase in
                 switch phase {
@@ -217,7 +312,7 @@ struct FeedHeroImage: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(maxWidth: .infinity)
-                        .frame(maxHeight: 280)
+                        .frame(maxHeight: height)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
@@ -226,7 +321,7 @@ struct FeedHeroImage: View {
                 case .empty:
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.secondary.opacity(0.08))
-                        .frame(height: 160)
+                        .frame(height: min(height, 160))
                         .overlay(ProgressView().controlSize(.small))
                 case .failure:
                     Color.clear.frame(height: 0)
@@ -246,8 +341,33 @@ struct FeedCard: View {
     @State private var isExpanded = false
     @State private var browserLink: InAppBrowserLink?
 
-    var body: some View {
+    /// The article's canonical link, if any — the page we snapshot for the
+    /// preview and open on expand.
+    private var articleURL: URL? {
+        guard !article.url.isEmpty else { return nil }
+        return URL(string: article.url)
+    }
+
+    /// Instagram-post shape: a live webpage preview on top, then the "release
+    /// amount of data" (headline, body, tags, open) below. Tweets have no
+    /// meaningful page to snapshot, so they keep their text-first layout.
+    private var showsPagePreview: Bool {
+        !article.isTwitter && articleURL != nil
+    }
+
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // ── Webpage preview (top) — the "photo" of the post ──
+            if showsPagePreview, let pageURL = articleURL {
+                FeedPagePreview(
+                    pageURL: pageURL,
+                    fallbackImageURL: article.heroImageURL,
+                    height: isExpanded ? 320 : 200
+                )
+                .padding(.bottom, 12)
+                .animation(.easeInOut(duration: 0.25), value: isExpanded)
+            }
+
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -287,7 +407,8 @@ struct FeedCard: View {
                     .padding(.top, 10)
             }
 
-            if let heroURL = article.heroImageURL {
+            // A tweet with no page preview keeps its inline hero image.
+            if !showsPagePreview, let heroURL = article.heroImageURL {
                 FeedHeroImage(url: heroURL)
                     .padding(.top, 10)
             }
@@ -407,7 +528,7 @@ struct VideoFeedCard: View {
     @State private var isPlaying = false
     @State private var isFullScreen = false
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 ZStack {
@@ -533,7 +654,7 @@ struct VideoPlayerView: View {
     @State private var stage = ""
     @State private var videoLifetime: OSSignpostIntervalState?
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             #if os(macOS)
             NativeVideoPlayer(player: player)
@@ -739,7 +860,7 @@ struct FullScreenVideoView: View {
     let onClose: () -> Void
     @State private var isPlaying = true
 
-    var body: some View {
+    internal var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
             VideoPlayerView(videoURL: videoURL, thumbnailURL: thumbnailURL, isPlaying: $isPlaying)
