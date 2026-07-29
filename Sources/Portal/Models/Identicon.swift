@@ -78,22 +78,20 @@ internal struct IdenticonView: View {
     }
 
     internal var body: some View {
-        let count = grid.count
-        Canvas { context, canvasSize in
-            let cell = min(canvasSize.width, canvasSize.height) / CGFloat(count)
-            context.fill(
-                Path(CGRect(origin: .zero, size: canvasSize)),
-                with: .color(background)
-            )
-            for row in 0..<count {
-                for col in 0..<count where grid[row][col] {
-                    let rect = CGRect(
-                        x: CGFloat(col) * cell,
-                        y: CGFloat(row) * cell,
-                        width: cell,
-                        height: cell
-                    )
-                    context.fill(Path(rect), with: .color(foreground))
+        // Drawn with plain SwiftUI shapes (not `Canvas`): a `Canvas` is dropped
+        // when this view is used as a macOS `Menu`/borderless-button *label*
+        // (AppKit flattens the label and Canvas content comes out blank), so the
+        // harness switcher chip would show no logo. A grid of `Rectangle`s
+        // renders identically and survives that flattening.
+        let cells = grid
+        let count = cells.count
+        VStack(spacing: 0) {
+            ForEach(0..<count, id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<count, id: \.self) { col in
+                        Rectangle()
+                            .fill(cells[row][col] ? foreground : background)
+                    }
                 }
             }
         }
