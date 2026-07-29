@@ -65,6 +65,18 @@ internal struct ArtifactStatusReflectionTests {
         #expect(HTMLArtifactIntentBridge.StatusToken.needsConfirmation.rawValue == "needs-confirmation")
     }
 
+    @Test("Pointer Lock bridge accepts only trusted canvas gestures")
+    internal func pointerLockBridgeIsGestureScoped() {
+        let js = HTMLPointerLockBridge.userScriptSource
+        #expect(js.contains("pointerdown"))
+        #expect(js.contains("event.isTrusted"))
+        #expect(js.contains("closest('canvas')"))
+        #expect(js.contains("document.pointerLockElement"))
+        #expect(js.contains("canvas.requestPointerLock()"))
+        #expect(!js.contains("window.location"))
+        #expect(!js.contains("fetch("))
+    }
+
     // MARK: - ArtifactStore.intentSlots — decode composite keys
 
     @MainActor

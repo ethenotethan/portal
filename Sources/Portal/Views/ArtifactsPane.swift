@@ -299,6 +299,9 @@ struct ArtifactKindRenderer: View {
     /// structured kinds embed their actions in content). These render as
     /// trusted SwiftUI chrome above the HTML document; no JS bridge involved.
     internal var topLevelActions: [ArtifactAction] = []
+    /// Expanded HTML canvases opt into host-assisted mouse capture. Regular
+    /// documents stay inert and never steal the pointer.
+    internal var capturesPointerInput = false
 
     /// Kinds whose content is an interactive viewport that manages its own
     /// scrolling and gestures (a WKWebView document, a force-directed graph
@@ -352,10 +355,11 @@ struct ArtifactKindRenderer: View {
                 ArtifactHTMLIntentView(
                     html: content,
                     artifactID: artifactID,
-                    actions: topLevelActions
+                    actions: topLevelActions,
+                    capturesPointerInput: capturesPointerInput
                 )
             } else {
-                InlineHTMLView(html: content)
+                InlineHTMLView(html: content, capturesPointerInput: capturesPointerInput)
                     .frame(minHeight: 320)
             }
         default:
@@ -374,6 +378,7 @@ private struct ArtifactHTMLIntentView: View {
     let html: String
     let artifactID: String
     let actions: [ArtifactAction]
+    let capturesPointerInput: Bool
 
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @ObservedObject private var store = ArtifactStore.shared
@@ -424,7 +429,12 @@ private struct ArtifactHTMLIntentView: View {
             if let activeState {
                 inlineStatus(activeState)
             }
-            InlineHTMLView(html: html, onArtifactIntent: handleRequest, statusMarks: statusMarks)
+            InlineHTMLView(
+                html: html,
+                onArtifactIntent: handleRequest,
+                statusMarks: statusMarks,
+                capturesPointerInput: capturesPointerInput
+            )
                 .frame(minHeight: 320)
         }
         .confirmationDialog(
@@ -549,45 +559,6 @@ private struct ArtifactHTMLIntentView: View {
         pendingChallenge = ""
         pendingPrompt = ""
         showConfirmation = false
-    }
-}
-
-// MARK: - Artifact-level action bar (HTML chrome + artifact-scoped intents)
-
-/// Horizontal strip of intent buttons rendered as TRUSTED SwiftUI chrome —
-/// above an HTML document, not inside it. The artifact never receives a
-/// WKScriptMessageHandler, gateway credentials, or an arbitrary command
-/// surface; these buttons are strictly native UI calling the gateway RPC.
-/// Used for intents that operate on the artifact as a whole (e.g. refresh)
-/// rather than on a specific entity row.
-private struct ArtifactTopLevelActionBar: View {
-    let actions: [ArtifactAction]
-    let artifactID: String
-
-    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
-
-    private var intentActions: [ArtifactAction] {
-        guard capabilitiesStore.capabilities.supportsArtifactActions else { return [] }
-        return actions.filter { $0.kind == .intent }
-    }
-
-    var body: some View {
-        if !intentActions.isEmpty {
-            HStack(spacing: 8) {
-                ForEach(intentActions) { action in
-                    // Artifact-level intents use an empty entryKey — they
-                    // operate on the artifact itself, not a specific row.
-                    IntentButton(action: action, entryKey: "", artifactID: artifactID)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Theme.surface)
-            .overlay(alignment: .bottom) {
-                Divider().overlay(Theme.border.opacity(0.5))
-            }
-        }
     }
 }
 

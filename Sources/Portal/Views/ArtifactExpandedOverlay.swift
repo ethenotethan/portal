@@ -1,0 +1,210 @@
+#if os(macOS)
+import SwiftUI
+
+/// Full-screen takeover showing a single artifact. The title/revision chrome and
+/// maintenance details collapse independently so document-style renderers can
+/// use almost the entire artifact surface.
+internal struct ArtifactExpandedOverlay: View {
+    internal let artifact: LivingArtifact
+    internal let onDismiss: () -> Void
+
+    @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
+    @ObservedObject private var store = ArtifactStore.shared
+    @State private var cronVM = CronListViewModel()
+    // Viewing preferences, not per-artifact data. Persist them so an immersive
+    // layout stays immersive when another artifact is opened.
+    @AppStorage("artifactExpandedShowsTitleBar") private var showsTitleBar = true
+    @AppStorage("artifactExpandedShowsMaintenance") private var showsMaintenance = true
+
+    internal init(artifact: LivingArtifact, onDismiss: @escaping () -> Void) {
+        self.artifact = artifact
+        self.onDismiss = onDismiss
+    }
+
+    internal var body: some View {
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 0) {
+                if showsTitleBar {
+                    titleBar
+                    Divider().overlay(Theme.border)
+                }
+                expandedContent
+            }
+
+            // Never strand the user when the normal title bar is hidden. This
+            // cluster floats over the renderer instead of consuming its height.
+            if !showsTitleBar {
+                collapsedControls
+                    .padding(8)
+            }
+        }
+        .background(Theme.background)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task { await refreshCrons() }
+    }
+
+    private var titleBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: ArtifactKindGlyph.icon(for: artifact.kind))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            Text(artifact.displayName)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.primary)
+                .lineLimit(1)
+            if artifact.rev > 0 {
+                Text("r\(artifact.rev)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+            }
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    showsMaintenance.toggle()
+                }
+            } label: {
+                Label(
+                    showsMaintenance ? "Hide Maintenance" : "Show Maintenance",
+                    systemImage: showsMaintenance ? "wrench.and.screwdriver.fill" : "wrench.and.screwdriver"
+                )
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(showsMaintenance ? Theme.accent : Theme.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(showsMaintenance ? "Collapse maintenance" : "Show maintenance")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    showsTitleBar = false
+                }
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(Theme.surfaceHover, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Hide title and revision bar")
+
+            dismissButton
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Theme.surface)
+    }
+
+    private var collapsedControls: some View {
+        HStack(spacing: 4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    showsTitleBar = true
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .frame(width: 26, height: 26)
+            }
+            .help("Show title and revision bar")
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.16)) {
+                    showsMaintenance.toggle()
+                }
+            } label: {
+                Image(systemName: showsMaintenance ? "wrench.and.screwdriver.fill" : "wrench.and.screwdriver")
+                    .foregroundStyle(showsMaintenance ? Theme.accent : Theme.secondary)
+                    .frame(width: 26, height: 26)
+            }
+            .help(showsMaintenance ? "Collapse maintenance" : "Show maintenance")
+
+            dismissButton
+        }
+        .font(.system(size: 10, weight: .bold))
+        .buttonStyle(.plain)
+        .foregroundStyle(Theme.secondary)
+        .padding(4)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(Theme.border.opacity(0.7), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.2), radius: 8, y: 3)
+    }
+
+    private var dismissButton: some View {
+        Button(action: onDismiss) {
+            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 28, height: 28)
+                .background(Theme.surfaceHover, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.escape, modifiers: [])
+        .help("Collapse artifact")
+    }
+
+    @ViewBuilder
+    private var expandedContent: some View {
+        if ArtifactKindRenderer.kindFillsHeight(artifact.kind) {
+            VStack(alignment: .leading, spacing: 0) {
+                if showsMaintenance {
+                    maintenanceSection
+                        .padding(20)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                liveRenderer
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if showsMaintenance {
+                        maintenanceSection
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    liveRenderer
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var maintenanceSection: some View {
+        ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        showsMaintenance = false
+                    }
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Theme.tertiary)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help("Collapse maintenance")
+                .padding(5)
+            }
+    }
+
+    private var liveRenderer: some View {
+        ArtifactKindRenderer(
+            kind: artifact.kind,
+            content: store.artifacts[artifact.id]?.content ?? artifact.content,
+            actionableArtifactID: artifact.id,
+            topLevelActions: artifact.topLevelActions,
+            capturesPointerInput: true
+        )
+    }
+
+    private func refreshCrons() async {
+        cronVM.setGatewayClient(gatewayClientWrapper.client)
+        await cronVM.refreshJobs()
+        if capabilitiesStore.capabilities.supportsActionLog {
+            store.rehydrateBadges(for: artifact.id)
+        }
+    }
+}
+#endif
