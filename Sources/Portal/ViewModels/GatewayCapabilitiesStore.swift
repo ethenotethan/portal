@@ -9,7 +9,7 @@ final class GatewayCapabilitiesStore: ObservableObject {
     var hasImageInput: Bool { capabilities.hasImageInput }
     var hasACPImagePrompts: Bool { capabilities.hasACPImagePrompts }
 
-    func reset(reason: String = "No gateway connection") {
+    internal func reset(reason: String = "No harness connection") {
         capabilities = .fallback(reason: reason)
         lastRefreshError = nil
         isRefreshing = false

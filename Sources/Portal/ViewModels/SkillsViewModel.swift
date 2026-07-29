@@ -48,7 +48,7 @@ final class SkillsViewModel {
     func search() async {
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty, let client = gatewayClient else {
-            searchError = !query.isEmpty ? "Gateway not connected" : nil
+            searchError = !query.isEmpty ? "Harness not connected" : nil
             return
         }
         isSearching = true
@@ -103,7 +103,7 @@ final class SkillsViewModel {
 
     func runDiagnostic(_ test: DiagnosticTest) async {
         guard let client = gatewayClient else {
-            diagnosticResult = "❌ Gateway client not available"
+            diagnosticResult = "❌ Harness client not available"
             return
         }
         var output = "Running \(String(describing: test))...\n"
@@ -116,7 +116,7 @@ final class SkillsViewModel {
                     output += "  • \(cat): \(names.joined(separator: ", "))\n"
                 }
                 if result.isEmpty {
-                    output += "  (empty — gateway reported no skills)\n"
+                    output += "  (empty — harness reported no skills)\n"
                 }
             case .scan:
                 let result = try await client.scanSkillCommands()

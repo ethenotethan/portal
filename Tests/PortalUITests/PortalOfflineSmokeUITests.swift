@@ -18,7 +18,7 @@ final class PortalOfflineSmokeUITests: XCTestCase {
         dismissNotificationPromptIfNeeded()
 
         XCTAssertTrue(
-            app.staticTexts["Connect to your gateway"].waitForExistence(timeout: 15),
+            app.staticTexts["Connect to your harness"].waitForExistence(timeout: 15),
             "Onboarding should render when no CI gateway secrets are provided"
         )
         XCTAssertTrue(app.buttons["connectButton"].waitForExistence(timeout: 5), "Connect button should be visible")

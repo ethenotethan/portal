@@ -37,7 +37,7 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
 
     var urlFieldLabel: String {
         switch self {
-        case .hermes: return "Gateway URL"
+        case .hermes: return "Harness URL"
         case .centaur: return "Centaur URL (https://…)"
         }
     }

@@ -83,7 +83,7 @@ internal struct ArtifactCanvasView: View {
                     .foregroundStyle(Theme.secondary)
             }
             .buttonStyle(.borderless)
-            .help("Resync from gateway")
+            .help("Resync from harness")
 
             // View mode toggle
             HStack(spacing: 2) {

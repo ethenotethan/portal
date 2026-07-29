@@ -148,7 +148,7 @@ final class SettingsViewModel: ObservableObject {
             .flatMap(UUID.init(uuidString:))
         if loadedGateways.isEmpty, onboarded || !self.apiKey.isEmpty {
             let migrated = SavedGateway(
-                name: URL(string: resolvedGatewayURL)?.host ?? "Gateway",
+                name: URL(string: resolvedGatewayURL)?.host ?? "Harness",
                 url: resolvedGatewayURL,
                 apiKey: self.apiKey
             )
@@ -294,7 +294,7 @@ final class SettingsViewModel: ObservableObject {
             // and key exist so the picker has something to show.
             if !gatewayURL.isEmpty, savedGateways.isEmpty {
                 let gateway = SavedGateway(
-                    name: URL(string: gatewayURL)?.host ?? "Gateway",
+                    name: URL(string: gatewayURL)?.host ?? "Harness",
                     url: gatewayURL,
                     apiKey: apiKey
                 )
@@ -310,10 +310,12 @@ final class SettingsViewModel: ObservableObject {
         // ("127.0.0.1", "gateway.example.com"). If this entry still wears an
         // auto-derived name, move it with the URL — otherwise the toolbar
         // keeps showing the old host (displayName prefers name) long after
-        // the URL changed. A name the user typed is never touched.
-        let oldAutoNames = [URL(string: updated.url)?.host, "Gateway"].compactMap { $0 }
+        // the URL changed. A name the user typed is never touched. "Gateway"
+        // stays in the auto-name set so entries created before the rename still
+        // migrate; new fallbacks are labeled "Harness".
+        let oldAutoNames = [URL(string: updated.url)?.host, "Gateway", "Harness"].compactMap { $0 }
         if oldAutoNames.contains(updated.name.trimmingCharacters(in: .whitespacesAndNewlines)) {
-            updated.name = URL(string: gatewayURL)?.host ?? "Gateway"
+            updated.name = URL(string: gatewayURL)?.host ?? "Harness"
         }
         updated.url = gatewayURL
         updated.apiKey = apiKey

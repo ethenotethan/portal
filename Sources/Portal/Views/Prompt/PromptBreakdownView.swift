@@ -601,7 +601,7 @@ struct PromptBreakdownSheet: View {
 
     private func loadBreakdown() async {
         guard case .connected = gatewayClientWrapper.client.connectionState else {
-            error = "Not connected to gateway."
+            error = "Not connected to harness."
             isLoading = false
             return
         }

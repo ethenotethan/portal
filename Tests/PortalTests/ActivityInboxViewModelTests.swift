@@ -52,7 +52,7 @@ struct ActivityInboxViewModelTests {
         let vm = ActivityInboxViewModel()
         vm.handle(.error(message: "something went wrong"), eventSessionID: nil)
 
-        #expect(vm.items.contains { $0.severity == .error && $0.title == "Gateway Error" })
+        #expect(vm.items.contains { $0.severity == .error && $0.title == "Harness Error" })
     }
 
     @Test("handle sudo request creates warning item")

@@ -71,7 +71,7 @@ struct ArtifactsPane: View {
                     .foregroundStyle(Theme.secondary)
             }
             .buttonStyle(.plain)
-            .help("Resync from gateway")
+            .help("Resync from harness")
             Button {
                 if let onClose { onClose() } else { dismiss() }
             } label: {
@@ -505,7 +505,7 @@ private struct ArtifactHTMLIntentView: View {
                 Text("Artifact changed. Refreshed — try again.")
             case .unsupported:
                 Image(systemName: "slash.circle").foregroundStyle(Theme.tertiary)
-                Text("This intent is not available on the connected gateway.")
+                Text("This intent is not available on the connected harness.")
             }
             Spacer()
             Button(action: clearActiveState) {
@@ -611,7 +611,7 @@ private struct ArtifactHistoryView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if revisions.isEmpty {
-                Text("No revision history — this artifact hasn't synced to the gateway yet.")
+                Text("No revision history — this artifact hasn't synced to the harness yet.")
                     .font(.caption)
                     .foregroundStyle(Theme.tertiary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
