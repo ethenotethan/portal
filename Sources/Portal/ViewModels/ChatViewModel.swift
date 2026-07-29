@@ -2693,7 +2693,7 @@ if restoreSessionState(displayID: key) {
             // thought graph's agent subtrees here.
             applySubagentEvent(event, toolCalls: activeToolCalls)
 
-        case .backgroundComplete(let taskID, let _):
+        case .backgroundComplete:
             break
 
         case .clarifyRequest(payload: let payload):
