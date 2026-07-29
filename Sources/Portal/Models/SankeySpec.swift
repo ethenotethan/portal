@@ -164,11 +164,18 @@ enum SankeyLayout {
         for node in nodes { columnTotals[node.column, default: 0] += node.throughput }
         let maxTotal = columnTotals.values.max() ?? 1
 
-        // Per-column packing rescans every node for each column — O(columns ×
-        // nodes). Count the scan so a switch to naive nested growth is caught.
-        PerfCounter.add("sankey.pack", columnCount * nodes.count)
+        // Per-column packing: partition nodes by column in a SINGLE pass
+        // (O(nodes)) instead of rescanning every node for each column
+        // (O(columns × nodes)). Members keep their appearance order within
+        // each column, matching the previous per-column filter exactly.
+        var membersByColumn: [[Int]] = Array(repeating: [], count: columnCount)
+        for index in nodes.indices {
+            membersByColumn[nodes[index].column].append(index)
+        }
+        // Count the scan so a switch to naive nested growth is caught.
+        PerfCounter.add("sankey.pack", nodes.count)
         for columnIndex in 0..<columnCount {
-            let members = nodes.indices.filter { nodes[$0].column == columnIndex }
+            let members = membersByColumn[columnIndex]
             let total = members.reduce(0.0) { $0 + nodes[$1].throughput }
             let gapsTotal = gap * Double(max(0, members.count - 1))
             let scale = (1.0 - gapsTotal) / maxTotal
