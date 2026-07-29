@@ -279,8 +279,15 @@ internal struct ContentView: View {
         }
     }
 
-    private var iOSSessionStack: some View {
-        NavigationStack(path: $iOSNavigationPath) {
+    /// Root content for the Sessions tab: the management dashboard when a
+    /// Standard backend is focused, otherwise the session list. Extracted so
+    /// the NavigationStack modifier chain type-checks in reasonable time.
+    @ViewBuilder
+    private var iOSRootContent: some View {
+        if let standard = focusedHermesStandardGateway {
+            HermesStandardManagementView(entry: standard)
+                .id(standard.id)
+        } else {
             SessionListView(
                 currentSessionID: chatViewModel.currentSessionID,
                 onCreateSession: {
@@ -296,6 +303,12 @@ internal struct ContentView: View {
                 }
             )
             .environmentObject(sessionList)
+        }
+    }
+
+    private var iOSSessionStack: some View {
+        NavigationStack(path: $iOSNavigationPath) {
+            iOSRootContent
             .navigationTitle("Sessions")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .top) {
