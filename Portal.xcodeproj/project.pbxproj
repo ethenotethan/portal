@@ -260,8 +260,10 @@
 		7510F6D37D075F6C9C2AD842 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95450F797EE4865E40CA114A /* NativeChartView.swift */; };
 		752935AE988FC005CDDDA785 /* GatewayClient+Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */; };
 		77C05555872B655B4DDF02B6 /* DashboardPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1390C2AEE5CAA97020CCD67 /* DashboardPanel.swift */; };
+		786A420AE2E13A092E5020A2 /* ExportPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55506D93A7C7BEE29EFCBCA2 /* ExportPrimitives.swift */; };
 		78F2ADA82527FBC791C1C018 /* PortalSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFE53082216F3B6DDF844A6D /* PortalSmokeUITests.swift */; };
 		79430FF6BDC19F94443251A2 /* ModelSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6EE7C4DEA9092105D038206 /* ModelSpec.swift */; };
+		7A29E6CFDF4138047F95997B /* ExportPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55506D93A7C7BEE29EFCBCA2 /* ExportPrimitives.swift */; };
 		7A2C4E886B9BB72C5D54170A /* SessionTimelineEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2EE0ECBF324FCB40A2E1B2 /* SessionTimelineEvent.swift */; };
 		7AE15FD1286665E958DF5801 /* ArtifactParseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC40744C7D94DBBF78EEA6B8 /* ArtifactParseError.swift */; };
 		7AF901759016A04579C321AE /* SessionFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065153606F5A316A339DCD71 /* SessionFolder.swift */; };
@@ -643,6 +645,7 @@
 		524D795BBC83896922C37909 /* CentaurWikiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWikiClient.swift; sourceTree = "<group>"; };
 		52CE43DF56DCEA3FB7D6928C /* ArtifactExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactExporter.swift; sourceTree = "<group>"; };
 		5345D4F493040CE252399895 /* CronListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronListViewModel.swift; sourceTree = "<group>"; };
+		55506D93A7C7BEE29EFCBCA2 /* ExportPrimitives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPrimitives.swift; sourceTree = "<group>"; };
 		55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeModels.swift; sourceTree = "<group>"; };
 		56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineCharts.swift; sourceTree = "<group>"; };
 		56BAA567637217364E09C42C /* DiagramExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagramExplorerView.swift; sourceTree = "<group>"; };
@@ -1081,6 +1084,7 @@
 				7792D9E2DC57229B4906B037 /* CronSessionNavigation.swift */,
 				39E1698942CA3B8E647FC444 /* CronSessionView.swift */,
 				25238C5D9EAAF58C9298DC8F /* DelegationBatchNoticeView.swift */,
+				55506D93A7C7BEE29EFCBCA2 /* ExportPrimitives.swift */,
 				437F051D9AE2A5A9F53C5F29 /* FeedView.swift */,
 				2678B085DD8763495B099578 /* FlowLayout.swift */,
 				82F8BD0F14BFBFCE4238D977 /* GatewayAvatarPicker.swift */,
@@ -1600,6 +1604,7 @@
 				424B5A149E562343FB86A597 /* DiffBlockView.swift in Sources */,
 				CBFFD4D74E79EC81CA85E93D /* DocumentTextExtractor.swift in Sources */,
 				3815CA6F951B724F2FAEB15B /* DomainProtocols.swift in Sources */,
+				786A420AE2E13A092E5020A2 /* ExportPrimitives.swift in Sources */,
 				488E2A71C68871899F84E55A /* Extensions.swift in Sources */,
 				2D17F7630CFD474510E61BEF /* FeedArticle.swift in Sources */,
 				C5743935CDE6F91AC78E07C9 /* FeedView.swift in Sources */,
@@ -1873,6 +1878,7 @@
 				A1076965B009942D4C6E2311 /* DiffBlockView.swift in Sources */,
 				164E8FF9FF86F4850518C710 /* DocumentTextExtractor.swift in Sources */,
 				97B3871FFBD9E56BE682133F /* DomainProtocols.swift in Sources */,
+				7A29E6CFDF4138047F95997B /* ExportPrimitives.swift in Sources */,
 				9114F538AF0C5A3588F4FC6A /* Extensions.swift in Sources */,
 				0B03A2793D37C668D704672F /* FeedArticle.swift in Sources */,
 				311EE0D3405D87465F05FB65 /* FeedView.swift in Sources */,
