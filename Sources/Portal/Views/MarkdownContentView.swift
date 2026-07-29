@@ -35,6 +35,9 @@ struct MarkdownContentView: View, Equatable {
                     } else if MarkdownParser.isSankeyBlock(language: language, code: code) {
                         SankeyBlockView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "sankey", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isKanbanBlock(language: language, code: code) {
+                        KanbanBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "kanban", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isDiagramLanguage(language) {
                         DiagramPreviewBlock(mermaidCode: code, language: language, isStreaming: isStreaming)
                     } else if MarkdownParser.isHTMLLanguage(language) {
@@ -55,6 +58,12 @@ struct MarkdownContentView: View, Equatable {
                     } else if MarkdownParser.isDatasetLanguage(language) {
                         DatasetBlockView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "dataset", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isChecklistLanguage(language) {
+                        ChecklistBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "checklist", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isCalendarLanguage(language) {
+                        CalendarBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "calendar", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isModelLanguage(language) {
                         ModelBlockView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "model", json: code, isStreaming: isStreaming)
@@ -402,6 +411,25 @@ struct MarkdownParser {
 
     static func isDatasetLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "dataset"
+    }
+
+    internal static func isChecklistLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "checklist"
+    }
+
+    /// ```calendar is the month-grid fence. Distinct from ```timeline (gantt);
+    /// no collision with a mermaid diagram language.
+    internal static func isCalendarLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "calendar"
+    }
+
+    /// ```kanban collides with mermaid's kanban diagram, so the fence is
+    /// disambiguated by content: our spec is a JSON object ({"cards": …}),
+    /// mermaid's is line-oriented text. Checked BEFORE isDiagramLanguage in
+    /// dispatch — JSON goes native, text falls through to mermaid.
+    internal static func isKanbanBlock(language: String, code: String) -> Bool {
+        guard language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "kanban" else { return false }
+        return code.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
     }
 
     /// ```model is the ensemble-artifact fence (entities/relations/views).

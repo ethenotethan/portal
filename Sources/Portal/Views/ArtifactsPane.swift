@@ -172,6 +172,9 @@ struct ArtifactsPane: View {
         case "graph": return "point.3.connected.trianglepath.dotted"
         case "stats": return "gauge.medium"
         case "table", "dataset": return "tablecells"
+        case "checklist": return "checklist"
+        case "kanban": return "rectangle.split.3x1"
+        case "calendar": return "calendar"
         case "model": return "square.stack.3d.up"
         case "html": return "safari"
         default: return "doc.richtext"
@@ -303,6 +306,12 @@ struct ArtifactKindRenderer: View {
             StatTilesView(json: content, isStreaming: false)
         case "dataset":
             DatasetBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+        case "checklist":
+            ChecklistBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+        case "kanban":
+            KanbanBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+        case "calendar":
+            CalendarBlockView(json: content, isStreaming: false)
         case "timeline":
             TimelineBlockView(json: content, isStreaming: false)
         case "sankey":
