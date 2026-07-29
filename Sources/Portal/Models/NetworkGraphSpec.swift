@@ -130,16 +130,19 @@ enum NetworkGraphLayout {
     /// made the artifact pane visibly laggy.
     private static let memo = RenderMemo<Result>(limit: 16)
 
-    static func layout(_ spec: NetworkGraphSpec, width: CGFloat) -> Result {
-        memo.value(for: "\(spec.cacheKey)|w:\(Int(width))") {
-            computeLayout(spec, width: width)
+    /// `fitHeight` — when the host is a fixed-height viewport (a model pane),
+    /// the layout scales down to fit inside it and centers vertically, instead
+    /// of reporting an intrinsic height taller than the pane.
+    internal static func layout(_ spec: NetworkGraphSpec, width: CGFloat, fitHeight: CGFloat? = nil) -> Result {
+        memo.value(for: "\(spec.cacheKey)|w:\(Int(width))|h:\(fitHeight.map { Int($0) } ?? -1)") {
+            computeLayout(spec, width: width, fitHeight: fitHeight)
         }
     }
 
     /// Deterministic layout for `spec` targeting roughly `width` points.
     /// Seeded ring start (stable across re-renders of the same spec) +
     /// 300 settle iterations, then normalized into a padded bounding box.
-    private static func computeLayout(_ spec: NetworkGraphSpec, width: CGFloat) -> Result {
+    private static func computeLayout(_ spec: NetworkGraphSpec, width: CGFloat, fitHeight: CGFloat? = nil) -> Result {
         let n = spec.nodes.count
         let indexOf = Dictionary(uniqueKeysWithValues: spec.nodes.enumerated().map { ($1.id, $0) })
         let links: [(Int, Int)] = spec.edges.compactMap {
@@ -167,8 +170,9 @@ enum NetworkGraphLayout {
         var alpha = 1.0
 
         guard n > 1 else {
-            let placed = spec.nodes.map { PlacedNode(node: $0, position: CGPoint(x: width / 2, y: 90)) }
-            return Result(placed: placed, size: CGSize(width: width, height: 180),
+            let boxH = fitHeight ?? 180
+            let placed = spec.nodes.map { PlacedNode(node: $0, position: CGPoint(x: width / 2, y: boxH / 2)) }
+            return Result(placed: placed, size: CGSize(width: width, height: boxH),
                           positions: Dictionary(uniqueKeysWithValues: placed.map { ($0.id, $0.position) }))
         }
 
@@ -209,21 +213,29 @@ enum NetworkGraphLayout {
             if alpha < 0.02 { break }
         }
 
-        // Normalize into a padded box; scale down (never up) to fit width.
+        // Normalize into a padded box; scale down (never up) to fit width —
+        // and the fit height too, when the host constrains it.
         let pad = 56.0
         let minX = xs.min()!, maxX = xs.max()!
         let minY = ys.min()!, maxY = ys.max()!
         let rawW = max(1, maxX - minX)
         let rawH = max(1, maxY - minY)
-        let scale = min(1, (Double(width) - pad * 2) / rawW)
+        var scale = min(1, (Double(width) - pad * 2) / rawW)
+        if let fitHeight {
+            // Vertical padding shrinks in tight viewports so the fit spends
+            // its budget on the graph, not empty margins.
+            let vPad = min(pad, max(16, Double(fitHeight) * 0.12))
+            scale = min(scale, max(0.05, (Double(fitHeight) - vPad * 2) / rawH))
+        }
         let boxW = Double(width)
-        let boxH = rawH * scale + pad * 2
+        let boxH = fitHeight.map(Double.init) ?? rawH * scale + pad * 2
         let offsetX = (boxW - rawW * scale) / 2
+        let offsetY = (boxH - rawH * scale) / 2
 
         let placed = spec.nodes.enumerated().map { i, node in
             PlacedNode(node: node, position: CGPoint(
                 x: (xs[i] - minX) * scale + offsetX,
-                y: (ys[i] - minY) * scale + pad
+                y: (ys[i] - minY) * scale + offsetY
             ))
         }
         return Result(

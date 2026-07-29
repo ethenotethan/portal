@@ -198,19 +198,18 @@ private struct ModelCard: View {
             if let json = projection(view, ModelProjections.graphJSON(spec: spec, view: view)) {
                 // Graph node ids are "set/key" — the bus's ref encoding —
                 // so translation is a straight parse, no set resolution.
-                // The model pane remains resizable, while an internal scroll
-                // viewport keeps every node and legend reachable when the
-                // width-aware graph is taller than the chosen pane height.
-                ScrollView(.vertical) {
-                    NetworkGraphView(
-                        json: json, isStreaming: false,
-                        externalSelection: Binding(
-                            get: { selectedRef.map { "\($0.set)/\($0.key)" } },
-                            set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
-                        )
-                    )
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
+                // The layout scales to the pane's height, so the whole graph
+                // is visible at whatever size the pane is dragged to — no
+                // inner scroll viewport hiding half the nodes.
+                NetworkGraphView(
+                    json: json, isStreaming: false,
+                    externalSelection: Binding(
+                        get: { selectedRef.map { "\($0.set)/\($0.key)" } },
+                        set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
+                    ),
+                    fitHeight: height(for: view)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         case .chart:
             if let json = projection(view, ModelProjections.chartJSON(spec: spec, view: view)) {
