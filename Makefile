@@ -82,6 +82,21 @@ lint-baseline:
 	@python3 -c "import os,pathlib; p=pathlib.Path('.swiftlint-baseline'); d=p.read_text(); pre='file://'+os.getcwd()+'/'; d2=d.replace(pre, '').replace(pre.replace('/', r'\\/'), ''); p.write_text(d2); assert 'file://' not in d2 and 'file:\\\\/\\\\/' not in d2, 'baseline still has absolute file:// paths — not portable'; print('paths made repo-relative')"
 	@echo "Baseline rewritten (paths made repo-relative). Check 'git diff .swiftlint-baseline' — entries should only DISAPPEAR."
 
+# Secret-scan ratchet. Scans the working tree with gitleaks; .gitleaksignore
+# freezes ACCEPTED false-positive fingerprints (currently none — the tree is
+# clean), so only NEW, un-accepted findings fail. Run before pushing; CI runs
+# the same scan with a pinned gitleaks version. Install: `brew install gitleaks`.
+secret-scan:
+	gitleaks dir . --config .gitleaks.toml --gitleaks-ignore-path .gitleaksignore \
+		--no-banner --redact --exit-code 1
+
+# Fail if .gitleaksignore gained accepted fingerprints versus main — i.e. a new
+# finding was waved through instead of removed. Removing entries (a finding was
+# fixed) passes. CI runs the same check; run it locally after editing the
+# ignore file to confirm the diff only ever REMOVES fingerprints.
+secret-scan-guard:
+	python3 scripts/check-secret-baseline-growth.py origin/main
+
 test:
 	swift build --build-tests
 	swift test --disable-sandbox
@@ -96,6 +111,10 @@ test:
 #              patch: >=80% of executable lines this PR added must be covered).
 # Mirrors the lint-baseline pattern; frozen values live in metrics-baseline.json.
 # See scripts/check-metrics-ratchet.py.
+#
+# In CI these are SEPARATE posture jobs (Ratchet / Warnings, Ratchet / Coverage
+# in ratchet.yml) so each is its own green/red check. Locally they share one
+# build here — the compile is the slow part and running it twice buys nothing.
 metrics-ratchet:
 	rm -rf .build
 	swift build 2>&1 | tee /tmp/portal-metrics-build.log
@@ -130,12 +149,15 @@ metrics-baseline:
 	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings should only DROP, coverage only RISE."
 
 # One command an agent (or human) runs before pushing — the whole CI gate:
-# strict-concurrency build, tests, and baselined lint. If this is green, CI is.
-check: lint lint-baseline-guard
+# strict-concurrency build, tests, baselined lint, and the security posture.
+# If this is green, CI is. (The Warnings/Coverage posture ratchets need a clean
+# from-scratch build + base diff, so run `make metrics-ratchet` separately when
+# touching those — kept out of `check` so the fast pre-push loop stays fast.)
+check: lint lint-baseline-guard secret-scan secret-scan-guard
 	swift build
 	swift build --build-tests
 	swift test --disable-sandbox
-	@echo "✓ check passed — build, tests, and lint all green"
+	@echo "✓ check passed — build, tests, lint, and security all green"
 
 clean:
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) clean

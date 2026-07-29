@@ -1,0 +1,16 @@
+# Frozen list of ACCEPTED gitleaks findings for the Portal secret-scan ratchet.
+#
+# Each non-comment line is a gitleaks fingerprint (file:rule:line-ish) for a
+# finding that has been reviewed and judged NOT a real secret — a test dummy,
+# an example token, a public content hash the allowlist globs missed, etc.
+# gitleaks excludes these on scan, so only NEW, un-fingerprinted findings fail.
+#
+# This is the exact analog of .swiftlint-baseline: it records pre-accepted
+# noise only. scripts/check-secret-baseline-growth.py fails a PR that ADDS a
+# fingerprint here (you'd be silently accepting a new finding instead of
+# removing the secret). Adding a line is allowed ONLY with an explicit reason
+# in the PR description — never to quietly wave a real credential through.
+#
+# The tree is currently CLEAN: zero findings, zero accepted fingerprints. Keep
+# it that way. To add a genuine false-positive, paste the fingerprint gitleaks
+# printed, one per line, with a trailing `# why it's safe` comment.

@@ -76,6 +76,46 @@ Rules for the baseline:
 - `make check` runs the full local gate (build + tests + baselined lint +
   baseline-growth guard); if it's green, CI is green.
 
+## CI posture taxonomy (which check defends what)
+
+CI checks are organized by the **attribute each one defends**, so the PR checks
+list reads as posture — not one opaque global pass/fail. Every check is a
+ratchet (a committed benchmark; improvement allowed, regression blocked); they
+differ only in what they measure and which script measures it.
+
+| Check (workflow / job) | Posture | Benchmark | Script |
+|---|---|---|---|
+| `Lint / SwiftLint` | Code style | `.swiftlint-baseline` | swiftlint |
+| `Lint / Baseline growth guard` | Code style (debt) | `.swiftlint-baseline` counts | `check-baseline-growth.py` |
+| `Ratchet / Security` | Secrets | `.gitleaksignore` | gitleaks + `check-secret-baseline-growth.py` |
+| `Ratchet / Warnings` | Compiler-warning health | `metrics-baseline.json` `warnings` | `check-metrics-ratchet.py --warnings` |
+| `Ratchet / Coverage` | Test quality | `metrics-baseline.json` `coverage` | `check-metrics-ratchet.py --coverage` |
+| `Ratchet / Performance` | *(reserved)* | — | — |
+
+Two workflows, split by cost and cadence: **`lint.yml`** is the fast
+style/debt gate; **`ratchet.yml`** holds the posture ratchets. Within
+`ratchet.yml`, Warnings and Coverage both need a from-scratch compile (+ tests
+for coverage), so a single `Measure (build + test)` job builds ONCE and
+publishes snapshots as an artifact; the Warnings and Coverage jobs download
+those and ratchet each independently. That keeps them separate green/red checks
+without paying for two builds.
+
+Rules of the taxonomy:
+
+- **One concern per job.** A new posture (performance, dependency advisories, …)
+  gets its OWN job + its own collector/guard script — never folded into an
+  existing job. The separation is the point: a red check names the attribute
+  that regressed.
+- **Shared engine where the math is identical, separate scripts where the
+  concern differs.** Warnings and Coverage share `check-metrics-ratchet.py`
+  (same floor/patch/diff logic, different metric key) — duplicating it would
+  rot. Security is a genuinely different benchmark, so it keeps its own script.
+- **Each check pins its tool** (SwiftLint, gitleaks) for the same reason the
+  baseline is pinned — a newer tool detects more and fails CI on debt it never
+  recorded (the #222 drift).
+
+The rest of this section details each posture's benchmark.
+
 ## The metric ratchet (self-improving benchmarks)
 
 The lint baseline is one instance of a general pattern — a **ratchet**: a
@@ -126,12 +166,48 @@ testable layers ~35% aggregate). `scripts/collect-coverage.py` reduces
 Rules mirror the lint baseline: **regenerate only to record improvement**
 (`make metrics-baseline` — warning counts must only drop, coverage only rise),
 and `make metrics-ratchet` runs the whole check locally (clean build + tests →
-collect → ratchet vs `origin/main`). The CI job is `metric-ratchet` in
-`lint.yml`; it always builds from scratch (no cache) because an incremental
-build under-counts warnings.
+collect → ratchet vs `origin/main`). In CI these are the separate `Warnings`
+and `Coverage` jobs in `ratchet.yml`, fed by the shared `Measure` job (see the
+posture taxonomy above); the build is always from scratch (no cache) because an
+incremental build under-counts warnings.
 
 Candidate next metrics (each is one collector away): mutation score (see
 issue #10), main-thread stall budget.
+
+## The secret-scan ratchet
+
+Static security linting for one bounded but high-value class: **secrets that
+must never enter the tree** (API keys, tokens, private keys, live credentials).
+It is the same ratchet shape as the lint baseline, applied to
+[gitleaks](https://github.com/gitleaks/gitleaks).
+
+- **What runs:** `gitleaks dir` over the working tree (not history) with
+  `.gitleaks.toml`. Config `extend.useDefault = true` starts from gitleaks'
+  built-in ruleset; `[allowlist].paths` carves out checked-in-safe files
+  (the signing-config *template*, `Package.resolved` revision hashes, snapshot
+  fixtures). Keep that allowlist tight — every glob is a hole in the scanner.
+- **The frozen list:** `.gitleaksignore` holds fingerprints of **accepted
+  false-positives** — the exact analog of `.swiftlint-baseline`. gitleaks
+  excludes them, so only NEW, un-accepted findings fail. The tree is currently
+  clean: **zero findings, zero accepted fingerprints.** The floor is zero and
+  it stays zero.
+- **Growth guard:** `scripts/check-secret-baseline-growth.py` fails a PR that
+  *adds* a fingerprint to `.gitleaksignore` — you'd be silently accepting a new
+  finding instead of removing the secret. Removing fingerprints (a finding was
+  fixed) always passes. Same enforced invariant as the lint baseline-growth
+  guard: an escape hatch that can't be used silently.
+- **Locally:** `make secret-scan` (needs `brew install gitleaks`) and
+  `make secret-scan-guard`. **CI:** the `Security` job in `ratchet.yml` (scan +
+  ignore-list growth guard in one job), with a **pinned** gitleaks version — a
+  newer gitleaks ships more rules and would fail CI on findings the ignore-list
+  was never curated against (the same drift that broke the swiftlint baseline
+  in #222).
+
+Honest scope: this catches *secrets*, not *insecurity*. It does nothing for
+authz logic, IDOR, SSRF, or design flaws — a green scan is a floor, not a
+posture. Candidate next security ratchets (each is a separate gate): dependency
+advisories over `Package.resolved`, and a handful of security-focused swiftlint
+custom rules.
 
 ## View-snapshot gate
 
@@ -161,8 +237,9 @@ recorded golden would spuriously fail against the `macos-26` runner. The loop:
    `SNAPSHOT_RECORD=1` on the same runner image the verify job uses, renders
    each golden, and pushes the PNGs back to the branch.
 3. From then on the goldens are compared on every run — verification rides
-   along with the ordinary `swift test` in the `metric-ratchet` job, so a
-   drift trips `.mismatch` and fails that job. No separate verify job needed.
+   along with the ordinary `swift test` in the `Measure` job (`ratchet.yml`),
+   so a drift trips `.mismatch` and fails that job. No separate verify job
+   needed.
 
 Scope: only Views that render deterministically from plain value inputs belong
 in the gate — no ViewModel wiring, no `.task`/`.onAppear` that mutates state, no
