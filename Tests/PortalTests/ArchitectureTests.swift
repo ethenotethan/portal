@@ -119,6 +119,100 @@ struct ArchitectureTests {
         )
     }
 
+    // MARK: - Generation counters must be compared
+
+    /// The generation-counter idiom (bump an Int before an `await`, capture it
+    /// into a local, then `guard captured == self.counter else { return }` after
+    /// every await so stale completions are discarded) recurs across the async
+    /// ViewModels — `loadGeneration`, `settleGeneration`, `physicsGeneration`
+    /// (WikiGraphViewModel), `loadGeneration` (WikiTimelineViewModel),
+    /// `refreshGeneration` (SessionListViewModel), `sessionSwitchGeneration`
+    /// (ChatViewModel). It was copy-paste consistency with nothing enforcing it:
+    /// bump the counter but forget the `==` guard after a new await, and a slow
+    /// older response silently overwrites a newer one.
+    ///
+    /// This is the enforceable half of that invariant: a counter that is
+    /// incremented MUST also be compared with `==` somewhere in the same file. A
+    /// bumped-but-never-compared counter is either a dead bump or — the bug —
+    /// a guard that was never written. Regex-per-line can't see this (bump and
+    /// compare live on different lines), which is why it's a test, not a
+    /// SwiftLint rule; the line-local slice (no ordering comparison on a
+    /// generation token) is the `no_ordering_comparison_on_generation` lint rule.
+    ///
+    /// `@Published` generation counters are deliberately EXEMPT: those are
+    /// externally-observed navigation signals (e.g. `createGeneration`, which
+    /// `ContentView` watches via `.onChange` to push a new session). Their
+    /// comparison is legitimately cross-file, so an in-file `==` check would be
+    /// wrong to require. The `@Published` marker is the structural discriminator
+    /// between the two roles — no name allowlist needed.
+    @Test("Generation counters that are bumped are also compared (drop-stale guard)")
+    private func generationCountersMustBeCompared() throws {
+        // Scan the async layers where the idiom lives. Services is included so a
+        // future integrator that grows a generation counter is covered too.
+        let dirs = ["ViewModels", "Services"].map(Self.sourcesRoot.appendingPathComponent)
+        let declPattern = try NSRegularExpression(pattern: #"\bvar\s+(\w+Generation)\b"#)
+        var offenders: [String] = []
+
+        for dir in dirs {
+            for file in Self.swiftFiles(under: dir) {
+                let contents = try String(contentsOf: file, encoding: .utf8)
+                let lines = contents.components(separatedBy: .newlines)
+
+                // Collect stale-drop counters: `var …Generation`, excluding
+                // @Published ones (externally-observed signals — see above).
+                var counters: Set<String> = []
+                for rawLine in lines {
+                    let line = rawLine.components(separatedBy: "//").first ?? rawLine
+                    let range = NSRange(line.startIndex..., in: line)
+                    guard let match = declPattern.firstMatch(in: line, range: range),
+                          let nameRange = Range(match.range(at: 1), in: line) else { continue }
+                    if line.contains("@Published") { continue }
+                    counters.insert(String(line[nameRange]))
+                }
+
+                // For each counter, a bump (`name +=`) obliges a compare
+                // (a non-decl line mentioning the name and containing `==`).
+                for name in counters.sorted() {
+                    let isBumped = lines.contains { line in
+                        line.range(of: #"\b\#(NSRegularExpression.escapedPattern(for: name))\s*\+="#,
+                                   options: .regularExpression) != nil
+                    }
+                    guard isBumped else { continue } // reserved / not yet wired — not a stale-drop guard
+
+                    let isCompared = lines.contains { line in
+                        let code = line.components(separatedBy: "//").first ?? line
+                        guard code.contains(name), code.contains("==") else { return false }
+                        // Exclude the declaration line itself (`var x = 0` has no ==,
+                        // so this is belt-and-suspenders) and require the == to sit
+                        // adjacent to the counter name, not merely co-occur.
+                        return code.range(
+                            of: #"\#(NSRegularExpression.escapedPattern(for: name))\s*==|==\s*(?:self\.)?\#(NSRegularExpression.escapedPattern(for: name))"#,
+                            options: .regularExpression
+                        ) != nil
+                    }
+                    if !isCompared {
+                        offenders.append("\(file.lastPathComponent): \(name)")
+                    }
+                }
+            }
+        }
+
+        #expect(
+            offenders.isEmpty,
+            """
+            A generation counter is bumped but never compared with `==` in the \
+            same file. The drop-stale idiom is: bump before the await, capture \
+            `let generation = counter`, then \
+            `guard generation == self.counter else { return }` after EVERY await \
+            so a slow older response can't overwrite a newer one. Bumping without \
+            that guard is the exact stale-overwrite bug this idiom exists to \
+            prevent. Offenders: \(offenders.joined(separator: ", ")). \
+            (If the counter is an externally-observed signal compared cross-file, \
+            mark it @Published like createGeneration.)
+            """
+        )
+    }
+
     // MARK: - No Utils/ directory
 
     @Test("Utils/ does not exist — Utilities/ is the one helpers directory")
