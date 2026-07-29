@@ -1,10 +1,10 @@
 #if os(macOS)
 import SwiftUI
 
-/// Artifacts surface — switchable between a free-form canvas (one resizable
-/// panel per artifact) and a classic list+detail split. The canvas opens in
-/// edit mode so panels are immediately draggable; Done locks them so scroll/
-/// click interactions work inside each panel.
+/// Artifacts surface — switchable between a free-form canvas (one panel per
+/// artifact) and a classic list+detail split. The canvas opens in VIEW mode:
+/// each panel is a lightweight preview you click to expand full-screen. Edit
+/// mode is opt-in (the Edit button) and makes panels draggable/resizable.
 @MainActor
 internal struct ArtifactCanvasView: View {
     @ObservedObject private var store = ArtifactStore.shared
@@ -13,6 +13,8 @@ internal struct ArtifactCanvasView: View {
     @State private var layout = DashboardLayout()
     @State private var didSeedLayout = false
     @State private var canvasBounds: CGSize = .zero
+    // View mode by default — panels are previews you click to expand, not a
+    // drag surface. Edit is opt-in via the toolbar Edit button.
     @State private var isEditing = false
     @State private var showsTitleBars = false
 
@@ -22,8 +24,13 @@ internal struct ArtifactCanvasView: View {
 
     // Shared
     @AppStorage("artifactViewMode") private var viewMode: ViewMode = .list
+    // How each canvas cell renders: a simple, scannable preview card (default)
+    // or the full live render (interactive charts / web views) tiled in place.
+    // Either way a cell click expands the artifact full-screen.
+    @AppStorage("artifactCellMode") private var cellMode: CellMode = .preview
 
     private enum ViewMode: String { case canvas, list }
+    private enum CellMode: String { case preview, full }
     private static let layoutKey = "artifactCanvasLayout.v1"
 
     internal var body: some View {
@@ -130,6 +137,19 @@ internal struct ArtifactCanvasView: View {
                     .fixedSize()
                     .help("Add a hidden artifact panel back to the canvas")
                 }
+
+                // Cell render mode — simple preview cards (scannable) vs. the
+                // full live render tiled in place. Click a cell to expand either
+                // way.
+                Button {
+                    cellMode = cellMode == .preview ? .full : .preview
+                } label: {
+                    Image(systemName: cellMode == .preview ? "rectangle.grid.1x2" : "square.on.square")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(cellMode == .preview ? "Previews — click to expand. Switch to full render." : "Full render — switch to simple previews.")
 
                 Toggle(isOn: $showsTitleBars) {
                     Image(systemName: showsTitleBars ? "rectangle.topthird.inset.filled" : "rectangle")
@@ -313,7 +333,14 @@ internal struct ArtifactCanvasView: View {
     private func panelContent(_ panel: DashboardPanel) -> some View {
         let artifactID = Self.artifactID(from: panel.kind)
         if let artifact = artifactID.flatMap({ store.artifacts[$0] }) {
-            ArtifactPanelContent(artifact: artifact)
+            // In edit mode the move layer sits above the content and swallows
+            // taps, so expand is disabled while rearranging (by design). In view
+            // mode a click expands the artifact full-screen.
+            ArtifactPanelContent(
+                artifact: artifact,
+                mode: cellMode == .preview ? .preview : .full,
+                onExpand: isEditing ? nil : { expandedArtifact = artifact }
+            )
         } else {
             PanelEmptyState(icon: "exclamationmark.triangle", message: "Artifact not found")
         }
@@ -345,21 +372,7 @@ internal struct ArtifactCanvasView: View {
     }
 
     private func kindIcon(for artifactKind: String) -> String {
-        switch artifactKind {
-        case "map": return "map"
-        case "chart": return "chart.xyaxis.line"
-        case "graph": return "point.3.connected.trianglepath.dotted"
-        case "stats": return "square.grid.2x2"
-        case "dataset": return "tablecells"
-        case "checklist": return "checklist"
-        case "kanban": return "rectangle.split.3x1"
-        case "calendar": return "calendar"
-        case "timeline": return "calendar.day.timeline.left"
-        case "sankey": return "arrow.triangle.branch"
-        case "model": return "cube.transparent"
-        case "html": return "globe"
-        default: return "doc.text"
-        }
+        ArtifactKindGlyph.icon(for: artifactKind)
     }
 
     // MARK: - Layout management
@@ -575,19 +588,137 @@ private struct ArtifactExpandedOverlay: View {
 
 // MARK: - Per-artifact panel content
 
-/// Renders a single artifact's content inside a canvas panel, with a compact
-/// mini-header (kind pill + last-updated) above the live `ArtifactKindRenderer`.
-/// The mini-header is separate from the panel's title bar chrome — it gives the
-/// user extra context (when it was last touched, what kind it is) at a glance.
+/// Renders a single artifact's cell inside a canvas panel. Two modes:
+/// - `.preview` (default): a simple, scannable card — kind glyph, title, meta,
+///   and a short content gist. Cheap (no live web views / interactive charts),
+///   easy for a human to reason about. Click to expand full-screen.
+/// - `.full`: the live `ArtifactKindRenderer` tiled in place, under a compact
+///   mini-header. The old behavior, now opt-in.
+/// Both are click-to-expand (via `onExpand`, nil while editing the layout).
 private struct ArtifactPanelContent: View {
     let artifact: LivingArtifact
+    var mode: Mode = .preview
+    /// Expand this artifact full-screen. Nil disables the tap (edit mode, where
+    /// the move layer owns taps).
+    var onExpand: (() -> Void)?
+
+    internal enum Mode { case preview, full }
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @ObservedObject private var store = ArtifactStore.shared
     @State private var cronVM = CronListViewModel()
+    @State private var isHovering = false
 
     var body: some View {
+        Group {
+            switch mode {
+            case .preview: previewCard
+            case .full:    fullRender
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .task { await refreshCrons() }
+    }
+
+    // MARK: - Preview card (simple, scannable)
+
+    private var previewCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: ArtifactKindGlyph.icon(for: artifact.kind))
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(artifact.displayName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .lineLimit(1)
+                    metaLine
+                }
+                Spacer(minLength: 4)
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 11)
+            .padding(.bottom, 8)
+
+            Divider().overlay(Theme.border.opacity(0.35))
+
+            Text(previewGist)
+                .font(.system(size: 11, design: gistIsMonospaced ? .monospaced : .default))
+                .foregroundStyle(Theme.secondary)
+                .lineLimit(6)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .overlay(alignment: .bottomTrailing) { expandAffordance }
+        .contentShape(Rectangle())
+        .onTapGesture { onExpand?() }
+        .onHover { isHovering = $0 }
+        .help(onExpand == nil ? "" : "Click to expand \(artifact.displayName)")
+    }
+
+    /// A small "expand" chip that surfaces on hover so the click target reads as
+    /// "open this", not just a static tile. Hidden while editing (no onExpand).
+    @ViewBuilder
+    private var expandAffordance: some View {
+        if onExpand != nil, isHovering {
+            HStack(spacing: 3) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 9, weight: .semibold))
+                Text("Expand")
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(Theme.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Theme.surfaceHover, in: Capsule())
+            .padding(8)
+            .transition(.opacity)
+        }
+    }
+
+    private var metaLine: some View {
+        HStack(spacing: 6) {
+            Text(artifact.kind)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+            if artifact.rev > 0 {
+                Text("r\(artifact.rev)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(Theme.tertiary)
+            }
+            Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
+                .font(.system(size: 9))
+                .foregroundStyle(Theme.tertiary)
+                .lineLimit(1)
+            if !artifact.maintainerRefs.isEmpty {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.accent)
+                    .help(maintenanceTooltip)
+            }
+        }
+    }
+
+    /// A short, human-scannable gist of the artifact without a live render:
+    /// a one-line structural summary for JSON kinds (e.g. "12 markers"), the
+    /// leading prose for docs, or a code/markup snippet otherwise.
+    private var previewGist: String {
+        let content = store.artifacts[artifact.id]?.content ?? artifact.content
+        return ArtifactPreviewGist.make(kind: artifact.kind, content: content)
+    }
+
+    private var gistIsMonospaced: Bool {
+        artifact.kind == "html" || artifact.kind == "model"
+    }
+
+    // MARK: - Full render (opt-in, live)
+
+    private var fullRender: some View {
         VStack(spacing: 0) {
             miniHeader
             Divider().overlay(Theme.border.opacity(0.4))
@@ -614,7 +745,6 @@ private struct ArtifactPanelContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .task { await refreshCrons() }
     }
 
     private var miniHeader: some View {
@@ -646,6 +776,19 @@ private struct ArtifactPanelContent: View {
                     .foregroundStyle(Theme.accent)
                     .help(maintenanceTooltip)
             }
+
+            // Explicit expand — the full render's live content owns taps, so a
+            // cell tap can't reliably reach an expand handler; this button is
+            // the way out to full screen. Hidden while editing (onExpand nil).
+            if let onExpand {
+                Button(action: onExpand) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Expand to full screen")
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
@@ -668,6 +811,94 @@ private struct ArtifactPanelContent: View {
         if capabilitiesStore.capabilities.supportsActionLog {
             store.rehydrateBadges(for: artifact.id)
         }
+    }
+}
+
+// MARK: - Kind glyph
+
+/// SF Symbol per artifact kind — shared by the preview card, the mini-header,
+/// and the panel-icon lookup so one map governs all of them.
+internal enum ArtifactKindGlyph {
+    internal static func icon(for kind: String) -> String {
+        switch kind {
+        case "map": return "map"
+        case "chart": return "chart.xyaxis.line"
+        case "graph": return "point.3.connected.trianglepath.dotted"
+        case "stats": return "square.grid.2x2"
+        case "dataset": return "tablecells"
+        case "checklist": return "checklist"
+        case "kanban": return "rectangle.split.3x1"
+        case "calendar": return "calendar"
+        case "timeline": return "calendar.day.timeline.left"
+        case "sankey": return "arrow.triangle.branch"
+        case "model": return "cube.transparent"
+        case "html": return "globe"
+        default: return "doc.text"
+        }
+    }
+}
+
+// MARK: - Preview gist
+
+/// A cheap, human-scannable one-glance summary of an artifact WITHOUT a live
+/// render — the text a preview card shows. For structured (JSON) kinds it's a
+/// count-based structural line ("12 markers · Bangkok"); for docs it's the
+/// leading prose; for html/model it's a trimmed code snippet. Never parses
+/// more than it needs and never renders a web view / chart.
+internal enum ArtifactPreviewGist {
+    internal static func make(kind: String, content: String) -> String {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Empty artifact" }
+
+        switch kind {
+        case "map":       return structural(trimmed, list: "markers", noun: "marker", titleKey: "title")
+        case "dataset":   return structural(trimmed, list: "rows", noun: "row", titleKey: "title")
+        case "checklist": return structural(trimmed, list: "items", noun: "item", titleKey: "title")
+        case "kanban":    return structural(trimmed, list: "cards", noun: "card", titleKey: "title")
+        case "calendar":  return structural(trimmed, list: "events", noun: "event", titleKey: "title")
+        case "graph":     return structural(trimmed, list: "nodes", noun: "node", titleKey: "title")
+        case "stats":     return structural(trimmed, list: "tiles", noun: "stat", titleKey: "title")
+        case "chart", "sankey", "timeline", "model", "html":
+            // Structured/markup kinds with no simple count worth surfacing:
+            // show a trimmed snippet of the source so the card isn't empty.
+            return snippet(trimmed)
+        default:
+            // Markdown/doc — the leading prose reads as its own summary.
+            return snippet(trimmed)
+        }
+    }
+
+    /// "<n> <noun>s · <title>" for a JSON object with a top-level array.
+    /// Falls back to a snippet when the content isn't the expected shape.
+    private static func structural(_ content: String, list: String, noun: String, titleKey: String) -> String {
+        guard let data = content.data(using: .utf8) else { return snippet(content) }
+        let parsed: Any
+        do {
+            parsed = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            return snippet(content)   // not JSON (or malformed) — fall back to a text snippet
+        }
+        guard let obj = parsed as? [String: Any] else { return snippet(content) }
+        var parts: [String] = []
+        if let items = obj[list] as? [Any] {
+            let live = items.filter { ($0 as? [String: Any])?["_deleted"] as? Bool != true }.count
+            parts.append("\(live) \(noun)\(live == 1 ? "" : "s")")
+        }
+        if let title = obj[titleKey] as? String, !title.isEmpty {
+            parts.append(title)
+        }
+        return parts.isEmpty ? snippet(content) : parts.joined(separator: " · ")
+    }
+
+    /// First few non-empty lines, capped, for a text/markup gist.
+    private static func snippet(_ content: String) -> String {
+        let lines = content
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .prefix(6)
+        let joined = lines.joined(separator: "\n")
+        return joined.count > 400 ? String(joined.prefix(400)) + "…" : joined
     }
 }
 
