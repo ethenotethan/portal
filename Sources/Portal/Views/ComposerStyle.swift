@@ -8,20 +8,20 @@ import SwiftUI
 /// A style only decides the composer's *container* look (fill, border, corner
 /// radius, shadow); the field, attach button, and send/stop button inside it are
 /// shared across styles.
-enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
+internal enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
     /// The default: a rounded surface card with a hairline border and a soft
     /// drop shadow — the floating-panel look.
-    case card = "card"
+    case card
     /// A single-line pill: fully rounded, thin border, no shadow — quieter and
     /// more compact, closer to a search bar.
-    case pill = "pill"
+    case pill
     /// Chrome-free: no fill, no border, no shadow — just a rule above the row so
     /// the composer melts into the transcript below it.
-    case minimal = "minimal"
+    case minimal
 
-    var id: String { rawValue }
+    internal var id: String { rawValue }
 
-    var displayName: String {
+    internal var displayName: String {
         switch self {
         case .card: return "Card"
         case .pill: return "Pill"
@@ -29,7 +29,7 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var icon: String {
+    internal var icon: String {
         switch self {
         case .card: return "rectangle.roundedtop"
         case .pill: return "capsule"
@@ -39,7 +39,7 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
 
     /// The next style in the cycle — for a single toggle button that rotates
     /// through the options rather than opening a menu.
-    var next: ComposerStyle {
+    internal var next: ComposerStyle {
         let all = ComposerStyle.allCases
         let idx = all.firstIndex(of: self) ?? 0
         return all[(idx + 1) % all.count]
@@ -47,7 +47,7 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
 
     // MARK: - Container appearance
 
-    var cornerRadius: CGFloat {
+    internal var cornerRadius: CGFloat {
         switch self {
         case .card: return 12
         case .pill: return 22
@@ -57,14 +57,14 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
 
     /// Fill behind the composer row. nil = no fill (the row shows the view
     /// behind it).
-    var fill: Color? {
+    internal var fill: Color? {
         switch self {
         case .card, .pill: return Theme.surface
         case .minimal: return nil
         }
     }
 
-    var borderColor: Color? {
+    internal var borderColor: Color? {
         switch self {
         case .card: return Theme.border.opacity(0.9)
         case .pill: return Theme.border.opacity(0.6)
@@ -72,14 +72,14 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var borderWidth: CGFloat {
+    internal var borderWidth: CGFloat {
         switch self {
         case .card, .pill: return 1
         case .minimal: return 0
         }
     }
 
-    var shadowRadius: CGFloat {
+    internal var shadowRadius: CGFloat {
         switch self {
         case .card: return 18
         case .pill, .minimal: return 0
@@ -88,7 +88,7 @@ enum ComposerStyle: String, CaseIterable, Identifiable, Sendable {
 
     /// A top rule, used by `.minimal` to separate the composer from the
     /// transcript when it has no container of its own.
-    var showsTopDivider: Bool {
+    internal var showsTopDivider: Bool {
         self == .minimal
     }
 }
@@ -99,7 +99,7 @@ extension View {
     /// Apply a `ComposerStyle`'s container decoration (fill, border, shadow,
     /// corner radius) to the composer row. A no-op for `.minimal` (which draws a
     /// top divider inside the row instead).
-    func composerContainer(_ style: ComposerStyle) -> some View {
+    internal func composerContainer(_ style: ComposerStyle) -> some View {
         modifier(ComposerContainerModifier(style: style))
     }
 }

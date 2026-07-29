@@ -51,7 +51,7 @@ struct ThoughtGraphView: View {
     /// Invoked when the user taps the expand affordance — the host takes the
     /// graph true-fullscreen. nil hides the expand button (e.g. when already
     /// presented fullscreen).
-    var onExpand: (() -> Void)?
+    internal var onExpand: (() -> Void)?
 
     /// Live cost/token rollup for the current turn. nil hides the chip.
     var usageSummary: String?

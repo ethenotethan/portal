@@ -8,16 +8,16 @@ import SwiftUI
 /// (the sections are deliberately "dumb"), so the resolver + open action ride the
 /// SwiftUI environment: injected once where the Cron surface is presented, and
 /// read wherever a run detail wants a "View session" button.
-struct CronSessionNavigator: Sendable {
+internal struct CronSessionNavigator: Sendable {
     /// All known sessions to correlate against (from `SessionListViewModel`).
-    var sessions: [Session] = []
+    internal var sessions: [Session] = []
     /// Open a session by id. nil when the host isn't wired for navigation
     /// (e.g. a preview), which hides the button rather than dead-ending.
-    var open: (@MainActor (String) -> Void)?
+    internal var open: (@MainActor (String) -> Void)?
 
     /// Best-effort match from an activation to its cron session: the nearest
     /// cron-source session whose start is within ±120s of the run's fire time.
-    func session(for record: CronRunRecord) -> Session? {
+    internal func session(for record: CronRunRecord) -> Session? {
         sessions
             .filter { $0.source?.lowercased() == "cron" }
             .filter { session in
@@ -37,7 +37,7 @@ private struct CronSessionNavigatorKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    var cronSessionNavigator: CronSessionNavigator {
+    internal var cronSessionNavigator: CronSessionNavigator {
         get { self[CronSessionNavigatorKey.self] }
         set { self[CronSessionNavigatorKey.self] = newValue }
     }
@@ -46,7 +46,7 @@ extension EnvironmentValues {
 extension View {
     /// Inject the run→session navigator so any nested Cron run detail can offer
     /// a "View session" affordance.
-    func cronSessionNavigator(_ navigator: CronSessionNavigator) -> some View {
+    internal func cronSessionNavigator(_ navigator: CronSessionNavigator) -> some View {
         environment(\.cronSessionNavigator, navigator)
     }
 }
@@ -55,11 +55,11 @@ extension View {
 /// Resolves the run→session match from the environment navigator; shows an
 /// honest "no session recorded" note when there's no temporal match (or the
 /// host isn't wired for navigation).
-struct CronOpenSessionButton: View {
-    let record: CronRunRecord
+internal struct CronOpenSessionButton: View {
+    internal let record: CronRunRecord
     @Environment(\.cronSessionNavigator) private var navigator
 
-    var body: some View {
+    internal var body: some View {
         if let open = navigator.open, let match = navigator.session(for: record) {
             Button {
                 open(match.id)

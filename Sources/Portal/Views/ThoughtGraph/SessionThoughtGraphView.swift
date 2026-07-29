@@ -213,16 +213,16 @@ private struct TurnMetricsBar: View {
 /// re-tracked by a rail wrapped around the graph. `onExpand`, when provided,
 /// surfaces the flamechart's expand affordance (the host takes it fullscreen).
 internal struct TurnFlamechartView: View {
-    let engine: ThoughtGraphLayoutEngine
-    let nodes: [ThoughtGraphNode]
-    let compactions: [CompactionMarker]
-    let isStreaming: Bool
-    var isThinking: Bool = false
-    let selection: Binding<String?>?
-    var onJumpToTool: ((String) -> Void)?
-    var onExpand: (() -> Void)?
+    internal let engine: ThoughtGraphLayoutEngine
+    internal let nodes: [ThoughtGraphNode]
+    internal let compactions: [CompactionMarker]
+    internal let isStreaming: Bool
+    internal var isThinking: Bool = false
+    internal let selection: Binding<String?>?
+    internal var onJumpToTool: ((String) -> Void)?
+    internal var onExpand: (() -> Void)?
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             TurnMetricsBar(
                 metrics: TurnMetrics(nodes: nodes, compactions: compactions),
