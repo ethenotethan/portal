@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SkillsView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject var settings: SettingsViewModel
     @State private var viewModel = SkillsViewModel()
     @State private var expandedSkill: String?
     @State private var searchDebounceTask: Task<Void, Never>?
@@ -18,26 +19,46 @@ struct SkillsView: View {
                     if let error = viewModel.errorMessage {
                         errorBanner(error)
                     }
-                    if !gatewayClientWrapper.isConnected {
+                    // The WebSocket-connection banner is a Gateway concern; a
+                    // Standard backend talks HTTP and has no live socket.
+                    if !viewModel.isStandardMode && !gatewayClientWrapper.isConnected {
                         connectionBanner
                     }
                     summaryBar
                     installedSection
-                    hubSection
+                    // The Skills Hub (search/install) is a Gateway feature;
+                    // Standard's API manages a fixed local skill set, not a hub.
+                    if !viewModel.isStandardMode {
+                        hubSection
+                    }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .refreshable { await viewModel.reload() }
+            .refreshable {
+                if viewModel.isStandardMode {
+                    await viewModel.refreshStandard()
+                } else {
+                    await viewModel.reload()
+                }
+            }
         }
         .background(Theme.background)
-        .task {
-            viewModel.setGatewayClient(gatewayClientWrapper.client)
-            // Start the local summarization model loading (downloads on first
-            // use) so summaries are ready by the time a card is expanded.
-            SkillSummaryService.shared.warmUp()
-            if gatewayClientWrapper.isConnected {
-                await viewModel.refreshIfNeeded()
+        .task(id: settings.focusedGateway?.id) {
+            // A focused Standard backend is HTTP-only: route skills through its
+            // dashboard API. Otherwise use the WebSocket Gateway as before.
+            if let standard = settings.focusedGateway, standard.kind == .hermesStandard,
+               let client = Self.standardClient(for: standard) {
+                viewModel.setStandardClient(client)
+                await viewModel.refreshStandard()
+            } else {
+                viewModel.setGatewayClient(gatewayClientWrapper.client)
+                // Start the local summarization model loading (downloads on first
+                // use) so summaries are ready by the time a card is expanded.
+                SkillSummaryService.shared.warmUp()
+                if gatewayClientWrapper.isConnected {
+                    await viewModel.refreshIfNeeded()
+                }
             }
         }
         .sheet(item: $markdownSkill) { skill in
@@ -117,6 +138,16 @@ struct SkillsView: View {
     }
 
     // MARK: - Summary
+
+    /// Build an upstream Hermes dashboard client for a focused Standard gateway,
+    /// or nil if its URL/token is unusable. Skills route through this instead of
+    /// the WebSocket Gateway (Standard is HTTP-only).
+    private static func standardClient(for gateway: SavedGateway) -> HermesStandardClient? {
+        guard let baseURL = URL(string: gateway.url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return nil
+        }
+        return try? HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
+    }
 
     private var summaryBar: some View {
         HStack(spacing: 0) {
@@ -257,6 +288,13 @@ struct SkillsView: View {
                     installStatus: viewModel.installStatus[skill.name],
                     summaryState: viewModel.skillSummaries[skill.name],
                     confirmUninstall: confirmUninstall == skill.name,
+                    // Standard backends manage skills over HTTP: show an
+                    // enable/disable toggle and hide uninstall (no endpoint).
+                    isStandardMode: viewModel.isStandardMode,
+                    isEnabled: viewModel.standardEnabled[skill.name] ?? true,
+                    onSetEnabled: { _ in
+                        Task { await viewModel.toggleStandardSkill(name: skill.name) }
+                    },
                     onToggle: {
                         let expanding = expandedSkill != skill.id
                         withAnimation(.easeInOut(duration: 0.18)) {
@@ -358,6 +396,11 @@ struct SkillCard: View {
     let installStatus: String?
     let summaryState: SkillSummaryService.SummaryState?
     let confirmUninstall: Bool
+    /// Standard (HTTP) backend: show an enable/disable toggle instead of the
+    /// Gateway's install/uninstall lifecycle.
+    var isStandardMode = false
+    var isEnabled = true
+    var onSetEnabled: (Bool) -> Void = { _ in }
     let onToggle: () -> Void
     let onRequestSummary: () -> Void
     let onUninstall: () -> Void
@@ -384,14 +427,18 @@ struct SkillCard: View {
                             MarkdownContentView(text: skill.description)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        Button {
-                            onViewMarkdown()
-                        } label: {
-                            Label("Edit Markdown", systemImage: "doc.text")
-                                .font(.caption)
+                        // Markdown edit + uninstall are Gateway lifecycle
+                        // actions; Standard exposes neither over its HTTP API.
+                        if !isStandardMode {
+                            Button {
+                                onViewMarkdown()
+                            } label: {
+                                Label("Edit Markdown", systemImage: "doc.text")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
                         if let dir = skill.skillDir {
                             detailRow("Directory", value: dir)
                         }
@@ -403,7 +450,9 @@ struct SkillCard: View {
                         }
                         detailRow("Source", value: skill.source)
                         detailRow("Command", value: skill.slashCommand)
-                        uninstallButton
+                        if !isStandardMode {
+                            uninstallButton
+                        }
                     }
                     .padding(.top, 8)
                     .padding(.leading, 28)
@@ -555,7 +604,16 @@ struct SkillCard: View {
 
             Spacer()
 
-            if let status = installStatus {
+            if isStandardMode {
+                Toggle("", isOn: Binding(get: { isEnabled }, set: { onSetEnabled($0) }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help(isEnabled ? "Disable this skill" : "Enable this skill")
+                    // The header row taps to expand; keep the switch from
+                    // also toggling the disclosure.
+                    .onTapGesture {}
+            } else if let status = installStatus {
                 if status == "installing" || status == "uninstalling" {
                     PortalProgressView().scaleEffect(0.7)
                 } else if status == "installed" {

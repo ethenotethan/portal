@@ -1,7 +1,7 @@
 import Foundation
 
 /// Top-level Portal surfaces a backend can honestly serve.
-enum BackendNavigationCapability: String, Codable, CaseIterable, Sendable {
+internal enum BackendNavigationCapability: String, Codable, CaseIterable, Sendable {
     case chat
     case sessions
     case cron
@@ -43,17 +43,17 @@ enum BackendKind: String, Codable, CaseIterable, Sendable {
 
     /// Management-scoped backends are selectable without replacing the
     /// app-level Hermes Gateway WebSocket.
-    var isManagementScoped: Bool { self == .hermesStandard }
+    internal var isManagementScoped: Bool { self == .hermesStandard }
 
     /// A focused backend is either session-scoped or management-scoped.
-    var isFocusScoped: Bool { isSessionScoped || isManagementScoped }
+    internal var isFocusScoped: Bool { isSessionScoped || isManagementScoped }
 
-    var navigationCapabilities: [BackendNavigationCapability] {
+    internal var navigationCapabilities: [BackendNavigationCapability] {
         switch self {
         case .hermes:
             return BackendNavigationCapability.allCases
         case .hermesStandard:
-            return [.sessions, .cron, .notifications, .skills, .settings]
+            return [.chat, .sessions, .cron, .notifications, .skills, .settings]
         case .centaur:
             return [.chat, .sessions]
         }
@@ -150,6 +150,34 @@ struct SavedGateway: Codable, Identifiable, Equatable, Hashable {
         self.apiKey = try c.decode(String.self, forKey: .apiKey)
         self.kind = try c.decodeIfPresent(BackendKind.self, forKey: .kind) ?? .hermes
         self.avatarImagePath = try c.decodeIfPresent(String.self, forKey: .avatarImagePath)
+    }
+
+    /// The chat WebSocket URL for a Hermes Standard backend: the upstream
+    /// dashboard's `/api/ws` JSON-RPC sidecar, wire-compatible with the Hermes
+    /// gateway so a plain `GatewayClient` can drive it. The dashboard session
+    /// token rides as a `?token=` query item because browsers (and the WS
+    /// upgrade path) can't set an `Authorization` header on the handshake — the
+    /// server hmac-compares it against its ephemeral session token.
+    ///
+    /// Returns nil for non-Standard kinds or an unparseable/insecure URL.
+    /// A `nil` here means "no chat" — the caller keeps the app-level gateway.
+    internal var hermesStandardChatURL: URL? {
+        guard kind == .hermesStandard,
+              var components = URLComponents(string: url.trimmingCharacters(in: .whitespaces)) else {
+            return nil
+        }
+        switch components.scheme?.lowercased() {
+        case "https": components.scheme = "wss"
+        case "http": components.scheme = "ws"
+        case "wss", "ws": break
+        default: return nil
+        }
+        // Drop any trailing slash on the entered origin, then mount /api/ws.
+        var path = components.path
+        while path.hasSuffix("/") { path.removeLast() }
+        components.path = path + "/api/ws"
+        components.queryItems = (components.queryItems ?? []) + [URLQueryItem(name: "token", value: apiKey)]
+        return components.url
     }
 
     /// A short label for display when `name` is empty — falls back to the host.
