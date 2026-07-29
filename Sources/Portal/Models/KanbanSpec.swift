@@ -28,7 +28,25 @@ internal struct KanbanSpec {
         internal let column: String
         internal let tag: String?
         internal let note: String?
+        /// Longer body shown when the card is expanded (`detail`, `desc`, or
+        /// `description`). Distinct from the one-line `note` on the collapsed card.
+        internal let detail: String?
+        /// Any other scalar fields the agent attached (assignee, due, points…),
+        /// sorted by key. Surfaced in the expanded card so an agent can carry
+        /// arbitrary ticket metadata without a schema change. Empty when none.
+        internal let extra: [(key: String, value: String)]
+
+        /// True when expanding reveals anything the collapsed card doesn't show.
+        internal var hasDetail: Bool {
+            (detail?.isEmpty == false) || !extra.isEmpty
+        }
     }
+
+    /// Card keys the spec renders itself — everything else becomes `extra`.
+    private static let reservedCardKeys: Set<String> = [
+        "id", "title", "label", "column", "tag", "note",
+        "detail", "desc", "description", "_deleted"
+    ]
 
     internal let title: String?
     internal let columns: [String]
@@ -67,9 +85,22 @@ internal struct KanbanSpec {
                 } ?? fallbackColumn
                 let tag = (raw["tag"] as? String)?.trimmingCharacters(in: .whitespaces)
                 let note = (raw["note"] as? String)?.trimmingCharacters(in: .whitespaces)
+                let detail = (["detail", "desc", "description"].lazy
+                    .compactMap { raw[$0] as? String }
+                    .first)?.trimmingCharacters(in: .whitespaces)
+                let extra = raw
+                    .filter { !reservedCardKeys.contains($0.key) }
+                    .compactMap { key, value -> (key: String, value: String)? in
+                        let string = scalarString(value)
+                        guard let string, !string.isEmpty else { return nil }
+                        return (key: key, value: string)
+                    }
+                    .sorted { $0.key < $1.key }
                 return Card(id: id, title: title, column: column,
                             tag: (tag?.isEmpty ?? true) ? nil : tag,
-                            note: (note?.isEmpty ?? true) ? nil : note)
+                            note: (note?.isEmpty ?? true) ? nil : note,
+                            detail: (detail?.isEmpty ?? true) ? nil : detail,
+                            extra: extra)
             }
         guard !cards.isEmpty else { return nil }
 
@@ -84,5 +115,22 @@ internal struct KanbanSpec {
 
         return KanbanSpec(title: (obj["title"] as? String)?.trimmingCharacters(in: .whitespaces),
                           columns: columns, cards: cards)
+    }
+
+    /// Renders a JSON scalar (string/number/bool) for display in an expanded
+    /// card. Nested objects/arrays are skipped (nil) — the expanded card shows
+    /// flat metadata only, not structured payloads.
+    private static func scalarString(_ value: Any) -> String? {
+        switch value {
+        case let string as String:
+            return string.trimmingCharacters(in: .whitespaces)
+        case let bool as Bool:
+            return bool ? "true" : "false"
+        case let number as NSNumber:
+            // NSNumber bridges booleans too, but those are caught above.
+            return number.stringValue
+        default:
+            return nil
+        }
     }
 }
