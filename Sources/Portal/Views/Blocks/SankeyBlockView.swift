@@ -223,7 +223,7 @@ private struct SankeyCard: View {
                 if inTotal > 0 && outTotal > 0 && abs(inTotal - outTotal) > 0.001 {
                     Text("Δ \(fmt(outTotal - inTotal))")
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.warning)
                         .help("Outflow differs from inflow — unaccounted flow")
                 }
             }

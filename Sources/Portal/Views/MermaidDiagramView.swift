@@ -153,13 +153,16 @@ private struct MermaidRendererCoordinator: View {
     private var stabilityKey: String {
         let trimmed = cleanedSource.trimmingCharacters(in: .whitespacesAndNewlines)
         let looksComplete = trimmed.hasSuffix("```") || !isStreaming
+        // Theme id folded in so switching themes recreates the renderer (and
+        // re-rasterizes with the new palette) instead of showing a stale image.
+        let themeID = Theme.active.id
 
         if looksComplete {
-            return "done-\(cleanedSource.hashValue)"
+            return "done-\(themeID)-\(cleanedSource.hashValue)"
         }
         // Streaming — stable identity on first line (diagram type)
         let firstLine = cleanedSource.split(separator: "\n").first ?? "diagram"
-        return "streaming-\(firstLine)"
+        return "streaming-\(themeID)-\(firstLine)"
     }
 
     private var isNativeSupported: Bool {
@@ -219,10 +222,12 @@ private struct NativeMermaidRenderer: View {
             return
         }
 
+        // Snapshot the theme on the main actor; the render runs off-main.
+        let theme = nativeTheme
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let positioned = try MermaidRenderer.layout(code)
-                guard let img = renderPositionedDiagramImage(positioned, scale: 2.0) else {
+                guard let img = renderPositionedDiagramImage(positioned, scale: 2.0, theme: theme) else {
                     DispatchQueue.main.async {
                         errorText = "renderPositioned returned nil"
                     }
@@ -246,7 +251,11 @@ private struct NativeMermaidRenderer: View {
 
 /// Rasterizes a laid-out BeautifulMermaid graph. Callable off-main; shared by
 /// the live NativeMermaidRenderer and the PDF-export pipeline.
-nonisolated func renderPositionedDiagramImage(_ positioned: PositionedGraph, scale: CGFloat) -> PlatformImage? {
+nonisolated internal func renderPositionedDiagramImage(
+    _ positioned: PositionedGraph,
+    scale: CGFloat,
+    theme: DiagramTheme
+) -> PlatformImage? {
     let bounds = CGRect(
         x: 0, y: 0,
         width: max(1, positioned.width),
@@ -269,7 +278,7 @@ nonisolated func renderPositionedDiagramImage(_ positioned: PositionedGraph, sca
                     | CGBitmapInfo.byteOrder32Big.rawValue
           ) else { return nil }
 
-    ctx.setFillColor(nativeTheme.background.cgColor)
+    ctx.setFillColor(theme.background.cgColor)
     ctx.fill(CGRect(origin: .zero, size: pixelSize))
 
     ctx.scaleBy(x: scale, y: scale)
@@ -277,7 +286,7 @@ nonisolated func renderPositionedDiagramImage(_ positioned: PositionedGraph, sca
     ctx.translateBy(x: 0, y: bounds.height)
     ctx.scaleBy(x: 1, y: -1)
 
-    DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+    DiagramRenderer(theme: theme).render(positioned, in: ctx, bounds: bounds)
 
     guard let cgImage = ctx.makeImage() else { return nil }
 
@@ -299,9 +308,9 @@ nonisolated func renderPositionedDiagramImage(_ positioned: PositionedGraph, sca
     let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
     return renderer.image { rendererContext in
         let ctx = rendererContext.cgContext
-        ctx.setFillColor(nativeTheme.background.cgColor)
+        ctx.setFillColor(theme.background.cgColor)
         ctx.fill(bounds)
-        DiagramRenderer(theme: nativeTheme).render(positioned, in: ctx, bounds: bounds)
+        DiagramRenderer(theme: theme).render(positioned, in: ctx, bounds: bounds)
     }
     #endif
 }
@@ -319,20 +328,24 @@ enum MermaidExportRenderer {
 
         if isNativelySupportedMermaid(cleaned) {
             let ascii = cleaned.unicodeScalars.filter { $0.isASCII }.map(String.init).joined()
+            let theme = nativeTheme  // captured on the main actor
             let native = await Task.detached(priority: .userInitiated) { () -> PlatformImage? in
                 guard let positioned = try? MermaidRenderer.layout(ascii) else { return nil }
-                return renderPositionedDiagramImage(positioned, scale: 2.0)
+                return renderPositionedDiagramImage(positioned, scale: 2.0, theme: theme)
             }.value
             if let native { return native }
             // Native layout failed — same fallback the live view takes.
         }
 
-        if let cached = cachedWebImage(for: cleaned) { return cached }
+        // Theme id in the cache key so re-themed exports don't reuse a stale
+        // image rendered under the previous palette.
+        let cacheKey = "\(Theme.active.id)\u{1F}\(cleaned)"
+        if let cached = cachedWebImage(for: cacheKey) { return cached }
 
         return await withCheckedContinuation { continuation in
             MermaidSharedRenderer.shared.render(source: cleaned) { image in
                 if let image {
-                    cacheWebImage(image, for: cleaned)
+                    cacheWebImage(image, for: cacheKey)
                 }
                 continuation.resume(returning: image)
             }
@@ -522,7 +535,7 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
         config.processPool = Self.processPool
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
         webView.isOpaque = false
-        webView.backgroundColor = UIColor(red: 0.102, green: 0.102, blue: 0.102, alpha: 1.0)
+        webView.backgroundColor = UIColor(Theme.background)
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 1600, height: 1200))
         super.init()
         webView.navigationDelegate = self
@@ -660,7 +673,9 @@ private struct WebMermaidRenderer: View {
 
     init(source: String) {
         self.source = source
-        _renderKey = State(initialValue: source)
+        // Theme id in the cache key so a re-themed diagram isn't served a stale
+        // image rendered under the previous palette.
+        _renderKey = State(initialValue: "\(Theme.active.id)\u{1F}\(source)")
     }
 
     var body: some View {
@@ -720,6 +735,14 @@ private func makeMermaidHTML(source: String) -> String {
         .replacingOccurrences(of: "'", with: "\\'")
         .replacingOccurrences(of: "</", with: "<\\/")
 
+    // Palette from the active app theme so web-rendered diagrams match the
+    // selected scheme (was a hardcoded Midnight palette).
+    let t = Theme.active
+    let bg = "#" + t.backgroundHex
+    let surface = "#" + t.surfaceHex
+    let accent = "#" + t.accentHex
+    let text = "#" + t.primaryHex
+
     // overflow: visible + inline-block container so the SVG defines the
     // content size; native code measures it and snapshots exactly that rect.
     return """
@@ -731,7 +754,7 @@ private func makeMermaidHTML(source: String) -> String {
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { background: #1a1a1a; overflow: visible; }
+      html, body { background: \(bg); overflow: visible; }
       .mermaid-container { display: inline-block; padding: 16px; }
       .mermaid { display: inline-block; }
     </style>
@@ -748,16 +771,16 @@ private func makeMermaidHTML(source: String) -> String {
         theme: 'dark',
         fontSize: 16,
         themeVariables: {
-          primaryColor: '#7c7cff',
-          primaryTextColor: '#f0f0f0',
-          primaryBorderColor: '#7c7cff',
-          lineColor: '#7c7cff',
-          background: '#1a1a1a',
-          mainBkg: '#2a2a2a',
-          nodeBorder: '#7c7cff',
-          clusterBkg: '#2a2a2a',
-          titleColor: '#f0f0f0',
-          textColor: '#f0f0f0',
+          primaryColor: '\(accent)',
+          primaryTextColor: '\(text)',
+          primaryBorderColor: '\(accent)',
+          lineColor: '\(accent)',
+          background: '\(bg)',
+          mainBkg: '\(surface)',
+          nodeBorder: '\(accent)',
+          clusterBkg: '\(surface)',
+          titleColor: '\(text)',
+          textColor: '\(text)',
         },
         fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
         flowchart: { useMaxWidth: false },
@@ -910,15 +933,21 @@ private struct ErrorCard: View {
 
 // MARK: - Theme
 
-private let nativeTheme = DiagramTheme(
-    background: bmColor(hex: "1a1a1a"),
-    foreground: bmColor(hex: "f0f0f0"),
-    line: bmColor(hex: "7c7cff"),
-    accent: bmColor(hex: "7c7cff"),
-    muted: bmColor(hex: "666666"),
-    surface: bmColor(hex: "2a2a2a"),
-    border: bmColor(hex: "3a3a3a")
-)
+/// Diagram palette derived from the active app theme so native-rendered
+/// diagrams match the selected scheme (was a hardcoded Midnight constant).
+@MainActor
+private var nativeTheme: DiagramTheme {
+    let t = Theme.active
+    return DiagramTheme(
+        background: bmColor(hex: t.backgroundHex),
+        foreground: bmColor(hex: t.primaryHex),
+        line: bmColor(hex: t.accentHex),
+        accent: bmColor(hex: t.accentHex),
+        muted: bmColor(hex: t.tertiaryHex),
+        surface: bmColor(hex: t.surfaceHex),
+        border: bmColor(hex: t.borderHex)
+    )
+}
 
 // MARK: - Helpers
 
