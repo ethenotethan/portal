@@ -117,10 +117,8 @@ struct MessageBubbleView: View {
                         ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
                     }
 
-                    // Completed tool calls (collapsed in bubble)
-                    if !message.toolCalls.isEmpty && !message.isStreaming {
-                        CompletedToolsSection(tools: message.toolCalls)
-                    }
+                    // Tool calls moved out of the native bubble — see the
+                    // assistant bubble note and the opt-in "Tools" canvas panel.
                 }
                 .padding(.horizontal, Theme.bubblePaddingH)
                 .padding(.vertical, Theme.bubblePaddingV)
@@ -169,9 +167,11 @@ struct MessageBubbleView: View {
                     ReasoningSection(reasoning: reasoning, isStreaming: message.isStreaming)
                 }
 
-                if !message.toolCalls.isEmpty && !message.isStreaming {
-                    CompletedToolsSection(tools: message.toolCalls)
-                }
+                // Tool calls are NOT shown inline in the default chat — the
+                // native transcript is just the conversation (message → thinking
+                // → reasoning → response). The tool trace is an opt-in canvas
+                // widget (the "Tools" panel, `PanelKind.runningTools`, added
+                // from the canvas palette) instead of baked-in chrome.
             }
             .padding(.horizontal, Theme.bubblePaddingH)
             .padding(.vertical, Theme.bubblePaddingV)
@@ -329,42 +329,6 @@ private struct ReasoningSection: View {
         }
         .onAppear {
             if isStreaming { isExpanded = false }
-        }
-    }
-}
-
-// MARK: - Completed Tools Section
-
-private struct CompletedToolsSection: View {
-    let tools: [ToolCallRecord]
-    @State private var isExpanded = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondary)
-                    Text("Tool calls")
-                        .font(.system(.caption, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
-                    Text("(\(tools.count))")
-                        .font(.system(.caption))
-                        .foregroundStyle(Theme.tertiary)
-                }
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                ForEach(tools) { tool in
-                    ToolPillView(tool: tool, isRunning: false)
-                }
-            }
         }
     }
 }

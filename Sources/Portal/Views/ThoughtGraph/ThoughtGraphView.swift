@@ -104,7 +104,16 @@ struct ThoughtGraphView: View {
     // MARK: - Local State
 
     @State private var panOffset: CGSize = .zero
+    /// Horizontal scale — the TIME axis. Fits the whole turn's duration into the
+    /// viewport width (a long turn compresses to fit; it never scrolls sideways).
     @State private var zoom: CGFloat = 1.0
+    /// Vertical scale — the LANE axis, fit INDEPENDENTLY of `zoom`. Lanes fill the
+    /// viewport height and rescale as lanes are added, exactly mirroring how the
+    /// time axis fills the width. Without this the graph used one uniform scale,
+    /// so a wide turn with few lanes shrank to a thin band with dead space above
+    /// and below. Kept separate so bars grow thick to fill height when there are
+    /// few of them, and pack tighter as more arrive.
+    @State private var zoomY: CGFloat = 1.0
     @State private var internalSelectedNodeID: String?
 
     /// Selection proxy: the shared binding when present, else internal state.
@@ -168,6 +177,11 @@ struct ThoughtGraphView: View {
     /// the same range so the user can always zoom back out to the fitted whole.
     private static let minZoom: CGFloat = 0.05
     private static let maxZoom: CGFloat = 4.0
+    /// Upper bound for the independent vertical (lane) scale. Larger than
+    /// `maxZoom` because a turn with a single lane must be able to grow that one
+    /// lane tall enough to fill the whole viewport height — the time axis never
+    /// needs to zoom that far, but the lane axis does when there are few lanes.
+    private static let maxZoomY: CGFloat = 24.0
 
     // MARK: - Visible Nodes
 
@@ -367,6 +381,25 @@ struct ThoughtGraphView: View {
         return max(engine.totalSize.width, CGFloat(liveMax))
     }
 
+    // MARK: - World → Screen Projection
+
+    /// Project a world x (time axis) to a screen x. The time axis uses `zoom`.
+    private func screenX(_ worldX: CGFloat) -> CGFloat {
+        worldX * zoom + Self.leftMargin + panOffset.width
+    }
+
+    /// Project a world y (lane axis) to a screen y. The lane axis uses `zoomY`,
+    /// which fits height independently of the time axis so lanes fill the box.
+    private func screenY(_ worldY: CGFloat) -> CGFloat {
+        worldY * zoomY + Self.topMargin + panOffset.height
+    }
+
+    /// Project a world point to screen space (x through the time scale, y through
+    /// the independent lane scale).
+    private func screenPoint(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: screenX(p.x), y: screenY(p.y))
+    }
+
     // MARK: - Graph Canvas
 
     @ViewBuilder
@@ -388,34 +421,36 @@ struct ThoughtGraphView: View {
                 // world-space text would shrink to nothing.
                 let screenContext = context
 
-                var world = context
-                world.translateBy(x: Self.leftMargin + panOffset.width,
-                                  y: Self.topMargin + panOffset.height)
-                world.scaleBy(x: zoom, y: zoom)
+                // Everything below is drawn directly in SCREEN space via the
+                // `screenX`/`screenY` projection, which scales the x (time) and
+                // y (lane) axes INDEPENDENTLY. Doing the projection per-point (as
+                // opposed to a single scaled `GraphicsContext`) is what lets bar
+                // heights fill the viewport while fonts, stroke widths, corner
+                // radii, and diamonds stay a fixed size instead of stretching.
 
-                // ── 1. Lane bands + titles ──
-                drawLanes(context: world, showLabels: showLabels)
+                // ── 1. Lane bands (height fills viewport) + titles (fixed) ──
+                drawLanes(context: screenContext, showLabels: showLabels)
 
-                // ── 2. Spawn edges ──
+                // ── 2. Spawn edges (screen space, projected per-axis) ──
                 for edge in engine.edges {
-                    drawSpawnEdge(edge, context: world, lineage: lineage, selectedID: selectedID)
+                    drawSpawnEdge(edge, context: screenContext, lineage: lineage, selectedID: selectedID)
                 }
 
                 // ── 2b. Concept links (reasoning ↔ tools, under the bars) ──
-                drawConceptLinks(context: world, selectedID: selectedID)
+                drawConceptLinks(context: screenContext, selectedID: selectedID)
 
-                // ── 3. Bars ──
+                // ── 3. Bars (rects fill height) + labels/diamonds (fixed size) ──
                 for layout in engine.layouts {
                     guard let node = nodeIndex[layout.nodeID] else { continue }
                     drawBar(
-                        node: node, layout: layout, context: world,
+                        node: node, layout: layout, context: screenContext,
                         pulse: pulse, showLabel: showLabels,
                         lineage: lineage, selectedID: selectedID, now: nowDate
                     )
                 }
 
                 // ── 4. Shared-entity shapes + edges (deterministic overlay) ──
-                drawSharedEntities(context: world, selectedID: selectedID)
+                drawSharedEntities(context: screenContext, selectedID: selectedID)
 
                 // ── 5. Context-compaction folds (screen space, full height) ──
                 drawCompactionFolds(context: screenContext, size: size)
@@ -478,25 +513,31 @@ struct ThoughtGraphView: View {
     }
 
     /// Full-width horizontal band behind each lane, tinted by actor, with the
-    /// lane title pinned at the left.
+    /// lane title pinned at the left. Bands are drawn in SCREEN space (rather
+    /// than the zoom-scaled world) so their height tracks the independent
+    /// vertical scale `zoomY` — growing to fill the viewport when there are few
+    /// lanes — while the corner radius and title font stay fixed instead of
+    /// stretching into ovals/tall text under the asymmetric scale.
     private func drawLanes(context: GraphicsContext, showLabels: Bool) {
+        let screen = context
         let totalWidth = engine.totalSize.width
 
         for lane in engine.lanes {
             // Band height is the lane's packed height (grows with parallel
-            // sub-rows), not a fixed constant.
+            // sub-rows), not a fixed constant — projected through `zoomY`.
+            let minXWorld = -ThoughtGraphLayoutEngine.leftGutter
             let rect = CGRect(
-                x: -ThoughtGraphLayoutEngine.leftGutter,
-                y: lane.y - lane.height / 2,
-                width: totalWidth,
-                height: lane.height
+                x: screenX(minXWorld),
+                y: screenY(lane.y - lane.height / 2),
+                width: totalWidth * zoom,
+                height: lane.height * zoomY
             )
             let band = Path(roundedRect: rect, cornerRadius: 10)
             let tint = lane.isAgent ? Theme.agentAccent : Theme.accent
-            context.fill(band, with: .color(tint.opacity(lane.isAgent ? 0.05 : 0.035)))
+            screen.fill(band, with: .color(tint.opacity(lane.isAgent ? 0.05 : 0.035)))
 
             guard showLabels else { continue }
-            context.draw(
+            screen.draw(
                 Text(lane.title)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .foregroundColor(tint.opacity(0.8)),
@@ -515,9 +556,11 @@ struct ThoughtGraphView: View {
         selectedID: String?
     ) {
         guard let pts = engine.edgeControlPoints(from: edge.from, to: edge.to) else { return }
+        // Screen space (fixed stroke width; endpoints projected per-axis) so the
+        // edge tracks the bars without its line thickness stretching vertically.
         var path = Path()
-        path.move(to: pts.start)
-        path.addQuadCurve(to: pts.end, control: pts.control)
+        path.move(to: screenPoint(pts.start))
+        path.addQuadCurve(to: screenPoint(pts.end), control: screenPoint(pts.control))
 
         let onLineage: Bool
         if let lineage {
@@ -534,6 +577,14 @@ struct ThoughtGraphView: View {
     }
 
     /// One node: a duration bar (tool/agent) or a diamond marker (reasoning).
+    ///
+    /// Drawn in SCREEN space (via `screenX`/`screenY`) rather than the scaled
+    /// world context: the bar's WIDTH follows the time scale (`zoom`) and its
+    /// HEIGHT follows the independent lane scale (`zoomY`), so bars grow thick to
+    /// fill the viewport when there are few lanes and pack tighter as more
+    /// arrive — but the corner radius, stroke widths, label font, and reasoning
+    /// diamond stay a fixed size instead of stretching into ovals/tall glyphs
+    /// under the asymmetric scale.
     private func drawBar(
         node: ThoughtGraphNode,
         layout: ThoughtGraphLayout,
@@ -544,11 +595,12 @@ struct ThoughtGraphView: View {
         selectedID: String?,
         now: Date
     ) {
+        let screen = context
         let onLineage = lineage?.contains(node.id) ?? true
         let born = nodeAppearTimes[node.id] ?? self.now
         let appear = min(1, max(0, (self.now - born) / Self.appearDuration))
 
-        var ctx = context
+        var ctx = screen
         ctx.opacity = (onLineage ? 1 : 0.2) * appear
         if node.status == .running { ctx.opacity *= pulse }
 
@@ -556,13 +608,12 @@ struct ThoughtGraphView: View {
         let isHovered = hoveredNodeID == node.id
         let color = node.category.color
 
-        // Reasoning beats: a diamond marker anchoring the moment in time. Its
-        // label is drawn separately in `drawReasoningLabels` (screen space, so
-        // it stays legible at any zoom) rather than here in the world context,
-        // where a fitted long turn would shrink the text to nothing.
+        // Reasoning beats: a diamond marker anchoring the moment in time. Fixed
+        // size (screen space) so it never stretches; its text label is drawn
+        // separately in `drawReasoningLabels`.
         if node.category == .reasoning {
             let s = ThoughtGraphLayoutEngine.markerSize
-            let c = CGPoint(x: layout.x + s / 2, y: layout.y)
+            let c = CGPoint(x: screenX(layout.x + s / 2), y: screenY(layout.y))
             var diamond = Path()
             diamond.move(to: CGPoint(x: c.x, y: c.y - s / 2))
             diamond.addLine(to: CGPoint(x: c.x + s / 2, y: c.y))
@@ -578,7 +629,13 @@ struct ThoughtGraphView: View {
 
         let width = engine.liveWidth(for: node, laidOut: layout.width, now: now)
         let h = ThoughtGraphLayoutEngine.barHeight
-        let rect = CGRect(x: layout.x, y: layout.y - h / 2, width: width, height: h)
+        // Width tracks the time scale, height tracks the lane scale.
+        let rect = CGRect(
+            x: screenX(layout.x),
+            y: screenY(layout.y - h / 2),
+            width: max(width * zoom, ThoughtGraphLayoutEngine.minBarWidth),
+            height: h * zoomY
+        )
         let shape = Path(roundedRect: rect, cornerRadius: 6)
 
         // Fill: agents get a stronger tint; running bars a subtle sheen.
@@ -600,8 +657,8 @@ struct ThoughtGraphView: View {
             ctx.stroke(shape, with: .color(Theme.primary.opacity(0.5)), lineWidth: 1)
         }
 
-        // Inline label, clipped to the bar when there's room.
-        guard showLabel, width >= 34 else { return }
+        // Inline label, clipped to the bar when there's room (screen-space width).
+        guard showLabel, rect.width >= 34 else { return }
         let label = node.isAgent ? "◆ \(node.name)" : node.name
         var labelCtx = ctx
         labelCtx.clip(to: shape)
@@ -687,8 +744,6 @@ struct ThoughtGraphView: View {
     /// beat always draws its label (bypassing the declutter) so you can always
     /// read the one you're pointing at.
     private func drawReasoningLabels(context: GraphicsContext, size: CGSize, selectedID: String?) {
-        let originX = Self.leftMargin + panOffset.width
-        let originY = Self.topMargin + panOffset.height
         let s = ThoughtGraphLayoutEngine.markerSize
 
         // Track the right edge of the last drawn label per row (rounded world-y)
@@ -702,8 +757,8 @@ struct ThoughtGraphView: View {
 
             let diamondCenterWorldX = layout.x + s / 2
             let labelWorldX = diamondCenterWorldX + s / 2 + 4
-            let sx = labelWorldX * zoom + originX
-            let sy = layout.y * zoom + originY
+            let sx = screenX(labelWorldX)
+            let sy = screenY(layout.y)
 
             // Cull off-screen (above the axis band or beyond the viewport).
             guard sy > Self.topMargin - 10, sy < size.height + 10,
@@ -754,9 +809,10 @@ struct ThoughtGraphView: View {
             guard let beat = engine.layout(for: link.reasoningID),
                   let tool = engine.layout(for: link.toolID) else { continue }
             let related = selectedID == link.reasoningID || selectedID == link.toolID
-            // Beat diamond right vertex → tool bar left edge center.
-            let from = CGPoint(x: beat.x + ThoughtGraphLayoutEngine.markerSize, y: beat.y)
-            let to = CGPoint(x: tool.x, y: tool.y)
+            // Beat diamond right vertex → tool bar left edge center (projected
+            // to screen so the curve tracks the bars without stretching).
+            let from = screenPoint(CGPoint(x: beat.x + ThoughtGraphLayoutEngine.markerSize, y: beat.y))
+            let to = screenPoint(CGPoint(x: tool.x, y: tool.y))
             var path = Path()
             path.move(to: from)
             let midX = (from.x + to.x) / 2
@@ -780,13 +836,17 @@ struct ThoughtGraphView: View {
     /// nothing is inferred.
     private func drawSharedEntities(context: GraphicsContext, selectedID: String?) {
         guard !sharedEntities.isEmpty else { return }
-        let rowY = engine.totalSize.height + 28   // below the last lane band
+        // Screen space: the pill row sits just below the (now taller) lane band
+        // stack, and each pill keeps a fixed size instead of scaling with zoom.
+        let rowY = screenY(engine.totalSize.height + 28)   // below the last lane band
         let pillW: CGFloat = 150
         let pillH: CGFloat = 22
         let spacing: CGFloat = 12
-        // Lay pills left→right, centered under the graph's used width.
+        // Lay pills left→right, centered under the graph's used screen width.
         let totalW = CGFloat(sharedEntities.count) * pillW + CGFloat(max(0, sharedEntities.count - 1)) * spacing
-        var cursorX = max(ThoughtGraphLayoutEngine.leftGutter, (engine.totalSize.width - totalW) / 2)
+        let graphScreenWidth = engine.totalSize.width * zoom
+        var cursorX = max(screenX(ThoughtGraphLayoutEngine.leftGutter),
+                          screenX(0) + (graphScreenWidth - totalW) / 2)
 
         for entity in sharedEntities {
             let pillRect = CGRect(x: cursorX, y: rowY, width: pillW, height: pillH)
@@ -796,7 +856,8 @@ struct ThoughtGraphView: View {
             // Edges from each touching bar's bottom-center down to the pill top.
             for nodeID in entity.nodeIDs {
                 guard let bar = engine.layout(for: nodeID) else { continue }
-                let from = CGPoint(x: bar.x + bar.width / 2, y: bar.y + ThoughtGraphLayoutEngine.barHeight / 2)
+                let from = screenPoint(CGPoint(x: bar.x + bar.width / 2,
+                                               y: bar.y + ThoughtGraphLayoutEngine.barHeight / 2))
                 let to = CGPoint(x: pillRect.midX, y: pillRect.minY)
                 var path = Path()
                 path.move(to: from)
@@ -1312,27 +1373,27 @@ struct ThoughtGraphView: View {
     /// Convert a point in view-space to a node ID, if any. Bars are
     /// left-anchored; markers are centered diamonds.
     private func hitTest(point: CGPoint) -> String? {
-        let originX = Self.leftMargin + panOffset.width
-        let originY = Self.topMargin + panOffset.height
         let nowDate = Date()
 
-        // Reverse order so topmost-drawn (later) bars win overlaps.
+        // Reverse order so topmost-drawn (later) bars win overlaps. Geometry
+        // MUST mirror `drawBar`: reasoning markers are a FIXED size (screen),
+        // bars stretch width by `zoom` and height by `zoomY`.
         for layout in engine.layouts.reversed() {
             guard let node = nodeIndex[layout.nodeID] else { continue }
             let rect: CGRect
             if node.category == .reasoning {
-                let s = ThoughtGraphLayoutEngine.markerSize * zoom
-                let cx = (layout.x + ThoughtGraphLayoutEngine.markerSize / 2) * zoom + originX
-                let cy = layout.y * zoom + originY
+                let s = ThoughtGraphLayoutEngine.markerSize
+                let cx = screenX(layout.x + s / 2)
+                let cy = screenY(layout.y)
                 rect = CGRect(x: cx - s / 2, y: cy - s / 2, width: s, height: s)
             } else {
                 let w = engine.liveWidth(for: node, laidOut: layout.width, now: nowDate)
                 let h = ThoughtGraphLayoutEngine.barHeight
-                let sx = layout.x * zoom + originX
-                let sy = (layout.y - h / 2) * zoom + originY
+                let sx = screenX(layout.x)
+                let sy = screenY(layout.y - h / 2)
                 // Pad narrow bars for a usable touch target.
                 let drawnW = max(w * zoom, 10)
-                rect = CGRect(x: sx, y: sy, width: drawnW, height: h * zoom)
+                rect = CGRect(x: sx, y: sy, width: drawnW, height: h * zoomY)
             }
             if rect.insetBy(dx: -3, dy: -3).contains(point) {
                 return layout.nodeID
@@ -1364,13 +1425,20 @@ struct ThoughtGraphView: View {
         let padding: CGFloat = 24
         let availW = max(1, canvasSize.width - Self.leftMargin - padding)
         let availH = max(1, canvasSize.height - Self.topMargin - padding)
-        let fit = min(availW / world.width, availH / world.height)
-        let targetZoom = max(Self.minZoom, min(Self.maxZoom, fit))
+
+        // Fit the two axes INDEPENDENTLY. X (time) fills the width; Y (lanes)
+        // fills the height. This is the whole point: with one uniform scale the
+        // wide time axis won and the lanes collapsed into a thin band with dead
+        // space above/below. Now the lanes grow to fill height when there are
+        // few of them and pack tighter as more arrive — the same fill-the-box
+        // behaviour the time axis already has.
+        let targetZoom = max(Self.minZoom, min(Self.maxZoom, availW / world.width))
+        let targetZoomY = max(Self.minZoom, min(Self.maxZoomY, availH / world.height))
 
         // Center the scaled world in the available area (world origin sits at
         // leftMargin/topMargin, then panOffset shifts from there).
         let scaledW = world.width * targetZoom
-        let scaledH = world.height * targetZoom
+        let scaledH = world.height * targetZoomY
         let targetPan = CGSize(
             width: max(0, (availW - scaledW) / 2),
             height: max(0, (availH - scaledH) / 2)
@@ -1379,10 +1447,12 @@ struct ThoughtGraphView: View {
         if animated {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
                 zoom = targetZoom
+                zoomY = targetZoomY
                 panOffset = targetPan
             }
         } else {
             zoom = targetZoom
+            zoomY = targetZoomY
             panOffset = targetPan
         }
     }
@@ -1402,12 +1472,18 @@ struct ThoughtGraphView: View {
         let oldZoom = zoom
         let newZoom = max(Self.minZoom, min(Self.maxZoom, oldZoom * factor))
         guard newZoom != oldZoom else { return }
-        // Keep the point under the cursor stable across the zoom.
+        // Manual zoom scales BOTH axes by the same factor so the fitted aspect
+        // ratio is preserved — the user zooms into the picture they see, they
+        // don't re-fit the height. `zoomY` uses its own (larger) clamp.
+        let appliedFactor = newZoom / oldZoom
+        let newZoomY = max(Self.minZoom, min(Self.maxZoomY, zoomY * appliedFactor))
+        // Keep the point under the cursor stable across the zoom (per axis).
         panOffset.width += (point.x - Self.leftMargin - panOffset.width)
             * (1 - newZoom / oldZoom)
         panOffset.height += (point.y - Self.topMargin - panOffset.height)
-            * (1 - newZoom / oldZoom)
+            * (1 - newZoomY / zoomY)
         zoom = newZoom
+        zoomY = newZoomY
     }
 
     // MARK: - Mouse Handlers (macOS)

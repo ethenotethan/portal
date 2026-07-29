@@ -1206,6 +1206,10 @@ struct ChatView: View {
                         .background(Theme.surface, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .help("Close (Esc)")
+                // Escape collapses the expanded graph. `.cancelAction` binds Esc
+                // on macOS; harmless elsewhere.
+                .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -1219,6 +1223,11 @@ struct ChatView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Theme.background)
+        // Belt-and-suspenders: catch Esc even when focus isn't on the button
+        // (e.g. after interacting with the graph canvas).
+        #if os(macOS)
+        .onExitCommand { showThoughtGraph = false }
+        #endif
     }
 
     private func scheduleScrollToBottom(proxy: ScrollViewProxy, reason: String) {

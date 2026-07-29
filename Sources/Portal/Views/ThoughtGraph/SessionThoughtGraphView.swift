@@ -410,11 +410,17 @@ internal struct SessionThoughtGraphView: View {
                     .background(Theme.surface, in: Circle())
             }
             .buttonStyle(.plain)
-            .help("Exit fullscreen")
+            .help("Exit fullscreen (Esc)")
+            .keyboardShortcut(.cancelAction)
             .padding(.top, 64)
             .padding(.leading, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Esc collapses the inner fullscreen flamechart first (it's the topmost
+        // overlay), returning to the rail view rather than closing everything.
+        #if os(macOS)
+        .onExitCommand { withAnimation(.easeInOut(duration: 0.2)) { isFlamechartFullscreen = false } }
+        #endif
     }
 
     // MARK: - Turn rail
