@@ -330,6 +330,20 @@ struct ThoughtGraphView: View {
             hasFitted = false
             fitIfNeeded(animated: old == 0)
         }
+        // When a turn ENDS (streaming true→false) the running bars stop growing
+        // and settle to their final widths — but the node count doesn't change,
+        // so neither `layoutKey` nor `nodes.count` fires, and `advanceMotion`'s
+        // live re-fit is gated on `isStreaming` and just stopped. Without this
+        // the graph keeps whatever zoom the last live frame left, so a long
+        // settled turn overflows its box: the widget shows only the metrics
+        // chips (flamechart scrolled off) and expand runs off-screen. Reframe
+        // the whole settled turn here so it's always contained start→finish.
+        .onChange(of: isStreaming) { _, nowStreaming in
+            guard !nowStreaming, !hasUserAdjustedCamera else { return }
+            engine.layout(nodes: visibleNodes, now: Date())
+            hasFitted = false
+            fitToView(animated: true)
+        }
 
         // ── 30Hz motion tick: grow running bars, pulse, follow-cam ──
         .onReceive(
