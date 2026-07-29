@@ -65,8 +65,8 @@ jobs:
           git add Tests/PortalTests/__Snapshots__/*.png
           git commit -m "test(snapshots): record CI-born View-snapshot goldens
 
-Generated on the macos-26 runner via SNAPSHOT_RECORD=1 so they match the
-environment the verify job renders in. Do not regenerate locally."
+          Generated on the macos-26 runner via SNAPSHOT_RECORD=1 so they match the
+          environment the verify job renders in. Do not regenerate locally."
           git push origin "HEAD:${GITHUB_REF_NAME}"
 
       - name: Upload goldens as artifact
