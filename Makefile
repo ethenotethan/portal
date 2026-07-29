@@ -82,6 +82,21 @@ lint-baseline:
 	@python3 -c "import os,pathlib; p=pathlib.Path('.swiftlint-baseline'); d=p.read_text(); pre='file://'+os.getcwd()+'/'; d2=d.replace(pre, '').replace(pre.replace('/', r'\\/'), ''); p.write_text(d2); assert 'file://' not in d2 and 'file:\\\\/\\\\/' not in d2, 'baseline still has absolute file:// paths — not portable'; print('paths made repo-relative')"
 	@echo "Baseline rewritten (paths made repo-relative). Check 'git diff .swiftlint-baseline' — entries should only DISAPPEAR."
 
+# Secret-scan ratchet. Scans the working tree with gitleaks; .gitleaksignore
+# freezes ACCEPTED false-positive fingerprints (currently none — the tree is
+# clean), so only NEW, un-accepted findings fail. Run before pushing; CI runs
+# the same scan with a pinned gitleaks version. Install: `brew install gitleaks`.
+secret-scan:
+	gitleaks dir . --config .gitleaks.toml --gitleaks-ignore-path .gitleaksignore \
+		--no-banner --redact --exit-code 1
+
+# Fail if .gitleaksignore gained accepted fingerprints versus main — i.e. a new
+# finding was waved through instead of removed. Removing entries (a finding was
+# fixed) passes. CI runs the same check; run it locally after editing the
+# ignore file to confirm the diff only ever REMOVES fingerprints.
+secret-scan-guard:
+	python3 scripts/check-secret-baseline-growth.py origin/main
+
 test:
 	swift build --build-tests
 	swift test --disable-sandbox

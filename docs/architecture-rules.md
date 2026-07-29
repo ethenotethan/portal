@@ -133,6 +133,41 @@ build under-counts warnings.
 Candidate next metrics (each is one collector away): mutation score (see
 issue #10), main-thread stall budget.
 
+## The secret-scan ratchet
+
+Static security linting for one bounded but high-value class: **secrets that
+must never enter the tree** (API keys, tokens, private keys, live credentials).
+It is the same ratchet shape as the lint baseline, applied to
+[gitleaks](https://github.com/gitleaks/gitleaks).
+
+- **What runs:** `gitleaks dir` over the working tree (not history) with
+  `.gitleaks.toml`. Config `extend.useDefault = true` starts from gitleaks'
+  built-in ruleset; `[allowlist].paths` carves out checked-in-safe files
+  (the signing-config *template*, `Package.resolved` revision hashes, snapshot
+  fixtures). Keep that allowlist tight — every glob is a hole in the scanner.
+- **The frozen list:** `.gitleaksignore` holds fingerprints of **accepted
+  false-positives** — the exact analog of `.swiftlint-baseline`. gitleaks
+  excludes them, so only NEW, un-accepted findings fail. The tree is currently
+  clean: **zero findings, zero accepted fingerprints.** The floor is zero and
+  it stays zero.
+- **Growth guard:** `scripts/check-secret-baseline-growth.py` fails a PR that
+  *adds* a fingerprint to `.gitleaksignore` — you'd be silently accepting a new
+  finding instead of removing the secret. Removing fingerprints (a finding was
+  fixed) always passes. Same enforced invariant as the lint baseline-growth
+  guard: an escape hatch that can't be used silently.
+- **Locally:** `make secret-scan` (needs `brew install gitleaks`) and
+  `make secret-scan-guard`. **CI:** the `secret-scan` and
+  `secret-baseline-growth` jobs in `lint.yml`, with a **pinned** gitleaks
+  version — a newer gitleaks ships more rules and would fail CI on findings the
+  ignore-list was never curated against (the same drift that broke the
+  swiftlint baseline in #222).
+
+Honest scope: this catches *secrets*, not *insecurity*. It does nothing for
+authz logic, IDOR, SSRF, or design flaws — a green scan is a floor, not a
+posture. Candidate next security ratchets (each is a separate gate): dependency
+advisories over `Package.resolved`, and a handful of security-focused swiftlint
+custom rules.
+
 ## View-snapshot gate
 
 The metric ratchet guards the testable layers, but Views are exempt from

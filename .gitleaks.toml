@@ -1,0 +1,31 @@
+# Gitleaks configuration for the Portal app secret-scan ratchet.
+#
+# `make secret-scan` / CI run `gitleaks dir` over the working tree with this
+# config plus `.gitleaksignore` (the frozen list of ACCEPTED findings — see
+# scripts/check-secret-baseline-growth.py). The gate fails on any new finding
+# that is not fingerprinted in .gitleaksignore, so "no new secret enters the
+# tree" is enforced, not honor-system.
+#
+# Bumping gitleaks: the pinned CI version and your local version must agree
+# (a newer gitleaks ships more rules and can surface findings this config's
+# author never saw — the same drift that bit the swiftlint baseline in #222).
+
+# Start from gitleaks' built-in ruleset, then layer our allowlist on top.
+[extend]
+useDefault = true
+
+# Global allowlist: paths that are checked-in-safe by construction. Keep this
+# TIGHT — every entry here is a hole in the scanner. Prefer fingerprinting a
+# specific false-positive in .gitleaksignore over broadening these globs.
+[allowlist]
+description = "Portal-wide allowlisted paths (no real secrets by construction)"
+paths = [
+  # Committed signing config is a non-secret Team-ID template; the real
+  # secrets live in Signing.local.xcconfig, which is gitignored.
+  '''Signing\.local\.xcconfig\.template''',
+  # Dependency pins: SHA-256 revision hashes trip entropy/hash rules but are
+  # public content addresses, not secrets.
+  '''.*Package\.resolved$''',
+  # Snapshot-test artifacts and recorded fixtures: rendered UI, not credentials.
+  '''Tests/PortalTests/__Snapshots__/.*''',
+]
