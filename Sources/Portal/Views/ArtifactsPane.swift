@@ -176,6 +176,7 @@ struct ArtifactsPane: View {
         case "kanban": return "rectangle.split.3x1"
         case "calendar": return "calendar"
         case "model": return "square.stack.3d.up"
+        case "model3d": return "cube.transparent.fill"
         case "html": return "safari"
         default: return "doc.richtext"
         }
@@ -323,6 +324,8 @@ struct ArtifactKindRenderer: View {
             SankeyBlockView(json: content, isStreaming: false)
         case "model":
             ModelBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
+        case "model3d":
+            Model3DBlockView(json: content, isStreaming: false)
         case "html":
             // A self-contained HTML document — content is raw HTML, not JSON.
             // Renders in the same WKWebView-backed view chat uses for "Open

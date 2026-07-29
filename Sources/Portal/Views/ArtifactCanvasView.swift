@@ -580,6 +580,7 @@ private struct ArtifactExpandedOverlay: View {
         case "timeline": return "calendar.day.timeline.left"
         case "sankey": return "arrow.triangle.branch"
         case "model": return "cube.transparent"
+        case "model3d": return "cube.transparent.fill"
         case "html": return "globe"
         default: return "doc.text"
         }
@@ -832,6 +833,7 @@ internal enum ArtifactKindGlyph {
         case "timeline": return "calendar.day.timeline.left"
         case "sankey": return "arrow.triangle.branch"
         case "model": return "cube.transparent"
+        case "model3d": return "cube.transparent.fill"
         case "html": return "globe"
         default: return "doc.text"
         }
