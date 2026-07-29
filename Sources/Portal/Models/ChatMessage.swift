@@ -97,6 +97,32 @@ struct ChatMessage: Identifiable, Codable {
     internal var isCronInjection: Bool {
         role == .user && content.hasPrefix("[IMPORTANT:") && content.contains("cron job")
     }
+
+    /// Non-nil when this assistant message is *entirely* a gateway-injected
+    /// async-delegation batch marker — e.g. `[ASYNC DELEGATION BATCH COMPLETE]`,
+    /// emitted when a batch of async-delegated subagents finishes. These arrive
+    /// as assistant `content` but are status notices, not model prose, so the
+    /// transcript renders them as a centered interstitial chip rather than
+    /// pushing the raw marker through the markdown bubble (which reads as a
+    /// broken response). Returns the humanized chip label (e.g. "delegation
+    /// batch complete").
+    ///
+    /// Deliberately matches only when the whole trimmed content is the marker
+    /// (`[`…`]` with nothing after): if the gateway ever appends real output to
+    /// the notice, this returns nil and the message renders normally rather than
+    /// having its content swallowed.
+    internal var delegationBatchNoticeLabel: String? {
+        guard role == .assistant else { return nil }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("["), trimmed.hasSuffix("]") else { return nil }
+        let inner = trimmed.dropFirst().dropLast()
+        guard !inner.contains("]") else { return nil } // more than one bracket → not a bare marker
+        let upper = inner.uppercased()
+        guard upper.contains("DELEGATION"), upper.contains("BATCH") else { return nil }
+        var label = inner.trimmingCharacters(in: .whitespaces).lowercased()
+        if label.hasPrefix("async ") { label = String(label.dropFirst("async ".count)) }
+        return label.isEmpty ? "delegation batch complete" : label
+    }
 }
 
 /// Structured model/gateway-provided thinking/reasoning trace for a single assistant turn.

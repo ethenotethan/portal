@@ -890,19 +890,28 @@ struct ChatView: View {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             let msgs = chatViewModel.messages
                             ForEach(renderedMessages, id: \.element.id) { index, message in
-                                let isLastInGroup: Bool = Self.isLastMessageInGroup(
-                                    message: message,
-                                    msgs: msgs
-                                )
-                                let showTimestamp: Bool = isLastInGroup
-                                let preparedMessage: ChatMessage = Self.prepareBubbleMessage(
-                                    message, showTimestamp: showTimestamp
-                                )
-                                skinProvider.messageBubble(
-                                    message: preparedMessage,
-                                    persona: displayPersona
-                                )
-                                .id(message.id)
+                                if let noticeLabel = message.delegationBatchNoticeLabel {
+                                    // A gateway async-delegation batch marker —
+                                    // render as a centered interstitial rule, not
+                                    // a prose bubble (the raw marker reads as a
+                                    // broken response otherwise).
+                                    DelegationBatchNoticeView(label: noticeLabel)
+                                        .id(message.id)
+                                } else {
+                                    let isLastInGroup: Bool = Self.isLastMessageInGroup(
+                                        message: message,
+                                        msgs: msgs
+                                    )
+                                    let showTimestamp: Bool = isLastInGroup
+                                    let preparedMessage: ChatMessage = Self.prepareBubbleMessage(
+                                        message, showTimestamp: showTimestamp
+                                    )
+                                    skinProvider.messageBubble(
+                                        message: preparedMessage,
+                                        persona: displayPersona
+                                    )
+                                    .id(message.id)
+                                }
                             }
 
                             if chatViewModel.isStreaming {
