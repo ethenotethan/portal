@@ -47,6 +47,7 @@
 		173EC9362C83359BC53FF268 /* LearningComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E6B51D703A3C1CB7D49A22E /* LearningComponents.swift */; };
 		18071F01C5C32E674596149D /* TimelineBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */; };
 		1837A636CC6D953433C78D37 /* ThoughtGraphNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E372F58CECB423374CD2B646 /* ThoughtGraphNodeView.swift */; };
+		18496A19C73E161E7629C162 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */; };
 		197532BC3B2E4D4122C576A2 /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC638C9FB93EE3E226D7FBE6 /* AttachmentChipView.swift */; };
 		199FE129B8D4B8290B092D7C /* SessionUsageBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCFC282B5C390338603360A /* SessionUsageBadge.swift */; };
 		1A6218F6A290563BF159234F /* AgentBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44C92AE8C346CF75D7A2C93 /* AgentBackend.swift */; };
@@ -403,6 +404,7 @@
 		BEFD02ADA3BDD4AA1EF2FAC9 /* MacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE3B6C1EFCB811A5D18BAA2 /* MacApp.swift */; };
 		BFA38521487648E53DEC76CE /* PanelResizeMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06978D532A89D7EC02AC9581 /* PanelResizeMath.swift */; };
 		BFB8C9100FE2BCAA69D1D7C0 /* CronPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637DFFC10D2EF1186BEED8FB /* CronPoller.swift */; };
+		C045F520F719369EB83F7E92 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */; };
 		C0FA768A8FE4339D73D7AD58 /* StatTileSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15A88948F5D06F0A1D967759 /* StatTileSpec.swift */; };
 		C10593DE88A9448DA0962D33 /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C02A031706B1EC8320D4D5B /* TTSService.swift */; };
 		C15278B2A0A967BFF33437FF /* WikiGraph2DCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5113F487FD4185AE7226B855 /* WikiGraph2DCanvas.swift */; };
@@ -654,6 +656,7 @@
 		59104A6ABEE680F74F2469F3 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		5992BF7916A67FEC7BB1AA8B /* SessionsDashboardCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDashboardCanvas.swift; sourceTree = "<group>"; };
 		5A942B80C820875BEF8FA828 /* FlashcardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardModels.swift; sourceTree = "<group>"; };
+		5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserView.swift; sourceTree = "<group>"; };
 		5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		5E8126EDDA205BA1777F2E5F /* SessionGraphPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionGraphPane.swift; sourceTree = "<group>"; };
 		5F8CFECC3A15ADFE69AC40A6 /* ResponseStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseStyle.swift; sourceTree = "<group>"; };
@@ -1090,6 +1093,7 @@
 				82F8BD0F14BFBFCE4238D977 /* GatewayAvatarPicker.swift */,
 				0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */,
 				D5798D1367ED862755773F47 /* GitHubLinkCard.swift */,
+				5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */,
 				285A83F389BCACC278A806AD /* LongResponseView.swift */,
 				7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */,
 				C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */,
@@ -1633,6 +1637,7 @@
 				20161F2E875925475F638E2E /* HermesNativeDeepLink.swift in Sources */,
 				DEFA1B4962475B953A49584E /* IOSApp.swift in Sources */,
 				482BD3F851C91BA5D3FFA473 /* Identicon.swift in Sources */,
+				C045F520F719369EB83F7E92 /* InAppBrowserView.swift in Sources */,
 				6755DADBA52259C2FF5DBF9F /* InlineMath.swift in Sources */,
 				685DD2C74BD30E3D37280E0D /* InlineTurnTimelineStrip.swift in Sources */,
 				70C4AC1CA6912C0843469C60 /* JSONObjectParse.swift in Sources */,
@@ -1906,6 +1911,7 @@
 				F3825A3EFA1BF04470738DC1 /* HermesNativeApp.swift in Sources */,
 				8B6A172DB737B75B17AB23FC /* HermesNativeDeepLink.swift in Sources */,
 				2CAEC1431F660EB31E2A0B91 /* Identicon.swift in Sources */,
+				18496A19C73E161E7629C162 /* InAppBrowserView.swift in Sources */,
 				448E80C72FEF74645F3AD1EF /* InlineMath.swift in Sources */,
 				D5F88BF463A4243A3349ED39 /* InlineTurnTimelineStrip.swift in Sources */,
 				D0D42928F052C020A460A52E /* JSONObjectParse.swift in Sources */,
