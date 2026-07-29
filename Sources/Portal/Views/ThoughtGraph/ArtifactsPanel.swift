@@ -105,9 +105,9 @@ internal struct ArtifactsPanel: View {
 
             Divider().overlay(Theme.border)
 
-            ScrollView {
-                // Live render — pass the artifact id so declared per-entry
-                // actions (dataset/map/html) stay actionable in the panel.
+            if ArtifactKindRenderer.kindFillsHeight(artifact.kind) {
+                // Interactive viewports (html, graph) must fill the panel with
+                // a bounded height — an outer ScrollView breaks them.
                 ArtifactKindRenderer(
                     kind: artifact.kind,
                     content: artifact.content,
@@ -115,6 +115,19 @@ internal struct ArtifactsPanel: View {
                     topLevelActions: artifact.topLevelActions
                 )
                 .padding(8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    // Live render — pass the artifact id so declared per-entry
+                    // actions (dataset/map/html) stay actionable in the panel.
+                    ArtifactKindRenderer(
+                        kind: artifact.kind,
+                        content: artifact.content,
+                        actionableArtifactID: artifact.id,
+                        topLevelActions: artifact.topLevelActions
+                    )
+                    .padding(8)
+                }
             }
         }
     }

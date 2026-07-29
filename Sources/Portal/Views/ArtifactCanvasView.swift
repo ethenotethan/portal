@@ -525,7 +525,7 @@ private struct ArtifactExpandedOverlay: View {
             Divider().overlay(Theme.border)
 
             // Content
-            if artifact.kind == "html" {
+            if ArtifactKindRenderer.kindFillsHeight(artifact.kind) {
                 VStack(alignment: .leading, spacing: 0) {
                     ArtifactMaintenanceSection(artifact: artifact, jobs: cronVM.jobs)
                         .padding(20)
@@ -723,8 +723,8 @@ private struct ArtifactPanelContent: View {
         VStack(spacing: 0) {
             miniHeader
             Divider().overlay(Theme.border.opacity(0.4))
-            // Kinds that fill height (html) need maxHeight; others scroll.
-            if artifact.kind == "html" {
+            // Kinds that fill height (html, graph) need maxHeight; others scroll.
+            if ArtifactKindRenderer.kindFillsHeight(artifact.kind) {
                 ArtifactKindRenderer(
                     kind: artifact.kind,
                     content: store.artifacts[artifact.id]?.content ?? artifact.content,

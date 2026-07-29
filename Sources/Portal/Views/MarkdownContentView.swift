@@ -1101,7 +1101,9 @@ struct TableView: View {
 
     private var tableContent: some View {
         let widths = columnWidths
-        let tableWidth = widths.reduce(0, +)
+        // Each cell renders `width` of text + horizontal padding on both
+        // sides, so the grid's true width includes the per-column padding.
+        let tableWidth = widths.reduce(0, +) + CGFloat(widths.count) * Self.cellHorizontalPadding * 2
 
         return ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -1109,7 +1111,7 @@ struct TableView: View {
                 // The sort chevron is OVERLAID inside the cell's frame, not
                 // appended in an HStack: appending widened the sorted column's
                 // header past its body cells and broke column alignment.
-                HStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { index, header in
                         Button {
                             toggleSort(column: index)
@@ -1139,7 +1141,10 @@ struct TableView: View {
                 // or the expander below.
                 let visibleRows = isExpanded ? displayRows : Array(displayRows.prefix(Self.collapsedRowLimit))
                 ForEach(Array(visibleRows.enumerated()), id: \.offset) { rowIndex, row in
-                    HStack(spacing: 0) {
+                    // Top-aligned: when a long cell wraps to several lines the
+                    // rest of the row stays at the top instead of floating
+                    // mid-height beside it.
+                    HStack(alignment: .top, spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { index, cell in
                             tableCell(
                                 text: cell,
@@ -1209,12 +1214,20 @@ struct TableView: View {
         )
         .textSelection(.enabled)
         .lineLimit(nil)
-        // Header and body share center alignment so a column reads as one
-        // vertical stack. Previously headers were centered and body cells
-        // left-aligned, staggering the text within each column.
-        .multilineTextAlignment(.center)
-        .frame(minWidth: width, alignment: .center)
-        .padding(.horizontal, 10)
+        // Header centered; body cells lead — a wrapped paragraph cell (a
+        // long "outcome") is unreadable when center-aligned.
+        .multilineTextAlignment(isHeader ? .center : .leading)
+        // Wrap within the fixed column width: inside a horizontal ScrollView
+        // the width proposal is unbounded, so without this long cells never
+        // wrap and blow the grid up sideways.
+        .fixedSize(horizontal: false, vertical: true)
+        // EXACT width, not minWidth: with minWidth a long cell in one row
+        // grows past the shared column width while its neighbors don't, and
+        // every row ends up with different cell x-positions — the misaligned
+        // "text everywhere" grid. Exact widths keep every row on the same
+        // column boundaries.
+        .frame(width: width, alignment: isHeader ? .top : .topLeading)
+        .padding(.horizontal, Self.cellHorizontalPadding)
         .padding(.vertical, isHeader ? 8 : 7)
     }
 
@@ -1237,7 +1250,10 @@ struct TableView: View {
             let characterWidth: CGFloat = 8
             let horizontalPadding: CGFloat = 24
             let computed = CGFloat(max(longest, headerLength)) * characterWidth + horizontalPadding
-            return max(computed, Self.minimumColumnWidth)
+            // Cap: a long-form cell (a status/"outcome" paragraph) wraps to
+            // multiple lines inside its column instead of stretching the
+            // whole table into horizontal-scroll soup.
+            return min(max(computed, Self.minimumColumnWidth), Self.maximumColumnWidth)
         }
     }
 
@@ -1255,6 +1271,10 @@ struct TableView: View {
     }
 
     private static let minimumColumnWidth: CGFloat = 96
+    /// Widest a column may grow from content alone; longer text wraps.
+    private static let maximumColumnWidth: CGFloat = 320
+    /// Horizontal padding applied on EACH side of a cell's fixed-width text.
+    private static let cellHorizontalPadding: CGFloat = 10
 }
 
 // MARK: - HTML Block
