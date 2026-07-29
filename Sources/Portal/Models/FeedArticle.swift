@@ -122,6 +122,20 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         return nil
     }
 
+    /// A small site icon for the card header — the article's own favicon,
+    /// derived from its link's host via Google's favicon service. Standing in
+    /// for the removed full-page screenshot: the site is now a small mark, not
+    /// an arbitrary crop of its top. Nil when the article has no usable http
+    /// host (e.g. a bare tweet), so the header falls back to `sourceIcon`.
+    internal var faviconURL: URL? {
+        guard let link = URL(string: url),
+              link.scheme?.hasPrefix("http") == true,
+              let host = link.host, !host.isEmpty else {
+            return nil
+        }
+        return URL(string: "https://www.google.com/s2/favicons?sz=64&domain=\(host)")
+    }
+
     var sourceIcon: String {
         switch source {
         case "arxiv":       return "doc.text.magnifyingglass"
