@@ -48,6 +48,13 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     /// Opened as an in-canvas tile rather than a fullscreen sheet, so it docks
     /// beside the conversation like any other lens.
     internal static let sessionGraph = PanelKind(rawValue: "sessionGraph")
+    /// Delegation batches — the async waves of subagents this session spawned,
+    /// each shown as a flamechart of concurrent subagent lanes (start → end,
+    /// cost, tokens). Session-global and host-rendered: it reads the session's
+    /// `SpawnTreeStore` tree, not the per-turn `PanelContext`, and updates live
+    /// as batch members stream in. This is the introspection surface behind the
+    /// `[ASYNC DELEGATION BATCH COMPLETE]` marker.
+    internal static let delegationBatch = PanelKind(rawValue: "delegationBatch")
     /// The sessions search + filter panel — text search and status/source filter
     /// pills. Drives the shared `SessionsFilterState` which the list and timeline
     /// panels both observe. Host-rendered singleton on the sessions canvas.
