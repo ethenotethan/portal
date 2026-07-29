@@ -32,6 +32,15 @@ final class SpawnTreeStore: ObservableObject {
     private var pendingDeltaBatch: [(event: GatewayEvent, sessionID: String?)] = []
     private var deltaFlushTask: Task<Void, Never>?
 
+    /// Durable store for finished batches. Owned here (not a singleton) so it stays
+    /// injectable — tests pass an isolated, disk-free instance. The delegation-batch
+    /// panel reads it back through this store.
+    internal let batchHistory: DelegationBatchHistoryStore
+
+    internal init(batchHistory: DelegationBatchHistoryStore = DelegationBatchHistoryStore()) {
+        self.batchHistory = batchHistory
+    }
+
     /// The active session tree (if any).
     var activeTree: SessionTree? {
         sessions.first { $0.sessionID == activeSessionID }
@@ -158,6 +167,9 @@ final class SpawnTreeStore: ObservableObject {
                 node.filesWritten = payload.filesWritten ?? []
                 node.completedAt = Date()
             }
+            // A completion may finish a batch — persist any that are now terminal
+            // so this session's batches survive after its in-memory tree is gone.
+            if let tree { recordTerminalBatches(in: tree) }
 
         case .subagentTool(let payload):
             let nodeID = payload.subagentID ?? ""
@@ -438,6 +450,18 @@ final class SpawnTreeStore: ObservableObject {
         if let tree {
             node.parentID = tree.root.id
             tree.root.children.append(node)
+        }
+    }
+
+    /// Persist any batch in this tree that has finished. "Finished" = not running
+    /// AND every member the gateway promised has arrived (`subagents.count >=
+    /// taskCount`), so a batch mid-flight — some members done, more still to
+    /// spawn — isn't snapshotted prematurely. The history store dedupes by batch
+    /// id, so calling this on every completion is safe and idempotent.
+    private func recordTerminalBatches(in tree: SessionTree) {
+        for batch in DelegationBatch.batches(in: tree.root)
+        where !batch.isRunning && batch.subagents.count >= batch.taskCount {
+            batchHistory.record(batch, sessionID: tree.sessionID)
         }
     }
 

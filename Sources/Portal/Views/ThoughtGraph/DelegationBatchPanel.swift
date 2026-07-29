@@ -12,42 +12,90 @@ import SwiftUI
 /// root node (new batch members append to `root.children`), each lane observes
 /// its own `SpawnNode` (status/cost/completion), and a scoped 1 Hz `TimelineView`
 /// advances the growing right edge *only while a batch is still running*.
+///
+/// Also merges in **persisted** batches (`DelegationBatchHistoryStore`) so a
+/// reopened past session — whose live in-memory tree is gone — still shows the
+/// batches it ran. Live batches win over their persisted snapshot (same id), so
+/// a batch that's currently running renders live, not as a stale record.
 internal struct DelegationBatchPanel: View {
     @ObservedObject internal var store: SpawnTreeStore
-    /// Display session id — resolves to the tree whose batches we show.
+    @ObservedObject internal var history: DelegationBatchHistoryStore
+    /// Display session id — resolves to the tree/records whose batches we show.
     internal let sessionID: String?
+
+    internal init(store: SpawnTreeStore, sessionID: String?) {
+        self.store = store
+        self.history = store.batchHistory
+        self.sessionID = sessionID
+    }
 
     private var tree: SessionTree? {
         guard let sessionID else { return store.activeTree }
         return store.sessions.first { $0.sessionID == sessionID } ?? store.activeTree
     }
 
+    /// Persisted batches for this session, if we can name it.
+    private var records: [DelegationBatchRecord] {
+        guard let sessionID else { return [] }
+        return history.records(for: sessionID)
+    }
+
     internal var body: some View {
-        if let tree {
-            DelegationBatchContent(root: tree.root)
-        } else {
-            PanelEmptyState(
-                icon: "bolt.horizontal.circle",
-                message: "No delegation activity in this session yet"
-            )
-        }
+        DelegationBatchContent(root: tree?.root, records: records)
     }
 }
 
-/// Observes the tree's root so a newly-spawned batch member (appended to
-/// `root.children`) re-renders the list. Splits out from the panel so the
-/// `@ObservedObject` binds to a concrete node, not an optional.
+/// Renders the merged batch list. Splits out from the panel so the live-tree
+/// `@ObservedObject` can bind to a concrete `SpawnNode` (root) when present.
 private struct DelegationBatchContent: View {
-    @ObservedObject internal var root: SpawnNode
+    /// The live tree's root, if this session is open in memory. Optional — a
+    /// reopened past session has records but no live tree.
+    private let root: SpawnNode?
+    private let records: [DelegationBatchRecord]
 
-    private var batches: [DelegationBatch] {
-        // Newest first — the most recent wave is what you just watched fire.
-        DelegationBatch.batches(in: root).reversed()
+    init(root: SpawnNode?, records: [DelegationBatchRecord]) {
+        self.root = root
+        self.records = records
     }
 
-    internal var body: some View {
-        let batches = self.batches
-        if batches.isEmpty {
+    var body: some View {
+        if let root {
+            LiveAndHistoryList(root: root, records: records)
+        } else if records.isEmpty {
+            emptyState
+        } else {
+            // No live tree — pure history (reopened past session).
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(records.reversed()) { DelegationRecordRow(record: $0) }
+                }
+                .padding(12)
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        PanelEmptyState(
+            icon: "bolt.horizontal.circle",
+            message: "No delegation batches yet.\nParallel subagent waves will appear here."
+        )
+    }
+}
+
+/// The live path: observes the tree root so new batch members re-render, and
+/// folds in persisted records not represented by a live batch (id-deduped).
+private struct LiveAndHistoryList: View {
+    @ObservedObject var root: SpawnNode
+    let records: [DelegationBatchRecord]
+
+    var body: some View {
+        let live = DelegationBatch.batches(in: root)
+        let liveIDs = Set(live.map(\.id))
+        // Records the live tree doesn't already cover (older waves this session
+        // ran before, still on disk). Live wins on id.
+        let extraRecords = records.filter { !liveIDs.contains($0.id) }
+
+        if live.isEmpty && extraRecords.isEmpty {
             PanelEmptyState(
                 icon: "bolt.horizontal.circle",
                 message: "No delegation batches yet.\nParallel subagent waves will appear here."
@@ -55,7 +103,9 @@ private struct DelegationBatchContent: View {
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForEach(batches) { DelegationBatchRow(batch: $0) }
+                    // Newest first: live waves lead, then older persisted ones.
+                    ForEach(live.reversed()) { DelegationBatchRow(batch: $0) }
+                    ForEach(extraRecords.reversed()) { DelegationRecordRow(record: $0) }
                 }
                 .padding(12)
             }
@@ -239,37 +289,69 @@ private struct DelegationSubagentDetail: View {
     @ObservedObject internal var node: SpawnNode
 
     internal var body: some View {
+        DelegationDetailContent(
+            title: node.goal.isEmpty ? "subagent \(node.taskIndex)" : node.goal,
+            statusLabel: node.status.rawValue,
+            statusIcon: node.status.iconName,
+            statusTint: colorForStatus(node.status),
+            durationLabel: node.durationString,
+            model: node.model,
+            totalTokens: node.totalTokens,
+            costUSD: node.costUSD,
+            apiCalls: node.apiCalls,
+            toolNames: node.toolCalls.map(\.name),
+            filesRead: node.filesRead,
+            filesWritten: node.filesWritten
+        )
+    }
+}
+
+/// Value-driven subagent detail shared by the live lane and the persisted record
+/// row — same layout, fed either from a `SpawnNode` (live) or a
+/// `DelegationSubagentRecord` (history).
+private struct DelegationDetailContent: View {
+    internal let title: String
+    internal let statusLabel: String
+    internal let statusIcon: String
+    internal let statusTint: Color
+    internal let durationLabel: String
+    internal let model: String?
+    internal let totalTokens: Int?
+    internal let costUSD: Double?
+    internal let apiCalls: Int?
+    internal let toolNames: [String]
+    internal let filesRead: [String]
+    internal let filesWritten: [String]
+
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(node.goal.isEmpty ? "subagent \(node.taskIndex)" : node.goal)
+            Text(title)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Theme.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 10) {
-                stat(node.status.rawValue, systemImage: node.status.iconName, tint: colorForStatus(node.status))
-                stat(node.durationString, systemImage: "clock")
-                if let model = node.model, !model.isEmpty { stat(model, systemImage: "cpu") }
+                stat(statusLabel, systemImage: statusIcon, tint: statusTint)
+                stat(durationLabel, systemImage: "clock")
+                if let model, !model.isEmpty { stat(model, systemImage: "cpu") }
             }
 
-            if node.totalTokens != nil || node.costUSD != nil || node.apiCalls != nil {
+            if totalTokens != nil || costUSD != nil || apiCalls != nil {
                 HStack(spacing: 10) {
-                    if let t = node.totalTokens { stat("\(t) tok", systemImage: "number") }
-                    if let cost = node.costUSD, cost > 0 { stat(String(format: "$%.4f", cost), systemImage: "dollarsign.circle") }
-                    if let calls = node.apiCalls { stat("\(calls) calls", systemImage: "arrow.left.arrow.right") }
+                    if let t = totalTokens { stat("\(t) tok", systemImage: "number") }
+                    if let cost = costUSD, cost > 0 { stat(String(format: "$%.4f", cost), systemImage: "dollarsign.circle") }
+                    if let calls = apiCalls { stat("\(calls) calls", systemImage: "arrow.left.arrow.right") }
                 }
             }
 
-            if !node.toolCalls.isEmpty {
-                detailRow(
-                    label: "Tools",
-                    value: node.toolCalls.map(\.name).joined(separator: ", ")
-                )
+            if !toolNames.isEmpty {
+                detailRow(label: "Tools", value: toolNames.joined(separator: ", "))
             }
-            if !node.filesWritten.isEmpty {
-                detailRow(label: "Wrote", value: fileList(node.filesWritten))
+            if !filesWritten.isEmpty {
+                detailRow(label: "Wrote", value: Self.fileList(filesWritten))
             }
-            if !node.filesRead.isEmpty {
-                detailRow(label: "Read", value: fileList(node.filesRead))
+            if !filesRead.isEmpty {
+                detailRow(label: "Read", value: Self.fileList(filesRead))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,9 +381,142 @@ private struct DelegationSubagentDetail: View {
 
     /// Show file basenames (paths get long); cap the list so a chatty subagent
     /// doesn't blow out the panel.
-    private func fileList(_ paths: [String]) -> String {
+    internal static func fileList(_ paths: [String]) -> String {
         let names = paths.map { ($0 as NSString).lastPathComponent }
         let shown = names.prefix(6).joined(separator: ", ")
         return names.count > 6 ? "\(shown) +\(names.count - 6) more" : shown
+    }
+}
+
+/// A persisted batch rendered from its `DelegationBatchRecord` — the static
+/// counterpart to `DelegationBatchRow` for a reopened past session. Same header
+/// and lane-detail visual language; no live tick (a record is settled) and lanes
+/// are drawn from the flat snapshot.
+private struct DelegationRecordRow: View {
+    internal let record: DelegationBatchRecord
+    @State private var selectedSubagentID: String?
+
+    private var selected: DelegationSubagentRecord? {
+        record.subagents.first { $0.id == selectedSubagentID }
+    }
+
+    private var span: TimeInterval {
+        max(record.duration, 0.001)
+    }
+
+    internal var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+            VStack(spacing: 4) {
+                ForEach(record.subagents) { sub in
+                    lane(sub)
+                }
+            }
+            if let sub = selected {
+                DelegationDetailContent(
+                    title: sub.goal.isEmpty ? "subagent \(sub.taskIndex)" : sub.goal,
+                    statusLabel: sub.status,
+                    statusIcon: statusIcon(sub.status),
+                    statusTint: statusTint(sub.status),
+                    durationLabel: format(sub.duration),
+                    model: sub.model,
+                    totalTokens: sub.totalTokens,
+                    costUSD: sub.costUSD,
+                    apiCalls: sub.apiCalls,
+                    toolNames: sub.toolNames,
+                    filesRead: sub.filesRead,
+                    filesWritten: sub.filesWritten
+                )
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(10)
+        .background(Theme.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border, lineWidth: 1))
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.system(size: 13))
+                .foregroundStyle(statusTint(record.status))
+            Text("\(record.subagents.count) subagent\(record.subagents.count == 1 ? "" : "s")")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.primary)
+            Spacer(minLength: 6)
+            metric(record.durationLabel)
+            if record.totalTokens > 0 {
+                metric(record.totalTokens >= 1000
+                       ? String(format: "%.1fk tok", Double(record.totalTokens) / 1000)
+                       : "\(record.totalTokens) tok")
+            }
+            if record.totalCost > 0 { metric(String(format: "$%.3f", record.totalCost)) }
+        }
+    }
+
+    private func lane(_ sub: DelegationSubagentRecord) -> some View {
+        let isSelected = sub.id == selectedSubagentID
+        return HStack(spacing: 6) {
+            Image(systemName: statusIcon(sub.status))
+                .font(.system(size: 9))
+                .foregroundStyle(statusTint(sub.status))
+                .frame(width: 12)
+
+            GeometryReader { geo in
+                let start = max(0, sub.startedAt.timeIntervalSince(record.startedAt))
+                let end = (sub.completedAt ?? record.endedAt ?? record.startedAt)
+                    .timeIntervalSince(record.startedAt)
+                let x = geo.size.width * (start / span)
+                let w = max(4, geo.size.width * ((end - start) / span))
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isSelected ? Theme.accent.opacity(0.12) : Theme.surface)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(statusTint(sub.status).opacity(0.5))
+                        .frame(width: w)
+                        .offset(x: x)
+                    Text(sub.goal.isEmpty ? "subagent \(sub.taskIndex)" : sub.goal)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .padding(.leading, 6)
+                        .padding(.trailing, 4)
+                }
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Theme.accent, lineWidth: isSelected ? 1 : 0))
+            }
+            .frame(height: 20)
+
+            Text(format(sub.duration))
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(Theme.tertiary)
+                .frame(width: 34, alignment: .trailing)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedSubagentID = isSelected ? nil : sub.id
+            }
+        }
+    }
+
+    private func metric(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(Theme.tertiary)
+    }
+
+    private func statusTint(_ raw: String) -> Color {
+        colorForStatus(NodeStatus(rawValue: raw) ?? .completed)
+    }
+
+    private func statusIcon(_ raw: String) -> String {
+        (NodeStatus(rawValue: raw) ?? .completed).iconName
+    }
+
+    private func format(_ seconds: TimeInterval) -> String {
+        if seconds < 60 { return String(format: "%.1fs", seconds) }
+        if seconds < 3600 { return String(format: "%.1fm", seconds / 60) }
+        return String(format: "%.1fh", seconds / 3600)
     }
 }
