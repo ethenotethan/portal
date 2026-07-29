@@ -2,12 +2,26 @@ import Foundation
 import SwiftUI
 import os.log
 
+/// The subset of the upstream Hermes dashboard HTTP API the native skills view
+/// needs: list and enable/disable. `HermesStandardClient` implements both.
+internal protocol HermesStandardSkillManaging: Sendable {
+    func skills() async throws -> [HermesStandardSkill]
+    func setSkill(_ name: String, enabled: Bool) async throws
+}
+
+extension HermesStandardClient: HermesStandardSkillManaging {}
+
 @MainActor
 @Observable
 final class SkillsViewModel {
-    var skills: [SkillInfo] { SkillStore.shared.skills }
-    var isLoading: Bool { SkillStore.shared.isLoading || SkillStore.shared.isPreFetching }
-    var errorMessage: String? { SkillStore.shared.errorMessage }
+    /// Skills to render. In Standard mode this is the HTTP list held locally
+    /// (deliberately NOT routed through `SkillStore`, whose disk cache belongs
+    /// to the WebSocket Gateway's skill set — mixing the two would clobber it).
+    var skills: [SkillInfo] { standardClient == nil ? SkillStore.shared.skills : standardSkills }
+    var isLoading: Bool {
+        standardClient == nil ? (SkillStore.shared.isLoading || SkillStore.shared.isPreFetching) : standardLoading
+    }
+    var errorMessage: String? { standardClient == nil ? SkillStore.shared.errorMessage : standardError }
     var lastRawResponse: String?
     var diagnosticResult: String?
 
@@ -22,9 +36,71 @@ final class SkillsViewModel {
     private var gatewayClient: GatewayClient?
     private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillsViewModel")
 
+    // MARK: - Standard (HTTP) mode
+
+    /// When set, skills read/toggle over the upstream Hermes dashboard HTTP API
+    /// instead of the WebSocket `SkillStore`. A Standard backend is HTTP-only.
+    private var standardClient: (any HermesStandardSkillManaging)?
+    private var standardSkills: [SkillInfo] = []
+    /// Per-skill enabled state, keyed by name. `SkillInfo` has no `enabled`
+    /// field (it predates a toggle), so the view model carries it alongside.
+    private(set) var standardEnabled: [String: Bool] = [:]
+    private var standardLoading = false
+    private var standardError: String?
+
+    /// True when skills come from a Standard backend — the view then shows the
+    /// enable/disable toggle and hides install/uninstall/search (Standard's API
+    /// manages a fixed local skill set, not a hub).
+    var isStandardMode: Bool { standardClient != nil }
+
     func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
+        standardClient = nil
+        standardSkills = []
+        standardEnabled = [:]
         SkillStore.shared.setGatewayClient(client)
+    }
+
+    /// Point the view model at an upstream Hermes dashboard (Standard backend).
+    /// Leaves `SkillStore` untouched so the WebSocket skill set/cache survives.
+    func setStandardClient(_ client: any HermesStandardSkillManaging) {
+        standardClient = client
+        gatewayClient = nil
+    }
+
+    /// Load skills from the Standard dashboard API. No-op outside Standard mode.
+    func refreshStandard() async {
+        guard let standardClient else { return }
+        standardLoading = true
+        standardError = nil
+        do {
+            let upstream = try await standardClient.skills()
+            standardSkills = upstream
+                .map(SkillInfo.init(standard:))
+                .sorted { $0.name.lowercased() < $1.name.lowercased() }
+            standardEnabled = Dictionary(upstream.map { ($0.name, $0.enabled) }, uniquingKeysWith: { _, new in new })
+        } catch {
+            standardSkills = []
+            standardError = error.localizedDescription
+            log.error("Standard skills load failed: \(error.localizedDescription)")
+        }
+        standardLoading = false
+    }
+
+    /// Enable/disable a Standard skill via `/api/skills/toggle`, optimistically
+    /// flipping local state then reconciling from a reload. No-op off Standard.
+    func toggleStandardSkill(name: String) async {
+        guard let standardClient else { return }
+        let target = !(standardEnabled[name] ?? true)
+        standardEnabled[name] = target
+        do {
+            try await standardClient.setSkill(name, enabled: target)
+            await refreshStandard()
+        } catch {
+            standardEnabled[name] = !target
+            standardError = error.localizedDescription
+            log.error("Standard skill toggle failed for \(name): \(error.localizedDescription)")
+        }
     }
 
     func refresh() async {
