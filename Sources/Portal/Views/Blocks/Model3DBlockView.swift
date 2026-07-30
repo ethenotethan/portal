@@ -7,11 +7,11 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Model3
 /// Renders a `model3d` living artifact. Parses the artifact content JSON,
 /// generates a Three.js HTML document via `Model3DTemplate`, and loads it
 /// into a WKWebView with JavaScript enabled.
-struct Model3DBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct Model3DBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             Theme.background
             Model3DWebView(html: html)
@@ -37,10 +37,10 @@ struct Model3DBlockView: View {
 }
 
 /// Platform-agnostic WKWebView wrapper for 3D rendering.
-struct Model3DWebView: View {
-    let html: String
+internal struct Model3DWebView: View {
+    internal let html: String
 
-    var body: some View {
+    internal var body: some View {
         #if os(macOS)
         Model3DNSView(html: html)
         #else
@@ -50,10 +50,10 @@ struct Model3DWebView: View {
 }
 
 #if os(macOS)
-struct Model3DNSView: NSViewRepresentable {
-    let html: String
+internal struct Model3DNSView: NSViewRepresentable {
+    internal let html: String
 
-    func makeNSView(context: Context) -> WKWebView {
+    internal func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.isElementFullscreenEnabled = true
@@ -65,24 +65,24 @@ struct Model3DNSView: NSViewRepresentable {
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
+    internal func updateNSView(_ webView: WKWebView, context: Context) {
         // Only reload if content changed — avoids restarting the WebGL loop
         guard context.coordinator.lastHTML != html else { return }
         context.coordinator.lastHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    internal func makeCoordinator() -> Coordinator { Coordinator() }
 
-    final class Coordinator {
-        var lastHTML: String?
+    internal final class Coordinator {
+        internal var lastHTML: String?
     }
 }
 #else
-struct Model3DUIView: UIViewRepresentable {
-    let html: String
+internal struct Model3DUIView: UIViewRepresentable {
+    internal let html: String
 
-    func makeUIView(context: Context) -> WKWebView {
+    internal func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
         config.preferences.isElementFullscreenEnabled = true
@@ -96,16 +96,16 @@ struct Model3DUIView: UIViewRepresentable {
         return webView
     }
 
-    func updateUIView(_ webView: WKWebView, context: Context) {
+    internal func updateUIView(_ webView: WKWebView, context: Context) {
         guard context.coordinator.lastHTML != html else { return }
         context.coordinator.lastHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    internal func makeCoordinator() -> Coordinator { Coordinator() }
 
-    final class Coordinator {
-        var lastHTML: String?
+    internal final class Coordinator {
+        internal var lastHTML: String?
     }
 }
 #endif

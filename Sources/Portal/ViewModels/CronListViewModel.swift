@@ -19,7 +19,7 @@ extension HermesStandardClient: HermesStandardCronManaging {}
 
 @MainActor
 @Observable
-final class CronListViewModel {
+internal final class CronListViewModel {
     var jobs: [CronJob] = []
     var isLoading = false
 
@@ -32,19 +32,19 @@ final class CronListViewModel {
     /// Standard's dashboard API exposes pause/resume/trigger but has no
     /// remove-job or edit-prompt endpoint, so the view hides those affordances
     /// when a Standard backend is the source. The WebSocket Gateway supports all.
-    var supportsRemoveAndEdit: Bool { standardClient == nil }
+    internal var supportsRemoveAndEdit: Bool { standardClient == nil }
     /// Trigger ("Run now") is a Standard-only affordance — the WebSocket path
     /// has no equivalent one-shot run action, so the button only shows there.
-    var supportsTrigger: Bool { standardClient != nil }
+    internal var supportsTrigger: Bool { standardClient != nil }
 
-    func setGatewayClient(_ client: GatewayClient) {
+    internal func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
         standardClient = nil
     }
 
     /// Point the view model at an upstream Hermes dashboard (Standard backend).
     /// Clears the WebSocket client so every read/action takes the HTTP path.
-    func setStandardClient(_ client: any HermesStandardCronManaging) {
+    internal func setStandardClient(_ client: any HermesStandardCronManaging) {
         standardClient = client
         gatewayClient = nil
     }
@@ -76,7 +76,7 @@ final class CronListViewModel {
 
     /// Run a job immediately. Standard-only — the WebSocket Gateway exposes no
     /// one-shot trigger, so this no-ops there (the button is hidden too).
-    func triggerJob(id: String) async {
+    internal func triggerJob(id: String) async {
         guard let standardClient else { return }
         do {
             try await standardClient.triggerCronJob(id)

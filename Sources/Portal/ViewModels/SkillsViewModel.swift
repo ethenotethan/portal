@@ -13,15 +13,15 @@ extension HermesStandardClient: HermesStandardSkillManaging {}
 
 @MainActor
 @Observable
-final class SkillsViewModel {
+internal final class SkillsViewModel {
     /// Skills to render. In Standard mode this is the HTTP list held locally
     /// (deliberately NOT routed through `SkillStore`, whose disk cache belongs
     /// to the WebSocket Gateway's skill set — mixing the two would clobber it).
-    var skills: [SkillInfo] { standardClient == nil ? SkillStore.shared.skills : standardSkills }
-    var isLoading: Bool {
+    internal var skills: [SkillInfo] { standardClient == nil ? SkillStore.shared.skills : standardSkills }
+    internal var isLoading: Bool {
         standardClient == nil ? (SkillStore.shared.isLoading || SkillStore.shared.isPreFetching) : standardLoading
     }
-    var errorMessage: String? { standardClient == nil ? SkillStore.shared.errorMessage : standardError }
+    internal var errorMessage: String? { standardClient == nil ? SkillStore.shared.errorMessage : standardError }
     var lastRawResponse: String?
     var diagnosticResult: String?
 
@@ -44,16 +44,16 @@ final class SkillsViewModel {
     private var standardSkills: [SkillInfo] = []
     /// Per-skill enabled state, keyed by name. `SkillInfo` has no `enabled`
     /// field (it predates a toggle), so the view model carries it alongside.
-    private(set) var standardEnabled: [String: Bool] = [:]
+    internal private(set) var standardEnabled: [String: Bool] = [:]
     private var standardLoading = false
     private var standardError: String?
 
     /// True when skills come from a Standard backend — the view then shows the
     /// enable/disable toggle and hides install/uninstall/search (Standard's API
     /// manages a fixed local skill set, not a hub).
-    var isStandardMode: Bool { standardClient != nil }
+    internal var isStandardMode: Bool { standardClient != nil }
 
-    func setGatewayClient(_ client: GatewayClient) {
+    internal func setGatewayClient(_ client: GatewayClient) {
         gatewayClient = client
         standardClient = nil
         standardSkills = []
@@ -63,13 +63,13 @@ final class SkillsViewModel {
 
     /// Point the view model at an upstream Hermes dashboard (Standard backend).
     /// Leaves `SkillStore` untouched so the WebSocket skill set/cache survives.
-    func setStandardClient(_ client: any HermesStandardSkillManaging) {
+    internal func setStandardClient(_ client: any HermesStandardSkillManaging) {
         standardClient = client
         gatewayClient = nil
     }
 
     /// Load skills from the Standard dashboard API. No-op outside Standard mode.
-    func refreshStandard() async {
+    internal func refreshStandard() async {
         guard let standardClient else { return }
         standardLoading = true
         standardError = nil
@@ -89,7 +89,7 @@ final class SkillsViewModel {
 
     /// Enable/disable a Standard skill via `/api/skills/toggle`, optimistically
     /// flipping local state then reconciling from a reload. No-op off Standard.
-    func toggleStandardSkill(name: String) async {
+    internal func toggleStandardSkill(name: String) async {
         guard let standardClient else { return }
         let target = !(standardEnabled[name] ?? true)
         standardEnabled[name] = target

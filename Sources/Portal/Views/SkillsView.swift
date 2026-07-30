@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SkillsView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
-    @EnvironmentObject var settings: SettingsViewModel
+    @EnvironmentObject internal var settings: SettingsViewModel
     @State private var viewModel = SkillsViewModel()
     @State private var expandedSkill: String?
     @State private var searchDebounceTask: Task<Void, Never>?
@@ -146,7 +146,11 @@ struct SkillsView: View {
         guard let baseURL = URL(string: gateway.url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return nil
         }
-        return try? HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
+        do {
+            return try HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
+        } catch {
+            return nil
+        }
     }
 
     private var summaryBar: some View {
@@ -398,9 +402,9 @@ struct SkillCard: View {
     let confirmUninstall: Bool
     /// Standard (HTTP) backend: show an enable/disable toggle instead of the
     /// Gateway's install/uninstall lifecycle.
-    var isStandardMode = false
-    var isEnabled = true
-    var onSetEnabled: (Bool) -> Void = { _ in }
+    internal var isStandardMode = false
+    internal var isEnabled = true
+    internal var onSetEnabled: (Bool) -> Void = { _ in }
     let onToggle: () -> Void
     let onRequestSummary: () -> Void
     let onUninstall: () -> Void

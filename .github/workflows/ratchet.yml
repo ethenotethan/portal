@@ -256,21 +256,18 @@ jobs:
   # Its OWN job with its OWN build: the harness compiles with -DPERF_COUNTERS,
   # a flag the Measure job deliberately does NOT set (production must stay
   # zero-cost), so this cannot share the measure snapshot — a different concern
-  # with a different build, exactly as the taxonomy intends. Runs on Linux: the
-  # counts are machine-independent, so the cheaper runner is fine.
+  # with a different build, exactly as the taxonomy intends. The counts are
+  # machine-independent, but Portal's package graph imports Apple-only modules,
+  # so the harness must build on macOS.
   performance:
     name: Performance
-    runs-on: ubuntu-latest
+    runs-on: macos-26
     steps:
       # Full history so the ratchet's `git show <base>:perf-baseline.json`
       # resolves (default checkout is shallow).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.1"
 
       - name: Run the instrumented perf harness
         # -DPERF_COUNTERS activates PerfCounter's tallies (a no-op otherwise).

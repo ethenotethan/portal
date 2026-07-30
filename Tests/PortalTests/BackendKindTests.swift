@@ -33,16 +33,16 @@ internal struct BackendKindTests {
         #expect(BackendKind.hermesStandard.keyFieldLabel == "Dashboard session token")
     }
 
-    @Test("Hermes Standard exposes only its management surface")
+    @Test("Hermes Standard exposes chat plus its management surface")
     internal func standardManagementSurface() {
         #expect(BackendKind.hermesStandard.isManagementScoped)
         #expect(!BackendKind.hermesStandard.isSessionScoped)
         #expect(BackendKind.hermesStandard.navigationCapabilities == [
-            .sessions, .cron, .notifications, .skills, .settings,
+            .chat, .sessions, .cron, .notifications, .skills, .settings,
         ])
         #expect(BackendKind.hermes.navigationCapabilities.contains(.chat))
         #expect(BackendKind.hermes.navigationCapabilities.contains(.wiki))
-        #expect(!BackendKind.hermesStandard.navigationCapabilities.contains(.chat))
+        #expect(BackendKind.hermesStandard.navigationCapabilities.contains(.chat))
         #expect(!BackendKind.hermesStandard.navigationCapabilities.contains(.wiki))
     }
 

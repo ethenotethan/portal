@@ -12,12 +12,20 @@ import Foundation
 ///     "background": "#1a1a2e",               // optional
 ///     "autoRotate": true                      // optional, default true
 ///   }
-enum Model3DTemplate {
+internal enum Model3DTemplate {
 
     /// Parse the artifact content JSON and extract model parameters.
-    static func parse(_ content: String) -> Model3DSpec? {
-        guard let data = content.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+    internal static func parse(_ content: String) -> Model3DSpec? {
+        guard let data = content.data(using: .utf8) else {
+            return nil
+        }
+        let json: [String: Any]
+        do {
+            guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            json = object
+        } catch {
             return nil
         }
         let format = (json["format"] as? String ?? "glb").lowercased()
@@ -35,7 +43,7 @@ enum Model3DTemplate {
     }
 
     /// Build the complete HTML document.
-    static func render(_ spec: Model3DSpec) -> String {
+    internal static func render(_ spec: Model3DSpec) -> String {
         let modelSource = modelSourceJS(spec)
         let modelURI = modelDataURI(spec)
 
@@ -204,12 +212,12 @@ enum Model3DTemplate {
 
 // MARK: - Spec
 
-struct Model3DSpec: Equatable {
-    let format: String       // "glb" | "gltf" | "usdz"
-    let base64Data: String?
-    let url: String?
-    let background: String
-    let autoRotate: Bool
+internal struct Model3DSpec: Equatable {
+    internal let format: String       // "glb" | "gltf" | "usdz"
+    internal let base64Data: String?
+    internal let url: String?
+    internal let background: String
+    internal let autoRotate: Bool
 }
 
 // MARK: - String escaping

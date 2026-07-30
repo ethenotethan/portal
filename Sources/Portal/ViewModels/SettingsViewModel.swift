@@ -6,7 +6,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Settin
 
 /// Manages connection settings: gateway URL, API key, and CF Access auth state.
 @MainActor
-final class SettingsViewModel: ObservableObject {
+internal final class SettingsViewModel: ObservableObject {
     static let responseCompleteNotificationsKey = "portal.responseCompleteNotificationsEnabled"
     internal static let mlxReasoningKey = "portal.mlxReasoningEnabled"
 
@@ -112,7 +112,7 @@ final class SettingsViewModel: ObservableObject {
         savedGateways.filter { $0.kind.isSessionScoped }
     }
 
-    var managementScopedBackends: [SavedGateway] {
+    internal var managementScopedBackends: [SavedGateway] {
         savedGateways.filter { $0.kind.isManagementScoped }
     }
 
