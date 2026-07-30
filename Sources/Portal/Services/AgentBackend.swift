@@ -80,6 +80,12 @@ protocol AgentBackend: AnyObject {
     func downloadFile(from url: URL, token: String?) async throws -> Data
     func attachImage(path: String, sessionID: String?) async throws
 
+    /// Rewrite a server-provided media/asset URL that points at a loopback
+    /// host (`localhost`/`127.0.0.1`) to THIS backend's reachable host, so
+    /// delivered attachments open/download off-device. Non-loopback URLs and
+    /// backends that serve reachable URLs already return the input unchanged.
+    func resolvedMediaURL(_ raw: String) -> String
+
     // MARK: Diagnostics
 
     func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String)
@@ -168,6 +174,10 @@ extension AgentBackend {
         try await setConfig(key: "model", value: value, sessionID: sessionID)
         return ModelSwitchOutcome(value: model, warning: "", confirmRequired: false, confirmMessage: "")
     }
+
+    /// Backends whose media URLs are already reachable (no loopback rewrite)
+    /// pass the URL through unchanged. GatewayClient overrides this.
+    internal func resolvedMediaURL(_ raw: String) -> String { raw }
 }
 
 // MARK: - GatewayClient Conformance

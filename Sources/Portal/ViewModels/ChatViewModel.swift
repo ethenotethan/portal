@@ -1503,6 +1503,15 @@ if restoreSessionState(displayID: key) {
 
     // MARK: - Remote Attachment Downloads
 
+    /// Parse MEDIA: attachments, rewriting any loopback host on remote URLs to
+    /// the connected backend's reachable host so delivered PDFs/videos open and
+    /// download off-device (agents emit `http://localhost:8642/v1/files/…`).
+    private func attachments(from text: String) -> [FileAttachment] {
+        MediaParser.extractAttachments(from: text) { [gatewayClient] raw in
+            gatewayClient?.resolvedMediaURL(raw) ?? raw
+        }
+    }
+
     /// Trigger pre-fetch for any remote attachments in the last assistant message.
     /// Called after message.complete to start downloading files so they're ready
     /// by the time the user taps a chip.
@@ -2146,7 +2155,7 @@ if restoreSessionState(displayID: key) {
             state.messages[idx].isStreaming = false
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
-            state.messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
+            state.messages[idx].attachments = attachments(from: payload.text)
             state.messages[idx]._contentWithoutAttachments = MediaParser.stripMediaTags(from: payload.text)
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
@@ -2393,7 +2402,7 @@ if restoreSessionState(displayID: key) {
                 // Extract attachments and pre-fetch remote ones
                 if let msgID = state.streamingMessageID ?? streamingMessageID,
                    let idx = messages.firstIndex(where: { $0.id == msgID }) {
-                    messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
+                    messages[idx].attachments = attachments(from: payload.text)
                 }
                 prefetchRemoteAttachments()
             }
@@ -2543,7 +2552,7 @@ if restoreSessionState(displayID: key) {
             avatarState = .idle
 
             // Extract attachments and pre-fetch remote ones
-            messages[idx].attachments = MediaParser.extractAttachments(from: payload.text)
+            messages[idx].attachments = attachments(from: payload.text)
             prefetchRemoteAttachments()
 
             writePerfSnapshot("messageComplete")
