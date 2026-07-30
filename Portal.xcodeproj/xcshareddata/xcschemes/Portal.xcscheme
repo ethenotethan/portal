@@ -50,6 +50,17 @@
                ReferencedContainer = "container:Portal.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B2AB0C5F6E059DA52C1AA97D"
+               BuildableName = "PortalMacUITests.xctest"
+               BlueprintName = "PortalMacUITests"
+               ReferencedContainer = "container:Portal.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

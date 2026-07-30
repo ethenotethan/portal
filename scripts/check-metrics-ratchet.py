@@ -7,10 +7,10 @@ reusable ratchet over ANY measurable metric. Metrics live in a committed
 baseline (floor: never regress globally) and the PR's own diff (patch: leave
 touched code at least as clean as you found it).
 
-Metrics wired today: `warnings` (compiler warning sites, from
-collect-warnings.py) and `coverage` (testable-layer line coverage, from
-collect-coverage.py). Adding another is a collector + a baseline entry + a
-handler here — no new gate, no new workflow.
+Metrics wired today: `warnings` (compiler warning sites), `coverage`
+(testable-layer line coverage), `skipped` (disabled/known-issue tests), and
+`deadcode` (Periphery unused declarations). Each metric has its own CI posture
+job even when the shared comparison engine is reused.
 
 Each metric runs a FLOOR check (never regress vs base) and a PATCH check
 (touched code must be clean). For `warnings`:
@@ -41,7 +41,8 @@ For `coverage` (scoped to testable layers — Views are unreachable by
            comments, and non-executable lines never count toward either side.
 
 Usage:
-    check-metrics-ratchet.py [--warnings SNAP] [--coverage SNAP] [--base REF]
+    check-metrics-ratchet.py [--warnings SNAP] [--coverage SNAP]
+                             [--skipped SNAP] [--deadcode SNAP] [--base REF]
     check-metrics-ratchet.py SNAP [BASE]      # back-compat: warnings only
 
 Snapshots are the collector scripts' JSON for THIS build. BASE defaults to
@@ -208,6 +209,38 @@ def check_coverage_patch(current: dict, added: dict[str, set[int]]) -> list[str]
     return []
 
 
+def check_count_floor(current: dict, base: dict | None, unit: str) -> list[str]:
+    """Fail if a simple `total` count grew vs base — the plainest ratchet.
+
+    Used by metrics whose whole signal is a single number that must never rise:
+    skipped tests (floor 0 — disabling a test to make CI pass is the move to
+    catch) and dead-code declarations (frozen debt that may only shrink). A
+    per-site list drives a helpful diff, but the gate is on `total`.
+    """
+    if base is None:
+        print(f"  Floor: no {unit} baseline on base ref; skipping (initial freeze).")
+        return []
+    base_total = base.get("total", 0)
+    cur_total = current.get("total", 0)
+    verb = "shrank" if cur_total < base_total else ("unchanged" if cur_total == base_total else "GREW")
+    print(f"  Floor: {base_total} → {cur_total} {unit} ({verb}).")
+    if cur_total > base_total:
+        # Surface which sites are new so the fix is a diff, not a hunt: sites
+        # present now but not in the base snapshot (keyed file+line-independent
+        # of kind churn — a moved line reads as new, acceptably conservative).
+        base_sites = {(s["file"], s.get("line")) for s in base.get("sites", [])}
+        new = [s for s in current.get("sites", [])
+               if (s["file"], s.get("line")) not in base_sites]
+        head = new[:15]
+        lines = [f"  {unit} rose {base_total} → {cur_total} (+{cur_total - base_total})"]
+        lines += [f"    {s['file']}:{s.get('line', '?')}"
+                  + (f"  [{s['kind']}]" if "kind" in s else "") for s in head]
+        if len(new) > 15:
+            lines.append(f"    … and {len(new) - 15} more")
+        return lines
+    return []
+
+
 def _report(kind: str, floor_fails: list[str], patch_fails: list[str],
             floor_hint: str, patch_hint: str) -> bool:
     ok = True
@@ -229,6 +262,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Metric ratchet: floor + patch checks.")
     ap.add_argument("--warnings", help="collect-warnings.py snapshot for THIS build")
     ap.add_argument("--coverage", help="collect-coverage.py snapshot for THIS build")
+    ap.add_argument("--skipped", help="collect-skipped-tests.py snapshot for THIS tree")
+    ap.add_argument("--deadcode", help="collect-deadcode.py snapshot for THIS build")
     ap.add_argument("--base", default="origin/main", help="base ref (default origin/main)")
     # Back-compat: `check-metrics-ratchet.py SNAPSHOT [BASE]` still runs the
     # warnings check, so the existing Makefile/CI invocation keeps working.
@@ -239,7 +274,7 @@ def main() -> int:
     warnings_path = args.warnings or args.pos_snapshot
     base_ref = args.base if args.base != "origin/main" else (args.pos_base or "origin/main")
 
-    if not warnings_path and not args.coverage:
+    if not any([warnings_path, args.coverage, args.skipped, args.deadcode]):
         ap.print_help()
         return 2
 
@@ -278,6 +313,33 @@ def main() -> int:
             "\n  Executable lines you ADDED in a testable layer must be covered\n"
             "  by a test. (Views are exempt — swift test can't reach them.)\n"
             "  Add a test that exercises these lines.",
+        )
+
+    if args.skipped:
+        current = json.loads(Path(args.skipped).read_text())
+        base_skipped = base_doc.get("skipped") if base_doc else None
+        print("Skipped-test ratchet:")
+        floor = check_count_floor(current, base_skipped, "skipped/disabled tests")
+        ok &= _report(
+            "Skipped-test", floor, [],
+            "\n  A disabled or known-issue test no longer defends its behavior;\n"
+            "  the count must not rise (baseline is 0). Fix the test and re-enable\n"
+            "  it rather than switching it off. Regenerate the baseline only to\n"
+            "  record a re-enabled test (the count dropping).",
+            "",
+        )
+
+    if args.deadcode:
+        current = json.loads(Path(args.deadcode).read_text())
+        base_dead = base_doc.get("deadcode") if base_doc else None
+        print("Dead-code ratchet:")
+        floor = check_count_floor(current, base_dead, "unused declarations")
+        ok &= _report(
+            "Dead-code", floor, [],
+            "\n  Unused declarations are frozen debt that may only shrink. A new\n"
+            "  unused declaration means either dead code to delete or a missing\n"
+            "  caller. Regenerate the baseline only to record deletions.",
+            "",
         )
 
     if ok:

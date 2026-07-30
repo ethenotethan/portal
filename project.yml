@@ -157,6 +157,7 @@ schemes:
     test:
       targets:
         - PortalTests
+        - PortalMacUITests
     run:
       config: Debug
   Portal-iOS:

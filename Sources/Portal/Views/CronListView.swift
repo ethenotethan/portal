@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CronListView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
-    @EnvironmentObject var settings: SettingsViewModel
+    @EnvironmentObject internal var settings: SettingsViewModel
     @State private var cronViewModel = CronListViewModel()
     @StateObject private var filterState = CronFilterState()
 
@@ -171,7 +171,11 @@ struct CronListView: View {
         guard let baseURL = URL(string: gateway.url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return nil
         }
-        return try? HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
+        do {
+            return try HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
+        } catch {
+            return nil
+        }
     }
 
     @ViewBuilder
@@ -306,12 +310,12 @@ struct CronJobDetailView: View {
     let job: CronJob
     /// Standard's dashboard API has no remove-job or edit-prompt endpoint, so
     /// those affordances hide when the source is a Standard backend.
-    var supportsRemoveAndEdit = true
+    internal var supportsRemoveAndEdit = true
     /// Standard-only one-shot "Run now"; the WebSocket Gateway has no trigger.
-    var supportsTrigger = false
+    internal var supportsTrigger = false
     let onPause: () -> Void
     let onResume: () -> Void
-    var onTrigger: () -> Void = {}
+    internal var onTrigger: () -> Void = {}
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
     @Environment(\.dismiss) private var dismiss
