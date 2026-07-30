@@ -307,29 +307,29 @@
     ]
   },
   "coverage": {
-    "testable_pct": 38.33,
-    "testable_covered": 9053,
+    "testable_pct": 38.39,
+    "testable_covered": 9067,
     "testable_count": 23621,
     "layers": {
       "Models": {
-        "covered": 4128,
+        "covered": 4108,
         "count": 6661,
-        "pct": 61.97
+        "pct": 61.67
       },
       "Services": {
-        "covered": 2691,
+        "covered": 2692,
         "count": 9215,
-        "pct": 29.2
+        "pct": 29.21
       },
       "Utilities": {
-        "covered": 227,
+        "covered": 249,
         "count": 1299,
-        "pct": 17.47
+        "pct": 19.17
       },
       "ViewModels": {
-        "covered": 2007,
+        "covered": 2018,
         "count": 6446,
-        "pct": 31.14
+        "pct": 31.31
       }
     },
     "uncovered": {
@@ -946,16 +946,7 @@
         93
       ],
       "private/tmp/portal-logo/Sources/Portal/Models/JSONRPC/JSONRPCRequest.swift": [
-        77,
-        78,
-        79,
-        80,
-        81,
-        82,
-        83,
-        84,
-        85,
-        86
+        56
       ],
       "private/tmp/portal-logo/Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift": [
         10,
@@ -1278,7 +1269,16 @@
         104,
         110,
         111,
+        125,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
         135,
+        136,
+        137,
         155,
         159,
         160,
@@ -3056,8 +3056,7 @@
         107,
         117,
         137,
-        145,
-        183
+        145
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/NotificationService.swift": [
         29,
@@ -3910,20 +3909,6 @@
         92,
         93,
         95
-      ],
-      "private/tmp/portal-logo/Sources/Portal/Utilities/Extensions.swift": [
-        21,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-        51,
-        52,
-        54,
-        55
       ],
       "private/tmp/portal-logo/Sources/Portal/Utilities/InlineMath.swift": [
         79,
@@ -5392,7 +5377,6 @@
         101,
         102,
         103,
-        155,
         174,
         185,
         186,
@@ -6581,7 +6565,6 @@
         151,
         153,
         154,
-        155,
         162,
         163,
         164,
@@ -6791,12 +6774,21 @@
         53,
         54,
         55,
-        56,
         64,
         69,
         70,
         71,
-        72
+        72,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86
       ],
       "private/tmp/portal-logo/Sources/Portal/Models/KanbanSpec.swift": [
         40,
@@ -7479,15 +7471,6 @@
         117,
         119,
         122,
-        125,
-        129,
-        130,
-        131,
-        132,
-        133,
-        134,
-        136,
-        137,
         141,
         142,
         144,
@@ -8233,6 +8216,7 @@
         157,
         167,
         170,
+        183,
         185,
         186,
         190,
@@ -8834,6 +8818,7 @@
         15,
         19,
         20,
+        21,
         22,
         26,
         27,
@@ -8844,6 +8829,18 @@
         38,
         39,
         40,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        54,
+        55,
+        56,
         65,
         66,
         67,
@@ -9470,11 +9467,13 @@
         145,
         152,
         153,
+        155,
         164,
         172,
         173,
         176,
         177,
+        179,
         184,
         187,
         195,
