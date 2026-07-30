@@ -1,3 +1,6 @@
+// swiftlint:disable file_length
+// Legacy giant (native + web renderers, shared cache, PDF export) — splitting
+// the renderers into separate files is tracked as debt; do not add to it.
 import SwiftUI
 import BeautifulMermaid
 import WebKit
@@ -193,8 +196,29 @@ private struct NativeMermaidRenderer: View {
     @State private var errorText: String?
     @State private var didFallBack = false
 
+    init(source: String, onFallback: @escaping () -> Void) {
+        self.source = source
+        self.onFallback = onFallback
+        // Seed from the shared cache so a remount (e.g. switching the canvas
+        // between the Scroll and Turns boards, which tears down and rebuilds
+        // the conversation panel) repaints the already-rendered diagram
+        // immediately — instead of dropping back to the "Rendering…" spinner
+        // and waiting for an `.onAppear` that a lazy/off-screen row may never
+        // fire. The web fallback already caches this way (`mermaidImageCache`);
+        // this brings the native path to parity.
+        let cached = Self.cachedNativeImage(for: Self.cacheKey(for: source))
+        _image = State(initialValue: cached)
+    }
+
     private var asciiSource: String {
         source.unicodeScalars.filter { $0.isASCII }.map(String.init).joined()
+    }
+
+    /// Cache key mirrors the web path: theme id (native diagrams re-rasterize
+    /// per palette) + the ASCII-cleaned source, joined by a unit separator.
+    nonisolated private static func cacheKey(for source: String) -> String {
+        let ascii = source.unicodeScalars.filter { $0.isASCII }.map(String.init).joined()
+        return "native\u{1F}\(Theme.active.id)\u{1F}\(ascii)"
     }
 
     var body: some View {
@@ -224,6 +248,7 @@ private struct NativeMermaidRenderer: View {
 
         // Snapshot the theme on the main actor; the render runs off-main.
         let theme = nativeTheme
+        let cacheKey = Self.cacheKey(for: source)
         DispatchQueue.global(qos: .userInitiated).async {
             do {
                 let positioned = try MermaidRenderer.layout(code)
@@ -233,6 +258,7 @@ private struct NativeMermaidRenderer: View {
                     }
                     return
                 }
+                Self.cacheNativeImage(img, for: cacheKey)
                 DispatchQueue.main.async {
                     self.image = img
                 }
@@ -246,6 +272,20 @@ private struct NativeMermaidRenderer: View {
                 }
             }
         }
+    }
+
+    // Shares the process-wide `mermaidImageCache`/`mermaidCacheLock` with the
+    // web renderer; native keys are prefixed ("native") so they never collide.
+    nonisolated private static func cachedNativeImage(for key: String) -> PlatformImage? {
+        mermaidCacheLock.lock()
+        defer { mermaidCacheLock.unlock() }
+        return mermaidImageCache[key]
+    }
+
+    nonisolated private static func cacheNativeImage(_ image: PlatformImage, for key: String) {
+        mermaidCacheLock.lock()
+        defer { mermaidCacheLock.unlock() }
+        mermaidImageCache[key] = image
     }
 }
 

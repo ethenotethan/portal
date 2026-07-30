@@ -90,27 +90,19 @@ internal struct ConversationPanel: View {
     internal var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    let msgs = visibleMessages
-                    ForEach(msgs) { message in
-                        VStack(alignment: .leading, spacing: 4) {
-                            let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
-                            let prepared = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
-                            skinProvider.messageBubble(message: prepared, persona: persona)
-                            // Peel affordance + any blocks already peeled into the
-                            // scroll for this turn — layered directly under the
-                            // bubble so they travel with the turn as you scroll.
-                            peelBar(for: message)
-                            peeledCards(for: message)
-                            // The live turn shows a streaming-status line under its
-                            // reply; settled turns show nothing extra (reasoning and
-                            // tools already render inside the bubble).
-                            streamingStatusUnder(message)
-                        }
-                        .id(message.id)
+                // Turns mode pins a single, bounded turn (its user+assistant
+                // pair) and scrolls the prompt to the top — so a diagram lower
+                // in a tall reply lands below the fold. A LazyVStack would then
+                // never instantiate that row (nor fire its diagram's onAppear),
+                // leaving it blank. The focused turn is tiny, so render it
+                // eagerly; keep the lazy path for the full Scroll transcript
+                // where off-screen deferral actually matters.
+                Group {
+                    if focusedTurnID == nil {
+                        LazyVStack(alignment: .leading, spacing: 2) { messageRows }
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) { messageRows }
                     }
-                    // Bottom anchor for auto-scroll.
-                    Color.clear.frame(height: 1).id(Self.bottomAnchor)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -123,6 +115,32 @@ internal struct ConversationPanel: View {
             .onChange(of: focusedTurnID) { _, _ in scrollToTop(proxy) }
             .onAppear { if showsLiveTail { scrollToBottom(proxy, animated: false) } }
         }
+    }
+
+    /// The turn rows, shared by the lazy (Scroll) and eager (focused Turn)
+    /// containers. Each row is a bubble plus its peel affordance, any peeled
+    /// cards, and — for the live turn — a streaming-status line.
+    @ViewBuilder
+    private var messageRows: some View {
+        let msgs = visibleMessages
+        ForEach(msgs) { message in
+            VStack(alignment: .leading, spacing: 4) {
+                let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
+                let prepared = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
+                skinProvider.messageBubble(message: prepared, persona: persona)
+                // Peel affordance + any blocks already peeled into the scroll
+                // for this turn — layered directly under the bubble so they
+                // travel with the turn as you scroll.
+                peelBar(for: message)
+                peeledCards(for: message)
+                // The live turn shows a streaming-status line under its reply;
+                // settled turns show nothing extra.
+                streamingStatusUnder(message)
+            }
+            .id(message.id)
+        }
+        // Bottom anchor for auto-scroll.
+        Color.clear.frame(height: 1).id(Self.bottomAnchor)
     }
 
     // MARK: - Peel into scroll
