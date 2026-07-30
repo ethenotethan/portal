@@ -193,3 +193,35 @@ internal struct WikiDockedReaderTests {
         #expect(vm.readerWidth == WikiGraphViewModel.minReaderWidth)
     }
 }
+
+// The editor's frontmatter round-trip: the three edited fields (title, type,
+// tags) overlay the original block; everything else survives untouched, and
+// clearing a field drops the key rather than writing an empty value.
+@Suite("Wiki page editor frontmatter")
+internal struct WikiPageEditorFrontmatterTests {
+
+    @Test("Edited fields overlay; untouched keys round-trip; blanks drop")
+    internal func assembly() {
+        let original = [
+            "title": "Old", "type": "concept", "tags": "a, b",
+            "confidence": "high", "custom": "keep",
+        ]
+        let fm = WikiPageEditorView.assembledFrontmatter(
+            from: original, title: "  New  ", type: "entity", tags: ""
+        )
+        #expect(fm["title"] == "New")            // trimmed + replaced
+        #expect(fm["type"] == "entity")
+        #expect(fm["tags"] == nil)               // cleared → key dropped
+        #expect(fm["confidence"] == "high")      // untouched keys survive
+        #expect(fm["custom"] == "keep")
+    }
+
+    @Test("Unmodified input produces an equal block (Save stays disabled)")
+    internal func identity() {
+        let original = ["title": "Same", "type": "concept", "tags": "x"]
+        let fm = WikiPageEditorView.assembledFrontmatter(
+            from: original, title: "Same", type: "concept", tags: "x"
+        )
+        #expect(fm == original)
+    }
+}

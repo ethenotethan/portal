@@ -855,6 +855,62 @@ final class WikiGraphViewModel: ObservableObject {
     func resetView() { panOffset = .zero; zoom = 1.0 }
 }
 
+// MARK: - Page editing (wiki.update)
+
+extension WikiGraphViewModel {
+
+    /// True when the loaded source supports page writes — the home gateway's
+    /// Hermes wiki. Centaur override sources are read-only HTTP, so their
+    /// readers hide the Edit affordance.
+    internal var supportsPageEditing: Bool {
+        loadedSource == nil || loadedSource is GatewayClient
+    }
+
+    /// Save an edited page through `wiki.update` against the SELECTED wiki,
+    /// then refresh the cache entry and rescan the graph in place (title/
+    /// type/tag/link changes need a fresh scan; the reader keeps its
+    /// selection and the loading overlay stays down).
+    ///
+    /// Throws `WikiUpdateConflict` when the page changed since `ifMatch` was
+    /// read — the editor offers reload-latest / force-save from it.
+    internal func savePage(
+        client: GatewayClient,
+        path: String,
+        body: String,
+        frontmatter: [String: String]?,
+        ifMatch: String?,
+        force: Bool = false
+    ) async throws -> WikiPageContent {
+        let content = try await client.wikiUpdate(
+            path: path, body: body, frontmatter: frontmatter,
+            ifMatch: ifMatch, force: force, wiki: loadedWiki
+        )
+        storeContent(content, for: path)
+        await rescanGraphInPlace(client: client, wiki: loadedWiki)
+        return content
+    }
+
+    /// Lightweight rescan after a page save — refreshes the graph (edits can
+    /// add/remove wikilinks or change title/type/tags) without the full
+    /// `load` ceremony: the content cache survives and the surface doesn't
+    /// flash its loading overlay.
+    private func rescanGraphInPlace(client: GatewayClient, wiki: String?) async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        do {
+            let newGraph = try await client.wikiScan(wiki: wiki)
+            guard generation == loadGeneration else { return }
+            self.graph = newGraph
+            if canvasSize != .zero { setupSimulation() }
+            graphCache.store(newGraph, identity: client.cacheIdentity, wiki: wiki)
+        } catch {
+            // The save itself succeeded — a rescan hiccup just leaves the
+            // pre-save graph on screen until the next load.
+            log.warning("post-save wiki.scan failed: \(error.localizedDescription)")
+        }
+    }
+}
+
 extension CGPoint { var width: CGFloat { x }; var height: CGFloat { y } }
 extension CGVector { static let zero = CGVector.zero }
 

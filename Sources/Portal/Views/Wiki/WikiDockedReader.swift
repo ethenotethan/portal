@@ -22,6 +22,9 @@ internal struct WikiDockedReader: View {
     internal let surfaceWidth: CGFloat
 
     @State private var dragStartWidth: CGFloat?
+    /// True while the reader is swapped for the page editor (wiki.update).
+    /// Reset on navigation so an edit never leaks into the next page.
+    @State private var isEditing = false
 
     private static let dividerWidth: CGFloat = 9
     private static let gripHeight: CGFloat = 30
@@ -55,6 +58,8 @@ internal struct WikiDockedReader: View {
                 Rectangle().fill(Theme.border).frame(width: 1)
             }
         }
+        // An edit belongs to its page — navigating away drops it.
+        .onChange(of: viewModel.selectedPath) { _, _ in isEditing = false }
     }
 
     // MARK: - Toolbar (shared history + focus controls)
@@ -100,8 +105,23 @@ internal struct WikiDockedReader: View {
 
     @ViewBuilder
     private func focusControls(page: WikiPage?) -> some View {
+        // Edit this page in place (wiki.update) — Hermes wikis only; Centaur
+        // sources are read-only. Enabled once the body has loaded so the
+        // editor opens against real content.
+        if let path = viewModel.selectedPath, page != nil,
+           viewModel.supportsPageEditing, !isEditing {
+            Button { isEditing = true } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.secondary)
+            }
+            .buttonStyle(.borderless)
+            .disabled(viewModel.cachedContent(for: path) == nil)
+            .help("Edit this page")
+        }
+
         // Pin the current page to hold it beside the next one (Compare).
-        if viewModel.selectedPath != nil {
+        if viewModel.selectedPath != nil, !isEditing {
             Button { viewModel.pinCurrentPage() } label: {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.system(size: 12, weight: .semibold))
@@ -154,11 +174,20 @@ internal struct WikiDockedReader: View {
         if viewModel.isComparing {
             compareGrid
         } else if let path = viewModel.selectedPath {
-            WikiPageReaderBody(
-                viewModel: viewModel,
-                path: path,
-                onNavigate: { viewModel.navigate(to: $0) }
-            )
+            if isEditing, let content = viewModel.cachedContent(for: path) {
+                WikiPageEditorView(
+                    viewModel: viewModel,
+                    path: path,
+                    original: content,
+                    onClose: { isEditing = false }
+                )
+            } else {
+                WikiPageReaderBody(
+                    viewModel: viewModel,
+                    path: path,
+                    onNavigate: { viewModel.navigate(to: $0) }
+                )
+            }
         } else {
             emptyState
         }

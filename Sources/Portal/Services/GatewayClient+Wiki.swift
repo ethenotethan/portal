@@ -94,6 +94,15 @@ struct WikiChangesetsPage {
     var hasMore: Bool { offset + changesets.count < total }
 }
 
+/// Thrown by `wikiUpdate` when the server rejects a write because the page
+/// changed since the client read it (spec: HTTP-style 409 — typically an
+/// agent edit landing mid-edit). Carries the server's latest stored page
+/// when the server included `data.latest`, so the caller can offer
+/// reload/merge without a re-fetch.
+internal struct WikiUpdateConflict: Error {
+    internal let latest: WikiPageContent?
+}
+
 @MainActor
 extension GatewayClient {
 
@@ -182,10 +191,67 @@ extension GatewayClient {
         guard let dict = response.result?.dictionaryValue else {
             throw GatewayError.invalidResponse("wiki.page missing result")
         }
+        return Self.pageContent(from: dict, fallbackPath: path)
+    }
+
+    /// Write a wiki page (the one mutating RPC on the wiki surface — see
+    /// docs/rpc-reference.md `wiki.update` semantics).
+    ///
+    /// Full-replace write with optimistic concurrency: pass the `updated`
+    /// value read at load time as `ifMatch`; the server rejects the write
+    /// with a 409 when the page changed underneath (typically an agent
+    /// edit), surfaced here as `WikiUpdateConflict`. `force` is the
+    /// user-confirmed "save anyway" path past a conflict.
+    ///
+    /// - Parameters:
+    ///   - path: Page path relative to the wiki root.
+    ///   - body: FULL replacement markdown body (no patch mode).
+    ///   - frontmatter: When non-nil, REPLACES the entire frontmatter block.
+    ///   - ifMatch: Optimistic-concurrency precondition (`updated` at read).
+    ///   - force: Bypass the `ifMatch` precondition.
+    ///   - wiki: Wiki name (omit for the server-side default).
+    /// - Returns: The stored page including the server's fresh `updated`.
+    internal func wikiUpdate(
+        path: String,
+        body: String,
+        frontmatter: [String: String]? = nil,
+        ifMatch: String? = nil,
+        force: Bool = false,
+        wiki: String? = nil
+    ) async throws -> WikiPageContent {
+        var params: [String: AnyCodable] = [
+            "path": AnyCodable(path),
+            "body": AnyCodable(body),
+            "force": AnyCodable(force),
+        ]
+        if let frontmatter {
+            params["frontmatter"] = .dictionary(frontmatter.mapValues { AnyCodable($0) })
+        }
+        if let ifMatch { params["if_match"] = AnyCodable(ifMatch) }
+        if let w = wiki { params["wiki"] = AnyCodable(w) }
+
+        let response = try await call("wiki.update", params: params)
+        if let error = response.error {
+            if error.code == 409 {
+                throw WikiUpdateConflict(
+                    latest: error.data?.dictionaryValue?["latest"]?.dictionaryValue
+                        .map { Self.pageContent(from: $0, fallbackPath: path) }
+                )
+            }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message, data: error.data))
+        }
+        guard let dict = response.result?.dictionaryValue else {
+            throw GatewayError.invalidResponse("wiki.update missing result")
+        }
+        return Self.pageContent(from: dict, fallbackPath: path)
+    }
+
+    /// Shared parser for the wiki.page / wiki.update result shape
+    /// (`frontmatter` + `body` + `path`).
+    private static func pageContent(from dict: [String: AnyCodable], fallbackPath: String) -> WikiPageContent {
         let frontmatter = dict["frontmatter"]?.dictionaryValue?.mapValues { $0.stringValue ?? "" } ?? [:]
         let body = dict["body"]?.stringValue ?? ""
-        let pagePath = dict["path"]?.stringValue ?? path
-
+        let pagePath = dict["path"]?.stringValue ?? fallbackPath
         return WikiPageContent(frontmatter: frontmatter, body: body, path: pagePath)
     }
 

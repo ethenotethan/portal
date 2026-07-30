@@ -116,9 +116,44 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | `wiki.list` | — | Available wikis (`name`, `path`) |
 | `wiki.scan` | `wiki?` | Full graph: `pages` + `links` (source/target/type) |
 | `wiki.page` | `path`, `wiki?` | Single page: `frontmatter` + `body` |
+| `wiki.update` | `path`, `body`, `frontmatter?`, `if_match?`, `force?`, `wiki?` | Write a page (full replace) → stored page + fresh `updated`. **409** on stale `if_match` |
 | `wiki.taxonomy` | `wiki?` | Hierarchical taxonomy `flat_paths` |
 | `wiki.expand_links` | `slug`, `wiki?` | Expand integration links → `{type, status, title, url}` |
 | `wiki.changesets` | `wiki?`, `page?`, `action?`, `trigger?`, `since?`, `until?`, `limit`, `offset` | Edit-history timeline (newest first) + `total` for pagination |
+
+#### `wiki.update` semantics
+
+The one write method on the surface. The wiki is agent-maintained, so the
+contract is built around **optimistic concurrency**: the client reads a page,
+edits locally, and writes back with the `updated` it read as a precondition.
+
+- `path` (string, required): page path relative to the wiki root. Must resolve
+  INSIDE the root — traversal (`..`, absolute paths) → `-32602` (invalid params).
+- `body` (string, required): the FULL markdown body. Wholesale replacement;
+  there is no patch/diff mode.
+- `frontmatter` (object, optional): when present, REPLACES the entire
+  frontmatter block (keys absent from the object are dropped). When omitted,
+  the existing frontmatter is preserved untouched.
+- `updated` is always set by the server (authoritative timestamp) and returned
+  in the result — clients must not trust their own clock for it.
+- `if_match` (string, optional): optimistic-concurrency precondition — the
+  `updated` value the client read at load time. When present and ≠ the
+  server's current `updated`, the write is rejected (the page changed under
+  the editor, typically an agent write).
+- `force` (bool, default `false`): bypasses the `if_match` precondition — the
+  "save anyway" path after the user reviews a conflict.
+- **Success result**: `{ "frontmatter": {...}, "body": "...", "path": "...",
+  "updated": "..." }` — the stored page (the `wiki.page` shape + `updated`).
+- **Conflict**: error code **409** (mirrors HTTP), message beginning
+  `conflict:`, with `data.latest` carrying the current stored page (same
+  shape) so the client can offer reload/merge/force without a re-fetch.
+- **Side effects**: the file is written, a changeset is recorded
+  (`trigger: manual`, `action: update` — `create` when the page is new), and
+  the git commit is captured as usual, so the edit shows up in
+  `wiki.changesets` and `wiki.changeset_diff` like any other change.
+- A non-existent `path` CREATES the page (`action: create`); clients editing
+  existing pages should always send `if_match` so an unexpected create can't
+  silently clobber a concurrent create.
 
 Centaur sessions browse the same wiki UI through `CentaurWikiClient`
 (`Services/CentaurWikiClient.swift` + `+Timeline.swift`) — plain HTTP GETs
