@@ -760,6 +760,92 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// Default timeout for user-facing RPCs. A wedged or half-open socket
+    /// (the wake-from-idle / stale-connection case) must never park the
+    /// awaiting main-actor caller forever — that is the beachball. This bounds
+    /// the wait; `callWithRetry` turns a single timeout into a transparent
+    /// reconnect + one retry so the user's action still lands.
+    internal static let hotPathTimeout: Double = 12
+
+    /// Issue an RPC with a bounded timeout; on timeout — the signature of a
+    /// half-open socket after wake-from-idle — force a fresh transport and
+    /// retry exactly once. Any non-timeout error propagates immediately.
+    /// Use this for every user-initiated call (send, resume, create) so the UI
+    /// can't hang on a dead connection.
+    internal func callWithRetry(
+        _ method: String,
+        params: [String: AnyCodable]? = nil,
+        timeout: Double = GatewayClient.hotPathTimeout
+    ) async throws -> JSONRPCResponse {
+        do {
+            return try await call(method, params: params, timeout: timeout)
+        } catch GatewayError.timedOut(_, _) {
+            onLog?("⟳ \(method) timed out — reconnecting and retrying once", true)
+            recordDebugEvent(.state, name: "retry", detail: "\(method): reconnect after timeout")
+            await forceReconnectAndWait(timeout: timeout)
+            return try await call(method, params: params, timeout: timeout)
+        }
+    }
+
+    /// Tear down the (possibly half-open) socket and bring up a fresh one,
+    /// waiting up to `timeout` seconds for it to connect. Resets the reconnect
+    /// budget so a prior flaky stretch can't veto this user-triggered attempt.
+    /// The teardown/dial itself is the same path auto-reconnect uses.
+    internal func forceReconnectAndWait(timeout: Double) async {
+        reconnectAttempt = 0
+        isReconnectScheduled = false
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        openWebSocket()
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if case .connected = connectionState { return }
+            do {
+                try await Task.sleep(nanoseconds: 100_000_000)
+            } catch {
+                return  // cancelled — stop waiting
+            }
+        }
+    }
+
+    /// On wake/foreground the socket may be half-open: the TCP connection has
+    /// not been reset, so `connectionState` still reads `.connected` while
+    /// nothing actually flows — and the next `call` would hang until the 15s
+    /// ping happens to notice (or forever). Send a ping with a short deadline;
+    /// if no pong arrives in time, force a fresh transport BEFORE the user's
+    /// next action rather than letting that action beachball.
+    internal func verifyLivenessOrReconnect(timeout: Double = 4) async {
+        guard case .connected = connectionState, let task = webSocketTask else { return }
+        let alive = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let resumedLock = NSLock()
+            var resumed = false
+            func finish(_ value: Bool) {
+                resumedLock.lock(); defer { resumedLock.unlock() }
+                guard !resumed else { return }
+                resumed = true
+                cont.resume(returning: value)
+            }
+            task.sendPing { error in finish(error == nil) }
+            // Guard against sendPing's completion never firing on a half-open
+            // socket — the deadline is the real tripwire here.
+            Task { @MainActor in
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                } catch {
+                    // Cancelled before the deadline — treat as inconclusive and
+                    // don't force a reconnect off a cancelled probe.
+                    return
+                }
+                finish(false)
+            }
+        }
+        if !alive {
+            onLog?("⚠ wake liveness ping failed — reconnecting", true)
+            recordDebugEvent(.state, name: "liveness", detail: "stale socket on wake; reconnecting")
+            await forceReconnectAndWait(timeout: GatewayClient.hotPathTimeout)
+        }
+    }
+
     // MARK: - Convenience Methods
 
     /// Resolve gateway-reported Hermes capabilities with conservative fallback.
@@ -789,7 +875,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// Create a new agent session.
     func createSession(cols: Int = 120) async throws -> String {
-        let response = try await call("session.create", params: ["cols": AnyCodable(cols)])
+        let response = try await callWithRetry("session.create", params: ["cols": AnyCodable(cols)])
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1340,7 +1426,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     }
 
     func submitPrompt(sessionID: String, text: String) async throws {
-        let response = try await call("prompt.submit", params: [
+        // Retry-once on timeout: after wake-from-idle the socket is often
+        // half-open, so the first submit can wedge — reconnect and resend
+        // rather than leave the composer spinning forever.
+        let response = try await callWithRetry("prompt.submit", params: [
             "session_id": AnyCodable(sessionID),
             "text": AnyCodable(text),
         ])
@@ -1540,7 +1629,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// Returns the new short hex session ID and any history messages from the gateway.
     /// The `sessionID` param should be the database-format ID (e.g., "20260501_112429_d91274").
     func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {
-        let response = try await call("session.resume", params: [
+        let response = try await callWithRetry("session.resume", params: [
             "session_id": AnyCodable(key),
         ])
         if let error = response.error {

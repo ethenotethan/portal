@@ -1722,6 +1722,12 @@ spawnTreeStore.subscribe(to: client)
                         if !(await gatewayClientWrapper.waitUntilConnected(timeout: 12)) {
                             await gatewayClientWrapper.connectWithRetry(using: settings)
                         }
+                    } else {
+                        // Reports connected — but after a long sleep the socket
+                        // is often half-open (TCP not reset), so the next send
+                        // would beachball until the 15s ping notices. Probe
+                        // liveness now and rebuild the transport if it's stale.
+                        await gatewayClientWrapper.verifyLivenessOrReconnect()
                     }
                     // connectIfNeeded swaps the wrapper's inner GatewayClient
                     // when it recreates the transport, and an in-flight connect
