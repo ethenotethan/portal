@@ -16,6 +16,7 @@ internal enum InteractiveArtifactWeb {
     /// on, element-fullscreen requests honored, and an ephemeral data store so a
     /// page can't persist anything across sessions. Callers layer their own user
     /// scripts (the intent bridge, the pointer-lock bridge) on top.
+    @MainActor
     internal static func baseConfiguration() -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.defaultWebpagePreferences.allowsContentJavaScript = true

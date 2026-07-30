@@ -136,6 +136,16 @@ internal struct GatewayCallTimeoutTests {
 @MainActor
 internal struct GatewayHotPathRetryTests {
 
+    @Test("liveness probe continuation resolves exactly once")
+    internal func livenessProbeResumesOnce() async {
+        let result = await withCheckedContinuation { continuation in
+            let completion = LivenessProbeCompletion(continuation)
+            completion.resume(returning: true)
+            completion.resume(returning: false)
+        }
+        #expect(result)
+    }
+
     @Test("callWithRetry fails fast on a non-timeout error (no socket → no retry)")
     internal func failsFastWithoutSocket() async {
         let client = GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
