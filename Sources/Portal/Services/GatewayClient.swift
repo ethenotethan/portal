@@ -835,15 +835,25 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     internal func verifyLivenessOrReconnect(timeout: Double = 4) async {
         guard case .connected = connectionState, let task = webSocketTask else { return }
         let alive = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            let resumedLock = NSLock()
-            var resumed = false
-            func finish(_ value: Bool) {
-                resumedLock.lock(); defer { resumedLock.unlock() }
-                guard !resumed else { return }
-                resumed = true
-                cont.resume(returning: value)
+            // Once-gate: sendPing's @Sendable completion and the timeout Task
+            // below can both fire; resume the continuation exactly once. The
+            // gate is @unchecked Sendable so it satisfies the @Sendable
+            // requirement on sendPing's closure without capturing mutable
+            // non-Sendable locals.
+            final class ResumeGate: @unchecked Sendable {
+                private let lock = NSLock()
+                private var fired = false
+                private let cont: CheckedContinuation<Bool, Never>
+                init(_ cont: CheckedContinuation<Bool, Never>) { self.cont = cont }
+                func fire(_ value: Bool) {
+                    lock.lock(); defer { lock.unlock() }
+                    guard !fired else { return }
+                    fired = true
+                    cont.resume(returning: value)
+                }
             }
-            task.sendPing { error in finish(error == nil) }
+            let gate = ResumeGate(cont)
+            task.sendPing { error in gate.fire(error == nil) }
             // Guard against sendPing's completion never firing on a half-open
             // socket — the deadline is the real tripwire here.
             Task { @MainActor in
@@ -854,7 +864,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     // don't force a reconnect off a cancelled probe.
                     return
                 }
-                finish(false)
+                gate.fire(false)
             }
         }
         if !alive {
