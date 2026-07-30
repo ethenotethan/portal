@@ -550,14 +550,17 @@ internal struct SessionChatCanvas: View {
     @ViewBuilder
     private var displayModeControls: some View {
         HStack(spacing: 8) {
-            Picker("", selection: $displayMode) {
-                Label("Scroll", systemImage: "scroll").tag(CanvasDisplayMode.scroll)
-                Label("Turns", systemImage: "square.stack").tag(CanvasDisplayMode.turns)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            // Themed capsule control, matching the rest of the app's chrome —
+            // not the stock segmented picker, which ignores the palette.
+            ThemedSegmentedControl(
+                selection: $displayMode,
+                options: [CanvasDisplayMode.scroll, .turns],
+                label: { $0 == .scroll ? "Scroll" : "Turns" },
+                icon: { $0 == .scroll ? "scroll" : "square.stack" }
+            )
             .fixedSize()
             .disabled(turns.isEmpty)
+            .opacity(turns.isEmpty ? 0.5 : 1)
             .help(turns.isEmpty
                   ? "Turn-by-turn is available once the first turn completes"
                   : "Scroll the whole thread, or page one turn at a time")

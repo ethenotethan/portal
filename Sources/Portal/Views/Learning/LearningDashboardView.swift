@@ -54,13 +54,14 @@ struct LearningDashboardView: View {
 
     private var dashboard: some View {
         VStack(spacing: 0) {
-            Picker("Section", selection: $section) {
-                ForEach(LearningSection.allCases, id: \.self) { section in
-                    Text(section.rawValue).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            // Themed capsule control, matching the rest of the app's chrome —
+            // not the stock segmented picker, which ignores the palette.
+            ThemedSegmentedControl(
+                selection: $section,
+                options: LearningSection.allCases,
+                label: { $0.rawValue },
+                icon: { $0 == .quizzes ? "questionmark.circle" : "rectangle.on.rectangle" }
+            )
             .frame(maxWidth: 400)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
