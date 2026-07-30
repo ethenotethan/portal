@@ -143,6 +143,33 @@ internal final class CronListViewModel {
         }
     }
 
+    /// Lazily fetch the full (untruncated) prompt for a job when its card
+    /// expands, and splice it into the in-memory list so the view re-renders
+    /// with the whole prompt. Gateway-only — Standard has no describe endpoint.
+    internal func loadFullPrompt(id: String) async {
+        guard let client = gatewayClient else { return }
+        do {
+            guard let full = try await client.describeCronJob(id: id) else { return }
+            if let idx = jobs.firstIndex(where: { $0.id == id }) {
+                jobs[idx].prompt = full.prompt
+            }
+        } catch {
+            log.error("Failed to describe job \(id): \(error)")
+        }
+    }
+
+    /// Fetch the execution ledger for a job and merge real per-run durations
+    /// into the shared history store. Gateway-only.
+    internal func loadHistory(id: String, limit: Int? = nil) async -> [CronRunRecord] {
+        guard let client = gatewayClient else { return [] }
+        do {
+            return try await client.cronJobHistory(id: id, limit: limit)
+        } catch {
+            log.error("Failed to fetch history for job \(id): \(error)")
+            return []
+        }
+    }
+
     func updatePrompt(id: String, newPrompt: String) async {
         guard let client = gatewayClient else { return }
         do {

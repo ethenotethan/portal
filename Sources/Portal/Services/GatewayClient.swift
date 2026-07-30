@@ -891,71 +891,149 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             return []
         }
 
-        let iso8601Formatter = ISO8601DateFormatter()
-        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let iso8601Formatter = Self.cronISO8601Formatter()
 
-        return jobsArray.compactMap { item -> CronJob? in
-            guard let d = item.dictionaryValue,
-                  let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
+        return jobsArray.compactMap { Self.decodeCronJob(from: $0, using: iso8601Formatter) }
+    }
 
-            let nextRunAt: Date? = {
-                if let str = d["next_run_at"]?.stringValue {
-                    return iso8601Formatter.date(from: str)
+    /// Fetch a single job with its **full** (untruncated) prompt via `cron.manage`
+    /// action "describe". Used for lazy fetch when a card expands — `list` only
+    /// returns a 100-char `prompt_preview`.
+    /// Gateway returns: {"success": true, "job": {..., "prompt": <full>}}
+    internal func describeCronJob(id: String) async throws -> CronJob? {
+        let response = try await call("cron.manage", params: [
+            "action": AnyCodable("describe"),
+            "name": AnyCodable(id)
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let jobDict = result["job"] else {
+            return nil
+        }
+        return Self.decodeCronJob(from: jobDict, using: Self.cronISO8601Formatter())
+    }
+
+    /// Fetch the execution ledger for a job via `cron.manage` action "history".
+    /// Gateway returns newest-first: {"success": true, "job_id", "count",
+    /// "runs": [{started_at, finished_at, status, error, ...}]}.
+    internal func cronJobHistory(id: String, limit: Int? = nil) async throws -> [CronRunRecord] {
+        var params: [String: AnyCodable] = [
+            "action": AnyCodable("history"),
+            "name": AnyCodable(id)
+        ]
+        if let limit {
+            params["limit"] = AnyCodable(limit)
+        }
+        let response = try await call("cron.manage", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let runsArray = result["runs"]?.arrayValue else {
+            return []
+        }
+        let jobName = result["job_name"]?.stringValue ?? id
+        let iso8601Formatter = Self.cronISO8601Formatter()
+        return runsArray.compactMap { item -> CronRunRecord? in
+            guard let d = item.dictionaryValue else { return nil }
+
+            let started: Date? = d["started_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
+            let finished: Date? = d["finished_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
+            let firedAt = started ?? d["claimed_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
+
+            let duration: TimeInterval? = {
+                if let start = started, let end = finished {
+                    return max(0, end.timeIntervalSince(start))
                 }
                 return nil
             }()
 
-            let lastRunAt: Date? = {
-                if let str = d["last_run_at"]?.stringValue {
-                    return iso8601Formatter.date(from: str)
-                }
-                return nil
-            }()
-
-            let promptValue: String? = {
-                let candidates = [
-                    d["prompt"]?.stringValue,
-                    d["full_prompt"]?.stringValue,
-                    d["prompt_text"]?.stringValue,
-                    d["cron_prompt"]?.stringValue,
-                    d["command"]?.stringValue,
-                    d["task"]?.stringValue,
-                    d["script"]?.stringValue,
-                    d["description"]?.stringValue,
-                    d["body"]?.stringValue,
-                    d["text"]?.stringValue,
-                    d["message"]?.stringValue,
-                    d["query"]?.stringValue,
-                    d["content"]?.stringValue,
-                    d["args"]?.stringValue,
-                    d["input"]?.stringValue,
-                    d["prompt_preview"]?.stringValue
-                ]
-                return candidates.compactMap { $0 }.first
-            }()
-
-            let lastError: String? = [
-                d["last_error"]?.stringValue,
-                d["error_message"]?.stringValue,
+            // Normalize backend ledger statuses (completed/failed/running) to the
+            // client convention where `isOk` == "ok".
+            let rawStatus = d["status"]?.stringValue ?? "unknown"
+            let status: String
+            switch rawStatus {
+            case "completed", "success": status = "ok"
+            case "failed": status = "error"
+            default: status = rawStatus
+            }
+            let error = [
                 d["error"]?.stringValue,
-                d["last_error_message"]?.stringValue
+                d["error_message"]?.stringValue
             ].compactMap { $0 }.first
 
-            return CronJob(
-                id: jobID,
-                name: d["name"]?.stringValue ?? jobID,
-                schedule: d["schedule"]?.stringValue ?? "",
-                nextRunAt: nextRunAt,
-                lastRunAt: lastRunAt,
-                lastStatus: d["last_status"]?.stringValue,
-                enabled: d["enabled"]?.boolValue ?? true,
-                state: d["state"]?.stringValue ?? "scheduled",
-                deliver: d["deliver"]?.stringValue ?? "local",
-                promptPreview: d["prompt_preview"]?.stringValue,
-                prompt: promptValue,
-                lastError: lastError
+            return CronRunRecord(
+                id: UUID(),
+                jobID: id,
+                jobName: jobName,
+                firedAt: firedAt ?? Date(timeIntervalSince1970: 0),
+                status: status,
+                duration: duration,
+                errorMessage: error
             )
         }
+    }
+
+    private static func cronISO8601Formatter() -> ISO8601DateFormatter {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }
+
+    /// Decode one job dict (from `list` or `describe`) into a `CronJob`.
+    /// `describe` supplies the full `prompt`; `list` only `prompt_preview`.
+    private static func decodeCronJob(from item: AnyCodable, using iso8601Formatter: ISO8601DateFormatter) -> CronJob? {
+        guard let d = item.dictionaryValue,
+              let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
+
+        let nextRunAt: Date? = d["next_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
+        let lastRunAt: Date? = d["last_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
+
+        let promptValue: String? = {
+            let candidates = [
+                d["prompt"]?.stringValue,
+                d["full_prompt"]?.stringValue,
+                d["prompt_text"]?.stringValue,
+                d["cron_prompt"]?.stringValue,
+                d["command"]?.stringValue,
+                d["task"]?.stringValue,
+                d["script"]?.stringValue,
+                d["description"]?.stringValue,
+                d["body"]?.stringValue,
+                d["text"]?.stringValue,
+                d["message"]?.stringValue,
+                d["query"]?.stringValue,
+                d["content"]?.stringValue,
+                d["args"]?.stringValue,
+                d["input"]?.stringValue,
+                d["prompt_preview"]?.stringValue
+            ]
+            return candidates.compactMap { $0 }.first
+        }()
+
+        let lastError: String? = [
+            d["last_error"]?.stringValue,
+            d["error_message"]?.stringValue,
+            d["error"]?.stringValue,
+            d["last_error_message"]?.stringValue
+        ].compactMap { $0 }.first
+
+        return CronJob(
+            id: jobID,
+            name: d["name"]?.stringValue ?? jobID,
+            schedule: d["schedule"]?.stringValue ?? "",
+            nextRunAt: nextRunAt,
+            lastRunAt: lastRunAt,
+            lastStatus: d["last_status"]?.stringValue,
+            enabled: d["enabled"]?.boolValue ?? true,
+            state: d["state"]?.stringValue ?? "scheduled",
+            deliver: d["deliver"]?.stringValue ?? "local",
+            promptPreview: d["prompt_preview"]?.stringValue,
+            prompt: promptValue,
+            lastError: lastError
+        )
     }
 
     // MARK: - Skills RPCs

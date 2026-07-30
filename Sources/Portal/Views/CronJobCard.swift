@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 // MARK: - Cron Job Card
@@ -17,6 +18,10 @@ internal struct CronJobCard: View {
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
     @State private var selectedRunRecord: CronRunRecord?
+    /// Second-level expansion: a deeper introspection drawer with the execution
+    /// timeline and per-run duration plot, distinct from the header tap that
+    /// opens the card body.
+    @State private var showIntrospection = false
 
     internal init(
         job: CronJob,
@@ -55,6 +60,7 @@ internal struct CronJobCard: View {
                     detailRows
                     promptSection
                     recentRuns
+                    introspectionSection
                     actionButtons
                 }
                 .padding(.top, 8)
@@ -317,10 +323,13 @@ internal struct CronJobCard: View {
 
             if isEditingPrompt {
                 promptEditor
-            } else {
+            } else if promptText == "No prompt available" {
                 Text(promptText)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(Theme.secondary)
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                MarkdownContentView(text: promptText)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -444,6 +453,93 @@ internal struct CronJobCard: View {
                 .popover(item: $selectedRunRecord) { record in
                     CronSingleRunPopover(record: record)
                 }
+            }
+        }
+    }
+
+    // MARK: - Second-level introspection
+
+    /// A deeper drawer beneath the card body: an activation-volume chart and a
+    /// per-run execution-duration plot, both driven by the real execution
+    /// ledger fetched on expand. Collapsed by default so the card stays compact.
+    private var introspectionSection: some View {
+        Group {
+            if !runRecords.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { showIntrospection.toggle() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: showIntrospection ? "chevron.down" : "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Theme.tertiary)
+                            Text("Introspection")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.primary)
+                            Spacer()
+                            Text("\(runRecords.count) run\(runRecords.count == 1 ? "" : "s")")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if showIntrospection {
+                        CronVolumeView(records: runRecords, horizon: .week)
+                            .frame(height: 200)
+                        durationPlot
+                    }
+                }
+                .padding(8)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    /// Per-run wall-clock duration over time — only the runs the ledger has a
+    /// measured duration for (started_at → finished_at). Skips the plot when no
+    /// run has a duration yet (e.g. store-only records).
+    @ViewBuilder
+    private var durationPlot: some View {
+        let timed = runRecords.filter { $0.duration != nil }.sorted { $0.firedAt < $1.firedAt }
+        if timed.count > 1 {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Execution Time")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Theme.tertiary)
+                Chart(timed) { record in
+                    LineMark(
+                        x: .value("Run", record.firedAt),
+                        y: .value("Duration (s)", record.duration ?? 0)
+                    )
+                    .foregroundStyle(Theme.accent)
+                    .interpolationMethod(.catmullRom)
+
+                    PointMark(
+                        x: .value("Run", record.firedAt),
+                        y: .value("Duration (s)", record.duration ?? 0)
+                    )
+                    .foregroundStyle(record.isOk ? Theme.success : Color.red)
+                    .symbolSize(30)
+                }
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 5)) { _ in
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                            .font(.caption2)
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                            .foregroundStyle(Theme.border)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisValueLabel()
+                            .font(.caption2)
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3))
+                            .foregroundStyle(Theme.border)
+                    }
+                }
+                .frame(height: 140)
             }
         }
     }

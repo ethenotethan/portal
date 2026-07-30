@@ -16,11 +16,17 @@ struct CronJob: Identifiable, Equatable, Hashable {
     /// The error detail from the last failed run, if the gateway reported one.
     var lastError: String?
 
-    /// True when the full prompt is identical to the preview, meaning the gateway
-    /// only stores a truncated version server-side.
+    /// True when we only hold the server-truncated preview (the gateway caps
+    /// `prompt_preview` at 100 chars and appends "…"), not the full prompt.
+    /// A `describe` fetch replaces `prompt` with the untruncated text, which
+    /// clears this: once `prompt` differs from `promptPreview` we have the whole
+    /// thing.
     var isPromptTruncated: Bool {
-        guard let prompt, let preview = promptPreview else { return false }
-        return prompt == preview && preview.count < 200
+        guard let preview = promptPreview else { return false }
+        let looksTruncated = preview.hasSuffix("...") || preview.hasSuffix("…")
+        // If we've fetched the full prompt it will differ from the preview.
+        if let prompt, prompt != preview { return false }
+        return looksTruncated
     }
 
     static func == (lhs: CronJob, rhs: CronJob) -> Bool {
