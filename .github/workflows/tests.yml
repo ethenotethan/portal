@@ -265,6 +265,7 @@ jobs:
             -only-testing:PortalUITests/PortalE2ETests/testCoreChatFlow_MultipleMessagesInSession \
             -only-testing:PortalUITests/PortalE2ETests/testSessionManagement_CreateAndNavigate \
             -only-testing:PortalUITests/PortalE2ETests/testSessionManagement_MultipleSessions \
+            -only-testing:PortalUITests/PortalE2ETests/testHotPathsDoNotHangMainThread_underFatalWatchdog \
             -only-testing:PortalUITests/PortalE2ETests/testAttachButtonVisibleWithoutCapabilityGating \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath "$RESULT_BUNDLE" \

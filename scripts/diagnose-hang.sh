@@ -9,7 +9,8 @@
 #       symbolicated stack that stalled the UI. HANG = one overrun turn; STORM =
 #       many short turns saturating the run loop (the #254 relayout-loop class,
 #       which no single-turn threshold can see). (Requires the app to have run +
-#       stalled in the window; DEBUG only.)
+#       stalled in the window. On by default in DEBUG; in release opt in with
+#       `--hang-watchdog` or `defaults write … PortalDiagnostics.hangWatchdog -bool YES`.)
 #   [2] STATIC — a grep for the known hang anti-patterns (the recurring root
 #       causes the watchdog header enumerates), so candidate culprits show up
 #       even if the app wasn't running.
@@ -21,15 +22,15 @@
 
 set -o pipefail
 
-SUBSYSTEM="com.researchoors.HermesNative"
+SUBSYSTEM="com.ethenotethan.Portal"
 CATEGORY="perf"
 WINDOW_MIN="${1:-15}"
-SRC="Sources/HermesNative"
+SRC="Sources/Portal"
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 rule() { printf '%.0s─' {1..72}; printf '\n'; }
 
-bold "HermesNative — hang diagnosis"
+bold "Portal — hang diagnosis"
 echo "window: last ${WINDOW_MIN}m · subsystem: ${SUBSYSTEM} · category: ${CATEGORY}"
 rule
 
@@ -45,11 +46,13 @@ if command -v log >/dev/null 2>&1; then
     echo "$HANGS"
   else
     echo "  (no hang/storm faults in the last ${WINDOW_MIN}m)"
-    echo "  → Reproduce the beachball with the app running a DEBUG build"
-    echo "    (make run), then re-run this. The watchdog is on by default in"
-    echo "    DEBUG; it logs the culprit stack the instant the main thread"
-    echo "    stalls >250ms (HANG) or saturates the run loop across many short"
-    echo "    turns (STORM — the multi-session relayout-loop class)."
+    echo "  → Reproduce the beachball with the app running (make run), then"
+    echo "    re-run this. The watchdog is on by default in DEBUG; in a release"
+    echo "    build opt in first: --hang-watchdog, or"
+    echo "    defaults write com.ethenotethan.Portal PortalDiagnostics.hangWatchdog -bool YES."
+    echo "    It logs the culprit stack the instant the main thread stalls"
+    echo "    >250ms (HANG) or saturates the run loop across many short turns"
+    echo "    (STORM — the multi-session relayout-loop class)."
   fi
 else
   echo "  (\`log\` unavailable — not macOS?)"

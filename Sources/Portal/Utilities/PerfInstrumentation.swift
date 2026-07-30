@@ -380,11 +380,13 @@ enum PerfInstrumentation {
             PerfSampler.shared.start()
             perfLog.debug("perf instrumentation started (--perf)")
         }
-        // The main-thread hang watchdog (--perf or --hang-watchdog). Its own
-        // flag check is inside start(); calling unconditionally keeps the gate
-        // in one place. See MainThreadWatchdog.swift.
-        MainThreadWatchdog.shared.start()
         #endif
+        // The main-thread hang watchdog compiles into both debug and release and
+        // gates itself at runtime (on-by-default in DEBUG; off-by-default in
+        // release, opt in via --hang-watchdog or the PortalDiagnostics.hangWatchdog
+        // default). Its flag check lives inside start(), so call unconditionally to
+        // keep the gate in one place. See MainThreadWatchdog.swift.
+        MainThreadWatchdog.shared.start()
         #if os(iOS) && !targetEnvironment(simulator)
         PerfMetricsSubscriber.shared.start()
         #endif

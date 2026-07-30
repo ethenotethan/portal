@@ -12,9 +12,9 @@ final class PortalE2ETests: XCTestCase {
     }
 
     @MainActor
-    private func launchApp() -> XCUIApplication {
+    private func launchApp(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest"]
+        app.launchArguments = ["--uitest"] + extraArguments
         var env = ["PORTAL_GATEWAY_URL": gatewayURL]
         if let key = apiKey, !key.isEmpty {
             env["PORTAL_API_KEY"] = key
@@ -225,6 +225,72 @@ final class PortalE2ETests: XCTestCase {
         screenshot.name = "multiple-sessions"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    // MARK: - Main-thread hang gate (non-hermetic)
+
+    /// The hermetic `MainThreadHangGateUITests` covers launch + settle with no
+    /// gateway. But every beachball we actually chased (#116) lived on the
+    /// network-backed hot paths — prompt.submit / session.resume / session.create
+    /// awaiting a reply that never came on a half-open socket, parking the main
+    /// actor. A cold-launch gate can't see those; they only stall against a real
+    /// gateway. This drives send → background/foreground wake → resume against the
+    /// live CI Hermes under `--hang-fatal`, so any >250ms main-thread stall on a
+    /// hot path trips the watchdog's assertion, crashes the app, and fails here.
+    @MainActor
+    func testHotPathsDoNotHangMainThread_underFatalWatchdog() throws {
+        continueAfterFailure = false
+
+        let app = launchApp(extraArguments: ["--hang-fatal"])
+        dismissNotificationPrompt()
+        XCTAssertTrue(connectToGateway(app), "Should connect to gateway under --hang-fatal")
+
+        // 1) session.create + prompt.submit — the two most-hit hot paths.
+        createNewSession(app)
+        typeMessage(app, text: "Reply with exactly: HANG_GATE_OK")
+        sendMessage(app)
+        waitForResponse(app)
+
+        // 2) Wake path — a backgrounded socket can go half-open; reactivating and
+        // acting is the exact scenario that beachballed after the Mac slept. The
+        // foreground handler probes liveness and reconnects; that must not stall.
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 2)
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 15),
+                      "App should return to foreground after wake")
+
+        // 3) session.resume — navigate back to the list and reopen the session,
+        // then send again on the resumed stream. Resume awaits a reply too.
+        navigateBackToSessions(app)
+        XCTAssertTrue(app.staticTexts["Sessions"].waitForExistence(timeout: 5),
+                      "Should return to sessions before resume")
+        resumeFirstSession(app)
+        typeMessage(app, text: "Reply with exactly: RESUME_OK")
+        sendMessage(app)
+        waitForResponse(app)
+
+        // Let any deferred hot-path work settle; a fatal hang would have crashed
+        // the process before we reach this assertion.
+        Thread.sleep(forTimeInterval: 4)
+        XCTAssertEqual(app.state, .runningForeground,
+                       "App must stay alive — a --hang-fatal assertion on a hot path would have crashed it")
+    }
+
+    /// Reopen the first session in the list (drives `session.resume`). Falls back
+    /// to creating a fresh session if the list didn't surface a tappable row, so
+    /// the test still exercises a resumed-stream send rather than failing setup.
+    @MainActor
+    private func resumeFirstSession(_ app: XCUIApplication) {
+        let firstCell = app.cells.firstMatch
+        if firstCell.waitForExistence(timeout: 5) {
+            firstCell.tap()
+        } else {
+            createNewSession(app)
+            return
+        }
+        _ = app.textViews["chatInput"].waitForExistence(timeout: 8)
+            || app.textFields["chatInput"].waitForExistence(timeout: 7)
     }
 
     // MARK: - Attach Button Visibility
