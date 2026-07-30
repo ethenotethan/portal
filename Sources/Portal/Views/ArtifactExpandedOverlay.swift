@@ -74,6 +74,16 @@ internal struct ArtifactExpandedOverlay: View {
             .buttonStyle(.plain)
             .help(showsMaintenance ? "Collapse maintenance" : "Show maintenance")
 
+            if supportsImmersiveFullscreen {
+                Button(action: enterImmersiveFullscreen) {
+                    Label("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(.plain)
+                .help("Open in native full screen with mouse & keyboard capture")
+            }
+
             Button {
                 withAnimation(.easeInOut(duration: 0.16)) {
                     showsTitleBar = false
@@ -117,6 +127,15 @@ internal struct ArtifactExpandedOverlay: View {
                     .frame(width: 26, height: 26)
             }
             .help(showsMaintenance ? "Collapse maintenance" : "Show maintenance")
+
+            if supportsImmersiveFullscreen {
+                Button(action: enterImmersiveFullscreen) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 26, height: 26)
+                }
+                .help("Open in native full screen with mouse & keyboard capture")
+            }
 
             dismissButton
         }
@@ -197,6 +216,18 @@ internal struct ArtifactExpandedOverlay: View {
             topLevelActions: artifact.topLevelActions,
             capturesPointerInput: true
         )
+    }
+
+    /// Web-backed interactive kinds (html, model3d) are the ones that benefit
+    /// from native fullscreen + Pointer Lock; document kinds stay in-app.
+    private var supportsImmersiveFullscreen: Bool {
+        InteractiveArtifactWeb.supportsImmersiveFullscreen(artifact.kind)
+    }
+
+    private func enterImmersiveFullscreen() {
+        let content = store.artifacts[artifact.id]?.content ?? artifact.content
+        guard let html = InteractiveArtifactWeb.immersiveHTML(kind: artifact.kind, content: content) else { return }
+        ArtifactFullscreenWindowController.shared.present(html: html, title: artifact.displayName)
     }
 
     private func refreshCrons() async {

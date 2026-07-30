@@ -238,6 +238,11 @@ custom_rules:
       - ".*/Views/MarkdownContentView\\.swift"
       - ".*/Views/MermaidDiagramView\\.swift"
       - ".*/Views/PerfOverlayView\\.swift"
+      # Native-fullscreen artifact window host. Same category as the excluded
+      # HTMLPreviewPresenter (in MarkdownContentView.swift): a single at-a-time
+      # window controller that must outlive the SwiftUI view that opened it and
+      # own the NSWindow (delegate refs are weak). App-lifetime by nature.
+      - ".*/Views/ArtifactFullscreenWindow\\.swift"
     regex: "static let shared\\b"
     message: >-
       No new singletons — `.shared` is invisible coupling that can't be swapped in
