@@ -1604,10 +1604,9 @@ struct InlineHTMLNSView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.defaultWebpagePreferences.allowsContentJavaScript = true
-        config.preferences.isElementFullscreenEnabled = true
-        config.websiteDataStore = .nonPersistent()
+        // Shared with ArtifactFullscreenWindowController so inline and
+        // native-fullscreen presentations host identical WebKit settings.
+        let config = InteractiveArtifactWeb.baseConfiguration()
         if onArtifactIntent != nil {
             config.userContentController.addUserScript(WKUserScript(
                 source: HTMLArtifactIntentBridge.userScriptSource(nonce: context.coordinator.nonce),
@@ -1647,12 +1646,15 @@ struct InlineHTMLNSView: NSViewRepresentable {
 /// WKWebView does not reliably become first responder when SwiftUI creates it
 /// inside an expanded overlay. Pointer Lock and keyboard events both require
 /// that focus, so claim it only for the opted-in interactive canvas host.
-private final class InputCapturingWebView: WKWebView {
-    fileprivate var capturesInput = false
+/// Also hosted by `ArtifactFullscreenWindowController` (module-internal for
+/// that reason) so the native-fullscreen window uses the same first-responder
+/// behavior.
+internal final class InputCapturingWebView: WKWebView {
+    internal var capturesInput = false
 
-    override var acceptsFirstResponder: Bool { capturesInput || super.acceptsFirstResponder }
+    override internal var acceptsFirstResponder: Bool { capturesInput || super.acceptsFirstResponder }
 
-    override func mouseDown(with event: NSEvent) {
+    override internal func mouseDown(with event: NSEvent) {
         if capturesInput {
             window?.makeFirstResponder(self)
         }
