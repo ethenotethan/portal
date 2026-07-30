@@ -156,13 +156,13 @@ internal struct CronDashboardCanvas: View {
 
             Spacer()
 
-            Picker("", selection: $timeHorizon) {
-                ForEach(CronTimeHorizon.allCases, id: \.self) { h in
-                    Text(h.rawValue).tag(h)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            // Themed capsule control, matching the rest of the app's chrome —
+            // not the stock segmented picker, which ignores the palette.
+            ThemedSegmentedControl(
+                selection: $timeHorizon,
+                options: CronTimeHorizon.allCases,
+                label: { $0.rawValue }
+            )
             .frame(width: 260)
         }
         .padding(.horizontal, 12)
