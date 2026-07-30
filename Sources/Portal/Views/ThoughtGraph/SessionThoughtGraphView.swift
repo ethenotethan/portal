@@ -52,10 +52,15 @@ internal enum SessionTurnBuilder {
             case .user:
                 pendingPrompt = message.content
             case .assistant:
-                // Skip empty assistant turns (no tools, no reply) — nothing to graph.
+                // Skip empty assistant turns (no tools, no reply) — nothing to
+                // graph. The one exception is the LIVE streaming turn: keep it
+                // even while it's still empty so Turns mode can page to the turn
+                // in flight (its tools/reply stream in), instead of the board
+                // sitting blank until the turn settles.
                 guard !message.toolCalls.isEmpty
                     || message.graphSnapshot?.isEmpty == false
-                    || !message.content.isEmpty else { continue }
+                    || !message.content.isEmpty
+                    || message.isStreaming else { continue }
                 turnIndex += 1
                 let snapshot = message.graphSnapshot
                 let nodes = ThoughtGraphLayoutEngine.composeTimeline(

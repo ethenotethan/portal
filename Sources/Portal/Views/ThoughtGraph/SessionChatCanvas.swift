@@ -161,8 +161,19 @@ internal struct SessionChatCanvas: View {
     /// current turn (streaming); in **turns** mode it's the selected turn's
     /// settled snapshot, so the flamechart/tools/thinking rewind with the pager
     /// while the conversation, artifacts, and metrics stay put.
+    /// True when Turns mode is parked on the turn that's streaming right now —
+    /// its assistant message is the last one and the model is still producing it.
+    /// In that case the turn's persisted snapshot is empty (tools/graph merge at
+    /// completion), so the lenses must read the LIVE data instead, exactly like
+    /// Scroll mode — otherwise the Turns board sits blank through the whole reply.
+    private var selectedTurnIsLive: Bool {
+        guard displayMode == .turns, chatViewModel.isStreaming,
+              let turn = selectedTurn else { return false }
+        return turn.id == chatViewModel.messages.last?.id
+    }
+
     private var panelContext: PanelContext {
-        if displayMode == .turns, let turn = selectedTurn {
+        if displayMode == .turns, let turn = selectedTurn, !selectedTurnIsLive {
             return PanelContext(
                 nodes: turn.nodes,
                 compactions: turn.compactions,

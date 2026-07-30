@@ -126,23 +126,50 @@ internal struct ConversationPanel: View {
     private var messageRows: some View {
         let msgs = visibleMessages
         ForEach(msgs) { message in
+            // The streaming turn carries its tools in `activeToolCalls`, not yet
+            // on the message (they merge at messageComplete). Fold them in here
+            // so the Tools chip + card appear WHILE the reply streams, not only
+            // once it settles — the fix for "there's a thinking button but tools
+            // is just a 'calling tools' label".
+            let effective = effectiveMessage(message)
             VStack(alignment: .leading, spacing: 4) {
                 let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
                 let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
                 skinProvider.messageBubble(message: prepared, persona: persona)
-                // Peel affordance + any blocks already peeled into the scroll
-                // for this turn — layered directly under the bubble so they
-                // travel with the turn as you scroll.
-                peelBar(for: message)
-                peeledCards(for: message)
-                // The live turn shows a streaming-status line under its reply;
-                // settled turns show nothing extra.
-                streamingStatusUnder(message)
+                // Peel affordance + the block cards for this turn — layered
+                // directly under the bubble so they travel with the turn as you
+                // scroll. Thinking then Tools, fixed order (see availableBlocks).
+                peelBar(for: effective)
+                peeledCards(for: effective)
+                // Only fall back to a bare activity line when the live turn has
+                // nothing to peel yet (pure text response, no thinking/tools) —
+                // otherwise the peel chips ARE the streaming status.
+                if availableBlocks(for: effective).isEmpty {
+                    streamingStatusUnder(effective)
+                }
             }
             .id(message.id)
         }
         // Bottom anchor for auto-scroll.
         Color.clear.frame(height: 1).id(Self.bottomAnchor)
+    }
+
+    /// The message the peel bar / cards read from. For a settled turn that's the
+    /// message as-is. For the *streaming* turn the tools haven't merged onto the
+    /// message yet (they live in `chatViewModel.activeToolCalls` until
+    /// messageComplete), so graft the live tool calls on here — otherwise the
+    /// Tools chip/card wouldn't appear until the turn finished. Thinking already
+    /// streams onto `thinkingTrace`, so it needs no grafting.
+    private func effectiveMessage(_ message: ChatMessage) -> ChatMessage {
+        guard message.isStreaming, message.role == .assistant,
+              !chatViewModel.activeToolCalls.isEmpty, message.toolCalls.isEmpty else {
+            return message
+        }
+        var m = message
+        m.toolCalls = chatViewModel.activeToolCalls.values.sorted {
+            ($0.startedAt ?? .distantPast) < ($1.startedAt ?? .distantPast)
+        }
+        return m
     }
 
     /// The bubble copy for this panel: the standard prep, but with the thinking
