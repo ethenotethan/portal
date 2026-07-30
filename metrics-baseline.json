@@ -307,29 +307,29 @@
     ]
   },
   "coverage": {
-    "testable_pct": 38.39,
-    "testable_covered": 9067,
+    "testable_pct": 38.97,
+    "testable_covered": 9206,
     "testable_count": 23621,
     "layers": {
       "Models": {
-        "covered": 4108,
+        "covered": 4144,
         "count": 6661,
-        "pct": 61.67
+        "pct": 62.21
       },
       "Services": {
-        "covered": 2692,
+        "covered": 2769,
         "count": 9215,
-        "pct": 29.21
+        "pct": 30.05
       },
       "Utilities": {
-        "covered": 249,
+        "covered": 283,
         "count": 1299,
-        "pct": 19.17
+        "pct": 21.79
       },
       "ViewModels": {
-        "covered": 2018,
+        "covered": 2010,
         "count": 6446,
-        "pct": 31.31
+        "pct": 31.18
       }
     },
     "uncovered": {
@@ -1103,14 +1103,6 @@
         51,
         52,
         53,
-        66,
-        68,
-        70,
-        72,
-        76,
-        78,
-        81,
-        85,
         102,
         103,
         104,
@@ -1269,16 +1261,7 @@
         104,
         110,
         111,
-        125,
-        129,
-        130,
-        131,
-        132,
-        133,
-        134,
         135,
-        136,
-        137,
         155,
         159,
         160,
@@ -3035,9 +3018,6 @@
         356,
         358
       ],
-      "private/tmp/portal-logo/Sources/Portal/Services/HermesStandardMappers.swift": [
-        18
-      ],
       "private/tmp/portal-logo/Sources/Portal/Services/KeychainStore.swift": [
         18,
         20,
@@ -3056,7 +3036,8 @@
         107,
         117,
         137,
-        145
+        145,
+        183
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/NotificationService.swift": [
         29,
@@ -3249,34 +3230,6 @@
         682,
         684,
         686
-      ],
-      "private/tmp/portal-logo/Sources/Portal/Services/SRSEngine.swift": [
-        29,
-        35,
-        39,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        50,
-        61,
-        65,
-        72,
-        77,
-        83,
-        85,
-        86,
-        87,
-        88,
-        89,
-        90,
-        91,
-        92,
-        93
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/SRSStore.swift": [
         13,
@@ -3875,17 +3828,9 @@
         5
       ],
       "private/tmp/portal-logo/Sources/Portal/Utilities/DocumentTextExtractor.swift": [
-        24,
-        28,
         29,
-        30,
         31,
-        32,
         33,
-        36,
-        37,
-        40,
-        46,
         60,
         61,
         63,
@@ -3899,16 +3844,8 @@
         78,
         79,
         80,
-        83,
-        84,
-        85,
         86,
-        87,
-        88,
-        91,
-        92,
-        93,
-        95
+        87
       ],
       "private/tmp/portal-logo/Sources/Portal/Utilities/InlineMath.swift": [
         79,
@@ -5377,6 +5314,7 @@
         101,
         102,
         103,
+        155,
         174,
         185,
         186,
@@ -7251,6 +7189,14 @@
         101
       ],
       "private/tmp/portal-logo/Sources/Portal/Models/Quiz/FlashcardModels.swift": [
+        66,
+        68,
+        70,
+        72,
+        76,
+        78,
+        81,
+        85,
         166,
         175,
         180,
@@ -7471,6 +7417,15 @@
         117,
         119,
         122,
+        125,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        136,
+        137,
         141,
         142,
         144,
@@ -8201,6 +8156,7 @@
         359
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/HermesStandardMappers.swift": [
+        18,
         41
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/KeychainStore.swift": [
@@ -8216,7 +8172,6 @@
         157,
         167,
         170,
-        183,
         185,
         186,
         190,
@@ -8396,6 +8351,34 @@
         526,
         528,
         529
+      ],
+      "private/tmp/portal-logo/Sources/Portal/Services/SRSEngine.swift": [
+        29,
+        35,
+        39,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        50,
+        61,
+        65,
+        72,
+        77,
+        83,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/SessionBackendRegistry.swift": [
         19,
@@ -8808,6 +8791,24 @@
         54,
         55,
         56
+      ],
+      "private/tmp/portal-logo/Sources/Portal/Utilities/DocumentTextExtractor.swift": [
+        24,
+        28,
+        30,
+        32,
+        36,
+        37,
+        40,
+        46,
+        83,
+        84,
+        85,
+        88,
+        91,
+        92,
+        93,
+        95
       ],
       "private/tmp/portal-logo/Sources/Portal/Utilities/Extensions.swift": [
         7,
@@ -9467,13 +9468,11 @@
         145,
         152,
         153,
-        155,
         164,
         172,
         173,
         176,
         177,
-        179,
         184,
         187,
         195,
