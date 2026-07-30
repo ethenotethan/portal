@@ -6,21 +6,21 @@ import SwiftUI
 /// observes the live `ChatViewModel`, so tokens stream in and bubbles grow here
 /// exactly as they do in the normal chat.
 ///
-/// This is a plain transcript: message bubbles, and a streaming-status line
-/// under the live turn. It deliberately does NOT inject a per-turn lens rail or
-/// a docked lens section beneath the bubbles — that inline lens-embedding layer
-/// was a second place the same activity rendered (thinking already shows inside
-/// the bubble via `ReasoningSection`/`ThinkingTraceSection`), and its peel/dock
-/// affordance overlaid an extra tappable subview on the pane rather than letting
-/// the arrangement be edited in place. Turn activity now lives in one place: the
-/// bubble for reasoning/tools, and the canvas lens TILES (added from the palette,
-/// e.g. flamechart / tools / thinking) for anyone who wants the plotted view.
+/// This is a plain transcript: text-only message bubbles, a small peel bar,
+/// any peeled block cards, and a compact activity indicator under the live
+/// turn. Each turn's activity renders in exactly ONE place here: thinking and
+/// tools are *peelable cards* (see `PeeledBlockKind`), not inline blocks. So
+/// the bubble is stripped of its reasoning (`bubbleMessage`) — otherwise
+/// thinking would show both inline and in its peeled card — and the streaming
+/// status line does NOT re-list the active tool calls, since those are the
+/// tools card. Canvas lens TILES (flamechart / tools / thinking, added from
+/// the palette) remain available for anyone who wants the plotted view.
 ///
 /// Timer-free: it re-renders on `ChatViewModel` publishes (new / grown messages,
 /// streaming toggles), never on a clock.
 /// A per-turn block that can be peeled out of its bubble and mirrored as a card
-/// layered into the scroll beneath the turn that produced it. "Mirror" — the
-/// bubble keeps its own copy; this is a second, live view of the same content.
+/// layered into the scroll beneath the turn that produced it. Here the card is
+/// the block's *only* render site — the bubble no longer keeps an inline copy.
 internal enum PeeledBlockKind: String, CaseIterable, Hashable {
     case thinking
     case tools
@@ -52,11 +52,13 @@ internal struct ConversationPanel: View {
     /// whole transcript. Nil (Scroll mode) shows the full ever-growing thread.
     internal var focusedTurnID: UUID?
 
-    /// Which turns have which blocks peeled into the scroll, keyed by the
-    /// assistant message id. Ephemeral per-session UI state — the peeled mirror
-    /// is a viewing choice, not persisted content. A peeled block renders as a
-    /// card directly beneath its turn's bubble, so it scrolls WITH the turn.
-    @State private var peeled: [UUID: Set<PeeledBlockKind>] = [:]
+    /// Which blocks a turn has *collapsed* (returned), keyed by the assistant
+    /// message id. Ephemeral per-session UI state — a viewing choice, not
+    /// persisted content. Peeling is the DEFAULT: every available block renders
+    /// as a card beneath its turn's bubble unless the user collapses it via the
+    /// peel bar. So an empty set (the common case) means "show thinking + tools
+    /// cards"; adding a kind here hides that card.
+    @State private var collapsed: [UUID: Set<PeeledBlockKind>] = [:]
 
     /// Coalesce token-by-token auto-scroll: bucket the streaming tail so a full
     /// scroll pass fires per ~256 chars, not per delta (mirrors ChatView).
@@ -126,7 +128,7 @@ internal struct ConversationPanel: View {
         ForEach(msgs) { message in
             VStack(alignment: .leading, spacing: 4) {
                 let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
-                let prepared = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
+                let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
                 skinProvider.messageBubble(message: prepared, persona: persona)
                 // Peel affordance + any blocks already peeled into the scroll
                 // for this turn — layered directly under the bubble so they
@@ -141,6 +143,19 @@ internal struct ConversationPanel: View {
         }
         // Bottom anchor for auto-scroll.
         Color.clear.frame(height: 1).id(Self.bottomAnchor)
+    }
+
+    /// The bubble copy for this panel: the standard prep, but with the thinking
+    /// trace/reasoning stripped so the bubble renders text-only. In this canvas
+    /// thinking is a *peelable* card (see `peeledCards`), not an inline block —
+    /// leaving it on the bubble too would render it twice. Tools are already
+    /// non-inline in both skins, so nothing to strip there. The peel card reads
+    /// the original, unstripped `message`, so peeling still shows the reasoning.
+    private func bubbleMessage(_ message: ChatMessage, showTimestamp: Bool) -> ChatMessage {
+        var m = ChatView.prepareBubbleMessage(message, showTimestamp: showTimestamp)
+        m.reasoning = nil
+        m.thinkingTrace = nil
+        return m
     }
 
     // MARK: - Peel into scroll
@@ -159,56 +174,57 @@ internal struct ConversationPanel: View {
         return kinds
     }
 
-    /// The small "peel to scroll" toggles under a turn's bubble — one chip per
-    /// available block. Tapping mirrors that block into the scroll (or pulls it
-    /// back). Hidden when the turn has no peelable blocks.
+    /// The block toggles under a turn's bubble — one chip per available block.
+    /// Blocks are peeled (shown) by default, so a chip reads "Thinking"/"Tools"
+    /// when its card is showing and collapses it on tap; tapping again brings it
+    /// back. Hidden when the turn has no peelable blocks.
     @ViewBuilder
     private func peelBar(for message: ChatMessage) -> some View {
         let blocks = availableBlocks(for: message)
         if !blocks.isEmpty {
             HStack(spacing: 6) {
                 ForEach(blocks, id: \.self) { kind in
-                    let isPeeled = peeled[message.id]?.contains(kind) == true
+                    let isShown = !isCollapsed(kind, for: message.id)
                     Button {
-                        togglePeel(kind, for: message.id)
+                        toggleCollapse(kind, for: message.id)
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: isPeeled ? "arrow.uturn.up" : kind.icon)
+                            Image(systemName: isShown ? kind.icon : "arrow.uturn.down")
                                 .font(.system(size: 9, weight: .semibold))
-                            Text(isPeeled ? "Return \(kind.label)" : "Peel \(kind.label)")
+                            Text(kind.label)
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
                         .background(
-                            isPeeled ? Theme.accent.opacity(0.15) : Theme.surface,
+                            isShown ? Theme.accent.opacity(0.15) : Theme.surface,
                             in: Capsule()
                         )
-                        .foregroundStyle(isPeeled ? Theme.accent : Theme.secondary)
+                        .foregroundStyle(isShown ? Theme.accent : Theme.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help(isPeeled
-                          ? "Return this \(kind.label.lowercased()) block into the bubble only"
-                          : "Mirror this \(kind.label.lowercased()) block as a card in the scroll")
+                    .help(isShown
+                          ? "Collapse this \(kind.label.lowercased()) card"
+                          : "Show this \(kind.label.lowercased()) card")
                 }
             }
             .padding(.leading, 4)
         }
     }
 
-    /// The mirrored block cards layered under a turn, for whatever it has peeled.
-    /// These are live views of the same `ChatMessage` content the bubble shows —
-    /// they update as the turn streams — anchored to the turn so they scroll with
-    /// it (not floating tiles over the canvas).
+    /// The block cards layered under a turn — every available block that hasn't
+    /// been collapsed. These are the block's only render site (the bubble is
+    /// text-only); live views of the same `ChatMessage`, anchored to the turn so
+    /// they scroll with it.
     @ViewBuilder
     private func peeledCards(for message: ChatMessage) -> some View {
-        let kinds = peeled[message.id] ?? []
-        if !kinds.isEmpty {
+        let shown = availableBlocks(for: message).filter { !isCollapsed($0, for: message.id) }
+        if !shown.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                // Stable order regardless of tap order.
-                ForEach(PeeledBlockKind.allCases.filter { kinds.contains($0) }, id: \.self) { kind in
+                // Stable order (thinking then tools) regardless of anything.
+                ForEach(PeeledBlockKind.allCases.filter { shown.contains($0) }, id: \.self) { kind in
                     PeeledBlockCard(kind: kind, message: message) {
-                        togglePeel(kind, for: message.id)
+                        toggleCollapse(kind, for: message.id)
                     }
                 }
             }
@@ -218,28 +234,45 @@ internal struct ConversationPanel: View {
         }
     }
 
-    private func togglePeel(_ kind: PeeledBlockKind, for id: UUID) {
+    private func isCollapsed(_ kind: PeeledBlockKind, for id: UUID) -> Bool {
+        collapsed[id]?.contains(kind) == true
+    }
+
+    private func toggleCollapse(_ kind: PeeledBlockKind, for id: UUID) {
         withAnimation(.easeInOut(duration: 0.15)) {
-            var set = peeled[id] ?? []
+            var set = collapsed[id] ?? []
             if set.contains(kind) { set.remove(kind) } else { set.insert(kind) }
-            if set.isEmpty { peeled[id] = nil } else { peeled[id] = set }
+            if set.isEmpty { collapsed[id] = nil } else { collapsed[id] = set }
         }
     }
 
     /// The streaming-status line shown beneath the live (still-streaming) turn's
-    /// reply — the avatar state plus active tool calls, from the active skin.
-    /// Settled turns render nothing here: their reasoning and completed tools are
-    /// already part of the message bubble.
+    /// reply — a compact activity indicator only. It deliberately does NOT list
+    /// the active tool calls: in this canvas tools are a peelable card (see
+    /// `peeledCards` / `PeeledBlockKind.tools`), so enumerating them here too
+    /// would render them twice. Settled turns show nothing.
     @ViewBuilder
     private func streamingStatusUnder(_ message: ChatMessage) -> some View {
         if message.isStreaming {
-            skinProvider.streamingPanel(
-                state: chatViewModel.avatarState,
-                activeToolCalls: chatViewModel.activeToolCalls,
-                personaName: persona.name,
-                accentColor: persona.accentColor
-            )
+            HStack(spacing: 6) {
+                PortalProgressView()
+                Text(streamingStatusLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+            }
+            .padding(.leading, 4)
+            .padding(.top, 2)
             .id("conversation-streaming-status")
+        }
+    }
+
+    private var streamingStatusLabel: String {
+        switch chatViewModel.avatarState {
+        case .thinking: return "Thinking…"
+        case .toolUse: return "Running tools…"
+        case .speaking: return "Responding…"
+        case .error: return "Error"
+        case .idle: return "Working…"
         }
     }
 
