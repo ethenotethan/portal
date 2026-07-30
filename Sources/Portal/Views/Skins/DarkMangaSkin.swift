@@ -76,9 +76,14 @@ private struct DarkMangaMessageBubble: View {
         .padding(.bottom, Layout.turnSpacing)
     }
 
-    /// Attachments parsed from MEDIA: tags in this message.
+    /// Attachments for this message. Prefer the ones the view model already
+    /// parsed and host-resolved (loopback → reachable gateway host); only
+    /// re-parse as a fallback when none were stored, and even then resolution
+    /// isn't available here, so a stored value is strongly preferred.
     private var attachments: [FileAttachment] {
-        MediaParser.extractAttachments(from: message.content)
+        message.attachments.isEmpty
+            ? MediaParser.extractAttachments(from: message.content)
+            : message.attachments
     }
 
     /// Content with MEDIA: lines stripped for display.

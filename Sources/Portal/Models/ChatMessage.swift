@@ -548,14 +548,24 @@ struct MediaParser {
     nonisolated(unsafe) private static let mediaLinePattern = /^\s*`?MEDIA:\s*(\S+?)`?\s*$/
 
     /// Extract all MEDIA: file paths from content.
-    static func extractAttachments(from content: String) -> [FileAttachment] {
+    ///
+    /// - Parameter resolveHost: rewrites a remote URL's loopback host to the
+    ///   reachable backend host (see `AgentBackend.resolvedMediaURL`). The
+    ///   agent may hand back `http://localhost:8642/v1/files/…`, which is
+    ///   unreachable off-device; resolving here means every downstream
+    ///   consumer (prefetch, chip tap, preview, open) sees the fixed URL.
+    ///   Defaults to identity so the parser stays pure and testable.
+    internal static func extractAttachments(
+        from content: String,
+        resolveHost: (String) -> String = { $0 }
+    ) -> [FileAttachment] {
         content.split(separator: "\n", omittingEmptySubsequences: false).compactMap { line in
             guard let match = line.wholeMatch(of: mediaLinePattern) else { return nil }
             let captured = String(match.1)
 
             // Remote URL
             if captured.hasPrefix("http://") || captured.hasPrefix("https://"),
-               let url = URL(string: captured) {
+               let url = URL(string: resolveHost(captured)) {
                 return FileAttachment(remoteURL: url)
             }
 
