@@ -307,24 +307,24 @@
     ]
   },
   "coverage": {
-    "testable_pct": 38.97,
-    "testable_covered": 9206,
+    "testable_pct": 38.91,
+    "testable_covered": 9191,
     "testable_count": 23621,
     "layers": {
       "Models": {
-        "covered": 4144,
+        "covered": 4120,
         "count": 6661,
-        "pct": 62.21
+        "pct": 61.85
       },
       "Services": {
-        "covered": 2769,
+        "covered": 2767,
         "count": 9215,
-        "pct": 30.05
+        "pct": 30.03
       },
       "Utilities": {
-        "covered": 283,
+        "covered": 294,
         "count": 1299,
-        "pct": 21.79
+        "pct": 22.63
       },
       "ViewModels": {
         "covered": 2010,
@@ -1261,7 +1261,16 @@
         104,
         110,
         111,
+        125,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
         135,
+        136,
+        137,
         155,
         159,
         160,
@@ -3846,13 +3855,6 @@
         80,
         86,
         87
-      ],
-      "private/tmp/portal-logo/Sources/Portal/Utilities/InlineMath.swift": [
-        79,
-        85,
-        91,
-        104,
-        107
       ],
       "private/tmp/portal-logo/Sources/Portal/Utilities/MacInputTextField.swift": [
         27,
@@ -6503,6 +6505,7 @@
         151,
         153,
         154,
+        155,
         162,
         163,
         164,
@@ -7417,15 +7420,6 @@
         117,
         119,
         122,
-        125,
-        129,
-        130,
-        131,
-        132,
-        133,
-        134,
-        136,
-        137,
         141,
         142,
         144,
@@ -8906,12 +8900,15 @@
         75,
         76,
         78,
+        79,
         81,
         82,
         84,
+        85,
         87,
         88,
         90,
+        91,
         92,
         93,
         94,
@@ -8919,6 +8916,8 @@
         100,
         101,
         102,
+        104,
+        107,
         108,
         110,
         115,
