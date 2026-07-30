@@ -13,11 +13,11 @@ internal final class LivenessProbeCompletion: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Bool, Never>?
 
-    init(_ continuation: CheckedContinuation<Bool, Never>) {
+    internal init(_ continuation: CheckedContinuation<Bool, Never>) {
         self.continuation = continuation
     }
 
-    func resume(returning value: Bool) {
+    internal func resume(returning value: Bool) {
         lock.lock()
         guard let continuation else {
             lock.unlock()
