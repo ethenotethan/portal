@@ -291,6 +291,10 @@ internal struct CronJobsView: View {
 
     @ObservedObject private var store = CronRunHistoryStore.shared
     @State private var expandedJobID: String?
+    /// Real per-run execution ledgers fetched lazily from the gateway on
+    /// expand (`cron.manage` action "history"), keyed by job id. These carry
+    /// true durations the passively-observed store records lack.
+    @State private var ledgers: [String: [CronRunRecord]] = [:]
 
     internal init(vm: CronListViewModel) { self.vm = vm }
 
@@ -310,12 +314,8 @@ internal struct CronJobsView: View {
                     CronJobCard(
                         job: job,
                         isExpanded: expandedJobID == job.id,
-                        runRecords: store.records(for: job.id),
-                        onToggle: {
-                            withAnimation(.easeInOut(duration: 0.18)) {
-                                expandedJobID = expandedJobID == job.id ? nil : job.id
-                            }
-                        },
+                        runRecords: records(for: job.id),
+                        onToggle: { toggle(job) },
                         onPause: { Task { await vm.pauseJob(id: job.id) } },
                         onResume: { Task { await vm.resumeJob(id: job.id) } },
                         onRemove: { Task { await vm.removeJob(id: job.id) } },
@@ -326,6 +326,30 @@ internal struct CronJobsView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    /// Prefer the fetched ledger (real durations) when present; otherwise fall
+    /// back to the passively-observed store records so a card is never empty
+    /// before its history request returns.
+    private func records(for jobID: String) -> [CronRunRecord] {
+        if let ledger = ledgers[jobID], !ledger.isEmpty {
+            return ledger.sorted { $0.firedAt < $1.firedAt }
+        }
+        return store.records(for: jobID)
+    }
+
+    private func toggle(_ job: CronJob) {
+        let wasExpanded = expandedJobID == job.id
+        withAnimation(.easeInOut(duration: 0.18)) {
+            expandedJobID = wasExpanded ? nil : job.id
+        }
+        guard !wasExpanded else { return }
+        // Expanding: lazily fetch the full prompt and the execution ledger.
+        Task { await vm.loadFullPrompt(id: job.id) }
+        Task {
+            let runs = await vm.loadHistory(id: job.id)
+            if !runs.isEmpty { ledgers[job.id] = runs }
+        }
     }
 }
 
