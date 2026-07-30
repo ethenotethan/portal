@@ -152,8 +152,17 @@ final class WikiGraphViewModel: ObservableObject {
 
     @Published var simNodes: [SimNode] = []
     @Published var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
+    /// Node indices sorted by Y (painter's order for the 2D canvas).
+    /// Recomputed ONLY when positions actually change — setup, applied
+    /// physics frames, drags, settle adoption — never per canvas frame, so
+    /// panning doesn't pay an O(n log n) sort at 60 Hz.
+    internal private(set) var drawOrder: [Int] = []
     private(set) var degrees: [Int] = []
     private(set) var adjacency: [Set<Int>] = []
+
+    private func recomputeDrawOrder() {
+        drawOrder = simNodes.indices.sorted { simNodes[$0].position.y < simNodes[$1].position.y }
+    }
 
     private let friction: CGFloat = 0.92
     private let springLength: CGFloat = 120
@@ -296,7 +305,10 @@ final class WikiGraphViewModel: ObservableObject {
                 // Don't clobber a fresh graph that landed while we read disk.
                 if graph.pages.isEmpty {
                     self.graph = cached
-                    if canvasSize != .zero { setupSimulation() }
+                    // Settle in the background even before the surface exists
+                    // (canvasSize == .zero → nominal fallback), so the first
+                    // open paints a framed graph.
+                    setupSimulation()
                 }
             }
         }
@@ -311,7 +323,7 @@ final class WikiGraphViewModel: ObservableObject {
             // Drop stale responses if a newer load was started meanwhile.
             guard generation == loadGeneration else { return }
             self.graph = newGraph
-            if canvasSize != .zero { setupSimulation() }
+            setupSimulation()
             // Refresh the cache with the fresh scan (home gateway only).
             if let gateway {
                 graphCache.store(newGraph, identity: gateway.cacheIdentity, wiki: wiki)
@@ -597,12 +609,17 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     func setupSimulation() {
-        guard canvasSize != .zero, !graph.pages.isEmpty else { return }
+        guard !graph.pages.isEmpty else { return }
         if is3D { setup3D() } else { setup2D() }
     }
 
+    /// True when the current layout was settled against the nominal size
+    /// (never displayed yet). The canvas clears this via
+    /// `refitForFirstDisplayIfNeeded` on its first real frame.
+    internal private(set) var settledAgainstNominalSize = false
+
     private func setup2D() {
-        let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+        let center = CGPoint(x: effectiveCanvasSize.width / 2, y: effectiveCanvasSize.height / 2)
         var rng = SystemRandomNumberGenerator()
         simNodes = graph.pages.map { page in
             let angle = Double.random(in: 0...(2 * .pi), using: &rng)
@@ -641,6 +658,7 @@ final class WikiGraphViewModel: ObservableObject {
             if degrees.indices.contains(ti) { degrees[ti] += 1; adjacency[ti].insert(si) }
         }
         recomputeRadii()
+        recomputeDrawOrder()
         alpha = 1.0
         // Invalidate any physics frame still computing against the old node set.
         physicsGeneration += 1
@@ -712,6 +730,7 @@ final class WikiGraphViewModel: ObservableObject {
             merged[i].velocity = stepped[i].velocity
         }
         simNodes = merged
+        recomputeDrawOrder()
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
@@ -789,6 +808,7 @@ final class WikiGraphViewModel: ObservableObject {
         let mx = (point.x - panOffset.width) / zoom
         let my = (point.y - panOffset.height) / zoom
         simNodes[index].position = CGPoint(x: mx, y: my)
+        recomputeDrawOrder()
         alpha = max(alpha, dragReheat)
     }
 
@@ -901,7 +921,7 @@ extension WikiGraphViewModel {
             let newGraph = try await client.wikiScan(wiki: wiki)
             guard generation == loadGeneration else { return }
             self.graph = newGraph
-            if canvasSize != .zero { setupSimulation() }
+            setupSimulation()
             graphCache.store(newGraph, identity: client.cacheIdentity, wiki: wiki)
         } catch {
             // The save itself succeeded — a rescan hiccup just leaves the
@@ -917,6 +937,27 @@ extension CGVector { static let zero = CGVector.zero }
 // MARK: - Layout: pre-settle, fit-to-view, and the shared 2D physics step
 
 extension WikiGraphViewModel {
+
+    /// Canvas size used for seeding, settling, and framing. When the graph
+    /// loads BEFORE the surface is ever shown (the connect-time warm load),
+    /// canvasSize is still zero — fall back to a nominal size so the layout
+    /// settles in the background and the first open paints an already-framed
+    /// graph instead of the "Laying out…" spinner. The one-time re-fit on
+    /// first display (`refitForFirstDisplayIfNeeded`) corrects the framing
+    /// for the real size.
+    private static let nominalCanvasSize = CGSize(width: 1280, height: 800)
+    internal var effectiveCanvasSize: CGSize {
+        canvasSize == .zero ? Self.nominalCanvasSize : canvasSize
+    }
+
+    /// One-time framing correction when the surface first appears after a
+    /// background (nominal-size) settle. Mid-settle first-opens are left to
+    /// the settle completion, which already frames for the live size.
+    internal func refitForFirstDisplayIfNeeded() {
+        guard settledAgainstNominalSize, canvasSize != .zero, !isSettling else { return }
+        settledAgainstNominalSize = false
+        fitToView()
+    }
 
     /// Immutable snapshot of the 2D force constants so the physics step can
     /// run as a `nonisolated static` (usable from a background task) without
@@ -940,17 +981,21 @@ extension WikiGraphViewModel {
     /// large ones are capped so this never blocks perceptibly. The live tick
     /// still runs afterward (alpha is low), so dragging/reheat behave as before.
     func settleAndReveal() {
-        guard !is3D, canvasSize != .zero, simNodes.count > 1 else {
+        guard !is3D, simNodes.count > 1 else {
             isSettling = false
             return
         }
         settleGeneration += 1
         let generation = settleGeneration
         isSettling = true
+        // Track whether this settle ran before any real canvas existed
+        // (the connect-time preload) — the canvas re-frames once on its
+        // first display to correct for its real size.
+        settledAgainstNominalSize = canvasSize == .zero
 
         let seed = simNodes
         let links = simLinks
-        let size = canvasSize
+        let size = effectiveCanvasSize
         let params = physicsParams
         let iterations = iterationsPerFrame
         // More nodes need more relaxation, but cap the work so the pause is
@@ -980,6 +1025,7 @@ extension WikiGraphViewModel {
                     self.simNodes[i].position = settled[i].position
                     self.simNodes[i].velocity = .zero
                 }
+                self.recomputeDrawOrder()
                 self.alpha = self.alphaMin      // arrive at rest; no on-screen spread
                 // Frame the whole graph, unless a page is already selected —
                 // then keep that node centered (Show in Graph / mode switch).
@@ -988,6 +1034,10 @@ extension WikiGraphViewModel {
                 } else {
                     self.fitToView()
                 }
+                // fitToView just framed for the LIVE effective size — if a
+                // real canvas appeared mid-settle it got the right frame; if
+                // not, the first display re-fits once via the flag.
+                self.settledAgainstNominalSize = self.canvasSize == .zero
                 self.isSettling = false
             }
         }
@@ -997,7 +1047,8 @@ extension WikiGraphViewModel {
     /// picks a zoom that leaves a comfortable margin, so nodes read at a
     /// legible size the moment the view appears (clamped to the pinch range).
     func fitToView() {
-        guard !is3D, canvasSize != .zero, simNodes.count > 1 else { return }
+        guard !is3D, simNodes.count > 1 else { return }
+        let size = effectiveCanvasSize
         var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
         var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
         for node in simNodes {
@@ -1007,15 +1058,15 @@ extension WikiGraphViewModel {
         let graphW = max(maxX - minX, 1), graphH = max(maxY - minY, 1)
         let margin: CGFloat = 80
         let fitZoom = min(
-            (canvasSize.width - margin * 2) / graphW,
-            (canvasSize.height - margin * 2) / graphH
+            (size.width - margin * 2) / graphW,
+            (size.height - margin * 2) / graphH
         )
         let newZoom = max(0.3, min(1.6, fitZoom))
         let cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
         zoom = newZoom
         panOffset = CGSize(
-            width: canvasSize.width / 2 - cx * newZoom,
-            height: canvasSize.height / 2 - cy * newZoom
+            width: size.width / 2 - cx * newZoom,
+            height: size.height / 2 - cy * newZoom
         )
     }
 

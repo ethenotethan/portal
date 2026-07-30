@@ -258,25 +258,39 @@ struct WikiGraph2DCanvas: View {
                 let hasSelection = viewModel.highlightAnchor != nil
                 let filtering = viewModel.isFiltering
                 let filteredSet = viewModel.filteredNodeIndices
+                let zoom = viewModel.zoom
+                let pan = viewModel.panOffset
 
-                context.translateBy(x: viewModel.panOffset.width, y: viewModel.panOffset.height)
-                context.scaleBy(x: viewModel.zoom, y: viewModel.zoom)
+                // Visible world rect, padded past the largest node glow, for
+                // culling — off-screen nodes/edges cost nothing.
+                let cullPad: CGFloat = 90
+                let visibleWorld = CGRect(
+                    x: -pan.width / zoom - cullPad,
+                    y: -pan.height / zoom - cullPad,
+                    width: size.width / zoom + cullPad * 2,
+                    height: size.height / zoom + cullPad * 2
+                )
 
-                // ── Curved edges ──
+                context.translateBy(x: pan.width, y: pan.height)
+                context.scaleBy(x: zoom, y: zoom)
+
+                // ── Curved edges, BATCHED into one path per style bucket ──
+                // (hundreds of individual strokes were a large share of the
+                // per-frame cost on big graphs; same visual result).
+                var litEdges = Path()
+                var dimEdges = Path()
+                var quietEdges = Path()
                 for (si, ti) in viewModel.simLinks {
                     guard viewModel.simNodes.indices.contains(si),
                           viewModel.simNodes.indices.contains(ti) else { continue }
 
-                    let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
-                    let linkFilterMatch = !filtering || (filteredSet.contains(si) || filteredSet.contains(ti))
-                    let opacity: CGFloat = isConnected ? (linkFilterMatch ? 0.55 : 0.06) : 0.06
-                    let lineWidth: CGFloat = isConnected ? 1.6 : 0.5
-                    let color = isConnected
-                        ? Color(hex: "8a8aff")!.opacity(opacity)
-                        : Theme.secondary.opacity(opacity)
-
                     let sp = viewModel.simNodes[si].position
                     let tp = viewModel.simNodes[ti].position
+                    // Cull edges with both endpoints off-screen.
+                    if !visibleWorld.contains(sp) && !visibleWorld.contains(tp) { continue }
+
+                    let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
+                    let linkFilterMatch = !filtering || (filteredSet.contains(si) || filteredSet.contains(ti))
 
                     // Gentle quadratic curve: bow the line perpendicular to its
                     // direction for an organic, neural-network feel.
@@ -287,10 +301,16 @@ struct WikiGraph2DCanvas: View {
                     let bow: CGFloat = min(len * 0.12, 26)
                     let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
 
-                    var path = Path()
-                    path.move(to: sp)
-                    path.addQuadCurve(to: tp, control: ctrl)
-                    context.stroke(path, with: .color(color), lineWidth: lineWidth)
+                    if isConnected, linkFilterMatch {
+                        litEdges.move(to: sp)
+                        litEdges.addQuadCurve(to: tp, control: ctrl)
+                    } else if isConnected {
+                        dimEdges.move(to: sp)
+                        dimEdges.addQuadCurve(to: tp, control: ctrl)
+                    } else {
+                        quietEdges.move(to: sp)
+                        quietEdges.addQuadCurve(to: tp, control: ctrl)
+                    }
 
                     if isConnected, hasSelection,
                        let selIdx = viewModel.selectedNodeIndex,
@@ -315,13 +335,31 @@ struct WikiGraph2DCanvas: View {
                         }
                     }
                 }
+                context.stroke(
+                    litEdges,
+                    with: .color((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.55)),
+                    lineWidth: 1.6
+                )
+                context.stroke(
+                    dimEdges,
+                    with: .color((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.06)),
+                    lineWidth: 1.6
+                )
+                context.stroke(
+                    quietEdges,
+                    with: .color(Theme.secondary.opacity(0.06)),
+                    lineWidth: 0.5
+                )
 
                 // ── Nodes with radial glow + gradient ──
-                let drawOrder = viewModel.simNodes.indices.sorted {
-                    viewModel.simNodes[$0].position.y < viewModel.simNodes[$1].position.y
-                }
-                for index in drawOrder {
+                // Painter's order comes from the VM's cached drawOrder —
+                // recomputed only when positions change, never per frame.
+                for index in viewModel.drawOrder {
+                    guard viewModel.simNodes.indices.contains(index) else { continue }
                     let node = viewModel.simNodes[index]
+                    let pos = node.position
+                    // Cull off-screen nodes.
+                    guard visibleWorld.contains(pos) else { continue }
                     let isSelected = viewModel.selectedNodeIndex == index
                     let isHovered = viewModel.hoveredNodeIndex == index
                     let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
@@ -329,7 +367,6 @@ struct WikiGraph2DCanvas: View {
                     let baseOpacity: CGFloat = isConnected ? (matchFilter ? 1.0 : 0.13) : 0.18
                     let r = viewModel.nodeRadius(at: index)
                     let base = viewModel.color(for: node.type)
-                    let pos = node.position
 
                     // Glow halo
                     if isConnected {
@@ -377,8 +414,12 @@ struct WikiGraph2DCanvas: View {
                 }
 
                 // ── Labels (screen space, unscaled) ──
+                // Skipped while panning/dragging: hundreds of Text draws are
+                // the priciest pass per frame, and labels only matter once
+                // the camera stops — they pop back on release.
+                guard mouseState != .panning && mouseState != .draggingNode else { return }
                 context.transform = .identity
-                let neighborSet = Set(viewModel.selectedNodeNeighbors())
+                let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
                 for (index, node) in viewModel.simNodes.enumerated() {
                     let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
                     let matchesFilter = !filtering || filteredSet.contains(index)
@@ -406,12 +447,18 @@ struct WikiGraph2DCanvas: View {
                 viewModel.canvasSize = geo.size
                 if geo.size != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
                     viewModel.setupSimulation()
+                } else {
+                    // Preloaded graph (settled in the background against the
+                    // nominal size): frame it once for this real canvas.
+                    viewModel.refitForFirstDisplayIfNeeded()
                 }
             }
             .onChange(of: geo.size) { _, newSize in
                 viewModel.canvasSize = newSize
                 if newSize != .zero && viewModel.simNodes.isEmpty && !viewModel.graph.pages.isEmpty {
                     viewModel.setupSimulation()
+                } else {
+                    viewModel.refitForFirstDisplayIfNeeded()
                 }
             }
         }

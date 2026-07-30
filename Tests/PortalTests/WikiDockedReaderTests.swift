@@ -198,9 +198,7 @@ internal struct WikiDockedReaderTests {
 // tags) overlay the original block; everything else survives untouched, and
 // clearing a field drops the key rather than writing an empty value.
 @Suite("Wiki page editor frontmatter")
-internal struct WikiPageEditorFrontmatterTests {
-
-    @Test("Edited fields overlay; untouched keys round-trip; blanks drop")
+internal struct WikiPageEditorFrontmatterTests {    @Test("Edited fields overlay; untouched keys round-trip; blanks drop")
     internal func assembly() {
         let original = [
             "title": "Old", "type": "concept", "tags": "a, b",
@@ -223,5 +221,39 @@ internal struct WikiPageEditorFrontmatterTests {
             from: original, title: "Same", type: "concept", tags: "x"
         )
         #expect(fm == original)
+    }
+}
+
+// Preload path: the graph can load before the surface exists (the
+// connect-time warm load), so the layout must seed and settle against a
+// nominal canvas size instead of no-op'ing on a zero canvasSize.
+@Suite("Wiki graph preload")
+@MainActor
+internal struct WikiGraphPreloadTests {
+
+    @Test("Simulation seeds with a nominal canvas when never displayed")
+    internal func nominalSettle() {
+        let vm = WikiGraphViewModel()   // canvasSize == .zero — surface never shown
+        vm.graph = WikiGraph(
+            pages: [
+                WikiPage(id: "a", title: "A", type: "concept", tags: [], path: "a.md",
+                         created: nil, updated: nil, confidence: nil, contested: false,
+                         tagPath: [], integrationLinks: []),
+                WikiPage(id: "b", title: "B", type: "entity", tags: [], path: "b.md",
+                         created: nil, updated: nil, confidence: nil, contested: false,
+                         tagPath: [], integrationLinks: []),
+            ],
+            links: [WikiLink(source: "a", target: "b", type: "wikilink")]
+        )
+        vm.setupSimulation()
+        // Nominal fallback: nodes + links seed even with no real canvas.
+        #expect(vm.simNodes.count == 2)
+        #expect(vm.simLinks.count == 1)
+        #expect(vm.settledAgainstNominalSize)
+        // The one-time re-fit refuses without a real canvas — flag survives.
+        vm.refitForFirstDisplayIfNeeded()
+        #expect(vm.settledAgainstNominalSize)
+        // The painter's-order cache is maintained with the node set.
+        #expect(vm.drawOrder.count == 2)
     }
 }
