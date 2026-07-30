@@ -509,13 +509,16 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         log.debug("Connecting to WS: \(url) auth=\(hasKey) cookie=\(hasCookie)")
         onLog?("Opening WebSocket to \(gatewayURL)…", false)
 
-        // Clean up previous connection
+        // Clean up previous connection. Hand the old session/socket to a
+        // background task — invalidateAndCancel() can stall the main actor
+        // during reconnect churn (the wake/resume beachball). Nil them out
+        // first so the delegate's `session === urlSession` guard drops any late
+        // callback the teardown queues against the transport we're replacing.
         stopPingTimer()
         receiveTask?.cancel()
         receiveTask = nil
-        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        teardownTransport(session: urlSession, task: webSocketTask)
         webSocketTask = nil
-        urlSession?.invalidateAndCancel()
         urlSession = nil
         failAllPendingRequests(error: GatewayError.disconnected)
 
@@ -571,9 +574,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private func stopConnection() {
         receiveTask?.cancel()
         receiveTask = nil
-        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        teardownTransport(session: urlSession, task: webSocketTask)
         webSocketTask = nil
-        urlSession?.invalidateAndCancel()
         urlSession = nil
 
         failAllPendingRequests(error: GatewayError.disconnected)
@@ -582,6 +584,22 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         refreshDebugSnapshot()
 
         connectionState = .disconnected
+    }
+
+    /// Tear down a WebSocket transport off the main actor. `invalidateAndCancel()`
+    /// can block the caller (it drains delegate callbacks + connection state); on
+    /// the main actor during reconnect churn that stall IS the beachball. The
+    /// task closes the socket first, then invalidates the session. Both are
+    /// nonisolated URLSession APIs, so a detached task is safe. Any late delegate
+    /// callback from this dying session is ignored by the `session === urlSession`
+    /// guard in the delegate methods, since callers nil out `urlSession` before
+    /// handing it here.
+    nonisolated private func teardownTransport(session: URLSession?, task: URLSessionWebSocketTask?) {
+        guard session != nil || task != nil else { return }
+        Task.detached(priority: .utility) {
+            task?.cancel(with: .normalClosure, reason: nil)
+            session?.invalidateAndCancel()
+        }
     }
 
     /// Fails every pending JSON-RPC continuation so no caller hangs forever.
@@ -2126,6 +2144,10 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         didCompleteWithError error: Error?
     ) {
         Task { @MainActor in
+            // Ignore callbacks from a session we've already replaced/torn down —
+            // teardownTransport() invalidates old sessions off-main, so a stale
+            // one can report failure after the new socket is live.
+            guard session === self.urlSession else { return }
             if let error = error as NSError? {
                 let code = error.code
                 let domain = error.domain
@@ -2157,6 +2179,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         didOpenWithProtocol protocol: String?
     ) {
         Task { @MainActor in
+            guard session === self.urlSession else { return }
             onLog?("✓ WebSocket connected", false)
             connectionState = .connected
             reconnectAttempt = 0
@@ -2176,6 +2199,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         reason: Data?
     ) {
         Task { @MainActor in
+            // A close from a session we've already swapped out must not tear
+            // down or reconnect the live one (concurrent-session churn races).
+            guard session === self.urlSession else { return }
             stopPingTimer()
             let reasonStr = reason.flatMap { String(data: $0, encoding: .utf8) } ?? ""
             debugSnapshot.lastCloseAt = Date()
