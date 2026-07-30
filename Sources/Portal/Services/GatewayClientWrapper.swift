@@ -274,6 +274,14 @@ final class GatewayClientWrapper: ObservableObject {
         client.resetReconnectBudget()
     }
 
+    /// On wake/foreground, verify the socket is actually live (a half-open
+    /// connection still reports `.connected`) and force a fresh transport if
+    /// not — so the user's next action can't beachball on a dead socket.
+    internal func verifyLivenessOrReconnect() async {
+        await client.verifyLivenessOrReconnect()
+        isConnected = isClientConnected
+    }
+
     func waitUntilConnected(timeout seconds: TimeInterval = 10) async -> Bool {
         if isClientConnected {
             isConnected = true

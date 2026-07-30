@@ -125,3 +125,44 @@ internal struct GatewayCallTimeoutTests {
         client.disconnect()
     }
 }
+
+/// Beachball hardening: hot-path RPCs (send / resume / create) go through
+/// `callWithRetry`, which reconnects and retries once ONLY on `.timedOut`
+/// (the half-open-socket signature). Any other error — including the
+/// no-connection case — must propagate immediately without a spurious retry
+/// or reconnect, so a genuinely-down gateway still fails fast instead of
+/// spinning.
+@Suite("Gateway hot-path retry")
+@MainActor
+internal struct GatewayHotPathRetryTests {
+
+    @Test("callWithRetry fails fast on a non-timeout error (no socket → no retry)")
+    internal func failsFastWithoutSocket() async {
+        let client = GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
+        // No webSocketTask → callWithRetry's inner call throws .notConnected,
+        // which is not .timedOut, so it must surface at once (not reconnect).
+        await #expect(throws: GatewayError.self) {
+            _ = try await client.callWithRetry("prompt.submit")
+        }
+        #expect(client.snapshotForDebug.reconnectAttempt == 0)
+        client.disconnect()
+    }
+
+    @Test("liveness check is a no-op when not connected")
+    internal func livenessNoopWhenDisconnected() async {
+        let client = GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
+        // Disconnected → no socket to probe; must return without arming a
+        // reconnect (the wake-path guard only fires on a live-looking socket).
+        await client.verifyLivenessOrReconnect(timeout: 1)
+        #expect(client.snapshotForDebug.reconnectAttempt == 0)
+        client.disconnect()
+    }
+
+    @Test("hot-path timeout is bounded and well under the 15s ping interval")
+    internal func hotPathTimeoutIsBounded() {
+        // Must trip before the ping timer's ~15s so a wedged send doesn't wait
+        // on the keepalive to notice the dead socket.
+        #expect(GatewayClient.hotPathTimeout > 0)
+        #expect(GatewayClient.hotPathTimeout < 15)
+    }
+}
