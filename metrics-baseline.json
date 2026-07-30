@@ -307,29 +307,29 @@
     ]
   },
   "coverage": {
-    "testable_pct": 38.86,
-    "testable_covered": 9178,
+    "testable_pct": 38.97,
+    "testable_covered": 9206,
     "testable_count": 23621,
     "layers": {
       "Models": {
-        "covered": 4143,
+        "covered": 4144,
         "count": 6661,
-        "pct": 62.2
+        "pct": 62.21
       },
       "Services": {
-        "covered": 2743,
+        "covered": 2769,
         "count": 9215,
-        "pct": 29.77
+        "pct": 30.05
       },
       "Utilities": {
-        "covered": 284,
+        "covered": 283,
         "count": 1299,
-        "pct": 21.86
+        "pct": 21.79
       },
       "ViewModels": {
-        "covered": 2008,
+        "covered": 2010,
         "count": 6446,
-        "pct": 31.15
+        "pct": 31.18
       }
     },
     "uncovered": {
@@ -3018,9 +3018,6 @@
         356,
         358
       ],
-      "private/tmp/portal-logo/Sources/Portal/Services/HermesStandardMappers.swift": [
-        18
-      ],
       "private/tmp/portal-logo/Sources/Portal/Services/KeychainStore.swift": [
         18,
         20,
@@ -3309,7 +3306,6 @@
         78,
         79,
         82,
-        96,
         102,
         103,
         104,
@@ -5105,7 +5101,6 @@
         87,
         112,
         113,
-        123,
         127,
         130,
         138,
@@ -6508,7 +6503,6 @@
         151,
         153,
         154,
-        155,
         162,
         163,
         164,
@@ -8162,6 +8156,7 @@
         359
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/HermesStandardMappers.swift": [
+        18,
         41
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/KeychainStore.swift": [
@@ -8543,6 +8538,7 @@
         91,
         92,
         94,
+        96,
         99
       ],
       "private/tmp/portal-logo/Sources/Portal/Services/SessionPDFExporter.swift": [
@@ -9400,7 +9396,7 @@
         119,
         120,
         122,
-        124,
+        123,
         146,
         151,
         211,
