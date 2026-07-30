@@ -45,23 +45,50 @@ import os
 //   of only to a human watching the wheel. See #254 (the fix) + this detector
 //   (the tripwire that would have caught it).
 //
-// Everything here is `#if DEBUG`; release builds get an inert shim (below) so
-// call sites compile to nothing.
+// The DETECTION machinery below compiles into BOTH debug and release builds —
+// so the same beachball that reached a user can be captured on their machine,
+// not just reproduced in a debugger. What differs by configuration is only
+// whether it's ENABLED and whether it can escalate to a crash:
+//
+//   • DEBUG            — on by default (opt out `--no-hang-watchdog`); a
+//                        detected stall faults the log, and with `--hang-fatal`
+//                        also asserts (so CI UI tests fail on a beachball).
+//   • Release, default — OFF. A diagnostic that suspends the main thread to
+//                        sample is not something to run on every user's Mac.
+//   • Release, opted in — on, LOG-ONLY, never fatal. Turn on with the launch
+//                        arg `--hang-watchdog` or the hidden default
+//                        `PortalDiagnostics.hangWatchdog` = true. `--hang-fatal`
+//                        is compiled out of release entirely, so release capture
+//                        can never crash the app — it faults the log and moves on.
 
-#if DEBUG
+/// Whether the hang watchdog runs this launch. See the tiers above.
+///
+/// DEBUG started life opt-in (`--hang-watchdog`), which meant ordinary
+/// `make run` sessions never had it — beachballs kept reaching users undetected
+/// and every one required a debugger session to localize. Detection must be the
+/// default there for the fault log to replace the debugger. In release it's the
+/// reverse: default-off, opt in explicitly, because sampling suspends the main
+/// thread and this is a diagnostic rather than a shipping feature.
+private let hangWatchdogEnabled: Bool = {
+    let arguments = ProcessInfo.processInfo.arguments
+    #if DEBUG
+    // On by default; `--hang-watchdog` still accepted as a no-op for muscle memory.
+    return !arguments.contains("--no-hang-watchdog")
+    #else
+    // Off by default; opt in via launch arg or a hidden UserDefaults key so a
+    // field diagnostic can be turned on without a custom build.
+    if arguments.contains("--hang-watchdog") { return true }
+    return UserDefaults.standard.bool(forKey: "PortalDiagnostics.hangWatchdog")
+    #endif
+}()
 
-/// ON BY DEFAULT in DEBUG builds (this whole file is `#if DEBUG`), opt out
-/// with `--no-hang-watchdog`. It started life opt-in (`--hang-watchdog`), which
-/// meant ordinary `make run` sessions never had it — beachballs kept reaching
-/// users undetected and every one required a debugger session to localize.
-/// Detection must be the default for the fault log to replace the debugger.
-/// (`--hang-watchdog` is still accepted as a no-op for muscle memory/CI.)
-private let hangWatchdogEnabled: Bool =
-    !ProcessInfo.processInfo.arguments.contains("--no-hang-watchdog")
-
-/// When set (`--hang-fatal`), a detected hang trips `assertionFailure` instead
+/// When set (`--hang-fatal`), a detected stall trips `assertionFailure` instead
 /// of only logging a fault — use this in CI UI tests so a hang fails the run.
+/// DEBUG-only: the flag (and every use of it) is compiled out of release, so a
+/// release capture is structurally incapable of crashing the app.
+#if DEBUG
 private let hangFatalEnabled: Bool = ProcessInfo.processInfo.arguments.contains("--hang-fatal")
+#endif
 
 /// Detects main-thread stalls and reports the offending call stack.
 ///
@@ -179,7 +206,12 @@ internal final class MainThreadWatchdog: @unchecked Sendable {
         let ms = Int(thresholdSeconds * 1000)
         let stormPct = Int(stormBusyFraction * 100)
         let stormMs = Int(stormWindowSeconds * 1000)
-        perfLog.debug("hang watchdog started (hang=\(ms)ms storm=\(stormPct)%/\(stormMs)ms fatal=\(hangFatalEnabled))")
+        #if DEBUG
+        let fatal = hangFatalEnabled
+        #else
+        let fatal = false  // release capture is log-only; --hang-fatal is compiled out
+        #endif
+        perfLog.debug("hang watchdog started (hang=\(ms)ms storm=\(stormPct)%/\(stormMs)ms fatal=\(fatal))")
     }
 
     // MARK: Monitor loop (background thread)
@@ -340,11 +372,16 @@ internal final class MainThreadWatchdog: @unchecked Sendable {
         }
         perfLog.fault("\(header)\n\(trace)")
 
+        #if DEBUG
         if hangFatalEnabled {
             // Escalate to a hard stop so CI UI tests fail on a beachball. Deferred
             // to the main actor so the trap's own backtrace points at the run loop.
+            // DEBUG-only: a release capture never crashes — it just faulted above.
             Task { @MainActor in assertionFailure(assertMessage) }
         }
+        #else
+        _ = assertMessage  // built for the DEBUG escalation only; unused in release
+        #endif
     }
 
     // MARK: Stack walking (architecture-specific)
@@ -459,16 +496,4 @@ private extension arm_thread_state64_t {
 private extension x86_thread_state64_t {
     static var flavor: thread_state_flavor_t { thread_state_flavor_t(x86_THREAD_STATE64) }
 }
-#endif
-
-#else
-
-/// Release no-op shim — the watchdog is a dev/CI tripwire, not a shipping
-/// feature. Keeps `PerfInstrumentation.bootstrap()` compiling with zero cost.
-internal struct MainThreadWatchdog {
-    // no_new_singletons exempt in .swiftlint.yml (dev-only perf tooling).
-    internal static let shared = MainThreadWatchdog()
-    @inline(__always) internal func start() {}
-}
-
 #endif
