@@ -14,6 +14,15 @@ struct JSONRPCResponse: Decodable {
 struct JSONRPCError: Decodable, Equatable {
     let code: Int
     let message: String
+    /// Optional structured payload (e.g. `wiki.update`'s 409 carries the
+    /// server's latest page under `data.latest`). Untyped on purpose.
+    internal let data: AnyCodable?
+
+    internal init(code: Int, message: String, data: AnyCodable? = nil) {
+        self.code = code
+        self.message = message
+        self.data = data
+    }
 
     static let parseError = JSONRPCError(code: -32700, message: "parse error")
     static let invalidRequest = JSONRPCError(code: -32600, message: "invalid request")
