@@ -11,6 +11,8 @@ struct FeedView: View {
     /// One embed cache for every tweet card in this feed — scroll-away and
     /// back costs no re-fetch, and tests can stub the network.
     @State private var tweetContentService = TweetContentService()
+    /// Same, for YouTube video cards (oEmbed metadata).
+    @State private var youTubeContentService = YouTubeContentService()
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -59,6 +61,11 @@ struct FeedView: View {
                             .padding(.horizontal, 12)
                     } else if article.hasVideo {
                         VideoFeedCard(article: article)
+                            .padding(.horizontal, 12)
+                    } else if article.isYouTube {
+                        // YouTube links render as a thumbnail card with
+                        // tap-to-play INLINE (YouTube embed, no login).
+                        YouTubeVideoCard(article: article, contentService: youTubeContentService)
                             .padding(.horizontal, 12)
                     } else {
                         FeedCard(article: article)
