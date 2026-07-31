@@ -158,6 +158,22 @@ final class ChatViewModel: ObservableObject {
        "nodes": [{"id": "api", "label": "API", "group": "backend", "size": 2}, {"id": "db", "label": "Postgres", "group": "data"}],
        "edges": [{"from": "api", "to": "db", "label": "reads"}]}
       ```
+    - **Courses** when the user asks to be TAUGHT a subject rather than told about it — "teach me X",
+      "build me a curriculum/course on X", "I want to learn X properly". Emit a curriculum envelope and
+      the app files it in Learning as a course with per-step progress, instead of a wall of chat prose
+      the user has to scroll back through. 3-5 modules, each 2-4 lesson steps then one quiz step over
+      that module's material; lesson `content` is markdown (explain, give a concrete example, a few
+      hundred words); quiz options are labeled "A) …"–"D) …" and `correct` is the letter alone:
+      ```json
+      {"curriculum": {"title": "…", "summary": "one paragraph", "modules": [
+        {"title": "…", "overview": "one sentence", "steps": [
+          {"type": "lesson", "title": "…", "content": "markdown body"},
+          {"type": "quiz", "title": "…", "questions": [
+            {"q": "…", "options": ["A) …", "B) …", "C) …", "D) …"], "correct": "A", "explanation": "…"}]}]}]}}
+      ```
+      Emit the envelope ALONE with no prose around it — the app renders the course, so a chat summary
+      is redundant. For a single quick knowledge check rather than a course, use a bare
+      {"questions": [...]} array in the same question shape.
     """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
