@@ -12,11 +12,20 @@ internal struct TweetPostCard: View {
     /// Embed fetcher owned by the feed surface (one cache per feed; injected
     /// so tests can stub the network).
     internal let contentService: TweetContentService
+    /// On-demand detail fetch (comments + fresh metrics), injected from the
+    /// feed's view model — views never touch the raw client. Nil disables
+    /// the fetch (previews/tests): comments show the unavailable fallback.
+    internal var loadDetail: ((String) async throws -> FeedTweetDetail)?
 
     @State private var commentsExpanded = false
     @State private var browserLink: InAppBrowserLink?
     @State private var embed: TweetEmbed?
     @State private var isFetchingEmbed = false
+    /// On-demand detail (fresh metrics + replies) from feed.tweet_detail.
+    @State private var detail: FeedTweetDetail?
+    /// idle → loading → loaded | unavailable | failed
+    private enum CommentsLoad: Equatable { case idle, loading, loaded, unavailable, failed }
+    @State private var commentsLoad: CommentsLoad = .idle
 
     private var tweetURL: URL? {
         guard !article.url.isEmpty else { return nil }
@@ -35,10 +44,10 @@ internal struct TweetPostCard: View {
         article.tweetHandle ?? embed?.authorHandle
     }
 
-    /// Avatar: syndication's profile image (best), then the backend's, then
-    /// the unavatar mirror for the handle.
+    /// Avatar: fresh detail fetch → syndication's profile image → backend's,
+    /// then the unavatar mirror for the handle.
     private var avatarURL: URL? {
-        embed?.avatarURL ?? article.tweetAvatarURL
+        detail?.authorAvatarURL ?? embed?.avatarURL ?? article.tweetAvatarURL
     }
 
     /// The tweet's text: the fetched syndication contents when the digest
@@ -54,16 +63,23 @@ internal struct TweetPostCard: View {
         return embed?.mediaURLs ?? []
     }
 
-    /// Replies action-bar count: backend metric → syndication count → inlined
-    /// replies — never a fake "0".
+    /// Replies shown in the comments section: backend-inlined replies, else
+    /// the on-demand detail's fetched thread.
+    private var displayedReplies: [FeedReply] {
+        article.replies.isEmpty ? (detail?.replies ?? []) : article.replies
+    }
+
+    /// Replies action-bar count: fresh detail metric → backend metric →
+    /// syndication count → inlined replies — never a fake "0".
     private var replyCount: Int? {
-        article.metrics?.replies ?? embed?.replyCount
+        detail?.metrics?.replies ?? article.metrics?.replies ?? embed?.replyCount
             ?? (article.replies.isEmpty ? nil : article.replies.count)
     }
 
-    /// Likes action-bar count: backend metric → syndication favorite_count.
+    /// Likes action-bar count: fresh detail metric → backend metric →
+    /// syndication favorite_count.
     private var likeCount: Int? {
-        article.metrics?.likes ?? embed?.likeCount
+        detail?.metrics?.likes ?? article.metrics?.likes ?? embed?.likeCount
     }
 
     /// The thread above this tweet, oldest first (flattened parent chain).
@@ -80,22 +96,28 @@ internal struct TweetPostCard: View {
 
             headerRow
 
-            if let text = tweetText {
-                LinkifiedText(text: text)
-                    .padding(.top, 4)
-            } else if isFetchingEmbed {
-                HStack(spacing: 6) {
-                    ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
-                    Text("Fetching tweet…")
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
+            // Content LEFT, media RIGHT — images fit a fixed box instead of
+            // stacking full-bleed under the text.
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let text = tweetText {
+                        LinkifiedText(text: text)
+                            .padding(.top, 4)
+                    } else if isFetchingEmbed {
+                        HStack(spacing: 6) {
+                            ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                            Text("Fetching tweet…")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondary)
+                        }
+                        .padding(.top, 6)
+                    }
                 }
-                .padding(.top, 6)
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            ForEach(mediaURLs, id: \.absoluteString) { url in
-                FeedHeroImage(url: url)
-                    .padding(.top, 10)
+                if !mediaURLs.isEmpty {
+                    mediaRail
+                }
             }
 
             // The tweet's link, always pinned under the contents.
@@ -107,9 +129,7 @@ internal struct TweetPostCard: View {
             actionBar
                 .padding(.top, 8)
 
-            if !article.replies.isEmpty {
-                commentsSection
-            }
+            commentsSection
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16).fill(Theme.surface))
@@ -121,6 +141,56 @@ internal struct TweetPostCard: View {
             InAppBrowserView(link: link)
         }
         .task(id: article.url) { await fetchEmbedIfNeeded() }
+    }
+
+    // MARK: - Media rail (right side, fitted crops)
+
+    /// The right-hand media column: one image fits a square box; several
+    /// become an X-style 2×2 grid. Crops are .fill inside a fixed frame, so
+    /// every image lands in the same box instead of breaking the layout.
+    @ViewBuilder
+    private var mediaRail: some View {
+        let urls = Array(mediaURLs.prefix(4))
+        if urls.count == 1, let url = urls.first {
+            mediaThumb(url, size: 132)
+        } else {
+            VStack(spacing: 4) {
+                gridRow(Array(urls.prefix(2)))
+                if urls.count > 2 {
+                    gridRow(Array(urls.dropFirst(2).prefix(2)))
+                }
+            }
+        }
+    }
+
+    private func gridRow(_ urls: [URL]) -> some View {
+        HStack(spacing: 4) {
+            ForEach(urls, id: \.absoluteString) { mediaThumb($0, size: 64) }
+        }
+    }
+
+    private func mediaThumb(_ url: URL, size: CGFloat) -> some View {
+        AsyncImage(url: url) { phase in
+            if let image = phase.image {
+                image.resizable().aspectRatio(contentMode: .fill)
+            } else {
+                ZStack {
+                    Theme.surfaceHover
+                    if phase.error == nil {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "photo")
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.border.opacity(0.6), lineWidth: 0.5)
+        )
     }
 
     // MARK: - Header (avatar / name / handle / time)
@@ -224,10 +294,9 @@ internal struct TweetPostCard: View {
                 icon: "bubble",
                 count: replyCount,
                 tint: Theme.secondary,
-                help: article.replies.isEmpty ? "Replies" : "Show replies"
+                help: commentsExpanded ? "Hide replies" : "Show replies"
             ) {
-                guard !article.replies.isEmpty else { return }
-                withAnimation(.easeInOut(duration: 0.22)) { commentsExpanded.toggle() }
+                toggleComments()
             }
             Spacer()
             actionButton(
@@ -285,16 +354,50 @@ internal struct TweetPostCard: View {
 
     // MARK: - Comments (expandable, read-only)
 
+    /// Tapping the reply affordance always opens the comments section: inline
+    /// backend replies render immediately; otherwise the section fetches the
+    /// live thread via feed.tweet_detail (fresh metrics land in the action
+    /// bar from the same call).
+    private func toggleComments() {
+        withAnimation(.easeInOut(duration: 0.22)) { commentsExpanded.toggle() }
+        guard commentsExpanded, article.replies.isEmpty,
+              commentsLoad == .idle || commentsLoad == .failed else { return }
+        Task { await loadComments() }
+    }
+
+    private func loadComments() async {
+        guard let loadDetail else {
+            commentsLoad = .unavailable
+            return
+        }
+        commentsLoad = .loading
+        do {
+            detail = try await loadDetail(article.url)
+            commentsLoad = .loaded
+        } catch let error as GatewayError {
+            commentsLoad = Self.isMethodMissing(error) ? .unavailable : .failed
+        } catch {
+            commentsLoad = .failed
+        }
+    }
+
+    private static func isMethodMissing(_ error: GatewayError) -> Bool {
+        guard case .rpcError(let rpc) = error else { return false }
+        return rpc == JSONRPCError.methodNotFound
+    }
+
     private var commentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.22)) { commentsExpanded.toggle() }
-            } label: {
+            Button(action: toggleComments) {
                 HStack(spacing: 6) {
                     Image(systemName: commentsExpanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                    Text("\(article.replies.count) repl\(article.replies.count == 1 ? "y" : "ies")")
+                    Text("Replies")
                         .font(.caption.weight(.semibold))
+                    if let replyCount {
+                        Text("(\(TweetMetrics.compact(replyCount)))")
+                            .font(.caption)
+                    }
                     Spacer()
                 }
                 .foregroundStyle(Theme.secondary)
@@ -304,18 +407,59 @@ internal struct TweetPostCard: View {
             .buttonStyle(.plain)
 
             if commentsExpanded {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(article.replies) { reply in
-                        replyRow(reply)
-                        if reply.id != article.replies.last?.id {
-                            Divider().overlay(Theme.border.opacity(0.5))
+                Group {
+                    if !displayedReplies.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(displayedReplies) { reply in
+                                replyRow(reply)
+                                if reply.id != displayedReplies.last?.id {
+                                    Divider().overlay(Theme.border.opacity(0.5))
+                                }
+                            }
                         }
+                    } else if commentsLoad == .loading {
+                        HStack(spacing: 6) {
+                            ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                            Text("Loading replies…")
+                                .font(.caption)
+                                .foregroundStyle(Theme.secondary)
+                        }
+                        .padding(.vertical, 8)
+                    } else if commentsLoad == .unavailable {
+                        fallbackRow("This harness can't fetch replies yet — update it to see the live thread here.")
+                    } else if commentsLoad == .failed {
+                        fallbackRow("Couldn't load replies.")
+                    } else {
+                        Text("No replies yet")
+                            .font(.caption)
+                            .foregroundStyle(Theme.tertiary)
+                            .padding(.vertical, 8)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(.top, 4)
+    }
+
+    private func fallbackRow(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+            Spacer(minLength: 8)
+            Button(action: openArticle) {
+                HStack(spacing: 4) {
+                    Text("View on X")
+                        .font(.caption.weight(.medium))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(Theme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
     }
 
     private func replyRow(_ reply: FeedReply) -> some View {
@@ -485,7 +629,8 @@ internal struct TweetPostCard_Previews: PreviewProvider {
                               text: "Does it handle 1k nodes?", url: "https://x.com/devtwo/status/125"),
                 ]
             ),
-            contentService: TweetContentService()
+            contentService: TweetContentService(),
+            loadDetail: nil
         )
         .padding()
         .background(Theme.background)

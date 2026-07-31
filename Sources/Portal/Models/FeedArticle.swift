@@ -345,6 +345,17 @@ struct FeedResponse: Codable {
     }
 }
 
+/// On-demand tweet detail from `feed.tweet_detail`: fresh engagement metrics
+/// and the reply thread, fetched server-side via the gateway's X credentials
+/// when the user expands a tweet's comments.
+internal struct FeedTweetDetail: Equatable {
+    internal let authorName: String?
+    internal let authorHandle: String?
+    internal let authorAvatarURL: URL?
+    internal let metrics: TweetMetrics?
+    internal let replies: [FeedReply]
+}
+
 struct FeedSourcesResponse: Codable {
     let sources: [String: Int]
     let total: Int

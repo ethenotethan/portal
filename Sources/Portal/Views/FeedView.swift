@@ -57,7 +57,13 @@ struct FeedView: View {
                     if article.isTwitter {
                         // Tweets render as an embedded X-style post card
                         // (read-only comments/likes/RTs), not a link card.
-                        TweetPostCard(article: article, contentService: tweetContentService)
+                        TweetPostCard(
+                            article: article,
+                            contentService: tweetContentService,
+                            loadDetail: { url in
+                                try await vm.tweetDetail(url: url, client: gatewayClientWrapper.client)
+                            }
+                        )
                             .padding(.horizontal, 12)
                     } else if article.hasVideo {
                         VideoFeedCard(article: article)
