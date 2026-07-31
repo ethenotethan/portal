@@ -2254,3 +2254,23 @@ enum GatewayError: LocalizedError {
         }
     }
 }
+
+/// Resumes a liveness probe exactly once even when its WebSocket callback and
+/// deadline race on different executors. The unchecked conformance is valid
+/// because the only mutable state is protected by `lock`.
+private final class LivenessProbeCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Bool, Never>?
+
+    init(_ continuation: CheckedContinuation<Bool, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(returning value: Bool) {
+        lock.lock()
+        let continuation = continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume(returning: value)
+    }
+}
