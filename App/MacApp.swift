@@ -12,6 +12,7 @@ struct PortalAppMac: App {
     @StateObject private var capabilitiesStore = GatewayCapabilitiesStore()
     @StateObject private var celebrationManager = CelebrationManager.shared
     @StateObject private var ttsService = TTSService.shared
+    @StateObject private var xAuth = XAuthService()
 
     init() {
         configurePortalMacApplication()
@@ -30,6 +31,7 @@ struct PortalAppMac: App {
                 .environmentObject(capabilitiesStore)
                 .environmentObject(celebrationManager)
                 .environmentObject(ttsService)
+                .environmentObject(xAuth)
                 .background(MacWindowConfigurator())
                 .perfOverlay()
         }
