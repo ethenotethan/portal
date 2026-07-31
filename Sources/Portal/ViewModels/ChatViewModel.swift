@@ -158,6 +158,22 @@ final class ChatViewModel: ObservableObject {
        "nodes": [{"id": "api", "label": "API", "group": "backend", "size": 2}, {"id": "db", "label": "Postgres", "group": "data"}],
        "edges": [{"from": "api", "to": "db", "label": "reads"}]}
       ```
+    - **Courses** when the user asks to be TAUGHT a subject rather than told about it — "teach me X",
+      "build me a curriculum/course on X", "I want to learn X properly". Emit a curriculum envelope and
+      the app files it in Learning as a course with per-step progress, instead of a wall of chat prose
+      the user has to scroll back through. 3-5 modules, each 2-4 lesson steps then one quiz step over
+      that module's material; lesson `content` is markdown (explain, give a concrete example, a few
+      hundred words); quiz options are labeled "A) …"–"D) …" and `correct` is the letter alone:
+      ```json
+      {"curriculum": {"title": "…", "summary": "one paragraph", "modules": [
+        {"title": "…", "overview": "one sentence", "steps": [
+          {"type": "lesson", "title": "…", "content": "markdown body"},
+          {"type": "quiz", "title": "…", "questions": [
+            {"q": "…", "options": ["A) …", "B) …", "C) …", "D) …"], "correct": "A", "explanation": "…"}]}]}]}}
+      ```
+      Emit the envelope ALONE with no prose around it — the app renders the course, so a chat summary
+      is redundant. For a single quick knowledge check rather than a course, use a bare
+      {"questions": [...]} array in the same question shape.
     """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
@@ -234,6 +250,17 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Flashcard Mode
     /// When non-nil, a flashcard deck is available and the QuizSheet should show it.
     @Published var flashcardDeckReady: FlashcardDeck?
+
+    // MARK: - Curriculum Mode
+    /// Set when the agent returns a parseable course. The view opens Learning
+    /// rather than a sheet — a curriculum is a multi-session artifact, so it is
+    /// persisted first and studied from the Learning page.
+    @Published internal var curriculumReady: Curriculum?
+
+    /// Where a generated course is written before the Learning page opens it.
+    /// Owned rather than shared: the store is stateless beyond its directory, so
+    /// each owner holding its own instance reads and writes the same courses.
+    private let curriculumStore = CurriculumStore()
 
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
@@ -1027,6 +1054,12 @@ if restoreSessionState(displayID: key) {
         flashcardDeckReady = nil
     }
 
+    /// Clear the pending course signal once the view has acted on it. The course
+    /// itself is already on disk, so this only drops the "just arrived" flag.
+    internal func clearCurriculumSignal() {
+        curriculumReady = nil
+    }
+
     /// Send a review prompt to the agent and close the quiz.
     func reviewQuizWithAgent(prompt: String) async {
         quizQuestions = nil
@@ -1037,6 +1070,27 @@ if restoreSessionState(displayID: key) {
         // Set the prompt text and submit
         inputText = prompt
         await submitPrompt()
+    }
+
+    /// The generation prompt for `/curriculum`. Spells out the JSON shape
+    /// `CurriculumResponse` parses, and asks for a quiz after each group of
+    /// lessons so progress has something to measure.
+    internal static func curriculumPrompt(topic: String) -> String {
+        """
+        Design a structured course on "\(topic)": 3-5 modules, each with 2-4 lesson \
+        steps followed by one quiz step that tests that module's material.
+
+        Lesson `content` is markdown — explain the idea, give a concrete example, \
+        keep each lesson to a few hundred words. Quiz questions have 4 plausible \
+        options labeled "A) …" through "D) …" and `correct` is the letter alone.
+
+        Return ONLY valid JSON, no prose around it:
+        {"curriculum":{"title":"...","summary":"one paragraph","modules":[\
+        {"title":"...","overview":"one sentence","steps":[\
+        {"type":"lesson","title":"...","content":"markdown body"},\
+        {"type":"quiz","title":"...","questions":[\
+        {"q":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":"A","explanation":"..."}]}]}]}}
+        """
     }
 
     /// Agent embedded [[QUIZ:topic]] — fire a quiz generation prompt.
@@ -1227,6 +1281,46 @@ if restoreSessionState(displayID: key) {
               let client = gatewayClient, let sid = sessionID else { return }
         guard !isStreaming && !isStopping else {
             log.info("ChatViewModel submitPrompt ignored while streaming/stopping")
+            return
+        }
+
+        // ── Curriculum Detection ──
+        // Checked before /quiz so the longer command isn't shadowed by a prefix
+        // match, and so the course prompt (not the raw text) reaches the agent.
+        if text.hasPrefix("/curriculum") {
+            let topic = text.dropFirst("/curriculum".count).trimmingCharacters(in: .whitespaces)
+            guard !topic.isEmpty else {
+                self.error = "Usage: /curriculum <topic>"
+                return
+            }
+
+            inputText = ""
+            pendingAttachments = []
+            isStreaming = true
+
+            let userMessage = ChatMessage(role: .user, content: "/curriculum \(topic)")
+            messages.append(userMessage)
+
+            if messages.filter({ $0.role == .user }).count == 1 {
+                sessionTitle = "Course: \(String(topic.prefix(40)))"
+            }
+
+            saveHistory()
+            snapshotCurrentSessionState()
+
+            let assistantMessage = ChatMessage(role: .assistant, content: "", isStreaming: true)
+            streamingMessageID = assistantMessage.id
+            streamStartDate = Date()
+            messages.append(assistantMessage)
+            snapshotCurrentSessionState()
+
+            do {
+                try await client.submitPrompt(sessionID: sid, text: Self.curriculumPrompt(topic: topic))
+            } catch {
+                log.error("Curriculum prompt submission failed: \(error.localizedDescription)")
+                self.error = error.localizedDescription
+                finishStreaming(status: "error")
+            }
             return
         }
 
@@ -2183,10 +2277,15 @@ if restoreSessionState(displayID: key) {
                 )
             }
 
-            // ── Quiz Response Handling (session-scoped) ──
-            // Always check for quiz JSON — not just when user typed /quiz.
-            // The agent can initiate quizzes by embedding quiz JSON directly.
-            if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
+            // ── Curriculum Response Handling ──
+            // Checked before the quiz parser: a course carries `questions`
+            // arrays inside its steps, so `QuizResponse.extract` would claim it
+            // first and reduce a whole course to one loose quiz.
+            if let course = CurriculumResponse.extract(from: payload.text) {
+                log.info("Curriculum parsed: \(course.modules.count) modules, \(course.totalSteps) steps")
+                curriculumStore.save(course)
+                curriculumReady = course
+            } else if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
                 log.info("Quiz parsed (session auto-detect): \(questions.count) questions")
                 // Infer topic from the first question text
                 let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"

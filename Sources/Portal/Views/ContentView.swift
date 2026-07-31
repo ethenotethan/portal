@@ -41,6 +41,9 @@ internal struct ContentView: View {
     @State private var showWikiGraph = false
     @State private var showFeedSheet = false
     @State private var showLearning = false
+    /// Course to jump straight into when Learning opens — set when the agent
+    /// generates one, cleared once Learning has consumed it.
+    @State private var pendingCurriculumID: UUID?
     @State private var showCentaurWorkflows = false
     @State private var showArtifactsPane = false
     @State private var selectedTab = 0
@@ -278,7 +281,10 @@ internal struct ContentView: View {
             }
             .tag(5)
 
-            LearningDashboardView(onClose: { })
+            LearningDashboardView(
+                onClose: { },
+                openCurriculumID: pendingCurriculumID
+            )
             .tabItem {
                 Label("Learning", systemImage: "books.vertical.fill")
             }
@@ -369,6 +375,9 @@ internal struct ContentView: View {
                let url = URL(string: urlString) {
                 handleDeepLink(url)
             }
+        }
+        .onChange(of: chatViewModel.curriculumReady) { _, course in
+            handleCurriculumReady(course)
         }
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
@@ -470,6 +479,9 @@ internal struct ContentView: View {
                let url = URL(string: urlString) {
                 handleDeepLink(url)
             }
+        }
+        .onChange(of: chatViewModel.curriculumReady) { _, course in
+            handleCurriculumReady(course)
         }
         .onChange(of: scenePhase) { _, newPhase in
             handleScenePhaseChange(newPhase)
@@ -1144,6 +1156,7 @@ internal struct ContentView: View {
                 LearningDashboardView(
                     onClose: {
                         showLearning = false
+                        pendingCurriculumID = nil
                         chatViewModel.refocusInput += 1
                     },
                     // Quizzes/flashcards now play INLINE inside the Learning
@@ -1158,7 +1171,8 @@ internal struct ContentView: View {
                             object: nil,
                             userInfo: ["reviewPrompt": prompt]
                         )
-                    }
+                    },
+                    openCurriculumID: pendingCurriculumID
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Theme.background)
@@ -1689,6 +1703,21 @@ spawnTreeStore.subscribe(to: client)
         case .activity:
             showActivitySheet = true
         }
+    }
+
+    /// A generated course is already persisted by the time this fires, so open
+    /// Learning on it and drop the signal. On iOS that means selecting the
+    /// Learning tab; on macOS, raising the Learning overlay.
+    private func handleCurriculumReady(_ course: Curriculum?) {
+        guard let course else { return }
+        pendingCurriculumID = course.id
+        #if os(iOS)
+        selectedTab = 6
+        #else
+        closeAllOverlays()
+        showLearning = true
+        #endif
+        chatViewModel.clearCurriculumSignal()
     }
 
     private func handleScenePhaseChange(_ newPhase: ScenePhase) {
