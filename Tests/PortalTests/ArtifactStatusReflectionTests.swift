@@ -1,5 +1,8 @@
 import Foundation
 import Testing
+#if os(macOS)
+import WebKit
+#endif
 @testable import Portal
 
 // Pure coverage for the native→page status write-back and the intent→session
@@ -76,6 +79,74 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!js.contains("window.location"))
         #expect(!js.contains("fetch("))
     }
+
+    #if os(macOS)
+    /// The bug this guards: WebKit asks the `uiDelegate` for permission via
+    /// `WKUIDelegatePrivate` selectors and denies the lock when nobody answers.
+    /// A typo in an `@objc` name is invisible at compile time and looks exactly
+    /// like the original "cursor never captures" symptom, so assert the runtime
+    /// actually exposes the names WebKit probes.
+    @MainActor
+    @Test("Pointer Lock delegate answers the selectors WebKit probes for permission")
+    internal func pointerLockDelegateAnswersWebKitProbes() {
+        let delegate = ArtifactPointerLockDelegate()
+        for name in [
+            ArtifactPointerLockDelegate.requestSelectorName,
+            ArtifactPointerLockDelegate.legacyRequestSelectorName,
+            ArtifactPointerLockDelegate.didLoseSelectorName
+        ] {
+            #expect(
+                delegate.responds(to: NSSelectorFromString(name)),
+                "WebKit probes \(name); an unanswered selector silently denies Pointer Lock"
+            )
+        }
+        // Names are load-bearing (WebKit looks them up as strings), so pin them.
+        #expect(ArtifactPointerLockDelegate.requestSelectorName
+            == "_webViewDidRequestPointerLock:completionHandler:")
+        #expect(ArtifactPointerLockDelegate.legacyRequestSelectorName == "_webViewRequestPointerLock:")
+        #expect(ArtifactPointerLockDelegate.didLoseSelectorName == "_webViewDidLosePointerLock:")
+    }
+
+    @MainActor
+    @Test("Granting a lock request flips locked state, and losing it flips back")
+    internal func pointerLockStateTracksGrantAndLoss() {
+        let delegate = ArtifactPointerLockDelegate()
+        #expect(delegate.isPointerLocked == false)
+
+        var observed: [Bool] = []
+        delegate.onLockChange = { observed.append($0) }
+
+        let webView = WKWebView(frame: .zero)
+        // Collected rather than a lone flag so "never called" and "called with
+        // false" stay distinguishable.
+        var grants: [Bool] = []
+        delegate.webViewDidRequestPointerLock(webView) { grants.append($0) }
+        #expect(grants == [true], "the request already cleared WebKit's own gates")
+        #expect(delegate.isPointerLocked)
+
+        delegate.webViewDidLosePointerLock(webView)
+        #expect(delegate.isPointerLocked == false)
+        #expect(observed == [true, false], "each transition reports exactly once")
+
+        // reset() must clear a stale lock, or Escape would be swallowed forever.
+        delegate.webViewDidRequestPointerLock(webView) { _ in }
+        delegate.reset()
+        #expect(delegate.isPointerLocked == false)
+    }
+
+    /// OrbitControls drags on absolute cursor position; capturing the pointer
+    /// hides the cursor and starves those events, breaking a working scene.
+    @Test("Auto pointer capture is scoped to html, not orbit-driven model3d")
+    internal func autoPointerCaptureIsKindScoped() {
+        #expect(InteractiveArtifactWeb.autoCapturesPointer(kind: "html"))
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d"))
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "chart"))
+        // Both kinds still get the immersive window itself.
+        #expect(InteractiveArtifactWeb.supportsImmersiveFullscreen("html"))
+        #expect(InteractiveArtifactWeb.supportsImmersiveFullscreen("model3d"))
+        #expect(!InteractiveArtifactWeb.supportsImmersiveFullscreen("dataset"))
+    }
+    #endif
 
     // MARK: - ArtifactStore.intentSlots — decode composite keys
 

@@ -45,6 +45,93 @@ internal enum InteractiveArtifactWeb {
     internal static func supportsImmersiveFullscreen(_ kind: String) -> Bool {
         kind == "html" || kind == "model3d"
     }
+
+    /// Whether the host should turn the first canvas click into a Pointer Lock
+    /// request (`HTMLPointerLockBridge`).
+    ///
+    /// Only `html`, where the page owns its own camera and a hidden cursor with
+    /// relative deltas is what first-person navigation needs. `model3d` renders
+    /// through `Model3DTemplate`'s **OrbitControls**, which drags on absolute
+    /// cursor positions — locking the pointer there hides the cursor and starves
+    /// the very events orbiting depends on, breaking a scene that worked. Pages
+    /// that genuinely want the lock can still call `requestPointerLock()`
+    /// themselves; the window grants it either way.
+    internal static func autoCapturesPointer(kind: String) -> Bool {
+        kind == "html"
+    }
+}
+
+// MARK: - Pointer Lock permission
+
+/// Grants WebKit's Pointer Lock requests for the immersive artifact window and
+/// tracks whether the lock is currently held.
+///
+/// **Why this class has to exist, and why it uses private selectors:** a page
+/// calling `requestPointerLock()` inside a `WKWebView` is refused unless the
+/// web view's `uiDelegate` answers WebKit's pointer-lock callbacks. Those
+/// callbacks live in `WKUIDelegatePrivate`, not the public `WKUIDelegate` — as
+/// of macOS 26 AppKit exposes no public equivalent. WebKit's `UIDelegate` shim
+/// asks `respondsToSelector:` for each and, finding none, completes the request
+/// with `false`. Portal set no `uiDelegate` at all, so every lock request was
+/// denied and the cursor kept floating over the scene even after the artifact
+/// moved into its own fullscreen window.
+///
+/// The selectors are optional and looked up dynamically by WebKit, so if a
+/// future WebKit renames them nothing crashes — the lock simply stops being
+/// granted, which is exactly today's behavior. `PointerLockEnabled` is on by
+/// default in `WKPreferences`, so no feature flag is involved.
+@MainActor
+internal final class ArtifactPointerLockDelegate: NSObject, WKUIDelegate {
+    /// Selector names WebKit probes on the UI delegate. Kept as constants so a
+    /// test can assert this object actually answers them — a silent typo here is
+    /// indistinguishable from the bug this class fixes.
+    internal static let requestSelectorName = "_webViewDidRequestPointerLock:completionHandler:"
+    internal static let legacyRequestSelectorName = "_webViewRequestPointerLock:"
+    internal static let didLoseSelectorName = "_webViewDidLosePointerLock:"
+
+    /// True while the page holds the pointer. Read by the window controller so
+    /// Escape can mean "release the mouse" first and "leave fullscreen" second.
+    internal private(set) var isPointerLocked = false
+
+    /// Called when the lock is taken or released, so the host can update chrome.
+    internal var onLockChange: ((Bool) -> Void)?
+
+    @objc(_webViewDidRequestPointerLock:completionHandler:)
+    internal func webViewDidRequestPointerLock(
+        _ webView: WKWebView,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        // The request already passed WebKit's own gates (trusted gesture, focused
+        // document, visible page) before reaching the delegate, so there is
+        // nothing further to validate — the page may capture the cursor.
+        setLocked(true)
+        completionHandler(true)
+    }
+
+    /// Older WebKit shape: no completion handler, and implementing it is itself
+    /// the grant.
+    @objc(_webViewRequestPointerLock:)
+    internal func webViewRequestPointerLock(_ webView: WKWebView) {
+        setLocked(true)
+    }
+
+    @objc(_webViewDidLosePointerLock:)
+    internal func webViewDidLosePointerLock(_ webView: WKWebView) {
+        setLocked(false)
+    }
+
+    /// Reset for a fresh presentation — a torn-down page can't still hold the
+    /// cursor, and a stale `true` would make Escape a no-op.
+    internal func reset() {
+        setLocked(false)
+    }
+
+    private func setLocked(_ locked: Bool) {
+        guard isPointerLocked != locked else { return }
+        isPointerLocked = locked
+        log.debug("pointer lock \(locked ? "acquired" : "released", privacy: .public)")
+        onLockChange?(locked)
+    }
 }
 
 // MARK: - Fullscreen window
@@ -59,9 +146,12 @@ internal enum InteractiveArtifactWeb {
 /// screen. A SwiftUI `.overlay` buried in the docked window is neither, so the
 /// lock silently fails and the visible cursor floats "on top of" the scene. A
 /// standalone key window in native fullscreen is the environment where the lock
-/// engages. Escape is left entirely to WebKit (release the lock) and macOS
-/// (exit fullscreen once unlocked) — this controller binds no keys of its own,
-/// so nothing competes with the lock-release gesture.
+/// engages — together with `ArtifactPointerLockDelegate`, which is what actually
+/// permits the lock.
+///
+/// Escape is handled in two stages by a monitor scoped to this window: while the
+/// page holds the pointer the key is passed through untouched so WebKit performs
+/// its standard release; once unlocked, Escape leaves fullscreen and closes.
 @MainActor
 internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDelegate {
     // no_new_singletons exempt in .swiftlint.yml (window-hosting controllers,
@@ -70,6 +160,14 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
 
     private var window: NSWindow?
     private var webView: InputCapturingWebView?
+    private var hintView: NSView?
+    private var escapeMonitor: Any?
+    private var hintTimer: Timer?
+    private let pointerLock = ArtifactPointerLockDelegate()
+    /// Set when Escape / an explicit close arrives while still fullscreen: the
+    /// window is torn down only after the fullscreen transition finishes, or the
+    /// screen is left with an empty green space.
+    private var closeAfterExitingFullScreen = false
 
     override private init() { super.init() }
 
@@ -79,21 +177,30 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
     /// Build a fresh interactive web view, load `html`, and take it to native
     /// fullscreen. Any prior presentation is torn down first so a previous
     /// WebGL/animation loop can't keep running behind the new one.
-    internal func present(html: String, title: String) {
+    ///
+    /// `autoCapturesPointer` injects the first-click Pointer Lock helper. Pass
+    /// false for scenes driven by absolute cursor position (OrbitControls) —
+    /// see `InteractiveArtifactWeb.autoCapturesPointer(kind:)`.
+    internal func present(html: String, title: String, autoCapturesPointer: Bool = true) {
         close()
+        pointerLock.reset()
 
         let config = InteractiveArtifactWeb.baseConfiguration()
-        // The trusted-gesture pointer-lock helper: a real click on a <canvas>
-        // requests the lock from that same event. See HTMLPointerLockBridge.
-        config.userContentController.addUserScript(WKUserScript(
-            source: HTMLPointerLockBridge.userScriptSource,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true,
-            in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
-        ))
+        if autoCapturesPointer {
+            // The trusted-gesture pointer-lock helper: a real click on a <canvas>
+            // requests the lock from that same event. See HTMLPointerLockBridge.
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLPointerLockBridge.userScriptSource,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
+            ))
+        }
 
         let webView = InputCapturingWebView(frame: .zero, configuration: config)
         webView.capturesInput = true
+        // Without a uiDelegate WebKit denies every requestPointerLock() call.
+        webView.uiDelegate = pointerLock
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false
         webView.translatesAutoresizingMaskIntoConstraints = true
@@ -111,35 +218,168 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         let screenFrame = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: screenFrame.width * 0.8, height: screenFrame.height * 0.8),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            // .fullSizeContentView + a hidden, transparent titlebar means the
+            // scene is edge-to-edge even during the transition, instead of
+            // sitting under a chrome band the user has to look past.
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = title
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.collectionBehavior.insert(.fullScreenPrimary)
+        window.backgroundColor = .black
         window.contentView = container
         window.delegate = self
         window.initialFirstResponder = webView
         window.center()
         self.window = window
 
+        if autoCapturesPointer {
+            installHint(in: container)
+        }
+        installEscapeMonitor()
+
         webView.loadHTMLString(html, baseURL: nil)
         window.makeKeyAndOrderFront(nil)
-        // Go fullscreen once ordered front; makeFirstResponder happens on the
-        // become-key / enter-fullscreen callbacks so focus lands after the
-        // transition, not before the window is real.
-        window.toggleFullScreen(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        // Pointer Lock is refused unless the document's window has focus, so the
+        // window must be key and the web view first responder before the page
+        // can capture anything. makeFirstResponder also runs from the
+        // become-key / enter-fullscreen callbacks.
+        window.makeFirstResponder(webView)
+        enterFullScreen(window)
         log.debug("presented artifact fullscreen: \(title, privacy: .public)")
+    }
+
+    /// AppKit refuses `toggleFullScreen` when it lands in the same turn of the
+    /// run loop as `makeKeyAndOrderFront` — the window is not yet on screen, the
+    /// transition is dropped, and the user is left staring at a floating 80%
+    /// window instead of a fullscreen scene. Ask on the next turn, then verify
+    /// and retry once.
+    private func enterFullScreen(_ window: NSWindow) {
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, self.window === window else { return }
+            guard !window.styleMask.contains(.fullScreen) else { return }
+            window.toggleFullScreen(nil)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak window] in
+                guard let self, let window, self.window === window else { return }
+                guard !window.styleMask.contains(.fullScreen) else { return }
+                log.error("fullscreen transition did not take — retrying once")
+                window.toggleFullScreen(nil)
+            }
+        }
+    }
+
+    /// Escape, scoped to this window only. While the pointer is captured the
+    /// event is handed to WebKit untouched (it performs the release); otherwise
+    /// it leaves fullscreen and dismisses — the "escape out of full full screen"
+    /// path. The monitor is local, so the rest of the app keeps its own Escape.
+    private func installEscapeMonitor() {
+        removeEscapeMonitor()
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            guard let self, let window = self.window else { return event }
+            let escapeKeyCode: UInt16 = 53
+            guard event.keyCode == escapeKeyCode, event.window === window else { return event }
+            // Let WebKit release the cursor first; the next Escape exits.
+            guard !self.pointerLock.isPointerLocked else { return event }
+            self.requestClose()
+            return nil
+        }
+    }
+
+    private func removeEscapeMonitor() {
+        if let escapeMonitor {
+            NSEvent.removeMonitor(escapeMonitor)
+        }
+        escapeMonitor = nil
+    }
+
+    /// A transient "how to drive this" strip. Pointer Lock cannot be taken on
+    /// the user's behalf — the spec requires a gesture in *this* document, and
+    /// the click that opened the window happened in another one — so the one
+    /// click that captures the mouse has to be asked for rather than assumed.
+    private func installHint(in container: NSView) {
+        let text = NSTextField(labelWithString: "Click the scene to capture your mouse  ·  Esc releases  ·  Esc again exits")
+        text.font = .systemFont(ofSize: 13, weight: .medium)
+        text.textColor = .white
+        text.alignment = .center
+        text.translatesAutoresizingMaskIntoConstraints = false
+
+        let backdrop = NSVisualEffectView()
+        backdrop.material = .hudWindow
+        backdrop.blendingMode = .withinWindow
+        backdrop.state = .active
+        backdrop.wantsLayer = true
+        backdrop.layer?.cornerRadius = 10
+        backdrop.translatesAutoresizingMaskIntoConstraints = false
+        backdrop.addSubview(text)
+        container.addSubview(backdrop)
+        hintView = backdrop
+
+        NSLayoutConstraint.activate([
+            text.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor, constant: 16),
+            text.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor, constant: -16),
+            text.topAnchor.constraint(equalTo: backdrop.topAnchor, constant: 10),
+            text.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: -10),
+            backdrop.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            backdrop.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -40)
+        ])
+
+        // Hide the moment the mouse is actually captured, so it never overlaps
+        // the experience it was explaining.
+        pointerLock.onLockChange = { [weak self] locked in
+            if locked { self?.fadeOutHint() }
+        }
+        hintTimer?.invalidate()
+        hintTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fadeOutHint() }
+        }
+    }
+
+    private func fadeOutHint() {
+        hintTimer?.invalidate()
+        hintTimer = nil
+        guard let hintView else { return }
+        self.hintView = nil
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.4
+            hintView.animator().alphaValue = 0
+        } completionHandler: {
+            hintView.removeFromSuperview()
+        }
+    }
+
+    /// Leave fullscreen first if needed, then tear down. Escape and the traffic
+    /// light both come through here.
+    internal func requestClose() {
+        guard let window else { return }
+        if window.styleMask.contains(.fullScreen) {
+            closeAfterExitingFullScreen = true
+            window.toggleFullScreen(nil)
+            return
+        }
+        close()
     }
 
     /// Tear down the current presentation, stopping the page so its render loop
     /// releases. Idempotent.
     internal func close() {
+        removeEscapeMonitor()
+        hintTimer?.invalidate()
+        hintTimer = nil
+        hintView = nil
+        pointerLock.onLockChange = nil
+        pointerLock.reset()
+        closeAfterExitingFullScreen = false
         guard let window else { return }
         // Blank the page first so any WebGL/rAF loop halts before teardown.
         webView?.loadHTMLString("", baseURL: nil)
         webView?.stopLoading()
+        webView?.uiDelegate = nil
         window.delegate = nil
         window.orderOut(nil)
         self.window = nil
@@ -162,12 +402,28 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         focusWebView()
     }
 
+    internal func windowDidExitFullScreen(_ notification: Notification) {
+        if closeAfterExitingFullScreen {
+            closeAfterExitingFullScreen = false
+            close()
+        } else {
+            focusWebView()
+        }
+    }
+
     internal func windowWillClose(_ notification: Notification) {
         // The user closed the window (Cmd-W / traffic light) rather than going
         // through close() — release our references and stop the page.
         if (notification.object as? NSWindow) === window {
+            removeEscapeMonitor()
+            hintTimer?.invalidate()
+            hintTimer = nil
+            hintView = nil
+            pointerLock.onLockChange = nil
+            pointerLock.reset()
             webView?.loadHTMLString("", baseURL: nil)
             webView?.stopLoading()
+            webView?.uiDelegate = nil
             window?.delegate = nil
             window = nil
             webView = nil
