@@ -71,4 +71,29 @@ struct MediaAttachmentTests {
         #expect(doc.category == .document)
         #expect(image.category != doc.category)
     }
+
+    @Test("Received local videos expose a playable file URL")
+    internal func localVideoPreviewURL() {
+        let attachment = FileAttachment(path: "/tmp/hermes-intro.mp4")
+
+        #expect(attachment.category == .video)
+        #expect(attachment.previewFileURL == URL(fileURLWithPath: "/tmp/hermes-intro.mp4"))
+    }
+
+    @Test("Downloaded videos expose their persisted cache URL")
+    internal func downloadedVideoPreviewURL() throws {
+        let remoteURL = try #require(
+            URL(string: "https://gateway.example/v1/files/session/hermes-intro.mp4")
+        )
+        var attachment = FileAttachment(remoteURL: remoteURL)
+        let data = Data("video bytes".utf8)
+        attachment.downloadState = .ready(data: data)
+        attachment.persistToDisk(data: data)
+        defer { attachment.clearDiskCache() }
+
+        #expect(attachment.category == .video)
+        #expect(attachment.previewFileURL == attachment.cacheFileURL)
+        let previewURL = try #require(attachment.previewFileURL)
+        #expect(try Data(contentsOf: previewURL) == data)
+    }
 }
