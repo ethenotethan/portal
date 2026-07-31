@@ -10,12 +10,13 @@ internal struct FeedTweetModelTests {
 
     private func article(
         title: String = "@janedoe",
+        url: String = "https://x.com/janedoe/status/1",
         authorHandle: String? = nil,
         authorName: String? = nil,
         authorAvatarUrl: String? = nil
     ) -> FeedArticle {
         FeedArticle(
-            id: "t1", title: title, url: "https://x.com/janedoe/status/1",
+            id: "t1", title: title, url: url,
             summary: "hello", source: "twitter", tags: [], imageUrl: "", ts: "",
             authorName: authorName, authorHandle: authorHandle,
             authorAvatarUrl: authorAvatarUrl
@@ -28,7 +29,10 @@ internal struct FeedTweetModelTests {
         #expect(article(authorHandle: "real").tweetHandle == "real")
         #expect(article(title: "@titlehandle").tweetHandle == "titlehandle")
         #expect(article(title: "titlehandle").tweetHandle == "titlehandle")
-        #expect(article(title: "  ").tweetHandle == nil)   // blank title → no handle
+        // Blank title and no explicit handle: falls to the URL's handle
+        // (x.com host), or nil when the URL isn't a tweet link.
+        #expect(article(title: "  ").tweetHandle == "janedoe")
+        #expect(article(title: "  ", url: "https://example.com/x").tweetHandle == nil)
     }
 
     @Test("Display name prefers author_name, else falls back to the handle")
@@ -43,8 +47,28 @@ internal struct FeedTweetModelTests {
                 == "https://cdn.x.com/a.jpg")
         #expect(article(authorHandle: "janedoe").tweetAvatarURL?.absoluteString
                 == "https://unavatar.io/twitter/janedoe")
-        let noHandle = article(title: "  ", authorHandle: " ")
+        let noHandle = article(title: "  ", url: "https://example.com/x", authorHandle: " ")
         #expect(noHandle.tweetAvatarURL == nil)
+    }
+
+    @Test("Handle falls back to the tweet URL's first path segment")
+    internal func handleFromURL() {
+        #expect(FeedArticle.handleFromTweetURL("https://x.com/janedoe/status/123") == "janedoe")
+        #expect(FeedArticle.handleFromTweetURL("https://twitter.com/janedoe/status/123") == "janedoe")
+        #expect(FeedArticle.handleFromTweetURL("https://mobile.twitter.com/janedoe") == "janedoe")
+        #expect(FeedArticle.handleFromTweetURL("https://x.com/home") == nil)          // non-user path
+        #expect(FeedArticle.handleFromTweetURL("https://x.com/explore") == nil)
+        #expect(FeedArticle.handleFromTweetURL("https://example.com/janedoe") == nil) // wrong host
+        #expect(FeedArticle.handleFromTweetURL("not a url") == nil)
+
+        // End-to-end: a URL-only item still renders a name + avatar, not "Unknown".
+        let urlOnly = FeedArticle(
+            id: "t9", title: "", url: "https://x.com/janedoe/status/123",
+            summary: "", source: "twitter", tags: [], imageUrl: "", ts: ""
+        )
+        #expect(urlOnly.tweetHandle == "janedoe")
+        #expect(urlOnly.tweetAuthorDisplayName == "janedoe")
+        #expect(urlOnly.tweetAvatarURL?.absoluteString == "https://unavatar.io/twitter/janedoe")
     }
 
     @Test("Compact metric formatting matches X's style")

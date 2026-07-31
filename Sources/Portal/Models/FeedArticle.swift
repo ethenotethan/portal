@@ -161,15 +161,37 @@ struct FeedArticle: Codable, Identifiable, Hashable {
 
     /// The handle used for the X-style card's header + avatar fallback:
     /// explicit `author_handle` when the backend sends it, else the title's
-    /// handle form, normalized without the leading "@". Nil for non-tweets.
+    /// handle form, else the handle in the tweet's own URL
+    /// (`x.com/<handle>/status/…`) — normalized without the leading "@".
+    /// Nil for non-tweets.
     internal var tweetHandle: String? {
         guard isTwitter else { return nil }
         if let h = authorHandle?.trimmingCharacters(in: .whitespacesAndNewlines),
            !h.isEmpty {
             return h.hasPrefix("@") ? String(h.dropFirst()) : h
         }
-        guard let t = twitterAuthor else { return nil }
-        return t.hasPrefix("@") ? String(t.dropFirst()) : t
+        if let t = twitterAuthor {
+            return t.hasPrefix("@") ? String(t.dropFirst()) : t
+        }
+        return Self.handleFromTweetURL(url)
+    }
+
+    /// Parse the author handle out of a tweet URL — the first path segment on
+    /// an X/Twitter host, skipping non-user paths (home, explore, i, …).
+    internal static func handleFromTweetURL(_ urlString: String) -> String? {
+        guard let url = URL(string: urlString),
+              let host = url.host?.lowercased(),
+              host == "x.com" || host == "twitter.com"
+                || host.hasSuffix(".x.com") || host.hasSuffix(".twitter.com") else {
+            return nil
+        }
+        let blocked: Set<String> = [
+            "home", "explore", "search", "settings", "messages",
+            "notifications", "i", "hashtag", "compose", "intent",
+        ]
+        let first = url.pathComponents.first { $0 != "/" && !$0.isEmpty }
+        guard let first, !blocked.contains(first.lowercased()) else { return nil }
+        return first
     }
 
     /// Display name for the X-style card header: explicit `author_name`, else
