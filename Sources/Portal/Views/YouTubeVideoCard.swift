@@ -98,7 +98,13 @@ internal struct YouTubeVideoCard: View {
     private var playerArea: some View {
         if isPlaying, let videoID {
             // Inline YouTube embed (WKWebView) — the card becomes the player.
-            InlineHTMLView(html: Self.playerHTML(videoID: videoID))
+            // The baseURL gives the document a youtube.com origin: without it
+            // the embed loads from an opaque origin and the player fails with
+            // Error 153 ("video player configuration error").
+            InlineHTMLView(
+                html: Self.playerHTML(videoID: videoID),
+                baseURL: URL(string: "https://www.youtube.com")
+            )
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
@@ -165,6 +171,7 @@ internal struct YouTubeVideoCard: View {
         </head><body>
         <iframe src="\(src)"
           allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          referrerpolicy="strict-origin-when-cross-origin"
           allowfullscreen></iframe>
         </body></html>
         """

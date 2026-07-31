@@ -48,6 +48,12 @@ final class FeedViewModel: ObservableObject {
 
     func refresh(client: GatewayClient) async { articles = []; totalCount = 0; seenIDs.removeAll(); await loadFeed(client: client) }
 
+    /// On-demand tweet detail for a card's comments UX (fresh metrics + the
+    /// reply thread) — the RPC lives here, not in views.
+    internal func tweetDetail(url: String, client: GatewayClient) async throws -> FeedTweetDetail {
+        try await client.feedTweetDetail(url: url)
+    }
+
     func loadMore(client: GatewayClient) async {
         guard hasMore, !isLoadingMore, !isLoading else { return }
         isLoadingMore = true; defer { isLoadingMore = false }
