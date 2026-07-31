@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0.0",
+  "repository": "ethenotethan/portal",
+  "source_root": "Sources/Portal",
+  "title": "Portal Architecture",
+  "description": "A continuously maintained, source-backed model of Portal's runtime and code architecture.",
+  "layers": [
+    {"id": "experience", "label": "Experience", "order": 0},
+    {"id": "orchestration", "label": "Orchestration", "order": 1},
+    {"id": "integration", "label": "Integration", "order": 2},
+    {"id": "foundation", "label": "Foundation", "order": 3},
+    {"id": "external", "label": "External systems", "order": 4}
+  ],
+  "components": [
+    {
+      "id": "app-shell",
+      "label": "App shell",
+      "layer": "experience",
+      "description": "Platform entry points, navigation, settings, onboarding, and shared application chrome.",
+      "patterns": ["HermesNativeApp.swift", "Views/ContentView.swift", "Views/SettingsView.swift", "Views/OnboardingView.swift", "Views/MenuBar/**", "Views/Theme.swift"]
+    },
+    {
+      "id": "chat-ui",
+      "label": "Chat",
+      "layer": "experience",
+      "description": "Conversation presentation, composition, streaming output, attachments, and model selection.",
+      "patterns": ["Views/Chat*.swift", "Views/Message*.swift", "Views/Composer*.swift", "Views/Attachment*.swift", "Views/ModelPicker*.swift", "Views/Markdown*.swift", "Views/LongResponse*.swift", "Views/Tool*.swift"]
+    },
+    {
+      "id": "operations-ui",
+      "label": "Operations",
+      "layer": "experience",
+      "description": "Sessions, cron, activity, skills, learning, and mission-control surfaces.",
+      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/CentaurWorkflow*.swift"]
+    },
+    {
+      "id": "wiki-ui",
+      "label": "Wiki",
+      "layer": "experience",
+      "description": "Wiki browsing, editing, graph exploration, events, and timeline presentation.",
+      "patterns": ["Views/Wiki/**"]
+    },
+    {
+      "id": "artifact-ui",
+      "label": "Artifacts",
+      "layer": "experience",
+      "description": "Living artifact presentation, structured blocks, exports, and typed action surfaces.",
+      "patterns": ["Views/Artifact*.swift", "Views/Artifacts*.swift", "Views/Blocks/**", "Views/Charts/**", "Views/Diagram/**", "Views/Mermaid*.swift"]
+    },
+    {
+      "id": "thought-graph-ui",
+      "label": "Thought graph",
+      "layer": "experience",
+      "description": "Agent execution graph, session canvas, delegation, and reasoning visualization.",
+      "patterns": ["Views/ThoughtGraph/**", "Views/AgentPanel.swift", "Views/Delegation*.swift"]
+    },
+    {
+      "id": "chat-state",
+      "label": "Chat state",
+      "layer": "orchestration",
+      "description": "Conversation lifecycle, backend-normalized events, persona state, and capability-aware orchestration.",
+      "patterns": ["ViewModels/Chat*.swift", "ViewModels/Persona*.swift", "ViewModels/GatewayCapabilities*.swift", "ViewModels/SpawnTree*.swift"]
+    },
+    {
+      "id": "operations-state",
+      "label": "Operations state",
+      "layer": "orchestration",
+      "description": "Session, cron, activity, feed, skill, settings, and learning state machines.",
+      "patterns": ["ViewModels/Cron*.swift", "ViewModels/Session*.swift", "ViewModels/Activity*.swift", "ViewModels/Feed*.swift", "ViewModels/Skills*.swift", "ViewModels/Settings*.swift", "ViewModels/Quiz/**", "ViewModels/Celebration*.swift"]
+    },
+    {
+      "id": "wiki-state",
+      "label": "Wiki state",
+      "layer": "orchestration",
+      "description": "Wiki graph and timeline loading, stale-result rejection, filtering, and selection state.",
+      "patterns": ["ViewModels/Wiki*.swift"]
+    },
+    {
+      "id": "backend-contract",
+      "label": "Backend contract",
+      "layer": "integration",
+      "description": "Backend-neutral chat protocol, capability model, registry, and event normalization seam.",
+      "patterns": ["Services/AgentBackend.swift", "Services/SessionBackendRegistry.swift", "Models/GatewayEvent.swift", "Models/Backend*.swift"]
+    },
+    {
+      "id": "hermes-services",
+      "label": "Hermes services",
+      "layer": "integration",
+      "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
+      "patterns": ["Services/GatewayClient*.swift", "Services/HermesStandard*.swift", "Services/CronPoller.swift", "Services/PushRegistration*.swift"]
+    },
+    {
+      "id": "centaur-services",
+      "label": "Centaur services",
+      "layer": "integration",
+      "description": "Centaur REST/SSE chat, workflows, wiki, and event adaptation.",
+      "patterns": ["Services/Centaur*.swift", "Models/Centaur*.swift"]
+    },
+    {
+      "id": "local-services",
+      "label": "Local services",
+      "layer": "integration",
+      "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
+      "patterns": ["Services/**"]
+    },
+    {
+      "id": "domain-models",
+      "label": "Domain models",
+      "layer": "foundation",
+      "description": "Value types and wire/domain models shared across user experiences and service adapters.",
+      "patterns": ["Models/**"]
+    },
+    {
+      "id": "shared-ui",
+      "label": "Shared UI",
+      "layer": "foundation",
+      "description": "Reusable presentation primitives that are not owned by a single product surface.",
+      "patterns": ["Views/**"]
+    },
+    {
+      "id": "utilities",
+      "label": "Utilities",
+      "layer": "foundation",
+      "description": "Platform compatibility, parsing, rendering memoization, diagnostics, and pure layout helpers.",
+      "patterns": ["Utilities/**"]
+    },
+    {
+      "id": "hermes-gateway",
+      "label": "Hermes Gateway",
+      "layer": "external",
+      "description": "Ethen-managed WebSocket JSON-RPC agent gateway and full runtime surface.",
+      "external": true
+    },
+    {
+      "id": "hermes-standard",
+      "label": "Hermes Standard",
+      "layer": "external",
+      "description": "Upstream HTTP/SSE management surface for sessions, cron, notifications, skills, and settings.",
+      "external": true
+    },
+    {
+      "id": "centaur-api",
+      "label": "Centaur API",
+      "layer": "external",
+      "description": "REST/SSE harness platform and workflow runtime.",
+      "external": true
+    },
+    {
+      "id": "device-services",
+      "label": "Device services",
+      "layer": "external",
+      "description": "Keychain, notifications, files, media, and platform frameworks on macOS and iOS.",
+      "external": true
+    }
+  ],
+  "specified_edges": [
+    {"source": "app-shell", "target": "chat-ui", "type": "navigates", "description": "The application shell presents the conversation experience.", "evidence": ["Sources/Portal/Views/ContentView.swift"]},
+    {"source": "chat-ui", "target": "chat-state", "type": "observes", "description": "Chat views render and act through conversation state.", "evidence": ["Sources/Portal/Views/ChatView.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
+    {"source": "operations-ui", "target": "operations-state", "type": "observes", "description": "Operational surfaces render dedicated observable state.", "evidence": ["Sources/Portal/Views/CronListView.swift", "Sources/Portal/ViewModels/CronListViewModel.swift"]},
+    {"source": "wiki-ui", "target": "wiki-state", "type": "observes", "description": "Wiki views use graph and timeline view models.", "evidence": ["Sources/Portal/Views/Wiki/WikiGraphView.swift", "Sources/Portal/ViewModels/WikiGraphViewModel.swift"]},
+    {"source": "chat-state", "target": "backend-contract", "type": "depends_on", "description": "Conversation orchestration consumes the backend-neutral AgentBackend interface.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
+    {"source": "backend-contract", "target": "hermes-services", "type": "implemented_by", "description": "GatewayClient implements the AgentBackend protocol for Hermes.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/Services/GatewayClient.swift"]},
+    {"source": "backend-contract", "target": "centaur-services", "type": "implemented_by", "description": "Centaur adapts REST/SSE behavior to the backend-neutral conversation surface.", "evidence": ["Sources/Portal/Services/CentaurClient.swift", "Sources/Portal/Services/AgentBackend.swift"]},
+    {"source": "hermes-services", "target": "hermes-gateway", "type": "connects_to", "description": "GatewayClient connects to the Hermes WebSocket JSON-RPC gateway.", "evidence": ["Sources/Portal/Services/GatewayClient.swift"]},
+    {"source": "hermes-services", "target": "hermes-standard", "type": "connects_to", "description": "HermesStandardClient uses upstream management APIs.", "evidence": ["Sources/Portal/Services/HermesStandardClient.swift"]},
+    {"source": "centaur-services", "target": "centaur-api", "type": "connects_to", "description": "Centaur clients use REST and SSE APIs.", "evidence": ["Sources/Portal/Services/CentaurClient.swift"]},
+    {"source": "local-services", "target": "device-services", "type": "connects_to", "description": "Local services integrate with platform persistence, files, media, and notifications.", "evidence": ["Sources/Portal/Services/KeychainStore.swift", "Sources/Portal/Services/NotificationService.swift"]},
+    {"source": "artifact-ui", "target": "domain-models", "type": "renders", "description": "Artifact blocks render typed artifact and message models.", "evidence": ["Sources/Portal/Views/Blocks/ArtifactPanel.swift"]}
+  ],
+  "specifications": [
+    {"id": "system", "title": "System architecture", "path": "architecture/specifications/system.md"},
+    {"id": "boundaries", "title": "Boundaries and authority", "path": "architecture/specifications/boundaries.md"},
+    {"id": "maintenance", "title": "Continuous maintenance", "path": "architecture/specifications/continuous-maintenance.md"}
+  ]
+}
