@@ -14,6 +14,8 @@ struct FeedView: View {
     @State private var tweetContentService = TweetContentService()
     /// Same, for YouTube video cards (oEmbed metadata).
     @State private var youTubeContentService = YouTubeContentService()
+    /// Same, for GitHub release cards (release metadata + full notes).
+    @State private var gitHubContentService = GitHubContentService()
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -78,6 +80,11 @@ struct FeedView: View {
                         // YouTube links render as a thumbnail card with
                         // tap-to-play INLINE (YouTube embed, no login).
                         YouTubeVideoCard(article: article, contentService: youTubeContentService)
+                            .padding(.horizontal, 12)
+                    } else if article.source == "github" {
+                        // GitHub releases render as a release card: repo +
+                        // tag chip + FULL release notes from the GitHub API.
+                        GitHubReleaseCard(article: article, contentService: gitHubContentService)
                             .padding(.horizontal, 12)
                     } else {
                         FeedCard(article: article)
