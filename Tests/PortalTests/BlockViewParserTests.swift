@@ -135,6 +135,18 @@ struct InlineMathTests {
         // First span converts; what remains has one unpaired $ and stays raw.
         #expect(InlineMath.render("$x$ costs $5") == "𝑥 costs $5")
     }
+
+    @Test("Multiplication, brace grouping, and unsupported chars")
+    internal func operatorsAndBraces() {
+        // '*' inside a span becomes the times sign.
+        #expect(InlineMath.render("$a * b$") == "𝑎 × 𝑏")
+        // A brace group on a script converts each member (digits map cleanly).
+        #expect(InlineMath.render("$x^{12}$") == "𝑥¹²")
+        // Subscript brace group likewise.
+        #expect(InlineMath.render("$v_{0n}$") == "𝑣₀ₙ")
+        // A character with no Unicode mapping rejects the whole span (passthrough).
+        #expect(InlineMath.render("$a@b$") == "$a@b$")
+    }
 }
 
 @Suite("Stat Tiles")
