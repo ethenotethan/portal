@@ -64,6 +64,9 @@ internal struct CronSearchBar: View {
                 }
 
                 Divider().frame(height: 16).opacity(0.5)
+                tagMenu
+
+                Divider().frame(height: 16).opacity(0.5)
                 timeWindowMenu
 
                 Divider().frame(height: 16).opacity(0.5)
@@ -77,6 +80,37 @@ internal struct CronSearchBar: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
         }
+    }
+
+    private var tagMenu: some View {
+        Menu {
+            Button {
+                filterState.selectedTag = nil
+            } label: {
+                if filterState.selectedTag == nil { Label("All tags", systemImage: "checkmark") }
+                else { Text("All tags") }
+            }
+            ForEach(filterState.availableTags(in: jobs), id: \.self) { tag in
+                Button {
+                    filterState.selectedTag = tag
+                } label: {
+                    if filterState.selectedTag == tag { Label(tag, systemImage: "checkmark") }
+                    else { Text(tag) }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "tag").font(.caption)
+                Text(filterState.selectedTag ?? "Tags")
+                    .font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(filterState.selectedTag != nil ? Theme.accent.opacity(0.15) : Theme.surface)
+            .foregroundStyle(filterState.selectedTag != nil ? Theme.accent : Theme.secondary)
+            .clipShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
     }
 
     private var timeWindowMenu: some View {
@@ -194,5 +228,104 @@ internal struct CronSearchBar: View {
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+internal enum CronTagList {
+    internal static func parse(_ text: String) -> [String] {
+        var result: [String] = []
+        for component in text.split(separator: ",", omittingEmptySubsequences: false) {
+            let tag = component.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !tag.isEmpty && !result.contains(tag) {
+                result.append(tag)
+            }
+        }
+        return result
+    }
+
+    internal static func editingText(for tags: [String]) -> String {
+        tags.joined(separator: ", ")
+    }
+}
+
+internal struct CronTagChips: View {
+    internal let tags: [String]
+
+    internal var body: some View {
+        if !tags.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    ForEach(tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Theme.accent.opacity(0.12))
+                            .foregroundStyle(Theme.accent)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal struct CronTagEditor: View {
+    internal let tags: [String]
+    internal let canEdit: Bool
+    internal let onSave: ([String]) -> Void
+
+    @State private var isEditing = false
+    @State private var editingText = ""
+
+    internal var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Tags")
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                Spacer()
+                if canEdit && !isEditing {
+                    Button {
+                        editingText = CronTagList.editingText(for: tags)
+                        isEditing = true
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+
+            if isEditing {
+                TextField("portal, ci, maintenance", text: $editingText)
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                HStack {
+                    Spacer()
+                    Button("Cancel") { isEditing = false }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    Button("Save") {
+                        onSave(CronTagList.parse(editingText))
+                        isEditing = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            } else if tags.isEmpty {
+                Text(canEdit ? "No tags — add labels to organize this job." : "No tags")
+                    .font(.caption)
+                    .foregroundStyle(Theme.tertiary)
+            } else {
+                CronTagChips(tags: tags)
+            }
+        }
+        .padding(14)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 }

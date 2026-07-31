@@ -998,7 +998,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// List cron jobs via `cron.manage` with action "list".
     /// Gateway returns: {"success": true, "count": N, "jobs": [...]}
     /// Each job has: job_id, name, schedule, next_run_at (ISO8601), last_run_at (ISO8601),
-    /// last_status, enabled, state, deliver, prompt_preview.
+    /// last_status, enabled, state, deliver, prompt_preview, tags.
     func listCronJobs() async throws -> [CronJob] {
         let response = try await call("cron.manage", params: [
             "action": AnyCodable("list")
@@ -1104,7 +1104,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
 
     /// Decode one job dict (from `list` or `describe`) into a `CronJob`.
     /// `describe` supplies the full `prompt`; `list` only `prompt_preview`.
-    private static func decodeCronJob(from item: AnyCodable, using iso8601Formatter: ISO8601DateFormatter) -> CronJob? {
+    internal static func decodeCronJob(from item: AnyCodable, using iso8601Formatter: ISO8601DateFormatter) -> CronJob? {
         guard let d = item.dictionaryValue,
               let jobID = d["job_id"]?.stringValue, !jobID.isEmpty else { return nil }
 
@@ -1152,7 +1152,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             deliver: d["deliver"]?.stringValue ?? "local",
             promptPreview: d["prompt_preview"]?.stringValue,
             prompt: promptValue,
-            lastError: lastError
+            lastError: lastError,
+            tags: d["tags"]?.arrayValue?.compactMap(\.stringValue) ?? []
         )
     }
 

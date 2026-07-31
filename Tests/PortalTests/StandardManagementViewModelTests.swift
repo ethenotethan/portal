@@ -78,3 +78,77 @@ internal struct StandardManagementViewModelTests {
         #expect(!viewModel.isStandardMode)
     }
 }
+
+@Suite("Cron tags")
+@MainActor
+internal struct CronTagsTests {
+    private func job(
+        id: String,
+        name: String,
+        tags: [String] = [],
+        prompt: String? = nil
+    ) -> CronJob {
+        CronJob(
+            id: id,
+            name: name,
+            schedule: "every 60m",
+            nextRunAt: nil,
+            lastRunAt: nil,
+            lastStatus: nil,
+            enabled: true,
+            state: "scheduled",
+            deliver: "local",
+            promptPreview: prompt,
+            prompt: prompt,
+            lastError: nil,
+            tags: tags
+        )
+    }
+
+    @Test("Gateway cron decoding preserves tags and defaults missing tags to empty")
+    internal func gatewayDecoding() throws {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let tagged = GatewayClient.decodeCronJob(from: AnyCodable.dictionary([
+            "job_id": AnyCodable("job-1"),
+            "name": AnyCodable("Portal CI"),
+            "schedule": AnyCodable("every 60m"),
+            "tags": AnyCodable.array([AnyCodable("portal"), AnyCodable("ci")])
+        ]), using: formatter)
+        #expect(try #require(tagged).tags == ["portal", "ci"])
+
+        let legacy = GatewayClient.decodeCronJob(from: AnyCodable.dictionary([
+            "job_id": AnyCodable("job-2"),
+            "name": AnyCodable("Legacy")
+        ]), using: formatter)
+        #expect(try #require(legacy).tags.isEmpty)
+    }
+
+    @Test("Tag filter and text search match cron tags")
+    internal func filtering() {
+        let state = CronFilterState()
+        let jobs = [
+            job(id: "1", name: "Quality Ratchet", tags: ["portal", "ci"]),
+            job(id: "2", name: "Wiki Analyzer", tags: ["wiki"]),
+            job(id: "3", name: "Backup", tags: ["maintenance"])
+        ]
+
+        #expect(state.availableTags(in: jobs) == ["ci", "maintenance", "portal", "wiki"])
+
+        state.selectedTag = "portal"
+        #expect(state.apply(to: jobs).map(\.id) == ["1"])
+
+        state.selectedTag = nil
+        state.searchText = "maintenance"
+        #expect(state.apply(to: jobs).map(\.id) == ["3"])
+    }
+
+    @Test("Editor input normalizes comma-separated tags")
+    internal func editorNormalization() {
+        #expect(CronTagList.parse(" portal, ci, portal,  , maintenance ") == [
+            "portal", "ci", "maintenance"
+        ])
+        #expect(CronTagList.editingText(for: ["portal", "ci"]) == "portal, ci")
+    }
+}

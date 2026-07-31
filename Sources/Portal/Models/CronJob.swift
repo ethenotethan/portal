@@ -15,6 +15,8 @@ struct CronJob: Identifiable, Equatable, Hashable {
     var prompt: String?
     /// The error detail from the last failed run, if the gateway reported one.
     var lastError: String?
+    /// User-defined labels persisted by Hermes for organization and filtering.
+    internal var tags: [String] = []
 
     /// True when we only hold the server-truncated preview (the gateway caps
     /// `prompt_preview` at 100 chars and appends "…"), not the full prompt.

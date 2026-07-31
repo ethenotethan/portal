@@ -14,6 +14,7 @@ internal struct CronJobCard: View {
     internal let onResume: () -> Void
     internal let onRemove: () -> Void
     internal let onUpdatePrompt: (String) -> Void
+    internal let onUpdateTags: ([String]) -> Void
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -31,7 +32,8 @@ internal struct CronJobCard: View {
         onPause: @escaping () -> Void,
         onResume: @escaping () -> Void,
         onRemove: @escaping () -> Void,
-        onUpdatePrompt: @escaping (String) -> Void
+        onUpdatePrompt: @escaping (String) -> Void,
+        onUpdateTags: @escaping ([String]) -> Void = { _ in }
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -41,6 +43,7 @@ internal struct CronJobCard: View {
         self.onResume = onResume
         self.onRemove = onRemove
         self.onUpdatePrompt = onUpdatePrompt
+        self.onUpdateTags = onUpdateTags
     }
 
     private var displayJob: CronJob { job }
@@ -57,6 +60,7 @@ internal struct CronJobCard: View {
                     statsStrip
                     healthBar
                     errorBanner
+                    CronTagEditor(tags: displayJob.tags, canEdit: true, onSave: onUpdateTags)
                     detailRows
                     promptSection
                     recentRuns
@@ -129,6 +133,7 @@ internal struct CronJobCard: View {
                             .foregroundStyle(Theme.secondary)
                     }
                 }
+                CronTagChips(tags: displayJob.tags)
             }
 
             Spacer()

@@ -58,6 +58,9 @@ struct CronListView: View {
                 onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },
                 onUpdatePrompt: { newPrompt in
                     Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
+                },
+                onUpdateTags: { tags in
+                    Task { await cronViewModel.updateTags(id: job.id, tags: tags) }
                 }
             )
             .environmentObject(gatewayClientWrapper)
@@ -149,6 +152,7 @@ struct CronListView: View {
             Button("Clear Filters") {
                 filterState.searchText = ""
                 filterState.filterStatus = .all
+                filterState.selectedTag = nil
                 filterState.timeWindow = .all
             }
             .font(.caption)
@@ -290,6 +294,8 @@ struct CronJobRow: View {
                         .foregroundStyle(.secondary)
                 }
 
+                CronTagChips(tags: job.tags)
+
                 if let preview = job.promptPreview, !preview.isEmpty {
                     Text(preview.truncated(to: 60))
                         .font(.caption2)
@@ -350,6 +356,7 @@ struct CronJobDetailView: View {
     internal var onTrigger: () -> Void = {}
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
+    internal var onUpdateTags: ([String]) -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false
@@ -365,6 +372,7 @@ struct CronJobDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header
+                CronTagEditor(tags: job.tags, canEdit: supportsRemoveAndEdit, onSave: onUpdateTags)
                 if !runRecords.isEmpty {
                     statsStrip
                     healthBar

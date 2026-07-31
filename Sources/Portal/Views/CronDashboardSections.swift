@@ -319,7 +319,8 @@ internal struct CronJobsView: View {
                         onPause: { Task { await vm.pauseJob(id: job.id) } },
                         onResume: { Task { await vm.resumeJob(id: job.id) } },
                         onRemove: { Task { await vm.removeJob(id: job.id) } },
-                        onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } }
+                        onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } },
+                        onUpdateTags: { tags in Task { await vm.updateTags(id: job.id, tags: tags) } }
                     )
                 }
             }

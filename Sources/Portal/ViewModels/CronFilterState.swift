@@ -9,6 +9,7 @@ import Foundation
 internal final class CronFilterState: ObservableObject {
     @Published internal var searchText = ""
     @Published internal var filterStatus: FilterStatus = .all
+    @Published internal var selectedTag: String?
     @Published internal var timeWindow: TimeWindow = .all
     @Published internal var sortOrder: SortOrder = .recent
     /// Group the list into the `CronCategory` tree (derived from `name` paths)
@@ -82,6 +83,12 @@ internal final class CronFilterState: ObservableObject {
     internal func apply(to jobs: [CronJob]) -> [CronJob] {
         var result = jobs.filter { filterStatus.matches($0) }
 
+        if let selectedTag {
+            result = result.filter { job in
+                job.tags.contains { $0.localizedCaseInsensitiveCompare(selectedTag) == .orderedSame }
+            }
+        }
+
         if let cutoff = timeWindow.cutoff {
             result = result.filter { ($0.lastRunAt ?? .distantPast) >= cutoff }
         }
@@ -101,7 +108,7 @@ internal final class CronFilterState: ObservableObject {
             job.deliver,
             job.promptPreview ?? "",
             job.prompt ?? "",
-        ]
+        ] + job.tags
         return haystack.contains { $0.lowercased().contains(query) }
     }
 
@@ -121,6 +128,12 @@ internal final class CronFilterState: ObservableObject {
 
     internal func count(for status: FilterStatus, in jobs: [CronJob]) -> Int {
         jobs.filter { status.matches($0) }.count
+    }
+
+    internal func availableTags(in jobs: [CronJob]) -> [String] {
+        Array(Set(jobs.flatMap(\.tags))).sorted {
+            $0.localizedCaseInsensitiveCompare($1) == .orderedAscending
+        }
     }
 
     // MARK: - Category grouping

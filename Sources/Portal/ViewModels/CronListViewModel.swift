@@ -183,4 +183,18 @@ internal final class CronListViewModel {
             log.error("Failed to update prompt for job \(id): \(error)")
         }
     }
+
+    internal func updateTags(id: String, tags: [String]) async {
+        guard let client = gatewayClient else { return }
+        do {
+            let _ = try await client.call("cron.manage", params: [
+                "action": AnyCodable("update"),
+                "name": AnyCodable(id),
+                "tags": AnyCodable.array(tags.map(AnyCodable.init))
+            ])
+            await refreshJobs()
+        } catch {
+            log.error("Failed to update tags for job \(id): \(error)")
+        }
+    }
 }
