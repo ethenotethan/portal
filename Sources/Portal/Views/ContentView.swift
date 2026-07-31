@@ -23,6 +23,7 @@ internal struct ContentView: View {
     // the graph is already there (or close to it) — no "Loading…" wait.
     @StateObject private var wikiViewModel = WikiGraphViewModel()
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject internal var xAuth: XAuthService
     @ObservedObject private var cronRunStore = CronRunHistoryStore.shared
     @ObservedObject private var themeManager = ThemeManager.shared
     @StateObject private var cronPoller = CronPoller()
@@ -1688,6 +1689,8 @@ spawnTreeStore.subscribe(to: client)
             }
         case .activity:
             showActivitySheet = true
+        case .xOAuth(let code, let state):
+            Task { await xAuth.handleCallback(code: code, state: state) }
         }
     }
 

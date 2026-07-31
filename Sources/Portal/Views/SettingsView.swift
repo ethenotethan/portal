@@ -17,12 +17,14 @@ internal struct SettingsView: View {
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
         case notifications
+        case x
         case gateway(SavedGateway)
 
         internal var id: AnyHashable {
             switch self {
             case .appearance: return "appearance"
             case .notifications: return "notifications"
+            case .x: return "x"
             case .gateway(let g): return g.id
             }
         }
@@ -31,6 +33,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "Appearance"
             case .notifications: return "Notifications"
+            case .x: return "X (Twitter)"
             case .gateway(let g): return g.displayName
             }
         }
@@ -39,6 +42,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "paintpalette"
             case .notifications: return "bell"
+            case .x: return "bird"
             case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
             }
         }
@@ -68,7 +72,7 @@ internal struct SettingsView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup(header: nil, items: [.appearance, .notifications])
+                sidebarGroup(header: nil, items: [.appearance, .notifications, .x])
 
                 Divider().padding(.vertical, 8)
 
@@ -119,6 +123,8 @@ internal struct SettingsView: View {
                         themesSection
                     case .notifications:
                         notificationsSection
+                    case .x:
+                        xSection
                     case .gateway(let g):
                         GatewayDetailPane(gateway: g)
                     }
@@ -182,6 +188,77 @@ internal struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - X (Twitter) section
+
+    @EnvironmentObject private var xAuth: XAuthService
+
+    /// X sign-in: client ID + the browser OAuth flow (PKCE) that powers
+    /// full-fidelity tweets (comments and real engagement) in the feed.
+    private var xSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            settingsHeader("X (Twitter)", icon: "bird")
+
+            Text("Sign in with your X account to load real comments and engagement "
+                 + "on tweets in the feed. Everything stays on this device — tokens "
+                 + "live in the Keychain and are only sent to X.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Client ID (from your X app in the Developer Portal)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                TextField("e.g. a1B2c3D4e5F6g7H8i9J0k", text: $xAuth.clientID)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(maxWidth: 420)
+
+                HStack(spacing: 8) {
+                    Text("Callback URI to add to your X app:")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(XAuthService.redirectURI)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Theme.accent)
+                        .textSelection(.enabled)
+                }
+                Text("One-time setup: in the X Developer Portal, open your app → Authentication settings "
+                     + "→ add that Callback URI. Reuse the app you already have (e.g. the xurl one) or create a new one.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 12) {
+                if xAuth.isSignedIn {
+                    Label("Signed in", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.success)
+                    Button("Sign out") { xAuth.signOut() }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                } else {
+                    Button {
+                        xAuth.beginSignIn()
+                    } label: {
+                        Label("Sign in with X", systemImage: "bird")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(xAuth.clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+
+            if let error = xAuth.lastError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: - macOS Sections

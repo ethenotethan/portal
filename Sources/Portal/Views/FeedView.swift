@@ -8,6 +8,7 @@ import os
 struct FeedView: View {
     @StateObject private var vm = FeedViewModel()
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var xAuth: XAuthService
     /// One embed cache for every tweet card in this feed — scroll-away and
     /// back costs no re-fetch, and tests can stub the network.
     @State private var tweetContentService = TweetContentService()
@@ -61,7 +62,12 @@ struct FeedView: View {
                             article: article,
                             contentService: tweetContentService,
                             loadDetail: { url in
-                                try await vm.tweetDetail(url: url, client: gatewayClientWrapper.client)
+                                // Signed in with X → full-fidelity detail
+                                // straight from the API; else the gateway RPC.
+                                if xAuth.isSignedIn {
+                                    return try await XAPIClient(auth: xAuth).tweetDetail(for: url)
+                                }
+                                return try await vm.tweetDetail(url: url, client: gatewayClientWrapper.client)
                             }
                         )
                             .padding(.horizontal, 12)
