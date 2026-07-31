@@ -1,17 +1,23 @@
 import SwiftUI
 
-/// Unified Learning dashboard: saved quiz sessions and flashcard decks.
+/// Unified Learning dashboard: structured courses, saved quiz sessions, and
+/// flashcard decks.
 /// iOS: a tab with NavigationStack — tapping a card pushes the player.
 /// macOS: a full-bleed overlay pane (ContentView provides the Back chrome);
 /// the player opens in a single sheet, matching ChatView's quiz presentation.
 struct LearningDashboardView: View {
     @State private var quizzes: [PersistedQuizSession] = []
     @State private var decks: [FlashcardDeck] = []
-    @State private var section: LearningSection = .quizzes
+    @State private var curricula: [Curriculum] = []
+    @State private var section: LearningSection = .courses
 
     /// Player state — quizzes and decks play from here, not through chat.
     @State private var quizVM = QuizViewModel()
     @State private var showPlayer = false
+    /// The open course. Presented full-bleed rather than through `quizVM`: a
+    /// curriculum owns its own step navigation and progress writes, which
+    /// `QuizViewModel`'s save-and-clear lifecycle can't express.
+    @State private var activeCurriculum: Curriculum?
     @State private var pendingDelete: LearningDeleteTarget?
 
     /// Kept for entry-point compatibility; macOS overlay chrome and the iOS
@@ -20,14 +26,31 @@ struct LearningDashboardView: View {
     /// Optional hook to continue review in a chat session ("Review with
     /// Agent"). When nil, that affordance is hidden.
     var onReviewWithAgent: ((String) -> Void)?
+    /// When set, that course opens straight away instead of the dashboard —
+    /// used when the agent has just generated one, so the user lands in the
+    /// course rather than hunting for it in a list.
+    internal var openCurriculumID: UUID?
+
+    /// Course persistence. Held for the view's lifetime so directory setup runs
+    /// once, and handed to the player so both read and write the same store.
+    @State private var curriculumStore = CurriculumStore()
 
     enum LearningSection: String, CaseIterable {
+        case courses = "Courses"
         case quizzes = "Quizzes"
         case flashcards = "Flashcards"
+
+        internal var icon: String {
+            switch self {
+            case .courses: return "books.vertical"
+            case .quizzes: return "questionmark.circle"
+            case .flashcards: return "rectangle.on.rectangle"
+            }
+        }
     }
 
     private struct LearningDeleteTarget: Identifiable {
-        enum Kind { case quiz, deck }
+        enum Kind { case quiz, deck, curriculum }
         let id: UUID
         let kind: Kind
         let title: String
@@ -36,20 +59,48 @@ struct LearningDashboardView: View {
     var body: some View {
         #if os(iOS)
         NavigationStack {
-            dashboard
+            root
                 .navigationTitle("Learning")
                 .navigationBarTitleDisplayMode(.inline)
+                // The course player brings its own header and back affordance,
+                // so the nav bar would just duplicate the title.
+                .toolbar(activeCurriculum == nil ? .visible : .hidden, for: .navigationBar)
                 .navigationDestination(isPresented: $showPlayer) {
                     player
                         .navigationBarTitleDisplayMode(.inline)
                 }
         }
         #else
-        dashboard
+        root
             .sheet(isPresented: $showPlayer, onDismiss: refresh) {
                 player
             }
         #endif
+    }
+
+    /// A course takes over the whole pane rather than opening in a sheet — it's
+    /// a multi-step session, not a modal task, and swapping content in place
+    /// avoids dismiss/re-present races between steps.
+    @ViewBuilder
+    private var root: some View {
+        if let course = activeCurriculum {
+            CurriculumPlayerView(
+                curriculum: course,
+                store: curriculumStore,
+                onClose: {
+                    activeCurriculum = nil
+                    refresh()
+                },
+                onReviewWithAgent: onReviewWithAgent.map { handler in
+                    { prompt in
+                        activeCurriculum = nil
+                        handler(prompt)
+                    }
+                }
+            )
+        } else {
+            dashboard
+        }
     }
 
     private var dashboard: some View {
@@ -60,9 +111,9 @@ struct LearningDashboardView: View {
                 selection: $section,
                 options: LearningSection.allCases,
                 label: { $0.rawValue },
-                icon: { $0 == .quizzes ? "questionmark.circle" : "rectangle.on.rectangle" }
+                icon: { $0.icon }
             )
-            .frame(maxWidth: 400)
+            .frame(maxWidth: 460)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
 
@@ -73,6 +124,7 @@ struct LearningDashboardView: View {
                     }
 
                     switch section {
+                    case .courses: courseSection
                     case .quizzes: quizSection
                     case .flashcards: flashcardSection
                     }
@@ -88,7 +140,16 @@ struct LearningDashboardView: View {
             #endif
         }
         .background(Theme.background)
-        .onAppear { refresh() }
+        .onAppear {
+            refresh()
+            openRequestedCurriculum()
+        }
+        .onChange(of: openCurriculumID) { _, _ in
+            // The pane can already be open when a second course arrives, so
+            // react to the id changing as well as to first appearance.
+            refresh()
+            openRequestedCurriculum()
+        }
         .onChange(of: showPlayer) { _, isShowing in
             if !isShowing { refresh() }
         }
@@ -135,6 +196,56 @@ struct LearningDashboardView: View {
         guard let deck = sortedDecks.first(where: { $0.dueCount > 0 }) else { return }
         section = .flashcards
         studyDeck(deck)
+    }
+
+    // MARK: - Courses Section
+
+    @ViewBuilder
+    private var courseSection: some View {
+        if curricula.isEmpty {
+            LearningEmptyState(
+                icon: "books.vertical",
+                title: "No Courses Yet",
+                message: "Type /curriculum <topic> in chat, or ask the agent to build you a course — "
+                    + "lessons and quizzes land here with progress tracked per step."
+            )
+        } else {
+            HStack(spacing: 10) {
+                LearningStatTile(value: "\(curricula.count)", label: "Courses")
+                LearningStatTile(
+                    value: "\(curricula.reduce(0) { $0 + $1.totalSteps })",
+                    label: "Steps"
+                )
+                LearningStatTile(
+                    value: "\(curricula.reduce(0) { $0 + $1.completedCount })",
+                    label: "Done",
+                    icon: "checkmark.circle",
+                    iconColor: Theme.success
+                )
+                LearningStatTile(
+                    value: "\(curricula.filter(\.isFinished).count)",
+                    label: "Finished",
+                    icon: "checkmark.seal",
+                    iconColor: curricula.contains(where: \.isFinished) ? Theme.success : Theme.secondary
+                )
+            }
+
+            LazyVStack(spacing: 10) {
+                ForEach(curricula) { course in
+                    CurriculumCard(
+                        curriculum: course,
+                        onOpen: { activeCurriculum = course },
+                        onDelete: {
+                            pendingDelete = LearningDeleteTarget(
+                                id: course.id,
+                                kind: .curriculum,
+                                title: course.title
+                            )
+                        }
+                    )
+                }
+            }
+        }
     }
 
     // MARK: - Quizzes Section
@@ -262,6 +373,18 @@ struct LearningDashboardView: View {
     private func refresh() {
         quizzes = QuizStore.shared.allQuizzes()
         decks = SRSStore.shared.allDecks()
+        curricula = curriculumStore.allCurricula()
+    }
+
+    /// Open the course named by `openCurriculumID`, if it's on disk. Reads from
+    /// the store rather than the in-memory list so ordering and refresh timing
+    /// can't make a just-saved course unreachable.
+    private func openRequestedCurriculum() {
+        guard let openCurriculumID,
+              activeCurriculum?.id != openCurriculumID,
+              let course = curriculumStore.load(id: openCurriculumID) else { return }
+        section = .courses
+        activeCurriculum = course
     }
 
     private func confirmDelete() {
@@ -273,6 +396,9 @@ struct LearningDashboardView: View {
         case .deck:
             decks.removeAll { $0.id == target.id }
             SRSStore.shared.deleteDeck(id: target.id)
+        case .curriculum:
+            curricula.removeAll { $0.id == target.id }
+            curriculumStore.delete(id: target.id)
         }
         pendingDelete = nil
     }
