@@ -835,15 +835,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     internal func verifyLivenessOrReconnect(timeout: Double = 4) async {
         guard case .connected = connectionState, let task = webSocketTask else { return }
         let alive = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            let resumedLock = NSLock()
-            var resumed = false
-            func finish(_ value: Bool) {
-                resumedLock.lock(); defer { resumedLock.unlock() }
-                guard !resumed else { return }
-                resumed = true
-                cont.resume(returning: value)
-            }
-            task.sendPing { error in finish(error == nil) }
+            let completion = LivenessProbeCompletion(cont)
+            task.sendPing { error in completion.resume(returning: error == nil) }
             // Guard against sendPing's completion never firing on a half-open
             // socket — the deadline is the real tripwire here.
             Task { @MainActor in
@@ -854,7 +847,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     // don't force a reconnect off a cancelled probe.
                     return
                 }
-                finish(false)
+                completion.resume(returning: false)
             }
         }
         if !alive {
@@ -2236,5 +2229,25 @@ enum GatewayError: LocalizedError {
         case .timedOut(let method, let seconds):
             "\(method) timed out after \(Int(seconds))s"
         }
+    }
+}
+
+/// Resumes a liveness probe exactly once even when its WebSocket callback and
+/// deadline race on different executors. The unchecked conformance is valid
+/// because the only mutable state is protected by `lock`.
+private final class LivenessProbeCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Bool, Never>?
+
+    init(_ continuation: CheckedContinuation<Bool, Never>) {
+        self.continuation = continuation
+    }
+
+    func resume(returning value: Bool) {
+        lock.lock()
+        let continuation = continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume(returning: value)
     }
 }
