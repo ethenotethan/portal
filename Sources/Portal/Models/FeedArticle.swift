@@ -1,5 +1,58 @@
 import Foundation
 
+/// Read-only engagement counts for a tweet feed item (X-style action bar).
+/// All fields optional: the backend only sends what it could fetch, and the
+/// card hides a count (never a fake "0") when it's absent.
+internal struct TweetMetrics: Codable, Hashable {
+    internal let replies: Int?
+    internal let reposts: Int?
+    internal let likes: Int?
+    internal let views: Int?
+
+    /// X-style compact count: 1.2K, 3.4M, plain digits below 1000.
+    internal static func compact(_ value: Int) -> String {
+        if value < 1000 { return "\(value)" }
+        if value < 1_000_000 {
+            let k = Double(value) / 1000
+            return k < 10 ? String(format: "%.1fK", k) : "\(Int(k))K"
+        }
+        let m = Double(value) / 1_000_000
+        return m < 10 ? String(format: "%.1fM", m) : "\(Int(m))M"
+    }
+}
+
+/// A reply shown in the tweet card's read-only comments section.
+internal struct FeedReply: Codable, Identifiable, Hashable {
+    internal let id: String
+    internal let authorName: String
+    internal let authorHandle: String
+    internal let text: String
+    internal let url: String
+
+    internal enum CodingKeys: String, CodingKey {
+        case id, text, url
+        case authorName = "author_name"
+        case authorHandle = "author_handle"
+    }
+
+    internal init(id: String, authorName: String, authorHandle: String, text: String, url: String) {
+        self.id = id
+        self.authorName = authorName
+        self.authorHandle = authorHandle
+        self.text = text
+        self.url = url
+    }
+
+    internal init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        authorName = try c.decodeIfPresent(String.self, forKey: .authorName) ?? ""
+        authorHandle = try c.decodeIfPresent(String.self, forKey: .authorHandle) ?? ""
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
+        url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
+    }
+}
+
 struct FeedArticle: Codable, Identifiable, Hashable {
     let id: String
     let title: String
@@ -13,6 +66,15 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     let videoUrl: String
     let thumbnailUrl: String
 
+    // Tweet enrichment (optional, backend may omit — see feed_publish docs):
+    /// Display name ("Jane Doe"), avatar URL, and engagement counts for the
+    /// X-style card; replies power its read-only comments section.
+    internal let authorName: String?
+    internal let authorHandle: String?
+    internal let authorAvatarUrl: String?
+    internal let metrics: TweetMetrics?
+    internal let replies: [FeedReply]
+
     /// True when this article carries a playable video.
     var hasVideo: Bool {
         !videoUrl.isEmpty
@@ -23,12 +85,17 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     func withID(_ newID: String) -> FeedArticle {
         FeedArticle(id: newID, title: title, url: url, summary: summary,
                     source: source, tags: tags, imageUrl: imageUrl, ts: ts,
-                    videoUrl: videoUrl, thumbnailUrl: thumbnailUrl)
+                    videoUrl: videoUrl, thumbnailUrl: thumbnailUrl,
+                    authorName: authorName, authorHandle: authorHandle,
+                    authorAvatarUrl: authorAvatarUrl, metrics: metrics, replies: replies)
     }
 
     init(id: String, title: String, url: String, summary: String, source: String,
          tags: [String], imageUrl: String, ts: String,
-         videoUrl: String = "", thumbnailUrl: String = "") {
+         videoUrl: String = "", thumbnailUrl: String = "",
+         authorName: String? = nil, authorHandle: String? = nil,
+         authorAvatarUrl: String? = nil, metrics: TweetMetrics? = nil,
+         replies: [FeedReply] = []) {
         self.id = id
         self.title = title
         self.url = url
@@ -39,6 +106,11 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         self.ts = ts
         self.videoUrl = videoUrl
         self.thumbnailUrl = thumbnailUrl
+        self.authorName = authorName
+        self.authorHandle = authorHandle
+        self.authorAvatarUrl = authorAvatarUrl
+        self.metrics = metrics
+        self.replies = replies
     }
 
     /// Clean summary ready for markdown rendering — strips HTML tags and
@@ -85,6 +157,38 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         guard isTwitter else { return nil }
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return t.isEmpty ? nil : t
+    }
+
+    /// The handle used for the X-style card's header + avatar fallback:
+    /// explicit `author_handle` when the backend sends it, else the title's
+    /// handle form, normalized without the leading "@". Nil for non-tweets.
+    internal var tweetHandle: String? {
+        guard isTwitter else { return nil }
+        if let h = authorHandle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !h.isEmpty {
+            return h.hasPrefix("@") ? String(h.dropFirst()) : h
+        }
+        guard let t = twitterAuthor else { return nil }
+        return t.hasPrefix("@") ? String(t.dropFirst()) : t
+    }
+
+    /// Display name for the X-style card header: explicit `author_name`, else
+    /// the handle (mirroring X's fallback when the API name is unavailable).
+    internal var tweetAuthorDisplayName: String? {
+        if let n = authorName?.trimmingCharacters(in: .whitespacesAndNewlines), !n.isEmpty {
+            return n
+        }
+        return tweetHandle
+    }
+
+    /// Avatar image URL for the X-style card: the backend's `author_avatar_url`
+    /// when present, else the unavatar.io mirror for the handle.
+    internal var tweetAvatarURL: URL? {
+        if let a = authorAvatarUrl, let url = URL(string: a), url.scheme?.hasPrefix("http") == true {
+            return url
+        }
+        guard let handle = tweetHandle, !handle.isEmpty else { return nil }
+        return URL(string: "https://unavatar.io/twitter/\(handle)")
     }
 
     /// The text to show as the card body. Tweets often carry their content in
@@ -169,10 +273,13 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, url, summary, source, tags, ts
+        case id, title, url, summary, source, tags, ts, metrics, replies
         case imageUrl = "image_url"
         case videoUrl = "video_url"
         case thumbnailUrl = "thumbnail_url"
+        case authorName = "author_name"
+        case authorHandle = "author_handle"
+        case authorAvatarUrl = "author_avatar_url"
     }
 
     init(from decoder: Decoder) throws {
@@ -188,6 +295,12 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         // Optional video fields — absent on non-video feed sources.
         videoUrl = try c.decodeIfPresent(String.self, forKey: .videoUrl) ?? ""
         thumbnailUrl = try c.decodeIfPresent(String.self, forKey: .thumbnailUrl) ?? ""
+        // Tweet enrichment — absent until the backend enriches twitter items.
+        authorName = try c.decodeIfPresent(String.self, forKey: .authorName)
+        authorHandle = try c.decodeIfPresent(String.self, forKey: .authorHandle)
+        authorAvatarUrl = try c.decodeIfPresent(String.self, forKey: .authorAvatarUrl)
+        metrics = try c.decodeIfPresent(TweetMetrics.self, forKey: .metrics)
+        replies = try c.decodeIfPresent([FeedReply].self, forKey: .replies) ?? []
     }
 }
 

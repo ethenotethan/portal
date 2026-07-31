@@ -49,7 +49,12 @@ struct FeedView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(vm.articles) { article in
-                    if article.hasVideo {
+                    if article.isTwitter {
+                        // Tweets render as an embedded X-style post card
+                        // (read-only comments/likes/RTs), not a link card.
+                        TweetPostCard(article: article)
+                            .padding(.horizontal, 12)
+                    } else if article.hasVideo {
                         VideoFeedCard(article: article)
                             .padding(.horizontal, 12)
                     } else {
