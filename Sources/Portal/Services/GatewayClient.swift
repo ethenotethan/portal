@@ -6,6 +6,29 @@ import os.log
 
 private let log = Logger(subsystem: "com.portal", category: "Gateway")
 
+/// Resolves a liveness probe exactly once when its ping callback and timeout
+/// race. `NSLock` provides the synchronization promised by `@unchecked
+/// Sendable`; the continuation is cleared before it is resumed.
+internal final class LivenessProbeCompletion: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Bool, Never>?
+
+    internal init(_ continuation: CheckedContinuation<Bool, Never>) {
+        self.continuation = continuation
+    }
+
+    internal func resume(returning value: Bool) {
+        lock.lock()
+        guard let continuation else {
+            lock.unlock()
+            return
+        }
+        self.continuation = nil
+        lock.unlock()
+        continuation.resume(returning: value)
+    }
+}
+
 /// WebSocket client for the Hermes gateway JSON-RPC protocol.
 ///
 /// Features:
@@ -835,15 +858,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     internal func verifyLivenessOrReconnect(timeout: Double = 4) async {
         guard case .connected = connectionState, let task = webSocketTask else { return }
         let alive = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            let resumedLock = NSLock()
-            var resumed = false
-            func finish(_ value: Bool) {
-                resumedLock.lock(); defer { resumedLock.unlock() }
-                guard !resumed else { return }
-                resumed = true
-                cont.resume(returning: value)
-            }
-            task.sendPing { error in finish(error == nil) }
+            let completion = LivenessProbeCompletion(cont)
+            task.sendPing { error in completion.resume(returning: error == nil) }
             // Guard against sendPing's completion never firing on a half-open
             // socket — the deadline is the real tripwire here.
             Task { @MainActor in
@@ -854,7 +870,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     // don't force a reconnect off a cancelled probe.
                     return
                 }
-                finish(false)
+                completion.resume(returning: false)
             }
         }
         if !alive {

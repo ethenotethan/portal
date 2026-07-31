@@ -45,7 +45,6 @@ internal enum Model3DTemplate {
     /// Build the complete HTML document.
     internal static func render(_ spec: Model3DSpec) -> String {
         let modelSource = modelSourceJS(spec)
-        let modelURI = modelDataURI(spec)
 
         return """
         <!DOCTYPE html>
