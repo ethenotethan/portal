@@ -21,7 +21,11 @@ final class GatewayClientWrapper: ObservableObject {
     /// wrapper (not the inner client, which is swapped on reconnect) can
     /// show live latency.
     @Published private(set) var lastPingRTT: TimeInterval?
-    private(set) var client: GatewayClient
+    /// The live transport. Published: the client is REPLACED (not mutated) on
+    /// every gateway switch, and views resolving the current backend through
+    /// `liveClient(for:)` must re-render on the swap — otherwise a harness's
+    /// status row keeps reading the previous gateway's client.
+    @Published internal private(set) var client: GatewayClient
 
     private var pingRTTCancellable: AnyCancellable?
     private var connectionCancellable: AnyCancellable?

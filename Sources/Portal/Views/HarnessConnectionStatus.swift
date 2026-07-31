@@ -39,6 +39,12 @@ extension GatewayClient.ConnectionState {
 /// the backend's `connectionStatePublisher` so it repaints on connect/drop
 /// without the enclosing view being an `@ObservedObject` of an existential.
 /// A `nil` backend renders a dim "offline" dot (nothing is dialing this entry).
+///
+/// The view identity is keyed to the backend OBJECT: `GatewayClientWrapper`
+/// swaps its inner `GatewayClient` on every gateway switch, and an
+/// `.onReceive` subscription captured at first render would otherwise keep
+/// listening to the OLD client forever — showing the previous gateway's
+/// connection state on the new gateway's row.
 internal struct HarnessStatusDot: View {
     internal let backend: (any AgentBackend)?
     internal var diameter: CGFloat = 6
@@ -50,10 +56,16 @@ internal struct HarnessStatusDot: View {
             .fill(backend == nil ? Theme.secondary.opacity(0.4) : state.statusColor)
             .frame(width: diameter, height: diameter)
             .onReceive(statePublisher) { state = $0 }
+            // Re-create (and re-subscribe) when the transport object changes.
+            .id(backendIdentity)
     }
 
     private var statePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> {
         backend?.connectionStatePublisher ?? Empty().eraseToAnyPublisher()
+    }
+
+    private var backendIdentity: ObjectIdentifier? {
+        backend.map { ObjectIdentifier($0 as AnyObject) }
     }
 }
 
@@ -105,6 +117,10 @@ internal struct HarnessConnectionSection: View {
                 }
             }
             .onReceive(statePublisher) { state = $0 }
+            // The wrapper swaps its inner client on gateway switch — re-key
+            // the subscription (and the sheet binding) to the transport
+            // object or this pane keeps showing the previous gateway's state.
+            .id(backendIdentity)
 
             if let hint = offlineHint {
                 Text(hint)
@@ -130,6 +146,10 @@ internal struct HarnessConnectionSection: View {
 
     private var statePublisher: AnyPublisher<GatewayClient.ConnectionState, Never> {
         backend?.connectionStatePublisher ?? Empty().eraseToAnyPublisher()
+    }
+
+    private var backendIdentity: ObjectIdentifier? {
+        backend.map { ObjectIdentifier($0 as AnyObject) }
     }
 
     private var offlineLabel: String { "Offline" }

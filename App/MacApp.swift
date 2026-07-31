@@ -46,6 +46,7 @@ struct PortalAppMac: App {
                 .environmentObject(settings)
                 .environmentObject(personaManager)
                 .environmentObject(capabilitiesStore)
+                .environmentObject(gatewayClientWrapper)
         }
 
         // A menu-bar item that stays reachable when every window is closed
