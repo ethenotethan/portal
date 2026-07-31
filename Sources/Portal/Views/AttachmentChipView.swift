@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVKit
 
 /// Tappable chip for a file attachment extracted from a MEDIA: tag.
 /// Shows icon + filename, and handles download state for remote files.
@@ -8,7 +9,7 @@ struct AttachmentChipView: View {
     let attachment: FileAttachment
     @State private var isPreviewVisible = false
 
-    var body: some View {
+    internal var body: some View {
         Button {
             handleTap()
         } label: {
@@ -198,7 +199,7 @@ struct FilePreviewView: View {
     var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             // Title bar
             HStack {
@@ -218,7 +219,7 @@ struct FilePreviewView: View {
                 }
                 .buttonStyle(.plain)
 
-                if case .local = attachment.source {
+                if attachment.previewFileURL != nil {
                     Button {
                         openInDefaultApp()
                     } label: {
@@ -252,6 +253,12 @@ struct FilePreviewView: View {
                         ImagePreview(data: data)
                     } else if case .local(let path) = attachment.source {
                         ImagePreview(filePath: path)
+                    } else {
+                        downloadStateView
+                    }
+                case .video:
+                    if let url = attachment.previewFileURL {
+                        VideoPreview(url: url)
                     } else {
                         downloadStateView
                     }
@@ -327,13 +334,34 @@ struct FilePreviewView: View {
     }
 
     private func openInDefaultApp() {
-        guard case .local(let path) = attachment.source else { return }
-        let url = URL(fileURLWithPath: path)
+        guard let url = attachment.previewFileURL else { return }
         #if os(macOS)
         NSWorkspace.shared.open(url)
         #else
         UIApplication.shared.open(url)
         #endif
+    }
+}
+
+// MARK: - Video Preview
+
+internal struct VideoPreview: View {
+    internal let url: URL
+    @State private var player: AVPlayer?
+
+    internal var body: some View {
+        VideoPlayer(player: player)
+            .background(Color.black)
+            .onAppear {
+                guard player == nil else { return }
+                let player = AVPlayer(url: url)
+                self.player = player
+                player.play()
+            }
+            .onDisappear {
+                player?.pause()
+                player = nil
+            }
     }
 }
 
@@ -356,7 +384,7 @@ struct FileWebView: View {
         self.mimeType = mimeType
     }
 
-    var body: some View {
+    internal var body: some View {
         #if os(macOS)
         FileWebViewNSView(filePath: filePath, data: data, mimeType: mimeType)
         #else
@@ -385,7 +413,7 @@ struct FileWebViewNSView: NSViewRepresentable {
                 data,
                 mimeType: mimeType,
                 characterEncodingName: "UTF-8",
-                baseURL: URL(string: "about:blank")!
+                baseURL: URL(fileURLWithPath: "/")
             )
         } else if let filePath = filePath {
             let url = URL(fileURLWithPath: filePath)
@@ -414,7 +442,7 @@ struct FileWebViewUIView: UIViewRepresentable {
                 data,
                 mimeType: mimeType,
                 characterEncodingName: "UTF-8",
-                baseURL: URL(string: "about:blank")!
+                baseURL: URL(fileURLWithPath: "/")
             )
         } else if let filePath = filePath {
             let url = URL(fileURLWithPath: filePath)
@@ -440,7 +468,7 @@ struct ImagePreview: View {
         self.data = data
     }
 
-    var body: some View {
+    internal var body: some View {
         ScrollView([.horizontal, .vertical]) {
             if let data = data {
                 #if os(macOS)
@@ -512,7 +540,7 @@ struct FallbackPreview: View {
         self.fileExtension = attachment.fileExtension
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc")
                 .font(.system(size: 48))
@@ -547,7 +575,7 @@ struct FallbackPreview: View {
 struct TextFilePreview: View {
     let text: String
 
-    var body: some View {
+    internal var body: some View {
         ScrollView([.vertical, .horizontal]) {
             Text(text)
                 .font(.system(size: 12, design: .monospaced))
@@ -564,7 +592,7 @@ struct TextFilePreview: View {
 struct FallbackLabel: View {
     let text: String
 
-    var body: some View {
+    internal var body: some View {
         Text(text)
             .font(.system(size: 13))
             .foregroundStyle(Theme.tertiary)

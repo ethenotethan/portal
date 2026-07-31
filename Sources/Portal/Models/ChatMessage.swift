@@ -469,6 +469,22 @@ struct FileAttachment: Identifiable, Codable {
         return Self.cacheDirectory.appendingPathComponent("\(id.uuidString).\(ext)")
     }
 
+    /// A local URL suitable for native media playback or opening in another app.
+    /// Remote attachments become playable after their downloaded bytes have been
+    /// persisted to the attachment cache.
+    internal var previewFileURL: URL? {
+        switch source {
+        case .local(let path):
+            return URL(fileURLWithPath: path)
+        case .remote:
+            guard case .ready = downloadState,
+                  FileManager.default.fileExists(atPath: cacheFileURL.path) else {
+                return nil
+            }
+            return cacheFileURL
+        }
+    }
+
     /// Persist downloaded data to the disk cache so it survives app restarts.
     func persistToDisk(data: Data) {
         Self.persistToCache(id: id, data: data, fileExtension: fileExtension)
