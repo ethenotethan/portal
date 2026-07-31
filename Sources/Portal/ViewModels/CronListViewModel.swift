@@ -170,6 +170,12 @@ internal final class CronListViewModel {
         }
     }
 
+    /// Resolve a navigation value back to the live list so an open detail view
+    /// reflects edits and refreshes instead of retaining its pushed snapshot.
+    internal func currentJob(id: String, fallback: CronJob) -> CronJob {
+        jobs.first(where: { $0.id == id }) ?? fallback
+    }
+
     func updatePrompt(id: String, newPrompt: String) async {
         guard let client = gatewayClient else { return }
         do {
@@ -184,17 +190,12 @@ internal final class CronListViewModel {
         }
     }
 
-    internal func updateTags(id: String, tags: [String]) async {
-        guard let client = gatewayClient else { return }
-        do {
-            let _ = try await client.call("cron.manage", params: [
-                "action": AnyCodable("update"),
-                "name": AnyCodable(id),
-                "tags": AnyCodable.array(tags.map(AnyCodable.init))
-            ])
-            await refreshJobs()
-        } catch {
-            log.error("Failed to update tags for job \(id): \(error)")
+    internal func updateTags(id: String, tags: [String]) async throws {
+        guard let client = gatewayClient else { throw GatewayError.notConnected }
+        try await client.updateCronJobTags(id: id, tags: tags)
+        if let index = jobs.firstIndex(where: { $0.id == id }) {
+            jobs[index].tags = tags
         }
+        await refreshJobs()
     }
 }

@@ -48,8 +48,9 @@ struct CronListView: View {
         .listStyle(.insetGrouped)
         #endif
         .navigationDestination(for: CronJob.self) { job in
+            let currentJob = cronViewModel.currentJob(id: job.id, fallback: job)
             CronJobDetailView(
-                job: job,
+                job: currentJob,
                 supportsRemoveAndEdit: cronViewModel.supportsRemoveAndEdit,
                 supportsTrigger: cronViewModel.supportsTrigger,
                 onPause: { Task { await cronViewModel.pauseJob(id: job.id) } },
@@ -60,7 +61,7 @@ struct CronListView: View {
                     Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
                 },
                 onUpdateTags: { tags in
-                    Task { await cronViewModel.updateTags(id: job.id, tags: tags) }
+                    try await cronViewModel.updateTags(id: job.id, tags: tags)
                 }
             )
             .environmentObject(gatewayClientWrapper)
@@ -356,7 +357,7 @@ struct CronJobDetailView: View {
     internal var onTrigger: () -> Void = {}
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
-    internal var onUpdateTags: ([String]) -> Void = { _ in }
+    internal var onUpdateTags: ([String]) async throws -> Void = { _ in }
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false

@@ -14,7 +14,7 @@ internal struct CronJobCard: View {
     internal let onResume: () -> Void
     internal let onRemove: () -> Void
     internal let onUpdatePrompt: (String) -> Void
-    internal let onUpdateTags: ([String]) -> Void
+    internal let onUpdateTags: ([String]) async throws -> Void
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -33,7 +33,7 @@ internal struct CronJobCard: View {
         onResume: @escaping () -> Void,
         onRemove: @escaping () -> Void,
         onUpdatePrompt: @escaping (String) -> Void,
-        onUpdateTags: @escaping ([String]) -> Void = { _ in }
+        onUpdateTags: @escaping ([String]) async throws -> Void = { _ in }
     ) {
         self.job = job
         self.isExpanded = isExpanded

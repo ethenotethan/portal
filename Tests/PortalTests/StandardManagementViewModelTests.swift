@@ -151,4 +151,16 @@ internal struct CronTagsTests {
         ])
         #expect(CronTagList.editingText(for: ["portal", "ci"]) == "portal, ci")
     }
+
+    @Test("Detail job resolves the refreshed list value")
+    @MainActor
+    internal func currentDetailJob() {
+        let original = job(id: "1", name: "Ratchet", tags: ["old"])
+        let refreshed = job(id: "1", name: "Ratchet", tags: ["new"])
+        let viewModel = CronListViewModel()
+
+        #expect(viewModel.currentJob(id: original.id, fallback: original).tags == ["old"])
+        viewModel.jobs = [refreshed]
+        #expect(viewModel.currentJob(id: original.id, fallback: original).tags == ["new"])
+    }
 }

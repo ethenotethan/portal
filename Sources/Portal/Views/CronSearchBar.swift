@@ -273,10 +273,12 @@ internal struct CronTagChips: View {
 internal struct CronTagEditor: View {
     internal let tags: [String]
     internal let canEdit: Bool
-    internal let onSave: ([String]) -> Void
+    internal let onSave: ([String]) async throws -> Void
 
     @State private var isEditing = false
     @State private var editingText = ""
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -288,6 +290,7 @@ internal struct CronTagEditor: View {
                 if canEdit && !isEditing {
                     Button {
                         editingText = CronTagList.editingText(for: tags)
+                        saveError = nil
                         isEditing = true
                     } label: {
                         Label("Edit", systemImage: "pencil")
@@ -311,11 +314,26 @@ internal struct CronTagEditor: View {
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     Button("Save") {
-                        onSave(CronTagList.parse(editingText))
-                        isEditing = false
+                        Task {
+                            isSaving = true
+                            defer { isSaving = false }
+                            do {
+                                try await onSave(CronTagList.parse(editingText))
+                                saveError = nil
+                                isEditing = false
+                            } catch {
+                                saveError = error.localizedDescription
+                            }
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .disabled(isSaving)
+                }
+                if let saveError {
+                    Text(saveError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
             } else if tags.isEmpty {
                 Text(canEdit ? "No tags — add labels to organize this job." : "No tags")

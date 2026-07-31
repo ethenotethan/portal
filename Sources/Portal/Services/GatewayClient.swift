@@ -1016,6 +1016,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return jobsArray.compactMap { Self.decodeCronJob(from: $0, using: iso8601Formatter) }
     }
 
+    /// Persist tags through the bounded user-action path so a stale socket
+    /// cannot leave the editor spinning forever.
+    internal func updateCronJobTags(id: String, tags: [String]) async throws {
+        let response = try await callWithRetry("cron.manage", params: [
+            "action": AnyCodable("update"),
+            "name": AnyCodable(id),
+            "tags": AnyCodable.array(tags.map(AnyCodable.init))
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     /// Fetch a single job with its **full** (untruncated) prompt via `cron.manage`
     /// action "describe". Used for lazy fetch when a card expands — `list` only
     /// returns a 100-char `prompt_preview`.
