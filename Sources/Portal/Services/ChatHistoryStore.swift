@@ -106,7 +106,7 @@ final class ChatHistoryStore {
     /// Off-main variant for batch title population. Reads and decodes in a
     /// detached task so the main thread is never blocked.
     nonisolated internal func firstUserMessageBackground(forSession sessionID: String) async -> String? {
-        let dir = await sessionsDir
+        let dir = sessionsDir
         let file = dir.appendingPathComponent("\(sessionID).json")
         return await Task.detached(priority: .utility) {
             guard FileManager.default.fileExists(atPath: file.path) else { return nil }
