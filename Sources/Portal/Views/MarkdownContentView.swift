@@ -1558,17 +1558,23 @@ struct InlineHTMLView: View {
     /// Expanded interactive canvases use the next trusted canvas click to
     /// acquire Pointer Lock. Ordinary inline HTML leaves this disabled.
     internal let capturesPointerInput: Bool
+    /// Origin the document is loaded under (loadHTMLString's baseURL). Nil =
+    /// opaque origin. Embedded third-party players that reject opaque origins
+    /// (YouTube's Error 153) pass their own host here.
+    internal let baseURL: URL?
 
     internal init(
         html: String,
         onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
         statusMarks: [HTMLArtifactIntentBridge.StatusMark] = [],
-        capturesPointerInput: Bool = false
+        capturesPointerInput: Bool = false,
+        baseURL: URL? = nil
     ) {
         self.html = html
         self.onArtifactIntent = onArtifactIntent
         self.statusMarks = statusMarks
         self.capturesPointerInput = capturesPointerInput
+        self.baseURL = baseURL
     }
 
     var body: some View {
@@ -1577,7 +1583,8 @@ struct InlineHTMLView: View {
             html: html,
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
-            capturesPointerInput: capturesPointerInput
+            capturesPointerInput: capturesPointerInput,
+            baseURL: baseURL
         )
             .background(Theme.background)
         #else
@@ -1585,7 +1592,8 @@ struct InlineHTMLView: View {
             html: html,
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
-            capturesPointerInput: capturesPointerInput
+            capturesPointerInput: capturesPointerInput,
+            baseURL: baseURL
         )
             .background(Theme.background)
         #endif
@@ -1598,6 +1606,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let capturesPointerInput: Bool
+    internal let baseURL: URL?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1642,7 +1651,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
         context.coordinator.onArtifactIntent = onArtifactIntent
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
-            webView.loadHTMLString(html, baseURL: nil)
+            webView.loadHTMLString(html, baseURL: baseURL)
             // Marks re-apply from didFinish once the new DOM exists.
             return
         }
@@ -1674,6 +1683,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let capturesPointerInput: Bool
+    internal let baseURL: URL?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1710,7 +1720,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
         context.coordinator.onArtifactIntent = onArtifactIntent
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
-            webView.loadHTMLString(html, baseURL: nil)
+            webView.loadHTMLString(html, baseURL: baseURL)
             // Marks re-apply from didFinish once the new DOM exists.
             return
         }
