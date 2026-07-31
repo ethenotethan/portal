@@ -34,6 +34,28 @@ internal struct TweetPostCard: View {
                     .foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
+            } else if let tweetURL {
+                // URL-only items (no text captured): show the link itself so
+                // the card is never blank.
+                Button(action: openArticle) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "link")
+                            .font(.caption2)
+                        Text(tweetURL.absoluteString)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 4)
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
             }
 
             if let heroURL = article.heroImageURL {
