@@ -349,7 +349,10 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
             context.duration = 0.4
             hintView.animator().alphaValue = 0
         } completionHandler: {
-            hintView.removeFromSuperview()
+            // AppKit completes an animation group on the main thread, but this
+            // callback is not actor-annotated. Restore the isolation that the
+            // API does not express before touching the NSView.
+            MainActor.assumeIsolated { hintView.removeFromSuperview() }
         }
     }
 

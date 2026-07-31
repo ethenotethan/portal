@@ -227,7 +227,12 @@ jobs:
       - name: Capture dead-code snapshot
         run: |
           set -o pipefail
-          periphery scan --format json --quiet > periphery.json
+          # Scan the application scheme, not Package.swift's library target.
+          # The app entry points live under App/, outside the Swift package; a
+          # package-only scan cannot see their calls into Sources/Portal and
+          # therefore mislabels app-reachable declarations as dead code.
+          periphery scan --project Portal.xcodeproj --schemes Portal \
+            --relative-results --format json --quiet > periphery.json
           python3 scripts/collect-deadcode.py periphery.json --root "$PWD" --json deadcode.json
 
       - name: Ratchet dead code against base
