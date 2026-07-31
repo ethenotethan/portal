@@ -8,6 +8,9 @@ import os
 struct FeedView: View {
     @StateObject private var vm = FeedViewModel()
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    /// One embed cache for every tweet card in this feed — scroll-away and
+    /// back costs no re-fetch, and tests can stub the network.
+    @State private var tweetContentService = TweetContentService()
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -52,7 +55,7 @@ struct FeedView: View {
                     if article.isTwitter {
                         // Tweets render as an embedded X-style post card
                         // (read-only comments/likes/RTs), not a link card.
-                        TweetPostCard(article: article)
+                        TweetPostCard(article: article, contentService: tweetContentService)
                             .padding(.horizontal, 12)
                     } else if article.hasVideo {
                         VideoFeedCard(article: article)

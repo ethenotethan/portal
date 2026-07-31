@@ -9,13 +9,37 @@ import SwiftUI
 /// Tapping the card opens the tweet in the in-app browser.
 internal struct TweetPostCard: View {
     internal let article: FeedArticle
+    /// Embed fetcher owned by the feed surface (one cache per feed; injected
+    /// so tests can stub the network).
+    internal let contentService: TweetContentService
 
     @State private var commentsExpanded = false
     @State private var browserLink: InAppBrowserLink?
+    @State private var embed: TweetEmbed?
+    @State private var isFetchingEmbed = false
 
     private var tweetURL: URL? {
         guard !article.url.isEmpty else { return nil }
         return URL(string: article.url)
+    }
+
+    /// Header display name: backend author_name → oEmbed author → handle.
+    private var displayName: String? {
+        article.authorName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? article.authorName
+            : embed?.authorName ?? article.tweetHandle
+    }
+
+    /// Header handle: backend author_handle → oEmbed author URL → title/URL.
+    private var displayHandle: String? {
+        article.tweetHandle ?? embed?.authorHandle
+    }
+
+    /// The tweet's text: the fetched oEmbed contents when the digest only
+    /// stored a bare URL, else the digest's own body.
+    private var tweetText: String? {
+        if let text = embed?.text, !text.isEmpty { return text }
+        return article.cardBody.isEmpty ? nil : article.cardBody
     }
 
     /// Replies action-bar count: the API metric when present, else the number
@@ -28,33 +52,19 @@ internal struct TweetPostCard: View {
         VStack(alignment: .leading, spacing: 0) {
             headerRow
 
-            if !article.cardBody.isEmpty {
-                MarkdownText(text: article.cardBody)
+            if let text = tweetText {
+                MarkdownText(text: text)
                     .font(.body)
                     .foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
-            } else if let tweetURL {
-                // URL-only items (no text captured): show the link itself so
-                // the card is never blank.
-                Button(action: openArticle) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "link")
-                            .font(.caption2)
-                        Text(tweetURL.absoluteString)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer(minLength: 4)
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            } else if isFetchingEmbed {
+                HStack(spacing: 6) {
+                    ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
+                    Text("Fetching tweet…")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
                 }
-                .buttonStyle(.plain)
                 .padding(.top, 6)
             }
 
@@ -63,8 +73,14 @@ internal struct TweetPostCard: View {
                     .padding(.top, 10)
             }
 
+            // The tweet's link, always pinned under the contents.
+            if let tweetURL {
+                linkRow(tweetURL)
+                    .padding(.top, tweetText != nil ? 8 : 6)
+            }
+
             actionBar
-                .padding(.top, 12)
+                .padding(.top, 8)
 
             if !article.replies.isEmpty {
                 commentsSection
@@ -79,6 +95,7 @@ internal struct TweetPostCard: View {
         .sheet(item: $browserLink) { link in
             InAppBrowserView(link: link)
         }
+        .task(id: article.url) { await fetchEmbedIfNeeded() }
     }
 
     // MARK: - Header (avatar / name / handle / time)
@@ -87,12 +104,12 @@ internal struct TweetPostCard: View {
         HStack(spacing: 10) {
             avatar
             VStack(alignment: .leading, spacing: 1) {
-                Text(article.tweetAuthorDisplayName ?? "Unknown")
+                Text(displayName ?? "Unknown")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(1)
                 HStack(spacing: 3) {
-                    if let handle = article.tweetHandle {
+                    if let handle = displayHandle {
                         Text("@\(handle)")
                             .foregroundStyle(Theme.secondary)
                     }
@@ -132,9 +149,46 @@ internal struct TweetPostCard: View {
     }
 
     private var monogram: some View {
-        Text(String((article.tweetAuthorDisplayName ?? "?").prefix(1)).uppercased())
+        Text(String((displayName ?? "?").prefix(1)).uppercased())
             .font(.system(size: 16, weight: .bold))
             .foregroundStyle(Theme.accent)
+    }
+
+    // MARK: - Tweet link row
+
+    /// The tweet's URL, pinned under the contents — the click-through.
+    private func linkRow(_ url: URL) -> some View {
+        Button(action: openArticle) {
+            HStack(spacing: 6) {
+                Image(systemName: "link")
+                    .font(.caption2)
+                Text(url.absoluteString)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 4)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2)
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - oEmbed fetch
+
+    /// The digest often stores only a bare tweet URL — resolve the actual
+    /// tweet contents (and author) from X's public oEmbed endpoint. Silent on
+    /// failure: the card keeps whatever the digest gave it.
+    private func fetchEmbedIfNeeded() async {
+        guard embed == nil, !isFetchingEmbed,
+              TweetContentService.isTweetStatusURL(article.url) else { return }
+        isFetchingEmbed = true
+        embed = await contentService.embed(for: article.url)
+        isFetchingEmbed = false
     }
 
     // MARK: - Action bar (read-only)
@@ -307,7 +361,8 @@ internal struct TweetPostCard_Previews: PreviewProvider {
                     FeedReply(id: "r2", authorName: "Dev Two", authorHandle: "devtwo",
                               text: "Does it handle 1k nodes?", url: "https://x.com/devtwo/status/125"),
                 ]
-            )
+            ),
+            contentService: TweetContentService()
         )
         .padding()
         .background(Theme.background)

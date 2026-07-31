@@ -82,8 +82,7 @@ internal struct FeedTweetModelTests {
     }
 
     @Test("Enrichment fields decode when present, default when absent")
-    internal func decoding() throws {
-        let json = Data("""
+    internal func decoding() throws {        let json = Data("""
         {"id": "t1", "title": "@janedoe", "url": "https://x.com/janedoe/status/1",
          "summary": "hi", "source": "twitter",
          "author_name": "Jane Doe", "author_handle": "janedoe",
@@ -109,5 +108,43 @@ internal struct FeedTweetModelTests {
         #expect(b.metrics == nil)
         #expect(b.replies.isEmpty)
         #expect(b.authorAvatarUrl == nil)
+    }
+}
+
+// The oEmbed fallback: extracting tweet text + author from the public
+// embed HTML, and the status-URL gate that decides when to fetch.
+@Suite("Tweet embed")
+internal struct TweetEmbedTests {
+
+    @Test("Extracts the tweet text from the oEmbed blockquote")
+    internal func extractText() {
+        let html = """
+        <blockquote class="twitter-tweet" data-dnt="true"><p lang="en" dir="ltr">just setting up my twttr</p>&mdash; jack (@jack) <a href="https://x.com/jack/status/20">March 21, 2006</a></blockquote>
+        <script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>
+        """
+        #expect(TweetEmbedText.extract(from: html) == "just setting up my twttr")
+    }
+
+    @Test("Links drop their tags but keep inner text; <br> becomes newlines")
+    internal func extractWithLinks() {
+        let html = #"<p lang="en" dir="ltr">Ship it <a href="https://t.co/x">github.com/org/repo</a><br>second line</p> tail"#
+        #expect(TweetEmbedText.extract(from: html) == "Ship it github.com/org/repo\nsecond line")
+    }
+
+    @Test("Entities decode: named, numeric, and &amp; last")
+    internal func entities() {
+        #expect(TweetEmbedText.decodeEntities("a &amp; b &mdash; c &#38; d") == "a & b — c & d")
+        #expect(TweetEmbedText.decodeEntities("&lt;tag&gt; &#39;q&#39;") == "<tag> 'q'")
+        #expect(TweetEmbedText.decodeEntities("&#x1F680;") == "\u{1F680}")
+    }
+
+    @Test("Only X/Twitter status URLs qualify for an oEmbed fetch")
+    internal func statusURLGate() {
+        #expect(TweetContentService.isTweetStatusURL("https://x.com/jane/status/123"))
+        #expect(TweetContentService.isTweetStatusURL("https://twitter.com/jane/status/123"))
+        #expect(!TweetContentService.isTweetStatusURL("https://x.com/jane"))
+        #expect(!TweetContentService.isTweetStatusURL("https://x.com/home"))
+        #expect(!TweetContentService.isTweetStatusURL("https://example.com/jane/status/1"))
+        #expect(!TweetContentService.isTweetStatusURL("not a url"))
     }
 }
