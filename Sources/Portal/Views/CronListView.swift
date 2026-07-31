@@ -10,6 +10,10 @@ struct CronListView: View {
         filterState.apply(to: cronViewModel.jobs)
     }
 
+    private var grouping: CronCategoryGrouping {
+        CronCategory.group(filteredJobs)
+    }
+
     var body: some View {
         List {
             if cronViewModel.jobs.isEmpty && cronViewModel.isLoading {
@@ -21,22 +25,15 @@ struct CronListView: View {
             } else if filteredJobs.isEmpty {
                 noMatchesState
                     .listRowBackground(Color.clear)
+            } else if filterState.groupByCategory {
+                CronCategoryTree(
+                    filterState: filterState,
+                    grouping: grouping,
+                    jobRow: { job in AnyView(jobRow(job)) }
+                )
             } else {
                 ForEach(filteredJobs) { job in
-                    NavigationLink(value: job) {
-                        CronJobRow(job: job)
-                    }
-                    .contextMenu {
-                        cronActions(for: job)
-                    }
-                    #if os(iOS)
-                    .swipeActions(edge: .leading) {
-                        pauseResumeButton(for: job)
-                    }
-                    .swipeActions(edge: .trailing) {
-                        removeButton(for: job)
-                    }
-                    #endif
+                    jobRow(job)
                 }
             }
         }
@@ -82,6 +79,13 @@ struct CronListView: View {
         .refreshable {
             await cronViewModel.refreshJobs()
         }
+        .onChange(of: filterState.searchText) { _, query in
+            // A match inside a collapsed category would be invisible; reveal the
+            // whole tree while a query is active.
+            guard filterState.groupByCategory,
+                  !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+            filterState.expandAll(in: grouping)
+        }
         .task(id: settings.focusedGateway?.id) {
             // A focused Standard backend is HTTP-only: route cron through its
             // dashboard API. Otherwise use the WebSocket Gateway as before.
@@ -93,6 +97,26 @@ struct CronListView: View {
             }
             await cronViewModel.refreshJobs()
         }
+    }
+
+    /// One job row, identical in flat and grouped modes so navigation, context
+    /// menu, and swipe actions never diverge between the two.
+    @ViewBuilder
+    private func jobRow(_ job: CronJob) -> some View {
+        NavigationLink(value: job) {
+            CronJobRow(job: job, showsCategoryPath: !filterState.groupByCategory)
+        }
+        .contextMenu {
+            cronActions(for: job)
+        }
+        #if os(iOS)
+        .swipeActions(edge: .leading) {
+            pauseResumeButton(for: job)
+        }
+        .swipeActions(edge: .trailing) {
+            removeButton(for: job)
+        }
+        #endif
     }
 
     private var emptyState: some View {
@@ -214,6 +238,14 @@ struct CronListView: View {
 
 struct CronJobRow: View {
     let job: CronJob
+    /// In flat mode the full `life/training/morning-run` name is the only place
+    /// the category is visible, so it stays. Under the category tree the path is
+    /// already the enclosing headers, so the row shows just the leaf title.
+    internal var showsCategoryPath: Bool = true
+
+    private var displayName: String {
+        showsCategoryPath ? job.name : CronCategory.title(for: job)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -222,7 +254,7 @@ struct CronJobRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(job.name)
+                    Text(displayName)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .lineLimit(1)

@@ -68,6 +68,11 @@ internal struct CronSearchBar: View {
 
                 Divider().frame(height: 16).opacity(0.5)
                 sortMenu
+
+                if hasAnyCategory {
+                    Divider().frame(height: 16).opacity(0.5)
+                    groupToggle
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -129,6 +134,40 @@ internal struct CronSearchBar: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+    }
+
+    /// The grouping affordance only appears once at least one job is named with
+    /// a path — otherwise the tree would be a single "Ungrouped" section and the
+    /// control would be dead weight.
+    private var hasAnyCategory: Bool {
+        jobs.contains { !CronCategory.isUngrouped($0) }
+    }
+
+    private var groupToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.12)) {
+                filterState.groupByCategory.toggle()
+                // Opening the tree with everything collapsed hides every job, so
+                // seed the top level expanded on first use.
+                if filterState.groupByCategory, filterState.expandedCategories.isEmpty {
+                    filterState.expandAll(in: CronCategory.group(jobs))
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: filterState.groupByCategory
+                      ? "list.bullet.indent" : "list.bullet")
+                    .font(.caption)
+                Text("Group")
+                    .font(.caption.weight(.medium))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(filterState.groupByCategory ? Theme.accent.opacity(0.15) : Theme.surface)
+            .foregroundStyle(filterState.groupByCategory ? Theme.accent : Theme.secondary)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Group jobs by their name path (life/training/…)")
     }
 
     // MARK: - Helpers
