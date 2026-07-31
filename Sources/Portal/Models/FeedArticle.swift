@@ -150,6 +150,12 @@ struct FeedArticle: Codable, Identifiable, Hashable {
 
     var isTwitter: Bool { source == "twitter" }
 
+    /// True for YouTube video links (watch/youtu.be/shorts/embed/live), which
+    /// render as an inline-playable YouTube card rather than a link card.
+    internal var isYouTube: Bool {
+        YouTubeContentService.videoID(from: url) != nil
+    }
+
     /// The tweet's author/handle, when the backend encodes it as the title
     /// (tweets have no real headline). Shown as the card subtitle so you can
     /// see who posted without opening the link.
@@ -268,6 +274,7 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         case "github":      return "chevron.left.slash.chevron.right"
         case "blog":        return "text.bubble"
         case "twitter":     return "bird"
+        case "youtube":     return "play.rectangle.fill"
         case "search":      return "magnifyingglass"
         default:            return "newspaper"
         }
@@ -279,6 +286,7 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         case "github":      return "Releases"
         case "blog":        return "Blogs"
         case "twitter":     return "X/Twitter"
+        case "youtube":     return "YouTube"
         default:            return source.capitalized
         }
     }
