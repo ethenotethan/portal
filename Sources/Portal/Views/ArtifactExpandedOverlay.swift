@@ -227,7 +227,11 @@ internal struct ArtifactExpandedOverlay: View {
     private func enterImmersiveFullscreen() {
         let content = store.artifacts[artifact.id]?.content ?? artifact.content
         guard let html = InteractiveArtifactWeb.immersiveHTML(kind: artifact.kind, content: content) else { return }
-        ArtifactFullscreenWindowController.shared.present(html: html, title: artifact.displayName)
+        ArtifactFullscreenWindowController.shared.present(
+            html: html,
+            title: artifact.displayName,
+            autoCapturesPointer: InteractiveArtifactWeb.autoCapturesPointer(kind: artifact.kind)
+        )
     }
 
     private func refreshCrons() async {

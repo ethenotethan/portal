@@ -1628,6 +1628,13 @@ struct InlineHTMLNSView: NSViewRepresentable {
         webView.setValue(false, forKey: "drawsBackground")
         webView.allowsBackForwardNavigationGestures = false
         webView.capturesInput = capturesPointerInput
+        if capturesPointerInput {
+            // WebKit denies requestPointerLock() outright when the web view has
+            // no uiDelegate answering its private pointer-lock callbacks, so the
+            // inline canvas needs the same grant the fullscreen window uses.
+            // Retained by the coordinator for the view's lifetime.
+            webView.uiDelegate = context.coordinator.pointerLock
+        }
         return webView
     }
 
@@ -1725,6 +1732,14 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     /// DOM (the attribute would otherwise be lost).
     private var appliedMarks: [HTMLArtifactIntentBridge.StatusMark] = []
     private weak var reflectionWebView: WKWebView?
+
+    #if os(macOS)
+    /// Grants Pointer Lock for interactive canvases. `WKWebView.uiDelegate` is
+    /// weak, so it must be owned somewhere with the web view's lifetime — the
+    /// coordinator is that owner. Unused by non-capturing documents.
+    @MainActor
+    internal lazy var pointerLock = ArtifactPointerLockDelegate()
+    #endif
 
     internal init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
         self.onArtifactIntent = onArtifactIntent
