@@ -77,6 +77,100 @@ internal struct CronCategoryTests {
         #expect(!CronCategory.isUngrouped(job("infra/db-backup")))
     }
 
+    // MARK: - Normalizing a typed name (rename == recategorize)
+
+    /// The rename field is a path editor, so what the user types is normalized
+    /// before it reaches the gateway. `split(name:)` already collapses noise on
+    /// the way in; `normalize(name:)` must agree on the way out, or a job could
+    /// be stored as `life/training/` and read back as `life/training`.
+    @Test("normalize round-trips a clean path unchanged")
+    internal func normalizeKeepsCleanPath() {
+        #expect(CronCategory.normalize(name: "life/training/run") == "life/training/run")
+        #expect(CronCategory.normalize(name: "db-backup") == "db-backup")
+    }
+
+    @Test("normalize collapses the same noise split() ignores")
+    internal func normalizeCollapsesNoise() {
+        #expect(CronCategory.normalize(name: "life//training/") == "life/training")
+        #expect(CronCategory.normalize(name: " life / training / run ") == "life/training/run")
+        #expect(CronCategory.normalize(name: "/leading") == "leading")
+    }
+
+    /// Unlike `split(name:)`, which preserves a separator-only name for display,
+    /// normalize refuses to *write* one — the gateway would then hold a job with
+    /// no usable title.
+    @Test("normalize rejects names with nothing usable left")
+    internal func normalizeRejectsEmpty() {
+        #expect(CronCategory.normalize(name: "") == nil)
+        #expect(CronCategory.normalize(name: "   ") == nil)
+        #expect(CronCategory.normalize(name: "///") == nil)
+        #expect(CronCategory.normalize(name: " / / ") == nil)
+    }
+
+    /// Guards the Save/Move button: a rename that normalizes back to the current
+    /// name is a wasted round trip plus a list refresh, and an empty one is a
+    /// destructive mistake.
+    @Test("isRenameable rejects no-ops and unusable names")
+    internal func isRenameableGatesTheButton() {
+        #expect(CronCategory.isRenameable("infra/db-backup", from: "db-backup"))
+        // Moving out of a category is a legitimate rename too.
+        #expect(CronCategory.isRenameable("db-backup", from: "infra/db-backup"))
+        // Same destination after normalizing — nothing to do.
+        #expect(!CronCategory.isRenameable("db-backup", from: "db-backup"))
+        #expect(!CronCategory.isRenameable(" db-backup ", from: "db-backup"))
+        #expect(!CronCategory.isRenameable("infra/db-backup/", from: "infra/db-backup"))
+        #expect(!CronCategory.isRenameable("", from: "db-backup"))
+        #expect(!CronCategory.isRenameable("///", from: "db-backup"))
+    }
+
+    /// The whole point of the feature: the normalized name regroups without any
+    /// migration, because the category is read out of the name itself.
+    @Test("a normalized rename lands the job in the intended category")
+    internal func renameRefilesTheJob() throws {
+        let renamed = try #require(CronCategory.normalize(name: " infra / db-backup "))
+        let grouping = CronCategory.group([job(renamed)])
+
+        #expect(grouping.ungrouped.isEmpty)
+        let infra = try #require(grouping.roots.first)
+        #expect(infra.name == "infra")
+        #expect(infra.jobs.map { CronCategory.title(for: $0) } == ["db-backup"])
+    }
+
+    // MARK: - The rename RPC shape
+
+    /// The bug this guards is silent in both directions: `cron.manage` uses
+    /// `name` as the job *identifier*, so the new name must be `job_name`.
+    /// Swapping them either addresses a nonexistent job or renames the job to
+    /// its own id — the gateway reports success either way.
+    @MainActor
+    @Test("rename sends the id as name and the new name as job_name")
+    internal func renameParamsUseJobNameForTheNewName() throws {
+        let params = try #require(
+            CronListViewModel.renameParams(id: "job-7", newName: "infra/db-backup"))
+
+        #expect(params["action"] == AnyCodable("update"))
+        #expect(params["name"] == AnyCodable("job-7"), "`name` is the job identifier")
+        #expect(params["job_name"] == AnyCodable("infra/db-backup"), "the NEW name rides on job_name")
+        // Nothing else may ride along: `update` overwrites the fields it receives.
+        #expect(params.keys.sorted() == ["action", "job_name", "name"])
+    }
+
+    @MainActor
+    @Test("rename normalizes the path before it reaches the wire")
+    internal func renameParamsNormalize() throws {
+        let params = try #require(
+            CronListViewModel.renameParams(id: "job-7", newName: " infra / db-backup / "))
+        #expect(params["job_name"] == AnyCodable("infra/db-backup"))
+    }
+
+    @MainActor
+    @Test("an unusable new name yields no params, so nothing is sent")
+    internal func renameParamsRefuseEmptyNames() {
+        #expect(CronListViewModel.renameParams(id: "job-7", newName: "") == nil)
+        #expect(CronListViewModel.renameParams(id: "job-7", newName: "   ") == nil)
+        #expect(CronListViewModel.renameParams(id: "job-7", newName: "///") == nil)
+    }
+
     // MARK: - Grouping
 
     @Test("jobs group under their root category")

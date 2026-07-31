@@ -183,4 +183,45 @@ internal final class CronListViewModel {
             log.error("Failed to update prompt for job \(id): \(error)")
         }
     }
+
+    /// The `cron.manage` params for a rename, or nil when `newName` normalizes to
+    /// nothing usable (the caller must not send it).
+    ///
+    /// Split out as a pure function purely so a test can pin the parameter names,
+    /// because the RPC shape is asymmetric and silently wrong if confused:
+    /// `cron.manage` already uses **`name` as the job identifier**, so the NEW
+    /// name has to travel as **`job_name`**. Sending it as `name` addresses a job
+    /// that doesn't exist; sending the id as `job_name` renames the job to its
+    /// own id. Neither mistake fails loudly.
+    internal static func renameParams(id: String, newName: String) -> [String: AnyCodable]? {
+        // Normalized in the model, not just the view: every caller renaming a job
+        // is writing a category path, and a trailing slash would otherwise persist.
+        guard let normalized = CronCategory.normalize(name: newName) else { return nil }
+        return [
+            "action": AnyCodable("update"),
+            "name": AnyCodable(id),
+            "job_name": AnyCodable(normalized)
+        ]
+    }
+
+    /// Rename a job — which, because `CronCategory` derives the category path
+    /// from the name, is also how an existing job gets refiled into a category
+    /// (`db-backup` → `infra/db-backup`). No migration and no separate schema:
+    /// the next `list` groups it under its new path.
+    ///
+    /// Gateway-only — Standard's dashboard API has no update endpoint, which is
+    /// what `supportsRemoveAndEdit` gates the affordance on.
+    internal func renameJob(id: String, newName: String) async {
+        guard let client = gatewayClient else { return }
+        guard let params = Self.renameParams(id: id, newName: newName) else {
+            log.error("Refusing to rename job \(id) to an empty name")
+            return
+        }
+        do {
+            let _ = try await client.call("cron.manage", params: params)
+            await refreshJobs()
+        } catch {
+            log.error("Failed to rename job \(id): \(error)")
+        }
+    }
 }

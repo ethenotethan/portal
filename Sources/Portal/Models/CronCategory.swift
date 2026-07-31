@@ -56,6 +56,40 @@ internal enum CronCategory {
     internal static func isUngrouped(_ job: CronJob) -> Bool {
         path(for: job).isEmpty
     }
+
+    // MARK: - Renaming == recategorizing
+
+    /// Clean up a user-typed job name into the canonical path form, or nil when
+    /// nothing usable is left.
+    ///
+    /// `" life / training /run "` → `"life/training/run"`, `"///"` → nil.
+    ///
+    /// This exists because renaming a job IS how it gets refiled: the category
+    /// lives in the name, so the rename field is a path editor and typing
+    /// `life/training/` or a stray double slash must not create phantom levels
+    /// on the server. `split(name:)` normalizes on the way *in*; this normalizes
+    /// on the way *out*, so the two agree.
+    ///
+    /// Unlike `split(name:)`, a name made only of separators is rejected rather
+    /// than preserved: displaying a nonsense name the server already holds is
+    /// harmless, but writing one is not.
+    internal static func normalize(name: String) -> String? {
+        let parts = name
+            .split(separator: separator, omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: String(separator))
+    }
+
+    /// Whether `raw` is worth sending as the new name for a job currently named
+    /// `current` — usable after normalizing, and actually a change. Drives the
+    /// Save button so a no-op rename never costs a round trip and a refresh.
+    internal static func isRenameable(_ raw: String, from current: String) -> Bool {
+        guard let next = normalize(name: raw) else { return false }
+        return next != current
+    }
 }
 
 // MARK: - Tree
