@@ -11,6 +11,13 @@ internal final class CronFilterState: ObservableObject {
     @Published internal var filterStatus: FilterStatus = .all
     @Published internal var timeWindow: TimeWindow = .all
     @Published internal var sortOrder: SortOrder = .recent
+    /// Group the list into the `CronCategory` tree (derived from `name` paths)
+    /// instead of a flat list. Independent of `sortOrder`, which still orders
+    /// jobs *within* each category level.
+    @Published internal var groupByCategory = false
+    /// Expanded category paths, keyed by `CronCategoryNode.id`. Collapsed by
+    /// default so a deep tree opens as a readable top-level summary.
+    @Published internal var expandedCategories: Set<String> = []
 
     // MARK: - Enums
 
@@ -114,5 +121,37 @@ internal final class CronFilterState: ObservableObject {
 
     internal func count(for status: FilterStatus, in jobs: [CronJob]) -> Int {
         jobs.filter { status.matches($0) }.count
+    }
+
+    // MARK: - Category grouping
+
+    /// Filter + sort, then fold the result into the category tree. Grouping runs
+    /// last so the active sort still governs row order within each level.
+    internal func grouped(_ jobs: [CronJob]) -> CronCategoryGrouping {
+        CronCategory.group(apply(to: jobs))
+    }
+
+    internal func isExpanded(_ node: CronCategoryNode) -> Bool {
+        expandedCategories.contains(node.id)
+    }
+
+    internal func toggleExpanded(_ node: CronCategoryNode) {
+        if expandedCategories.contains(node.id) {
+            expandedCategories.remove(node.id)
+        } else {
+            expandedCategories.insert(node.id)
+        }
+    }
+
+    /// Search matches inside a collapsed category would otherwise be invisible,
+    /// so reveal every path that leads to a match while a query is active.
+    internal func expandAll(in grouping: CronCategoryGrouping) {
+        var paths: Set<String> = []
+        func walk(_ node: CronCategoryNode) {
+            paths.insert(node.id)
+            node.children.forEach(walk)
+        }
+        grouping.roots.forEach(walk)
+        expandedCategories = paths
     }
 }
