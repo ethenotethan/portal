@@ -1,0 +1,85 @@
+name: Architecture Maintenance (Manual Fallback)
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_reconciliation:
+        description: Re-summarize every source-owned component
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: architecture-maintenance
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  maintain:
+    name: Propose architecture update
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Compile deterministic architecture model
+        run: python3 scripts/build_architecture.py
+
+      - name: Run constrained semantic maintainer
+        id: semantic
+        env:
+          OPENAI_API_KEY: ${{ secrets.ARCHITECTURE_OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.ARCHITECTURE_OPENAI_BASE_URL }}
+          ARCHITECTURE_MODEL: ${{ vars.ARCHITECTURE_MODEL }}
+          FULL_RECONCILIATION: ${{ inputs.full_reconciliation == true }}
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "ARCHITECTURE_OPENAI_API_KEY is not configured; publishing deterministic changes only."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          args=(--base HEAD^ --head HEAD)
+          if [ "$FULL_RECONCILIATION" = "true" ]; then
+            args+=(--all)
+          fi
+          python3 scripts/architecture_agent.py "${args[@]}"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild site with validated semantic records
+        run: python3 scripts/build_architecture.py
+
+      - name: Validate proposed architecture
+        run: |
+          python3 scripts/build_architecture.py --check
+          python3 -m unittest scripts/test_architecture.py
+          node --check architecture/site/app.js
+
+      - name: Open or update architecture pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/architecture-portal
+          delete-branch: true
+          add-paths: |
+            architecture/model/model.json
+            architecture/semantic/components.json
+            architecture/site/data.js
+          commit-message: "docs: refresh architecture portal"
+          title: "docs: refresh architecture portal"
+          body: |
+            ## Architecture maintenance
+
+            This pull request refreshes Portal's repository-native architecture model and GitHub Pages data.
+
+            - Deterministic component, declaration, and relationship discovery was regenerated from source.
+            - Semantic component summaries were updated only when the architecture model secret was available.
+            - Specifications and architectural rules were not modified by the agent.
+            - All generated claims remain subject to ordinary pull-request review.
+            - Normal scheduled maintenance is owned by the bounded Hermes documentation worker; this workflow is a manual fallback.
+
+            Source workflow: `${{ github.workflow }}` / `${{ github.run_id }}`

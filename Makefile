@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -100,6 +100,22 @@ secret-scan-guard:
 test:
 	swift build --build-tests
 	swift test --disable-sandbox
+
+# Compile the source-backed component graph and embed it with the reviewed
+# specifications for the repository's GitHub Pages architecture portal.
+architecture:
+	python3 scripts/build_architecture.py
+
+# Deterministic architecture validation used by CI and maintenance PRs.
+architecture-check:
+	python3 scripts/build_architecture.py --check
+	python3 -m unittest scripts/test_architecture.py
+	node --check architecture/site/app.js
+
+# Local preview at http://127.0.0.1:4173/. The production copy is deployed by
+# .github/workflows/architecture-pages.yml after merge to main.
+architecture-serve: architecture
+	python3 -m http.server 4173 --directory architecture/site
 
 # Metric ratchet: fail if a tracked code-health metric regressed vs the base
 # branch. Four metrics are wired:

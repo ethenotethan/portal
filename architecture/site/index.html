@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Portal's continuously maintained, source-backed architecture model.">
+  <title>Portal Architecture</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to architecture</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <div>
+        <div class="eyebrow">ETHENOTETHAN / PORTAL</div>
+        <h1>Architecture Observatory</h1>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>Source-backed</span>
+      <code id="source-hash">loading</code>
+      <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">Repository ↗</a>
+    </div>
+  </header>
+
+  <nav class="section-nav" aria-label="Architecture views">
+    <button class="nav-item active" data-view="graph" type="button">System map</button>
+    <button class="nav-item" data-view="specifications" type="button">Specifications</button>
+    <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
+  </nav>
+
+  <main id="main">
+    <section class="view active" id="graph-view" aria-labelledby="graph-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">LIVE ARCHITECTURE MODEL</p>
+          <h2 id="graph-title">The shape of Portal</h2>
+          <p class="lede">A hierarchical view of product surfaces, state orchestration, backend seams, foundations, and external systems. Select any component to trace its evidence.</p>
+        </div>
+        <div class="stats" id="stats" aria-label="Repository statistics"></div>
+      </div>
+
+      <div class="graph-toolbar" aria-label="Graph controls">
+        <label class="search-control">
+          <span class="sr-only">Search components</span>
+          <input id="graph-search" type="search" placeholder="Search components or declarations…" autocomplete="off">
+        </label>
+        <label class="select-control">
+          <span>Edges</span>
+          <select id="edge-mode">
+            <option value="specified">Architectural</option>
+            <option value="all">Architectural + code references</option>
+          </select>
+        </label>
+        <button id="reset-graph" class="quiet-button" type="button">Reset selection</button>
+      </div>
+
+      <div class="graph-workspace">
+        <div class="graph-scroll" id="graph-scroll">
+          <svg id="architecture-graph" role="img" aria-label="Portal architecture component graph"></svg>
+        </div>
+        <aside class="inspector" id="inspector" aria-live="polite">
+          <div class="inspector-empty">
+            <span class="inspector-index">01</span>
+            <h3>Select a component</h3>
+            <p>Inspect responsibility, source ownership, declarations, relationships, and evidence.</p>
+          </div>
+        </aside>
+      </div>
+      <div class="legend" id="legend" aria-label="Architecture layers"></div>
+    </section>
+
+    <section class="view" id="specifications-view" aria-labelledby="specifications-title">
+      <div class="intro-row compact">
+        <div>
+          <p class="eyebrow">HUMAN-CONTROLLED AUTHORITY</p>
+          <h2 id="specifications-title">Specifications</h2>
+          <p class="lede">Normative architecture remains reviewable prose. Generated observations may inform it, but cannot silently redefine it.</p>
+        </div>
+      </div>
+      <div class="document-workspace">
+        <nav class="document-list" id="spec-list" aria-label="Specifications"></nav>
+        <article class="document" id="spec-document"></article>
+      </div>
+    </section>
+
+    <section class="view" id="inventory-view" aria-labelledby="inventory-title">
+      <div class="intro-row compact">
+        <div>
+          <p class="eyebrow">DETERMINISTIC DISCOVERY</p>
+          <h2 id="inventory-title">Source inventory</h2>
+          <p class="lede">Every Swift source file is assigned to one architectural component. The inventory is reproducible from the repository without an LLM.</p>
+        </div>
+      </div>
+      <div class="inventory-toolbar">
+        <input id="inventory-search" type="search" placeholder="Filter files, components, or declarations…" autocomplete="off">
+      </div>
+      <div class="inventory-table-wrap">
+        <table class="inventory-table">
+          <thead><tr><th>Component</th><th>Layer</th><th>Files</th><th>Lines</th><th>Declarations</th></tr></thead>
+          <tbody id="inventory-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>Observed</strong> structure is compiled from source. <strong>Synthesized</strong> claims require evidence. <strong>Specified</strong> architecture requires review.</p>
+    <p>Published from the repository's default branch via GitHub Pages.</p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

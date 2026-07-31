@@ -46,6 +46,12 @@ Add or switch gateways any time from **Settings → Connection → Saved Gateway
 
 ## Architecture
 
+The public [Architecture Observatory](https://ethenotethan.github.io/portal/)
+combines an interactive source-backed component graph with reviewed
+specifications and evidence. Its model is maintained through pull requests and
+published from `main` with GitHub Pages. Build or preview it locally with
+`make architecture` and `make architecture-serve`.
+
 ```
 App/
   MacApp.swift / IOSApp.swift     # platform entry points

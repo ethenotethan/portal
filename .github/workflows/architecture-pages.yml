@@ -1,0 +1,74 @@
+name: Architecture Portal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - architecture/**
+      - scripts/build_architecture.py
+      - scripts/test_architecture.py
+      - .github/workflows/architecture-pages.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - architecture/**
+      - scripts/build_architecture.py
+      - scripts/architecture_agent.py
+      - scripts/test_architecture.py
+      - .github/workflows/architecture-pages.yml
+      - .github/workflows/architecture-maintenance.yml
+  workflow_dispatch:
+
+concurrency:
+  group: architecture-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate model and site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify generated architecture is current
+        run: python3 scripts/build_architecture.py --check
+
+      - name: Test architecture compiler
+        run: python3 -m unittest scripts/test_architecture.py
+
+      - name: Check browser JavaScript
+        run: node --check architecture/site/app.js
+
+      - name: Upload validated site
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-site
+          path: architecture/site
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: architecture/site
+
+      - name: Deploy architecture portal
+        uses: actions/deploy-pages@v4
