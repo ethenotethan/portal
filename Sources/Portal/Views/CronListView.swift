@@ -58,6 +58,9 @@ struct CronListView: View {
                 onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },
                 onUpdatePrompt: { newPrompt in
                     Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
+                },
+                onRename: { newName in
+                    Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
                 }
             )
             .environmentObject(gatewayClientWrapper)
@@ -350,6 +353,10 @@ struct CronJobDetailView: View {
     internal var onTrigger: () -> Void = {}
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
+    /// Rename the job — also the recategorize action, since `CronCategory`
+    /// derives the category path from the name. Not defaulted: a no-op default
+    /// would leave the Move button looking live while doing nothing.
+    internal let onRename: (String) -> Void
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false
@@ -368,6 +375,11 @@ struct CronJobDetailView: View {
                 if !runRecords.isEmpty {
                     statsStrip
                     healthBar
+                }
+                // Renaming IS recategorizing — see CronCategoryEditor. Gateway
+                // only: Standard's dashboard API has no update endpoint.
+                if supportsRemoveAndEdit {
+                    CronCategoryEditor(name: job.name, isCompact: false, onRename: onRename)
                 }
                 detailCard
                 if !runRecords.isEmpty {

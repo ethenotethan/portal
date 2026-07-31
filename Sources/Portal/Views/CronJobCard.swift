@@ -14,6 +14,11 @@ internal struct CronJobCard: View {
     internal let onResume: () -> Void
     internal let onRemove: () -> Void
     internal let onUpdatePrompt: (String) -> Void
+    /// Rename the job. Because `CronCategory` reads the category path out of the
+    /// name, this is also the recategorize action — see `nameSection`. Required
+    /// rather than defaulted: a no-op default would leave the Move button
+    /// looking live while doing nothing.
+    internal let onRename: (String) -> Void
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -31,7 +36,8 @@ internal struct CronJobCard: View {
         onPause: @escaping () -> Void,
         onResume: @escaping () -> Void,
         onRemove: @escaping () -> Void,
-        onUpdatePrompt: @escaping (String) -> Void
+        onUpdatePrompt: @escaping (String) -> Void,
+        onRename: @escaping (String) -> Void
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -41,6 +47,7 @@ internal struct CronJobCard: View {
         self.onResume = onResume
         self.onRemove = onRemove
         self.onUpdatePrompt = onUpdatePrompt
+        self.onRename = onRename
     }
 
     private var displayJob: CronJob { job }
@@ -57,6 +64,11 @@ internal struct CronJobCard: View {
                     statsStrip
                     healthBar
                     errorBanner
+                    CronCategoryEditor(
+                        name: displayJob.name,
+                        isCompact: true,
+                        onRename: onRename
+                    )
                     detailRows
                     promptSection
                     recentRuns
