@@ -148,3 +148,62 @@ internal struct TweetEmbedTests {
         #expect(!TweetContentService.isTweetStatusURL("not a url"))
     }
 }
+
+// Syndication (tweet-result) parsing: full text with display URLs, media
+// link stripping, author/avatar, real counts, and the flattened thread chain.
+@Suite("Tweet syndication")
+internal struct TweetSyndicationTests {
+
+    private func fixture() -> Data {
+        Data("""
+        {"__typename": "Tweet",
+         "favorite_count": 1204, "conversation_count": 48,
+         "created_at": "2026-07-01T12:00:00.000Z",
+         "id_str": "100", "lang": "en",
+         "text": "Part 2: shipped the explorer https://t.co/abc https://t.co/pic1",
+         "entities": {"urls": [{"url": "https://t.co/abc",
+                                "display_url": "github.com/org/repo",
+                                "expanded_url": "https://github.com/org/repo"}]},
+         "mediaDetails": [{"url": "https://t.co/pic1",
+                           "media_url_https": "https://pbs.twimg.com/media/1.jpg",
+                           "type": "photo"}],
+         "user": {"name": "Jane Doe", "screen_name": "janedoe",
+                  "profile_image_url_https": "https://pbs.twimg.com/img/avatar.jpg"},
+         "parent": {"__typename": "Tweet", "id_str": "99",
+                    "text": "Part 1: building it",
+                    "conversation_count": 3, "favorite_count": 10,
+                    "created_at": "2026-07-01T11:00:00.000Z",
+                    "user": {"name": "Jane Doe", "screen_name": "janedoe",
+                             "profile_image_url_https": "https://pbs.twimg.com/img/avatar.jpg"}}}
+        """.utf8)
+    }
+
+    @Test("Parses text, author, avatar, counts, media, and the thread chain")
+    internal func parse() {
+        let embed = TweetContentService.parse(data: fixture(), fallbackURL: "https://x.com/janedoe/status/100")
+        #expect(embed != nil)
+        #expect(embed?.text == "Part 2: shipped the explorer github.com/org/repo")
+        #expect(embed?.authorName == "Jane Doe")
+        #expect(embed?.authorHandle == "janedoe")
+        #expect(embed?.avatarURL?.absoluteString == "https://pbs.twimg.com/img/avatar.jpg")
+        #expect(embed?.likeCount == 1204)
+        #expect(embed?.replyCount == 48)
+        #expect(embed?.mediaURLs.first?.absoluteString == "https://pbs.twimg.com/media/1.jpg")
+        #expect(embed?.url == "https://x.com/janedoe/status/100")
+        // Parent flattened oldest-first, with its own canonical URL.
+        #expect(embed?.thread.count == 1)
+        #expect(embed?.thread.first?.text == "Part 1: building it")
+        #expect(embed?.thread.first?.url == "https://x.com/janedoe/status/99")
+    }
+
+    @Test("Tombstones and junk parse to nil; status ids extract from URLs")
+    internal func guards() {
+        let tombstone = Data("{\"__typename\": \"Tweet\", \"tombstone\": {}}".utf8)
+        #expect(TweetContentService.parse(data: tombstone, fallbackURL: "") == nil)
+        #expect(TweetContentService.parse(data: Data("not json".utf8), fallbackURL: "") == nil)
+        #expect(TweetContentService.statusID(from: "https://x.com/jane/status/123") == "123")
+        #expect(TweetContentService.statusID(from: "https://twitter.com/jane/status/45?s=20") == "45")
+        #expect(TweetContentService.statusID(from: "https://x.com/jane") == nil)
+        #expect(TweetContentService.syndicationToken(for: "20") == "0")
+    }
+}

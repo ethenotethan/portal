@@ -23,40 +23,65 @@ internal struct TweetPostCard: View {
         return URL(string: article.url)
     }
 
-    /// Header display name: backend author_name → oEmbed author → handle.
+    /// Header display name: backend author_name → syndication author → handle.
     private var displayName: String? {
         article.authorName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             ? article.authorName
             : embed?.authorName ?? article.tweetHandle
     }
 
-    /// Header handle: backend author_handle → oEmbed author URL → title/URL.
+    /// Header handle: backend author_handle → syndication author → title/URL.
     private var displayHandle: String? {
         article.tweetHandle ?? embed?.authorHandle
     }
 
-    /// The tweet's text: the fetched oEmbed contents when the digest only
-    /// stored a bare URL, else the digest's own body.
+    /// Avatar: syndication's profile image (best), then the backend's, then
+    /// the unavatar mirror for the handle.
+    private var avatarURL: URL? {
+        embed?.avatarURL ?? article.tweetAvatarURL
+    }
+
+    /// The tweet's text: the fetched syndication contents when the digest
+    /// only stored a bare URL, else the digest's own body.
     private var tweetText: String? {
         if let text = embed?.text, !text.isEmpty { return text }
         return article.cardBody.isEmpty ? nil : article.cardBody
     }
 
-    /// Replies action-bar count: the API metric when present, else the number
-    /// of replies the backend inlined, else nothing (never a fake "0").
+    /// Media: the digest's hero, else media resolved from the syndication.
+    private var mediaURLs: [URL] {
+        if let hero = article.heroImageURL { return [hero] }
+        return embed?.mediaURLs ?? []
+    }
+
+    /// Replies action-bar count: backend metric → syndication count → inlined
+    /// replies — never a fake "0".
     private var replyCount: Int? {
-        article.metrics?.replies ?? (article.replies.isEmpty ? nil : article.replies.count)
+        article.metrics?.replies ?? embed?.replyCount
+            ?? (article.replies.isEmpty ? nil : article.replies.count)
+    }
+
+    /// Likes action-bar count: backend metric → syndication favorite_count.
+    private var likeCount: Int? {
+        article.metrics?.likes ?? embed?.likeCount
+    }
+
+    /// The thread above this tweet, oldest first (flattened parent chain).
+    private var threadParents: [TweetEmbed] {
+        embed?.thread ?? []
     }
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Thread context above the linked tweet (parent chain).
+            ForEach(threadParents, id: \.url) { parent in
+                threadRow(parent)
+            }
+
             headerRow
 
             if let text = tweetText {
-                MarkdownText(text: text)
-                    .font(.body)
-                    .foregroundStyle(Theme.primary)
-                    .fixedSize(horizontal: false, vertical: true)
+                LinkifiedText(text: text)
                     .padding(.top, 4)
             } else if isFetchingEmbed {
                 HStack(spacing: 6) {
@@ -68,8 +93,8 @@ internal struct TweetPostCard: View {
                 .padding(.top, 6)
             }
 
-            if let heroURL = article.heroImageURL {
-                FeedHeroImage(url: heroURL)
+            ForEach(mediaURLs, id: \.absoluteString) { url in
+                FeedHeroImage(url: url)
                     .padding(.top, 10)
             }
 
@@ -131,7 +156,7 @@ internal struct TweetPostCard: View {
         ZStack {
             Circle()
                 .fill(Theme.accent.opacity(0.15))
-            if let url = article.tweetAvatarURL {
+            if let url = avatarURL {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
@@ -214,7 +239,7 @@ internal struct TweetPostCard: View {
             Spacer()
             actionButton(
                 icon: "heart",
-                count: article.metrics?.likes,
+                count: likeCount,
                 tint: Theme.secondary,
                 help: "Likes"
             ) { openArticle() }
@@ -337,7 +362,105 @@ internal struct TweetPostCard: View {
 
     private func openArticle() {
         guard let tweetURL else { return }
-        browserLink = InAppBrowserLink(urlString: tweetURL.absoluteString, title: article.tweetAuthorDisplayName)
+        browserLink = InAppBrowserLink(urlString: tweetURL.absoluteString, title: displayName)
+    }
+
+    // MARK: - Thread rows (parent chain)
+
+    /// One parent tweet in the thread above the linked tweet: compact, with
+    /// X's vertical connector down to the next tweet in the chain. Click
+    /// opens the parent itself.
+    private func threadRow(_ parent: TweetEmbed) -> some View {
+        Button {
+            if !parent.url.isEmpty {
+                browserLink = InAppBrowserLink(urlString: parent.url, title: parent.authorName)
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(spacing: 0) {
+                    Circle()
+                        .fill(Theme.accent.opacity(0.12))
+                        .frame(width: 22, height: 22)
+                        .overlay(
+                            Text(String((parent.authorName ?? parent.authorHandle ?? "?").prefix(1)).uppercased())
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(Theme.accent)
+                        )
+                    Rectangle()
+                        .fill(Theme.secondary.opacity(0.25))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text(parent.authorName ?? "Unknown")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.primary)
+                            .lineLimit(1)
+                        if let handle = parent.authorHandle {
+                            Text("@\(handle)")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    LinkifiedText(text: parent.text, font: .caption, color: Theme.secondary)
+                        .lineLimit(3)
+                }
+                Spacer(minLength: 4)
+            }
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Linkified plain text
+
+/// Plain tweet text with tappable URLs — NO markdown parsing (a tweet's `#`,
+/// `_`, and `*` are literal characters, not headings/emphasis). Matches X's
+/// presentation: body text in the base color, links tinted and clickable.
+internal struct LinkifiedText: View {
+    internal let text: String
+    internal var font: Font = .body
+    internal var color: Color = Theme.primary
+
+    internal var body: some View {
+        Text(attributed)
+            .font(font)
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.leading)
+            .textSelection(.enabled)
+    }
+
+    private var attributed: AttributedString {
+        var result = AttributedString()
+        var cursor = text.startIndex
+        while let range = text.range(of: #"https?://[^\s]+"#, options: .regularExpression, range: cursor..<text.endIndex) {
+            if cursor < range.lowerBound {
+                var plain = AttributedString(String(text[cursor..<range.lowerBound]))
+                plain.foregroundColor = color
+                result.append(plain)
+            }
+            let raw = String(text[range])
+            var link = AttributedString(raw)
+            if let url = URL(string: raw) {
+                link.link = url
+                link.foregroundColor = Theme.accent
+            } else {
+                link.foregroundColor = color
+            }
+            result.append(link)
+            cursor = range.upperBound
+        }
+        if cursor < text.endIndex {
+            var tail = AttributedString(String(text[cursor...]))
+            tail.foregroundColor = color
+            result.append(tail)
+        }
+        return result
     }
 }
 
