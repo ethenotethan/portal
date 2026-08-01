@@ -197,10 +197,10 @@ final class NotificationService: NSObject, ObservableObject {
 
         Task {
             guard await ensureAuthorizedForPosting() else { return }
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error {
-                    log.error("Failed to post: \(error)")
-                }
+            do {
+                try await UNUserNotificationCenter.current().add(request)
+            } catch {
+                log.error("Failed to post: \(error)")
             }
         }
     }
