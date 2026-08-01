@@ -142,7 +142,7 @@ metrics-ratchet:
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
 	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
-	periphery scan --format json --quiet > /tmp/portal-periphery.json
+	periphery scan --project $(PROJECT) --schemes $(SCHEME_MAC) --relative-results --format json --quiet > /tmp/portal-periphery.json
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
 	python3 scripts/check-metrics-ratchet.py --warnings /tmp/portal-warnings.json --coverage /tmp/portal-coverage.json --skipped /tmp/portal-skipped.json --deadcode /tmp/portal-deadcode.json --base origin/main
 
@@ -168,7 +168,7 @@ metrics-baseline:
 	$(call export-coverage)
 	python3 scripts/collect-coverage.py /tmp/portal-cov-export.json --root "$(PWD)" --json /tmp/portal-coverage.json
 	python3 scripts/collect-skipped-tests.py Tests --root "$(PWD)" --json /tmp/portal-skipped.json
-	periphery scan --format json --quiet > /tmp/portal-periphery.json
+	periphery scan --project $(PROJECT) --schemes $(SCHEME_MAC) --relative-results --format json --quiet > /tmp/portal-periphery.json
 	python3 scripts/collect-deadcode.py /tmp/portal-periphery.json --root "$(PWD)" --json /tmp/portal-deadcode.json
 	@python3 -c "import json; w=json.load(open('/tmp/portal-warnings.json')); c=json.load(open('/tmp/portal-coverage.json')); s=json.load(open('/tmp/portal-skipped.json')); d=json.load(open('/tmp/portal-deadcode.json')); b=json.load(open('metrics-baseline.json')); b['warnings']=w; b['coverage']=c; b['skipped']=s; b['deadcode']=d; open('metrics-baseline.json','w').write(json.dumps(b,indent=2)+chr(10)); print('metrics-baseline.json updated:', w['total'], 'warnings,', str(c['testable_pct'])+'% coverage,', s['total'], 'skipped,', d['total'], 'dead-code')"
 	@echo "Baseline rewritten. Check 'git diff metrics-baseline.json' — warnings/skipped/deadcode should only DROP, coverage only RISE."
