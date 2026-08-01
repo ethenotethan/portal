@@ -302,6 +302,9 @@ struct ArtifactKindRenderer: View {
     /// Expanded HTML canvases opt into host-assisted mouse capture. Regular
     /// documents stay inert and never steal the pointer.
     internal var capturesPointerInput = false
+    /// Fires when a capturing HTML canvas takes or releases Pointer Lock, so
+    /// the host can suspend its own Escape handling while the page owns it.
+    internal var onPointerLockChange: ((Bool) -> Void)?
 
     /// Kinds whose content is an interactive viewport that manages its own
     /// scrolling and gestures (a WKWebView document, a force-directed graph
@@ -356,10 +359,15 @@ struct ArtifactKindRenderer: View {
                     html: content,
                     artifactID: artifactID,
                     actions: topLevelActions,
-                    capturesPointerInput: capturesPointerInput
+                    capturesPointerInput: capturesPointerInput,
+                    onPointerLockChange: onPointerLockChange
                 )
             } else {
-                InlineHTMLView(html: content, capturesPointerInput: capturesPointerInput)
+                InlineHTMLView(
+                    html: content,
+                    capturesPointerInput: capturesPointerInput,
+                    onPointerLockChange: onPointerLockChange
+                )
                     .frame(minHeight: 320)
             }
         default:
@@ -379,6 +387,7 @@ private struct ArtifactHTMLIntentView: View {
     let artifactID: String
     let actions: [ArtifactAction]
     let capturesPointerInput: Bool
+    internal var onPointerLockChange: ((Bool) -> Void)?
 
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
     @ObservedObject private var store = ArtifactStore.shared
@@ -433,7 +442,8 @@ private struct ArtifactHTMLIntentView: View {
                 html: html,
                 onArtifactIntent: handleRequest,
                 statusMarks: statusMarks,
-                capturesPointerInput: capturesPointerInput
+                capturesPointerInput: capturesPointerInput,
+                onPointerLockChange: onPointerLockChange
             )
                 .frame(minHeight: 320)
         }

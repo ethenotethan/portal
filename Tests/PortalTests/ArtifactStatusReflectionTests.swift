@@ -68,7 +68,7 @@ internal struct ArtifactStatusReflectionTests {
         #expect(HTMLArtifactIntentBridge.StatusToken.needsConfirmation.rawValue == "needs-confirmation")
     }
 
-    @Test("Pointer Lock bridge accepts only trusted canvas gestures")
+    @Test("Pointer Lock bridge accepts only trusted gestures")
     internal func pointerLockBridgeIsGestureScoped() {
         let js = HTMLPointerLockBridge.userScriptSource
         #expect(js.contains("pointerdown"))
@@ -78,6 +78,22 @@ internal struct ArtifactStatusReflectionTests {
         #expect(js.contains("canvas.requestPointerLock()"))
         #expect(!js.contains("window.location"))
         #expect(!js.contains("fetch("))
+    }
+
+    @Test("Pointer Lock bridge captures through HUD overlays but not through controls")
+    internal func pointerLockBridgeCapturesThroughOverlays() {
+        let js = HTMLPointerLockBridge.userScriptSource
+        // Generated worlds cover the canvas with HUD elements; a click there
+        // must still reach the dominant canvas...
+        #expect(js.contains("dominantCanvas"))
+        // ...but never when the click is operating a real control,
+        #expect(js.contains("[role=\"button\"]"))
+        #expect(js.contains("contenteditable"))
+        // ...and never for small canvases (a chart in a report), which is the
+        // viewport-fraction gate.
+        let fraction = HTMLPointerLockBridge.immersiveCanvasViewportFraction
+        #expect(fraction > 0 && fraction < 1)
+        #expect(js.contains("\(fraction)"))
     }
 
     #if os(macOS)
