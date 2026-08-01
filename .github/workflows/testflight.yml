@@ -46,6 +46,11 @@ jobs:
             <<< "$(security cms -D -i "$PP_DIR/AppStore.mobileprovision")")
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
           mv "$PP_DIR/AppStore.mobileprovision" "$PP_DIR/$PROFILE_UUID.mobileprovision"
+          # Xcode 16+ reads provisioning profiles from UserData, not the
+          # legacy MobileDevice location — write both so the archive finds it.
+          NEW_PP_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$NEW_PP_DIR"
+          cp "$PP_DIR/$PROFILE_UUID.mobileprovision" "$NEW_PP_DIR/$PROFILE_UUID.mobileprovision"
 
           echo "=== Keychain search list ==="
           security list-keychains -d user
