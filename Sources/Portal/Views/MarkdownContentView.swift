@@ -1562,19 +1562,25 @@ struct InlineHTMLView: View {
     /// opaque origin. Embedded third-party players that reject opaque origins
     /// (YouTube's Error 153) pass their own host here.
     internal let baseURL: URL?
+    /// Observes Pointer Lock acquisition/release (macOS, capturing hosts only).
+    /// The expanded overlay uses it to keep Escape two-stage: release the
+    /// mouse first, collapse the artifact second.
+    internal let onPointerLockChange: ((Bool) -> Void)?
 
     internal init(
         html: String,
         onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
         statusMarks: [HTMLArtifactIntentBridge.StatusMark] = [],
         capturesPointerInput: Bool = false,
-        baseURL: URL? = nil
+        baseURL: URL? = nil,
+        onPointerLockChange: ((Bool) -> Void)? = nil
     ) {
         self.html = html
         self.onArtifactIntent = onArtifactIntent
         self.statusMarks = statusMarks
         self.capturesPointerInput = capturesPointerInput
         self.baseURL = baseURL
+        self.onPointerLockChange = onPointerLockChange
     }
 
     var body: some View {
@@ -1584,7 +1590,8 @@ struct InlineHTMLView: View {
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
             capturesPointerInput: capturesPointerInput,
-            baseURL: baseURL
+            baseURL: baseURL,
+            onPointerLockChange: onPointerLockChange
         )
             .background(Theme.background)
         #else
@@ -1593,7 +1600,8 @@ struct InlineHTMLView: View {
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
             capturesPointerInput: capturesPointerInput,
-            baseURL: baseURL
+            baseURL: baseURL,
+            onPointerLockChange: onPointerLockChange
         )
             .background(Theme.background)
         #endif
@@ -1607,6 +1615,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
+    internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
@@ -1643,12 +1652,14 @@ struct InlineHTMLNSView: NSViewRepresentable {
             // inline canvas needs the same grant the fullscreen window uses.
             // Retained by the coordinator for the view's lifetime.
             webView.uiDelegate = context.coordinator.pointerLock
+            context.coordinator.pointerLock.onLockChange = onPointerLockChange
         }
         return webView
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
+        context.coordinator.pointerLock.onLockChange = onPointerLockChange
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
             webView.loadHTMLString(html, baseURL: baseURL)
@@ -1684,6 +1695,9 @@ struct InlineHTMLUIView: UIViewRepresentable {
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
+    /// Unused on iOS — WKWebView has no Pointer Lock; declared so
+    /// InlineHTMLView constructs both platform hosts with one signature.
+    internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
         HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)

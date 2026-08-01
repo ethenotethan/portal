@@ -16,6 +16,12 @@ internal struct ArtifactExpandedOverlay: View {
     // layout stays immersive when another artifact is opened.
     @AppStorage("artifactExpandedShowsTitleBar") private var showsTitleBar = true
     @AppStorage("artifactExpandedShowsMaintenance") private var showsMaintenance = true
+    /// True while an interactive HTML canvas holds Pointer Lock. SwiftUI's
+    /// key-equivalent handling runs BEFORE the web view sees the key, so a
+    /// bare-Escape shortcut here would collapse the whole artifact on the very
+    /// press that was meant to release the mouse. While locked, the shortcut
+    /// is detached and Escape falls through to WebKit's standard release.
+    @State private var pageHoldsPointer = false
 
     internal init(artifact: LivingArtifact, onDismiss: @escaping () -> Void) {
         self.artifact = artifact
@@ -157,7 +163,10 @@ internal struct ArtifactExpandedOverlay: View {
                 .background(Theme.surfaceHover, in: Circle())
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(.escape, modifiers: [])
+        // Two-stage Escape: while the page owns the cursor the first press
+        // must reach WebKit (release the lock); only an unlocked Escape
+        // collapses the artifact.
+        .keyboardShortcut(pageHoldsPointer ? nil : KeyboardShortcut(.escape, modifiers: []))
         .help("Collapse artifact")
     }
 
@@ -214,7 +223,8 @@ internal struct ArtifactExpandedOverlay: View {
             content: store.artifacts[artifact.id]?.content ?? artifact.content,
             actionableArtifactID: artifact.id,
             topLevelActions: artifact.topLevelActions,
-            capturesPointerInput: true
+            capturesPointerInput: true,
+            onPointerLockChange: { pageHoldsPointer = $0 }
         )
     }
 
