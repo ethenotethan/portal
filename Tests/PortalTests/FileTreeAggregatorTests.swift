@@ -70,4 +70,21 @@ internal struct FileTreeAggregatorTests {
         let nodes = [toolNode("t1", name: "web_search", context: "just prose")]
         #expect(FileTreeAggregator.build(from: nodes).isEmpty)
     }
+
+    @Test("a top-level file with no directory lands as a direct root child")
+    internal func topLevelFileRootsDirectly() {
+        // A single-segment path (no slash) exercises the early-return branch of
+        // `insert` where a file hangs straight off root instead of descending a
+        // directory chain. The path-extraction gate accepts >=5-char tokens with
+        // a known extension, so "Notes.md" qualifies and yields one segment.
+        let nodes = [toolNode("t1", name: "read_file", context: "Reading Notes.md")]
+        let roots = FileTreeAggregator.build(from: nodes)
+        #expect(roots.count == 1)
+        let file = roots.first
+        #expect(file?.isDirectory == false)
+        #expect(file?.name == "Notes.md")
+        #expect(file?.touchingNodeIDs == ["t1"])
+        // No directory nodes synthesized for a bare filename.
+        #expect(file?.children.isEmpty == true)
+    }
 }
