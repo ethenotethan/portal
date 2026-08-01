@@ -508,18 +508,50 @@ enum ToolRiskLevel: String, Codable {
     case high
 }
 
-struct ApprovalPayload {
-    let command: String
-    let sessionKey: String
-    let toolName: String?
-    let rawArgs: String?
+internal struct ApprovalPayload: Equatable {
+    internal let command: String
+    internal let sessionKey: String
+    internal let toolName: String?
+    internal let rawArgs: String?
+    /// Why this command needs approval (the gateway's `description` — which
+    /// dangerous pattern matched, or the security scanner's summary).
+    internal let description: String?
+    /// The scopes the gateway is willing to accept for THIS request. It narrows
+    /// them itself: a smart-denied command offers only `["once", "deny"]`, and
+    /// one with `allow_permanent: false` omits `always`. Empty means the gateway
+    /// sent none, and the client falls back to offering all four.
+    internal let choices: [String]
 
-    static func from(_ p: [String: AnyCodable]) -> ApprovalPayload {
+    /// Spelled out rather than left to the memberwise init so the two fields the
+    /// gateway may omit can default, and callers that only care about the
+    /// command don't have to name them.
+    internal init(
+        command: String,
+        sessionKey: String,
+        toolName: String? = nil,
+        rawArgs: String? = nil,
+        description: String? = nil,
+        choices: [String] = []
+    ) {
+        self.command = command
+        self.sessionKey = sessionKey
+        self.toolName = toolName
+        self.rawArgs = rawArgs
+        self.description = description
+        self.choices = choices
+    }
+
+    /// Identity for queueing. Two blocked agent threads running the same command
+    /// are genuinely distinct, so this is deliberately NOT used to deduplicate —
+    /// see `ApprovalQueue.enqueue`.
+    internal static func from(_ p: [String: AnyCodable]) -> ApprovalPayload {
         ApprovalPayload(
             command: p["command"]?.stringValue ?? "",
             sessionKey: p["session_key"]?.stringValue ?? "",
             toolName: p["tool_name"]?.stringValue,
-            rawArgs: p["raw_args"]?.stringValue
+            rawArgs: p["raw_args"]?.stringValue,
+            description: p["description"]?.stringValue,
+            choices: p["choices"]?.arrayValue?.compactMap { $0.stringValue } ?? []
         )
     }
 }
@@ -529,7 +561,7 @@ struct ApprovalPayload {
 /// agent thread waits out its full 300s timeout (the "infinite hang").
 struct ClarifyPayload {
     let question: String
-    let choices: [String]
+    internal let choices: [String]
     let requestID: String
 
     static func from(_ p: [String: AnyCodable]) -> ClarifyPayload {

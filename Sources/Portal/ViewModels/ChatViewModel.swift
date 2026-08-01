@@ -187,7 +187,16 @@ final class ChatViewModel: ObservableObject {
     /// Expensive-model confirmation gate from config.set: the switch did not
     /// apply; the picker shows this and resends with confirm on approval.
     @Published var pendingModelConfirmation: ModelSwitchConfirmation?
-    @Published var pendingApproval: ApprovalPayload?
+    /// Every approval this session is blocked on, oldest first. Multiple agent
+    /// threads (parallel subagents, concurrent execute_code) can block at once,
+    /// and the gateway queues them — see `ApprovalQueue`.
+    @Published internal private(set) var approvalQueue = ApprovalQueue()
+    /// The approval currently being asked about: the head of `approvalQueue`,
+    /// which is also the one the gateway will resolve next (it pops oldest-first
+    /// and `approval.respond` carries no request id). Kept as a published
+    /// property so existing views and `if pendingApproval != nil` layout checks
+    /// keep working unchanged.
+    @Published internal private(set) var pendingApproval: ApprovalPayload?
     /// Active backend's feature flags — views hide affordances the backend
     /// can't serve (attachments/skills pickers on Centaur sessions).
     @Published private(set) var backendCapabilities: BackendCapabilities = .hermes
@@ -272,7 +281,7 @@ final class ChatViewModel: ObservableObject {
         var messages: [ChatMessage] = []
         var isStreaming: Bool = false
         var isSessionReady: Bool = false
-        var pendingApproval: ApprovalPayload?
+        var approvalQueue = ApprovalQueue()
         var pendingClarify: ClarifyPayload?
         var activeToolCalls: [String: ToolCallRecord] = [:]
         var error: String?
@@ -531,7 +540,7 @@ client.eventStream
         currentModel = ""
         modelCatalog = nil
         pendingModelConfirmation = nil
-        pendingApproval = nil
+        setApprovalQueue(ApprovalQueue())
         pendingClarify = nil
         activeToolCalls = [:]
         error = nil
@@ -585,7 +594,7 @@ client.eventStream
                 displayState.messages = runtimeState.messages
                 displayState.isStreaming = runtimeState.isStreaming
                 displayState.streamingMessageID = runtimeState.streamingMessageID
-                displayState.pendingApproval = runtimeState.pendingApproval
+                displayState.approvalQueue = runtimeState.approvalQueue
                 displayState.pendingClarify = runtimeState.pendingClarify
                 displayState.activeToolCalls = runtimeState.activeToolCalls
                 displayState.avatarState = runtimeState.avatarState
@@ -611,7 +620,7 @@ client.eventStream
             messages: messages,
             isStreaming: isStreaming,
             isSessionReady: isSessionReady,
-            pendingApproval: pendingApproval,
+            approvalQueue: approvalQueue,
             pendingClarify: pendingClarify,
             activeToolCalls: activeToolCalls,
             error: error,
@@ -652,7 +661,7 @@ client.eventStream
         messages = state.messages
         isStreaming = state.isStreaming
         isSessionReady = state.isSessionReady
-        pendingApproval = state.pendingApproval
+        setApprovalQueue(state.approvalQueue)
         pendingClarify = state.pendingClarify
         activeToolCalls = state.activeToolCalls
         error = state.error
@@ -708,7 +717,7 @@ client.eventStream
             self.isSessionReady = true
             self.messages = []
             self.activeToolCalls = [:]
-            self.pendingApproval = nil
+            self.setApprovalQueue(ApprovalQueue())
         self.pendingClarify = nil
             self.pendingClarify = nil
             self.streamingMessageID = nil
@@ -756,7 +765,7 @@ if restoreSessionState(displayID: key) {
         self.isStreaming = false
         self.streamingMessageID = nil
         self.activeToolCalls = [:]
-        self.pendingApproval = nil
+        self.setApprovalQueue(ApprovalQueue())
         self.pendingClarify = nil
         self.avatarState = .idle
         self.error = nil
@@ -877,7 +886,7 @@ if restoreSessionState(displayID: key) {
                 self.isSessionReady = true
                 self.messages = []
                 self.activeToolCalls = [:]
-                self.pendingApproval = nil
+                self.setApprovalQueue(ApprovalQueue())
         self.pendingClarify = nil
             self.pendingClarify = nil
                 self.isStreaming = false
@@ -1646,12 +1655,40 @@ if restoreSessionState(displayID: key) {
         }
     }
 
-    /// Respond to a pending approval.
-    func respondApproval(choice: String) async {
+    /// Point `approvalQueue` at a new value and re-derive `pendingApproval` from
+    /// it. The two must only ever change together — a head that disagrees with
+    /// the queue is exactly the "prompt on screen isn't the one the gateway will
+    /// resolve" bug this type exists to prevent.
+    private func setApprovalQueue(_ queue: ApprovalQueue) {
+        approvalQueue = queue
+        pendingApproval = queue.head
+    }
+
+    /// Respond to the approval currently on screen.
+    ///
+    /// The gateway resolves its FIFO queue positionally — `approval.respond`
+    /// has no request id, so this necessarily answers the OLDEST pending
+    /// approval, which is why the UI only ever shows the head. Pass
+    /// `applyToAll` for the "answer everything waiting" path, which maps to the
+    /// gateway's `resolve_all` and unblocks every queued agent thread at once.
+    internal func respondApproval(choice: String, applyToAll: Bool = false) async {
         guard let client = gatewayClient, let sid = sessionID else { return }
-        pendingApproval = nil
+        guard !approvalQueue.isEmpty else { return }
+
+        var queue = approvalQueue
+        if applyToAll {
+            queue.removeAll()
+        } else {
+            queue.removeHead()
+        }
+        setApprovalQueue(queue)
+        // Session-wide scopes ("session"/"always") allowlist the command pattern
+        // on the gateway, but that only auto-approves FUTURE matches — threads
+        // already blocked in the queue are waiting on their own events and are
+        // not retroactively released. So they stay queued and get asked, rather
+        // than being optimistically cleared here.
         do {
-            try await client.respondApproval(sessionID: sid, choice: choice, all: false)
+            try await client.respondApproval(sessionID: sid, choice: choice, all: applyToAll)
         } catch {
             self.error = error.localizedDescription
         }
@@ -1796,7 +1833,7 @@ if restoreSessionState(displayID: key) {
         messages = []
         isStreaming = false
         isSessionReady = true
-        pendingApproval = nil
+        setApprovalQueue(ApprovalQueue())
         pendingClarify = nil
         activeToolCalls = [:]
         error = nil
@@ -2387,7 +2424,7 @@ if restoreSessionState(displayID: key) {
             }
 
         case .approvalRequest(payload: let payload):
-            state.pendingApproval = payload
+            state.approvalQueue.enqueue(payload)
 
         case .clarifyRequest(payload: let payload):
             state.pendingClarify = payload
@@ -2454,7 +2491,7 @@ if restoreSessionState(displayID: key) {
                 var slimState = sessionStates[displayID] ?? SessionRuntimeState()
                 slimState.isStreaming = state.isStreaming
                 slimState.isSessionReady = state.isSessionReady
-                slimState.pendingApproval = state.pendingApproval
+                slimState.approvalQueue = state.approvalQueue
                 slimState.pendingClarify = state.pendingClarify
                 slimState.activeToolCalls = state.activeToolCalls
                 slimState.error = state.error
@@ -2489,7 +2526,7 @@ if restoreSessionState(displayID: key) {
                 default:
                     isStreaming = state.isStreaming
                     isSessionReady = state.isSessionReady
-                    pendingApproval = state.pendingApproval
+                    setApprovalQueue(state.approvalQueue)
                     pendingClarify = state.pendingClarify
                     activeToolCalls = state.activeToolCalls
                     avatarState = state.avatarState
@@ -2779,7 +2816,12 @@ if restoreSessionState(displayID: key) {
             break
 
         case .approvalRequest(payload: let payload):
-            pendingApproval = payload
+            // Append, never replace: a concurrent subagent's request arriving
+            // here used to overwrite the visible one while its agent thread
+            // stayed blocked until the gateway timed it out.
+            var queue = approvalQueue
+            queue.enqueue(payload)
+            setApprovalQueue(queue)
 
         case .statusUpdate(let kind, let text):
             // Includes browser.progress / preview.restart.* (folded into
