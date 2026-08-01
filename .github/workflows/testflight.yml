@@ -36,168 +36,23 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12 }}
           p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
 
-      - name: Install Provisioning Profile & Verify Signing
+      # xcodebuild drives signing itself via the App Store Connect API
+      # (-allowProvisioningUpdates): it resolves the provisioning profile for
+      # the imported cert + bundle id over the network, so no profile files,
+      # UUID extraction, or pbxproj patching are involved. The p12 import
+      # above still supplies the cert's private key. (Verified end-to-end:
+      # archive + export succeed with this path, where the manual
+      # specifier/profile install was rejected with "requires a provisioning
+      # profile".)
+      - name: Write App Store Connect API Key
         run: |
-          PP_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PP_DIR"
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | \
-            base64 -d > "$PP_DIR/AppStore.mobileprovision"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
-            <<< "$(security cms -D -i "$PP_DIR/AppStore.mobileprovision")")
-          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-          mv "$PP_DIR/AppStore.mobileprovision" "$PP_DIR/$PROFILE_UUID.mobileprovision"
-          # Xcode 16+ reads provisioning profiles from UserData, not the
-          # legacy MobileDevice location — write both so the archive finds it.
-          NEW_PP_DIR="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-          mkdir -p "$NEW_PP_DIR"
-          cp "$PP_DIR/$PROFILE_UUID.mobileprovision" "$NEW_PP_DIR/$PROFILE_UUID.mobileprovision"
-
-          echo "=== Keychain search list ==="
-          security list-keychains -d user
-          echo "=== Codesigning identities (all keychains) ==="
-          security find-identity -v -p codesigning
-          echo "=== Codesigning identities (signing_temp only) ==="
-          security find-identity -v -p codesigning ~/Library/Keychains/signing_temp.keychain-db
-
-      # ── Archive ──────────────────────────────────────────────────────
-      - name: Generate CI signing xcconfig (SPM deps need this)
-        run: |
-          cat > .github/ci-signing.xcconfig << 'EOF'
-          DEVELOPMENT_TEAM = ${{ secrets.TEAM_ID }}
-          CODE_SIGN_STYLE = Manual
-          CODE_SIGN_IDENTITY = Apple Distribution
-          EOF
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}" > \
+            ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
 
       - name: Clear SwiftPM Artifact Cache
         run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
 
-      - name: Patch pbxproj with provisioning profile (app target only)
-        run: |
-          # Target-scoped PROVISIONING_PROFILE_SPECIFIER is silently ignored by
-          # xcodebuild. Instead, patch the xcodegen-generated pbxproj directly
-          # so the setting only applies to Portal-iOS, not SPM deps.
-          python3 - "${{ env.PROFILE_UUID }}" << 'PYEOF'
-          import sys, plistlib, os
-
-          UUID = sys.argv[1]
-          pbxproj = "Portal.xcodeproj/project.pbxproj"
-
-          # Read the pbxproj (it's a plist-in-text format, not standard plist)
-          with open(pbxproj) as f:
-              data = f.read()
-
-          # Find the Portal-iOS native target section and its build config list
-          import re
-
-          # Find the target's buildConfigurationList ID
-          # The native target section looks like:
-          # /* Begin PBXNativeTarget section */
-          #   A1B2C3D4 /* Portal-iOS */ = { ... buildConfigurationList = XYZ /* Build configuration list for PBXNativeTarget "Portal-iOS" */ ... };
-          target_match = re.search(
-              r'/\* Portal-iOS \*/.*?buildConfigurationList = ([A-F0-9]+) ',
-              data,
-              re.DOTALL
-          )
-          if not target_match:
-              print("ERROR: Could not find Portal-iOS target")
-              print("Available targets:")
-              for m in re.finditer(r'/\* (\w[^\*]+) \*/.*?buildConfigurationList', data):
-                  print(f"  {m.group(1)}")
-              sys.exit(1)
-
-          config_list_id = target_match.group(1)
-          print(f"Found buildConfigurationList ID: {config_list_id}")
-
-          # Find the XCConfigurationList section and the Release config
-          # XCConfigurationList looks like:
-          #   XYZ /* Build configuration list for ... */ = { ... buildConfigurations = ( ABC /* Release */, DEF /* Debug */ ); ... };
-          list_match = re.search(
-              rf'{config_list_id} /\*.*?\*/ = \{{.*?buildConfigurations = \(\s*([^)]+)\)',
-              data,
-              re.DOTALL
-          )
-          if not list_match:
-              print(f"ERROR: Could not find configuration list {config_list_id}")
-              sys.exit(1)
-
-          config_ids_str = list_match.group(1)
-          # Parse IDs: "ABC /* Release */, DEF /* Debug */"
-          config_refs = re.findall(r'([A-F0-9]+) /\* (\w+) \*/', config_ids_str)
-          print(f"Build configurations: {config_refs}")
-
-          release_id = None
-          for cid, cname in config_refs:
-              if cname == 'Release':
-                  release_id = cid
-                  break
-
-          if not release_id:
-              print("ERROR: Could not find Release configuration")
-              sys.exit(1)
-
-          print(f"Found Release config ID: {release_id}")
-
-          # Find the FULL XCBuildConfiguration entry for THIS Release config
-          # id and patch inside its span. The Portal (macOS) target's Release
-          # config shares an IDENTICAL settings block with Portal-iOS — a
-          # blind str.replace patches whichever appears first, so the iOS
-          # target used to keep no specifier and the archive failed with
-          # "requires a provisioning profile".
-          entry_match = re.search(
-              rf'{release_id} /\* Release \*/ = \{{(.*?)\n\t\t\}};',
-              data,
-              re.DOTALL
-          )
-          if not entry_match:
-              print(f"ERROR: Could not find config entry for Release config {release_id}")
-              sys.exit(1)
-
-          entry_body = entry_match.group(1)
-          if 'buildSettings = {' not in entry_body:
-              print(f"ERROR: Release config {release_id} has no buildSettings")
-              sys.exit(1)
-
-          print(f"Current entry (first 200 chars): {entry_body[:200]}")
-
-          new_entry = entry_body
-
-          # Replace or add CODE_SIGN_STYLE
-          if 'CODE_SIGN_STYLE' in new_entry:
-              new_entry = re.sub(
-                  r'CODE_SIGN_STYLE = [^;]+;',
-                  'CODE_SIGN_STYLE = Manual;',
-                  new_entry
-              )
-          else:
-              new_entry = new_entry.replace(
-                  'buildSettings = {',
-                  'buildSettings = {\n\t\t\t\tCODE_SIGN_STYLE = Manual;',
-                  1
-              )
-
-          # Replace or add PROVISIONING_PROFILE_SPECIFIER
-          if 'PROVISIONING_PROFILE_SPECIFIER' in new_entry:
-              new_entry = re.sub(
-                  r'PROVISIONING_PROFILE_SPECIFIER = [^;]+;',
-                  f'PROVISIONING_PROFILE_SPECIFIER = {UUID};',
-                  new_entry
-              )
-          else:
-              new_entry = new_entry.replace(
-                  'buildSettings = {',
-                  f'buildSettings = {{\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = {UUID};',
-                  1
-              )
-
-          # Splice the patched entry back in AT ITS SPAN — no global replace,
-          # so identical blocks belonging to other targets are untouched.
-          data = data[:entry_match.start(1)] + new_entry + data[entry_match.end(1):]
-
-          with open(pbxproj, 'w') as f:
-              f.write(data)
-
-          print(f"Patched pbxproj: set PROVISIONING_PROFILE_SPECIFIER={UUID} on Portal-iOS Release")
-          PYEOF
 
       - name: Archive iOS App
         run: |
@@ -207,7 +62,12 @@ jobs:
             -scheme Portal-iOS \
             -destination "generic/platform=iOS" \
             -archivePath build/Portal.xcarchive \
-            -xcconfig .github/ci-signing.xcconfig \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            DEVELOPMENT_TEAM="${{ secrets.TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             OTHER_CODE_SIGN_FLAGS="--keychain=$HOME/Library/Keychains/signing_temp.keychain-db"
 
@@ -225,12 +85,7 @@ jobs:
             <key>teamID</key>
             <string>${{ secrets.TEAM_ID }}</string>
             <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.ethenotethan.Portal.iOS</key>
-              <string>${{ env.PROFILE_UUID }}</string>
-            </dict>
+            <string>automatic</string>
             <key>stripSwiftSymbols</key>
             <true/>
             <key>uploadBitcode</key>
@@ -246,7 +101,11 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/Portal.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist build/ExportOptions.plist
+            -exportOptionsPlist build/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
       # ── Upload ────────────────────────────────────────────────────────
       - name: Find Current TestFlight Build
