@@ -1,7 +1,18 @@
 import Foundation
 import Combine
+import os
 
-// MARK: - Agent Backend
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "AgentBackend")
+
+internal enum AgentBackendError: LocalizedError {
+    case voiceNotSupported
+
+    internal var errorDescription: String? {
+        switch self {
+        case .voiceNotSupported: "Voice features not supported by this backend"
+        }
+    }
+}
 
 /// The backend surface ChatViewModel actually consumes, extracted so a second
 /// agent platform (Centaur — REST + SSE) can sit behind the same chat UI as
@@ -86,6 +97,15 @@ protocol AgentBackend: AnyObject {
     /// backends that serve reachable URLs already return the input unchanged.
     func resolvedMediaURL(_ raw: String) -> String
 
+    // MARK: Voice
+
+    /// Toggle voice mode on/off or check status.
+    func voiceToggle(action: String) async throws -> [String: AnyCodable]?
+    /// Start or stop VAD-bounded push-to-talk capture.
+    func voiceRecord(action: String) async throws
+    /// Speak arbitrary text via the configured TTS provider.
+    func voiceTTS(text: String) async throws
+
     // MARK: Diagnostics
 
     func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String)
@@ -126,6 +146,8 @@ struct BackendCapabilities: Sendable {
     /// PERSONA.md sync). Non-nil harnesses are a different agent platform,
     /// not a Hermes persona — the user is not "messaging Hermes".
     var harnessPersona: Persona?
+    /// voice.toggle / voice.record / voice.tts RPCs exist.
+    internal var supportsVoice: Bool
 
     static let hermes = BackendCapabilities(
         supportsInteractivePrompts: true,
@@ -138,7 +160,8 @@ struct BackendCapabilities: Sendable {
         supportsGatewayServices: true,
         supportsSessionIntrospection: true,
         supportsWorkflows: false,
-        harnessPersona: nil
+        harnessPersona: nil,
+        supportsVoice: true
     )
 
     /// Centaur relays harness stdout; structured features stay dark until the
@@ -156,7 +179,8 @@ struct BackendCapabilities: Sendable {
         supportsGatewayServices: false,
         supportsSessionIntrospection: false,
         supportsWorkflows: true,
-        harnessPersona: .centaurPersona
+        harnessPersona: .centaurPersona,
+        supportsVoice: false
     )
 }
 
@@ -178,6 +202,23 @@ extension AgentBackend {
     /// Backends whose media URLs are already reachable (no loopback rewrite)
     /// pass the URL through unchanged. GatewayClient overrides this.
     internal func resolvedMediaURL(_ raw: String) -> String { raw }
+
+    // MARK: - Voice defaults (overridden by GatewayClient)
+
+    internal func voiceToggle(action: String) async throws -> [String: AnyCodable]? {
+        log.info("voiceToggle(\(action)) — not supported by this backend")
+        throw AgentBackendError.voiceNotSupported
+    }
+
+    internal func voiceRecord(action: String) async throws {
+        log.info("voiceRecord(\(action)) — not supported by this backend")
+        throw AgentBackendError.voiceNotSupported
+    }
+
+    internal func voiceTTS(text: String) async throws {
+        log.info("voiceTTS(…\(text.prefix(40))) — not supported by this backend")
+        throw AgentBackendError.voiceNotSupported
+    }
 }
 
 // MARK: - GatewayClient Conformance

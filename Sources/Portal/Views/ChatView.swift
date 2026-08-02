@@ -1430,6 +1430,7 @@ struct ChatInputBar: View {
                 }
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
+                voiceButton
                 sendButton
             }
             .padding(.horizontal, 14)
@@ -1462,6 +1463,7 @@ struct ChatInputBar: View {
                     attachButton
                 }
                 inputField
+                voiceButton
                 sendButton
             }
             .padding(.horizontal, 14)
@@ -1667,6 +1669,46 @@ struct ChatInputBar: View {
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Voice Button
+
+    /// Walkie-talkie mic button. Taps toggle VAD recording on/off.
+    /// While recording, the gateway captures speech via faster-whisper and
+    /// emits `voice.transcript` events, which ChatViewModel auto-submits.
+    private var voiceButton: some View {
+        guard chatViewModel.backendCapabilities.supportsVoice else {
+            return AnyView(EmptyView())
+        }
+        let isRecording = chatViewModel.isVoiceRecording
+        let isIdle = !chatViewModel.isStreaming && !isRecording
+        return AnyView(Button {
+            Task {
+                if isRecording {
+                    await chatViewModel.stopVoiceRecording()
+                } else {
+                    await chatViewModel.startVoiceRecording()
+                }
+            }
+        } label: {
+            Image(systemName: isRecording ? "mic.fill" : "mic")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isRecording ? .white : Theme.secondary)
+                .frame(width: 30, height: 30)
+                .background(
+                    isRecording
+                        ? Color.red
+                        : (isIdle ? Theme.surfaceHover : Color.clear),
+                    in: Circle()
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isRecording ? "Stop recording" : "Voice input")
+        .accessibilityIdentifier("voiceButton")
+        .help(isRecording ? "Stop voice recording" : "Start voice recording (walkie-talkie)")
+        .opacity(chatViewModel.isStreaming ? 0.3 : 1)
+        .disabled(chatViewModel.isStreaming)
+        .animation(.easeInOut(duration: 0.18), value: isRecording))
     }
 
     // MARK: - Send / Stop Button
