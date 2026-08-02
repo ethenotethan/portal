@@ -224,10 +224,9 @@ internal struct ArtifactExpandedOverlay: View {
             content: content,
             actionableArtifactID: artifact.id,
             topLevelActions: artifact.topLevelActions,
-            // Not every expanded HTML artifact wants the cursor: a drag-to-orbit
-            // world is left unnavigable by capture, so ask the document first.
-            capturesPointerInput: InteractiveArtifactWeb.autoCapturesPointer(
-                kind: artifact.kind, content: content),
+            // Capture is the renderer's own call now (derived from the document),
+            // so this presentation only has to say where a lock lands: Escape
+            // releases the mouse before it collapses the artifact.
             onPointerLockChange: { pageHoldsPointer = $0 }
         )
     }
