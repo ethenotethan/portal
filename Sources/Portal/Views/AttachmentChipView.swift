@@ -381,12 +381,12 @@ internal struct AudioPreview: View {
     internal let url: URL?
     internal let data: Data?
 
-    init(url: URL) {
+    internal init(url: URL) {
         self.url = url
         self.data = nil
     }
 
-    init(data: Data) {
+    internal init(data: Data) {
         self.url = nil
         self.data = data
     }
@@ -487,8 +487,13 @@ internal struct AudioPreview: View {
             isPlaying = false
         } else {
             #if os(iOS)
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try? AVAudioSession.sharedInstance().setActive(true)
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                self.error = "Could not activate audio playback: \(error.localizedDescription)"
+                return
+            }
             #endif
             player.play()
             isPlaying = true
@@ -601,16 +606,16 @@ struct FileWebViewUIView: UIViewRepresentable {
 
 // MARK: - Image Preview
 
-struct ImagePreview: View {
-    let filePath: String?
-    let data: Data?
+internal struct ImagePreview: View {
+    internal let filePath: String?
+    internal let data: Data?
 
-    init(filePath: String) {
+    internal init(filePath: String) {
         self.filePath = filePath
         self.data = nil
     }
 
-    init(data: Data) {
+    internal init(data: Data) {
         self.filePath = nil
         self.data = data
     }

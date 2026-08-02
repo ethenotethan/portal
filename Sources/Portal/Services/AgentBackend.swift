@@ -103,8 +103,6 @@ protocol AgentBackend: AnyObject {
     func voiceToggle(action: String) async throws -> [String: AnyCodable]?
     /// Start or stop VAD-bounded push-to-talk capture.
     func voiceRecord(action: String) async throws
-    /// Speak arbitrary text via the configured TTS provider.
-    func voiceTTS(text: String) async throws
 
     // MARK: Diagnostics
 
@@ -212,11 +210,6 @@ extension AgentBackend {
 
     internal func voiceRecord(action: String) async throws {
         log.info("voiceRecord(\(action)) — not supported by this backend")
-        throw AgentBackendError.voiceNotSupported
-    }
-
-    internal func voiceTTS(text: String) async throws {
-        log.info("voiceTTS(…\(text.prefix(40))) — not supported by this backend")
         throw AgentBackendError.voiceNotSupported
     }
 }
