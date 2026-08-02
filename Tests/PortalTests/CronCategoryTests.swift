@@ -369,4 +369,84 @@ internal struct CronCategoryTests {
         }
         #expect(!workOpen)
     }
+
+    // MARK: - Moving without retyping the name
+
+    @Test("moving an ungrouped job into a category keeps its leaf name")
+    internal func moveKeepsLeafName() {
+        #expect(CronCategory.moved(name: "morning-run", to: ["life", "training"])
+                == "life/training/morning-run")
+    }
+
+    @Test("moving a categorized job replaces only its path")
+    internal func moveReplacesPath() {
+        #expect(CronCategory.moved(name: "life/training/run", to: ["work"]) == "work/run")
+        #expect(CronCategory.moved(name: "a/b/c/deep", to: ["x", "y"]) == "x/y/deep")
+    }
+
+    @Test("moving to the root ungroups the job without renaming it")
+    internal func moveToRootUngroups() {
+        #expect(CronCategory.moved(name: "life/training/run", to: []) == "run")
+    }
+
+    @Test("a move never mangles the leaf, whatever noise the destination carries")
+    internal func moveNormalizesDestination() {
+        // The picker can hand over typed input, so the same noise `split` ignores
+        // must not create phantom levels here either.
+        #expect(CronCategory.moved(name: "run", to: ["", " life ", "training"])
+                == "life/training/run")
+    }
+
+    @Test("a name with no usable leaf refuses to move")
+    internal func moveRefusesEmptyLeaf() {
+        #expect(CronCategory.moved(name: "///", to: ["life"]) == nil)
+        #expect(CronCategory.moved(name: "   ", to: ["life"]) == nil)
+    }
+
+    @Test("a job already in the destination produces an unchanged name")
+    internal func moveToSamePlaceIsIdentity() {
+        // The editor keys its disabled-Move state on this equality, so it has to
+        // hold exactly rather than merely normalize to something similar.
+        #expect(CronCategory.moved(name: "life/run", to: ["life"]) == "life/run")
+    }
+
+    // MARK: - Destination enumeration
+
+    @Test("existing categories are offered including intermediate levels")
+    internal func allPathsIncludesIntermediates() {
+        let paths = CronCategory.allPaths(in: [
+            job("life/training/run"),
+            job("work/x"),
+            job("db-backup"),
+        ])
+        // `life` is offered even though no job sits directly at it — moving a job
+        // up one level is as reasonable as moving it down.
+        #expect(paths.contains(["life"]))
+        #expect(paths.contains(["life", "training"]))
+        #expect(paths.contains(["work"]))
+        // Ungrouped jobs contribute no destination.
+        #expect(paths.count == 3)
+    }
+
+    @Test("destinations are ordered shallowest-first then alphabetically")
+    internal func allPathsOrdering() {
+        // Note the leaf is never a category: `life/a/run` contributes `life` and
+        // `life/a`, not `life/a/run`.
+        let paths = CronCategory.allPaths(in: [
+            job("work/b/deep"),
+            job("life/a/run"),
+        ])
+        #expect(paths == [["life"], ["work"], ["life", "a"], ["work", "b"]])
+    }
+
+    @Test("a list with no categories offers no destinations")
+    internal func allPathsEmptyWhenUngrouped() {
+        #expect(CronCategory.allPaths(in: [job("a"), job("b")]).isEmpty)
+    }
+
+    @Test("a path renders as a breadcrumb, and the root as Ungrouped")
+    internal func displayPathRendering() {
+        #expect(CronCategory.displayPath(["life", "training"]) == "life › training")
+        #expect(CronCategory.displayPath([]) == "Ungrouped")
+    }
 }
