@@ -90,6 +90,60 @@ internal enum CronCategory {
         guard let next = normalize(name: raw) else { return false }
         return next != current
     }
+
+    // MARK: - Moving without retyping the name
+
+    /// The full name that puts `name`'s leaf under `path`, keeping the leaf as-is.
+    ///
+    /// `("morning-run", ["life", "training"])` → `"life/training/morning-run"`
+    /// `("life/training/run", [])` → `"run"` (move to Ungrouped)
+    ///
+    /// This is the counterpart to `split(name:)`: the editor used to make the
+    /// user retype the whole path *including the leaf* just to relocate a job,
+    /// which meant re-entering the job's identity to change its folder — and one
+    /// typo silently renamed it instead of moving it. Destination and identity
+    /// are separate concerns, so moving takes a path and preserves the leaf.
+    ///
+    /// Returns nil when the name has no usable leaf, so callers can't write a
+    /// name that is only separators.
+    internal static func moved(name: String, to path: [String]) -> String? {
+        guard let leaf = normalize(name: name).map({ split(name: $0).title }) else { return nil }
+        let cleanPath = path
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return (cleanPath + [leaf]).joined(separator: String(separator))
+    }
+
+    /// Every category path present in `jobs`, including intermediate levels, each
+    /// sorted shallowest-first then alphabetically.
+    ///
+    /// Powers the destination picker: the whole point is to *choose* an existing
+    /// category rather than remember and retype it. Intermediates are included
+    /// (`life` when only `life/training` holds jobs) because moving a job up one
+    /// level is as reasonable as moving it down.
+    internal static func allPaths(in jobs: [CronJob]) -> [[String]] {
+        var seen: Set<[String]> = []
+        for job in jobs {
+            let path = Self.path(for: job)
+            guard !path.isEmpty else { continue }
+            for depth in 1...path.count {
+                seen.insert(Array(path.prefix(depth)))
+            }
+        }
+        return seen.sorted { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count < rhs.count }
+            for (l, r) in zip(lhs, rhs) where l != r {
+                return l.localizedCaseInsensitiveCompare(r) == .orderedAscending
+            }
+            return false
+        }
+    }
+
+    /// A path rendered for display: `["life", "training"]` → `"life › training"`,
+    /// and the root as "Ungrouped" so an empty destination is never a blank row.
+    internal static func displayPath(_ path: [String]) -> String {
+        path.isEmpty ? "Ungrouped" : path.joined(separator: " › ")
+    }
 }
 
 // MARK: - Tree
