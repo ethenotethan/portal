@@ -144,6 +144,47 @@ internal enum CronCategory {
     internal static func displayPath(_ path: [String]) -> String {
         path.isEmpty ? "Ungrouped" : path.joined(separator: " › ")
     }
+
+    // MARK: - The cost of overloading the name
+
+    /// The categories a typed name would silently create, when it looks more like
+    /// a title that happens to contain a slash than a deliberate path.
+    ///
+    /// This is the price of deriving the category from the name: `/` is reserved,
+    /// so `A/B testing digest` files under a category named `A` and the job becomes
+    /// `B testing digest`. That is a real thing to want to name a job, and the
+    /// convention gives no way to escape the separator — so the least we can do is
+    /// not let it happen silently.
+    ///
+    /// Returns nil when there's nothing to warn about. Two signals, both narrow,
+    /// because a warning that fires on `life/training/morning-run` is worse than no
+    /// warning at all — it trains the user to ignore it:
+    ///
+    /// 1. A *path* component containing a space (`A B/testing digest`). Categories
+    ///    are slugs; prose in one means the slash wasn't meant as a separator.
+    /// 2. A prose leaf under a 1–2 character category (`A/B testing digest`,
+    ///    `I/O latency check`, `24/7 uptime probe`). Very short categories are
+    ///    legitimate but rare, and paired with a spaced leaf they almost always
+    ///    indicate an abbreviation that happens to contain a slash.
+    ///
+    /// Advisory only — callers warn, they don't block, because the user may
+    /// genuinely mean it and the convention offers no way to escape the separator.
+    internal static func separatorWarning(for raw: String) -> String? {
+        guard let normalized = normalize(name: raw) else { return nil }
+        let parts = normalized.split(separator: separator).map(String.init)
+        guard parts.count > 1 else { return nil }
+
+        let pathParts = Array(parts.dropLast())
+        let leaf = parts[parts.count - 1]
+
+        let proseInPath = pathParts.contains { $0.contains(" ") }
+        let abbreviation = leaf.contains(" ") && pathParts.contains { $0.count <= 2 }
+        guard proseInPath || abbreviation else { return nil }
+
+        let categories = pathParts.joined(separator: " › ")
+        return "“\(separator)” separates categories, so this files under \(categories). "
+            + "Remove the slash if you meant it as part of the name."
+    }
 }
 
 // MARK: - Tree
