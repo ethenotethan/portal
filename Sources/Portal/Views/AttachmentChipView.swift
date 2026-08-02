@@ -262,6 +262,16 @@ struct FilePreviewView: View {
                     } else {
                         downloadStateView
                     }
+                case .audio:
+                    if let url = attachment.previewFileURL {
+                        AudioPreview(url: url)
+                    } else if case .ready(let data) = attachment.downloadState {
+                        AudioPreview(data: data)
+                    } else if case .local(let path) = attachment.source {
+                        AudioPreview(url: URL(fileURLWithPath: path))
+                    } else {
+                        downloadStateView
+                    }
                 default:
                     // Show downloaded/text content inline when we can decode it
                     // as text (json, csv, txt, code, logs…); otherwise fall back
@@ -362,6 +372,143 @@ internal struct VideoPreview: View {
                 player?.pause()
                 player = nil
             }
+    }
+}
+
+// MARK: - Audio Preview
+
+internal struct AudioPreview: View {
+    internal let url: URL?
+    internal let data: Data?
+
+    init(url: URL) {
+        self.url = url
+        self.data = nil
+    }
+
+    init(data: Data) {
+        self.url = nil
+        self.data = data
+    }
+
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var progress: Double = 0
+    @State private var error: String?
+    private let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+
+    internal var body: some View {
+        VStack(spacing: 32) {
+            Image(systemName: isPlaying ? "waveform" : "play.circle.fill")
+                .font(.system(size: 72))
+                .foregroundStyle(Theme.accent)
+                .symbolEffect(.bounce, value: isPlaying)
+
+            VStack(spacing: 8) {
+                if let error {
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.warning)
+                }
+
+                if let player {
+                    Text(formatTime(player.duration))
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Theme.secondary)
+
+                    ProgressView(value: progress, total: 1.0)
+                        .progressViewStyle(.linear)
+                        .frame(width: 280)
+                        .tint(Theme.accent)
+                }
+
+                Button {
+                    togglePlayback()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 18))
+                        Text(isPlaying ? "Pause" : "Play")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(Theme.accent.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .foregroundStyle(Theme.accent)
+                }
+                .buttonStyle(.plain)
+                .disabled(player == nil && error == nil)
+
+                if let url {
+                    Button {
+                        #if os(macOS)
+                        NSWorkspace.shared.open(url)
+                        #else
+                        UIApplication.shared.open(url)
+                        #endif
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.system(size: 13))
+                            Text("Open in default app")
+                                .font(.system(size: 12))
+                        }
+                        .foregroundStyle(Theme.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background)
+        .onAppear { setupPlayer() }
+        .onReceive(timer) { _ in updateProgress() }
+        .onDisappear { player?.stop() }
+    }
+
+    private func setupPlayer() {
+        do {
+            if let url {
+                player = try AVAudioPlayer(contentsOf: url)
+            } else if let data {
+                player = try AVAudioPlayer(data: data)
+            }
+            player?.prepareToPlay()
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func togglePlayback() {
+        guard let player else { return }
+        if isPlaying {
+            player.pause()
+            isPlaying = false
+        } else {
+            #if os(iOS)
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try? AVAudioSession.sharedInstance().setActive(true)
+            #endif
+            player.play()
+            isPlaying = true
+        }
+    }
+
+    private func updateProgress() {
+        guard let player, player.duration > 0 else { return }
+        progress = player.currentTime / player.duration
+        if !player.isPlaying && isPlaying && progress >= 0.99 {
+            isPlaying = false
+            progress = 0
+            player.currentTime = 0
+        }
+    }
+
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let m = Int(seconds) / 60
+        let s = Int(seconds) % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 
