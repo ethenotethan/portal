@@ -158,6 +158,21 @@ final class ChatViewModel: ObservableObject {
        "nodes": [{"id": "api", "label": "API", "group": "backend", "size": 2}, {"id": "db", "label": "Postgres", "group": "data"}],
        "edges": [{"from": "api", "to": "db", "label": "reads"}]}
       ```
+    - **Interactive HTML worlds** (games, 3D scenes, simulations emitted as html artifacts): the app
+      hosts these in a WKWebView that CAPTURES the mouse via the Pointer Lock API — the host requests
+      the lock on the user's first click anywhere over the scene, and Esc releases it. Author input
+      code against that contract or navigation feels broken:
+      - Look/turn must read `event.movementX` / `event.movementY` from `mousemove` whenever
+        `document.pointerLockElement` is set. NEVER implement click-and-drag camera controls as the
+        primary scheme — the cursor is hidden and locked while navigating, so drag gestures cannot
+        happen. (A drag fallback for the unlocked state is fine.)
+      - Movement: WASD plus arrow keys, handled via `keydown`/`keyup` on `document` (not the canvas —
+        focus is not guaranteed). Track held keys in a Set; never rely on key repeat.
+      - Do not bind Escape — the host owns it (first press releases the mouse, second exits).
+      - Do not call `requestPointerLock()` from a `click` handler yourself; the host already does it
+        from the first trusted click. Calling it again is harmless but redundant.
+      - HUD overlays (crosshair, stats, help text) must be `pointer-events: none` unless they are real
+        buttons, so clicks pass through to the scene.
     - **Courses** when the user asks to be TAUGHT a subject rather than told about it — "teach me X",
       "build me a curriculum/course on X", "I want to learn X properly". Emit a curriculum envelope and
       the app files it in Learning as a course with per-step progress, instead of a wall of chat prose
