@@ -136,11 +136,15 @@ internal struct CronSearchBar: View {
         .fixedSize()
     }
 
-    /// The grouping affordance only appears once at least one job is named with
-    /// a path — otherwise the tree would be a single "Ungrouped" section and the
-    /// control would be dead weight.
+    /// The grouping affordance appears once there is more than one job.
+    ///
+    /// It used to require a job that *already* had a path, which hid the entire
+    /// grouping feature exactly when someone would go looking for it: with no
+    /// categories yet, there was no chip, so no hint that categories existed at
+    /// all. Grouping an all-ungrouped list is a harmless no-op view; never
+    /// discovering the feature is not.
     private var hasAnyCategory: Bool {
-        jobs.contains { !CronCategory.isUngrouped($0) }
+        jobs.count > 1
     }
 
     private var groupToggle: some View {
