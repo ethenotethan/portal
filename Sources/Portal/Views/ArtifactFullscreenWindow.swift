@@ -102,6 +102,14 @@ internal enum InteractiveArtifactWeb {
         guard kind == "html" else { return false }
         return pageUsesPointerLock(content) || pageDragsToLook(content)
     }
+
+    /// Opt-in on-screen Pointer Lock trace, for when the cursor still floats and
+    /// the reason is invisible: WebKit's refusals are private and `log.debug`
+    /// needs root to surface. Enable with
+    /// `defaults write com.ethenotethan.Portal HermesPointerLockTrace -bool YES`.
+    internal static var showsPointerLockTrace: Bool {
+        UserDefaults.standard.bool(forKey: "HermesPointerLockTrace")
+    }
 }
 
 // MARK: - Pointer Lock permission
@@ -247,6 +255,14 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
                 config.userContentController.addUserScript(WKUserScript(
                     source: HTMLPointerLockBridge.dragLookShimSource,
                     injectionTime: .atDocumentEnd,
+                    forMainFrameOnly: true,
+                    in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
+                ))
+            }
+            if InteractiveArtifactWeb.showsPointerLockTrace {
+                config.userContentController.addUserScript(WKUserScript(
+                    source: HTMLPointerLockBridge.captureDiagnosticSource,
+                    injectionTime: .atDocumentStart,
                     forMainFrameOnly: true,
                     in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
                 ))

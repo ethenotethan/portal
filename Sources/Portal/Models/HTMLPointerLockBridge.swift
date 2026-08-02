@@ -24,6 +24,83 @@ internal enum HTMLPointerLockBridge {
     /// and pages that dislike that can release via Esc as always.
     internal static let immersiveCanvasViewportFraction = 0.6
 
+    /// On-screen trace of every capture attempt and its outcome, shown only when
+    /// the host asks for it.
+    ///
+    /// Pointer Lock fails silently by design: `requestPointerLock()` rejects
+    /// without a console error, WebKit's refusal reasons are private, and
+    /// Portal's own `log.debug` lines are discarded by macOS unless debug logging
+    /// is enabled as root. Diagnosing "the cursor still floats" from outside the
+    /// process therefore comes down to guesswork. This paints the state the page
+    /// itself sees — which element was targeted, whether the promise resolved,
+    /// what `document.pointerLockElement` became — directly over the scene.
+    internal static let captureDiagnosticSource = #"""
+    (() => {
+      'use strict';
+      const box = document.createElement('div');
+      box.style.cssText = [
+        'position:fixed', 'left:10px', 'top:10px', 'z-index:2147483647',
+        'font:11px ui-monospace,Menlo,monospace', 'color:#7CFFB2',
+        'background:rgba(0,0,0,0.82)', 'padding:8px 10px', 'border-radius:6px',
+        'pointer-events:none', 'white-space:pre', 'max-width:60vw',
+        'border:1px solid rgba(124,255,178,0.35)'
+      ].join(';');
+      const lines = ['PORTAL LOCK TRACE — waiting for a click…'];
+      const paint = () => { box.textContent = lines.slice(-9).join('\n'); };
+      const say = (msg) => { lines.push(msg); paint(); };
+      paint();
+      const attach = () => {
+        if (document.body) { document.body.appendChild(box); return true; }
+        return false;
+      };
+      if (!attach()) document.addEventListener('DOMContentLoaded', attach);
+
+      say('canvases=' + document.querySelectorAll('canvas').length +
+          ' vp=' + window.innerWidth + 'x' + window.innerHeight);
+      say('hasRPL=' + (typeof Element.prototype.requestPointerLock === 'function'));
+
+      document.addEventListener('pointerdown', (e) => {
+        const t = e.target;
+        say('down trusted=' + e.isTrusted +
+            ' on=' + (t && t.tagName ? t.tagName.toLowerCase() : '?') +
+            (t && t.id ? '#' + t.id : ''));
+      }, true);
+
+      document.addEventListener('pointerlockchange', () => {
+        const el = document.pointerLockElement;
+        say('LOCKCHANGE -> ' + (el ? (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')) : 'null'));
+      });
+      document.addEventListener('pointerlockerror', () => say('LOCK ERROR (refused)'));
+
+      let moves = 0;
+      window.addEventListener('mousemove', (e) => {
+        if (!document.pointerLockElement) return;
+        if (moves++ % 12) return;
+        say('locked move mx=' + e.movementX + ' my=' + e.movementY);
+      }, true);
+
+      // Report what the page's own request resolves to, without changing it.
+      const original = Element.prototype.requestPointerLock;
+      if (typeof original === 'function') {
+        Element.prototype.requestPointerLock = function (...args) {
+          say('page called requestPointerLock on ' +
+              this.tagName.toLowerCase() + (this.id ? '#' + this.id : ''));
+          try {
+            const out = original.apply(this, args);
+            if (out && typeof out.then === 'function') {
+              out.then(() => say('  -> resolved')).catch((err) =>
+                say('  -> REJECTED ' + (err && err.name ? err.name : err)));
+            }
+            return out;
+          } catch (err) {
+            say('  -> THREW ' + (err && err.name ? err.name : err));
+            throw err;
+          }
+        };
+      }
+    })();
+    """#
+
     internal static let userScriptSource = #"""
     (() => {
       'use strict';
@@ -45,21 +122,24 @@ internal enum HTMLPointerLockBridge {
         return best;
       };
 
-      document.addEventListener('pointerdown', (event) => {
-        if (!event.isTrusted || document.pointerLockElement) return;
-        const origin = event.target;
-        if (!(origin instanceof Element)) return;
-
+      const targetFor = (origin) => {
+        if (!(origin instanceof Element)) return null;
         // A click on the canvas itself always captures. A click anywhere else
         // captures only when it isn't operating a control (HUD buttons keep
         // working) and the scene's canvas dominates the viewport.
         let canvas = origin.closest('canvas');
         if (!canvas) {
-          if (origin.closest(INTERACTIVE)) return;
+          if (origin.closest(INTERACTIVE)) return null;
           canvas = dominantCanvas();
         }
-        if (!canvas || typeof canvas.requestPointerLock !== 'function') return;
+        if (!canvas || typeof canvas.requestPointerLock !== 'function') return null;
+        return canvas;
+      };
 
+      const capture = (event) => {
+        if (!event.isTrusted || document.pointerLockElement) return;
+        const canvas = targetFor(event.target);
+        if (!canvas) return;
         canvas.focus({ preventScroll: true });
         try {
           const request = canvas.requestPointerLock();
@@ -67,7 +147,22 @@ internal enum HTMLPointerLockBridge {
             request.catch(() => {});
           }
         } catch (_) {}
-      }, true);
+      };
+
+      // Try on every stage of the gesture, not just the first.
+      //
+      // WebKit grants Pointer Lock only against a transient user activation, and
+      // it does not treat the stages of one gesture alike — a request made
+      // during `pointerdown` can be refused where the same request from `click`
+      // succeeds. A page that calls `requestPointerLock()` from its own click
+      // handler therefore captured while this bridge, listening only for
+      // `pointerdown`, silently did not: same document, same canvas, same
+      // gesture, opposite outcome. So offer the request at each stage and let
+      // whichever WebKit honours win. Re-entry is free — every path returns
+      // immediately once `pointerLockElement` is set.
+      for (const type of ['pointerdown', 'mouseup', 'click']) {
+        document.addEventListener(type, capture, true);
+      }
     })();
     """#
 
