@@ -38,8 +38,17 @@ struct CronListView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !cronViewModel.jobs.isEmpty {
-                CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+            VStack(spacing: 0) {
+                if !cronViewModel.jobs.isEmpty {
+                    CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+                }
+                // A move is fire-and-forget from the row context menu, so a
+                // rejected write has nowhere else to report itself.
+                if let error = cronViewModel.renameError {
+                    CronMoveErrorBanner(message: error) {
+                        cronViewModel.clearRenameError()
+                    }
+                }
             }
         }
         #if os(macOS)
@@ -233,6 +242,7 @@ struct CronListView: View {
               newName != job.name else { return }
         Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
     }
+
 
     /// Build an upstream Hermes dashboard client for a focused Standard gateway,
     /// or nil if its URL/token is unusable. Reads route through this instead of

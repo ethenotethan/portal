@@ -143,6 +143,18 @@ internal struct CronCategoryEditor: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            // A typed destination can carry the same footgun as a typed name: a
+            // space-bearing component is probably prose, not a nested category.
+            if isAddingCategory, let warning = CronCategory.separatorWarning(
+                for: CronCategory.moved(name: name, to: typedDestination) ?? ""
+            ) {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(isCompact ? .caption2 : .caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 6) {
                 Button("Rename instead") {
                     editedName = name
@@ -221,11 +233,18 @@ internal struct CronCategoryEditor: View {
         .fixedSize()
     }
 
+    /// The typed "New category…" path, split into components. Empty when the field
+    /// holds nothing usable yet.
+    private var typedDestination: [String] {
+        guard let normalized = CronCategory.normalize(name: newCategory) else { return [] }
+        return normalized.split(separator: CronCategory.separator).map(String.init)
+    }
+
     /// The destination actually being written — the typed one while adding.
     private var resolvedDestination: [String]? {
         guard isAddingCategory else { return destination }
-        guard let normalized = CronCategory.normalize(name: newCategory) else { return nil }
-        return normalized.split(separator: CronCategory.separator).map(String.init)
+        guard CronCategory.normalize(name: newCategory) != nil else { return nil }
+        return typedDestination
     }
 
     private var movedName: String? {
@@ -306,6 +325,16 @@ internal struct CronCategoryEditor: View {
                 .foregroundStyle(Theme.tertiary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // `/` is reserved by the convention, so a name like "A/B testing digest"
+            // becomes a category. Warn rather than block — it may be intended.
+            if let warning = CronCategory.separatorWarning(for: editedName) {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(isCompact ? .caption2 : .caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             HStack {
                 Spacer()
