@@ -64,4 +64,10 @@ internal struct ConceptLinkerTests {
         ])
         #expect(links.isEmpty)
     }
+
+    @Test("link id composes reasoningID, toolID, and concept with tilde separator")
+    internal func linkIDFormat() {
+        let link = ConceptLink(reasoningID: "r1", toolID: "t1", concept: "authservice")
+        #expect(link.id == "r1~t1~authservice")
+    }
 }
