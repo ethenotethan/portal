@@ -164,13 +164,13 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!InteractiveArtifactWeb.supportsImmersiveFullscreen("dataset"))
     }
 
-    /// The regression this pins, observed on a real generated world: an html
-    /// world that turns its camera on `clientX` deltas was captured purely
-    /// because its kind was "html". Pointer Lock then froze `clientX`, so every
-    /// drag computed a zero delta — cursor gone, camera stuck, scene unusable.
-    /// Capture must therefore ask the document, not just its kind.
-    @Test("A drag-to-orbit html world is never captured — lock would freeze its clientX")
-    internal func autoPointerCaptureSkipsDragDrivenWorlds() {
+    /// A pre-contract world that turns on `clientX` deltas still has to become
+    /// navigable without holding a button — that was the actual complaint. It
+    /// cannot be captured naively (Pointer Lock freezes `clientX`, so each drag
+    /// computes a zero delta and the camera stalls), and it cannot be left
+    /// uncaptured either. So it is captured *and* shimmed.
+    @Test("A drag-to-look world is captured with the shim, not skipped")
+    internal func dragDrivenWorldIsCapturedWithShim() {
         let dragOrbit = """
         <canvas id="c"></canvas><script>
         let dragging=false,lastX=0;
@@ -179,16 +179,57 @@ internal struct ArtifactStatusReflectionTests {
         </script>
         """
         #expect(!InteractiveArtifactWeb.pageUsesPointerLock(dragOrbit))
-        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "html", content: dragOrbit))
+        #expect(InteractiveArtifactWeb.pageDragsToLook(dragOrbit))
+        #expect(InteractiveArtifactWeb.autoCapturesPointer(kind: "html", content: dragOrbit))
 
-        // Each API a page can legitimately use to read relative motion counts.
+        // Each API a page can legitimately use to read relative motion counts,
+        // and any one of them means the page needs no translation.
         for api in ["movementX", "movementY", "pointerLockElement",
                     "requestPointerLock", "exitPointerLock", "PointerLockControls"] {
+            let source = "<script>\(api); onmousedown=e=>e.clientX</script>"
             #expect(
-                InteractiveArtifactWeb.pageUsesPointerLock("<script>\(api)</script>"),
+                InteractiveArtifactWeb.pageUsesPointerLock(source),
                 "\(api) means the page is written for a captured pointer"
             )
+            #expect(
+                !InteractiveArtifactWeb.pageDragsToLook(source),
+                "\(api) means the page reads motion itself — shimming would double-drive it"
+            )
         }
+
+        // A static document with neither trait is left completely alone.
+        let inert = "<h1>report</h1><canvas id=chart></canvas>"
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "html", content: inert))
+        #expect(!InteractiveArtifactWeb.pageDragsToLook(inert))
+        // Kind still dominates: model3d's OrbitControls needs a real cursor.
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d", content: dragOrbit))
+    }
+
+    /// The shim replaces the trusted `mousemove` rather than adding to it. If the
+    /// frozen `clientX` pair reached the page it would compute a delta that
+    /// exactly cancels the synthetic one, and the camera would sit still — the
+    /// same symptom as no shim at all.
+    @Test("Drag-look shim suppresses frozen coordinates and synthesizes a held drag")
+    internal func dragLookShimTranslatesCapturedMotion() {
+        let js = HTMLPointerLockBridge.dragLookShimSource
+        // Only acts while the lock is held, and only on real device motion.
+        #expect(js.contains("document.pointerLockElement"))
+        #expect(js.contains("event.isTrusted"))
+        // Drives the page off relative motion...
+        #expect(js.contains("event.movementX"))
+        #expect(js.contains("event.movementY"))
+        // ...as a button-held drag, which is what such pages require.
+        #expect(js.contains("mousedown"))
+        #expect(js.contains("mousemove"))
+        #expect(js.contains("mouseup"))
+        // The frozen pair must never reach the page.
+        #expect(js.contains("stopImmediatePropagation"))
+        // Releasing the lock must end the synthetic drag, or the page stays
+        // stuck believing a button is still down.
+        #expect(js.contains("pointerlockchange"))
+        // Never a native surface.
+        #expect(!js.contains("webkit.messageHandlers"))
+        #expect(!js.contains("fetch("))
     }
     #endif
 

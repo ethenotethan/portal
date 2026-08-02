@@ -70,4 +70,85 @@ internal enum HTMLPointerLockBridge {
       }, true);
     })();
     """#
+
+    /// Makes a drag-to-look world navigable with a captured cursor.
+    ///
+    /// Worlds authored before Portal taught the Pointer Lock contract rotate the
+    /// camera on `clientX`/`clientY` deltas and only while a button is held.
+    /// Pointer Lock freezes those coordinates and reports motion solely as
+    /// `movementX`/`movementY`, so capturing such a page kills its camera
+    /// outright — and declining to capture leaves the user dragging the mouse to
+    /// turn, which is the complaint that started this.
+    ///
+    /// So translate instead of choosing: while the lock is held, hold a synthetic
+    /// primary button down and advance synthetic coordinates by the captured
+    /// deltas. The page receives precisely the drag it was written for and turns
+    /// on bare mouse movement, with no change to the stored artifact.
+    ///
+    /// Injected only for pages the host classified as drag-driven
+    /// (`InteractiveArtifactWeb.needsDragLookShim`), so a lock-aware world is
+    /// never double-driven.
+    internal static let dragLookShimSource = #"""
+    (() => {
+      'use strict';
+      let cx = 0;
+      let cy = 0;
+      let dragging = false;
+
+      const send = (type, target, buttons) => {
+        target.dispatchEvent(new MouseEvent(type, {
+          bubbles: true, cancelable: true, view: window,
+          clientX: cx, clientY: cy, screenX: cx, screenY: cy,
+          button: 0, buttons
+        }));
+      };
+
+      const release = (target) => {
+        if (!dragging) return;
+        dragging = false;
+        send('mouseup', target, 0);
+      };
+
+      document.addEventListener('pointerlockchange', () => {
+        const locked = document.pointerLockElement;
+        if (locked) {
+          // Start from the element's centre so the first synthetic delta is
+          // relative to a sane origin rather than the page's stale last point.
+          const rect = locked.getBoundingClientRect();
+          cx = rect.left + rect.width / 2;
+          cy = rect.top + rect.height / 2;
+        } else {
+          release(document);
+        }
+      });
+
+      window.addEventListener('mousemove', (event) => {
+        const locked = document.pointerLockElement;
+        if (!locked || !event.isTrusted) return;
+        // The trusted event's coordinates are frozen, so letting the page see it
+        // would compute a delta that exactly cancels the synthetic one. Replace
+        // it: this capture-phase listener is outermost, so stopping immediate
+        // propagation here keeps the page from ever seeing the frozen pair.
+        event.stopImmediatePropagation();
+        if (!dragging) {
+          dragging = true;
+          send('mousedown', locked, 1);
+        }
+        cx += event.movementX;
+        cy += event.movementY;
+        send('mousemove', locked, 1);
+      }, true);
+
+      // A real press while captured would re-seat the page's drag origin to the
+      // frozen coordinates and snap the camera. The synthetic pair above is the
+      // only button traffic the page should see while the lock is held.
+      for (const type of ['mousedown', 'mouseup', 'click']) {
+        window.addEventListener(type, (event) => {
+          if (event.isTrusted && document.pointerLockElement) {
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      }
+    })();
+    """#
 }

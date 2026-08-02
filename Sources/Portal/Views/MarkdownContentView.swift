@@ -1640,6 +1640,18 @@ struct InlineHTMLNSView: NSViewRepresentable {
                 forMainFrameOnly: true,
                 in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
             ))
+            // A world that turns by dragging needs captured motion translated
+            // into that drag, or the lock would freeze its clientX and stall the
+            // camera. Derived from the document so it can't disagree with the
+            // capture decision that admitted it.
+            if InteractiveArtifactWeb.pageDragsToLook(html) {
+                config.userContentController.addUserScript(WKUserScript(
+                    source: HTMLPointerLockBridge.dragLookShimSource,
+                    injectionTime: .atDocumentEnd,
+                    forMainFrameOnly: true,
+                    in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
+                ))
+            }
         }
         let webView = InputCapturingWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator

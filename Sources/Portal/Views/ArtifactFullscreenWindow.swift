@@ -68,22 +68,39 @@ internal enum InteractiveArtifactWeb {
         pointerLockAPIs.contains { html.contains($0) }
     }
 
+    /// Whether `html` turns its camera by dragging with a button held, and so
+    /// needs captured motion translated into a synthetic drag
+    /// (`HTMLPointerLockBridge.dragLookShimSource`).
+    ///
+    /// True only when the page reads absolute cursor coordinates, listens for a
+    /// button press, and names no Pointer Lock API at all — the signature of a
+    /// world authored before Portal taught the capture contract.
+    internal static func pageDragsToLook(_ html: String) -> Bool {
+        guard !pageUsesPointerLock(html) else { return false }
+        let readsAbsolute = html.contains("clientX") || html.contains("clientY")
+        let watchesButton = html.contains("mousedown") || html.contains("pointerdown")
+        return readsAbsolute && watchesButton
+    }
+
     /// Whether the host should turn the first canvas click into a Pointer Lock
     /// request (`HTMLPointerLockBridge`).
     ///
-    /// Gated on `html` **and** on the document actually reading relative motion.
-    /// Kind alone is not enough: "html" covers both first-person worlds that need
-    /// a hidden cursor and drag-to-orbit worlds that rotate on `clientX` deltas.
-    /// Capturing the latter is strictly worse than doing nothing — the cursor
-    /// vanishes, `clientX` stops changing, and every drag computes a zero delta,
-    /// so the camera freezes and the scene becomes unnavigable. `model3d` fails
-    /// the sniff for the same reason it was excluded by name: `Model3DTemplate`
-    /// drives **OrbitControls** off absolute cursor positions.
+    /// Two ways an html page earns capture: it reads relative motion itself, or
+    /// it drags on absolute coordinates and the shim translates for it. Kind
+    /// alone is not enough, and neither is refusing to capture — a drag world
+    /// left uncaptured still makes the user hold a button to turn, which is the
+    /// whole complaint. Capturing it *without* the shim is worse still: the spec
+    /// freezes `clientX`, so every drag computes a zero delta and the camera
+    /// locks up.
+    ///
+    /// `model3d` is excluded regardless: `Model3DTemplate` drives OrbitControls,
+    /// whose zoom and pan legitimately need a real, visible cursor.
     ///
     /// Pages that genuinely want the lock can still call `requestPointerLock()`
     /// themselves; the window grants it either way.
     internal static func autoCapturesPointer(kind: String, content: String) -> Bool {
-        kind == "html" && pageUsesPointerLock(content)
+        guard kind == "html" else { return false }
+        return pageUsesPointerLock(content) || pageDragsToLook(content)
     }
 }
 
@@ -206,8 +223,13 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
     ///
     /// `autoCapturesPointer` injects the first-click Pointer Lock helper. Pass
     /// false for scenes driven by absolute cursor position (OrbitControls) —
-    /// see `InteractiveArtifactWeb.autoCapturesPointer(kind:)`.
+    /// see `InteractiveArtifactWeb.autoCapturesPointer(kind:content:)`.
+    ///
+    /// A pre-contract drag-to-look world additionally gets the shim that turns
+    /// captured motion into the synthetic drag it expects, derived from `html`
+    /// here rather than passed in so the two can never disagree.
     internal func present(html: String, title: String, autoCapturesPointer: Bool = true) {
+        let dragLookShim = InteractiveArtifactWeb.pageDragsToLook(html)
         close()
         pointerLock.reset()
 
@@ -221,6 +243,14 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
                 forMainFrameOnly: true,
                 in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
             ))
+            if dragLookShim {
+                config.userContentController.addUserScript(WKUserScript(
+                    source: HTMLPointerLockBridge.dragLookShimSource,
+                    injectionTime: .atDocumentEnd,
+                    forMainFrameOnly: true,
+                    in: WKContentWorld.world(name: HTMLPointerLockBridge.contentWorldName)
+                ))
+            }
         }
 
         let webView = InputCapturingWebView(frame: .zero, configuration: config)
