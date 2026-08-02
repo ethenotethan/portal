@@ -14,6 +14,8 @@ struct SkillInfoTests {
         ]
         let skill = SkillInfo.fromCommandEntry(key: "/code-review", dict: dict)
         #expect(skill.name == "Code Review")
+        #expect(skill.id == skill.name)
+        #expect(skill.id == "Code Review")
         #expect(skill.slashCommand == "/code-review")
         #expect(skill.description == "Review code for issues")
         #expect(skill.source == "local")

@@ -294,14 +294,14 @@
     ]
   },
   "coverage": {
-    "testable_pct": 40.19,
-    "testable_covered": 10239,
+    "testable_pct": 40.2,
+    "testable_covered": 10242,
     "testable_count": 25478,
     "layers": {
       "Models": {
-        "covered": 4824,
+        "covered": 4825,
         "count": 7278,
-        "pct": 66.28
+        "pct": 66.3
       },
       "Services": {
         "covered": 3082,
@@ -314,9 +314,9 @@
         "pct": 23.05
       },
       "ViewModels": {
-        "covered": 2031,
+        "covered": 2033,
         "count": 6746,
-        "pct": 30.11
+        "pct": 30.14
       }
     },
     "uncovered": {
@@ -1260,9 +1260,6 @@
         43,
         116,
         117
-      ],
-      "Sources/Portal/Models/Skill.swift": [
-        4
       ],
       "Sources/Portal/Models/SkillModels.swift": [
         20,
@@ -5381,7 +5378,6 @@
         87,
         112,
         113,
-        123,
         127,
         130,
         138,
@@ -8081,6 +8077,7 @@
         120
       ],
       "Sources/Portal/Models/Skill.swift": [
+        4,
         17,
         19,
         20,
@@ -9739,7 +9736,6 @@
         30,
         33,
         35,
-        36,
         38
       ],
       "Sources/Portal/ViewModels/ActivityInboxViewModel.swift": [
@@ -10177,7 +10173,7 @@
         119,
         120,
         122,
-        124,
+        123,
         146,
         151,
         211,
@@ -13144,7 +13140,7 @@
       },
       {
         "file": "Sources/Portal/Views/ArtifactsPane.swift",
-        "line": 794,
+        "line": 804,
         "kind": "var.parameter",
         "name": "revision",
         "hint": "unused"
@@ -13725,7 +13721,7 @@
       },
       {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
-        "line": 1744,
+        "line": 1758,
         "kind": "var.instance",
         "name": "reflectionWebView",
         "hint": "assignOnlyProperty"
