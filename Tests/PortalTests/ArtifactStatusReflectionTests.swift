@@ -221,6 +221,34 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d", content: dragOrbit))
     }
 
+    /// The bug this pins: capture used to be an opt-in flag on the renderer that
+    /// defaulted to false, and the artifact canvas — the view you land in when you
+    /// click an artifact open — never set it. So the same world captured the mouse
+    /// in the expanded overlay and could only be dragged in the canvas. Nothing
+    /// about a call site says whether a document is a world; the document does.
+    /// Assert a renderer constructed with no capture argument at all still
+    /// captures, and that a static presentation can still opt out.
+    @MainActor
+    @Test("Capture is derived from the document, not opted into per call site")
+    internal func rendererDerivesCaptureFromContent() {
+        let world = """
+        <canvas id="c"></canvas><script>
+        addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;});
+        addEventListener('mousemove',e=>{if(dragging){yaw-=(e.clientX-lastX);lastX=e.clientX;}});
+        </script>
+        """
+        // No `suppressesPointerCapture:` — the default must not disable the feature.
+        #expect(ArtifactKindRenderer(kind: "html", content: world).capturesPointerInputForTesting)
+        // A revision preview / export is a picture of the artifact, not a world
+        // to drive, and stays inert even though the content is identical.
+        #expect(!ArtifactKindRenderer(
+            kind: "html", content: world, suppressesPointerCapture: true
+        ).capturesPointerInputForTesting)
+        // Kind still dominates, and an inert document is never captured.
+        #expect(!ArtifactKindRenderer(kind: "model3d", content: world).capturesPointerInputForTesting)
+        #expect(!ArtifactKindRenderer(kind: "html", content: "<h1>report</h1>").capturesPointerInputForTesting)
+    }
+
     /// The shim replaces the trusted `mousemove` rather than adding to it. If the
     /// frozen `clientX` pair reached the page it would compute a delta that
     /// exactly cancels the synthetic one, and the camera would sit still — the
