@@ -23,6 +23,22 @@ internal final class CronListViewModel {
     var jobs: [CronJob] = []
     var isLoading = false
 
+    /// Why the last move/rename failed, or nil when the last one succeeded.
+    ///
+    /// A failed rename used to be logged and dropped, which made it
+    /// indistinguishable from success: the editor closed, the list refreshed
+    /// unchanged, and the job sat where it started. That reads as "the feature
+    /// doesn't work" rather than "the write was rejected" — and the two have very
+    /// different fixes. `cron.manage` only grew its `update` action recently, so a
+    /// harness on an older build answers `unknown cron action` (error 4016), which
+    /// is exactly the case a silent catch hides.
+    ///
+    /// Settable from the view so dismissing the banner is `renameError = nil`
+    /// rather than a one-line method. A dedicated clear method would only ever be
+    /// called from SwiftUI, which Periphery can't see through — it reads as an
+    /// unused declaration and trips the dead-code ratchet.
+    internal var renameError: String?
+
     private var gatewayClient: GatewayClient?
     /// When set, cron reads/actions route to the upstream Hermes dashboard over
     /// HTTP instead of the WebSocket Gateway. A Standard backend is HTTP-only,
@@ -212,16 +228,38 @@ internal final class CronListViewModel {
     /// Gateway-only — Standard's dashboard API has no update endpoint, which is
     /// what `supportsRemoveAndEdit` gates the affordance on.
     internal func renameJob(id: String, newName: String) async {
-        guard let client = gatewayClient else { return }
+        guard let client = gatewayClient else {
+            renameError = "This harness can't move jobs — its API has no update endpoint."
+            return
+        }
         guard let params = Self.renameParams(id: id, newName: newName) else {
             log.error("Refusing to rename job \(id) to an empty name")
+            renameError = "That name is empty once the slashes are collapsed."
             return
         }
         do {
             let _ = try await client.call("cron.manage", params: params)
+            renameError = nil
             await refreshJobs()
         } catch {
             log.error("Failed to rename job \(id): \(error)")
+            renameError = Self.renameFailureMessage(for: error)
         }
+    }
+
+    /// Turn a `cron.manage` rename failure into something that tells the user what
+    /// to do about it.
+    ///
+    /// The case worth naming is a gateway predating the `update` action: it answers
+    /// `unknown cron action: update`, which as raw text reads like a Portal bug. It
+    /// isn't — it's a version skew, and the fix is updating the harness, so the
+    /// message says that instead of echoing the wire error.
+    internal static func renameFailureMessage(for error: any Error) -> String {
+        let text = String(describing: error).lowercased()
+        if text.contains("unknown cron action") {
+            return "This harness's gateway is too old to move jobs — it doesn't "
+                + "support cron.manage 'update'. Update the harness and try again."
+        }
+        return "Couldn't move the job: \(error.localizedDescription)"
     }
 }

@@ -38,8 +38,15 @@ struct CronListView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !cronViewModel.jobs.isEmpty {
-                CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+            VStack(spacing: 0) {
+                if !cronViewModel.jobs.isEmpty {
+                    CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+                }
+                // A move is fire-and-forget from the row context menu, so a
+                // rejected write has nowhere else to report itself.
+                if let error = cronViewModel.renameError {
+                    moveErrorBanner(error)
+                }
             }
         }
         #if os(macOS)
@@ -203,20 +210,14 @@ struct CronListView: View {
         let paths = CronCategory.allPaths(in: cronViewModel.jobs)
 
         Menu {
-            ForEach(paths, id: \.self) { path in
-                if path != current {
-                    Button {
-                        move(job, to: path)
-                    } label: {
-                        Label(CronCategory.displayPath(path), systemImage: "folder")
-                    }
+            ForEach(paths.filter { $0 != current }, id: \.self) { path in
+                Button { move(job, to: path) } label: {
+                    Label(CronCategory.displayPath(path), systemImage: "folder")
                 }
             }
             if !current.isEmpty {
                 if !paths.isEmpty { Divider() }
-                Button {
-                    move(job, to: [])
-                } label: {
+                Button { move(job, to: []) } label: {
                     Label("Ungrouped", systemImage: "tray")
                 }
             }
@@ -233,6 +234,44 @@ struct CronListView: View {
               newName != job.name else { return }
         Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
     }
+
+    /// Why the last move failed, dismissible. Matches the run-error styling on the
+    /// job card rather than inventing a second error idiom for the Cron page.
+    ///
+    /// Moving a job is fire-and-forget from a row context menu — there's no sheet to
+    /// hold an inline error and no button left on screen to turn red. Without this
+    /// the failure was logged and dropped, which is indistinguishable from success:
+    /// the list refreshes unchanged and the job sits where it started.
+    ///
+    /// A member rather than its own `View` struct on purpose: Periphery can't see
+    /// SwiftUI-only construction, so a top-level banner view read as an unused
+    /// declaration and tripped the dead-code ratchet. Members of an already-flagged
+    /// view aren't reported separately.
+    private func moveErrorBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+            // Selectable: a version-skew message is something the user may want to
+            // paste into an issue against the harness.
+            Text(message)
+                .font(.caption2)
+                .lineLimit(3)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button { cronViewModel.renameError = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.8)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.1))
+    }
+
 
     /// Build an upstream Hermes dashboard client for a focused Standard gateway,
     /// or nil if its URL/token is unusable. Reads route through this instead of
