@@ -327,8 +327,21 @@ internal final class SettingsViewModel: ObservableObject {
         persistGateways()
     }
 
+    /// Set when the Keychain refuses to store the harness list. Surfaced in
+    /// Settings because the old silent `@discardableResult` drop made a failed
+    /// write look identical to a successful one: the new harness showed up in
+    /// the list, then vanished on the next launch when the stale blob was
+    /// re-read. See `KeychainStore.upsert`.
+    @Published internal private(set) var gatewayPersistenceError: String?
+
     private func persistGateways() {
-        KeychainStore.shared.saveGateways(savedGateways)
+        if KeychainStore.shared.saveGateways(savedGateways) {
+            gatewayPersistenceError = nil
+        } else {
+            gatewayPersistenceError =
+                "Couldn’t save harnesses to the Keychain — changes will be lost when Portal quits."
+            log.error("Failed to persist \(self.savedGateways.count) saved harnesses to the Keychain")
+        }
     }
 
     /// Validate and update the configured state.

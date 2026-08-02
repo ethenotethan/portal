@@ -171,6 +171,7 @@
 		4399CADEDA4CDE7AE085D411 /* HermesStandardMappersTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A9737C24E07D21C42BCC13 /* HermesStandardMappersTests.swift */; };
 		446DF41268A45BA8BDA5AE96 /* ConceptLinker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CFA18C2D0C8F14E47572C1 /* ConceptLinker.swift */; };
 		448E80C72FEF74645F3AD1EF /* InlineMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A2EF35794E0D22009946F6 /* InlineMath.swift */; };
+		44909296CEC3F46B3A2ED5D9 /* KeychainStoreUpsertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A9DB00CF24E0D67A792F30D /* KeychainStoreUpsertTests.swift */; };
 		44C48E3374067B9A8F7D1D31 /* SankeyBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5662456BA937D53902E2D2 /* SankeyBlockView.swift */; };
 		44F063D56E53A3E5BE7159C3 /* CentaurClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663C667A24294C6A12750412 /* CentaurClient.swift */; };
 		457D21A2E44A51DEBD0BF2B6 /* ActivityItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41427D8A86CE79E848FAAFD2 /* ActivityItem.swift */; };
@@ -705,6 +706,7 @@
 		02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
 		0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
 		02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLayout.swift; sourceTree = "<group>"; };
+		04096B720BF84A671AC5E21B /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGraphSpec.swift; sourceTree = "<group>"; };
 		04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExporter.swift; sourceTree = "<group>"; };
 		054EA87213F72FA39BED81CB /* PortalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PortalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -717,6 +719,7 @@
 		09DCF1D4A15D3681D1614BDA /* SessionListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListViewModel.swift; sourceTree = "<group>"; };
 		0A3591C0AF41F327701D87C1 /* TUISkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUISkin.swift; sourceTree = "<group>"; };
 		0A8A43DD1E54D0C9FF6CEE36 /* XAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAuthService.swift; sourceTree = "<group>"; };
+		0A9DB00CF24E0D67A792F30D /* KeychainStoreUpsertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStoreUpsertTests.swift; sourceTree = "<group>"; };
 		0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		0D55468F628900177771F916 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
 		0EEF4FE45ED2AF8CF940B9D2 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
@@ -966,7 +969,6 @@
 		BF69936DE366B4A1663E549D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C0888FE14C455912BD44E102 /* WikiDockedReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiDockedReader.swift; sourceTree = "<group>"; };
 		C0E4433A1BFCCB1AB04532BD /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
-		C0F50AA8686E1AD0B867113C /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		C17E38F822580B51EB67B78B /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManager.swift; sourceTree = "<group>"; };
@@ -1143,8 +1145,8 @@
 			isa = PBXGroup;
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
+				EC420DB82F3343AB7A53C0A7 /* portal */,
 				61851216B4FFCF80111C87E3 /* Portal */,
-				EA6882AE2071579282737B79 /* portal-logo */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -1663,6 +1665,7 @@
 				F319608FB4D928EF5CC94542 /* HTMLArtifactIntentBridgeTests.swift */,
 				E9403B0AABD3D56F6AF07759 /* InAppLinkRoutingTests.swift */,
 				9317990F22A44A9C812A43CB /* JSONObjectParseTests.swift */,
+				0A9DB00CF24E0D67A792F30D /* KeychainStoreUpsertTests.swift */,
 				34893CE30A6CB39845D37812 /* MaintainerRefTests.swift */,
 				6A34BA75D42DF544F74D1A66 /* MainThreadWatchdogTests.swift */,
 				D9818BBBE3206900907DBF63 /* MediaAttachmentTests.swift */,
@@ -1709,12 +1712,12 @@
 			path = JSONRPC;
 			sourceTree = "<group>";
 		};
-		EA6882AE2071579282737B79 /* portal-logo */ = {
+		EC420DB82F3343AB7A53C0A7 /* portal */ = {
 			isa = PBXGroup;
 			children = (
-				C0F50AA8686E1AD0B867113C /* Local.xcconfig */,
+				04096B720BF84A671AC5E21B /* Local.xcconfig */,
 			);
-			name = "portal-logo";
+			name = portal;
 			path = .;
 			sourceTree = "<group>";
 		};
@@ -2308,6 +2311,7 @@
 				FEB9B9FFEF7987765C37A27B /* HeuristicReasoningSummarizerTests.swift in Sources */,
 				AB8E5AAC8321092618017874 /* InAppLinkRoutingTests.swift in Sources */,
 				0863FB39B439A47B6EB4BC13 /* JSONObjectParseTests.swift in Sources */,
+				44909296CEC3F46B3A2ED5D9 /* KeychainStoreUpsertTests.swift in Sources */,
 				DCDE49CE0EB63E01E5F142DA /* MainThreadWatchdogTests.swift in Sources */,
 				D8FF212EF1A4F34B1396BB8B /* MaintainerRefTests.swift in Sources */,
 				DB15F810DE30FF88E1415314 /* MediaAttachmentTests.swift in Sources */,
@@ -2670,7 +2674,7 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0F50AA8686E1AD0B867113C /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2693,7 +2697,7 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0F50AA8686E1AD0B867113C /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2779,7 +2783,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0F50AA8686E1AD0B867113C /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -2842,7 +2846,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = C0F50AA8686E1AD0B867113C /* Local.xcconfig */;
+			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
