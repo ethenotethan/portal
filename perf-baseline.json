@@ -1,5 +1,5 @@
 {
-  "_comment": "Performance ratchet baseline — algorithmic WORK COUNTS (not timings) for the hot pure layout paths, keyed by counter name. Recorded by the Perf-count harness (Tests/PortalTests/PerfCountHarnessTests.swift) under -DPERF_COUNTERS with FIXED-SIZE fixtures, so every count is deterministic to the integer on any machine. FLOOR: no counter may exceed the value here (an O(n)->O(n^2) regression blows it up); improvements (fewer ops) are welcome and lock in via `make perf-baseline`. Fixture sizes live in the harness; changing one is a deliberate regen. See scripts/check-perf-ratchet.py and docs/architecture-rules.md.",
+  "_comment": "Performance ratchet baseline \u2014 algorithmic WORK COUNTS (not timings) for the hot pure layout paths, keyed by counter name. Recorded by the Perf-count harness (Tests/PortalTests/PerfCountHarnessTests.swift) under -DPERF_COUNTERS with FIXED-SIZE fixtures, so every count is deterministic to the integer on any machine. FLOOR: no counter may exceed the value here (an O(n)->O(n^2) regression blows it up); improvements (fewer ops) are welcome and lock in via `make perf-baseline`. Fixture sizes live in the harness; changing one is a deliberate regen. See scripts/check-perf-ratchet.py and docs/architecture-rules.md.",
   "counts": {
     "graph.forceSim": 202020,
     "sankey.pack": 24,
