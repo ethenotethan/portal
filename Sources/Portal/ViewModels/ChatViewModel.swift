@@ -273,6 +273,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Voice recording state — true while the gateway is capturing audio via VAD.
     @Published internal private(set) var isVoiceRecording: Bool = false
+    /// Human-readable voice pipeline status shown near the composer.
+    @Published internal private(set) var voiceStatusText: String = ""
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -1739,14 +1741,18 @@ if restoreSessionState(displayID: key) {
         guard let client = gatewayClient else { return }
         guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
+        voiceStatusText = "Starting mic…"
         do {
             _ = try await client.voiceToggle(action: "on")
             try await client.voiceRecord(action: "start")
-            // voice.status event will set isVoiceRecording = true when the
-            // gateway confirms recording state.
+            // Set optimistically: older gateways may not emit voice.status
+            // until capture completes, but the button must visibly respond.
+            isVoiceRecording = true
+            voiceStatusText = "Listening… speak now"
         } catch {
             log.error("Voice recording start failed: \(error.localizedDescription)")
             self.error = "Voice recording failed to start"
+            voiceStatusText = "Voice failed: \(error.localizedDescription)"
         }
     }
 
@@ -1754,6 +1760,7 @@ if restoreSessionState(displayID: key) {
     internal func stopVoiceRecording() async {
         guard let client = gatewayClient else { return }
         guard isVoiceRecording else { return }
+        voiceStatusText = "Transcribing…"
         do {
             try await client.voiceRecord(action: "stop")
             _ = try await client.voiceToggle(action: "off")
@@ -1761,6 +1768,46 @@ if restoreSessionState(displayID: key) {
         } catch {
             log.error("Voice recording stop failed: \(error.localizedDescription)")
             isVoiceRecording = false
+            voiceStatusText = "Voice stop failed: \(error.localizedDescription)"
+        }
+    }
+
+    /// Convert raw gateway voice status into a visible composer status.
+    private func voiceStatusDisplayText(for state: String) -> String {
+        switch state {
+        case "recording": "Listening… speak now"
+        case "transcribing": "Transcribing…"
+        case "idle", "off", "stopped": ""
+        default: state.isEmpty ? "" : "Voice: \(state)"
+        }
+    }
+
+    /// Handle gateway voice transcripts from either scoped or global events.
+    /// Voice events are currently emitted globally, so keeping this as a shared
+    /// helper prevents one event path from silently drifting to a no-op.
+    private func handleVoiceTranscript(text: String, noSpeechLimit: Bool) {
+        guard !isStopping, let client = gatewayClient else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !noSpeechLimit, !trimmed.isEmpty else {
+            isVoiceRecording = false
+            voiceStatusText = "No speech detected"
+            return
+        }
+        isVoiceRecording = false
+        voiceStatusText = "Heard: \(trimmed)"
+        Task {
+            do {
+                try await client.voiceRecord(action: "stop")
+            } catch {
+                log.warning("Voice recording cleanup failed: \(error.localizedDescription)")
+            }
+            do {
+                _ = try await client.voiceToggle(action: "off")
+            } catch {
+                log.warning("Voice mode cleanup failed: \(error.localizedDescription)")
+            }
+            inputText = trimmed
+            await submitPrompt()
         }
     }
 
@@ -2875,40 +2922,14 @@ if restoreSessionState(displayID: key) {
             break
 
         case .voiceTranscript(let text, let noSpeechLimit):
-            // Walkie-talkie mode: auto-submit transcribed speech as a prompt.
-            // Only for the session on screen: `isVoiceRecording` and
-            // `submitPrompt` are both bound to the VISIBLE session, so acting on
-            // another session's transcript would type its speech into this chat.
-            guard displaySessionID(for: sessionID ?? "") == displayID else { break }
-            guard !isStopping, let client = gatewayClient, sessionID != nil else { break }
-            // If gateway says no_speech or text is empty, just stop recording.
-            guard !noSpeechLimit, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                isVoiceRecording = false
-                break
-            }
-            isVoiceRecording = false
-            // Stop recording first, then submit the transcript as the user's prompt.
-            Task {
-                do {
-                    try await client.voiceRecord(action: "stop")
-                } catch {
-                    log.warning("Voice recording cleanup failed: \(error.localizedDescription)")
-                }
-                do {
-                    _ = try await client.voiceToggle(action: "off")
-                } catch {
-                    log.warning("Voice mode cleanup failed: \(error.localizedDescription)")
-                }
-                inputText = text
-                await submitPrompt()
-            }
+            handleVoiceTranscript(text: text, noSpeechLimit: noSpeechLimit)
 
         case .voiceStatus(let voiceState):
-            // Same reason as voiceTranscript: the mic indicator describes the
-            // visible chat's composer.
+            // The mic indicator describes the visible chat's composer.
             if displaySessionID(for: sessionID ?? "") == displayID {
                 isVoiceRecording = (voiceState == "recording")
             }
+            voiceStatusText = voiceStatusDisplayText(for: voiceState)
         }
 
         // Persist state for lifecycle events, but use slim metadata for
@@ -3339,8 +3360,12 @@ if restoreSessionState(displayID: key) {
             // TODO: Present secret input dialog
             break
 
-        case .voiceTranscript, .voiceStatus:
-            break
+        case .voiceTranscript(let text, let noSpeechLimit):
+            handleVoiceTranscript(text: text, noSpeechLimit: noSpeechLimit)
+
+        case .voiceStatus(let state):
+            isVoiceRecording = (state == "recording")
+            voiceStatusText = voiceStatusDisplayText(for: state)
         }
     }
 

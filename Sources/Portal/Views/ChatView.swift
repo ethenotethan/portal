@@ -1482,6 +1482,7 @@ struct ChatInputBar: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
+            voiceStatusStrip
         }
         .frame(maxWidth: 760)
         .composerContainer(composerStyle)
@@ -1519,6 +1520,7 @@ struct ChatInputBar: View {
             // bar material so the row stays legible over content.
             .background(composerStyle.fill == nil ? AnyShapeStyle(.bar) : AnyShapeStyle(Color.clear))
             .composerContainer(composerStyle)
+            voiceStatusStrip
         }
         #endif
     }
@@ -1717,6 +1719,30 @@ struct ChatInputBar: View {
         .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Voice Status
+
+    @ViewBuilder
+    private var voiceStatusStrip: some View {
+        let status = chatViewModel.voiceStatusText
+        if !status.isEmpty {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(chatViewModel.isVoiceRecording ? Color.red : Theme.accent)
+                    .frame(width: 6, height: 6)
+                Text(status)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Theme.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+            .accessibilityIdentifier("voiceStatusStrip")
+        }
     }
 
     // MARK: - Voice Button

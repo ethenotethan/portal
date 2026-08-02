@@ -116,4 +116,16 @@ struct ChatViewModelModelRoutingTests {
         vm.receiveGatewayEventForTesting(sessionInfoEvent(model: "minimax/minimax-m2.5"), sessionID: nil)
         #expect(!vm.isSessionReady)
     }
+
+    @Test("global voice.status updates the mic button recording state")
+    internal func globalVoiceStatusUpdatesRecordingState() {
+        let vm = ChatViewModel()
+        vm.receiveGatewayEventForTesting(.voiceStatus(state: "recording"), sessionID: nil)
+        #expect(vm.isVoiceRecording)
+        #expect(vm.voiceStatusText == "Listening… speak now")
+
+        vm.receiveGatewayEventForTesting(.voiceStatus(state: "idle"), sessionID: nil)
+        #expect(!vm.isVoiceRecording)
+        #expect(vm.voiceStatusText.isEmpty)
+    }
 }
