@@ -137,8 +137,24 @@ internal final class ArtifactPointerLockDelegate: NSObject, WKUIDelegate {
     /// test can assert this object actually answers them — a silent typo here is
     /// indistinguishable from the bug this class fixes.
     internal static let requestSelectorName = "_webViewDidRequestPointerLock:completionHandler:"
-    internal static let legacyRequestSelectorName = "_webViewRequestPointerLock:"
     internal static let didLoseSelectorName = "_webViewDidLosePointerLock:"
+
+    /// Deliberately NOT implemented, and asserted absent by a test.
+    ///
+    /// WebKit probes for this older shape FIRST and, finding it, never calls the
+    /// completion-handler variant above. The legacy shape has no completion
+    /// handler — implementing it is meant to *be* the grant — but that path no
+    /// longer grants anything in current WebKit: the request is refused, and it
+    /// surfaces to the page as `WrongDocumentError: Pointer lock requires the
+    /// window to have focus`, which sends you hunting a focus bug that isn't
+    /// there. The window was key, main, and active; the document had focus.
+    ///
+    /// Proven by A/B on one page and one click, changing only this selector's
+    /// presence: implemented → `REJECTED WrongDocumentError` every time; hidden
+    /// → modern callback fires, `pointerlockchange` reports the canvas, the
+    /// promise resolves. Safari's own `BrowserUIDelegate` implements only the
+    /// modern selector plus the did-lose notification.
+    internal static let shadowingLegacySelectorName = "_webViewRequestPointerLock:"
 
     /// True while the page holds the pointer. Read by the window controller so
     /// Escape can mean "release the mouse" first and "leave fullscreen" second.
@@ -157,13 +173,6 @@ internal final class ArtifactPointerLockDelegate: NSObject, WKUIDelegate {
         // nothing further to validate — the page may capture the cursor.
         setLocked(true)
         completionHandler(true)
-    }
-
-    /// Older WebKit shape: no completion handler, and implementing it is itself
-    /// the grant.
-    @objc(_webViewRequestPointerLock:)
-    internal func webViewRequestPointerLock(_ webView: WKWebView) {
-        setLocked(true)
     }
 
     @objc(_webViewDidLosePointerLock:)

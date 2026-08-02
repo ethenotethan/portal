@@ -124,7 +124,6 @@ internal struct ArtifactStatusReflectionTests {
         let delegate = ArtifactPointerLockDelegate()
         for name in [
             ArtifactPointerLockDelegate.requestSelectorName,
-            ArtifactPointerLockDelegate.legacyRequestSelectorName,
             ArtifactPointerLockDelegate.didLoseSelectorName
         ] {
             #expect(
@@ -135,8 +134,23 @@ internal struct ArtifactStatusReflectionTests {
         // Names are load-bearing (WebKit looks them up as strings), so pin them.
         #expect(ArtifactPointerLockDelegate.requestSelectorName
             == "_webViewDidRequestPointerLock:completionHandler:")
-        #expect(ArtifactPointerLockDelegate.legacyRequestSelectorName == "_webViewRequestPointerLock:")
         #expect(ArtifactPointerLockDelegate.didLoseSelectorName == "_webViewDidLosePointerLock:")
+
+        // The absence is the fix, so it needs a test more than the presence does.
+        //
+        // WebKit probes the older no-completion-handler shape first and, finding
+        // it, never calls the modern callback. That path grants nothing today —
+        // the request is refused and reaches the page as "WrongDocumentError:
+        // Pointer lock requires the window to have focus", which reads like a
+        // focus bug and isn't one. Re-adding this method in a well-meaning
+        // "support older WebKit" change would silently break capture again, and
+        // the symptom would point somewhere else entirely.
+        #expect(
+            !delegate.responds(to: NSSelectorFromString(
+                ArtifactPointerLockDelegate.shadowingLegacySelectorName)),
+            "implementing the legacy request selector shadows the modern grant, so WebKit refuses every lock"
+        )
+        #expect(ArtifactPointerLockDelegate.shadowingLegacySelectorName == "_webViewRequestPointerLock:")
     }
 
     @MainActor
