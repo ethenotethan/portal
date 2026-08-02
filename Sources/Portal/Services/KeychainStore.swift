@@ -107,17 +107,6 @@ final class KeychainStore: Sendable {
         return String(data: data, encoding: .utf8)
     }
 
-    @discardableResult
-    func deleteAPIKey() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "api-key",
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
 
     // MARK: - Centaur API Key
 
@@ -176,17 +165,6 @@ final class KeychainStore: Sendable {
         return String(data: data, encoding: .utf8)
     }
 
-    @discardableResult
-    func deleteGatewayURL() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "gateway-url",
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
 
     // MARK: - Saved Gateways (multi-gateway switching)
 
@@ -217,17 +195,5 @@ final class KeychainStore: Sendable {
             return []
         }
         return gateways
-    }
-
-    @discardableResult
-    func deleteGateways() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "gateways",
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
     }
 }
