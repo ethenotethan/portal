@@ -40,6 +40,7 @@
 		103CE1B58F8983F75D2D7E85 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 3D06EB421886823BB02925A2 /* Lottie */; };
 		107DF6C32E1819D943FDB1CF /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = D6E47E40AB02CE8420175F03 /* SwiftMath */; };
 		117FF1757CC7FCF3A10C0F4E /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C5A6BD9058FFBC73F6DA5D /* QuizViewModel.swift */; };
+		12467E4D27B07826D65249A4 /* ArtifactKindRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */; };
 		1295B5C9D9CA34A18B1C2EA0 /* ThoughtGraphNodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E372F58CECB423374CD2B646 /* ThoughtGraphNodeView.swift */; };
 		12A70D29C3A4554EAFCB4BA3 /* ThemeCodeHighlightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45FA6A5C4912C0FFEA65FD1 /* ThemeCodeHighlightTests.swift */; };
 		131AD79E8F5D58FF5BA3AD40 /* NetworkGraphSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */; };
@@ -500,6 +501,7 @@
 		BEFD02ADA3BDD4AA1EF2FAC9 /* MacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE3B6C1EFCB811A5D18BAA2 /* MacApp.swift */; };
 		BFA38521487648E53DEC76CE /* PanelResizeMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06978D532A89D7EC02AC9581 /* PanelResizeMath.swift */; };
 		BFB8C9100FE2BCAA69D1D7C0 /* CronPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637DFFC10D2EF1186BEED8FB /* CronPoller.swift */; };
+		BFDDBDC75E903B7754EB50A7 /* ArtifactKindRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */; };
 		C045F520F719369EB83F7E92 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B47C0701C55C2BAB5AD0881 /* InAppBrowserView.swift */; };
 		C0FA768A8FE4339D73D7AD58 /* StatTileSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15A88948F5D06F0A1D967759 /* StatTileSpec.swift */; };
 		C10593DE88A9448DA0962D33 /* TTSService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C02A031706B1EC8320D4D5B /* TTSService.swift */; };
@@ -958,6 +960,7 @@
 		B4AC17A1478C3A7F66917307 /* MacScrollViewIntrospection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacScrollViewIntrospection.swift; sourceTree = "<group>"; };
 		B4C6F50238B9687A3FA94381 /* WikiEventsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsPageView.swift; sourceTree = "<group>"; };
 		B5084DB800931CA454D486AF /* CronCategoryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronCategoryEditor.swift; sourceTree = "<group>"; };
+		B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactKindRenderer.swift; sourceTree = "<group>"; };
 		B583DDF8C1CC472F01013B3D /* PerfCountHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfCountHarnessTests.swift; sourceTree = "<group>"; };
 		B6C645744B05EA678BF49FD4 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
 		B921CDF2A61D63D969101021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -1345,6 +1348,7 @@
 				52CE43DF56DCEA3FB7D6928C /* ArtifactExporter.swift */,
 				F53C79AD615D5B3D90F5E1D6 /* ArtifactExportMenu.swift */,
 				3DE7C202452509205D09D3F0 /* ArtifactFullscreenWindow.swift */,
+				B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */,
 				F3EE2574CB8766C197E708B1 /* ArtifactsPane.swift */,
 				EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */,
 				FC638C9FB93EE3E226D7FBE6 /* AttachmentChipView.swift */,
@@ -1981,6 +1985,7 @@
 				4FBE086429BCFD1E8CE721E2 /* ArtifactExporter.swift in Sources */,
 				B118AEB153F030DEFC89EC8C /* ArtifactFullscreenWindow.swift in Sources */,
 				C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */,
+				12467E4D27B07826D65249A4 /* ArtifactKindRenderer.swift in Sources */,
 				F24625D7FFB2855A6F5A156E /* ArtifactMaintenanceSection.swift in Sources */,
 				DBF737D082B6975F7B97D978 /* ArtifactPanel.swift in Sources */,
 				7AE15FD1286665E958DF5801 /* ArtifactParseError.swift in Sources */,
@@ -2366,6 +2371,7 @@
 				F57D557C919AA022CC6B8977 /* ArtifactExporter.swift in Sources */,
 				D3FA79D7ADD1B453D77A91A5 /* ArtifactFullscreenWindow.swift in Sources */,
 				B29C577C8E2751D987EBAEC9 /* ArtifactIntentSessionLink.swift in Sources */,
+				BFDDBDC75E903B7754EB50A7 /* ArtifactKindRenderer.swift in Sources */,
 				80E479037050EFD43F2DE88A /* ArtifactMaintenanceSection.swift in Sources */,
 				DA9E33B100B6C5D0FCF0B30B /* ArtifactPanel.swift in Sources */,
 				E2E88965B48A0458EB0AC99E /* ArtifactParseError.swift in Sources */,
