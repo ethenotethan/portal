@@ -2529,16 +2529,8 @@ if restoreSessionState(displayID: key) {
             isVoiceRecording = false
             // Stop recording first, then submit the transcript as the user's prompt.
             Task {
-                do {
-                    try await client.voiceRecord(action: "stop")
-                } catch {
-                    log.error("Voice recording stop after transcript failed: \(error.localizedDescription)")
-                }
-                do {
-                    try await client.voiceToggle(action: "off")
-                } catch {
-                    log.error("Voice mode shutdown after transcript failed: \(error.localizedDescription)")
-                }
+                do { try await client.voiceRecord(action: "stop") } catch { log.error("Voice recording stop after transcript failed: \(error.localizedDescription)") }
+                do { _ = try await client.voiceToggle(action: "off") } catch { log.error("Voice mode shutdown after transcript failed: \(error.localizedDescription)") }
                 inputText = text
                 await submitPrompt()
             }
