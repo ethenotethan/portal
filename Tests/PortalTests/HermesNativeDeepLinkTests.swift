@@ -70,6 +70,14 @@ internal struct HermesNativeDeepLinkTests {
         #expect(PortalDeepLink.session("abc123").url?.absoluteString == "hermesnative://session/abc123")
     }
 
+    @Test("An xOAuth link builds no URL — XAuthService owns the live callback URL")
+    internal func xOAuthBuildsNoURL() {
+        // The canonical URL for an OAuth callback carries ephemeral PKCE query
+        // params that only XAuthService knows at redirect time, so the static
+        // builder intentionally returns nil rather than emitting a stale URL.
+        #expect(PortalDeepLink.xOAuth(code: "abc", state: "xyz").url == nil)
+    }
+
     @Test("A session id with URL-reserved characters is percent-escaped when built")
     internal func buildEscapesSessionID() {
         let built = PortalDeepLink.session("a b#c").url
