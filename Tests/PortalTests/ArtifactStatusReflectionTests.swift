@@ -80,6 +80,22 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!js.contains("fetch("))
     }
 
+    /// The bug this pins: a world whose page requested the lock from its own
+    /// `click` handler captured fine, while an otherwise identical world relying
+    /// on this bridge did not — because the bridge asked only on `pointerdown`,
+    /// and WebKit does not honour every stage of a gesture equally. Offering the
+    /// request at each stage is what makes the two behave the same.
+    @Test("Pointer Lock bridge requests across the whole gesture, not just pointerdown")
+    internal func pointerLockBridgeRetriesAcrossGestureStages() {
+        let js = HTMLPointerLockBridge.userScriptSource
+        for stage in ["pointerdown", "mouseup", "click"] {
+            #expect(js.contains("'\(stage)'"), "\(stage) is a chance to be granted the lock")
+        }
+        // Re-entry must be free, or a granted lock would be re-requested twice
+        // more in the same gesture.
+        #expect(js.contains("if (!event.isTrusted || document.pointerLockElement) return"))
+    }
+
     @Test("Pointer Lock bridge captures through HUD overlays but not through controls")
     internal func pointerLockBridgeCapturesThroughOverlays() {
         let js = HTMLPointerLockBridge.userScriptSource
