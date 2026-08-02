@@ -154,13 +154,41 @@ internal struct ArtifactStatusReflectionTests {
     /// hides the cursor and starves those events, breaking a working scene.
     @Test("Auto pointer capture is scoped to html, not orbit-driven model3d")
     internal func autoPointerCaptureIsKindScoped() {
-        #expect(InteractiveArtifactWeb.autoCapturesPointer(kind: "html"))
-        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d"))
-        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "chart"))
+        let firstPerson = "<canvas id=c></canvas><script>onmousemove=e=>yaw+=e.movementX</script>"
+        #expect(InteractiveArtifactWeb.autoCapturesPointer(kind: "html", content: firstPerson))
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d", content: firstPerson))
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "chart", content: firstPerson))
         // Both kinds still get the immersive window itself.
         #expect(InteractiveArtifactWeb.supportsImmersiveFullscreen("html"))
         #expect(InteractiveArtifactWeb.supportsImmersiveFullscreen("model3d"))
         #expect(!InteractiveArtifactWeb.supportsImmersiveFullscreen("dataset"))
+    }
+
+    /// The regression this pins, observed on a real generated world: an html
+    /// world that turns its camera on `clientX` deltas was captured purely
+    /// because its kind was "html". Pointer Lock then froze `clientX`, so every
+    /// drag computed a zero delta — cursor gone, camera stuck, scene unusable.
+    /// Capture must therefore ask the document, not just its kind.
+    @Test("A drag-to-orbit html world is never captured — lock would freeze its clientX")
+    internal func autoPointerCaptureSkipsDragDrivenWorlds() {
+        let dragOrbit = """
+        <canvas id="c"></canvas><script>
+        let dragging=false,lastX=0;
+        addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;});
+        addEventListener('mousemove',e=>{if(dragging){yaw-=(e.clientX-lastX)*0.003;lastX=e.clientX;}});
+        </script>
+        """
+        #expect(!InteractiveArtifactWeb.pageUsesPointerLock(dragOrbit))
+        #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "html", content: dragOrbit))
+
+        // Each API a page can legitimately use to read relative motion counts.
+        for api in ["movementX", "movementY", "pointerLockElement",
+                    "requestPointerLock", "exitPointerLock", "PointerLockControls"] {
+            #expect(
+                InteractiveArtifactWeb.pageUsesPointerLock("<script>\(api)</script>"),
+                "\(api) means the page is written for a captured pointer"
+            )
+        }
     }
     #endif
 

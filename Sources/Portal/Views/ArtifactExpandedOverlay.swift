@@ -218,12 +218,16 @@ internal struct ArtifactExpandedOverlay: View {
     }
 
     private var liveRenderer: some View {
-        ArtifactKindRenderer(
+        let content = store.artifacts[artifact.id]?.content ?? artifact.content
+        return ArtifactKindRenderer(
             kind: artifact.kind,
-            content: store.artifacts[artifact.id]?.content ?? artifact.content,
+            content: content,
             actionableArtifactID: artifact.id,
             topLevelActions: artifact.topLevelActions,
-            capturesPointerInput: true,
+            // Not every expanded HTML artifact wants the cursor: a drag-to-orbit
+            // world is left unnavigable by capture, so ask the document first.
+            capturesPointerInput: InteractiveArtifactWeb.autoCapturesPointer(
+                kind: artifact.kind, content: content),
             onPointerLockChange: { pageHoldsPointer = $0 }
         )
     }
@@ -240,7 +244,8 @@ internal struct ArtifactExpandedOverlay: View {
         ArtifactFullscreenWindowController.shared.present(
             html: html,
             title: artifact.displayName,
-            autoCapturesPointer: InteractiveArtifactWeb.autoCapturesPointer(kind: artifact.kind)
+            autoCapturesPointer: InteractiveArtifactWeb.autoCapturesPointer(
+                kind: artifact.kind, content: content)
         )
     }
 

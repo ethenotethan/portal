@@ -46,18 +46,44 @@ internal enum InteractiveArtifactWeb {
         kind == "html" || kind == "model3d"
     }
 
+    /// JavaScript surface a page must touch to be navigable while the pointer is
+    /// locked. Under Pointer Lock the spec **freezes** `clientX`/`clientY` at
+    /// their last pre-lock values and reports motion only as `movementX` /
+    /// `movementY`, so a page that never mentions any of these cannot see the
+    /// mouse move at all once captured.
+    private static let pointerLockAPIs = [
+        "movementX", "movementY", "pointerLockElement",
+        "requestPointerLock", "exitPointerLock", "PointerLockControls"
+    ]
+
+    /// Whether `html` is authored to be driven by a captured pointer.
+    ///
+    /// A crude source sniff, deliberately: these identifiers are the literal API
+    /// a document *must* name to read relative motion, so their total absence is
+    /// conclusive — such a page cannot turn its camera under lock no matter what
+    /// else it does. False positives are harmless (a lock-aware page gets the
+    /// lock it wanted); a false negative just leaves the page with a visible
+    /// cursor, which is how it behaved before host capture existed.
+    internal static func pageUsesPointerLock(_ html: String) -> Bool {
+        pointerLockAPIs.contains { html.contains($0) }
+    }
+
     /// Whether the host should turn the first canvas click into a Pointer Lock
     /// request (`HTMLPointerLockBridge`).
     ///
-    /// Only `html`, where the page owns its own camera and a hidden cursor with
-    /// relative deltas is what first-person navigation needs. `model3d` renders
-    /// through `Model3DTemplate`'s **OrbitControls**, which drags on absolute
-    /// cursor positions — locking the pointer there hides the cursor and starves
-    /// the very events orbiting depends on, breaking a scene that worked. Pages
-    /// that genuinely want the lock can still call `requestPointerLock()`
+    /// Gated on `html` **and** on the document actually reading relative motion.
+    /// Kind alone is not enough: "html" covers both first-person worlds that need
+    /// a hidden cursor and drag-to-orbit worlds that rotate on `clientX` deltas.
+    /// Capturing the latter is strictly worse than doing nothing — the cursor
+    /// vanishes, `clientX` stops changing, and every drag computes a zero delta,
+    /// so the camera freezes and the scene becomes unnavigable. `model3d` fails
+    /// the sniff for the same reason it was excluded by name: `Model3DTemplate`
+    /// drives **OrbitControls** off absolute cursor positions.
+    ///
+    /// Pages that genuinely want the lock can still call `requestPointerLock()`
     /// themselves; the window grants it either way.
-    internal static func autoCapturesPointer(kind: String) -> Bool {
-        kind == "html"
+    internal static func autoCapturesPointer(kind: String, content: String) -> Bool {
+        kind == "html" && pageUsesPointerLock(content)
     }
 }
 
