@@ -45,9 +45,23 @@ struct CronListView: View {
                 // A move is fire-and-forget from the row context menu, so a
                 // rejected write has nowhere else to report itself.
                 if let error = cronViewModel.renameError {
-                    CronMoveErrorBanner(message: error) {
-                        cronViewModel.clearRenameError()
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange)
+                        Text(error)
+                            .font(.caption2).foregroundStyle(.orange)
+                            .lineLimit(3).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            cronViewModel.renameError = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.orange.opacity(0.8))
+                        }
+                        .buttonStyle(.plain).help("Dismiss")
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Color.orange.opacity(0.1))
                 }
             }
         }
@@ -242,8 +256,6 @@ struct CronListView: View {
               newName != job.name else { return }
         Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
     }
-
-
     /// Build an upstream Hermes dashboard client for a focused Standard gateway,
     /// or nil if its URL/token is unusable. Reads route through this instead of
     /// the WebSocket Gateway (Standard is HTTP-only).

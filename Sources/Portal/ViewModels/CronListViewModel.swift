@@ -32,7 +32,7 @@ internal final class CronListViewModel {
     /// different fixes. `cron.manage` only grew its `update` action recently, so a
     /// harness on an older build answers `unknown cron action` (error 4016), which
     /// is exactly the case a silent catch hides.
-    internal private(set) var renameError: String?
+    internal var renameError: String?
 
     private var gatewayClient: GatewayClient?
     /// When set, cron reads/actions route to the upstream Hermes dashboard over
@@ -256,11 +256,5 @@ internal final class CronListViewModel {
                 + "support cron.manage 'update'. Update the harness and try again."
         }
         return "Couldn't move the job: \(error.localizedDescription)"
-    }
-
-    /// Clear a surfaced move/rename failure — for when the user dismisses it or
-    /// starts another edit, so a stale message can't outlive the attempt.
-    internal func clearRenameError() {
-        renameError = nil
     }
 }
