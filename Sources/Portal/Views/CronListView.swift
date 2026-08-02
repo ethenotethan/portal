@@ -61,7 +61,8 @@ struct CronListView: View {
                 },
                 onRename: { newName in
                     Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
-                }
+                },
+                siblingJobs: cronViewModel.jobs
             )
             .environmentObject(gatewayClientWrapper)
         }
@@ -187,8 +188,50 @@ struct CronListView: View {
         // WebSocket Gateway offers it.
         if cronViewModel.supportsRemoveAndEdit {
             Divider()
+            moveMenu(for: job)
+            Divider()
             removeButton(for: job)
         }
+    }
+
+    /// Move a job straight from the list. The full editor lives in the detail
+    /// view, but reaching it meant opening a job first — so the one-tap case
+    /// (file this under a category that already exists) is offered here.
+    @ViewBuilder
+    private func moveMenu(for job: CronJob) -> some View {
+        let current = CronCategory.split(name: job.name).path
+        let paths = CronCategory.allPaths(in: cronViewModel.jobs)
+
+        Menu {
+            ForEach(paths, id: \.self) { path in
+                if path != current {
+                    Button {
+                        move(job, to: path)
+                    } label: {
+                        Label(CronCategory.displayPath(path), systemImage: "folder")
+                    }
+                }
+            }
+            if !current.isEmpty {
+                if !paths.isEmpty { Divider() }
+                Button {
+                    move(job, to: [])
+                } label: {
+                    Label("Ungrouped", systemImage: "tray")
+                }
+            }
+        } label: {
+            Label("Move to", systemImage: "folder")
+        }
+        // With nothing to move between, the submenu would be empty — the detail
+        // view's editor is where a first category gets created.
+        .disabled(paths.filter { $0 != current }.isEmpty && current.isEmpty)
+    }
+
+    private func move(_ job: CronJob, to path: [String]) {
+        guard let newName = CronCategory.moved(name: job.name, to: path),
+              newName != job.name else { return }
+        Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
     }
 
     /// Build an upstream Hermes dashboard client for a focused Standard gateway,
@@ -357,6 +400,9 @@ struct CronJobDetailView: View {
     /// derives the category path from the name. Not defaulted: a no-op default
     /// would leave the Move button looking live while doing nothing.
     internal let onRename: (String) -> Void
+    /// The other jobs in the list, so the Move picker can offer the categories
+    /// that already exist instead of asking the user to remember them.
+    internal var siblingJobs: [CronJob] = []
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false
@@ -379,7 +425,12 @@ struct CronJobDetailView: View {
                 // Renaming IS recategorizing — see CronCategoryEditor. Gateway
                 // only: Standard's dashboard API has no update endpoint.
                 if supportsRemoveAndEdit {
-                    CronCategoryEditor(name: job.name, isCompact: false, onRename: onRename)
+                    CronCategoryEditor(
+                        name: job.name,
+                        isCompact: false,
+                        siblingJobs: siblingJobs,
+                        onRename: onRename
+                    )
                 }
                 detailCard
                 if !runRecords.isEmpty {
