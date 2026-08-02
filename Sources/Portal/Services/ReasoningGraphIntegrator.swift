@@ -81,7 +81,7 @@ final class ReasoningGraphIntegrator: ObservableObject {
         isThinking = true
         defer { isThinking = false }
 
-        await summarizer.feed(delta: chunk)
+        summarizer.feed(delta: chunk)
         guard let summary = await summarizer.summarize() else { return }
         await summarizer.reset()
 
