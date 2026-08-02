@@ -1964,6 +1964,34 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return ArtifactRevision.from(response.result?.dictionaryValue?["revision"]?.dictionaryValue)
     }
 
+    // MARK: - Voice RPCs
+
+    /// Toggle voice mode on/off or check status.
+    internal func voiceToggle(action: String) async throws -> [String: AnyCodable]? {
+        let response = try await call("voice.toggle", params: ["action": AnyCodable(action)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return response.result?.dictionaryValue
+    }
+
+    /// Start or stop VAD-bounded push-to-talk capture.
+    /// On start, the gateway emits `voice.transcript` events with transcribed text.
+    internal func voiceRecord(action: String) async throws {
+        let response = try await call("voice.record", params: ["action": AnyCodable(action)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
+    /// Speak arbitrary text via the configured TTS provider.
+    internal func voiceTTS(text: String) async throws {
+        let response = try await call("voice.tts", params: ["text": AnyCodable(text)])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     // MARK: - Private
 
     /// Get a config value from the gateway.

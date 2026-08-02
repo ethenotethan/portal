@@ -243,6 +243,8 @@ final class ChatViewModel: ObservableObject {
     /// The visible session's current turn was started on another device.
     @Published private(set) var isRemoteTurn: Bool = false
     @Published private(set) var createGeneration: Int = 0
+    /// Voice recording state — true while the gateway is capturing audio via VAD.
+    @Published private(set) var isVoiceRecording: Bool = false
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -1495,6 +1497,39 @@ if restoreSessionState(displayID: key) {
         }
     }
 
+    // MARK: - Voice Recording
+
+    /// Start VAD-bounded voice recording. The gateway captures audio, runs
+    /// STT, and emits a `voice.transcript` event which is auto-submitted.
+    func startVoiceRecording() async {
+        guard let client = gatewayClient else { return }
+        guard backendCapabilities.supportsVoice else { return }
+        guard !isVoiceRecording else { return }
+        do {
+            try await client.voiceToggle(action: "on")
+            try await client.voiceRecord(action: "start")
+            // voice.status event will set isVoiceRecording = true when the
+            // gateway confirms recording state.
+        } catch {
+            log.error("Voice recording start failed: \(error.localizedDescription)")
+            self.error = "Voice recording failed to start"
+        }
+    }
+
+    /// Stop the current voice recording session.
+    func stopVoiceRecording() async {
+        guard let client = gatewayClient else { return }
+        guard isVoiceRecording else { return }
+        do {
+            try await client.voiceRecord(action: "stop")
+            try await client.voiceToggle(action: "off")
+            isVoiceRecording = false
+        } catch {
+            log.error("Voice recording stop failed: \(error.localizedDescription)")
+            isVoiceRecording = false
+        }
+    }
+
     /// Ingest one attachment and return the prompt fragment representing it, or
     /// nil if the attachment couldn't be ingested (missing/empty/failed upload).
     /// Best-effort by contract: this never throws, so one bad attachment can't
@@ -2479,10 +2514,29 @@ if restoreSessionState(displayID: key) {
         case .toolGenerating, .reasoningAvailable,
              .gatewayReady, .skinChanged, .backgroundComplete,
              .sudoRequest, .secretRequest,
-             .voiceTranscript, .voiceStatus,
              .activityCreated, .activityUpdated,
               .reviewSummary:
             break
+
+        case .voiceTranscript(let text, let noSpeechLimit):
+            // Walkie-talkie mode: auto-submit transcribed speech as a prompt.
+            guard !isStopping, let client = gatewayClient, let sid = sessionID else { break }
+            // If gateway says no_speech or text is empty, just stop recording.
+            guard !noSpeechLimit, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                isVoiceRecording = false
+                break
+            }
+            isVoiceRecording = false
+            // Stop recording first, then submit the transcript as the user's prompt.
+            Task {
+                try? await client.voiceRecord(action: "stop")
+                try? await client.voiceToggle(action: "off")
+                inputText = text
+                await submitPrompt()
+            }
+
+        case .voiceStatus(let state):
+            isVoiceRecording = (state == "recording")
         }
 
         // Persist state for lifecycle events, but use slim metadata for
