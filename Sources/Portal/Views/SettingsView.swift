@@ -106,6 +106,21 @@ internal struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
 
+                // A Keychain write that failed used to be invisible: the new
+                // harness appeared here and vanished on the next launch.
+                if let persistError = settings.gatewayPersistenceError {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11))
+                        Text(persistError)
+                            .font(.system(size: 11))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                }
+
                 Spacer()
             }
             .padding(.horizontal, 10)
