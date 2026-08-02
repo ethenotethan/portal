@@ -305,7 +305,8 @@ internal enum ArtifactExporter {
                 ArtifactKindRenderer(
                     kind: artifact.kind,
                     content: artifact.content,
-                    actionableArtifactID: nil
+                    actionableArtifactID: nil,
+                    suppressesPointerCapture: true
                 )
             )
         default:
@@ -318,7 +319,8 @@ internal enum ArtifactExporter {
                 ArtifactKindRenderer(
                     kind: artifact.kind,
                     content: artifact.content,
-                    actionableArtifactID: nil
+                    actionableArtifactID: nil,
+                    suppressesPointerCapture: true
                 )
             )
         }
