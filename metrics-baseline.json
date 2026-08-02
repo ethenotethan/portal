@@ -8,12 +8,12 @@
       "msg:application-of-result-builder-x-disabled": 1,
       "msg:converting-non-sendable-function-value-to": 1,
       "msg:main-actor-isolated-property-x-can": 16,
-      "msg:no-x-operations-occur-within-x": 2,
+      "msg:no-x-operations-occur-within-x": 1,
       "msg:passing-closure-as-a-x-parameter": 2,
       "msg:stored-property-x-of-x-conforming": 1,
       "msg:x-on-conformance-to-x-has": 1
     },
-    "total": 46,
+    "total": 45,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -50,12 +50,6 @@
         "line": 99,
         "col": 19,
         "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
-        "line": 84,
-        "col": 9,
-        "category": "msg:no-x-operations-occur-within-x"
       },
       {
         "file": "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
