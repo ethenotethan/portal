@@ -1984,14 +1984,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
-    /// Speak arbitrary text via the configured TTS provider.
-    internal func voiceTTS(text: String) async throws {
-        let response = try await call("voice.tts", params: ["text": AnyCodable(text)])
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-    }
-
     // MARK: - Private
 
     /// Get a config value from the gateway.
