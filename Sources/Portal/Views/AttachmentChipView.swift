@@ -491,7 +491,7 @@ internal struct AudioPreview: View {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
             } catch {
-                self.error = "Could not activate audio playback: \(error.localizedDescription)"
+                self.error = "Couldn’t activate audio playback: \(error.localizedDescription)"
                 return
             }
             #endif
@@ -606,11 +606,11 @@ struct FileWebViewUIView: UIViewRepresentable {
 
 // MARK: - Image Preview
 
-internal struct ImagePreview: View {
-    internal let filePath: String?
-    internal let data: Data?
+struct ImagePreview: View {
+    let filePath: String?
+    let data: Data?
 
-    internal init(filePath: String) {
+    init(filePath: String) {
         self.filePath = filePath
         self.data = nil
     }

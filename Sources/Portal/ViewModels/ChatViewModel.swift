@@ -1506,7 +1506,7 @@ if restoreSessionState(displayID: key) {
         guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
         do {
-            try await client.voiceToggle(action: "on")
+            _ = try await client.voiceToggle(action: "on")
             try await client.voiceRecord(action: "start")
             // voice.status event will set isVoiceRecording = true when the
             // gateway confirms recording state.
@@ -1522,7 +1522,7 @@ if restoreSessionState(displayID: key) {
         guard isVoiceRecording else { return }
         do {
             try await client.voiceRecord(action: "stop")
-            try await client.voiceToggle(action: "off")
+            _ = try await client.voiceToggle(action: "off")
             isVoiceRecording = false
         } catch {
             log.error("Voice recording stop failed: \(error.localizedDescription)")
@@ -2520,7 +2520,7 @@ if restoreSessionState(displayID: key) {
 
         case .voiceTranscript(let text, let noSpeechLimit):
             // Walkie-talkie mode: auto-submit transcribed speech as a prompt.
-            guard !isStopping, let client = gatewayClient, let sid = sessionID else { break }
+            guard !isStopping, let client = gatewayClient, sessionID != nil else { break }
             // If gateway says no_speech or text is empty, just stop recording.
             guard !noSpeechLimit, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 isVoiceRecording = false
@@ -2529,8 +2529,16 @@ if restoreSessionState(displayID: key) {
             isVoiceRecording = false
             // Stop recording first, then submit the transcript as the user's prompt.
             Task {
-                do { try await client.voiceRecord(action: "stop") } catch { log.error("Voice recording stop after transcript failed: \(error.localizedDescription)") }
-                do { _ = try await client.voiceToggle(action: "off") } catch { log.error("Voice mode shutdown after transcript failed: \(error.localizedDescription)") }
+                do {
+                    try await client.voiceRecord(action: "stop")
+                } catch {
+                    log.warning("Voice recording cleanup failed: \(error.localizedDescription)")
+                }
+                do {
+                    _ = try await client.voiceToggle(action: "off")
+                } catch {
+                    log.warning("Voice mode cleanup failed: \(error.localizedDescription)")
+                }
                 inputText = text
                 await submitPrompt()
             }
