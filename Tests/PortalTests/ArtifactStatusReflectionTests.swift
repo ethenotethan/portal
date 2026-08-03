@@ -80,6 +80,22 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!js.contains("fetch("))
     }
 
+    /// The bug this pins: a world whose page requested the lock from its own
+    /// `click` handler captured fine, while an otherwise identical world relying
+    /// on this bridge did not — because the bridge asked only on `pointerdown`,
+    /// and WebKit does not honour every stage of a gesture equally. Offering the
+    /// request at each stage is what makes the two behave the same.
+    @Test("Pointer Lock bridge requests across the whole gesture, not just pointerdown")
+    internal func pointerLockBridgeRetriesAcrossGestureStages() {
+        let js = HTMLPointerLockBridge.userScriptSource
+        for stage in ["pointerdown", "mouseup", "click"] {
+            #expect(js.contains("'\(stage)'"), "\(stage) is a chance to be granted the lock")
+        }
+        // Re-entry must be free, or a granted lock would be re-requested twice
+        // more in the same gesture.
+        #expect(js.contains("if (!event.isTrusted || document.pointerLockElement) return"))
+    }
+
     @Test("Pointer Lock bridge captures through HUD overlays but not through controls")
     internal func pointerLockBridgeCapturesThroughOverlays() {
         let js = HTMLPointerLockBridge.userScriptSource
@@ -108,7 +124,6 @@ internal struct ArtifactStatusReflectionTests {
         let delegate = ArtifactPointerLockDelegate()
         for name in [
             ArtifactPointerLockDelegate.requestSelectorName,
-            ArtifactPointerLockDelegate.legacyRequestSelectorName,
             ArtifactPointerLockDelegate.didLoseSelectorName
         ] {
             #expect(
@@ -119,8 +134,23 @@ internal struct ArtifactStatusReflectionTests {
         // Names are load-bearing (WebKit looks them up as strings), so pin them.
         #expect(ArtifactPointerLockDelegate.requestSelectorName
             == "_webViewDidRequestPointerLock:completionHandler:")
-        #expect(ArtifactPointerLockDelegate.legacyRequestSelectorName == "_webViewRequestPointerLock:")
         #expect(ArtifactPointerLockDelegate.didLoseSelectorName == "_webViewDidLosePointerLock:")
+
+        // The absence is the fix, so it needs a test more than the presence does.
+        //
+        // WebKit probes the older no-completion-handler shape first and, finding
+        // it, never calls the modern callback. That path grants nothing today —
+        // the request is refused and reaches the page as "WrongDocumentError:
+        // Pointer lock requires the window to have focus", which reads like a
+        // focus bug and isn't one. Re-adding this method in a well-meaning
+        // "support older WebKit" change would silently break capture again, and
+        // the symptom would point somewhere else entirely.
+        #expect(
+            !delegate.responds(to: NSSelectorFromString(
+                ArtifactPointerLockDelegate.shadowingLegacySelectorName)),
+            "implementing the legacy request selector shadows the modern grant, so WebKit refuses every lock"
+        )
+        #expect(ArtifactPointerLockDelegate.shadowingLegacySelectorName == "_webViewRequestPointerLock:")
     }
 
     @MainActor
@@ -203,6 +233,34 @@ internal struct ArtifactStatusReflectionTests {
         #expect(!InteractiveArtifactWeb.pageDragsToLook(inert))
         // Kind still dominates: model3d's OrbitControls needs a real cursor.
         #expect(!InteractiveArtifactWeb.autoCapturesPointer(kind: "model3d", content: dragOrbit))
+    }
+
+    /// The bug this pins: capture used to be an opt-in flag on the renderer that
+    /// defaulted to false, and the artifact canvas — the view you land in when you
+    /// click an artifact open — never set it. So the same world captured the mouse
+    /// in the expanded overlay and could only be dragged in the canvas. Nothing
+    /// about a call site says whether a document is a world; the document does.
+    /// Assert a renderer constructed with no capture argument at all still
+    /// captures, and that a static presentation can still opt out.
+    @MainActor
+    @Test("Capture is derived from the document, not opted into per call site")
+    internal func rendererDerivesCaptureFromContent() {
+        let world = """
+        <canvas id="c"></canvas><script>
+        addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;});
+        addEventListener('mousemove',e=>{if(dragging){yaw-=(e.clientX-lastX);lastX=e.clientX;}});
+        </script>
+        """
+        // No `suppressesPointerCapture:` — the default must not disable the feature.
+        #expect(ArtifactKindRenderer(kind: "html", content: world).capturesPointerInputForTesting)
+        // A revision preview / export is a picture of the artifact, not a world
+        // to drive, and stays inert even though the content is identical.
+        #expect(!ArtifactKindRenderer(
+            kind: "html", content: world, suppressesPointerCapture: true
+        ).capturesPointerInputForTesting)
+        // Kind still dominates, and an inert document is never captured.
+        #expect(!ArtifactKindRenderer(kind: "model3d", content: world).capturesPointerInputForTesting)
+        #expect(!ArtifactKindRenderer(kind: "html", content: "<h1>report</h1>").capturesPointerInputForTesting)
     }
 
     /// The shim replaces the trusted `mousemove` rather than adding to it. If the
