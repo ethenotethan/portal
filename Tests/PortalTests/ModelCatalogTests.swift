@@ -80,4 +80,30 @@ struct ModelCatalogTests {
         let bare = ModelSwitchOutcome.from(nil)
         #expect(!bare.confirmRequired)
     }
+
+    @Test("Provider id matches its slug")
+    internal func providerIDIsSlug() {
+        let provider = ModelCatalog.Provider(
+            slug: "my-provider", name: "My Provider",
+            models: ["model-a", "model-b"],
+            authenticated: true, isCurrent: false
+        )
+        #expect(provider.id == "my-provider")
+    }
+
+    @Test("ModelSwitchConfirmation id matches its model string")
+    internal func confirmationIDIsModel() {
+        let confirmation = ModelSwitchConfirmation(
+            model: "nousresearch/hermes-4-70b",
+            message: "This model costs $5/Mtok. Continue?",
+            provider: "nous"
+        )
+        #expect(confirmation.id == "nousresearch/hermes-4-70b")
+    }
+
+    @Test("displayName delegates to AgentModel")
+    internal func displayNameDelegates() {
+        let name = ModelCatalog.displayName(for: "nousresearch/hermes-4-405b")
+        #expect(name == "Hermes 4 405B")
+    }
 }
