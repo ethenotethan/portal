@@ -2531,7 +2531,7 @@ if restoreSessionState(displayID: key) {
             Task {
                 do {
                     try await client.voiceRecord(action: "stop")
-                    try await client.voiceToggle(action: "off")
+                    _ = try await client.voiceToggle(action: "off")
                 } catch {
                     log.error("Voice recording cleanup failed: \(error.localizedDescription)")
                 }

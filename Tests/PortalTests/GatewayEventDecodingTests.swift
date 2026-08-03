@@ -339,4 +339,26 @@ struct ChatViewModelNewEventTests {
         vm.receiveGatewayEventForTesting(.statusUpdate(kind: "browser", text: "navigating"), sessionID: "s1")
         #expect(vm.transientStatus == "navigating")
     }
+
+    @Test("voice transcript cleanup failure still leaves recording mode")
+    @MainActor
+    internal func voiceTranscriptCleanupFailureStopsRecording() async throws {
+        let client = GatewayClient(
+            gatewayURL: try #require(URL(string: "ws://127.0.0.1:9/v1/ws")),
+            apiKey: "test"
+        )
+        let vm = ChatViewModel()
+        vm.setGatewayClient(client)
+        _ = vm.beginSwitchToSession(key: "s1")
+        vm.receiveGatewayEventForTesting(.voiceStatus(state: "recording"), sessionID: "s1")
+
+        vm.receiveGatewayEventForTesting(
+            .voiceTranscript(text: "hello", noSpeechLimit: false),
+            sessionID: "s1"
+        )
+        await Task.yield()
+
+        #expect(vm.isVoiceRecording == false)
+        client.disconnect()
+    }
 }

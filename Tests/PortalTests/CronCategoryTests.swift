@@ -171,6 +171,34 @@ internal struct CronCategoryTests {
         #expect(CronListViewModel.renameParams(id: "job-7", newName: "///") == nil)
     }
 
+    @MainActor
+    @Test("rename without a gateway reports why the move is unavailable")
+    internal func renameWithoutGatewayReportsFailure() async {
+        let viewModel = CronListViewModel()
+
+        await viewModel.renameJob(id: "job-7", newName: "infra/db-backup")
+
+        #expect(viewModel.renameError?.contains("no update endpoint") == true)
+    }
+
+    @MainActor
+    @Test("rename reports invalid input and disconnected gateway failures")
+    internal func renameReportsGatewayPathFailures() async throws {
+        let client = GatewayClient(
+            gatewayURL: try #require(URL(string: "ws://127.0.0.1:9/v1/ws")),
+            apiKey: "test"
+        )
+        let viewModel = CronListViewModel()
+        viewModel.setGatewayClient(client)
+
+        await viewModel.renameJob(id: "job-7", newName: "///")
+        #expect(viewModel.renameError?.contains("empty") == true)
+
+        await viewModel.renameJob(id: "job-7", newName: "infra/db-backup")
+        #expect(viewModel.renameError?.contains("Couldn't move") == true)
+        client.disconnect()
+    }
+
     // MARK: - Reporting a failed move
 
     /// `cron.manage` only grew its `update` action recently (hermes-agent PR #41),
