@@ -491,7 +491,7 @@ internal struct AudioPreview: View {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
             } catch {
-                self.error = "Audio playback setup failed: \(error.localizedDescription)"
+                self.error = "Couldn’t activate audio playback: \(error.localizedDescription)"
                 return
             }
             #endif

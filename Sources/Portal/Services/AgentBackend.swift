@@ -103,6 +103,7 @@ protocol AgentBackend: AnyObject {
     func voiceToggle(action: String) async throws -> [String: AnyCodable]?
     /// Start or stop VAD-bounded push-to-talk capture.
     func voiceRecord(action: String) async throws
+
     // MARK: Diagnostics
 
     func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String)
