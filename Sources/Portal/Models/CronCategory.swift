@@ -90,6 +90,101 @@ internal enum CronCategory {
         guard let next = normalize(name: raw) else { return false }
         return next != current
     }
+
+    // MARK: - Moving without retyping the name
+
+    /// The full name that puts `name`'s leaf under `path`, keeping the leaf as-is.
+    ///
+    /// `("morning-run", ["life", "training"])` → `"life/training/morning-run"`
+    /// `("life/training/run", [])` → `"run"` (move to Ungrouped)
+    ///
+    /// This is the counterpart to `split(name:)`: the editor used to make the
+    /// user retype the whole path *including the leaf* just to relocate a job,
+    /// which meant re-entering the job's identity to change its folder — and one
+    /// typo silently renamed it instead of moving it. Destination and identity
+    /// are separate concerns, so moving takes a path and preserves the leaf.
+    ///
+    /// Returns nil when the name has no usable leaf, so callers can't write a
+    /// name that is only separators.
+    internal static func moved(name: String, to path: [String]) -> String? {
+        guard let leaf = normalize(name: name).map({ split(name: $0).title }) else { return nil }
+        let cleanPath = path
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return (cleanPath + [leaf]).joined(separator: String(separator))
+    }
+
+    /// Every category path present in `jobs`, including intermediate levels, each
+    /// sorted shallowest-first then alphabetically.
+    ///
+    /// Powers the destination picker: the whole point is to *choose* an existing
+    /// category rather than remember and retype it. Intermediates are included
+    /// (`life` when only `life/training` holds jobs) because moving a job up one
+    /// level is as reasonable as moving it down.
+    internal static func allPaths(in jobs: [CronJob]) -> [[String]] {
+        var seen: Set<[String]> = []
+        for job in jobs {
+            let path = Self.path(for: job)
+            guard !path.isEmpty else { continue }
+            for depth in 1...path.count {
+                seen.insert(Array(path.prefix(depth)))
+            }
+        }
+        return seen.sorted { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count < rhs.count }
+            for (l, r) in zip(lhs, rhs) where l != r {
+                return l.localizedCaseInsensitiveCompare(r) == .orderedAscending
+            }
+            return false
+        }
+    }
+
+    /// A path rendered for display: `["life", "training"]` → `"life › training"`,
+    /// and the root as "Ungrouped" so an empty destination is never a blank row.
+    internal static func displayPath(_ path: [String]) -> String {
+        path.isEmpty ? "Ungrouped" : path.joined(separator: " › ")
+    }
+
+    // MARK: - The cost of overloading the name
+
+    /// The categories a typed name would silently create, when it looks more like
+    /// a title that happens to contain a slash than a deliberate path.
+    ///
+    /// This is the price of deriving the category from the name: `/` is reserved,
+    /// so `A/B testing digest` files under a category named `A` and the job becomes
+    /// `B testing digest`. That is a real thing to want to name a job, and the
+    /// convention gives no way to escape the separator — so the least we can do is
+    /// not let it happen silently.
+    ///
+    /// Returns nil when there's nothing to warn about. Two signals, both narrow,
+    /// because a warning that fires on `life/training/morning-run` is worse than no
+    /// warning at all — it trains the user to ignore it:
+    ///
+    /// 1. A *path* component containing a space (`A B/testing digest`). Categories
+    ///    are slugs; prose in one means the slash wasn't meant as a separator.
+    /// 2. A prose leaf under a 1–2 character category (`A/B testing digest`,
+    ///    `I/O latency check`, `24/7 uptime probe`). Very short categories are
+    ///    legitimate but rare, and paired with a spaced leaf they almost always
+    ///    indicate an abbreviation that happens to contain a slash.
+    ///
+    /// Advisory only — callers warn, they don't block, because the user may
+    /// genuinely mean it and the convention offers no way to escape the separator.
+    internal static func separatorWarning(for raw: String) -> String? {
+        guard let normalized = normalize(name: raw) else { return nil }
+        let parts = normalized.split(separator: separator).map(String.init)
+        guard parts.count > 1 else { return nil }
+
+        let pathParts = Array(parts.dropLast())
+        let leaf = parts[parts.count - 1]
+
+        let proseInPath = pathParts.contains { $0.contains(" ") }
+        let abbreviation = leaf.contains(" ") && pathParts.contains { $0.count <= 2 }
+        guard proseInPath || abbreviation else { return nil }
+
+        let categories = pathParts.joined(separator: " › ")
+        return "“\(separator)” separates categories, so this files under \(categories). "
+            + "Remove the slash if you meant it as part of the name."
+    }
 }
 
 // MARK: - Tree

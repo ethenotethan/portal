@@ -38,8 +38,15 @@ struct CronListView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if !cronViewModel.jobs.isEmpty {
-                CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+            VStack(spacing: 0) {
+                if !cronViewModel.jobs.isEmpty {
+                    CronSearchBar(filterState: filterState, jobs: cronViewModel.jobs)
+                }
+                // A move is fire-and-forget from the row context menu, so a
+                // rejected write has nowhere else to report itself.
+                if let error = cronViewModel.renameError {
+                    moveErrorBanner(error)
+                }
             }
         }
         #if os(macOS)
@@ -61,7 +68,8 @@ struct CronListView: View {
                 },
                 onRename: { newName in
                     Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
-                }
+                },
+                siblingJobs: cronViewModel.jobs
             )
             .environmentObject(gatewayClientWrapper)
         }
@@ -187,9 +195,83 @@ struct CronListView: View {
         // WebSocket Gateway offers it.
         if cronViewModel.supportsRemoveAndEdit {
             Divider()
+            moveMenu(for: job)
+            Divider()
             removeButton(for: job)
         }
     }
+
+    /// Move a job straight from the list. The full editor lives in the detail
+    /// view, but reaching it meant opening a job first — so the one-tap case
+    /// (file this under a category that already exists) is offered here.
+    @ViewBuilder
+    private func moveMenu(for job: CronJob) -> some View {
+        let current = CronCategory.split(name: job.name).path
+        let paths = CronCategory.allPaths(in: cronViewModel.jobs)
+
+        Menu {
+            ForEach(paths.filter { $0 != current }, id: \.self) { path in
+                Button { move(job, to: path) } label: {
+                    Label(CronCategory.displayPath(path), systemImage: "folder")
+                }
+            }
+            if !current.isEmpty {
+                if !paths.isEmpty { Divider() }
+                Button { move(job, to: []) } label: {
+                    Label("Ungrouped", systemImage: "tray")
+                }
+            }
+        } label: {
+            Label("Move to", systemImage: "folder")
+        }
+        // With nothing to move between, the submenu would be empty — the detail
+        // view's editor is where a first category gets created.
+        .disabled(paths.filter { $0 != current }.isEmpty && current.isEmpty)
+    }
+
+    private func move(_ job: CronJob, to path: [String]) {
+        guard let newName = CronCategory.moved(name: job.name, to: path),
+              newName != job.name else { return }
+        Task { await cronViewModel.renameJob(id: job.id, newName: newName) }
+    }
+
+    /// Why the last move failed, dismissible. Matches the run-error styling on the
+    /// job card rather than inventing a second error idiom for the Cron page.
+    ///
+    /// Moving a job is fire-and-forget from a row context menu — there's no sheet to
+    /// hold an inline error and no button left on screen to turn red. Without this
+    /// the failure was logged and dropped, which is indistinguishable from success:
+    /// the list refreshes unchanged and the job sits where it started.
+    ///
+    /// A member rather than its own `View` struct on purpose: Periphery can't see
+    /// SwiftUI-only construction, so a top-level banner view read as an unused
+    /// declaration and tripped the dead-code ratchet. Members of an already-flagged
+    /// view aren't reported separately.
+    private func moveErrorBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+            // Selectable: a version-skew message is something the user may want to
+            // paste into an issue against the harness.
+            Text(message)
+                .font(.caption2)
+                .lineLimit(3)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button { cronViewModel.renameError = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.8)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.orange.opacity(0.1))
+    }
+
 
     /// Build an upstream Hermes dashboard client for a focused Standard gateway,
     /// or nil if its URL/token is unusable. Reads route through this instead of
@@ -357,6 +439,9 @@ struct CronJobDetailView: View {
     /// derives the category path from the name. Not defaulted: a no-op default
     /// would leave the Move button looking live while doing nothing.
     internal let onRename: (String) -> Void
+    /// The other jobs in the list, so the Move picker can offer the categories
+    /// that already exist instead of asking the user to remember them.
+    internal var siblingJobs: [CronJob] = []
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var runStore = CronRunHistoryStore.shared
     @State private var isPromptExpanded = false
@@ -379,7 +464,12 @@ struct CronJobDetailView: View {
                 // Renaming IS recategorizing — see CronCategoryEditor. Gateway
                 // only: Standard's dashboard API has no update endpoint.
                 if supportsRemoveAndEdit {
-                    CronCategoryEditor(name: job.name, isCompact: false, onRename: onRename)
+                    CronCategoryEditor(
+                        name: job.name,
+                        isCompact: false,
+                        siblingJobs: siblingJobs,
+                        onRename: onRename
+                    )
                 }
                 detailCard
                 if !runRecords.isEmpty {

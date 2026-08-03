@@ -19,6 +19,13 @@ internal struct CronJobCard: View {
     /// rather than defaulted: a no-op default would leave the Move button
     /// looking live while doing nothing.
     internal let onRename: (String) -> Void
+    /// The other jobs in the list, so the Move picker can offer existing
+    /// categories rather than making the user retype a path.
+    internal var siblingJobs: [CronJob] = []
+    /// Standard's dashboard API has no update endpoint, so the category card
+    /// hides there — it was previously shown unconditionally on this card while
+    /// the detail view gated it, offering a Move that could not work.
+    internal var supportsRemoveAndEdit = true
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -37,7 +44,9 @@ internal struct CronJobCard: View {
         onResume: @escaping () -> Void,
         onRemove: @escaping () -> Void,
         onUpdatePrompt: @escaping (String) -> Void,
-        onRename: @escaping (String) -> Void
+        onRename: @escaping (String) -> Void,
+        siblingJobs: [CronJob] = [],
+        supportsRemoveAndEdit: Bool = true
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -48,6 +57,8 @@ internal struct CronJobCard: View {
         self.onRemove = onRemove
         self.onUpdatePrompt = onUpdatePrompt
         self.onRename = onRename
+        self.siblingJobs = siblingJobs
+        self.supportsRemoveAndEdit = supportsRemoveAndEdit
     }
 
     private var displayJob: CronJob { job }
@@ -64,11 +75,14 @@ internal struct CronJobCard: View {
                     statsStrip
                     healthBar
                     errorBanner
-                    CronCategoryEditor(
-                        name: displayJob.name,
-                        isCompact: true,
-                        onRename: onRename
-                    )
+                    if supportsRemoveAndEdit {
+                        CronCategoryEditor(
+                            name: displayJob.name,
+                            isCompact: true,
+                            siblingJobs: siblingJobs,
+                            onRename: onRename
+                        )
+                    }
                     detailRows
                     promptSection
                     recentRuns
