@@ -46,7 +46,7 @@ struct CronListView: View {
                 // rejected write has nowhere else to report itself.
                 if let error = cronViewModel.renameError {
                     CronMoveErrorBanner(message: error) {
-                        cronViewModel.clearRenameError()
+                        cronViewModel.renameError = nil
                     }
                 }
             }
