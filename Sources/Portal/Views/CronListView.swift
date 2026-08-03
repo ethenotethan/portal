@@ -45,9 +45,23 @@ struct CronListView: View {
                 // A move is fire-and-forget from the row context menu, so a
                 // rejected write has nowhere else to report itself.
                 if let error = cronViewModel.renameError {
-                    CronMoveErrorBanner(message: error) {
-                        cronViewModel.clearRenameError()
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2).foregroundStyle(.orange)
+                        Text(error)
+                            .font(.caption2).foregroundStyle(.orange)
+                            .lineLimit(3).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button {
+                            cronViewModel.renameError = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .semibold)).foregroundStyle(.orange.opacity(0.8))
+                        }
+                        .buttonStyle(.plain).help("Dismiss")
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Color.orange.opacity(0.1))
                 }
             }
         }

@@ -244,7 +244,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var isRemoteTurn: Bool = false
     @Published private(set) var createGeneration: Int = 0
     /// Voice recording state — true while the gateway is capturing audio via VAD.
-    @Published private(set) var isVoiceRecording: Bool = false
+    @Published internal private(set) var isVoiceRecording: Bool = false
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -1501,7 +1501,7 @@ if restoreSessionState(displayID: key) {
 
     /// Start VAD-bounded voice recording. The gateway captures audio, runs
     /// STT, and emits a `voice.transcript` event which is auto-submitted.
-    func startVoiceRecording() async {
+    internal func startVoiceRecording() async {
         guard let client = gatewayClient else { return }
         guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
@@ -1517,7 +1517,7 @@ if restoreSessionState(displayID: key) {
     }
 
     /// Stop the current voice recording session.
-    func stopVoiceRecording() async {
+    internal func stopVoiceRecording() async {
         guard let client = gatewayClient else { return }
         guard isVoiceRecording else { return }
         do {
@@ -2529,8 +2529,12 @@ if restoreSessionState(displayID: key) {
             isVoiceRecording = false
             // Stop recording first, then submit the transcript as the user's prompt.
             Task {
-                try? await client.voiceRecord(action: "stop")
-                try? await client.voiceToggle(action: "off")
+                do {
+                    try await client.voiceRecord(action: "stop")
+                    try await client.voiceToggle(action: "off")
+                } catch {
+                    log.error("Voice recording cleanup failed: \(error.localizedDescription)")
+                }
                 inputText = text
                 await submitPrompt()
             }

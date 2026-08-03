@@ -381,12 +381,12 @@ internal struct AudioPreview: View {
     internal let url: URL?
     internal let data: Data?
 
-    init(url: URL) {
+    internal init(url: URL) {
         self.url = url
         self.data = nil
     }
 
-    init(data: Data) {
+    internal init(data: Data) {
         self.url = nil
         self.data = data
     }
@@ -487,8 +487,13 @@ internal struct AudioPreview: View {
             isPlaying = false
         } else {
             #if os(iOS)
-            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try? AVAudioSession.sharedInstance().setActive(true)
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+            } catch {
+                self.error = "Audio playback setup failed: \(error.localizedDescription)"
+                return
+            }
             #endif
             player.play()
             isPlaying = true
@@ -610,7 +615,7 @@ struct ImagePreview: View {
         self.data = nil
     }
 
-    init(data: Data) {
+    internal init(data: Data) {
         self.filePath = nil
         self.data = data
     }
