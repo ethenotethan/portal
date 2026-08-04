@@ -178,6 +178,7 @@ struct WikiGraphView: View {
                     WikiTimelineView(
                         wiki: viewModel.selectedWikiPath,
                         selectedPagePath: viewModel.selectedPath,
+                        eventTypes: viewModel.eventTypes,
                         onOpenPage: { path in openPageFromTimeline(path) },
                         onClose: { viewModel.showTimeline = false }
                     )
@@ -257,6 +258,7 @@ struct WikiGraphView: View {
                 WikiTimelineView(
                     wiki: viewModel.selectedWikiPath,
                     selectedPagePath: viewModel.selectedPath,
+                    eventTypes: viewModel.eventTypes,
                     onOpenPage: { path in
                         viewModel.showTimeline = false
                         openPageFromTimeline(path)

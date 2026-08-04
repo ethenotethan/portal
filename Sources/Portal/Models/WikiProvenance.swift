@@ -14,7 +14,7 @@ import Foundation
 /// changeset must declare provenance — events, or explicitly none-with-reason.
 /// Then `unknown` means precisely "this predates enforcement" and its count
 /// only shrinks.
-internal enum WikiProvenance: Equatable {
+internal enum WikiProvenance: Equatable, Hashable {
     /// No provenance recorded. Not a claim that none exists.
     case unknown
     /// The events that caused this change, in the order the backend listed
@@ -35,6 +35,22 @@ internal enum WikiProvenance: Equatable {
             .filter { !$0.isEmpty }
             .map(WikiEventRef.init(key:))
         return refs.isEmpty ? .unknown : .events(refs)
+    }
+
+    /// Decode with the legacy single-`source` field folded in.
+    ///
+    /// A gateway predating provenance sends `source` and no keys array;
+    /// folding it here means the surface shows real provenance against an
+    /// un-upgraded gateway instead of a wall of `unknown`. This mirrors the
+    /// gateway's own read-time migration rather than inventing anything —
+    /// `source` IS a recorded cause, just a singular one.
+    ///
+    /// The keys array wins whenever it has entries: an enforcing gateway has
+    /// already folded `source` in as the first key, so re-adding it would
+    /// duplicate that entry.
+    internal static func decode(_ keys: [String]?, legacySource: String) -> WikiProvenance {
+        if let keys, !keys.isEmpty { return decode(keys) }
+        return decode([legacySource])
     }
 
     /// The referenced events (empty when unknown).

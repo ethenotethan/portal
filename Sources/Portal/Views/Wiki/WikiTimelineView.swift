@@ -15,7 +15,14 @@ struct WikiTimelineView: View {
     /// Shared-plane selection (relative path); when set, the feed offers
     /// (and defaults to) that page's history.
     var selectedPagePath: String?
+    /// The wiki's own event-type taxonomy — what its ingestion sources mean.
+    /// Defaults to `.empty`, which still resolves every kind (derived), so a
+    /// host that hasn't loaded definitions yet renders correctly.
+    internal var eventTypes: WikiEventTypeRegistry = .empty
     /// Called when "Open page" is invoked, with the changeset's page path.
+    /// Also the click-through for a provenance chip (opens the raw source that
+    /// caused the change) and for a trigger chip whose kind the wiki declared
+    /// (opens the definition page) — all three are "show me this page".
     var onOpenPage: ((String) -> Void)?
     /// Drawer hosting: close affordance.
     var onClose: (() -> Void)?
@@ -221,9 +228,11 @@ struct WikiTimelineView: View {
 
         WikiChangesetRow(
             changeset: changeset,
+            eventType: eventTypes.resolve(changeset.trigger),
             showPage: effectivePageFilter == nil,
             relativeText: relativeText(for: changeset),
-            isExpanded: isExpanded
+            isExpanded: isExpanded,
+            onOpenPage: onOpenPage
         )
         .contentShape(Rectangle())
         .onTapGesture { toggleDiff(changeset) }
@@ -399,9 +408,14 @@ struct WikiTimelineView: View {
 
 private struct WikiChangesetRow: View {
     let changeset: WikiChangeset
+    /// Resolved from the wiki's taxonomy rather than a compiled-in enum, so a
+    /// kind the wiki declared draws with its declared glyph and color and a
+    /// kind it hasn't stays distinct instead of folding into one bucket.
+    let eventType: WikiEventTypeRegistry.EventType
     let showPage: Bool
     let relativeText: String
     let isExpanded: Bool
+    var onOpenPage: ((String) -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -448,7 +462,7 @@ private struct WikiChangesetRow: View {
                 }
 
                 HStack(spacing: 8) {
-                    metaChip(systemImage: "bolt.fill", text: changeset.trigger.label)
+                    triggerChip
 
                     if changeset.linesAdded > 0 || changeset.linesRemoved > 0 {
                         HStack(spacing: 4) {
@@ -472,6 +486,8 @@ private struct WikiChangesetRow: View {
                             .truncationMode(.middle)
                     }
                 }
+
+                provenanceRow
             }
         }
         .padding(.horizontal, 12)
@@ -479,14 +495,107 @@ private struct WikiChangesetRow: View {
         .contentShape(Rectangle())
     }
 
+    // MARK: - Trigger
+
+    /// What caused this change, drawn as the wiki declared it. Clickable only
+    /// when a definition page exists — a derived kind has nothing to open, and
+    /// a button that looks live but does nothing is worse than plain text.
+    @ViewBuilder
+    private var triggerChip: some View {
+        let label = eventType.label.isEmpty ? "unrecorded" : eventType.label
+        if let pagePath = eventType.pagePath, let onOpenPage {
+            Button { onOpenPage(pagePath) } label: {
+                chipBody(systemImage: eventType.glyph, text: label, tint: eventType.color)
+            }
+            .buttonStyle(.plain)
+            .help("Event type “\(eventType.kind)” — click to open its definition page")
+        } else {
+            chipBody(
+                systemImage: eventType.glyph,
+                text: label,
+                // An undeclared kind gets its derived color, which keeps two
+                // unknown sources apart; only a genuinely blank trigger falls
+                // back to the neutral tertiary.
+                tint: eventType.kind.isEmpty ? Theme.tertiary : eventType.color
+            )
+            .help(eventType.kind.isEmpty
+                  ? "No trigger recorded for this change"
+                  : "Event kind “\(eventType.kind)” — no wiki page defines it yet")
+        }
+    }
+
+    // MARK: - Provenance
+
+    /// Which ingestion events caused this change — or a visible admission that
+    /// nobody recorded any.
+    ///
+    /// `unknown` is rendered, not hidden. The two-state design only works if
+    /// the gap is on screen: a silently blank row reads as "no provenance
+    /// needed", and the count of unknowns is supposed to be something a reader
+    /// can watch shrink.
+    @ViewBuilder
+    private var provenanceRow: some View {
+        switch changeset.provenance {
+        case .unknown:
+            HStack(spacing: 3) {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 8))
+                Text("provenance unknown")
+                    .font(.system(size: 10))
+            }
+            .foregroundStyle(Theme.tertiary)
+            .help("No source event was recorded for this change — it likely predates provenance tracking")
+
+        case .events(let refs):
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.left.circle")
+                    .font(.system(size: 8))
+                    .foregroundStyle(Theme.tertiary)
+                ForEach(refs.prefix(Self.visibleProvenanceChips)) { ref in
+                    provenanceChip(ref)
+                }
+                if refs.count > Self.visibleProvenanceChips {
+                    Text("+\(refs.count - Self.visibleProvenanceChips)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiary)
+                        .help(refs.map(\.key).joined(separator: "\n"))
+                }
+            }
+        }
+    }
+
+    /// A synthesis can cite many sources; past a few the row stops being
+    /// scannable, so the rest collapse into a count whose tooltip lists them.
+    private static let visibleProvenanceChips = 3
+
+    private func provenanceChip(_ ref: WikiEventRef) -> some View {
+        Button { onOpenPage?(ref.key) } label: {
+            Text(ref.shortLabel)
+                .font(.system(size: 10, design: .monospaced))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(Theme.accent)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(Theme.accent.opacity(0.12), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(onOpenPage == nil)
+        .help("Caused by \(ref.key) — click to open the source")
+    }
+
     private func metaChip(systemImage: String, text: String) -> some View {
+        chipBody(systemImage: systemImage, text: text, tint: Theme.tertiary)
+    }
+
+    private func chipBody(systemImage: String, text: String, tint: Color) -> some View {
         HStack(spacing: 3) {
             Image(systemName: systemImage)
                 .font(.system(size: 8))
             Text(text)
                 .font(.system(size: 10))
         }
-        .foregroundStyle(Theme.tertiary)
+        .foregroundStyle(tint)
     }
 
     private var actionColor: Color {

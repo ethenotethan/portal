@@ -242,4 +242,35 @@ internal struct WikiProvenanceTests {
     internal func wireKeyIsPinned() {
         #expect(WikiProvenance.wireKey == "source_event_keys")
     }
+
+    // MARK: Legacy single-source fold
+
+    /// A gateway predating provenance sends `source` and no keys array. That
+    /// source IS a recorded cause, so folding it in shows real provenance
+    /// against an un-upgraded gateway instead of a wall of unknown.
+    @Test("a legacy source becomes provenance when no keys array arrived")
+    internal func legacySourceIsFoldedIn() {
+        let provenance = WikiProvenance.decode(nil, legacySource: "raw/articles/one.md")
+        #expect(provenance.isRecorded)
+        #expect(provenance.events.map(\.key) == ["raw/articles/one.md"])
+        // Empty keys array is the same situation as absent.
+        #expect(WikiProvenance.decode([], legacySource: "raw/b.md").events.map(\.key) == ["raw/b.md"])
+    }
+
+    /// An enforcing gateway already folds `source` in as the first key, so
+    /// re-adding it here would duplicate that entry.
+    @Test("the keys array wins over the legacy source, no duplicate")
+    internal func keysArrayWinsOverLegacySource() {
+        let provenance = WikiProvenance.decode(
+            ["raw/articles/one.md", "raw/papers/two.md"],
+            legacySource: "raw/articles/one.md"
+        )
+        #expect(provenance.events.map(\.key) == ["raw/articles/one.md", "raw/papers/two.md"])
+    }
+
+    @Test("neither field recorded is still unknown")
+    internal func neitherFieldIsUnknown() {
+        #expect(WikiProvenance.decode(nil, legacySource: "") == .unknown)
+        #expect(WikiProvenance.decode([], legacySource: "   ") == .unknown)
+    }
 }
