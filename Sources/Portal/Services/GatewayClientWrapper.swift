@@ -42,9 +42,11 @@ final class GatewayClientWrapper: ObservableObject {
     /// when the entry isn't session-scoped or has an invalid URL. Dispatches
     /// on kind — the only place that maps kinds to client types.
     func sessionScopedBackend(for entry: SavedGateway) -> (any AgentBackend)? {
+        // httpOrigin, not URL(string:): the old check passed anything with a
+        // scheme, and a bare "host:8080" satisfies that with the HOST as the
+        // scheme — producing a client dialing nowhere.
         guard entry.kind.isSessionScoped,
-              let url = URL(string: entry.url.trimmingCharacters(in: .whitespaces)),
-              url.scheme != nil else {
+              let url = GatewayURL.httpOrigin(entry.url) else {
             return nil
         }
         let signature = "\(url.absoluteString)|\(entry.apiKey)"
@@ -149,8 +151,22 @@ final class GatewayClientWrapper: ObservableObject {
     @discardableResult
     func connectIfNeeded(using settings: SettingsViewModel, force: Bool = false) async -> Bool {
         guard let wsURL = settings.buildWebSocketURL() else {
-            appendLog("✗ Invalid gateway URL", error: true)
+            // Tear the old socket down. Bailing out with it still live is what
+            // made a rejected address look like it was "resolved to localhost":
+            // `client` still pointed at the PREVIOUS gateway — on a cold launch
+            // the loopback default — so the app stayed happily connected there
+            // while Settings displayed the address the user had just typed. The
+            // session list, cron jobs, and wiki all came from the wrong harness.
+            // Disconnecting makes the failure look like the failure it is.
+            client.disconnect()
+            currentSignature = nil
+            isConnecting = false
             isConnected = false
+            appendLog(
+                "✗ Can't read “\(settings.gatewayURL)” as a harness address — "
+                    + "expected something like 100.94.3.17:8642 or wss://host/v1/ws",
+                error: true
+            )
             return false
         }
         let forceStr = String(describing: force)

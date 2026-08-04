@@ -94,13 +94,15 @@ internal final class SettingsViewModel: ObservableObject {
     private var didCompleteInit = false
 
     /// Whether the gateway domain likely requires CF Access auth.
+    ///
+    /// This gates more than a UI section: onboarding *disables Connect* while it
+    /// is true and no cookie exists. So a host wrongly judged public is a host
+    /// the user cannot connect to at all. Tailnet addresses were exactly that
+    /// case — a CGNAT `100.x` address and a `*.ts.net` MagicDNS name both read as
+    /// public, and no Cloudflare cookie was ever coming for either.
     var needsCFAuth: Bool {
         guard let host = buildWebSocketURL()?.host else { return false }
-        // Local addresses don't need CF Access
-        return !host.hasPrefix("127.0.0.1") &&
-               !host.hasPrefix("localhost") &&
-               !host.hasPrefix("192.168.") &&
-               !host.hasPrefix("10.")
+        return !GatewayURL.isPrivateHost(host)
     }
 
     // MARK: - Session-Scoped Backends
@@ -352,23 +354,14 @@ internal final class SettingsViewModel: ObservableObject {
     }
 
     /// Build the WebSocket URL from the configured gateway URL.
+    ///
+    /// Delegates to `GatewayURL`, which infers a missing scheme instead of
+    /// requiring one. The old string-surgery version returned nil for a bare
+    /// `host:port` — the normal way to write a tailnet address — and returned a
+    /// *host-less* URL for a MagicDNS name, because `my-box.ts.net:8642` parses as
+    /// `scheme:opaque`.
     func buildWebSocketURL() -> URL? {
-        var urlString = gatewayURL.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // If the user entered an HTTP(S) URL, convert to WS(S)
-        if urlString.hasPrefix("https://") {
-            urlString = "wss://" + urlString.dropFirst("https://".count)
-        } else if urlString.hasPrefix("http://") {
-            urlString = "ws://" + urlString.dropFirst("http://".count)
-        }
-
-        // Append /v1/ws path if not already present
-        if !urlString.hasSuffix("/v1/ws") && !urlString.hasSuffix("/api/ws") {
-            urlString = urlString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            urlString += "/v1/ws"
-        }
-
-        return URL(string: urlString)
+        GatewayURL.normalize(gatewayURL)
     }
 
     /// Build a GatewayClient from current settings.

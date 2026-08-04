@@ -162,8 +162,14 @@ struct SavedGateway: Codable, Identifiable, Equatable, Hashable {
     /// Returns nil for non-Standard kinds or an unparseable/insecure URL.
     /// A `nil` here means "no chat" — the caller keeps the app-level gateway.
     internal var hermesStandardChatURL: URL? {
+        // Scheme inference via GatewayURL, because a Standard entry is typed as a
+        // plain origin and a tailnet one usually has no scheme at all
+        // ("100.94.3.17:8080"). Requiring one here returned nil, which the caller
+        // reads as "no chat" — indistinguishable from an unsupported backend.
         guard kind == .hermesStandard,
-              var components = URLComponents(string: url.trimmingCharacters(in: .whitespaces)) else {
+              let normalized = GatewayURL.httpOrigin(url),
+              var components = URLComponents(url: normalized, resolvingAgainstBaseURL: false)
+        else {
             return nil
         }
         switch components.scheme?.lowercased() {

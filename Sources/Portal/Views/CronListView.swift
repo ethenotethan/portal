@@ -277,7 +277,10 @@ struct CronListView: View {
     /// or nil if its URL/token is unusable. Reads route through this instead of
     /// the WebSocket Gateway (Standard is HTTP-only).
     private static func standardClient(for gateway: SavedGateway) -> HermesStandardClient? {
-        guard let baseURL = URL(string: gateway.url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        // GatewayURL, not URL(string:) — the latter accepts a bare
+        // "host:8080" as a scheme-only URL with no host, which
+        // HermesStandardClient then rejects, silently emptying this view.
+        guard let baseURL = GatewayURL.httpOrigin(gateway.url) else {
             return nil
         }
         do {
