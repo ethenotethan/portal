@@ -303,7 +303,6 @@ struct WikiGraphViewModelTests {
                 pageFetches += 1
                 return WikiPageContent(frontmatter: [:], body: "# hi", path: path)
             }
-            func search(query: String, limit: Int) async throws -> [WikiSearchResult] { [] }
         }
 
         let vm = WikiGraphViewModel()
@@ -388,8 +387,6 @@ struct WikiGraphViewModelTests {
             if failingPaths.contains(path) { throw Missing() }
             return WikiPageContent(frontmatter: frontmatter[path] ?? [:], body: "", path: path)
         }
-
-        func search(query: String, limit: Int) async throws -> [WikiSearchResult] { [] }
     }
 
     private func eventTypePage(_ id: String, title: String) -> WikiPage {

@@ -8,11 +8,18 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Centau
 /// The fetch surface the wiki views actually consume, extracted so a second
 /// knowledge-base backend (Darkbloom's wiki-api — REST, public read-only)
 /// can sit behind the same UI as the Hermes gateway's wiki.* RPCs.
+///
+/// Deliberately does NOT include search. Both backends implement one (below,
+/// and via Centaur's `/wiki/search`), but no view calls it — the wiki filters
+/// the already-loaded graph client-side instead. As a protocol requirement it
+/// bought nothing and taxed every conformance, test fakes included, with a
+/// stub no caller reaches. The two implementations stay reachable by concrete
+/// type for whoever wires a search surface up; adding the requirement back is
+/// a two-line change at that point.
 @MainActor
 protocol WikiSource: AnyObject {
     func fetchGraph() async throws -> WikiGraph
     func fetchPage(path: String) async throws -> WikiPageContent
-    func search(query: String, limit: Int) async throws -> [WikiSearchResult]
 }
 
 struct WikiSearchResult: Identifiable, Hashable {
