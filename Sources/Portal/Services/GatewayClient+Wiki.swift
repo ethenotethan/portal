@@ -440,6 +440,32 @@ extension GatewayClient {
         limit: Int = 200,
         offset: Int = 0
     ) async throws -> WikiEventLogPage {
+        let params = Self.eventLogParams(
+            wiki: wiki, kind: kind, since: since, until: until,
+            limit: limit, offset: offset
+        )
+        let response = try await call("wiki.events", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return try Self.eventLogPage(from: response.result, offset: offset)
+    }
+
+    /// Build the `wiki.events` params.
+    ///
+    /// Only `limit` and `offset` are always sent. Every optional filter is
+    /// OMITTED when nil rather than sent as null or "": the gateway reads an
+    /// absent `since`/`until` as unbounded and an absent `wiki` as "the default
+    /// one", so sending an empty value would narrow a query the caller meant to
+    /// leave open.
+    nonisolated internal static func eventLogParams(
+        wiki: String?,
+        kind: String?,
+        since: String?,
+        until: String?,
+        limit: Int,
+        offset: Int
+    ) -> [String: AnyCodable] {
         var params: [String: AnyCodable] = [
             "limit": AnyCodable(limit),
             "offset": AnyCodable(offset),
@@ -448,12 +474,23 @@ extension GatewayClient {
         if let kind { params["kind"] = AnyCodable(kind) }
         if let since { params["since"] = AnyCodable(since) }
         if let until { params["until"] = AnyCodable(until) }
+        return params
+    }
 
-        let response = try await call("wiki.events", params: params)
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-        guard let dict = response.result?.dictionaryValue,
+    /// Decode a `wiki.events` result into a page.
+    ///
+    /// Separate from the RPC because this is the whole of what the call decides
+    /// — which rows survive, what `total` and `offset` mean when the server
+    /// omits them — and the transport around it can't be reached by a test.
+    ///
+    /// - Parameter offset: The requested offset, used when the server doesn't
+    ///   echo one. Falling back to 0 instead would make `hasMore` claim there's
+    ///   more on the last page of a paginated fetch.
+    nonisolated internal static func eventLogPage(
+        from result: AnyCodable?,
+        offset: Int
+    ) throws -> WikiEventLogPage {
+        guard let dict = result?.dictionaryValue,
               let eventsArray = dict["events"]?.arrayValue else {
             throw GatewayError.invalidResponse("wiki.events missing events array")
         }
@@ -461,6 +498,9 @@ extension GatewayClient {
         let events = eventsArray.compactMap { Self.eventLogEntry(from: $0) }
         return WikiEventLogPage(
             events: events,
+            // Fall back to what arrived: a server that omits `total` isn't
+            // claiming zero, and `hasMore` would otherwise read as "there's
+            // more" for every page.
             total: dict["total"]?.intValue ?? events.count,
             offset: dict["offset"]?.intValue ?? offset
         )

@@ -208,32 +208,62 @@ internal struct WikiEventPresentationTests {
     }
 }
 
-// MARK: - GatewayClient.fetchEventLog window resolution
+// MARK: - Window resolution and rollup
 
-@MainActor
-@Suite("fetchEventLog window resolution")
+@Suite("WikiEventLogWindow")
 internal struct WikiEventLogWindowTests {
 
-    /// The RPC takes ISO instants, not a day count, so `fetchEventLog` resolves
-    /// the window itself and echoes it back as the plot's x-domain — a chart
-    /// with no domain can't be drawn, and the honest domain is what we asked
-    /// for. Exercised through the same arithmetic the conformance performs.
-    @Test("a days window resolves to since = until - days, echoed as the domain")
+    /// A fixed instant, so the assertions are exact rather than a tolerance.
+    private static let now = Date(timeIntervalSince1970: 1_780_000_000)
+
+    @Test("a days window is measured back from now and wins over explicit bounds")
     internal func daysWindowResolves() {
-        let until = Date()
-        let since = until.addingTimeInterval(-30 * 86_400)
-        let timeline = WikiEventTimeline(
-            since: since, until: until, eventCount: 7,
-            eventsByKind: [:], events: []
+        // The stale bounds must be discarded, not merged: wiki-api resolves
+        // `days` first, and a client that blended them would ask for a window
+        // neither side intended.
+        let stale = Date(timeIntervalSince1970: 1_600_000_000)
+        let window = WikiEventLogWindow.resolve(
+            days: 30, since: stale, until: stale, now: Self.now
         )
-        let span = try? #require(timeline.until).timeIntervalSince(try #require(timeline.since))
-        #expect(abs((span ?? 0) - 30 * 86_400) < 1)
+        #expect(window.until == Self.now)
+        #expect(window.since == Self.now.addingTimeInterval(-30 * 86_400))
     }
 
-    @Test("eventsByKind is derived from the window's events, skipping blank kinds")
-    internal func derivesKindRollup() throws {
+    @Test("without days, the caller's bounds pass through untouched")
+    internal func explicitBoundsPassThrough() {
+        let since = Date(timeIntervalSince1970: 1_700_000_000)
+        let until = Date(timeIntervalSince1970: 1_710_000_000)
+        let window = WikiEventLogWindow.resolve(
+            days: nil, since: since, until: until, now: Self.now
+        )
+        #expect(window.since == since)
+        #expect(window.until == until)
+    }
+
+    @Test("no days and no bounds asks for the whole log, not a window around now")
+    internal func unboundedRequest() {
+        let window = WikiEventLogWindow.resolve(
+            days: nil, since: nil, until: nil, now: Self.now
+        )
+        #expect(window.since == nil)
+        #expect(window.until == nil)
+    }
+
+    @Test("a fractional day window resolves without rounding to whole days")
+    internal func fractionalDays() {
+        // The events page's ladder is whole days, but the protocol takes a
+        // Double and callers-to-be may pass hours.
+        let window = WikiEventLogWindow.resolve(
+            days: 0.5, since: nil, until: nil, now: Self.now
+        )
+        #expect(window.since == Self.now.addingTimeInterval(-43_200))
+    }
+
+    @Test("countByKind rolls up the window's events, skipping blank kinds")
+    internal func derivesKindRollup() {
         // Hermes sends no per-kind rollup, so the legend's counts come from the
-        // decoded events. A blank kind isn't a category, so it's not counted.
+        // decoded events. A blank kind isn't a category — counting it would put
+        // a nameless row in the legend.
         let items: [AnyCodable] = [
             .dictionary(["key": AnyCodable("a"), "kind": AnyCodable("github_pr")]),
             .dictionary(["key": AnyCodable("b"), "kind": AnyCodable("github_pr")]),
@@ -242,12 +272,150 @@ internal struct WikiEventLogWindowTests {
         ]
         let events = items.compactMap { GatewayClient.eventLogEntry(from: $0) }
         #expect(events.count == 4)
+        #expect(WikiEventLogWindow.countByKind(events) == ["github_pr": 2, "ingest": 1])
+    }
 
-        var byKind: [String: Int] = [:]
-        for event in events where !event.kindRaw.isEmpty {
-            byKind[event.kindRaw, default: 0] += 1
+    @Test("countByKind of nothing is empty, not a zero-valued row")
+    internal func emptyRollup() {
+        #expect(WikiEventLogWindow.countByKind([]).isEmpty)
+    }
+
+    @Test("wireBounds renders the window as ISO instants the RPC accepts")
+    internal func wireBoundsRenderISO() throws {
+        let wire = WikiEventLogWindow.wireBounds(
+            days: 30, since: nil, until: nil, now: Self.now
+        )
+        let until = try #require(wire.until)
+        let since = try #require(wire.since)
+        // Round-trip rather than string-match: the assertion is "the gateway can
+        // parse this back to the instant we meant", not a format preference.
+        let parser = ISO8601DateFormatter()
+        #expect(parser.date(from: until) == Self.now)
+        #expect(parser.date(from: since) == Self.now.addingTimeInterval(-30 * 86_400))
+    }
+
+    @Test("an unbounded window stays nil on the wire, never an empty string")
+    internal func wireBoundsStayNil() {
+        // "" is an unparseable bound, not an absent one — it would narrow a
+        // query the caller meant to leave open.
+        let wire = WikiEventLogWindow.wireBounds(
+            days: nil, since: nil, until: nil, now: Self.now
+        )
+        #expect(wire.since == nil)
+        #expect(wire.until == nil)
+    }
+
+    @Test("timeline echoes the requested window as the plot domain and total as the count")
+    internal func timelineEchoesWindow() throws {
+        let events = [Fixtures.full, Fixtures.bare].compactMap { GatewayClient.eventLogEntry(from: $0) }
+        let page = WikiEventLogPage(events: events, total: 99, offset: 0)
+        let timeline = WikiEventLogWindow.timeline(
+            page: page, days: 7, since: nil, until: nil, now: Self.now
+        )
+        #expect(timeline.until == Self.now)
+        #expect(timeline.since == Self.now.addingTimeInterval(-7 * 86_400))
+        // total, not events.count: the header should report the window's truth,
+        // not the size of the slice that fit in one page.
+        #expect(timeline.eventCount == 99)
+        #expect(timeline.events.count == 2)
+        #expect(timeline.eventsByKind == ["github_pr": 1, "meeting_notes": 1])
+    }
+}
+
+// MARK: - wiki.events request params
+
+@Suite("wiki.events params")
+internal struct WikiEventLogParamsTests {
+
+    @Test("nil filters are omitted, not sent as empty values")
+    internal func omitsNilFilters() {
+        let params = GatewayClient.eventLogParams(
+            wiki: nil, kind: nil, since: nil, until: nil, limit: 200, offset: 0
+        )
+        #expect(Set(params.keys) == ["limit", "offset"])
+        #expect(params["limit"]?.intValue == 200)
+        #expect(params["offset"]?.intValue == 0)
+    }
+
+    @Test("every provided filter reaches the wire under its wire name")
+    internal func sendsProvidedFilters() {
+        let params = GatewayClient.eventLogParams(
+            wiki: "hermes", kind: "github_pr",
+            since: "2026-07-01T00:00:00Z", until: "2026-07-31T00:00:00Z",
+            limit: 50, offset: 100
+        )
+        #expect(params["wiki"]?.stringValue == "hermes")
+        #expect(params["kind"]?.stringValue == "github_pr")
+        #expect(params["since"]?.stringValue == "2026-07-01T00:00:00Z")
+        #expect(params["until"]?.stringValue == "2026-07-31T00:00:00Z")
+        #expect(params["limit"]?.intValue == 50)
+        #expect(params["offset"]?.intValue == 100)
+    }
+}
+
+// MARK: - wiki.events page decoding
+
+@Suite("wiki.events page decoding")
+internal struct WikiEventLogPageTests {
+
+    @Test("decodes events, total, and offset from the result envelope")
+    internal func decodesPage() throws {
+        let result: AnyCodable = .dictionary([
+            "events": .array([Fixtures.full, Fixtures.bare]),
+            "total": AnyCodable(42),
+            "offset": AnyCodable(10),
+        ])
+        let page = try GatewayClient.eventLogPage(from: result, offset: 0)
+        #expect(page.events.count == 2)
+        #expect(page.total == 42)
+        // The server's echo wins over the request's offset.
+        #expect(page.offset == 10)
+        #expect(page.hasMore)
+    }
+
+    @Test("keyless rows are dropped from the page, not rendered blank")
+    internal func dropsKeylessRows() throws {
+        let result: AnyCodable = .dictionary([
+            "events": .array([Fixtures.full, Fixtures.keyless, Fixtures.bare]),
+        ])
+        let page = try GatewayClient.eventLogPage(from: result, offset: 0)
+        #expect(page.events.count == 2)
+        // total omitted: falls back to what arrived, so hasMore stays false
+        // rather than promising a page that doesn't exist.
+        #expect(page.total == 2)
+        #expect(!page.hasMore)
+    }
+
+    @Test("a missing offset falls back to the requested one, keeping hasMore honest")
+    internal func offsetFallback() throws {
+        let result: AnyCodable = .dictionary([
+            "events": .array([Fixtures.bare]),
+            "total": AnyCodable(51),
+        ])
+        let page = try GatewayClient.eventLogPage(from: result, offset: 50)
+        #expect(page.offset == 50)
+        // 50 + 1 == 51: this is the last page. Defaulting the offset to 0 would
+        // have claimed there was more.
+        #expect(!page.hasMore)
+    }
+
+    @Test("an empty events array is a valid empty page, not an error")
+    internal func emptyPage() throws {
+        let page = try GatewayClient.eventLogPage(from: .dictionary(["events": .array([])]), offset: 0)
+        #expect(page.events.isEmpty)
+        #expect(page.total == 0)
+        #expect(!page.hasMore)
+    }
+
+    @Test("a result with no events array throws rather than showing an empty log")
+    internal func missingEventsArrayThrows() {
+        // "the call failed" and "the wiki has no events" must not look alike.
+        #expect(throws: GatewayError.self) {
+            _ = try GatewayClient.eventLogPage(from: .dictionary(["total": AnyCodable(3)]), offset: 0)
         }
-        #expect(byKind == ["github_pr": 2, "ingest": 1])
+        #expect(throws: GatewayError.self) {
+            _ = try GatewayClient.eventLogPage(from: nil, offset: 0)
+        }
     }
 }
 
