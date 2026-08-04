@@ -428,8 +428,6 @@ private let mermaidMaxPollAttempts = 40  // ~5s total
 #if os(macOS)
 private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
     static let shared = MermaidSharedRenderer()
-    @available(macOS, deprecated: 12.0)
-    @MainActor private static let processPool = WKProcessPool()
     private let webView: WKWebView
     private let window: NSWindow
     private var pendingCompletion: ((PlatformImage?) -> Void)?
@@ -441,7 +439,6 @@ private final class MermaidSharedRenderer: NSObject, WKNavigationDelegate {
 
     override init() {
         let config = WKWebViewConfiguration()
-        config.processPool = Self.processPool
         // Disable features that trigger sandbox errors
         config.preferences.isTextInteractionEnabled = false
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1600, height: 1200), configuration: config)
