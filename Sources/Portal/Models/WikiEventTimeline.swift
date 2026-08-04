@@ -119,6 +119,31 @@ struct WikiEventTimeline {
     /// Wire-kind string → count (e.g. "github_pr": 40).
     let eventsByKind: [String: Int]
     let events: [WikiTimelineEvent]
+
+    /// Events the log returned with no usable time.
+    ///
+    /// These are real events — the feed lists them and the legend counts them —
+    /// but a dot plot has no x for them, so the plot leaves them out. Worth
+    /// counting so the page can say so: an event present in the feed and absent
+    /// from the plot otherwise reads as the plot being broken.
+    internal var undatedCount: Int {
+        events.count { $0.eventDate == nil }
+    }
+
+    /// Dated events whose time falls outside `domain` — plotted nowhere, because
+    /// `chartXScale` clips to its domain.
+    ///
+    /// The window the client asked for and the events the server returned can
+    /// disagree: Hermes filters `since`/`until` by *string* comparison against
+    /// whatever `ingested` holds, so a differently-formatted timestamp passes the
+    /// filter and still lands off-domain. Counting them is what turns "the plot
+    /// is empty" into "these events sit outside this window".
+    internal func outOfWindowCount(domain: ClosedRange<Date>) -> Int {
+        events.count { event in
+            guard let date = event.eventDate else { return false }
+            return !domain.contains(date)
+        }
+    }
 }
 
 // MARK: - WikiRevisionsTimeline (GET /wiki/revisions-timeline)
@@ -200,12 +225,58 @@ struct WikiChangesSummary {
 /// and testable against captured payload shapes.
 enum WikiTimelineDecoding {
 
-    /// Fractional-second-tolerant RFC3339 parsing; empty string → nil.
+    /// RFC3339 parsing, tolerant of the shapes a wiki actually contains; empty
+    /// string → nil.
+    ///
+    /// wiki-api emits strict RFC3339, but Hermes event times come from a raw
+    /// source's `ingested` frontmatter — hand-written or written by whatever
+    /// ingested it, so in practice a bare `datetime.isoformat()`
+    /// (`2026-08-04T16:55:58.077734`), a space separator, or a plain date all
+    /// show up. `ISO8601DateFormatter` rejects every one of those for want of a
+    /// zone designator, which turned a dated event into an undated one: the feed
+    /// still listed it (it renders the label regardless) and the legend still
+    /// counted it (counts key off kind), but the plot skips any event with no
+    /// date — so the dots silently vanished while everything around them looked
+    /// fine. Assume UTC rather than dropping the value, since a wiki timestamp
+    /// with no zone is one nobody chose a zone for, and being off by the local
+    /// offset beats not plotting the event at all.
     static func parseDate(_ value: Any?) -> Date? {
-        guard let s = value as? String, !s.isEmpty else { return nil }
+        guard let raw = value as? String else { return nil }
+        let s = raw.trimmingCharacters(in: .whitespaces)
+        guard !s.isEmpty else { return nil }
+        if let strict = strictRFC3339(s) { return strict }
+        guard let assumedUTC = assumingUTC(s) else { return nil }
+        return strictRFC3339(assumedUTC)
+    }
+
+    /// RFC3339 with and without fractional seconds — the well-formed cases.
+    private static func strictRFC3339(_ s: String) -> Date? {
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return fractional.date(from: s) ?? ISO8601DateFormatter().date(from: s)
+    }
+
+    /// Rewrite a zone-less timestamp into an RFC3339 one, or nil when the input
+    /// isn't that shape.
+    ///
+    /// Returns nil rather than a guess when a zone is already present: reaching
+    /// here means the strict parse failed for some *other* reason, and appending
+    /// `Z` to something already zoned would invent a second designator.
+    private static func assumingUTC(_ s: String) -> String? {
+        // A space separator is legal RFC3339 (section 5.6 "NOTE") but not
+        // accepted by ISO8601DateFormatter.
+        var body = s
+        if let space = body.firstIndex(of: " ") {
+            body.replaceSubrange(space...space, with: "T")
+        }
+        guard let timeStart = body.firstIndex(of: "T") else {
+            // Date-only: midnight UTC. Length-checked so a stray token can't
+            // become a date.
+            return body.count == 10 ? body + "T00:00:00Z" : nil
+        }
+        let time = body[body.index(after: timeStart)...]
+        let hasZone = time.contains("Z") || time.contains("+") || time.contains("-")
+        return hasZone ? nil : body + "Z"
     }
 
     static func mapEventTimeline(_ obj: [String: Any]) -> WikiEventTimeline {
