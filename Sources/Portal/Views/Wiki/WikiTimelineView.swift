@@ -19,11 +19,14 @@ struct WikiTimelineView: View {
     /// Defaults to `.empty`, which still resolves every kind (derived), so a
     /// host that hasn't loaded definitions yet renders correctly.
     internal var eventTypes: WikiEventTypeRegistry = .empty
-    /// Called when "Open page" is invoked, with the changeset's page path.
-    /// Also the click-through for a provenance chip (opens the raw source that
-    /// caused the change) and for a trigger chip whose kind the wiki declared
-    /// (opens the definition page) — all three are "show me this page".
+    /// Called when "Open page" is invoked, with the changeset's page path. Also
+    /// the click-through for a trigger chip whose kind the wiki declared (opens
+    /// the definition page) — both are "show me this page".
     var onOpenPage: ((String) -> Void)?
+    /// Click-through for a provenance chip, with the source event's key: opens
+    /// the event feed on that event. nil renders the chips as plain labels —
+    /// a host without an events surface has nowhere to send the click.
+    internal var onOpenEvent: ((String) -> Void)?
     /// Drawer hosting: close affordance.
     var onClose: (() -> Void)?
 
@@ -232,7 +235,8 @@ struct WikiTimelineView: View {
             showPage: effectivePageFilter == nil,
             relativeText: relativeText(for: changeset),
             isExpanded: isExpanded,
-            onOpenPage: onOpenPage
+            onOpenPage: onOpenPage,
+            onOpenEvent: onOpenEvent
         )
         .contentShape(Rectangle())
         .onTapGesture { toggleDiff(changeset) }
@@ -416,6 +420,7 @@ private struct WikiChangesetRow: View {
     let relativeText: String
     let isExpanded: Bool
     var onOpenPage: ((String) -> Void)?
+    var onOpenEvent: ((String) -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -568,20 +573,33 @@ private struct WikiChangesetRow: View {
     /// scannable, so the rest collapse into a count whose tooltip lists them.
     private static let visibleProvenanceChips = 3
 
+    /// The changeset → event edge. The chip used to call `onOpenPage` with the
+    /// raw source path, which is not a wiki page — the navigation landed
+    /// nowhere. It now opens the event feed on that event, the exact reverse of
+    /// the feed's `→` chips.
+    @ViewBuilder
     private func provenanceChip(_ ref: WikiEventRef) -> some View {
-        Button { onOpenPage?(ref.key) } label: {
-            Text(ref.shortLabel)
-                .font(.system(size: 10, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(Theme.accent)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 1)
-                .background(Theme.accent.opacity(0.12), in: Capsule())
+        if let onOpenEvent {
+            Button { onOpenEvent(ref.key) } label: {
+                provenanceChipBody(ref, tint: Theme.accent)
+            }
+            .buttonStyle(.plain)
+            .help("Caused by \(ref.key) — click to find it in the event feed")
+        } else {
+            provenanceChipBody(ref, tint: Theme.secondary)
+                .help("Caused by \(ref.key)")
         }
-        .buttonStyle(.plain)
-        .disabled(onOpenPage == nil)
-        .help("Caused by \(ref.key) — click to open the source")
+    }
+
+    private func provenanceChipBody(_ ref: WikiEventRef, tint: Color) -> some View {
+        Text(ref.shortLabel)
+            .font(.system(size: 10, design: .monospaced))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .foregroundStyle(tint)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(tint.opacity(0.12), in: Capsule())
     }
 
     private func metaChip(systemImage: String, text: String) -> some View {

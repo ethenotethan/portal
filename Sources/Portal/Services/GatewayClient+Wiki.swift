@@ -89,6 +89,24 @@ struct WikiChangesetsPage {
     var hasMore: Bool { offset + changesets.count < total }
 }
 
+// MARK: - Event log
+
+/// Response envelope for `wiki.events`, including pagination cursor.
+///
+/// The server also echoes back the effective `limit`; it's dropped rather than
+/// stored, because nothing reads it and `hasMore` answers the only question a
+/// caller currently asks. A paginating caller adds it back in one line.
+internal struct WikiEventLogPage {
+    internal let events: [WikiTimelineEvent]
+    internal let total: Int
+    internal let offset: Int
+
+    /// Whether more events exist beyond this page. Counted from what actually
+    /// arrived rather than from the page size, so a short page (server cap,
+    /// dropped rows) doesn't claim there's more when there isn't.
+    internal var hasMore: Bool { offset + events.count < total }
+}
+
 /// Thrown by `wikiUpdate` when the server rejects a write because the page
 /// changed since the client read it (spec: HTTP-style 409 — typically an
 /// agent edit landing mid-edit). Carries the server's latest stored page
@@ -394,6 +412,104 @@ extension GatewayClient {
             total: dict["total"]?.intValue ?? changesets.count,
             limit: dict["limit"]?.intValue ?? limit,
             offset: dict["offset"]?.intValue ?? offset
+        )
+    }
+
+    /// Fetch the ingestion event log — what flowed in and what it changed.
+    ///
+    /// Gateway-side this is a join, not new storage: files under `raw/` are the
+    /// events, and the changeset index records which events caused which page
+    /// writes (hermes-agent#44). So each event reports the changesets it
+    /// produced, giving the event → changeset → page edge without a second
+    /// call; `WikiChangeset.provenance` already carries the reverse.
+    ///
+    /// - Parameters:
+    ///   - wiki: Wiki name (omit for the server-side default).
+    ///   - kind: Filter by event kind. Kinds are declared by `type: event-type`
+    ///     wiki pages, so this is an open vocabulary — pass a wire value, not a
+    ///     case of some enum.
+    ///   - since: Only events at/after this ISO 8601 instant.
+    ///   - until: Only events at/before this ISO 8601 instant.
+    ///   - limit: Page size (default 200, server caps at 1000).
+    ///   - offset: Pagination offset.
+    internal func wikiEvents(
+        wiki: String? = nil,
+        kind: String? = nil,
+        since: String? = nil,
+        until: String? = nil,
+        limit: Int = 200,
+        offset: Int = 0
+    ) async throws -> WikiEventLogPage {
+        var params: [String: AnyCodable] = [
+            "limit": AnyCodable(limit),
+            "offset": AnyCodable(offset),
+        ]
+        if let wiki { params["wiki"] = AnyCodable(wiki) }
+        if let kind { params["kind"] = AnyCodable(kind) }
+        if let since { params["since"] = AnyCodable(since) }
+        if let until { params["until"] = AnyCodable(until) }
+
+        let response = try await call("wiki.events", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let dict = response.result?.dictionaryValue,
+              let eventsArray = dict["events"]?.arrayValue else {
+            throw GatewayError.invalidResponse("wiki.events missing events array")
+        }
+
+        let events = eventsArray.compactMap { Self.eventLogEntry(from: $0) }
+        return WikiEventLogPage(
+            events: events,
+            total: dict["total"]?.intValue ?? events.count,
+            offset: dict["offset"]?.intValue ?? offset
+        )
+    }
+
+    /// Map one `wiki.events` entry onto the shared event row.
+    ///
+    /// The gateway reports a single `timestamp` (frontmatter `ingested`, or the
+    /// file mtime when the field predates the field). There is no separate
+    /// real-world event time on this backend, so both time fields get it and
+    /// `eventTimeEstimated` stays false — the estimated-time diamond means
+    /// "we're plotting ingest time in place of event time", which would be a
+    /// false claim here rather than a useful warning.
+    nonisolated internal static func eventLogEntry(from item: AnyCodable) -> WikiTimelineEvent? {
+        guard let d = item.dictionaryValue,
+              let key = d["key"]?.stringValue, !key.isEmpty else { return nil }
+        let timestamp = WikiTimelineDecoding.parseDate(d["timestamp"]?.stringValue)
+        let changesets: [WikiEventChangesetRef] = (d["changesets"]?.arrayValue ?? [])
+            .compactMap { entry -> WikiEventChangesetRef? in
+                guard let c = entry.dictionaryValue,
+                      let id = c["id"]?.stringValue, !id.isEmpty else { return nil }
+                return WikiEventChangesetRef(
+                    id: id,
+                    page: c["page"]?.stringValue ?? "",
+                    title: c["title"]?.stringValue ?? "",
+                    action: c["action"]?.stringValue ?? "",
+                    timestamp: WikiTimelineDecoding.parseDate(c["timestamp"]?.stringValue)
+                )
+            }
+        // An event with no title falls back to the key's own short label
+        // rather than rendering an empty row.
+        let title = d["title"]?.stringValue ?? ""
+        return WikiTimelineEvent(
+            sourceKey: key,
+            kindRaw: d["kind"]?.stringValue ?? "",
+            label: title.isEmpty ? WikiEventRef(key: key).shortLabel : title,
+            url: d["source_url"]?.stringValue ?? "",
+            occurredAt: timestamp,
+            ingestedAt: timestamp,
+            eventTimeEstimated: false,
+            actorSlackID: nil,
+            actorName: nil,
+            directiveBody: nil,
+            directiveExcerpt: nil,
+            targetPages: nil,
+            directiveStatus: nil,
+            resultingRevisionIDs: nil,
+            changesets: changesets,
+            sha256: d["sha256"]?.stringValue ?? ""
         )
     }
 
