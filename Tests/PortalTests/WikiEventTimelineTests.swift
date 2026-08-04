@@ -282,6 +282,21 @@ struct WikiRevisionsTimelineDecodingTests {
         #expect(timeline.busiestBucket == nil)
     }
 
+    /// A bucket whose timestamp failed to parse keeps a stable identity so the
+    /// `Identifiable` conformance never traps: `id` falls back to `.distantPast`
+    /// when `bucket` is nil — the only kind of row the cumulative/busiest
+    /// filters already exclude from the plot.
+    @Test("a bucket with no date falls back to distantPast for its id")
+    internal func nilBucketIDFallsBackToDistantPast() {
+        let undated = WikiRevisionsTimeline.Bucket(bucket: nil, count: 3)
+        #expect(undated.id == .distantPast)
+
+        // A dated bucket's id is its own date — the fallback is nil-only.
+        let dated = WikiRevisionsTimeline.Bucket(
+            bucket: WikiTimelineDecoding.parseDate("2026-07-20T00:00:00Z"), count: 1)
+        #expect(dated.id == dated.bucket)
+    }
+
     @Test("knowledge-accrued stats: all-time total and busiest bucket")
     func knowledgeStats() throws {
         let timeline = WikiTimelineDecoding.mapRevisionsTimeline(try Fixtures.object(Fixtures.revisionsTimelineJSON))
