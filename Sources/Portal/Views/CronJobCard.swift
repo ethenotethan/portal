@@ -26,6 +26,17 @@ internal struct CronJobCard: View {
     /// hides there — it was previously shown unconditionally on this card while
     /// the detail view gated it, offering a Move that could not work.
     internal var supportsRemoveAndEdit = true
+    /// Whether the header spells out the job's whole category path.
+    ///
+    /// True when the card stands on its own (an ungrouped job, or a flat list)
+    /// — there the path is the only place the category is visible. False under
+    /// a category header, where the enclosing folder rows already say it: the
+    /// row would otherwise read `autoresearch/ingest` beneath a folder named
+    /// `autoresearch`, restating the parent on every child.
+    ///
+    /// Mirrors `CronJobRow.showsCategoryPath`, so a job reads the same way on
+    /// the Cron list page and on the activity board's Jobs pane.
+    internal var showsCategoryPath = true
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -46,7 +57,8 @@ internal struct CronJobCard: View {
         onUpdatePrompt: @escaping (String) -> Void,
         onRename: @escaping (String) -> Void,
         siblingJobs: [CronJob] = [],
-        supportsRemoveAndEdit: Bool = true
+        supportsRemoveAndEdit: Bool = true,
+        showsCategoryPath: Bool = true
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -59,9 +71,18 @@ internal struct CronJobCard: View {
         self.onRename = onRename
         self.siblingJobs = siblingJobs
         self.supportsRemoveAndEdit = supportsRemoveAndEdit
+        self.showsCategoryPath = showsCategoryPath
     }
 
     private var displayJob: CronJob { job }
+
+    /// The header's name: the full path when the card stands alone, otherwise
+    /// just the leaf. Only the *header* is shortened — the category editor
+    /// below still takes `job.name`, because moving a job is an edit to its
+    /// whole path and would be unusable with the path hidden.
+    private var displayName: String {
+        CronCategory.displayName(for: displayJob, showingPath: showsCategoryPath)
+    }
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -110,7 +131,7 @@ internal struct CronJobCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(displayJob.name)
+                    Text(displayName)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)

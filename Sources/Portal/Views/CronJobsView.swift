@@ -86,7 +86,7 @@ internal struct CronJobsView: View {
                     withAnimation(.easeInOut(duration: 0.12)) { toggle(node) }
                 }
             case .job(let job, let depth):
-                card(for: job)
+                card(for: job, underCategory: true)
                     .padding(.leading, CGFloat(depth) * 14)
             }
         }
@@ -102,7 +102,11 @@ internal struct CronJobsView: View {
         }
     }
 
-    private func card(for job: CronJob) -> CronJobCard {
+    /// One job card. `underCategory` is true only for a card sitting beneath its
+    /// category headers, which already spell the path out — there the card shows
+    /// the leaf alone. A flat or ungrouped card keeps the full name, since
+    /// nothing else on screen carries the category.
+    private func card(for job: CronJob, underCategory: Bool = false) -> CronJobCard {
         CronJobCard(
             job: job,
             isExpanded: expandedJobID == job.id,
@@ -114,7 +118,8 @@ internal struct CronJobsView: View {
             onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } },
             onRename: { name in Task { await vm.renameJob(id: job.id, newName: name) } },
             siblingJobs: vm.jobs,
-            supportsRemoveAndEdit: vm.supportsRemoveAndEdit
+            supportsRemoveAndEdit: vm.supportsRemoveAndEdit,
+            showsCategoryPath: !underCategory
         )
     }
 

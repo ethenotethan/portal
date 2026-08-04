@@ -400,6 +400,65 @@ internal struct CronCategoryTests {
         #expect(!workOpen)
     }
 
+    // MARK: - What a row is called
+
+    /// The reported bug: under a folder named `autoresearch`, the job inside it
+    /// still read `autoresearch/ingest`, so the folder name was printed twice on
+    /// every line and the tree looked like it hadn't grouped anything.
+    @Test("a job under its category headers reads as just the leaf")
+    internal func groupedRowShowsLeafOnly() {
+        let ingest = job("autoresearch/ingest")
+        #expect(CronCategory.displayName(for: ingest, showingPath: false) == "ingest")
+    }
+
+    @Test("a job standing alone keeps its whole path")
+    internal func flatRowShowsFullPath() {
+        // Flat mode and the Ungrouped section have no headers above them, so the
+        // name is the only place the category is visible — stripping it there
+        // would lose the information rather than de-duplicate it.
+        let ingest = job("autoresearch/ingest")
+        #expect(CronCategory.displayName(for: ingest, showingPath: true) == "autoresearch/ingest")
+    }
+
+    @Test("only the last path component survives at any depth")
+    internal func deepGroupedRowShowsLeafOnly() {
+        // Nested headers spell out every level, so a deep job strips all of them,
+        // not just the first.
+        let sprint = job("life/training/cardio/sprint")
+        #expect(CronCategory.displayName(for: sprint, showingPath: false) == "sprint")
+    }
+
+    @Test("an uncategorized job reads the same either way")
+    internal func ungroupedNameIsStable() {
+        // Nothing to strip, so the flag can't accidentally blank the row — this
+        // is what a card in the Ungrouped section renders.
+        let backup = job("db-backup")
+        #expect(CronCategory.displayName(for: backup, showingPath: false) == "db-backup")
+        #expect(CronCategory.displayName(for: backup, showingPath: true) == "db-backup")
+    }
+
+    @Test("a malformed name never renders as empty")
+    internal func separatorOnlyNameStillRenders() {
+        // `split` preserves a separators-only name as its own title, so a row
+        // shows something identifiable instead of a blank line.
+        let odd = job("///")
+        #expect(CronCategory.displayName(for: odd, showingPath: false) == "///")
+    }
+
+    @Test("the leaf shown matches the leaf the tree filed the job under")
+    internal func displayNameAgreesWithGrouping() throws {
+        // The two must not drift: the header says `autoresearch`, so whatever the
+        // row shows has to be exactly the remainder of the name.
+        let grouping = CronCategory.group([job("autoresearch/ingest")])
+        let root = try #require(grouping.roots.first)
+        #expect(root.name == "autoresearch")
+
+        let filed = try #require(root.jobs.first)
+        #expect(CronCategory.displayName(for: filed, showingPath: false) == "ingest")
+        #expect(root.name + "/" + CronCategory.displayName(for: filed, showingPath: false)
+                == filed.name)
+    }
+
     // MARK: - Moving without retyping the name
 
     @Test("moving an ungrouped job into a category keeps its leaf name")
