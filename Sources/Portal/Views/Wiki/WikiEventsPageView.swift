@@ -295,7 +295,43 @@ struct WikiEventsPageView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
             }
+            unplottedNote(timeline)
         }
+    }
+
+    /// Why the plot is emptier than the feed, when it is.
+    ///
+    /// The feed lists an event whatever its timestamp; the plot can only draw
+    /// one that has a time inside the window. Without this line the difference
+    /// reads as a broken chart, which is the wrong conclusion and the wrong fix
+    /// — the honest answer is a property of the wiki's data.
+    @ViewBuilder
+    private func unplottedNote(_ timeline: WikiEventTimeline) -> some View {
+        let undated = timeline.undatedCount
+        let outside = timeline.outOfWindowCount(domain: window)
+        if undated > 0 || outside > 0 {
+            Label(
+                Self.unplottedSummary(undated: undated, outside: outside),
+                systemImage: "eye.slash"
+            )
+            .font(.caption2)
+            .foregroundStyle(Theme.tertiary)
+        }
+    }
+
+    /// The note's text. Pure and internal so a test can pin the wording — an
+    /// off-by-one or a mislabeled cause here misdirects whoever reads it.
+    internal static func unplottedSummary(undated: Int, outside: Int) -> String {
+        var clauses: [String] = []
+        if undated > 0 {
+            clauses.append("\(undated) with no timestamp")
+        }
+        if outside > 0 {
+            clauses.append("\(outside) dated outside this window")
+        }
+        let total = undated + outside
+        let noun = total == 1 ? "event" : "events"
+        return "\(total) \(noun) not plotted: " + clauses.joined(separator: ", ")
     }
 
     /// Centaur-only: needs the revisions/changes endpoints. Rendering an empty

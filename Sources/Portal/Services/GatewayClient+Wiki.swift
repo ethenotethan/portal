@@ -469,11 +469,14 @@ extension GatewayClient {
     /// Map one `wiki.events` entry onto the shared event row.
     ///
     /// The gateway reports a single `timestamp` (frontmatter `ingested`, or the
-    /// file mtime when the field predates the field). There is no separate
-    /// real-world event time on this backend, so both time fields get it and
-    /// `eventTimeEstimated` stays false — the estimated-time diamond means
-    /// "we're plotting ingest time in place of event time", which would be a
-    /// false claim here rather than a useful warning.
+    /// file mtime when that's missing). There is no separate real-world event
+    /// time on this backend, so both time fields get it.
+    ///
+    /// `time_estimated` says the gateway fell back to the file's mtime. That's a
+    /// real observation but not the event's own time — `git clone` rewrites every
+    /// mtime — so it earns the estimated-time mark. An `ingested` value that the
+    /// wiki actually recorded does not: the diamond means "this time was
+    /// inferred", and claiming that for a recorded time is a false warning.
     nonisolated internal static func eventLogEntry(from item: AnyCodable) -> WikiTimelineEvent? {
         guard let d = item.dictionaryValue,
               let key = d["key"]?.stringValue, !key.isEmpty else { return nil }
@@ -500,7 +503,9 @@ extension GatewayClient {
             url: d["source_url"]?.stringValue ?? "",
             occurredAt: timestamp,
             ingestedAt: timestamp,
-            eventTimeEstimated: false,
+            // Absent on a gateway that predates the flag, which is the same
+            // thing as "not estimated" as far as anything downstream can tell.
+            eventTimeEstimated: d["time_estimated"]?.boolValue ?? false,
             actorSlackID: nil,
             actorName: nil,
             directiveBody: nil,
