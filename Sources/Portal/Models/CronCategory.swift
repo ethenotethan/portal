@@ -57,6 +57,21 @@ internal enum CronCategory {
         path(for: job).isEmpty
     }
 
+    /// The name to show for a job, given whether its category is already visible
+    /// somewhere else on screen.
+    ///
+    /// `showingPath` is false exactly when the job sits under its own category
+    /// headers: those headers are the path, so repeating it makes every child
+    /// restate its parent (`autoresearch/ingest` beneath a folder named
+    /// `autoresearch`). Flat and ungrouped rows pass true, because there the
+    /// name is the only place the category appears at all.
+    ///
+    /// Lives here rather than in each view so the list page's row and the
+    /// activity board's card can't drift apart on what a grouped job is called.
+    internal static func displayName(for job: CronJob, showingPath: Bool) -> String {
+        showingPath ? job.name : title(for: job)
+    }
+
     // MARK: - Renaming == recategorizing
 
     /// Clean up a user-typed job name into the canonical path form, or nil when

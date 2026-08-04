@@ -332,7 +332,7 @@ struct CronJobRow: View {
     internal var showsCategoryPath: Bool = true
 
     private var displayName: String {
-        showsCategoryPath ? job.name : CronCategory.title(for: job)
+        CronCategory.displayName(for: job, showingPath: showsCategoryPath)
     }
 
     var body: some View {
