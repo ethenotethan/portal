@@ -360,4 +360,158 @@ struct WikiGraphViewModelTests {
         await vm.load(client: GatewayClient(), wiki: "main")
         #expect(vm.graph.pages.isEmpty, "no cache + failed scan → empty graph (overlay shows)")
     }
+
+    // MARK: - Event-type taxonomy
+
+    /// A source whose graph declares event types, so the VM has definition
+    /// pages to fetch frontmatter for.
+    private final class TaxonomySource: WikiSource {
+        var graph: WikiGraph
+        var frontmatter: [String: [String: String]]
+        /// Paths fetched, in order — asserts the VM reads definitions and
+        /// nothing else.
+        var fetchedPaths: [String] = []
+        /// Paths whose fetch should throw, standing in for an unreadable page.
+        var failingPaths: Set<String> = []
+
+        init(graph: WikiGraph, frontmatter: [String: [String: String]]) {
+            self.graph = graph
+            self.frontmatter = frontmatter
+        }
+
+        struct Missing: Error {}
+
+        func fetchGraph() async throws -> WikiGraph { graph }
+
+        func fetchPage(path: String) async throws -> WikiPageContent {
+            fetchedPaths.append(path)
+            if failingPaths.contains(path) { throw Missing() }
+            return WikiPageContent(frontmatter: frontmatter[path] ?? [:], body: "", path: path)
+        }
+
+        func search(query: String, limit: Int) async throws -> [WikiSearchResult] { [] }
+    }
+
+    private func eventTypePage(_ id: String, title: String) -> WikiPage {
+        WikiPage(
+            id: id, title: title, type: WikiEventTypeRegistry.definitionPageType,
+            tags: [], path: "event-types/\(id).md", created: nil, updated: nil,
+            confidence: nil, contested: false, tagPath: [], integrationLinks: []
+        )
+    }
+
+    /// The point of the whole feature: a kind the wiki declares must resolve to
+    /// what the WIKI said, with no client release involved.
+    @Test("Loading a wiki resolves its declared event types from its own pages")
+    internal func loadResolvesDeclaredEventTypes() async {
+        let source = TaxonomySource(
+            graph: WikiGraph(
+                pages: [
+                    eventTypePage("ingest", title: "Source ingest"),
+                    page("alpha", path: "concepts/alpha.md"),
+                ],
+                links: []
+            ),
+            frontmatter: [
+                "event-types/ingest.md": [
+                    "event_kind": "ingest",
+                    "glyph": "tray.and.arrow.down",
+                    "produces_changes": "true",
+                ],
+            ]
+        )
+
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(source: source)
+
+        let ingest = vm.eventTypes.resolve("ingest")
+        #expect(ingest.isDeclared)
+        #expect(ingest.label == "Source ingest")
+        #expect(ingest.glyph == "tray.and.arrow.down")
+        #expect(ingest.pagePath == "event-types/ingest.md", "the chip needs a page to click through to")
+        #expect(vm.eventTypes.changeProducingKinds.contains("ingest"))
+        // Only definition pages are fetched — this must not become a scan of
+        // every page in the wiki.
+        #expect(source.fetchedPaths == ["event-types/ingest.md"])
+    }
+
+    /// The pre-seed state, and a legitimate steady state. Nothing regresses:
+    /// an undeclared kind still resolves, just derived.
+    @Test("A wiki declaring no event types still resolves every kind")
+    internal func noDeclarationsStillResolves() async {
+        let source = TaxonomySource(
+            graph: WikiGraph(pages: [page("alpha", path: "concepts/alpha.md")], links: []),
+            frontmatter: [:]
+        )
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(source: source)
+
+        #expect(vm.eventTypes.isEmpty)
+        #expect(source.fetchedPaths.isEmpty, "no definition pages → no page fetches")
+        let derived = vm.eventTypes.resolve("github_pr")
+        #expect(!derived.isDeclared)
+        #expect(derived.label == "Github pr")
+        #expect(derived.pagePath == nil, "nothing to open for a kind no page defines")
+    }
+
+    /// A definition page that won't load leaves its kind derived — the same
+    /// outcome as never declaring it. It must not take the other declarations
+    /// down with it.
+    @Test("An unreadable definition page doesn't lose the readable ones")
+    internal func unreadableDefinitionIsSkipped() async {
+        let source = TaxonomySource(
+            graph: WikiGraph(
+                pages: [
+                    eventTypePage("ingest", title: "Source ingest"),
+                    eventTypePage("broken", title: "Broken"),
+                ],
+                links: []
+            ),
+            frontmatter: ["event-types/ingest.md": ["event_kind": "ingest"]]
+        )
+        source.failingPaths = ["event-types/broken.md"]
+
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(source: source)
+
+        #expect(vm.eventTypes.resolve("ingest").isDeclared)
+        #expect(vm.eventTypes.declaredTypes.count == 1)
+    }
+
+    /// A wiki that declared types and then deleted them must fall back to
+    /// derivation rather than keep answering from a stale registry.
+    @Test("Reloading a wiki that dropped its definitions clears the registry")
+    internal func droppedDefinitionsClearRegistry() async {
+        let declared = WikiGraph(pages: [eventTypePage("ingest", title: "Source ingest")], links: [])
+        let source = TaxonomySource(
+            graph: declared,
+            frontmatter: ["event-types/ingest.md": ["event_kind": "ingest"]]
+        )
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(source: source)
+        #expect(!vm.eventTypes.isEmpty)
+
+        source.graph = WikiGraph(pages: [page("alpha", path: "concepts/alpha.md")], links: [])
+        await vm.load(source: source)
+        #expect(vm.eventTypes.isEmpty, "stale declarations must not outlive the pages that made them")
+    }
+
+    @Test("A gateway switch drops the previous wiki's taxonomy")
+    internal func gatewaySwitchClearsRegistry() async {
+        let source = TaxonomySource(
+            graph: WikiGraph(pages: [eventTypePage("ingest", title: "Source ingest")], links: []),
+            frontmatter: ["event-types/ingest.md": ["event_kind": "ingest"]]
+        )
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        await vm.load(source: source)
+        #expect(!vm.eventTypes.isEmpty)
+
+        vm.resetForGatewaySwitch()
+        #expect(vm.eventTypes.isEmpty)
+    }
 }

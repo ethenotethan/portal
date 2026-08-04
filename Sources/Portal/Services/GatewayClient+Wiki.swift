@@ -28,8 +28,20 @@ struct WikiChangeset: Identifiable, Hashable {
     let summary: String
     let linesAdded: Int
     let linesRemoved: Int
-    let trigger: Trigger
-    let source: String           // raw source path ("" if none)
+    /// The wire value verbatim, NOT a closed enum. What a trigger *means* is
+    /// declared by a `type: event-type` wiki page and resolved through
+    /// `WikiEventTypeRegistry`, so a wiki can add an ingestion source without
+    /// an app release. The enum this replaces folded every unrecognized value
+    /// into one indistinguishable bucket.
+    internal let trigger: String
+    /// Legacy single raw source path ("" if none). Superseded by `provenance`,
+    /// which folds this in — kept because a gateway predating provenance still
+    /// sends it and nothing else on the wire carries the same information.
+    internal let source: String
+    /// Which ingestion events caused this change — `.unknown` when nobody
+    /// recorded any. See `WikiProvenance`: unknown is not a claim that no
+    /// cause exists.
+    internal let provenance: WikiProvenance
     let gitCommit: String        // short git hash ("" if none)
 
     enum Action: String {
@@ -51,23 +63,6 @@ struct WikiChangeset: Identifiable, Hashable {
         var label: String {
             switch self {
             case .unknown: return "change"
-            default: return rawValue
-            }
-        }
-    }
-
-    enum Trigger: String {
-        case ingest, query, lint
-        case processInbox = "process-inbox"
-        case manual
-        case unknown
-
-        init(raw: String) { self = Trigger(rawValue: raw) ?? .unknown }
-
-        var label: String {
-            switch self {
-            case .processInbox: return "inbox"
-            case .unknown: return "—"
             default: return rawValue
             }
         }
@@ -379,8 +374,17 @@ extension GatewayClient {
                 summary: d["summary"]?.stringValue ?? "",
                 linesAdded: stats?["lines_added"]?.intValue ?? 0,
                 linesRemoved: stats?["lines_removed"]?.intValue ?? 0,
-                trigger: WikiChangeset.Trigger(raw: d["trigger"]?.stringValue ?? ""),
+                trigger: d["trigger"]?.stringValue ?? "",
                 source: d["source"]?.stringValue ?? "",
+                // A gateway predating provenance omits the key entirely but may
+                // still carry a legacy `source`; an enforcing one sends [] for
+                // "unrecorded" and has already folded `source` into the keys.
+                // Both collapse to .unknown when genuinely empty, which is why
+                // the client never has to know which gateway it's talking to.
+                provenance: WikiProvenance.decode(
+                    d[WikiProvenance.wireKey]?.arrayValue?.compactMap(\.stringValue),
+                    legacySource: d["source"]?.stringValue ?? ""
+                ),
                 gitCommit: d["git_commit"]?.stringValue ?? ""
             )
         }
