@@ -39,11 +39,19 @@ final class WikiGraphViewModel: ObservableObject {
     /// Hermes-only; the hosting view hides the affordance for sources that
     /// don't conform to WikiChangesetSource.
     @Published var showTimeline = false
-    /// Full-surface Compendium events page: while true the adaptive host
-    /// swaps the graph surface for the events page (a page WITHIN the wiki,
-    /// not an overlay). Centaur-only — the toggle affordance gates on
-    /// WikiEventTimelineProviding conformance, same plane as the graph.
+    /// Full-surface events page: while true the adaptive host swaps the graph
+    /// surface for the events page (a page WITHIN the wiki, not an overlay).
+    /// The toggle affordance gates on WikiEventLogSource conformance — both
+    /// backends have an ingestion log — on the same plane as the graph.
     @Published var showEventsPage = false
+    /// An event the events page should land on, by source key.
+    ///
+    /// Set by a changeset's provenance chip: "this change came from that event"
+    /// is only half a link if you can't follow it. The events page consumes and
+    /// clears it, widening its window when the event predates the current one —
+    /// arriving at a feed that doesn't contain what you clicked would read as
+    /// the event not existing.
+    @Published internal var focusedEventKey: String?
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
 
@@ -591,16 +599,6 @@ final class WikiGraphViewModel: ObservableObject {
     func revealInFileTree(path: String) {
         showFileTree = true
         navigate(to: path)
-    }
-
-    /// Directive target-page chip (or changed-page row) on the events page:
-    /// leave the events surface, make the page the shared current page, and
-    /// open the reader over the graph — the same landing as every other
-    /// "jump into the wiki" path.
-    func openPageLeavingEvents(_ path: String) {
-        showEventsPage = false
-        navigate(to: path)
-        openReaderForSelection()
     }
 
     private func rebuildBacklinks() {

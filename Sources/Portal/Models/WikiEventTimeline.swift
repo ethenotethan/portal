@@ -31,15 +31,49 @@ enum WikiEventKind: String, CaseIterable, Hashable {
     }
 }
 
+// MARK: - WikiEventChangesetRef
+
+/// A changeset this event caused — the event→page edge of provenance.
+///
+/// The reverse direction already exists: `WikiChangeset.provenance` lists the
+/// event keys that caused a change. Hermes' `wiki.events` reports the join in
+/// both directions off one index read, so a surface can walk event → changeset
+/// → page without a second round-trip. Centaur's wiki-api has no equivalent
+/// field, so its events carry an empty array and the affordance simply doesn't
+/// render.
+internal struct WikiEventChangesetRef: Identifiable, Hashable {
+    internal let id: String
+    /// Wiki-relative page path — what the changeset edited.
+    internal let page: String
+    internal let title: String
+    /// create | update | archive | delete, verbatim from the wire.
+    internal let action: String
+    internal let timestamp: Date?
+
+    /// Page title when the changeset recorded one, else the path's last
+    /// component — a chip needs a label either way.
+    internal var pageLabel: String {
+        if !title.isEmpty { return title }
+        return page.split(separator: "/").last.map(String.init) ?? page
+    }
+}
+
 // MARK: - WikiTimelineEvent
 
-/// One raw INPUT event that flowed into the LLM-synthesized Compendium —
-/// a row from wiki-api `GET /wiki/timeline`. Directive rows carry extra
-/// attribution (actor + verbatim quote + target pages); the fields are nil
-/// for every other kind.
+/// One raw INPUT event that flowed into a knowledge base.
+///
+/// Shared by both backends so the plot and the feed have a single row type:
+/// Centaur fills it from wiki-api `GET /wiki/timeline`, Hermes from
+/// `wiki.events` (a raw source file under `raw/`). Fields the other side
+/// doesn't have stay nil/empty rather than being faked — directive attribution
+/// is Centaur-only, `changesets` is Hermes-only, and every view that shows
+/// either checks first.
 struct WikiTimelineEvent: Identifiable, Hashable {
     let sourceKey: String
-    /// Wire kind string, preserved for display of unknown kinds.
+    /// Wire kind string. The presentation layer resolves this through the
+    /// wiki's `type: event-type` pages (`WikiEventTypeRegistry`) and only falls
+    /// back to `WikiEventKind`'s built-in palette for Centaur, whose kinds are
+    /// fixed by its pipeline rather than declared by the wiki.
     let kindRaw: String
     let label: String
     /// May be empty — not every source has a canonical link.
@@ -60,6 +94,12 @@ struct WikiTimelineEvent: Identifiable, Hashable {
     let targetPages: [String]?
     let directiveStatus: String?
     let resultingRevisionIDs: [Int64]?
+
+    /// Changesets this event caused (Hermes; empty on Centaur). The
+    /// event → changeset → page navigation edge.
+    internal var changesets: [WikiEventChangesetRef] = []
+    /// Content hash of the raw source (Hermes; empty on Centaur).
+    internal var sha256: String = ""
 
     var id: String { sourceKey }
     var kind: WikiEventKind { WikiEventKind(wire: kindRaw) }

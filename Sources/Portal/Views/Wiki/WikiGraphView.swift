@@ -13,10 +13,10 @@ import SwiftUI
 /// - The changeset timeline is a bottom drawer (macOS) / sheet (iOS) with
 ///   git-style inline diffs; shown only for sources with edit history
 ///   (WikiChangesetSource conformance).
-/// - The Compendium events page (Centaur sources only, by
-///   WikiEventTimelineProviding conformance) is a full-surface page WITHIN
-///   the wiki: `showEventsPage` swaps the whole surface graph ↔ events,
-///   with "← Wiki" navigating back — never a sheet/overlay.
+/// - The events page (sources with an ingestion log, by WikiEventLogSource
+///   conformance — both backends) is a full-surface page WITHIN the wiki:
+///   `showEventsPage` swaps the whole surface graph ↔ events, with "← Wiki"
+///   navigating back — never a sheet/overlay.
 /// Selection stays synced across every surface via the view model's shared
 /// selection plane.
 struct WikiGraphView: View {
@@ -45,11 +45,20 @@ struct WikiGraphView: View {
         return true // home gateway conforms
     }
 
-    /// Compendium events page capability (Centaur wiki-api only). nil hides
-    /// the affordance and keeps `showEventsPage` inert.
-    private var eventTimelineProvider: (any WikiEventTimelineProviding)? {
-        overrideSource as? (any WikiEventTimelineProviding)
+    /// Events-page capability. Both backends have an ingestion log — Hermes via
+    /// `wiki.events`, Centaur via `/wiki/timeline` — so this resolves to the
+    /// home gateway when there's no override. nil hides the affordance and
+    /// keeps `showEventsPage` inert.
+    private var eventLogSource: (any WikiEventLogSource)? {
+        if let overrideSource { return overrideSource as? (any WikiEventLogSource) }
+        return gatewayClientWrapper.client
     }
+
+    /// Whether the Events door belongs in the toolbar. Distinct from
+    /// `showsEventsPage`, which also requires the page to be *open* — and the
+    /// toolbar only renders while it's closed, so gating the door on that would
+    /// hide it exactly when it's needed.
+    private var hasEventsSurface: Bool { eventLogSource != nil }
 
     @State private var showWikiPicker = false
     @State private var lastPinchScale: CGFloat = 1.0
@@ -135,19 +144,20 @@ struct WikiGraphView: View {
 
     // MARK: - Adaptive layout
 
-    /// True while the Compendium events page owns the wiki surface. Gated on
-    /// the capability so a stale flag can never blank a non-Centaur wiki.
+    /// True while the events page owns the wiki surface. Gated on the
+    /// capability so a stale flag can never blank a wiki whose source has no
+    /// event log.
     private var showsEventsPage: Bool {
-        viewModel.showEventsPage && eventTimelineProvider != nil
+        viewModel.showEventsPage && hasEventsSurface
     }
 
     #if os(macOS)
     /// macOS: sidebar | (graph / timeline drawer) | reader panel — or the
-    /// full-surface Compendium events page when navigated there.
+    /// full-surface events page when navigated there.
     @ViewBuilder
     private var adaptiveLayout: some View {
-        if let provider = eventTimelineProvider, showsEventsPage {
-            WikiEventsPageView(provider: provider, viewModel: viewModel)
+        if let eventLogSource, showsEventsPage {
+            WikiEventsPageView(source: eventLogSource, viewModel: viewModel)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
         } else {
             graphLayout
@@ -180,6 +190,7 @@ struct WikiGraphView: View {
                         selectedPagePath: viewModel.selectedPath,
                         eventTypes: viewModel.eventTypes,
                         onOpenPage: { path in openPageFromTimeline(path) },
+                        onOpenEvent: onOpenEvent,
                         onClose: { viewModel.showTimeline = false }
                     )
                     .frame(height: timelineHeight)
@@ -224,14 +235,14 @@ struct WikiGraphView: View {
     }
     #else
     /// iOS: full-bleed graph; sidebar, reader, and timeline present as
-    /// sheets — or the full-surface Compendium events page when navigated
+    /// sheets — or the full-surface events page when navigated
     /// there. Page chips on the events page navigate back to the graph
     /// surface first (openPageLeavingEvents), so the reader sheet always
     /// presents from the graph branch.
     @ViewBuilder
     private var adaptiveLayout: some View {
-        if let provider = eventTimelineProvider, showsEventsPage {
-            WikiEventsPageView(provider: provider, viewModel: viewModel)
+        if let eventLogSource, showsEventsPage {
+            WikiEventsPageView(source: eventLogSource, viewModel: viewModel)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
         } else {
             graphLayout
@@ -263,6 +274,7 @@ struct WikiGraphView: View {
                         viewModel.showTimeline = false
                         openPageFromTimeline(path)
                     },
+                    onOpenEvent: onOpenEvent,
                     onClose: { viewModel.showTimeline = false }
                 )
                 .environmentObject(gatewayClientWrapper)
@@ -302,7 +314,7 @@ struct WikiGraphView: View {
             WikiGraphControlsBar(
                 viewModel: viewModel,
                 supportsTimeline: supportsTimeline,
-                source: overrideSource,
+                hasEventsSurface: hasEventsSurface,
                 onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
             )
         }
@@ -502,5 +514,17 @@ struct WikiGraphView: View {
     private func openPageFromTimeline(_ path: String) {
         viewModel.navigate(to: path)
         viewModel.openReaderForSelection()
+    }
+
+    /// Provenance chip → the event feed, but only where there IS one. Handing
+    /// the timeline a nil closure when the source has no event log is what makes
+    /// its chips render as plain labels instead of dead buttons.
+    private var onOpenEvent: ((String) -> Void)? {
+        guard hasEventsSurface else { return nil }
+        return { key in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.openEventFeed(eventKey: key)
+            }
+        }
     }
 }
