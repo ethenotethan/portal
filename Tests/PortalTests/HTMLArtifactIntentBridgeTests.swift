@@ -68,4 +68,93 @@ internal struct HTMLArtifactIntentBridgeTests {
         #expect(!script.contains("GatewayClient"))
         #expect(!script.contains("fetch("))
     }
+
+    // MARK: - StatusMark
+
+    @Test("StatusMark stores its slot and token and is Equatable on all fields")
+    internal func statusMarkConstruction() {
+        let a = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "start-issue", entityRef: "issues/ARC-42", status: .pending)
+        #expect(a.bindingID == "start-issue")
+        #expect(a.entityRef == "issues/ARC-42")
+        #expect(a.status == .pending)
+
+        // Equality is structural: any field differing breaks it, so a stale mark
+        // set is detected and the host view re-runs the reflection JS.
+        let sameSlotOtherStatus = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "start-issue", entityRef: "issues/ARC-42", status: .succeeded)
+        #expect(a != sameSlotOtherStatus)
+
+        let otherEntity = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "start-issue", entityRef: "issues/ARC-99", status: .pending)
+        #expect(a != otherEntity)
+
+        let otherBinding = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "complete-issue", entityRef: "issues/ARC-42", status: .pending)
+        #expect(a != otherBinding)
+    }
+
+    @Test("an empty entityRef is a distinct slot from a named one")
+    internal func statusMarkEmptyEntityDistinct() {
+        // Controls without a data-hermes-entity match on the empty string; a
+        // row-scoped button and a header-scoped one with the same bindingID must
+        // not cross-talk.
+        let header = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "start-issue", entityRef: "", status: .pending)
+        let row = HTMLArtifactIntentBridge.StatusMark(
+            bindingID: "start-issue", entityRef: "issues/ARC-42", status: .pending)
+        #expect(header != row)
+    }
+
+    // MARK: - statusReflectionScript
+
+    @Test("reflection script embeds the slot and status as JSON literals")
+    internal func reflectionScriptStampsStatus() {
+        let js = HTMLArtifactIntentBridge.statusReflectionScript(
+            bindingID: "start-issue", entityRef: "issues/ARC-42", status: .succeeded)
+
+        // The binding/entity are embedded via JSONEncoder, which escapes the
+        // forward slash as \/; the token is the status's rawValue so it
+        // round-trips as the CSS hook. A non-nil status drives setAttribute.
+        #expect(js.contains(#"const binding = "start-issue";"#))
+        #expect(js.contains(#"const entity = "issues\/ARC-42";"#))
+        #expect(js.contains(#"const status = "succeeded";"#))
+        // A concrete status means status !== null, so setAttribute is the live
+        // branch — assert the token arrives there.
+        #expect(js.contains(#"node.setAttribute('data-hermes-status', status);"#))
+    }
+
+    @Test("a nil status resolves to null and drives the clear branch")
+    internal func reflectionScriptClearsWhenNil() {
+        let js = HTMLArtifactIntentBridge.statusReflectionScript(
+            bindingID: "start-issue", entityRef: "", status: nil)
+
+        // status === null is what selects removeAttribute at runtime; the
+        // template carries both branches, so this is the meaningful assertion.
+        #expect(js.contains("const status = null;"))
+        #expect(js.contains("node.removeAttribute('data-hermes-status');"))
+    }
+
+    @Test("characters that would break out of a JS literal are JSON-escaped")
+    internal func reflectionScriptEscapesAdversarialStrings() {
+        // A binding carrying a closing quote / script tag must not be able to
+        // escape the string literal jsStringLiteral wraps it in. JSONEncoder
+        // turns `"` into `\"`, so the surrounding quotes stay balanced.
+        let adversarial = #"</script>""#
+        let js = HTMLArtifactIntentBridge.statusReflectionScript(
+            bindingID: adversarial, entityRef: adversarial, status: .failed)
+
+        // The embedded literal escapes the quote (backslash-quote), never a
+        // bare quote that could terminate the JS string.
+        #expect(js.contains(#"\""#))
+        // The status token is still intact and well-formed.
+        #expect(js.contains(#"const status = "failed";"#))
+    }
+
+    @Test("the needs-confirmation rawValue carries its hyphen through reflection")
+    internal func reflectionScriptPreservesHyphenatedToken() {
+        let js = HTMLArtifactIntentBridge.statusReflectionScript(
+            bindingID: "x", entityRef: "", status: .needsConfirmation)
+        #expect(js.contains(#"const status = "needs-confirmation";"#))
+    }
 }
