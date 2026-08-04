@@ -143,7 +143,9 @@ struct SkillsView: View {
     /// or nil if its URL/token is unusable. Skills route through this instead of
     /// the WebSocket Gateway (Standard is HTTP-only).
     private static func standardClient(for gateway: SavedGateway) -> HermesStandardClient? {
-        guard let baseURL = URL(string: gateway.url.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        // GatewayURL, not URL(string:) — see the note in CronListView: a bare
+        // "host:8080" parses as a host-less URL and yields no client at all.
+        guard let baseURL = GatewayURL.httpOrigin(gateway.url) else {
             return nil
         }
         do {

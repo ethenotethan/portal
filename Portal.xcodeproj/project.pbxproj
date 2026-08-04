@@ -479,9 +479,11 @@
 		B284082011E95916E7EE1509 /* WikiEventsKnowledgePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A42555FC2D58C23D24FF073 /* WikiEventsKnowledgePane.swift */; };
 		B29C577C8E2751D987EBAEC9 /* ArtifactIntentSessionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */; };
 		B326099EB641357C0BA267DE /* DarkMangaSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9223A5205A066F8CB68337 /* DarkMangaSkin.swift */; };
+		B38E8DBE566973C93440F789 /* GatewayURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D143F31889C8C1632DAE59 /* GatewayURL.swift */; };
 		B3AC25F32535AF7BCA084439 /* QuizSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E433D1965080CB220166FB /* QuizSheet.swift */; };
 		B3BB26510DCED6CCC8351DF3 /* ThoughtGraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 650546E180D4C6DF60914D3C /* ThoughtGraphLayoutEngine.swift */; };
 		B402CC5A0113FF97EDAAD723 /* DelegationBatchHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BAA25E9F3D61566B5174696 /* DelegationBatchHistoryTests.swift */; };
+		B44B66DC10A7E9885958AD7B /* GatewayURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D143F31889C8C1632DAE59 /* GatewayURL.swift */; };
 		B49BB161ABB12E0F16602C98 /* WikiEventTimelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015E6939E5C8CBC3F89CF1B3 /* WikiEventTimelineTests.swift */; };
 		B4E36275838948C78CEBA06D /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09DCF1D4A15D3681D1614BDA /* SessionListViewModel.swift */; };
 		B5EC517015FFD0D33100536F /* CurriculumViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4299E269AEBAF1B7C58F3090 /* CurriculumViewModel.swift */; };
@@ -578,6 +580,7 @@
 		DAA5EB1831526B7302C05F5E /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC1CAB2036BF2DECFF141C /* PlatformCompat.swift */; };
 		DB15F810DE30FF88E1415314 /* MediaAttachmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9818BBBE3206900907DBF63 /* MediaAttachmentTests.swift */; };
 		DBF737D082B6975F7B97D978 /* ArtifactPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78FA2A665949614A12ECD37F /* ArtifactPanel.swift */; };
+		DC5C31DFAA64B74E61537C15 /* GatewayURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D86516120E3F9F9C02CEE1C3 /* GatewayURLTests.swift */; };
 		DC5C663E22AD27E3A46F4B1A /* TweetContentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4E449CDD35CFC81F87C0C8 /* TweetContentService.swift */; };
 		DC689C4581E320CB823DAC17 /* ResponseStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 336891A0EF982E2238882C80 /* ResponseStyleTests.swift */; };
 		DC7DFD61E1250894C67305FA /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */; };
@@ -1006,6 +1009,7 @@
 		D55A30D466FF8CA0ED2AB869 /* CurriculumCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumCard.swift; sourceTree = "<group>"; };
 		D5798D1367ED862755773F47 /* GitHubLinkCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLinkCard.swift; sourceTree = "<group>"; };
 		D7C731594AC06AB4D5256EBC /* HermesStandardClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStandardClient.swift; sourceTree = "<group>"; };
+		D86516120E3F9F9C02CEE1C3 /* GatewayURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayURLTests.swift; sourceTree = "<group>"; };
 		D9559C6BB8CC4D5A23041773 /* CronCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronCategoryTests.swift; sourceTree = "<group>"; };
 		D9818BBBE3206900907DBF63 /* MediaAttachmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachmentTests.swift; sourceTree = "<group>"; };
 		D9A0487C2D32733744753416 /* WikiEventsInputOutputChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsInputOutputChart.swift; sourceTree = "<group>"; };
@@ -1027,6 +1031,7 @@
 		E45A3C5BEC6B99EE33B623FB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBlockView.swift; sourceTree = "<group>"; };
 		E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphLayoutEngineTests.swift; sourceTree = "<group>"; };
+		E8D143F31889C8C1632DAE59 /* GatewayURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayURL.swift; sourceTree = "<group>"; };
 		E9403B0AABD3D56F6AF07759 /* InAppLinkRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppLinkRoutingTests.swift; sourceTree = "<group>"; };
 		EA8745028601F01F7FAA8466 /* CurriculumTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumTests.swift; sourceTree = "<group>"; };
 		EA8D27D2E5A81242468CEE7D /* CentaurWikiClient+Timeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CentaurWikiClient+Timeline.swift"; sourceTree = "<group>"; };
@@ -1116,6 +1121,7 @@
 				FD14FA0E7332B800017824D8 /* Constants.swift */,
 				C91E39B6C4EB4E9A8CCBEF9B /* DocumentTextExtractor.swift */,
 				59104A6ABEE680F74F2469F3 /* Extensions.swift */,
+				E8D143F31889C8C1632DAE59 /* GatewayURL.swift */,
 				1444549B4F2BEDB9361E541C /* HermesNativeDeepLink.swift */,
 				34A2EF35794E0D22009946F6 /* InlineMath.swift */,
 				CEABB965F0E5A2D57EE42D85 /* JSONObjectParse.swift */,
@@ -1663,6 +1669,7 @@
 				6EDA2632CA57A266F027D530 /* GatewayEventDecodingTests.swift */,
 				331F03820AA7EF768E091175 /* GatewayPersonaTests.swift */,
 				DECAC6D29226FF51607474DF /* GatewayReconnectTests.swift */,
+				D86516120E3F9F9C02CEE1C3 /* GatewayURLTests.swift */,
 				C43D16EFC877DD5707B77E58 /* GitHubReleaseEmbedTests.swift */,
 				62C3C6AD6F18D1A7BA71169E /* HarnessPresentationTests.swift */,
 				543F19F3B800A536FD442798 /* HermesNativeDeepLinkTests.swift */,
@@ -2080,6 +2087,7 @@
 				88CF05BA2FF8C500A159492B /* GatewayDebugPanelView.swift in Sources */,
 				09057AE5A553576223051A70 /* GatewayDebugSnapshot.swift in Sources */,
 				07D139EB10D613FEE45017A1 /* GatewayEvent.swift in Sources */,
+				B38E8DBE566973C93440F789 /* GatewayURL.swift in Sources */,
 				891E076E1BF2BFEC36AF1740 /* GitHubContentService.swift in Sources */,
 				A4DB6F8F248BAEA1C2175909 /* GitHubLinkCard.swift in Sources */,
 				03EAA4FE8DC0DB2638ABD0F2 /* GitHubReleaseCard.swift in Sources */,
@@ -2311,6 +2319,7 @@
 				25E61B074235054D3C43E7A2 /* GatewayEventDecodingTests.swift in Sources */,
 				D36DF9589309932303B36277 /* GatewayPersonaTests.swift in Sources */,
 				54721857179884CFC9A001C7 /* GatewayReconnectTests.swift in Sources */,
+				DC5C31DFAA64B74E61537C15 /* GatewayURLTests.swift in Sources */,
 				CCF63735CEFA879284E4539B /* GitHubReleaseEmbedTests.swift in Sources */,
 				EE3F3B6D4EF4623AF48D9277 /* HTMLArtifactIntentBridgeTests.swift in Sources */,
 				E6F2E3A4C1903D95562271ED /* HarnessPresentationTests.swift in Sources */,
@@ -2467,6 +2476,7 @@
 				4C05387343CC5237DEE03CA0 /* GatewayDebugPanelView.swift in Sources */,
 				87C79EAADD96BB7DD6D33CD1 /* GatewayDebugSnapshot.swift in Sources */,
 				325AB54F679A4BB802FF1275 /* GatewayEvent.swift in Sources */,
+				B44B66DC10A7E9885958AD7B /* GatewayURL.swift in Sources */,
 				8BEED49871132915D30BBD0B /* GitHubContentService.swift in Sources */,
 				C9A2F0F561B31711CF1357D8 /* GitHubLinkCard.swift in Sources */,
 				DF9ECD3F57E286D5AA2B262D /* GitHubReleaseCard.swift in Sources */,
