@@ -142,4 +142,58 @@ internal struct KeychainReadOutcomeTests {
             #expect(KeychainStore.shared.readStringForTesting(account: account).value == "bridged")
         }
     }
+
+    // MARK: - The migration decision
+
+    /// `SettingsViewModel.init`'s migration branch is what actually overwrote the
+    /// stored blob, so the predicate governing it is asserted directly. Running
+    /// `init` is not an option — it reads and writes the real login Keychain.
+    @Suite("Harness migration policy")
+    internal struct MigrationPolicyTests {
+
+        @Test("an unreadable Keychain blocks migration even when it would otherwise fire")
+        internal func unreadableBlocksMigration() {
+            // The regression. Every other input says "migrate" — empty list plus
+            // an onboarded user — and before the fix it did, writing a localhost
+            // entry over harnesses it had simply failed to read.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: true, hasAPIKey: true
+            ) == false)
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: false, hasAPIKey: true
+            ) == false)
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: true, hasAPIKey: false
+            ) == false)
+        }
+
+        @Test("a genuine first run for an onboarded user still migrates")
+        internal func readableFirstRunMigrates() {
+            // The feature this branch exists for must survive the fix: someone
+            // who configured a harness before the list existed keeps it.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: true, hasAPIKey: false
+            ))
+            // An API key alone is enough — onboarding may predate the flag.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: false, hasAPIKey: true
+            ))
+        }
+
+        @Test("existing entries are never migrated over")
+        internal func nonEmptyListNeverMigrates() {
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: false, unreadable: false, onboarded: true, hasAPIKey: true
+            ) == false)
+        }
+
+        @Test("a true blank slate does not invent an entry")
+        internal func blankSlateDoesNotMigrate() {
+            // Not onboarded and no key: there is nothing to carry forward, so
+            // minting an entry would just seed a bogus localhost harness.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: false, hasAPIKey: false
+            ) == false)
+        }
+    }
 }
