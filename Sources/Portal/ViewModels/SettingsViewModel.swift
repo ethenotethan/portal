@@ -185,7 +185,7 @@ internal final class SettingsViewModel: ObservableObject {
     /// every saved harness.
     /// `nonisolated` because it touches no state — the whole point is that the
     /// decision is a function of its four inputs.
-    internal nonisolated static func shouldMigrateSingleGateway(
+    nonisolated internal static func shouldMigrateSingleGateway(
         loadedIsEmpty: Bool,
         unreadable: Bool,
         onboarded: Bool,
