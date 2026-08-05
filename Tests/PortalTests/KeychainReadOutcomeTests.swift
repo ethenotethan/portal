@@ -142,4 +142,16 @@ internal struct KeychainReadOutcomeTests {
             #expect(KeychainStore.shared.readStringForTesting(account: account).value == "bridged")
         }
     }
+
+    // MARK: - saveAPIKey
+
+    @Test("saveAPIKey persists the value and returns true")
+    internal func saveAPIKeyPersists() throws {
+        let account = "api-key"
+        defer { deleteItem(account) }
+        deleteItem(account)
+        let allGood = KeychainStore.shared.saveAPIKey("test-api-key")
+        #expect(allGood)
+        #expect(KeychainStore.shared.loadAPIKey() == "test-api-key")
+    }
 }
