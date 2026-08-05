@@ -13,7 +13,15 @@ internal final class SettingsViewModel: ObservableObject {
     @Published var gatewayURL: String {
         didSet {
             if didCompleteInit {
-                KeychainStore.shared.saveGatewayURL(gatewayURL)
+                // The result is checked, not discarded. A failed Keychain write
+                // is otherwise indistinguishable from a successful one: the new
+                // URL sits in memory, Settings shows it, and the loss only
+                // surfaces on the next launch as a silent fall back to
+                // `Constants.defaultGatewayURL` (127.0.0.1) — the "I add the
+                // harness, restart, and it's localhost again" bug.
+                if !KeychainStore.shared.saveGatewayURL(gatewayURL) {
+                    reportKeychainWriteFailure(what: "harness URL")
+                }
                 syncActiveGateway()
             }
         }
@@ -21,10 +29,35 @@ internal final class SettingsViewModel: ObservableObject {
     @Published var apiKey: String {
         didSet {
             if didCompleteInit {
-                KeychainStore.shared.saveAPIKey(apiKey)
+                if !KeychainStore.shared.saveAPIKey(apiKey) {
+                    reportKeychainWriteFailure(what: "API key")
+                }
                 syncActiveGateway()
             }
         }
+    }
+
+    /// Take the app out of the read-only posture so writes resume.
+    ///
+    /// Needed because the guard is otherwise a trap: if the Keychain won't hand
+    /// the harness data over, every save is blocked, and the user can never fix
+    /// it from inside the app. Deliberately explicit — the user is choosing to
+    /// overwrite a value the app could not read, which is fine when they are
+    /// the one re-entering it, and never fine as an automatic launch behavior.
+    internal func acknowledgeUnreadableHarness() {
+        guard hasUnreadableStoredHarness else { return }
+        hasUnreadableStoredHarness = false
+        log.info("User acknowledged unreadable harness storage; writes re-enabled")
+    }
+
+    /// Surface a refused Keychain write. Shares `gatewayPersistenceError` with
+    /// `persistGateways` so Settings has one place to show "this did not save",
+    /// rather than three independently-silent write paths.
+    private func reportKeychainWriteFailure(what: String) {
+        gatewayPersistenceError =
+            "Couldn’t save the \(what) to the Keychain — it will be lost when Portal quits. "
+            + "See Console.app (subsystem com.ethenotethan.Portal) for the OSStatus."
+        log.error("Keychain write refused for \(what, privacy: .public)")
     }
     @Published var isConfigured: Bool = false
 
@@ -87,6 +120,16 @@ internal final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// Set at init when the Keychain holds harness data it refused to hand over
+    /// (`errSecAuthFailed`, `errSecInteractionNotAllowed`, a corrupt blob…).
+    ///
+    /// While true the app is in a read-only posture for harness persistence: the
+    /// in-memory state is a GUESS (the localhost default), and writing it back
+    /// would destroy the real stored value. Surfaced in Settings so the user
+    /// knows why their harness looks wrong, instead of silently seeing
+    /// 127.0.0.1 and re-entering it — which is what actually overwrote it.
+    @Published internal private(set) var hasUnreadableStoredHarness: Bool = false
+
     private static let onboardingCompleteKey = "portal.onboardingComplete"
     var hasCompletedOnboarding: Bool {
         UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
@@ -135,7 +178,17 @@ internal final class SettingsViewModel: ObservableObject {
         let uiTestGatewayURL = isUITest ? env["PORTAL_GATEWAY_URL"] : nil
         let uiTestAPIKey = isUITest ? (env["PORTAL_API_KEY"] ?? env["API_SERVER_KEY"]) : nil
 
-        let savedURL = KeychainStore.shared.loadGatewayURL()
+        // Read outcomes, not bare optionals: a refused read must never be
+        // mistaken for "nothing saved", because every fallback below WRITES.
+        let urlOutcome = KeychainStore.shared.readGatewayURL()
+        let gatewaysOutcome = KeychainStore.shared.readGateways()
+        // True when the Keychain holds harness data we could not read. While
+        // this is set, init must not persist anything — see
+        // `hasUnreadableStoredHarness`.
+        let unreadable = urlOutcome.isUnreadable || gatewaysOutcome.isUnreadable
+        self.hasUnreadableStoredHarness = unreadable
+
+        let savedURL = urlOutcome.value
         let resolvedGatewayURL = uiTestGatewayURL ?? savedURL ?? Constants.defaultGatewayURL
         self.gatewayURL = resolvedGatewayURL
         self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
@@ -149,10 +202,15 @@ internal final class SettingsViewModel: ObservableObject {
         // Load saved gateways. Migrate the existing single gateway into the
         // list on first launch so users who already configured a gateway keep
         // it as a switchable entry.
-        var loadedGateways = KeychainStore.shared.loadGateways()
+        var loadedGateways = gatewaysOutcome.value ?? []
         let restoredActiveID = UserDefaults.standard.string(forKey: Self.activeGatewayIDKey)
             .flatMap(UUID.init(uuidString:))
-        if loadedGateways.isEmpty, onboarded || !self.apiKey.isEmpty {
+        // `unreadable` blocks the migration branch. It fires on "no entries yet"
+        // — which a REFUSED read looks exactly like — and its body overwrites
+        // the `gateways` blob with a single entry built from the localhost
+        // fallback URL. That turned a transient read failure into permanent
+        // loss of every saved harness.
+        if loadedGateways.isEmpty, !unreadable, onboarded || !self.apiKey.isEmpty {
             let migrated = SavedGateway(
                 name: URL(string: resolvedGatewayURL)?.host ?? "Harness",
                 url: resolvedGatewayURL,
@@ -254,6 +312,10 @@ internal final class SettingsViewModel: ObservableObject {
     /// Add a new saved gateway. Returns the created entry.
     @discardableResult
     func addGateway(name: String, url: String, apiKey: String, kind: BackendKind = .hermes, makeActive: Bool = true) -> SavedGateway {
+        // Adding a harness is the user deliberately supplying the value the
+        // Keychain wouldn't give us, so it lifts the read-only posture. Without
+        // this, an unreadable Keychain would silently swallow the add.
+        acknowledgeUnreadableHarness()
         let gateway = SavedGateway(name: name, url: url, apiKey: apiKey, kind: kind)
         savedGateways.append(gateway)
         persistGateways()
@@ -264,6 +326,8 @@ internal final class SettingsViewModel: ObservableObject {
     /// Update an existing saved gateway's fields. If it is the active gateway,
     /// the live connection settings are updated too.
     func updateGateway(_ gateway: SavedGateway) {
+        // As with addGateway: an explicit edit is consent to write.
+        acknowledgeUnreadableHarness()
         guard let index = savedGateways.firstIndex(where: { $0.id == gateway.id }) else { return }
         savedGateways[index] = gateway
         persistGateways()
@@ -293,7 +357,17 @@ internal final class SettingsViewModel: ObservableObject {
 
     /// Keep the active saved-gateway entry in sync when the user edits the live
     /// URL/API key fields directly (e.g. in Settings or Onboarding).
+    ///
+    /// A no-op while `hasUnreadableStoredHarness` is set. This runs at the end of
+    /// `init` to heal a divergent entry, and "healing" against an unread
+    /// Keychain means writing the localhost fallback over the user's real
+    /// harness — the same corruption the migration branch caused. The user can
+    /// still edit deliberately; that clears the flag via `acknowledge…`.
     private func syncActiveGateway() {
+        guard !hasUnreadableStoredHarness else {
+            log.error("Skipping harness sync — stored harness data is unreadable, refusing to overwrite it")
+            return
+        }
         guard let id = activeGatewayID,
               let index = savedGateways.firstIndex(where: { $0.id == id }) else {
             // No active entry yet (fresh onboarding) — create one once a URL
@@ -337,6 +411,15 @@ internal final class SettingsViewModel: ObservableObject {
     @Published internal private(set) var gatewayPersistenceError: String?
 
     private func persistGateways() {
+        // The choke point for every harness write, so the read-only posture is
+        // enforced here rather than at each of the five callers. When the stored
+        // blob is unreadable, `savedGateways` in memory is at best a partial
+        // reconstruction — persisting it replaces real entries with fewer. The
+        // deliberate paths (`addGateway`, `updateGateway`) clear the flag first.
+        guard !hasUnreadableStoredHarness else {
+            log.error("Refusing to persist harnesses over unreadable stored data")
+            return
+        }
         if KeychainStore.shared.saveGateways(savedGateways) {
             gatewayPersistenceError = nil
         } else {
