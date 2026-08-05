@@ -121,6 +121,16 @@ internal struct SettingsView: View {
                     .padding(.top, 8)
                 }
 
+                // The read side of the same problem, and the reason the list
+                // above may look empty or wrong: the Keychain refused to hand
+                // over the stored harnesses. Saying so is what keeps the app
+                // honest — it is holding back writes to protect data it cannot
+                // show, so an unexplained empty list would read as "my
+                // harnesses are gone" when they are not.
+                if settings.hasUnreadableStoredHarness {
+                    unreadableHarnessBanner
+                }
+
                 Spacer()
             }
             .padding(.horizontal, 10)
@@ -203,6 +213,27 @@ internal struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Shown when the Keychain refused to hand over the stored harness data.
+    ///
+    /// While this is up, Portal holds back every harness write so it cannot
+    /// clobber values it was unable to read — that silent overwrite is what
+    /// turned one refused read into a permanent reset to localhost. "Add
+    /// Harness" above is the intended way out: supplying the value explicitly
+    /// lifts the hold, because then the user is the one choosing to replace it.
+    private var unreadableHarnessBanner: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "lock.trianglebadge.exclamationmark.fill")
+                .font(.system(size: 11))
+            Text("The Keychain wouldn’t release your saved harnesses, so Portal is "
+                 + "not overwriting them. Add or edit a harness to resume saving.")
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     // MARK: - X (Twitter) section
