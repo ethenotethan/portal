@@ -249,7 +249,7 @@ final class KeychainStore: Sendable {
         return upsert(account: "gateway-url", data: data)
     }
 
-    internal func readGatewayURL() -> ReadOutcome<String> {
+internal func readGatewayURL() -> ReadOutcome<String> {
         readString(account: "gateway-url")
     }
 
@@ -266,7 +266,7 @@ final class KeychainStore: Sendable {
         return upsert(account: "gateways", data: data)
     }
 
-    /// Read the saved-harness list, distinguishing "none saved" from "couldn't
+/// Read the saved-harness list, distinguishing "none saved" from "couldn't
     /// read". A decode failure counts as `.failed`, not `.missing`: a blob that
     /// won't parse is still a blob, and overwriting it throws away the only copy
     /// of credentials that may not be regenerable.
