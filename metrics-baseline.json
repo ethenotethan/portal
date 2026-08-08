@@ -10844,9 +10844,9 @@
       "redundantConformance": 6,
       "redundantProtocol": 2,
       "redundantPublicAccessibility": 4,
-      "unused": 351
+      "unused": 353
     },
-    "total": 519,
+    "total": 521,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -12411,14 +12411,14 @@
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 1721,
+        "line": 1760,
         "kind": "function.method.instance",
         "name": "peekSession(sessionKey:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/GatewayClient.swift",
-        "line": 1756,
+        "line": 1795,
         "kind": "struct",
         "name": "PeekResult",
         "hint": "unused"
@@ -12558,23 +12558,37 @@
       },
       {
         "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 114,
+        "line": 214,
         "kind": "function.method.instance",
         "name": "saveCentaurAPIKey(_:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 119,
+        "line": 219,
         "kind": "function.method.instance",
         "name": "loadCentaurAPIKey()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Services/KeychainStore.swift",
-        "line": 134,
+        "line": 234,
         "kind": "function.method.instance",
         "name": "deleteCentaurAPIKey()",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Services/KeychainStore.swift",
+        "line": 252,
+        "kind": "function.method.instance",
+        "name": "loadGatewayURL()",
+        "hint": "unused"
+      },
+      {
+        "file": "Sources/Portal/Services/KeychainStore.swift",
+        "line": 273,
+        "kind": "function.method.instance",
+        "name": "loadGateways()",
         "hint": "unused"
       },
       {
@@ -13223,14 +13237,14 @@
       },
       {
         "file": "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "line": 91,
+        "line": 134,
         "kind": "var.instance",
         "name": "hasCompletedOnboarding",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "line": 368,
+        "line": 451,
         "kind": "function.method.instance",
         "name": "makeGatewayClient()",
         "hint": "unused"
@@ -14077,14 +14091,14 @@
       },
       {
         "file": "Sources/Portal/Views/SettingsView.swift",
-        "line": 379,
+        "line": 410,
         "kind": "function.method.instance",
         "name": "labeledField(_:content:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/SettingsView.swift",
-        "line": 599,
+        "line": 630,
         "kind": "var.instance",
         "name": "capabilitiesSummary",
         "hint": "unused"
