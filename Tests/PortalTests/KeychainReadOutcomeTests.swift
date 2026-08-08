@@ -196,4 +196,30 @@ internal struct KeychainReadOutcomeTests {
             ) == false)
         }
     }
+
+    // MARK: - Save/read round-trip
+
+    /// Deliberately NOT run against the real `api-key` account.
+    ///
+    /// This test previously called `deleteItem("api-key")` and then
+    /// `saveAPIKey`/`loadAPIKey`, which targets the account the shipping app
+    /// stores the user's live gateway credential under (service
+    /// `com.hermes.native`). Running the suite on a developer's machine
+    /// therefore tried to delete that credential twice — once before the write,
+    /// once in `defer` — and an API key the user may not be able to regenerate
+    /// is not something a unit test may touch. Observed here: the deletes hit
+    /// the login Keychain, took 99s waiting on access, and `loadAPIKey()`
+    /// returned nil, failing the assertion. The item happened to survive
+    /// because access was refused; that is luck, not a guarantee.
+    ///
+    /// `upsertForTesting`/`readStringForTesting` exercise the same
+    /// `upsert` + `readString` code path against a throwaway account, which is
+    /// what `withTemporaryItem` exists for — see the `.found` test above.
+    @Test("a saved value round-trips through upsert and read")
+    internal func savePersistsAndReadsBack() throws {
+        try withTemporaryItem("save-round-trip") { account in
+            #expect(KeychainStore.shared.upsertForTesting(account: account, value: "test-api-key"))
+            #expect(KeychainStore.shared.readStringForTesting(account: account).value == "test-api-key")
+        }
+    }
 }
