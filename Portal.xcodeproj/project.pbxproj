@@ -988,7 +988,6 @@
 		B4C6F50238B9687A3FA94381 /* WikiEventsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsPageView.swift; sourceTree = "<group>"; };
 		B5084DB800931CA454D486AF /* CronCategoryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronCategoryEditor.swift; sourceTree = "<group>"; };
 		B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactKindRenderer.swift; sourceTree = "<group>"; };
-		B561CF4288A99A9681A89C94 /* WikiEventTypeRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTypeRegistryTests.swift; sourceTree = "<group>"; };
 		B583DDF8C1CC472F01013B3D /* PerfCountHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfCountHarnessTests.swift; sourceTree = "<group>"; };
 		B6C645744B05EA678BF49FD4 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
 		B921CDF2A61D63D969101021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -1001,6 +1000,7 @@
 		BF69936DE366B4A1663E549D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C0888FE14C455912BD44E102 /* WikiDockedReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiDockedReader.swift; sourceTree = "<group>"; };
 		C0E4433A1BFCCB1AB04532BD /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
+		C0F50AA8686E1AD0B867113C /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		C17E38F822580B51EB67B78B /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManager.swift; sourceTree = "<group>"; };
@@ -1187,7 +1187,6 @@
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
 				61851216B4FFCF80111C87E3 /* Portal */,
-				A98DB70E0159B32FD54B17A4 /* portal-cronleaf */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -2754,7 +2753,6 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FE85B760DF35DE128005541A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2777,7 +2775,6 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FE85B760DF35DE128005541A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2863,7 +2860,6 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FE85B760DF35DE128005541A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -2926,7 +2922,6 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = FE85B760DF35DE128005541A /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
