@@ -249,10 +249,6 @@ final class KeychainStore: Sendable {
         return upsert(account: "gateway-url", data: data)
     }
 
-    func loadGatewayURL() -> String? {
-        readGatewayURL().value
-    }
-
     internal func readGatewayURL() -> ReadOutcome<String> {
         readString(account: "gateway-url")
     }
@@ -268,10 +264,6 @@ final class KeychainStore: Sendable {
     func saveGateways(_ gateways: [SavedGateway]) -> Bool {
         guard let data = try? JSONEncoder().encode(gateways) else { return false }
         return upsert(account: "gateways", data: data)
-    }
-
-    func loadGateways() -> [SavedGateway] {
-        readGateways().value ?? []
     }
 
     /// Read the saved-harness list, distinguishing "none saved" from "couldn't
