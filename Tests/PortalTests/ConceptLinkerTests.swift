@@ -65,6 +65,25 @@ internal struct ConceptLinkerTests {
         #expect(links.isEmpty)
     }
 
+    /// When a beat and tool share MORE than one salient token, the link is
+    /// deterministic: it picks the smallest (alphabetically first) shared
+    /// concept so two runs over the same nodes always draw the same edge.
+    /// That determinism is what keeps the timeline overlay stable across
+    /// redraws — a non-deterministic pick would make the displayed concept
+    /// flicker between the candidates.
+    @Test("multiple shared concepts resolve to the deterministic smallest token")
+    internal func picksSmallestSharedConcept() {
+        let links = ConceptLinker.link(nodes: [
+            beat("r1", " reviewing the PortalAuth and SessionManager modules "),
+            tool("t1", name: "read_file", "Reading PortalAuth and SessionManager"),
+        ])
+        #expect(links.count == 1)
+        // Both "portalauth" and "sessionmanager" are shared and salient; the
+        // smallest wins so the concept is stable, not whichever the set
+        // iterator happened to return first.
+        #expect(links.first?.concept == "portalauth")
+    }
+
     @Test("link id composes reasoningID, toolID, and concept with tilde separator")
     internal func linkIDFormat() {
         let link = ConceptLink(reasoningID: "r1", toolID: "t1", concept: "authservice")
