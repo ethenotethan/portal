@@ -125,9 +125,12 @@ internal struct ConversationPanel: View {
     @ViewBuilder
     private var messageRows: some View {
         let msgs = visibleMessages
+        // Boundaries once for the list, not searched per row: this is a ForEach
+        // body, so a per-row scan made rendering quadratic in the message count.
+        let lastInGroup = ChatView.lastInGroupIDs(msgs)
         ForEach(msgs) { message in
             VStack(alignment: .leading, spacing: 4) {
-                let showTimestamp = ChatView.isLastMessageInGroup(message: message, msgs: msgs)
+                let showTimestamp = lastInGroup.contains(message.id)
                 let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
                 skinProvider.messageBubble(message: prepared, persona: persona)
                 // Peel affordance + any blocks already peeled into the scroll

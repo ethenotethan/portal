@@ -527,6 +527,48 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         }
     }
 
+    /// How long the WebSocket upgrade may hang before URLSession gives up.
+    /// Bounded because a black-holed host (packets dropped with no RST — the
+    /// normal failure for a tailnet peer that is up but not serving) would
+    /// otherwise inherit the 60s default and show a full minute of
+    /// "Connecting…".
+    internal static let handshakeTimeout: TimeInterval = 15
+
+    /// The transport config for the gateway socket.
+    ///
+    /// Extracted from `openWebSocket` so the connectivity semantics below are
+    /// assertable in tests — the bug they encode is invisible in a unit test
+    /// otherwise, because it manifests as the *absence* of a delegate callback.
+    ///
+    /// `waitsForConnectivity` must stay FALSE. When true, URLSession treats an
+    /// unreachable host as "no path yet" and silently waits for one rather than
+    /// failing: no delegate callback fires at all, so `handleDisconnect` never
+    /// runs, no `.error` is published, and no reconnect is scheduled. The client
+    /// parks in `.connecting`, which every surface renders as "Connecting…",
+    /// until `timeoutIntervalForResource` expires five minutes later. That is
+    /// the "it says Connecting forever and never opens" bug, and a tailnet
+    /// address is its worst case: while Tailscale is down or logged out, a
+    /// `100.x` peer is unreachable, so the app looked hung instead of broken.
+    ///
+    /// Measured against an unreachable `100.64.0.1:8642` — with `true`: no
+    /// callback after 25s, task still `.running`. With `false`: `-1004 Could not
+    /// connect to the server` in about a second, which drives
+    /// `handleDisconnect` → `.error` → backoff retry.
+    ///
+    /// The tradeoff is deliberate. A genuinely offline device now reports a
+    /// failure and retries on backoff instead of hanging on an invisible wait,
+    /// and `handleDisconnect` already retries up to `maxReconnectAttempts` —
+    /// which is the honest version of "wait for the network", because it says
+    /// so on screen.
+    internal static func makeSessionConfig() -> URLSessionConfiguration {
+        let sessionConfig = URLSessionConfiguration.default
+        sessionConfig.httpShouldUsePipelining = false
+        sessionConfig.waitsForConnectivity = false
+        sessionConfig.timeoutIntervalForRequest = handshakeTimeout
+        sessionConfig.timeoutIntervalForResource = 300
+        return sessionConfig
+    }
+
     private func openWebSocket() {
         let url = gatewayURL, hasKey = !apiKey.isEmpty, hasCookie = cfAuthCookie != nil
         log.debug("Connecting to WS: \(url) auth=\(hasKey) cookie=\(hasCookie)")
@@ -545,10 +587,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         urlSession = nil
         failAllPendingRequests(error: GatewayError.disconnected)
 
-        let sessionConfig = URLSessionConfiguration.default
-        sessionConfig.httpShouldUsePipelining = false
-        sessionConfig.waitsForConnectivity = true
-        sessionConfig.timeoutIntervalForResource = 300
+        let sessionConfig = Self.makeSessionConfig()
 
         // Carry CF_Authorization cookie
         if let cookie = cfAuthCookie {

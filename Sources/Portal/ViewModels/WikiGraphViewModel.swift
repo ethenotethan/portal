@@ -39,13 +39,29 @@ final class WikiGraphViewModel: ObservableObject {
     /// Hermes-only; the hosting view hides the affordance for sources that
     /// don't conform to WikiChangesetSource.
     @Published var showTimeline = false
-    /// Full-surface Compendium events page: while true the adaptive host
-    /// swaps the graph surface for the events page (a page WITHIN the wiki,
-    /// not an overlay). Centaur-only — the toggle affordance gates on
-    /// WikiEventTimelineProviding conformance, same plane as the graph.
+    /// Full-surface events page: while true the adaptive host swaps the graph
+    /// surface for the events page (a page WITHIN the wiki, not an overlay).
+    /// The toggle affordance gates on WikiEventLogSource conformance — both
+    /// backends have an ingestion log — on the same plane as the graph.
     @Published var showEventsPage = false
+    /// An event the events page should land on, by source key.
+    ///
+    /// Set by a changeset's provenance chip: "this change came from that event"
+    /// is only half a link if you can't follow it. The events page consumes and
+    /// clears it, widening its window when the event predates the current one —
+    /// arriving at a feed that doesn't contain what you clicked would read as
+    /// the event not existing.
+    @Published internal var focusedEventKey: String?
     @Published var selectedNodeIndex: Int?
     @Published var hoveredNodeIndex: Int?
+
+    /// What the wiki says its ingestion sources ARE, built from its
+    /// `type: event-type` pages. `.empty` until those pages are read (and
+    /// legitimately forever, for a wiki that declares none) — every lookup
+    /// still answers, deriving label and color from the wire kind, so no
+    /// surface has to branch on whether the taxonomy has loaded.
+    /// Written only by `loadEventTypes` (see WikiGraphViewModel+EventTypes).
+    @Published internal var eventTypes: WikiEventTypeRegistry = .empty
 
     /// True while the 2D layout is being pre-settled off the main thread.
     /// The canvas withholds drawing until this clears, so the graph appears
@@ -256,6 +272,9 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     private var loadGeneration = 0
+    /// Read-only view of the load counter for extensions that run async work
+    /// against a load and must drop out when a newer one supersedes it.
+    internal var currentLoadGeneration: Int { loadGeneration }
     private var loadedWiki: String?
     private var hasLoadedOnce = false
 
@@ -328,6 +347,13 @@ final class WikiGraphViewModel: ObservableObject {
             if let gateway {
                 graphCache.store(newGraph, identity: gateway.cacheIdentity, wiki: wiki)
             }
+            // Resolve the wiki's event-type taxonomy off the graph we just
+            // loaded. The loading state is dropped FIRST: definition pages are
+            // extra round-trips, and holding the overlay up for them would
+            // regress the cold-open latency work for a taxonomy that every
+            // surface can already answer from its derived fallback.
+            isLoading = false
+            await loadEventTypes(source: source)
         } catch {
             guard generation == loadGeneration else { return }
             log.error("wiki.scan failed: \(error.localizedDescription)")
@@ -389,6 +415,8 @@ final class WikiGraphViewModel: ObservableObject {
         selectedWikiPath = nil
         isLoading = false
         error = nil
+        // The taxonomy is the previous wiki's declaration, not a global.
+        eventTypes = .empty
         clearPageSelection()
     }
 
@@ -571,16 +599,6 @@ final class WikiGraphViewModel: ObservableObject {
     func revealInFileTree(path: String) {
         showFileTree = true
         navigate(to: path)
-    }
-
-    /// Directive target-page chip (or changed-page row) on the events page:
-    /// leave the events surface, make the page the shared current page, and
-    /// open the reader over the graph — the same landing as every other
-    /// "jump into the wiki" path.
-    func openPageLeavingEvents(_ path: String) {
-        showEventsPage = false
-        navigate(to: path)
-        openReaderForSelection()
     }
 
     private func rebuildBacklinks() {

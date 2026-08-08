@@ -7,6 +7,12 @@ import Charts
 /// dark surface (#1a1a1a): CVD ΔE ≥ 8.4 adjacent, normal-vision ΔE ≥ 19.3,
 /// all ≥ 3:1 contrast. Kind also gets its own y-lane on the chart, so color
 /// never carries identity alone. `.other` is the muted catch-all.
+///
+/// This palette covers Centaur's kinds, which are fixed by its ingestion
+/// pipeline. Hermes kinds are declared by the wiki (`type: event-type` pages)
+/// and resolve through `WikiEventTypeRegistry` instead — see
+/// `WikiEventPresentation`, which picks between the two and is what views
+/// should call.
 enum WikiEventKindStyle {
     static func color(for kind: WikiEventKind) -> Color {
         switch kind {
@@ -26,6 +32,89 @@ enum WikiEventKindStyle {
     ]
 }
 
+// MARK: - WikiEventPresentation
+
+/// How to draw one event kind, resolved from whichever authority owns it.
+///
+/// Two backends disagree about who defines the taxonomy, and both are right for
+/// their own data. Centaur's kinds come from its pipeline, so the validated
+/// palette above is authoritative and a wiki page can't know better. Hermes'
+/// kinds are declared by the wiki itself, so a `type: event-type` page is
+/// authoritative and a compiled-in palette would be exactly the closed
+/// vocabulary #123 set out to remove.
+///
+/// So this resolves the wiki's declaration when there is one, and falls back to
+/// the built-in palette when there isn't. Every view goes through here rather
+/// than calling `WikiEventKindStyle` directly, so neither backend's kinds get
+/// drawn by the other's rules.
+internal struct WikiEventPresentation {
+    /// The wiki's declared taxonomy — empty for Centaur, and for a Hermes wiki
+    /// that has declared nothing yet.
+    internal let registry: WikiEventTypeRegistry
+
+    internal static let empty = WikiEventPresentation(registry: .empty)
+
+    /// Color for a wire kind. A declared type's color wins; otherwise a
+    /// recognized Centaur kind uses the validated palette; otherwise the
+    /// registry's hashed-but-stable derivation keeps unknown kinds distinct
+    /// instead of merging them into one "other" bucket.
+    internal func color(for kindRaw: String) -> Color {
+        let resolved = registry.resolve(kindRaw)
+        if resolved.isDeclared { return resolved.color }
+        let builtIn = WikiEventKind(wire: kindRaw)
+        if builtIn != .other { return WikiEventKindStyle.color(for: builtIn) }
+        // An empty kind is genuinely unknown, not a distinct category — give it
+        // the muted catch-all rather than a confident derived hue.
+        if kindRaw.trimmingCharacters(in: .whitespaces).isEmpty {
+            return WikiEventKindStyle.color(for: .other)
+        }
+        return resolved.color
+    }
+
+    /// Display label for a wire kind, by the same precedence as `color`.
+    internal func label(for kindRaw: String) -> String {
+        let resolved = registry.resolve(kindRaw)
+        if resolved.isDeclared { return resolved.label }
+        let builtIn = WikiEventKind(wire: kindRaw)
+        if builtIn != .other { return builtIn.displayName }
+        if kindRaw.trimmingCharacters(in: .whitespaces).isEmpty { return "Unclassified" }
+        return resolved.label
+    }
+
+    /// Definition page for a wire kind, when a wiki page declares it — the
+    /// click-through target. nil whenever the kind is drawn from the built-in
+    /// palette, since there's no page to open.
+    internal func pagePath(for kindRaw: String) -> String? {
+        registry.resolve(kindRaw).pagePath
+    }
+
+    /// Lane order for the plot's y-axis: kinds actually present, declared ones
+    /// first in their declared lane order, then the rest by the built-in slot
+    /// order, then anything left alphabetically. Deterministic — a lane that
+    /// reshuffles between loads makes the plot unreadable.
+    internal func lanes(present kinds: [String]) -> [String] {
+        let unique = Array(Set(kinds))
+        return unique.sorted { lhs, rhs in
+            let (a, b) = (sortKey(lhs), sortKey(rhs))
+            if a != b { return a < b }
+            return lhs < rhs
+        }
+    }
+
+    /// Lower sorts higher on the chart. Declared lanes come from the wiki;
+    /// built-in kinds sit below them in palette order; unrecognized kinds last.
+    private func sortKey(_ kindRaw: String) -> Int {
+        let resolved = registry.resolve(kindRaw)
+        if resolved.isDeclared { return resolved.lane }
+        let builtIn = WikiEventKind(wire: kindRaw)
+        if builtIn != .other,
+           let slot = WikiEventKindStyle.laneOrder.firstIndex(of: builtIn) {
+            return WikiEventTypeRegistry.derivedLane + slot
+        }
+        return WikiEventTypeRegistry.derivedLane + WikiEventKindStyle.laneOrder.count
+    }
+}
+
 // MARK: - Events chart
 
 /// Dot plot of ingestion events: x = event time, y = kind lane, color by
@@ -37,11 +126,13 @@ struct WikiEventDotChart: View {
     let events: [WikiTimelineEvent]
     let window: ClosedRange<Date>
     @Binding var selectedEventID: String?
+    /// How to color and order kinds — the wiki's taxonomy when it has one.
+    internal var presentation: WikiEventPresentation = .empty
 
-    /// Lanes actually present, in fixed slot order (unused kinds drop out).
-    private var lanes: [WikiEventKind] {
-        let present = Set(events.map(\.kind))
-        return WikiEventKindStyle.laneOrder.filter { present.contains($0) }
+    /// Lanes actually present, ordered by the presentation layer (declared
+    /// lanes first, then built-in palette order).
+    private var lanes: [String] {
+        presentation.lanes(present: events.map(\.kindRaw))
     }
 
     var body: some View {
@@ -51,10 +142,10 @@ struct WikiEventDotChart: View {
                 if let date = event.eventDate {
                     PointMark(
                         x: .value("Time", date),
-                        y: .value("Kind", event.kind.displayName)
+                        y: .value("Kind", presentation.label(for: event.kindRaw))
                     )
                     .foregroundStyle(
-                        WikiEventKindStyle.color(for: event.kind)
+                        presentation.color(for: event.kindRaw)
                             .opacity(dimmed(event) ? 0.28 : 0.9)
                     )
                     .symbol(event.eventTimeEstimated ? .diamond : .circle)
@@ -62,7 +153,7 @@ struct WikiEventDotChart: View {
                 }
             }
         }
-        .chartYScale(domain: lanes.map(\.displayName))
+        .chartYScale(domain: lanes.map { presentation.label(for: $0) })
         .chartXScale(domain: window.lowerBound...window.upperBound)
         .chartXAxis { timeAxis }
         .chartYAxis {
@@ -103,7 +194,7 @@ struct WikiEventDotChart: View {
     private func position(of event: WikiTimelineEvent, proxy: ChartProxy, geo: GeometryProxy) -> CGPoint? {
         guard let date = event.eventDate,
               let x = proxy.position(forX: date),
-              let y = proxy.position(forY: event.kind.displayName),
+              let y = proxy.position(forY: presentation.label(for: event.kindRaw)),
               let plotFrame = proxy.plotFrame else { return nil }
         let origin = geo[plotFrame].origin
         return CGPoint(x: origin.x + x, y: origin.y + y)
@@ -242,47 +333,63 @@ struct WikiRevisionsChart: View {
 
 // MARK: - Kind legend
 
-/// Legend with per-kind counts (events_by_kind), fixed slot order. Rendered
-/// above the dot chart; identity is also carried by the y-lanes.
+/// Legend with per-kind counts (events_by_kind), in lane order so it reads
+/// top-to-bottom against the chart. Rendered above the dot chart; identity is
+/// also carried by the y-lanes.
+///
+/// Every kind gets its own row. The previous version collapsed anything outside
+/// the built-in palette into a single "Other N" row, which on a Hermes wiki
+/// would have merged every wiki-declared kind into one — the legend has to name
+/// what the wiki named, and a declared kind's definition page is clickable.
 struct WikiEventKindLegend: View {
-    /// Wire-kind string → count, from the timeline response.
+    /// Wire-kind string → count, from the event log response.
     let eventsByKind: [String: Int]
+    internal var presentation: WikiEventPresentation = .empty
+    /// Opens a kind's definition page. nil (or a kind with no page) renders the
+    /// row as plain text.
+    internal var onOpenKindPage: ((String) -> Void)?
 
-    private var entries: [(kind: WikiEventKind, label: String, count: Int)] {
-        // Known kinds in slot order first, then unknown wire kinds folded
-        // into their own labeled rows under the "other" color.
-        var rows: [(WikiEventKind, String, Int)] = []
-        var consumed = Set<String>()
-        for kind in WikiEventKindStyle.laneOrder where kind != .other {
-            if let count = eventsByKind[kind.rawValue], count > 0 {
-                rows.append((kind, kind.displayName, count))
-                consumed.insert(kind.rawValue)
+    /// Kinds with a non-zero count, in the chart's lane order.
+    private var entries: [(kind: String, count: Int)] {
+        let present = eventsByKind.filter { $0.value > 0 }
+        return presentation.lanes(present: Array(present.keys))
+            .compactMap { kind in
+                present[kind].map { (kind, $0) }
             }
-        }
-        let otherTotal = eventsByKind
-            .filter { !consumed.contains($0.key) }
-            .values.reduce(0, +)
-        if otherTotal > 0 {
-            rows.append((.other, WikiEventKind.other.displayName, otherTotal))
-        }
-        return rows
     }
 
     var body: some View {
         FlowLayout(spacing: 10) {
-            ForEach(entries, id: \.label) { entry in
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(WikiEventKindStyle.color(for: entry.kind))
-                        .frame(width: 8, height: 8)
-                    Text(entry.label)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Theme.primary)
-                    Text("\(entry.count)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(Theme.secondary)
-                }
+            ForEach(entries, id: \.kind) { entry in
+                legendRow(kind: entry.kind, count: entry.count)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func legendRow(kind: String, count: Int) -> some View {
+        if let path = presentation.pagePath(for: kind), let onOpenKindPage {
+            Button { onOpenKindPage(path) } label: {
+                swatch(kind: kind, count: count, declared: true)
+            }
+            .buttonStyle(.borderless)
+            .help("Open \(path) — what the wiki says this kind is")
+        } else {
+            swatch(kind: kind, count: count, declared: false)
+        }
+    }
+
+    private func swatch(kind: String, count: Int, declared: Bool) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(presentation.color(for: kind))
+                .frame(width: 8, height: 8)
+            Text(presentation.label(for: kind))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(declared ? Theme.accent : Theme.primary)
+            Text("\(count)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.secondary)
         }
     }
 }

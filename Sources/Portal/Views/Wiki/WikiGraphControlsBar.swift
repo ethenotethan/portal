@@ -9,9 +9,13 @@ struct WikiGraphControlsBar: View {
     /// Changeset timeline is a per-source capability (WikiChangesetSource);
     /// the host computes conformance and the bar just hides the toggle.
     let supportsTimeline: Bool
-    /// The wiki source being browsed — the event-timeline button gates
-    /// itself on WikiEventTimelineProviding conformance (Centaur only).
-    let source: (any WikiSource)?
+    /// Whether an ingestion event log exists (WikiEventLogSource) — gates the
+    /// Events door. A Bool rather than the source itself: the host resolves the
+    /// capability against the *effective* source, which for the home gateway is
+    /// the shared client and not any injected override. Handing this bar an
+    /// override that is nil in the normal case is what previously left the
+    /// Events entry unrenderable on Hermes.
+    internal let hasEventsSurface: Bool
     let onRefresh: () -> Void
 
     var body: some View {
@@ -113,11 +117,6 @@ struct WikiGraphControlsBar: View {
 
     // MARK: - History (one door)
 
-    /// Whether the source exposes the Compendium event feed (Centaur only).
-    private var hasEventsSurface: Bool {
-        source is (any WikiEventTimelineProviding)
-    }
-
     /// Whether any history surface is active right now (drives the icon tint).
     private var historyActive: Bool {
         (supportsTimeline && viewModel.showTimeline) ||
@@ -125,11 +124,15 @@ struct WikiGraphControlsBar: View {
     }
 
     /// Change history was reached through two separate, similarly clock-ish
-    /// toolbar icons — the edit-timeline drawer AND the Compendium event feed —
-    /// which read as "wait, which one is the history?". Fold them into a single
-    /// door: when both surfaces exist (Centaur) it's a menu (Changes / Events);
-    /// when only one does (the common Hermes case) it stays a direct toggle so
-    /// there's no extra click.
+    /// toolbar icons — the edit-timeline drawer AND the event feed — which read
+    /// as "wait, which one is the history?". Fold them into a single door: when
+    /// both surfaces exist it's a menu (Changes / Events); when only one does it
+    /// stays a direct toggle so there's no extra click.
+    ///
+    /// Both now exist on both backends, so the menu is the usual shape. The
+    /// single-surface branches remain live for a source that conforms to one
+    /// capability and not the other — the whole point of gating on capabilities
+    /// rather than on which backend is connected.
     @ViewBuilder
     private var historyControl: some View {
         if supportsTimeline && hasEventsSurface {

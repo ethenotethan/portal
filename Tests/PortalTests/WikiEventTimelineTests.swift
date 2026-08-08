@@ -196,6 +196,56 @@ struct WikiEventTimelineDecodingTests {
     }
 }
 
+// MARK: - Out-of-window counting
+
+/// `outOfWindowCount(domain:)` counts dated events whose time falls outside the
+/// requested window — it turns an empty plot into a legible "these sit outside
+/// this window" message. Undated events (no plotted x) are neither in nor out.
+@Suite("Wiki Event Timeline Window Counting")
+internal struct WikiEventTimelineWindowCountingTests {
+
+    /// Minimal event: only the source key and occurred-at time matter here.
+    private func event(_ key: String, occurredAt: String?) -> WikiTimelineEvent {
+        WikiTimelineEvent(
+            sourceKey: key,
+            kindRaw: "github_pr",
+            label: key,
+            url: "",
+            occurredAt: occurredAt.flatMap { WikiTimelineDecoding.parseDate($0) },
+            ingestedAt: nil,
+            eventTimeEstimated: false,
+            actorSlackID: nil,
+            actorName: nil,
+            directiveBody: nil,
+            directiveExcerpt: nil,
+            targetPages: nil,
+            directiveStatus: nil,
+            resultingRevisionIDs: nil
+        )
+    }
+
+    @Test("only dated events outside the domain are counted; undated and in-window are not")
+    internal func countsOutOfWindow() throws {
+        let timeline = WikiEventTimeline(
+            since: nil,
+            until: nil,
+            eventCount: 4,
+            eventsByKind: [:],
+            events: [
+                event("in-window", occurredAt: "2026-07-15T00:00:00Z"),
+                event("before", occurredAt: "2026-06-01T00:00:00Z"),
+                event("after", occurredAt: "2026-08-01T00:00:00Z"),
+                event("undated", occurredAt: nil),
+            ]
+        )
+        let start = try #require(WikiTimelineDecoding.parseDate("2026-07-01T00:00:00Z"))
+        let end = try #require(WikiTimelineDecoding.parseDate("2026-07-31T00:00:00Z"))
+        let domain = start...end
+
+        #expect(timeline.outOfWindowCount(domain: domain) == 2)
+    }
+}
+
 // MARK: - /wiki/revisions-timeline decoding
 
 @Suite("Wiki Revisions Timeline Decoding")
@@ -230,6 +280,21 @@ struct WikiRevisionsTimelineDecodingTests {
         #expect(timeline.cumulativePoints.isEmpty)
         #expect(timeline.totalAllTime == 0)
         #expect(timeline.busiestBucket == nil)
+    }
+
+    /// A bucket whose timestamp failed to parse keeps a stable identity so the
+    /// `Identifiable` conformance never traps: `id` falls back to `.distantPast`
+    /// when `bucket` is nil — the only kind of row the cumulative/busiest
+    /// filters already exclude from the plot.
+    @Test("a bucket with no date falls back to distantPast for its id")
+    internal func nilBucketIDFallsBackToDistantPast() {
+        let undated = WikiRevisionsTimeline.Bucket(bucket: nil, count: 3)
+        #expect(undated.id == .distantPast)
+
+        // A dated bucket's id is its own date — the fallback is nil-only.
+        let dated = WikiRevisionsTimeline.Bucket(
+            bucket: WikiTimelineDecoding.parseDate("2026-07-20T00:00:00Z"), count: 1)
+        #expect(dated.id == dated.bucket)
     }
 
     @Test("knowledge-accrued stats: all-time total and busiest bucket")

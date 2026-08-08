@@ -83,7 +83,7 @@ final class ReasoningGraphIntegrator: ObservableObject {
 
         summarizer.feed(delta: chunk)
         guard let summary = await summarizer.summarize() else { return }
-        await summarizer.reset()
+        summarizer.reset()
 
         // Filter out template/placeholder values that the MLX model echoes
         // from its few-shot example when it finds no real decisions.

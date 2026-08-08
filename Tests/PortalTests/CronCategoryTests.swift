@@ -171,6 +171,36 @@ internal struct CronCategoryTests {
         #expect(CronListViewModel.renameParams(id: "job-7", newName: "///") == nil)
     }
 
+    // MARK: - Reporting a failed move
+
+    /// `cron.manage` only grew its `update` action recently (hermes-agent PR #41),
+    /// so a harness on an older build answers `unknown cron action: update`. Echoed
+    /// raw that reads like a Portal bug; it's version skew, and the message has to
+    /// say so or the user debugs the wrong thing.
+    @MainActor
+    @Test("an old gateway's unknown-action error becomes update-your-harness advice")
+    internal func mapsUnknownActionToVersionSkew() {
+        struct WireError: Error { let message = "unknown cron action: update" }
+        let message = CronListViewModel.renameFailureMessage(for: WireError())
+
+        #expect(message.lowercased().contains("too old"))
+        #expect(message.lowercased().contains("update the harness"))
+        // The raw wire text must not leak — that's what made it unreadable.
+        #expect(!message.contains("4016"))
+    }
+
+    @MainActor
+    @Test("any other failure still reports something concrete")
+    internal func mapsOtherErrorsToTheirDescription() {
+        struct Timeout: LocalizedError {
+            var errorDescription: String? { "The request timed out." }
+        }
+        let message = CronListViewModel.renameFailureMessage(for: Timeout())
+
+        #expect(message.contains("The request timed out."))
+        #expect(!message.lowercased().contains("too old"))
+    }
+
     // MARK: - Grouping
 
     @Test("jobs group under their root category")
@@ -368,5 +398,201 @@ internal struct CronCategoryTests {
             return
         }
         #expect(!workOpen)
+    }
+
+    // MARK: - What a row is called
+
+    /// The reported bug: under a folder named `autoresearch`, the job inside it
+    /// still read `autoresearch/ingest`, so the folder name was printed twice on
+    /// every line and the tree looked like it hadn't grouped anything.
+    @Test("a job under its category headers reads as just the leaf")
+    internal func groupedRowShowsLeafOnly() {
+        let ingest = job("autoresearch/ingest")
+        #expect(CronCategory.displayName(for: ingest, showingPath: false) == "ingest")
+    }
+
+    @Test("a job standing alone keeps its whole path")
+    internal func flatRowShowsFullPath() {
+        // Flat mode and the Ungrouped section have no headers above them, so the
+        // name is the only place the category is visible — stripping it there
+        // would lose the information rather than de-duplicate it.
+        let ingest = job("autoresearch/ingest")
+        #expect(CronCategory.displayName(for: ingest, showingPath: true) == "autoresearch/ingest")
+    }
+
+    @Test("only the last path component survives at any depth")
+    internal func deepGroupedRowShowsLeafOnly() {
+        // Nested headers spell out every level, so a deep job strips all of them,
+        // not just the first.
+        let sprint = job("life/training/cardio/sprint")
+        #expect(CronCategory.displayName(for: sprint, showingPath: false) == "sprint")
+    }
+
+    @Test("an uncategorized job reads the same either way")
+    internal func ungroupedNameIsStable() {
+        // Nothing to strip, so the flag can't accidentally blank the row — this
+        // is what a card in the Ungrouped section renders.
+        let backup = job("db-backup")
+        #expect(CronCategory.displayName(for: backup, showingPath: false) == "db-backup")
+        #expect(CronCategory.displayName(for: backup, showingPath: true) == "db-backup")
+    }
+
+    @Test("a malformed name never renders as empty")
+    internal func separatorOnlyNameStillRenders() {
+        // `split` preserves a separators-only name as its own title, so a row
+        // shows something identifiable instead of a blank line.
+        let odd = job("///")
+        #expect(CronCategory.displayName(for: odd, showingPath: false) == "///")
+    }
+
+    @Test("the leaf shown matches the leaf the tree filed the job under")
+    internal func displayNameAgreesWithGrouping() throws {
+        // The two must not drift: the header says `autoresearch`, so whatever the
+        // row shows has to be exactly the remainder of the name.
+        let grouping = CronCategory.group([job("autoresearch/ingest")])
+        let root = try #require(grouping.roots.first)
+        #expect(root.name == "autoresearch")
+
+        let filed = try #require(root.jobs.first)
+        #expect(CronCategory.displayName(for: filed, showingPath: false) == "ingest")
+        #expect(root.name + "/" + CronCategory.displayName(for: filed, showingPath: false)
+                == filed.name)
+    }
+
+    // MARK: - Moving without retyping the name
+
+    @Test("moving an ungrouped job into a category keeps its leaf name")
+    internal func moveKeepsLeafName() {
+        #expect(CronCategory.moved(name: "morning-run", to: ["life", "training"])
+                == "life/training/morning-run")
+    }
+
+    @Test("moving a categorized job replaces only its path")
+    internal func moveReplacesPath() {
+        #expect(CronCategory.moved(name: "life/training/run", to: ["work"]) == "work/run")
+        #expect(CronCategory.moved(name: "a/b/c/deep", to: ["x", "y"]) == "x/y/deep")
+    }
+
+    @Test("moving to the root ungroups the job without renaming it")
+    internal func moveToRootUngroups() {
+        #expect(CronCategory.moved(name: "life/training/run", to: []) == "run")
+    }
+
+    @Test("a move never mangles the leaf, whatever noise the destination carries")
+    internal func moveNormalizesDestination() {
+        // The picker can hand over typed input, so the same noise `split` ignores
+        // must not create phantom levels here either.
+        #expect(CronCategory.moved(name: "run", to: ["", " life ", "training"])
+                == "life/training/run")
+    }
+
+    @Test("a name with no usable leaf refuses to move")
+    internal func moveRefusesEmptyLeaf() {
+        #expect(CronCategory.moved(name: "///", to: ["life"]) == nil)
+        #expect(CronCategory.moved(name: "   ", to: ["life"]) == nil)
+    }
+
+    @Test("a job already in the destination produces an unchanged name")
+    internal func moveToSamePlaceIsIdentity() {
+        // The editor keys its disabled-Move state on this equality, so it has to
+        // hold exactly rather than merely normalize to something similar.
+        #expect(CronCategory.moved(name: "life/run", to: ["life"]) == "life/run")
+    }
+
+    // MARK: - Destination enumeration
+
+    @Test("existing categories are offered including intermediate levels")
+    internal func allPathsIncludesIntermediates() {
+        let paths = CronCategory.allPaths(in: [
+            job("life/training/run"),
+            job("work/x"),
+            job("db-backup"),
+        ])
+        // `life` is offered even though no job sits directly at it — moving a job
+        // up one level is as reasonable as moving it down.
+        #expect(paths.contains(["life"]))
+        #expect(paths.contains(["life", "training"]))
+        #expect(paths.contains(["work"]))
+        // Ungrouped jobs contribute no destination.
+        #expect(paths.count == 3)
+    }
+
+    @Test("destinations are ordered shallowest-first then alphabetically")
+    internal func allPathsOrdering() {
+        // Note the leaf is never a category: `life/a/run` contributes `life` and
+        // `life/a`, not `life/a/run`.
+        let paths = CronCategory.allPaths(in: [
+            job("work/b/deep"),
+            job("life/a/run"),
+        ])
+        #expect(paths == [["life"], ["work"], ["life", "a"], ["work", "b"]])
+    }
+
+    @Test("a list with no categories offers no destinations")
+    internal func allPathsEmptyWhenUngrouped() {
+        #expect(CronCategory.allPaths(in: [job("a"), job("b")]).isEmpty)
+    }
+
+    @Test("a path renders as a breadcrumb, and the root as Ungrouped")
+    internal func displayPathRendering() {
+        #expect(CronCategory.displayPath(["life", "training"]) == "life › training")
+        #expect(CronCategory.displayPath([]) == "Ungrouped")
+    }
+
+    // MARK: - Separator footgun
+
+    /// The convention reserves `/`, and there is no escape hatch, so a name that
+    /// reads as prose gets silently filed into a category. These pin the heuristic
+    /// that decides when to warn.
+    @Test("a space-bearing path component warns, naming where it would land")
+    internal func warnsOnProseSeparator() throws {
+        let warning = try #require(CronCategory.separatorWarning(for: "A/B testing digest"))
+        #expect(warning.contains("A"))
+        // The advice has to be actionable, not just a statement that it happened.
+        #expect(warning.lowercased().contains("remove the slash"))
+    }
+
+    @Test("a deliberate category path never warns")
+    internal func staysQuietForRealPaths() {
+        #expect(CronCategory.separatorWarning(for: "life/training/morning-run") == nil)
+        #expect(CronCategory.separatorWarning(for: "infra/db-backup") == nil)
+        #expect(CronCategory.separatorWarning(for: "a/b/c/deep") == nil)
+    }
+
+    /// A space in the leaf under a *normal* category is just a job title — warning
+    /// there would fire on most legitimate names and train the user to ignore it.
+    @Test("a space in the leaf under a real category is not a warning")
+    internal func ignoresSpacesInTheLeaf() {
+        #expect(CronCategory.separatorWarning(for: "life/morning run") == nil)
+        #expect(CronCategory.separatorWarning(for: "work/weekly status report") == nil)
+    }
+
+    /// The motivating case is an abbreviation, where the "category" is one or two
+    /// characters and the leaf is prose: `A/B`, `I/O`, `24/7`. A real category that
+    /// short is rare; this pairing is almost always a slash meant literally.
+    @Test("a prose leaf under a very short category reads as an abbreviation")
+    internal func warnsOnAbbreviations() {
+        #expect(CronCategory.separatorWarning(for: "A/B testing digest") != nil)
+        #expect(CronCategory.separatorWarning(for: "I/O latency check") != nil)
+        #expect(CronCategory.separatorWarning(for: "24/7 uptime probe") != nil)
+        // …but a short category with a slug leaf is a legitimate path.
+        #expect(CronCategory.separatorWarning(for: "ci/nightly-build") == nil)
+    }
+
+    @Test("an uncategorized or unusable name has nothing to warn about")
+    internal func noWarningWithoutAPath() {
+        #expect(CronCategory.separatorWarning(for: "A B testing digest") == nil)
+        #expect(CronCategory.separatorWarning(for: "db-backup") == nil)
+        #expect(CronCategory.separatorWarning(for: "") == nil)
+        #expect(CronCategory.separatorWarning(for: "///") == nil)
+    }
+
+    /// Noise is collapsed before the check, so a trailing slash doesn't invent a
+    /// path component and a doubled one doesn't hide a real warning.
+    @Test("the warning check normalizes first")
+    internal func warningNormalizesFirst() {
+        // "life/" collapses to a bare leaf — no path, so no warning.
+        #expect(CronCategory.separatorWarning(for: "life/") == nil)
+        #expect(CronCategory.separatorWarning(for: "A B//testing digest") != nil)
     }
 }

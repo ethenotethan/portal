@@ -19,6 +19,24 @@ internal struct CronJobCard: View {
     /// rather than defaulted: a no-op default would leave the Move button
     /// looking live while doing nothing.
     internal let onRename: (String) -> Void
+    /// The other jobs in the list, so the Move picker can offer existing
+    /// categories rather than making the user retype a path.
+    internal var siblingJobs: [CronJob] = []
+    /// Standard's dashboard API has no update endpoint, so the category card
+    /// hides there — it was previously shown unconditionally on this card while
+    /// the detail view gated it, offering a Move that could not work.
+    internal var supportsRemoveAndEdit = true
+    /// Whether the header spells out the job's whole category path.
+    ///
+    /// True when the card stands on its own (an ungrouped job, or a flat list)
+    /// — there the path is the only place the category is visible. False under
+    /// a category header, where the enclosing folder rows already say it: the
+    /// row would otherwise read `autoresearch/ingest` beneath a folder named
+    /// `autoresearch`, restating the parent on every child.
+    ///
+    /// Mirrors `CronJobRow.showsCategoryPath`, so a job reads the same way on
+    /// the Cron list page and on the activity board's Jobs pane.
+    internal var showsCategoryPath = true
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -37,7 +55,10 @@ internal struct CronJobCard: View {
         onResume: @escaping () -> Void,
         onRemove: @escaping () -> Void,
         onUpdatePrompt: @escaping (String) -> Void,
-        onRename: @escaping (String) -> Void
+        onRename: @escaping (String) -> Void,
+        siblingJobs: [CronJob] = [],
+        supportsRemoveAndEdit: Bool = true,
+        showsCategoryPath: Bool = true
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -48,9 +69,20 @@ internal struct CronJobCard: View {
         self.onRemove = onRemove
         self.onUpdatePrompt = onUpdatePrompt
         self.onRename = onRename
+        self.siblingJobs = siblingJobs
+        self.supportsRemoveAndEdit = supportsRemoveAndEdit
+        self.showsCategoryPath = showsCategoryPath
     }
 
     private var displayJob: CronJob { job }
+
+    /// The header's name: the full path when the card stands alone, otherwise
+    /// just the leaf. Only the *header* is shortened — the category editor
+    /// below still takes `job.name`, because moving a job is an edit to its
+    /// whole path and would be unusable with the path hidden.
+    private var displayName: String {
+        CronCategory.displayName(for: displayJob, showingPath: showsCategoryPath)
+    }
 
     internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -64,11 +96,14 @@ internal struct CronJobCard: View {
                     statsStrip
                     healthBar
                     errorBanner
-                    CronCategoryEditor(
-                        name: displayJob.name,
-                        isCompact: true,
-                        onRename: onRename
-                    )
+                    if supportsRemoveAndEdit {
+                        CronCategoryEditor(
+                            name: displayJob.name,
+                            isCompact: true,
+                            siblingJobs: siblingJobs,
+                            onRename: onRename
+                        )
+                    }
                     detailRows
                     promptSection
                     recentRuns
@@ -96,7 +131,7 @@ internal struct CronJobCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(displayJob.name)
+                    Text(displayName)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.primary)
                         .lineLimit(1)
