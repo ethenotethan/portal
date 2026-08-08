@@ -1001,6 +1001,7 @@
 		BF69936DE366B4A1663E549D /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		C0888FE14C455912BD44E102 /* WikiDockedReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiDockedReader.swift; sourceTree = "<group>"; };
 		C0E4433A1BFCCB1AB04532BD /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
+		C0F50AA8686E1AD0B867113C /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		C17E38F822580B51EB67B78B /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManager.swift; sourceTree = "<group>"; };
@@ -1188,6 +1189,7 @@
 				9F79BDEC8F95449BD40FE345 /* App */,
 				61851216B4FFCF80111C87E3 /* Portal */,
 				A98DB70E0159B32FD54B17A4 /* portal-cronleaf */,
+				EA6882AE2071579282737B79 /* portal-logo */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -1775,6 +1777,15 @@
 				79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */,
 			);
 			path = JSONRPC;
+			sourceTree = "<group>";
+		};
+		EA6882AE2071579282737B79 /* portal-logo */ = {
+			isa = PBXGroup;
+			children = (
+				C0F50AA8686E1AD0B867113C /* Local.xcconfig */,
+			);
+			name = "portal-logo";
+			path = .;
 			sourceTree = "<group>";
 		};
 		FB6E90D116D900F079442E44 /* Diagram */ = {
