@@ -12,6 +12,10 @@ struct WikiEventFeedView: View {
     @Binding var selectedEventID: String?
     /// Directive target-page chips → shared selection plane.
     var onOpenPage: ((String) -> Void)?
+    /// How to color/label kinds — the wiki's taxonomy when it has one.
+    internal var presentation: WikiEventPresentation = .empty
+    /// Opens the changeset drawer filtered to one page (event → changeset).
+    internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,7 +42,9 @@ struct WikiEventFeedView: View {
                     WikiEventFeedList(
                         events: events,
                         selectedEventID: $selectedEventID,
-                        onOpenPage: onOpenPage
+                        onOpenPage: onOpenPage,
+                        presentation: presentation,
+                        onOpenChangeset: onOpenChangeset
                     )
                     .padding(10)
                 }
@@ -63,6 +69,8 @@ struct WikiEventFeedList: View {
     let events: [WikiTimelineEvent]
     @Binding var selectedEventID: String?
     var onOpenPage: ((String) -> Void)?
+    internal var presentation: WikiEventPresentation = .empty
+    internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
     /// Newest first — a feed reads downward into the past. The server
     /// already orders DESC; re-sort defensively for stability.
@@ -85,7 +93,9 @@ struct WikiEventFeedList: View {
                     onSelect: {
                         selectedEventID = selectedEventID == event.id ? nil : event.id
                     },
-                    onOpenPage: onOpenPage
+                    onOpenPage: onOpenPage,
+                    presentation: presentation,
+                    onOpenChangeset: onOpenChangeset
                 )
                 .id(event.id)
             }
@@ -103,6 +113,8 @@ struct WikiEventFeedRow: View {
     let isSelected: Bool
     let onSelect: () -> Void
     var onOpenPage: ((String) -> Void)?
+    internal var presentation: WikiEventPresentation = .empty
+    internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
     @Environment(\.openURL) private var openURL
 
@@ -120,13 +132,11 @@ struct WikiEventFeedRow: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Circle()
-                    .fill(WikiEventKindStyle.color(for: event.kind))
+                    .fill(presentation.color(for: event.kindRaw))
                     .frame(width: 7, height: 7)
                     .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 3 }
 
-                Text(event.kind == .other ? event.kindRaw : event.kind.displayName)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Theme.secondary)
+                kindLabel
 
                 Spacer(minLength: 4)
 
@@ -179,6 +189,14 @@ struct WikiEventFeedRow: View {
                 }
             }
 
+            // What this event actually changed — the event → changeset → page
+            // edge. Shown unconditionally rather than only when selected: an
+            // event that caused nothing and an event whose effects are one
+            // click away are different facts, and the row should say which.
+            if !event.changesets.isEmpty {
+                changesetLinks
+            }
+
             if isSelected {
                 selectedDetail
             }
@@ -196,6 +214,63 @@ struct WikiEventFeedRow: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: 8))
         .onTapGesture { onSelect() }
+    }
+
+    /// The kind chip. Clickable into the definition page when a wiki page
+    /// declared this kind — the same "the wiki says what this is" affordance
+    /// the changeset timeline's trigger chip offers.
+    @ViewBuilder
+    private var kindLabel: some View {
+        let text = presentation.label(for: event.kindRaw)
+        if let path = presentation.pagePath(for: event.kindRaw), let onOpenPage {
+            Button { onOpenPage(path) } label: {
+                Text(text)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Theme.accent)
+            }
+            .buttonStyle(.borderless)
+            .help("Open \(path) — what the wiki says this kind is")
+        } else {
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Theme.secondary)
+        }
+    }
+
+    /// Pages this event changed, each opening the changeset history for that
+    /// page. `→` mirrors the changeset row's `←` provenance chips: the same
+    /// edge, read from the other end.
+    private var changesetLinks: some View {
+        HStack(alignment: .top, spacing: 5) {
+            Image(systemName: "arrow.right.circle")
+                .font(.system(size: 9))
+                .foregroundStyle(Theme.tertiary)
+                .padding(.top, 2)
+            FlowLayout(spacing: 5) {
+                ForEach(event.changesets) { ref in
+                    Button {
+                        onOpenChangeset?(ref)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text(ref.pageLabel)
+                                .font(.caption2)
+                            if !ref.action.isEmpty {
+                                Text(ref.action)
+                                    .font(.system(size: 8, weight: .medium))
+                                    .foregroundStyle(Theme.tertiary)
+                            }
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Theme.surfaceHover, in: Capsule())
+                        .foregroundStyle(Theme.accent)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(onOpenChangeset == nil)
+                    .help("See the change this event caused to \(ref.page)")
+                }
+            }
+        }
     }
 
     /// Expanded detail on the selected row: exact timestamps (event vs
@@ -233,6 +308,16 @@ struct WikiEventFeedRow: View {
                     value: revisions.map(String.init).joined(separator: ", ")
                 )
             }
+            // The raw source's content hash — how you tell a re-ingest of the
+            // same bytes from a genuinely new version of the source. Truncated
+            // because the leading bytes are enough to compare by eye.
+            if !event.sha256.isEmpty {
+                detailRow(icon: "number", title: "Digest", value: String(event.sha256.prefix(12)))
+            }
+            // The raw source path IS the event's identity on Hermes; showing it
+            // makes the provenance chips on changeset rows recognizable as
+            // pointing at this row.
+            detailRow(icon: "doc.text", title: "Source", value: event.sourceKey)
         }
         .padding(.top, 2)
     }

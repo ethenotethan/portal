@@ -90,4 +90,14 @@ struct MaintainerRefTests {
         let out = try #require(MaintainerRef.write(refs, into: content))
         #expect(MaintainerRef.parseList(from: out) == refs)
     }
+
+    // MARK: - Identifiable
+
+    @Test("id mirrors the stored raw string for every case")
+    internal func idEqualsRaw() {
+        #expect(MaintainerRef.cron(jobID: "job_abc").id == "cron:job_abc")
+        #expect(MaintainerRef.other(type: "workflow", value: "wf_1").id == "workflow:wf_1")
+        // Round-trip through the parser: a parsed ref's id must equal its raw form.
+        #expect(MaintainerRef("cron:job_xyz")?.id == MaintainerRef("cron:job_xyz")?.raw)
+    }
 }

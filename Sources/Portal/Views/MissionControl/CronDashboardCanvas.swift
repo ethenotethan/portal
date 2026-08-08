@@ -202,7 +202,8 @@ internal struct CronDashboardCanvas: View {
         case .cronVolume:
             return AnyView(CronVolumeView(records: records, horizon: timeHorizon))
         case .cronJobs:
-            return AnyView(ScrollView { CronJobsView(vm: cronListVM) })
+            // showsTitle: false — the panel chrome above already reads "Jobs".
+            return AnyView(ScrollView { CronJobsView(vm: cronListVM, showsTitle: false) })
         case .cronTimeline:
             return AnyView(ScrollView { CronTimelineView(records: records, horizon: timeHorizon) })
         case .cronBreakdown:

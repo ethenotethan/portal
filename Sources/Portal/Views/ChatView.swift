@@ -898,11 +898,14 @@ struct ChatView: View {
                                     DelegationBatchNoticeView(label: noticeLabel)
                                         .id(message.id)
                                 } else {
-                                    let isLastInGroup: Bool = Self.isLastMessageInGroup(
-                                        message: message,
-                                        msgs: msgs
+                                    // `index` is the message's position in the
+                                    // unfiltered `msgs` (renderedMessages
+                                    // enumerates before filtering), so the
+                                    // boundary is a neighbor read, not a search.
+                                    let showTimestamp: Bool = Self.isLastMessageInGroup(
+                                        at: index,
+                                        in: msgs
                                     )
-                                    let showTimestamp: Bool = isLastInGroup
                                     let preparedMessage: ChatMessage = Self.prepareBubbleMessage(
                                         message, showTimestamp: showTimestamp
                                     )
@@ -2173,18 +2176,39 @@ struct FlowLayoutCompat: Layout {
 // MARK: - Message grouping helpers
 
 extension ChatView {
-    /// Returns `true` if `message` is the last in a consecutive same-role group.
-    /// We look up `message.id` in `msgs` to get the array position, then check the next message's role.
-    static func isLastMessageInGroup(message: ChatMessage, msgs: [ChatMessage]) -> Bool {
-        guard let msgIndex = msgs.firstIndex(where: { $0.id == message.id }) else {
-            return true // if not found, treat as group boundary for safety
-        }
-        let nextIdx = msgIndex + 1
+    /// Whether `message` ends a run of consecutive same-role messages — the
+    /// boundary that earns a timestamp.
+    ///
+    /// Takes the position rather than searching for it. The searching version
+    /// did `msgs.firstIndex(where:)` per row, and every caller is a `ForEach`
+    /// body, so rendering N messages cost N² id comparisons — repeated on every
+    /// layout pass, not once per change. On a long transcript that pinned the
+    /// main thread at 100% and beachballed the window.
+    ///
+    /// - Parameter index: `message`'s position in `msgs`. Out-of-range reads as
+    ///   a boundary, matching what the old not-found branch did: a stray
+    ///   timestamp is a cosmetic slip, a missing one hides when a turn happened.
+    internal static func isLastMessageInGroup(at index: Int, in msgs: [ChatMessage]) -> Bool {
+        guard msgs.indices.contains(index) else { return true }
+        let nextIdx = index + 1
         guard nextIdx < msgs.count else {
             return true // last message overall
         }
-        let nextRole = msgs[nextIdx].role
-        return nextRole != message.role
+        return msgs[nextIdx].role != msgs[index].role
+    }
+
+    /// Group boundaries for a whole list, as a set of the ids that end a run.
+    ///
+    /// For callers rendering every message: one O(N) pass, then O(1) per row.
+    /// A set of ids rather than indices so a `ForEach` over the elements can ask
+    /// without tracking positions — the shape that made the old helper quadratic.
+    internal static func lastInGroupIDs(_ msgs: [ChatMessage]) -> Set<UUID> {
+        var ids: Set<UUID> = []
+        for (index, message) in msgs.enumerated()
+        where index + 1 >= msgs.count || msgs[index + 1].role != message.role {
+            ids.insert(message.id)
+        }
+        return ids
     }
 
     /// Creates a variant of `message` with avatar hidden and timestamp set for bubble rendering.
