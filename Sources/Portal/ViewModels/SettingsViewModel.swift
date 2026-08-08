@@ -171,6 +171,30 @@ internal final class SettingsViewModel: ObservableObject {
     /// Email extracted from CF Access JWT (for display purposes).
     @Published var cfAuthEmail: String?
 
+    /// Whether `init` may mint a saved-harness entry from the live URL/key and
+    /// write it to the Keychain.
+    ///
+    /// Pure and static because it is the decision that destroyed data, and it is
+    /// otherwise only reachable by running `init` — which reads and writes the
+    /// real login Keychain, so tests cannot exercise it.
+    ///
+    /// `unreadable` is the term this fix adds. The branch fires on "no entries
+    /// yet", and a REFUSED read looks exactly like that; its body then
+    /// overwrites the `gateways` blob with one entry built from the localhost
+    /// fallback URL, turning a transient read failure into permanent loss of
+    /// every saved harness.
+    /// `nonisolated` because it touches no state — the whole point is that the
+    /// decision is a function of its four inputs.
+    nonisolated internal static func shouldMigrateSingleGateway(
+        loadedIsEmpty: Bool,
+        unreadable: Bool,
+        onboarded: Bool,
+        hasAPIKey: Bool
+    ) -> Bool {
+        guard loadedIsEmpty, !unreadable else { return false }
+        return onboarded || hasAPIKey
+    }
+
     init() {
         let env = ProcessInfo.processInfo.environment
         let args = ProcessInfo.processInfo.arguments
@@ -205,12 +229,12 @@ internal final class SettingsViewModel: ObservableObject {
         var loadedGateways = gatewaysOutcome.value ?? []
         let restoredActiveID = UserDefaults.standard.string(forKey: Self.activeGatewayIDKey)
             .flatMap(UUID.init(uuidString:))
-        // `unreadable` blocks the migration branch. It fires on "no entries yet"
-        // — which a REFUSED read looks exactly like — and its body overwrites
-        // the `gateways` blob with a single entry built from the localhost
-        // fallback URL. That turned a transient read failure into permanent
-        // loss of every saved harness.
-        if loadedGateways.isEmpty, !unreadable, onboarded || !self.apiKey.isEmpty {
+        if Self.shouldMigrateSingleGateway(
+            loadedIsEmpty: loadedGateways.isEmpty,
+            unreadable: unreadable,
+            onboarded: onboarded,
+            hasAPIKey: !self.apiKey.isEmpty
+        ) {
             let migrated = SavedGateway(
                 name: URL(string: resolvedGatewayURL)?.host ?? "Harness",
                 url: resolvedGatewayURL,

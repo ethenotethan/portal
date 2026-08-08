@@ -143,15 +143,83 @@ internal struct KeychainReadOutcomeTests {
         }
     }
 
-    // MARK: - saveAPIKey
+    // MARK: - The migration decision
 
-    @Test("saveAPIKey persists the value and returns true")
-    internal func saveAPIKeyPersists() throws {
-        let account = "api-key"
-        defer { deleteItem(account) }
-        deleteItem(account)
-        let allGood = KeychainStore.shared.saveAPIKey("test-api-key")
-        #expect(allGood)
-        #expect(KeychainStore.shared.loadAPIKey() == "test-api-key")
+    /// `SettingsViewModel.init`'s migration branch is what actually overwrote the
+    /// stored blob, so the predicate governing it is asserted directly. Running
+    /// `init` is not an option — it reads and writes the real login Keychain.
+    @Suite("Harness migration policy")
+    internal struct MigrationPolicyTests {
+
+        @Test("an unreadable Keychain blocks migration even when it would otherwise fire")
+        internal func unreadableBlocksMigration() {
+            // The regression. Every other input says "migrate" — empty list plus
+            // an onboarded user — and before the fix it did, writing a localhost
+            // entry over harnesses it had simply failed to read.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: true, hasAPIKey: true
+            ) == false)
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: false, hasAPIKey: true
+            ) == false)
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: true, onboarded: true, hasAPIKey: false
+            ) == false)
+        }
+
+        @Test("a genuine first run for an onboarded user still migrates")
+        internal func readableFirstRunMigrates() {
+            // The feature this branch exists for must survive the fix: someone
+            // who configured a harness before the list existed keeps it.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: true, hasAPIKey: false
+            ))
+            // An API key alone is enough — onboarding may predate the flag.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: false, hasAPIKey: true
+            ))
+        }
+
+        @Test("existing entries are never migrated over")
+        internal func nonEmptyListNeverMigrates() {
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: false, unreadable: false, onboarded: true, hasAPIKey: true
+            ) == false)
+        }
+
+        @Test("a true blank slate does not invent an entry")
+        internal func blankSlateDoesNotMigrate() {
+            // Not onboarded and no key: there is nothing to carry forward, so
+            // minting an entry would just seed a bogus localhost harness.
+            #expect(SettingsViewModel.shouldMigrateSingleGateway(
+                loadedIsEmpty: true, unreadable: false, onboarded: false, hasAPIKey: false
+            ) == false)
+        }
+    }
+
+    // MARK: - Save/read round-trip
+
+    /// Deliberately NOT run against the real `api-key` account.
+    ///
+    /// This test previously called `deleteItem("api-key")` and then
+    /// `saveAPIKey`/`loadAPIKey`, which targets the account the shipping app
+    /// stores the user's live gateway credential under (service
+    /// `com.hermes.native`). Running the suite on a developer's machine
+    /// therefore tried to delete that credential twice — once before the write,
+    /// once in `defer` — and an API key the user may not be able to regenerate
+    /// is not something a unit test may touch. Observed here: the deletes hit
+    /// the login Keychain, took 99s waiting on access, and `loadAPIKey()`
+    /// returned nil, failing the assertion. The item happened to survive
+    /// because access was refused; that is luck, not a guarantee.
+    ///
+    /// `upsertForTesting`/`readStringForTesting` exercise the same
+    /// `upsert` + `readString` code path against a throwaway account, which is
+    /// what `withTemporaryItem` exists for — see the `.found` test above.
+    @Test("a saved value round-trips through upsert and read")
+    internal func savePersistsAndReadsBack() throws {
+        try withTemporaryItem("save-round-trip") { account in
+            #expect(KeychainStore.shared.upsertForTesting(account: account, value: "test-api-key"))
+            #expect(KeychainStore.shared.readStringForTesting(account: account).value == "test-api-key")
+        }
     }
 }

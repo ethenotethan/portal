@@ -249,6 +249,11 @@ final class KeychainStore: Sendable {
         return upsert(account: "gateway-url", data: data)
     }
 
+    /// No `loadGatewayURL()` counterpart: the only caller was
+    /// `SettingsViewModel.init`, and it must see the outcome. Collapsing this
+    /// read to an optional is what made a refused read look like "nothing
+    /// saved" and licensed overwriting the stored harness with localhost, so the
+    /// convenience wrapper is deliberately absent rather than merely unused.
     internal func readGatewayURL() -> ReadOutcome<String> {
         readString(account: "gateway-url")
     }
@@ -270,6 +275,11 @@ final class KeychainStore: Sendable {
     /// read". A decode failure counts as `.failed`, not `.missing`: a blob that
     /// won't parse is still a blob, and overwriting it throws away the only copy
     /// of credentials that may not be regenerable.
+    ///
+    /// As with `readGatewayURL`, there is no `loadGateways() -> [SavedGateway]`
+    /// wrapper. An empty array cannot distinguish "no harnesses" from "could not
+    /// read them", and the caller that mattered acted on that difference by
+    /// writing.
     internal func readGateways() -> ReadOutcome<[SavedGateway]> {
         Self.decodeGateways(read(account: "gateways"))
     }
