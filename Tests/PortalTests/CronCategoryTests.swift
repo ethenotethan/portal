@@ -517,6 +517,19 @@ internal struct CronCategoryTests {
         #expect(paths.count == 3)
     }
 
+    /// Same-depth paths that share a prefix component must order by their
+    /// differing component. This exercises the `where l != r` filter inside the
+    /// sort comparator: the matching prefix element is skipped before the loop
+    /// finds the component that actually decides the order.
+    @Test("same-depth paths with a shared prefix sort by the differing component")
+    internal func allPathsOrdersSharedPrefixByDifferingComponent() {
+        let paths = CronCategory.allPaths(in: [
+            job("life/beta/run"),
+            job("life/alpha/swim"),
+        ])
+        #expect(paths == [["life"], ["life", "alpha"], ["life", "beta"]])
+    }
+
     @Test("destinations are ordered shallowest-first then alphabetically")
     internal func allPathsOrdering() {
         // Note the leaf is never a category: `life/a/run` contributes `life` and
