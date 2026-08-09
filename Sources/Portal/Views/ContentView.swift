@@ -904,7 +904,7 @@ internal struct ContentView: View {
                 Label("Settings", systemImage: "gearshape")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.settings)
             .keyboardShortcut(",", modifiers: .command)
             .accessibilityLabel("Settings")
 
@@ -915,7 +915,7 @@ internal struct ContentView: View {
                 Label("Sessions", systemImage: "square.grid.2x2")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.sessions)
             .keyboardShortcut("l", modifiers: .command)
             .accessibilityLabel("Sessions")
 
@@ -932,7 +932,7 @@ internal struct ContentView: View {
                     Label("Cron", systemImage: "clock.badge.checkmark")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.cron)
                 .overlay(alignment: .topTrailing) {
                     if cronRunStore.unreadCronRunCount > 0 {
                         Text("\(cronRunStore.unreadCronRunCount)")
@@ -954,8 +954,7 @@ internal struct ContentView: View {
                     Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(Theme.primary)
+                .toolbarIcon(.activity)
                 .accessibilityLabel("Activity")
                 .accessibilityIdentifier("activityInboxButton")
             }
@@ -968,7 +967,7 @@ internal struct ContentView: View {
                     Label("Skills", systemImage: "sparkles")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.skills)
                 .keyboardShortcut("j", modifiers: .command)
                 .accessibilityLabel("Skills")
             }
@@ -981,7 +980,7 @@ internal struct ContentView: View {
                     Label("Feed", systemImage: "newspaper")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.feed)
                 .keyboardShortcut("f", modifiers: .command)
                 .accessibilityLabel("Feed")
 
@@ -992,7 +991,7 @@ internal struct ContentView: View {
                     Label("Learning", systemImage: "books.vertical.fill")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.learning)
                 .keyboardShortcut("e", modifiers: .command)
                 .accessibilityLabel("Learning")
             }
@@ -1005,7 +1004,7 @@ internal struct ContentView: View {
                     Label("Wiki", systemImage: "network")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.wiki)
                 .keyboardShortcut("w", modifiers: .command)
                 .accessibilityLabel("Wiki Graph")
             }
@@ -1019,7 +1018,7 @@ internal struct ContentView: View {
                 Label("Artifacts", systemImage: "internaldrive")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.artifacts)
             .keyboardShortcut("d", modifiers: .command)
             .accessibilityLabel("Artifacts")
 
@@ -1034,7 +1033,7 @@ internal struct ContentView: View {
                     Label("Workflows", systemImage: "point.3.connected.trianglepath.dotted")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.workflows)
                 .keyboardShortcut("k", modifiers: .command)
                 .accessibilityLabel("Centaur Workflows")
             }

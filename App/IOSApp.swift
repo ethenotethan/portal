@@ -32,6 +32,7 @@ struct PortalAppIOS: App {
                 .environmentObject(ttsService)
                 .environmentObject(xAuth)
                 .perfOverlay()
+                .portalAppFont()
         }
     }
 }

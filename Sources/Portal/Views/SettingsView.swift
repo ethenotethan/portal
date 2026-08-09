@@ -16,7 +16,6 @@ internal struct SettingsView: View {
     /// Unified sidebar selection — app sections plus one entry per gateway.
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
-        case buttons
         case notifications
         case celebrations
         case x
@@ -25,7 +24,6 @@ internal struct SettingsView: View {
         internal var id: AnyHashable {
             switch self {
             case .appearance: return "appearance"
-            case .buttons: return "buttons"
             case .notifications: return "notifications"
             case .celebrations: return "celebrations"
             case .x: return "x"
@@ -36,7 +34,6 @@ internal struct SettingsView: View {
         internal var label: String {
             switch self {
             case .appearance: return "Appearance"
-            case .buttons: return "Buttons"
             case .notifications: return "Notifications"
             case .celebrations: return "Celebrations"
             case .x: return "X (Twitter)"
@@ -47,7 +44,6 @@ internal struct SettingsView: View {
         internal var icon: String {
             switch self {
             case .appearance: return "paintpalette"
-            case .buttons: return "capsule"
             case .notifications: return "bell"
             case .celebrations: return "party.popper"
             case .x: return "bird"
@@ -82,7 +78,7 @@ internal struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 sidebarGroup(
                     header: nil,
-                    items: [.appearance, .buttons, .notifications, .celebrations, .x]
+                    items: [.appearance, .notifications, .celebrations, .x]
                 )
 
                 Divider().padding(.vertical, 8)
@@ -156,9 +152,7 @@ internal struct SettingsView: View {
                 Group {
                     switch selection {
                     case .appearance:
-                        themesSection
-                    case .buttons:
-                        ButtonThemeSettingsSection()
+                        appearanceSection
                     case .notifications:
                         notificationsSection
                     case .celebrations:
@@ -275,6 +269,7 @@ internal struct SettingsView: View {
                 TextField("e.g. a1B2c3D4e5F6g7H8i9J0k", text: $xAuth.clientID)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12, design: .monospaced))
+                    .monospaced()
                     .frame(maxWidth: 420)
 
                 HStack(spacing: 8) {
@@ -283,6 +278,7 @@ internal struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Text(XAuthService.redirectURI)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.accent)
                         .textSelection(.enabled)
                 }
@@ -323,6 +319,22 @@ internal struct SettingsView: View {
     // MARK: - macOS Sections
 
     @State private var showAddGateway = false
+
+    /// Everything about how the app looks, in one pane: palette, buttons,
+    /// toolbar icons, type. These were separate sidebar entries and each one was
+    /// a click away from the others it has to be compared against — the palette
+    /// supplies the colors the button and icon treatments draw with.
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            themesSection
+            Divider()
+            AppFontSettingsSection()
+            Divider()
+            ButtonThemeSettingsSection()
+            Divider()
+            ToolbarIconSettingsSection()
+        }
+    }
 
     private var themesSection: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -477,6 +489,7 @@ private struct GatewayDetailPane: View {
                     }
                     Text(gateway.url)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -741,10 +754,20 @@ extension SettingsView {
                     }
                 }
 
+                Section("Font") {
+                    AppFontSettingsSection(showsHeader: false)
+                }
+
                 Section("Buttons") {
                     ButtonThemeSettingsSection(showsHeader: false)
                 }
 
+                // No toolbar-icon section here on purpose: the row it configures
+                // is `macOverlayIcons`, which is `#if os(macOS)` at both of its
+                // call sites in `ContentView`. Offering the setting on iOS would
+                // be ten previews of buttons that are not on screen. The stored
+                // values are shared, so a toolbar configured on the Mac stays
+                // configured; there is just nothing here to configure it with.
                 Section("Notifications") {
                     Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                     APNsStatusRow()
@@ -954,6 +977,7 @@ internal struct SystemPromptSection: View {
                     if !section.source.isEmpty {
                         Text(section.source)
                             .font(.system(size: 9, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
@@ -968,6 +992,7 @@ internal struct SystemPromptSection: View {
                 ScrollView {
                     Text(section.fullContent.isEmpty ? "(empty)" : section.fullContent)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -997,6 +1022,7 @@ internal struct SystemPromptSection: View {
 
             TextEditor(text: $ephemeralPrompt)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .frame(minHeight: 100)
                 .padding(8)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
