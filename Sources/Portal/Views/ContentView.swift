@@ -80,12 +80,21 @@ internal struct ContentView: View {
                     .environmentObject(chatViewModel)
             }
 
-            // Celebration overlay — positive reinforcement effects
-            if celebrationManager.activeCelebration != nil {
-                CelebrationOverlay(
-                    particles: ConfettiParticle.burst(count: 60),
+            // Celebration effects. The EVENT is passed through, not just
+            // tested for nil: this used to render 60 confetti particles
+            // regardless, so a `.milestone(level:message:)` payload — "Skill
+            // unlocked: X" — was computed and thrown away. The style and
+            // particle count come from Settings.
+            if let celebration = celebrationManager.activeCelebration {
+                CelebrationStage(
+                    event: celebration,
+                    preferences: celebrationManager.preferences,
                     onComplete: { celebrationManager.activeCelebration = nil }
                 )
+                // Keyed on the event so a celebration arriving during another
+                // one restarts the stage from beat 0 instead of inheriting the
+                // previous performance's elapsed time and appearing mid-exit.
+                .id(celebration.id)
             }
         }
         // Intercept in-app `hermesnative://` links (e.g. an activity item's

@@ -17,6 +17,7 @@ internal struct SettingsView: View {
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
         case notifications
+        case celebrations
         case x
         case gateway(SavedGateway)
 
@@ -24,6 +25,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "appearance"
             case .notifications: return "notifications"
+            case .celebrations: return "celebrations"
             case .x: return "x"
             case .gateway(let g): return g.id
             }
@@ -33,6 +35,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "Appearance"
             case .notifications: return "Notifications"
+            case .celebrations: return "Celebrations"
             case .x: return "X (Twitter)"
             case .gateway(let g): return g.displayName
             }
@@ -42,6 +45,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "paintpalette"
             case .notifications: return "bell"
+            case .celebrations: return "party.popper"
             case .x: return "bird"
             case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
             }
@@ -72,7 +76,7 @@ internal struct SettingsView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup(header: nil, items: [.appearance, .notifications, .x])
+                sidebarGroup(header: nil, items: [.appearance, .notifications, .celebrations, .x])
 
                 Divider().padding(.vertical, 8)
 
@@ -148,6 +152,8 @@ internal struct SettingsView: View {
                         themesSection
                     case .notifications:
                         notificationsSection
+                    case .celebrations:
+                        CelebrationSettingsSection()
                     case .x:
                         xSection
                     case .gateway(let g):
@@ -732,6 +738,10 @@ extension SettingsView {
                 Section("Notifications") {
                     Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                     APNsStatusRow()
+                }
+
+                Section("Celebrations") {
+                    CelebrationSettingsSection(showsHeader: false)
                 }
 
                 Section("Capabilities") {

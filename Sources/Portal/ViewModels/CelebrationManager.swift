@@ -14,10 +14,25 @@ final class CelebrationManager: ObservableObject {
 
     @Published var activeCelebration: CelebrationEvent?
 
+    /// The user's configuration. Owned here (not read from `SettingsViewModel`)
+    /// because the manager is a `ViewModels` type that the trigger call sites
+    /// reach through `.shared`, with no settings instance in hand;
+    /// `SettingsViewModel` pushes changes in via `apply(_:)`.
+    ///
+    /// Seeded from `UserDefaults` rather than defaulted, so a user who turned
+    /// celebrations off does not get one fired at them in the window between
+    /// process start and `SettingsViewModel.init` finishing.
+    @Published internal private(set) var preferences: CelebrationPreferences =
+        SettingsViewModel.storedCelebrationPreferences()
+
     private let soundEffects = SoundEffects()
     private var sessionMessageCounts: [String: Int] = [:]
     private var totalSkillsInstalled: Int = 0
     private var lastCelebrationDate: Date?
+    /// Cancels the pending auto-clear when a later celebration replaces this
+    /// one. Without it, the earlier event's 3s timer fires mid-performance and
+    /// blanks the stage — visible at `.party`, whose throttle is 1s.
+    private var clearWorkItem: DispatchWorkItem?
 
     // MARK: - Events
 
@@ -31,6 +46,24 @@ final class CelebrationManager: ObservableObject {
             case .milestone(let l, let m): return "milestone-\(l.rawValue)-\(m)"
             }
         }
+
+        /// The line the effect speaks or captions. Every event already carried
+        /// one; the old presentation site read neither, so a milestone's message
+        /// was computed and dropped.
+        internal var message: String {
+            switch self {
+            case .confetti(let occasion): return occasion
+            case .milestone(_, let message): return message
+            }
+        }
+
+        /// The badge for a milestone, absent for a plain celebration.
+        internal var badge: String? {
+            switch self {
+            case .confetti: return nil
+            case .milestone(let level, _): return level.rawValue
+            }
+        }
     }
 
     enum MilestoneLevel: String {
@@ -41,6 +74,32 @@ final class CelebrationManager: ObservableObject {
     }
 
     private init() {}
+
+    // MARK: - Configuration
+
+    /// Adopt a new configuration. Called by `SettingsViewModel` at init and on
+    /// every change to a celebration setting.
+    ///
+    /// Turning celebrations off clears anything on screen immediately: a user
+    /// who flips the switch mid-performance means "not this one either", and
+    /// leaving it to run out looks like the toggle did nothing.
+    internal func apply(_ preferences: CelebrationPreferences) {
+        self.preferences = preferences
+        if !preferences.isEnabled {
+            clearWorkItem?.cancel()
+            clearWorkItem = nil
+            activeCelebration = nil
+        }
+    }
+
+    /// Fire the currently-configured effect on demand, so the Settings row can
+    /// preview it. Bypasses the throttle and the random schedule — the user
+    /// asked for exactly one — but not the master switch.
+    internal func preview() {
+        guard preferences.isEnabled else { return }
+        lastCelebrationDate = nil
+        celebrate(.milestone(level: .gold, message: "Good job"))
+    }
 
     // MARK: - Triggers
 
@@ -53,7 +112,10 @@ final class CelebrationManager: ObservableObject {
         let baseChance = 0.15
         let durationBonus = min(duration / 10.0, 0.2) // up to +20% for long responses
         let milestoneBonus = count.isMultiple(of: 10) ? 0.5 : 0
-        let chance = baseChance + durationBonus + milestoneBonus
+        // Intensity scales the odds, not the visuals: someone who finds these
+        // intrusive wants fewer of them, not smaller ones. Returns 0 when
+        // celebrations are off, so the random draw can never succeed.
+        let chance = preferences.adjustedChance(baseChance + durationBonus + milestoneBonus)
 
         if Double.random(in: 0...1) < chance {
             if count.isMultiple(of: 10) {
@@ -100,20 +162,40 @@ final class CelebrationManager: ObservableObject {
     // MARK: - Private
 
     private func celebrate(_ event: CelebrationEvent) {
-        // Throttle: max one celebration per 2 seconds
-        if let last = lastCelebrationDate, Date().timeIntervalSince(last) < 2.0 {
+        // The master switch short-circuits here rather than in the overlay, so
+        // "off" also means no sound and no state churn — not merely a hidden
+        // animation. The unconditional triggers (`onSkillInstalled`,
+        // `onFirstMessage`, `onCronSuccess`, `onReaction`) never consult
+        // `adjustedChance`, so this is the only gate they pass through.
+        guard preferences.isEnabled else { return }
+
+        // Throttle, at the interval the chosen intensity asks for.
+        let throttle = preferences.intensity.throttleInterval
+        if let last = lastCelebrationDate, Date().timeIntervalSince(last) < throttle {
             return
         }
         lastCelebrationDate = Date()
 
         activeCelebration = event
-        soundEffects.playSuccess()
-
-        // Auto-clear after 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            self?.activeCelebration = nil
+        if preferences.soundEnabled {
+            soundEffects.playSuccess()
         }
+
+        // Auto-clear after the performance, cancelling any earlier pending
+        // clear so a superseded event's timer can't blank this one mid-run.
+        clearWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.activeCelebration = nil
+            self?.clearWorkItem = nil
+        }
+        clearWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.performanceDuration, execute: work)
     }
+
+    /// How long a celebration stays on screen. Must outlast the longest style's
+    /// choreography — the monkey's beats run to `CelebrationBeat.totalDuration`
+    /// — or the stage is torn down mid-performance.
+    nonisolated internal static let performanceDuration: TimeInterval = 3.4
 }
 
 // MARK: - Sound Effects
