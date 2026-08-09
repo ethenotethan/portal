@@ -351,10 +351,22 @@ struct WikiGraphView: View {
                         .font(.callout)
                         .foregroundStyle(Theme.secondary)
                 } else if !isOverride && !gatewayClientWrapper.isConnected {
-                    ProgressView()
-                    Text(gatewayClientWrapper.isConnecting ? "Connecting to harness…" : "Waiting for harness…")
+                    // No spinner once the transport has given up — a permanent
+                    // spinner next to "Connecting…" was the whole complaint.
+                    if gatewayClientWrapper.connectionErrorMessage == nil {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.title2)
+                            .foregroundStyle(Theme.warning)
+                    }
+                    Text(gatewayClientWrapper.isConnecting
+                         ? gatewayClientWrapper.statusLabel
+                         : (gatewayClientWrapper.connectionErrorMessage ?? "Waiting for harness…"))
                         .font(.callout)
                         .foregroundStyle(Theme.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 320)
                 } else if let error = viewModel.error {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.title2)

@@ -870,8 +870,14 @@ internal struct ContentView: View {
             }
             return "Connected. Click to switch harness."
         }
+        // statusLabel, not a bare "Connecting…": an exhausted retry loop and a
+        // first dial both set isConnecting, and collapsing them here is what
+        // made an endless reconnect look like a connect that never finished.
         if gatewayClientWrapper.isConnecting {
-            return "Connecting…"
+            return gatewayClientWrapper.statusLabel
+        }
+        if let message = gatewayClientWrapper.connectionErrorMessage {
+            return "\(message) Open the menu to retry or switch harness."
         }
         return "Disconnected — open the menu to reconnect or switch harness."
     }
@@ -1745,7 +1751,17 @@ spawnTreeStore.subscribe(to: client)
                 // error state that otherwise survives until app restart (#178).
                 gatewayClientWrapper.resetReconnectBudget()
                 Task {
-                    if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
+                    if gatewayClientWrapper.reconnectAttempt != nil {
+                        // Auto-reconnect is already working through its backoff.
+                        // Dialing again here would rebuild the transport with a
+                        // brand-new client whose attempt counter starts at zero,
+                        // so on macOS — where scenePhase flips on mere window
+                        // focus — clicking away and back restarted the retry
+                        // sequence indefinitely and the cap was never reached.
+                        // Let the existing schedule run; it ends in either a
+                        // connection or a terminal error.
+                        await gatewayClientWrapper.waitUntilConnected(timeout: 12)
+                    } else if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
                         await gatewayClientWrapper.connectWithRetry(using: settings)
                     } else if gatewayClientWrapper.isConnecting {
                         // A wedged in-flight connect must not make foregrounding

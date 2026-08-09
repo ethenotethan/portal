@@ -17,6 +17,17 @@ final class GatewayClientWrapper: ObservableObject {
     @Published var isConnected: Bool = false
     @Published var isConnecting: Bool = false
     @Published var log: [LogEntry] = []
+    /// The current auto-reconnect attempt when the client is retrying after a
+    /// drop, else nil. Published separately from `isConnecting` because both
+    /// `.connecting` and `.reconnecting` set that flag: surfaces keyed on it
+    /// alone rendered a plain "Connecting…" while the client was actually in an
+    /// endless retry loop, which is exactly what "it just hangs on Connecting"
+    /// looked like. Distinguishing them makes progress (or its absence) visible.
+    @Published internal private(set) var reconnectAttempt: Int?
+    /// The terminal message when reconnect attempts are exhausted, else nil.
+    /// Surfaces show this instead of an indefinite spinner so a dead harness
+    /// ends in something the user can act on rather than a permanent wait.
+    @Published internal private(set) var connectionErrorMessage: String?
     /// Mirrors the current client's keepalive RTT so views observing the
     /// wrapper (not the inner client, which is swapped on reconnect) can
     /// show live latency.
@@ -26,6 +37,41 @@ final class GatewayClientWrapper: ObservableObject {
     /// `liveClient(for:)` must re-render on the swap — otherwise a harness's
     /// status row keeps reading the previous gateway's client.
     @Published internal private(set) var client: GatewayClient
+
+    /// How long to wait for a socket to open before treating the attempt as
+    /// failed. MUST outlast `GatewayClient.handshakeTimeout`, or the wait
+    /// expires while the dial is still legitimately in progress and the caller
+    /// concludes "failed" before the transport can report why.
+    ///
+    /// This was 12s against a 15s handshake, which is the "Connecting,
+    /// connecting, connecting…" bug. Measured against a black-holed host,
+    /// URLSession delivered `-1004` at 12.32s — just after the 12s wait gave
+    /// up. `connectWithRetry` then called `connectIfNeeded(force: true)`, which
+    /// throws the in-flight client away and builds a NEW `GatewayClient`
+    /// (another `connect` event, another `.connecting`). So the failure never
+    /// landed on a client anyone was still listening to: `handleDisconnect`
+    /// never ran, `reconnectAttempt` stayed 0, and the reconnect state machine —
+    /// including the success-gated budget — was never reached at all.
+    ///
+    /// The margin is deliberately generous rather than a hair over 15s: the
+    /// handshake timeout bounds URLSession's own request, and the observed
+    /// callback ran ~1.3s past it.
+    internal static let connectWaitTimeout: TimeInterval = GatewayClient.handshakeTimeout + 5
+
+    /// One label for every surface that shows transport status from the
+    /// wrapper's flags (toolbar tooltip, menu bar, wiki placeholder). They all
+    /// used to hardcode "Connecting…" off `isConnecting` alone, so three
+    /// different states — first dial, endless retry, and terminal failure — were
+    /// indistinguishable. Centralized so they can't drift apart again.
+    internal var statusLabel: String {
+        if isConnected { return "Connected" }
+        if let attempt = reconnectAttempt {
+            return "Reconnecting… (attempt \(attempt) of \(GatewayClient.maxReconnectAttempts))"
+        }
+        if isConnecting { return "Connecting…" }
+        if let message = connectionErrorMessage { return message }
+        return "Disconnected"
+    }
 
     private var pingRTTCancellable: AnyCancellable?
     private var connectionCancellable: AnyCancellable?
@@ -194,19 +240,33 @@ final class GatewayClientWrapper: ObservableObject {
         // An explicit connection request grants auto-reconnect a fresh budget,
         // so a client that exhausted its retries (terminal .error) resumes
         // reconnecting instead of staying dead until app restart (#178).
-        resetReconnectBudget()
+        //
+        // force: this call IS the user (or a launch/foreground path) asking to
+        // connect, which outranks the success gate. Note it doesn't reopen the
+        // infinite loop the gate closed: below, an unchanged signature with a
+        // live-but-failing connection returns through the in-flight branch
+        // rather than dialing again, so the grant is not renewed on a timer.
+        resetReconnectBudget(force: true)
 
         if !force, currentSignature == signature {
             if isConnected { return true }
             if isConnecting || connectTask != nil {
-                let connected = await waitUntilConnected(timeout: 12)
+                let connected = await waitUntilConnected(timeout: Self.connectWaitTimeout)
                 logger.info("GatewayClientWrapper reused in-flight connection result=\(connected)")
                 if connected { return true }
-                // The in-flight connect is wedged (e.g. the client is stuck in
-                // .reconnecting after a failed attempt, so isConnecting never
-                // clears). Returning failure here would leave every later call
-                // queueing behind the same doomed 12s wait — fall through and
-                // rebuild the transport instead (#178).
+                // An armed backoff is not a wedge — it's the retry path doing
+                // its job. Rebuilding here hands back a client with a zeroed
+                // counter, which is how the loop became unbounded; report
+                // failure and let the existing schedule reach a connection or
+                // the attempt cap.
+                if reconnectAttempt != nil {
+                    logger.info("GatewayClientWrapper deferring to armed reconnect; not rebuilding")
+                    return false
+                }
+                // The in-flight connect is genuinely wedged (isConnecting never
+                // clears and no backoff is armed). Returning failure here would
+                // leave every later call queueing behind the same doomed wait —
+                // fall through and rebuild the transport instead (#178).
                 logger.info("GatewayClientWrapper in-flight connection wedged; rebuilding transport")
             }
         }
@@ -241,7 +301,7 @@ final class GatewayClientWrapper: ObservableObject {
 
         connectTask = Task { @MainActor [weak self, weak newClient] in
             newClient?.connect()
-            let connected = await self?.waitUntilConnected(timeout: 12) ?? false
+            let connected = await self?.waitUntilConnected(timeout: Self.connectWaitTimeout) ?? false
             guard !Task.isCancelled else { return }
             self?.isConnecting = false
             self?.connectTask = nil
@@ -250,7 +310,7 @@ final class GatewayClientWrapper: ObservableObject {
             }
         }
 
-        let connected = await waitUntilConnected(timeout: 12)
+        let connected = await waitUntilConnected(timeout: Self.connectWaitTimeout)
         logger.info("GatewayClientWrapper new connection result=\(connected)")
         return connected
     }
@@ -267,6 +327,16 @@ final class GatewayClientWrapper: ObservableObject {
             let connected = await connectIfNeeded(using: settings, force: attempt > 1)
             if connected { return true }
             guard attempt < maxAttempts else { break }
+            // Once the transport's own auto-reconnect has taken over, stop
+            // dialing. Each `force` rebuild replaces the client with a fresh one
+            // whose attempt counter is 0, so retrying here on top of an active
+            // backoff produced an unbounded sequence of new `connect`s — the
+            // "connecting, connecting, connecting" the debug log showed — and
+            // starved the state machine that would otherwise reach the cap.
+            if reconnectAttempt != nil {
+                logger.info("connectWithRetry yielding to auto-reconnect (attempt \(self.reconnectAttempt ?? 0))")
+                return await waitUntilConnected(timeout: Self.connectWaitTimeout)
+            }
             logger.info("connectWithRetry attempt \(attempt) failed; retrying in \(delay)s")
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             if Task.isCancelled { return isConnected }
@@ -276,7 +346,10 @@ final class GatewayClientWrapper: ObservableObject {
         return isConnected
     }
 
-    func connectedClient(using settings: SettingsViewModel, timeout seconds: TimeInterval = 12) async -> GatewayClient? {
+    internal func connectedClient(
+        using settings: SettingsViewModel,
+        timeout seconds: TimeInterval = GatewayClientWrapper.connectWaitTimeout
+    ) async -> GatewayClient? {
         guard await connectIfNeeded(using: settings) else { return nil }
         guard await waitUntilConnected(timeout: seconds) else { return nil }
         return client
@@ -290,8 +363,12 @@ final class GatewayClientWrapper: ObservableObject {
     /// Forward to the current client: give auto-reconnect a fresh attempt
     /// budget. Called on app foreground and inside connectIfNeeded so an
     /// exhausted retry cap never survives a user-visible trigger (#178).
-    func resetReconnectBudget() {
-        client.resetReconnectBudget()
+    ///
+    /// `force` distinguishes an explicit connect request from an ambient
+    /// trigger like window focus; unforced grants apply only after a socket has
+    /// actually opened. See `GatewayClient.resetReconnectBudget`.
+    internal func resetReconnectBudget(force: Bool = false) {
+        client.resetReconnectBudget(force: force)
     }
 
     /// On wake/foreground, verify the socket is actually live (a half-open
@@ -347,16 +424,38 @@ final class GatewayClientWrapper: ObservableObject {
                 case .connected:
                     self.isConnected = true
                     self.isConnecting = false
+                    self.reconnectAttempt = nil
+                    self.connectionErrorMessage = nil
                     logger.info("GatewayClientWrapper observed connected")
-                case .connecting, .reconnecting:
+                case .connecting:
                     self.isConnected = false
                     self.isConnecting = true
-                    logger.info("GatewayClientWrapper observed connecting state=\(String(describing: state))")
-                default:
+                    self.reconnectAttempt = nil
+                    self.connectionErrorMessage = nil
+                    logger.info("GatewayClientWrapper observed connecting")
+                case .reconnecting(let attempt):
+                    // Still "connecting" for gating purposes, but the attempt
+                    // number travels with it so the UI can show a retry in
+                    // progress rather than an indistinguishable first connect.
+                    self.isConnected = false
+                    self.isConnecting = true
+                    self.reconnectAttempt = attempt
+                    self.connectionErrorMessage = nil
+                    logger.info("GatewayClientWrapper observed reconnecting attempt=\(attempt)")
+                case .error(let message):
                     self.isConnected = false
                     self.isConnecting = false
+                    self.reconnectAttempt = nil
+                    self.connectionErrorMessage = message
                     self.connectTask = nil
-                    logger.info("GatewayClientWrapper observed non-connected state=\(String(describing: state))")
+                    logger.info("GatewayClientWrapper observed error=\(message)")
+                case .disconnected:
+                    self.isConnected = false
+                    self.isConnecting = false
+                    self.reconnectAttempt = nil
+                    self.connectionErrorMessage = nil
+                    self.connectTask = nil
+                    logger.info("GatewayClientWrapper observed disconnected")
                 }
             }
     }
