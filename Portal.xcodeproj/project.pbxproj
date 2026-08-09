@@ -988,6 +988,7 @@
 		B4C6F50238B9687A3FA94381 /* WikiEventsPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventsPageView.swift; sourceTree = "<group>"; };
 		B5084DB800931CA454D486AF /* CronCategoryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronCategoryEditor.swift; sourceTree = "<group>"; };
 		B52AA27965856DD3FFFCDC76 /* ArtifactKindRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactKindRenderer.swift; sourceTree = "<group>"; };
+		B561CF4288A99A9681A89C94 /* WikiEventTypeRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTypeRegistryTests.swift; sourceTree = "<group>"; };
 		B583DDF8C1CC472F01013B3D /* PerfCountHarnessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfCountHarnessTests.swift; sourceTree = "<group>"; };
 		B6C645744B05EA678BF49FD4 /* HermesNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeApp.swift; sourceTree = "<group>"; };
 		B921CDF2A61D63D969101021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
