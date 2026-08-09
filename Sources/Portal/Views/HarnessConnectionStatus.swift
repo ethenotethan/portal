@@ -113,6 +113,7 @@ internal struct HarnessConnectionSection: View {
                 if showsRTT, let rtt = gatewayClientWrapper.lastPingRTT {
                     Text("\(Int(rtt * 1000)) ms")
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                 }
             }

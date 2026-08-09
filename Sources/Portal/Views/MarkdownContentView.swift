@@ -609,6 +609,13 @@ struct MarkdownText: View {
         return result
     }
 
+    /// Known limitation: the font set on these runs loses to the app-wide
+    /// typeface, because that is a root `.fontDesign` and no per-run font
+    /// survives one — not even `.custom(_:size:)`. A code span inside a
+    /// paragraph therefore takes the selected letterforms; its accent color and
+    /// background chip are what still mark it as code. Fenced blocks are
+    /// unaffected — `CodeBlockView` re-asserts `.monospaced()` on the whole
+    /// block, which is a view and does win.
     private static func applyInlineCodeStyling(_ attr: inout AttributedString) {
         #if os(macOS)
         let codeBg = NSColor(Theme.surfaceHover)
@@ -682,6 +689,7 @@ struct CodeBlockView: View {
                             .frame(width: 6, height: 6)
                         Text(language)
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.secondary)
                     }
                 }
@@ -726,6 +734,7 @@ struct CodeBlockView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(highlightedCode)
                     .font(.system(size: 12, weight: .regular, design: .monospaced))
+                    .monospaced()
                     .textSelection(.enabled)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -955,6 +964,7 @@ struct ListItemView: View {
             if isOrdered {
                 Text("\(index).")
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.accent)
                     .frame(width: 22, alignment: .trailing)
             } else {
@@ -1212,6 +1222,10 @@ struct TableView: View {
             baseColor: isHeader ? Theme.accent : nil,
             baseFont: isHeader ? .system(size: 11, weight: .bold, design: .monospaced) : nil
         )
+        // The header's `design:` above is not enough on its own: the selected app
+        // typeface is a root `.fontDesign` and overrides a design written inside
+        // a `Font` value, including one carried on an `AttributedString` run.
+        .monospaced(isHeader)
         .textSelection(.enabled)
         .lineLimit(nil)
         // Header centered; body cells lead — a wrapped paragraph cell (a
@@ -1320,6 +1334,7 @@ struct HTMLBlockView: View {
 
             Text(previewText)
                 .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.secondary)
                 .lineLimit(3)
                 .textSelection(.enabled)

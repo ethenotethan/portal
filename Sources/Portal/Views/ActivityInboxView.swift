@@ -302,6 +302,7 @@ private struct ActivityArtifactView: View {
                     ScrollView {
                         Text(artifact.content ?? "")
                             .font(.system(.body, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.primary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)

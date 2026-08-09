@@ -239,6 +239,7 @@ private struct ExportRoleHeader: View {
         HStack(spacing: 8) {
             Text(label.uppercased())
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(isUser ? Theme.secondary : Theme.accent)
             Rectangle()
                 .fill(Theme.border)
@@ -389,6 +390,7 @@ private struct ExportDiffView: View {
             ForEach(DiffLine.parse(code)) { line in
                 Text(line.text.isEmpty ? " " : line.text)
                     .font(.system(size: 10, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(color(for: line.kind))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(background(for: line.kind))
@@ -535,6 +537,7 @@ private struct ExportToolCalls: View {
                 HStack(alignment: .top, spacing: 6) {
                     Text(tool.name)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.accent.opacity(0.85))
                     if let summary = tool.summary ?? tool.context, !summary.isEmpty {
                         Text(summary)

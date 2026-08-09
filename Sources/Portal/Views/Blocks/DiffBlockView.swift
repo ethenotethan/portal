@@ -48,9 +48,11 @@ struct DiffBlockView: View {
             let s = stats
             Text("+\(s.added)")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(.green)
             Text("−\(s.removed)")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(.red)
             Spacer()
             OpenInPanelButton {
@@ -130,6 +132,7 @@ private struct DiffLineView: View {
     var body: some View {
         Text(line.text.isEmpty ? " " : line.text)
             .font(.system(size: 12, design: .monospaced))
+            .monospaced()
             .foregroundStyle(foreground)
             .textSelection(.enabled)
             .padding(.horizontal, 10)

@@ -258,6 +258,7 @@ struct SkillsView: View {
                 ScrollView {
                     Text(diag)
                         .font(.system(.caption, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -425,6 +426,7 @@ struct SkillCard: View {
                         if skill.description.isEmpty {
                             Text("No description available")
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.tertiary)
                                 .italic()
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -764,6 +766,7 @@ private struct SkillMarkdownSheet: View {
                                 .padding(.bottom, 6)
                             TextEditor(text: $content)
                                 .font(.system(.body, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.primary)
                                 .padding(8)
                                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))

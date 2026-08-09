@@ -306,6 +306,7 @@ private struct WorkflowGroupRow: View {
                 HStack(spacing: 7) {
                     Text(group.name)
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.primary)
                     if let schedule = group.schedule {
                         Text(schedule.kindLabel)
@@ -458,6 +459,7 @@ private struct RunRow: View {
             if let created = run.createdAt {
                 Text(created.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 11, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
             }
             if let duration = durationLabel {
@@ -572,6 +574,7 @@ private struct RunDetailSheet: View {
                 .foregroundStyle(Theme.tertiary)
             Text(value)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .textSelection(.enabled)
         }
@@ -585,6 +588,7 @@ private struct RunDetailSheet: View {
             ScrollView {
                 Text(value.displayString)
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -50,6 +50,7 @@ struct LivingArtifactCapture: ViewModifier {
                 .font(.system(size: 8))
             Text(identity?.id ?? "")
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .monospaced()
         }
         .foregroundStyle(Theme.tertiary)
         .padding(.horizontal, 6)

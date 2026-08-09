@@ -93,6 +93,7 @@ struct GatewayDebugPanelView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(reason.reason)
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.primary)
                                 .textSelection(.enabled)
                             Text("last: \(formatTime(reason.lastAt))")
@@ -102,6 +103,7 @@ struct GatewayDebugPanelView: View {
                         Spacer(minLength: 8)
                         Text("×\(reason.count)")
                             .font(.system(.caption, design: .monospaced).weight(.semibold))
+                            .monospaced()
                             .foregroundStyle(.orange)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
@@ -153,6 +155,7 @@ struct GatewayDebugPanelView: View {
                 .frame(width: 118, alignment: .leading)
             let valueText = Text(value)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(isError ? .red : Theme.primary)
                 .lineLimit(3)
                 .truncationMode(.middle)
@@ -170,9 +173,11 @@ struct GatewayDebugPanelView: View {
             HStack(spacing: 8) {
                 Text(formatTime(event.timestamp))
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                 Text(event.direction.rawValue.uppercased())
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .monospaced()
                     .foregroundStyle(color(for: event.direction))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -180,18 +185,21 @@ struct GatewayDebugPanelView: View {
                     .clipShape(Capsule())
                 Text(event.name)
                     .font(.system(.caption, design: .monospaced).weight(.medium))
+                    .monospaced()
                     .foregroundStyle(Theme.primary)
                 Spacer(minLength: 0)
             }
             if let sessionID = event.sessionID, !sessionID.isEmpty {
                 Text("session: \(sessionID)")
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
             }
             if !event.detail.isEmpty {
                 Text(event.detail)
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(event.direction == .dropped || event.direction == .error ? .orange : Theme.secondary)
                     .textSelection(.enabled)
             }
@@ -206,6 +214,7 @@ struct GatewayDebugPanelView: View {
         let connected = state == "connected"
         return Text(state)
             .font(.system(.caption, design: .monospaced).weight(.semibold))
+            .monospaced()
             .foregroundStyle(connected ? .green : .orange)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)

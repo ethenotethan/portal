@@ -1635,6 +1635,7 @@ struct ChatInputBar: View {
                                 HStack(spacing: 8) {
                                     Text(skill.slashCommand)
                                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                        .monospaced()
                                         .foregroundStyle(Theme.accent)
                                     Text(skill.name)
                                         .font(.system(size: 13))
@@ -2038,6 +2039,7 @@ struct DebugLogPanel: View {
                     ForEach(wrapper.log) { entry in
                         Text(entry.text)
                             .font(.system(.caption2, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(entry.isError ? .red : .secondary)
                             .id(entry.id)
                     }

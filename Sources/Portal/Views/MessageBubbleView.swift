@@ -230,6 +230,7 @@ private struct ThinkingTraceSection: View {
             if trace.isStreaming && !isExpanded && !latestPreview.isEmpty {
                 Text(latestPreview)
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .lineLimit(2)
                     .textSelection(.enabled)
@@ -244,6 +245,7 @@ private struct ThinkingTraceSection: View {
                                 .foregroundStyle(Theme.accent.opacity(0.85))
                             Text(block.text)
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.secondary)
                                 .textSelection(.enabled)
                         }
@@ -323,6 +325,7 @@ private struct ReasoningSection: View {
                 }
                 Text(displayedReasoning)
                     .font(.system(.caption, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
             }

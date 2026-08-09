@@ -131,6 +131,7 @@ internal struct CronCategoryEditor: View {
                 // user is ready to type, so don't make them click the field.
                 TextField("new/category/path", text: $newCategory)
                     .font(.system(isCompact ? .caption : .callout, design: .monospaced))
+                    .monospaced()
                     .textFieldStyle(.roundedBorder)
                     .focused($newCategoryFocused)
                     .onSubmit(commitMove)
@@ -312,6 +313,7 @@ internal struct CronCategoryEditor: View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
             TextField("life/training/morning-run", text: $editedName)
                 .font(.system(isCompact ? .caption : .body, design: .monospaced))
+                .monospaced()
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(commit)
 

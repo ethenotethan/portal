@@ -135,6 +135,7 @@ internal struct WikiPageEditorView: View {
             // Markdown body
             TextEditor(text: $bodyText)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 10)

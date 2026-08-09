@@ -164,6 +164,7 @@ private struct ChartErrorNote: View {
                 .foregroundStyle(Theme.secondary)
             Text(source)
                 .font(.system(.caption2, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .lineLimit(4)
                 .textSelection(.enabled)

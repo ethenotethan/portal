@@ -460,6 +460,7 @@ private struct SectionRowView: View {
             if searchText.isEmpty {
                 Text(section.fullContent)
                     .font(.system(.caption, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
                     .padding(.horizontal, 12)
@@ -501,12 +502,14 @@ private struct SectionRowView: View {
         if query.isEmpty || !section.fullContent.lowercased().contains(query) {
             Text(section.fullContent)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .textSelection(.enabled)
                 .padding(.horizontal, 12)
         } else {
             attributedHighlightedText(section.fullContent, query: query)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .textSelection(.enabled)
                 .padding(.horizontal, 12)
         }

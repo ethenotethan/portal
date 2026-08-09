@@ -13,12 +13,14 @@ struct SkillMarkdownEditor: View {
                 if isEditing {
                     TextEditor(text: $content)
                         .font(.system(.body, design: .monospaced))
+                        .monospaced()
                         .scrollContentBackground(.hidden)
                         .background(Theme.background)
                 } else {
                     ScrollView {
                         Text(content)
                             .font(.system(.body, design: .monospaced))
+                            .monospaced()
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()

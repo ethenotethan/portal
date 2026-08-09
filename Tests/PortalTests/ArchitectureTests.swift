@@ -282,4 +282,89 @@ struct ArchitectureTests {
             """
         )
     }
+
+    // MARK: - Monospaced text survives the app-wide typeface
+
+    /// Files whose monospaced text is defended by an ancestor view rather than
+    /// at each `.font(...)` site, with the reason. A container-level
+    /// `.monospaced()` covers everything below it, so repeating it per site
+    /// would be noise — but it also can't be seen by the line-window check
+    /// below, which is why each one is listed here on purpose.
+    private static let containerMonospacedAllowlist: [String: String] = [
+        // The whole HUD gets one `.monospaced()` on its outer VStack: every row
+        // is a column of numbers that would jitter as the values change.
+        "PerfOverlayView.swift": "the overlay VStack re-asserts .monospaced() once",
+        // `tableCell` and `CodeBlockView` re-assert at the view level. The
+        // `Font`-valued sites here are inputs to those, and the inline-code
+        // runs are a documented limitation: no AttributedString run font
+        // survives a root .fontDesign.
+        "MarkdownContentView.swift": "tableCell and CodeBlockView re-assert; inline runs documented as a known limitation",
+        // `cell(text:isHeader:)` re-asserts with `.monospaced(isHeader)`.
+        "ExportPrimitives.swift": "cell(text:isHeader:) re-asserts .monospaced(isHeader)",
+    ]
+
+    @Test("monospaced text re-asserts itself against the app-wide typeface")
+    internal func monospacedSitesSurviveTheAppFont() throws {
+        // The selected `AppFontTheme` is applied as a root `.fontDesign(_:)`,
+        // which *overrides* a `design:` written inside a site's own
+        // `.font(.system(..., design: .monospaced))`. Only a view-level
+        // `.monospaced()` wins it back. So a site that asks for monospaced and
+        // does not re-assert silently loses its aligned columns the moment a
+        // user picks Serif — and nothing about the code looks wrong.
+        var undefended: [String] = []
+
+        for file in Self.swiftFiles(under: Self.sourcesRoot) {
+            let name = file.lastPathComponent
+            let source = try String(contentsOf: file, encoding: .utf8)
+            guard source.contains("design: .monospaced") else { continue }
+            if Self.containerMonospacedAllowlist[name] != nil { continue }
+
+            let lines = source.components(separatedBy: "\n")
+            for (index, line) in lines.enumerated() where line.contains("design: .monospaced") {
+                // The re-assert usually sits on the next line, but a
+                // `.foregroundStyle` or a wrapped argument list can intervene.
+                let window = lines[index..<min(index + 3, lines.count)].joined(separator: "\n")
+                if window.contains(".monospaced(") { continue }
+                undefended.append("\(name):\(index + 1)")
+            }
+        }
+
+        #expect(
+            undefended.isEmpty,
+            """
+            These sites ask for `design: .monospaced` but never re-assert it at \
+            the view level, so the app-wide typeface (a root `.fontDesign`) \
+            overrides them and their columns stop aligning: \
+            \(undefended.joined(separator: ", ")). Add `.monospaced()` after the \
+            `.font(...)`, or — if an ancestor view already covers the whole \
+            surface — add the file to `containerMonospacedAllowlist` with the \
+            reason. See `AppFontSettingsSection`.
+            """
+        )
+    }
+
+    @Test("the container-level monospaced allowlist has no stale entries")
+    internal func containerMonospacedAllowlistIsCurrent() throws {
+        // An entry that outlives its file, or its file's last monospaced site,
+        // is a hole in the rule above that reads like coverage.
+        for (name, reason) in Self.containerMonospacedAllowlist {
+            let matches = Self.swiftFiles(under: Self.sourcesRoot)
+                .filter { $0.lastPathComponent == name }
+            guard let file = matches.first else {
+                Issue.record("containerMonospacedAllowlist names \(name), which no longer exists under Sources/Portal — remove the entry.")
+                continue
+            }
+            let source = try String(contentsOf: file, encoding: .utf8)
+            #expect(
+                source.contains("design: .monospaced"),
+                "\(name) has no `design: .monospaced` sites left — remove it from containerMonospacedAllowlist."
+            )
+            // The exemption is only honest if the ancestor really does
+            // re-assert. Every reason on the list claims one.
+            #expect(
+                source.contains(".monospaced("),
+                "\(name) is exempted because \(reason), but the file contains no `.monospaced(` call at all."
+            )
+        }
+    }
 }

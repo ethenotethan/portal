@@ -95,6 +95,7 @@ private struct StateSpinner: View {
     var body: some View {
         Text(frames[frame % frames.count])
             .font(.system(.caption, design: .monospaced))
+            .monospaced()
             .foregroundStyle(Theme.accent)
             .onReceive(timer) { _ in
                 frame = (frame + 1) % frames.count

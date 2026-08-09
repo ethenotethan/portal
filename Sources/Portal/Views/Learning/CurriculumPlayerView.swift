@@ -412,6 +412,7 @@ internal struct CurriculumPlayerView: View {
             HStack(spacing: 10) {
                 Text(letter)
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(letterColor(isCorrect: isCorrect, isSelected: isSelected, revealed: revealed))
                     .frame(width: 20, height: 20)
                     .background(
@@ -605,9 +606,11 @@ internal struct CurriculumPlayerView: View {
             HStack(spacing: 8) {
                 Text("You: \(item.selected)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(.red)
                 Text("Correct: \(item.question.correct)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.success)
             }
 

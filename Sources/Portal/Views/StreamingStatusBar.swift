@@ -51,6 +51,7 @@ struct StreamingStatusBar: View {
             HStack(spacing: 6) {
                 Text(currentFrames[spinnerFrame % currentFrames.count])
                     .font(.system(.body, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(accentColor)
                     .onReceive(timer) { _ in
                         spinnerFrame = (spinnerFrame + 1) % currentFrames.count
@@ -76,18 +77,22 @@ struct StreamingStatusBar: View {
                         HStack(spacing: 4) {
                             Text("├─")
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(.quaternary)
                             Text(toolFrames[spinnerFrame % toolFrames.count])
                                 .font(.system(.caption2, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Color.amber)
                             Text(tool.name)
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .fontWeight(.medium)
                                 .foregroundStyle(accentColor)
                             if let context = tool.context, !context.isEmpty {
                                 Text("·").foregroundStyle(.tertiary)
                                 Text(context)
                                     .font(.system(.caption2, design: .monospaced))
+                                    .monospaced()
                                     .foregroundStyle(.tertiary)
                                     .lineLimit(1)
                             }
@@ -98,22 +103,27 @@ struct StreamingStatusBar: View {
                         HStack(spacing: 4) {
                             Text("├─")
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(.quaternary)
                             Text("✓")
                                 .font(.system(.caption2, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(.green)
                             Text(tool.name)
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(.secondary)
                             if let duration = tool.durationSeconds {
                                 Text(String(format: "%.1fs", duration))
                                     .font(.system(.caption2, design: .monospaced))
+                                    .monospaced()
                                     .foregroundStyle(.tertiary)
                             }
                             if let summary = tool.summary, !summary.isEmpty {
                                 Text("·").foregroundStyle(.tertiary)
                                 Text(summary)
                                     .font(.system(.caption2, design: .monospaced))
+                                    .monospaced()
                                     .foregroundStyle(.tertiary)
                                     .lineLimit(1)
                             }

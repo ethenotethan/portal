@@ -349,6 +349,7 @@ struct SessionsDashboard: View {
                         if !session.isOwned, let source = session.source {
                             Text(source.uppercased())
                                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.accent)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)

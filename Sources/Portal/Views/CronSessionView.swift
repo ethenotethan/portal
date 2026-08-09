@@ -55,6 +55,7 @@ internal struct CronSessionView: View {
                     if let run = matchedRun {
                         Text(run.jobID)
                             .font(.system(size: 10, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.secondary)
                     }
                 }
@@ -131,6 +132,7 @@ internal struct CronSessionView: View {
                         .foregroundStyle(.red)
                     Text(err)
                         .font(.system(size: 12, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.red.opacity(0.85))
                         .textSelection(.enabled)
                 }

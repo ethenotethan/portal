@@ -94,6 +94,7 @@ internal struct ApprovalBanner: View {
                     // order and cannot be answered out of turn.
                     Text("\(index + 2).")
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.tertiary)
                     if let tool = entry.toolName, !tool.isEmpty {
                         Text(tool)
@@ -102,6 +103,7 @@ internal struct ApprovalBanner: View {
                     }
                     Text(entry.command.truncated(to: 80))
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

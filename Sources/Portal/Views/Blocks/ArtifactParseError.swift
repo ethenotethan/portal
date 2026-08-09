@@ -15,6 +15,7 @@ internal struct ArtifactParseError: View {
                 .foregroundStyle(Theme.secondary)
             Text(json)
                 .font(.system(.caption2, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .lineLimit(4)
                 .textSelection(.enabled)

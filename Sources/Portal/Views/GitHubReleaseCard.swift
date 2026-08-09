@@ -136,6 +136,7 @@ internal struct GitHubReleaseCard: View {
             if let tagName {
                 Text(tagName)
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.accent)
                     .lineLimit(1)
                     .padding(.horizontal, 8)

@@ -87,6 +87,7 @@ internal struct SessionsDetailPanel: View {
                     if let src = s.source {
                         Text(src.uppercased())
                             .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.accent)
                             .padding(.horizontal, 5).padding(.vertical, 1)
                             .background(Theme.accent.opacity(0.12), in: Capsule())

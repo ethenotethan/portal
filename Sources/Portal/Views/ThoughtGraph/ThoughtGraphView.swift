@@ -545,6 +545,7 @@ struct ThoughtGraphView: View {
                 context.draw(
                     Text(tickLabel(second))
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundColor(Theme.tertiary),
                     at: CGPoint(x: x + 3, y: topMargin - 14),
                     anchor: .leading
@@ -590,6 +591,7 @@ struct ThoughtGraphView: View {
             screen.draw(
                 Text(lane.title)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundColor(tint.opacity(0.8)),
                 at: CGPoint(x: rect.minX + 6, y: rect.minY + 9),
                 anchor: .leading
@@ -1433,6 +1435,7 @@ struct ThoughtGraphView: View {
                     ScrollView {
                         Text(thinking)
                             .font(.system(size: 10, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id("thinking-tail")

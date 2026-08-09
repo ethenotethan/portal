@@ -69,6 +69,7 @@ internal struct ThinkingBeatsPanel: View {
                 .symbolEffect(.variableColor.iterative, options: .repeating)
             Text("thinking…")
                 .font(.system(size: 11, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.secondary)
         }
         .padding(.top, 2)
