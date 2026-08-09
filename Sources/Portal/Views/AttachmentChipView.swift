@@ -715,7 +715,7 @@ struct FallbackPreview: View {
                     UIApplication.shared.open(url)
                     #endif
                 }
-                .buttonStyle(.borderedProminent)
+                .portalButton(prominent: true)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

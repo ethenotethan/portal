@@ -164,8 +164,7 @@ internal struct WikiPageEditorView: View {
                         Text(isSaving ? "Saving…" : "Save")
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .disabled(isSaving || !isDirty || title.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.horizontal, 14)

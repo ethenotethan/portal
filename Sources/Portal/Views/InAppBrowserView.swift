@@ -139,9 +139,9 @@ internal struct InAppBrowserView: View {
                 .padding(.horizontal, 32)
             HStack(spacing: 12) {
                 Button("Try Again") { model.reload() }
-                    .buttonStyle(.borderedProminent)
+                    .portalButton(prominent: true)
                 Button("Open in Browser") { openExternally() }
-                    .buttonStyle(.bordered)
+                    .portalButton()
             }
             Spacer()
         }

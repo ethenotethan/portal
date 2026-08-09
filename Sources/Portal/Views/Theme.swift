@@ -199,11 +199,23 @@ internal final class ThemeManager: ObservableObject {
     nonisolated(unsafe) internal static let shared = ThemeManager()
 
     private static let storageKey = "portal.activeTheme"
+    internal static let buttonStorageKey = "portal.buttonTheme"
 
     @Published internal var current: AppTheme {
         didSet {
             UserDefaults.standard.set(current.id, forKey: Self.storageKey)
             rebuildColors()
+        }
+    }
+
+    /// Button treatment, stored alongside the palette because both are "how the
+    /// app looks" and both need to be readable before any view exists. Kept as a
+    /// separate axis: it carries geometry and emphasis only and takes its colors
+    /// from `current`, so the two compose instead of multiplying into one preset
+    /// list per combination.
+    @Published internal var buttonTheme: ButtonTheme {
+        didSet {
+            UserDefaults.standard.set(buttonTheme.rawValue, forKey: Self.buttonStorageKey)
         }
     }
 
@@ -216,10 +228,17 @@ internal final class ThemeManager: ObservableObject {
         let selected = AppTheme.allCases.first { $0.id == savedID } ?? .midnight
         self.current = selected
         self.colors = ThemeColors(theme: selected)
+        self.buttonTheme = ButtonTheme(
+            storedValue: UserDefaults.standard.string(forKey: Self.buttonStorageKey)
+        )
     }
 
     internal func select(_ theme: AppTheme) {
         current = theme
+    }
+
+    internal func select(buttonTheme theme: ButtonTheme) {
+        buttonTheme = theme
     }
 
     private func rebuildColors() {

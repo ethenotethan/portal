@@ -16,6 +16,7 @@ internal struct SettingsView: View {
     /// Unified sidebar selection — app sections plus one entry per gateway.
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
+        case buttons
         case notifications
         case celebrations
         case x
@@ -24,6 +25,7 @@ internal struct SettingsView: View {
         internal var id: AnyHashable {
             switch self {
             case .appearance: return "appearance"
+            case .buttons: return "buttons"
             case .notifications: return "notifications"
             case .celebrations: return "celebrations"
             case .x: return "x"
@@ -34,6 +36,7 @@ internal struct SettingsView: View {
         internal var label: String {
             switch self {
             case .appearance: return "Appearance"
+            case .buttons: return "Buttons"
             case .notifications: return "Notifications"
             case .celebrations: return "Celebrations"
             case .x: return "X (Twitter)"
@@ -44,6 +47,7 @@ internal struct SettingsView: View {
         internal var icon: String {
             switch self {
             case .appearance: return "paintpalette"
+            case .buttons: return "capsule"
             case .notifications: return "bell"
             case .celebrations: return "party.popper"
             case .x: return "bird"
@@ -76,7 +80,10 @@ internal struct SettingsView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup(header: nil, items: [.appearance, .notifications, .celebrations, .x])
+                sidebarGroup(
+                    header: nil,
+                    items: [.appearance, .buttons, .notifications, .celebrations, .x]
+                )
 
                 Divider().padding(.vertical, 8)
 
@@ -150,6 +157,8 @@ internal struct SettingsView: View {
                     switch selection {
                     case .appearance:
                         themesSection
+                    case .buttons:
+                        ButtonThemeSettingsSection()
                     case .notifications:
                         notificationsSection
                     case .celebrations:
@@ -290,16 +299,14 @@ internal struct SettingsView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.success)
                     Button("Sign out") { xAuth.signOut() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                 } else {
                     Button {
                         xAuth.beginSignIn()
                     } label: {
                         Label("Sign in with X", systemImage: "bird")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .portalButton(prominent: true, size: .small)
                     .disabled(xAuth.clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -476,8 +483,7 @@ private struct GatewayDetailPane: View {
                 Spacer()
                 if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
                     Button("Make Active") { settings.selectGateway(gateway) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                 }
                 Button { editingGateway = gateway } label: {
                     Image(systemName: "pencil")
@@ -594,7 +600,7 @@ private struct GatewayDetailPane: View {
                 Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
                     showCFAuth = true
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
         }
     }
@@ -735,6 +741,10 @@ extension SettingsView {
                     }
                 }
 
+                Section("Buttons") {
+                    ButtonThemeSettingsSection(showsHeader: false)
+                }
+
                 Section("Notifications") {
                     Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                     APNsStatusRow()
@@ -794,7 +804,7 @@ internal struct SystemPromptSection: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
 
             if isLoading {
@@ -815,7 +825,7 @@ internal struct SystemPromptSection: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Retry") { Task { await loadPrompt() } }
-                        .buttonStyle(.bordered)
+                        .portalButton()
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
@@ -1008,13 +1018,13 @@ internal struct SystemPromptSection: View {
                     ephemeralPrompt = ""
                     Task { await savePrompt() }
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
                 .disabled(originalEphemeralPrompt.isEmpty && ephemeralPrompt.isEmpty)
 
                 Button("Apply") {
                     Task { await savePrompt() }
                 }
-                .buttonStyle(.borderedProminent)
+                .portalButton(prominent: true)
                 .disabled(ephemeralPrompt == originalEphemeralPrompt)
             }
         }

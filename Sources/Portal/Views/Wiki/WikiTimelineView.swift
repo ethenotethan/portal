@@ -348,7 +348,7 @@ struct WikiTimelineView: View {
             Button("Retry") {
                 Task { await viewModel.reload(client: gatewayClientWrapper.client) }
             }
-            .buttonStyle(.bordered)
+            .portalButton()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

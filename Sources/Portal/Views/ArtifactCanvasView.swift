@@ -163,9 +163,7 @@ internal struct ArtifactCanvasView: View {
                 Button(isEditing ? "Done" : "Edit") {
                     isEditing.toggle()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(isEditing ? Theme.accent : nil)
+                .portalButton(size: .small, tint: isEditing ? Theme.accent : nil)
                 .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
 

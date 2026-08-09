@@ -382,7 +382,7 @@ private struct ArtifactHistoryView: View {
                         .font(.caption)
                         .foregroundStyle(Theme.secondary)
                     Button("Retry") { Task { await load() } }
-                        .buttonStyle(.bordered)
+                        .portalButton()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if revisions.isEmpty {
@@ -487,8 +487,7 @@ private struct ArtifactHistoryView: View {
                         Button(isRestoring ? "Restoring…" : "Restore this revision") {
                             Task { await restore(revision) }
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                         .disabled(isRestoring || selectedContent == nil)
                     }
                 }

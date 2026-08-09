@@ -1354,8 +1354,7 @@ struct ThoughtGraphView: View {
                         )
                         .font(.subheadline.weight(.medium))
                     }
-                    .buttonStyle(.bordered)
-                    .tint(Theme.agentAccent)
+                    .portalButton(tint: Theme.agentAccent)
                 }
 
                 if let onJumpToTool, node.category != .reasoning, !node.isAgent, node.ownerAgentID == nil {
@@ -1365,8 +1364,7 @@ struct ThoughtGraphView: View {
                         Label("Jump to tool in chat", systemImage: "arrow.turn.up.right")
                             .font(.subheadline.weight(.medium))
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    .portalButton(prominent: true, tint: Theme.accent)
                 }
             }
             .padding(14)

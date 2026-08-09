@@ -167,7 +167,7 @@ struct CentaurWorkflowsView: View {
                     .foregroundStyle(Theme.secondary)
                     .multilineTextAlignment(.center)
                 Button("Retry") { Task { await load(initial: true) } }
-                    .buttonStyle(.bordered)
+                    .portalButton()
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -479,8 +479,7 @@ private struct RunRow: View {
             Spacer()
             if run.isActive {
                 Button(isCancelling ? "Cancelling…" : "Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .portalButton(size: .small)
                     .disabled(isCancelling)
             }
             Image(systemName: "chevron.right")

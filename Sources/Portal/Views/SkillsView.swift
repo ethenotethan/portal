@@ -276,8 +276,7 @@ struct SkillsView: View {
             Text(title)
                 .font(.caption)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .portalButton(size: .small)
     }
 
     private func skillCategoryGroup(category: String, skills: [SkillInfo]) -> some View {
@@ -442,8 +441,7 @@ struct SkillCard: View {
                                 Label("Edit Markdown", systemImage: "doc.text")
                                     .font(.caption)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .portalButton(size: .small)
                         }
                         if let dir = skill.skillDir {
                             detailRow("Directory", value: dir)
@@ -670,14 +668,12 @@ struct SkillCard: View {
                 Button("Confirm Uninstall", role: .destructive) {
                     onUninstall()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small, tint: .red)
 
                 Button("Cancel") {
                     onCancelUninstall()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
             } else {
                 Button(role: .destructive) {
                     onUninstall()
@@ -685,8 +681,7 @@ struct SkillCard: View {
                     Label("Uninstall", systemImage: "trash")
                         .font(.caption)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small, tint: .red)
             }
         }
     }
@@ -735,7 +730,7 @@ private struct SkillMarkdownSheet: View {
                             .font(.caption).foregroundStyle(Theme.tertiary)
                             .multilineTextAlignment(.center).frame(maxWidth: 320)
                         Button("Retry") { Task { await loadMarkdown() } }
-                            .buttonStyle(.bordered).controlSize(.small)
+                            .portalButton(size: .small)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if content.isEmpty {
@@ -890,8 +885,7 @@ private struct HubResultRow: View {
                 Button("Install") {
                     onInstall()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .font(.caption)
             }
         }

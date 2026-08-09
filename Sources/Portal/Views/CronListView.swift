@@ -731,8 +731,7 @@ struct CronJobDetailView: View {
                         Label("Edit", systemImage: "pencil")
                             .font(.caption)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .portalButton(size: .small)
                 }
 
                 if isPromptExpandable && !isEditingPrompt {
@@ -775,15 +774,13 @@ struct CronJobDetailView: View {
                 Button("Cancel") {
                     isEditingPrompt = false
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
 
                 Button("Save") {
                     onUpdatePrompt(editedPrompt)
                     isEditingPrompt = false
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .disabled(editedPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -835,14 +832,14 @@ struct CronJobDetailView: View {
                 } label: {
                     Label("Resume", systemImage: "play.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .portalButton(prominent: true)
             } else {
                 Button {
                     onPause()
                 } label: {
                     Label("Pause", systemImage: "pause.fill")
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
 
             if supportsTrigger {
@@ -851,7 +848,7 @@ struct CronJobDetailView: View {
                 } label: {
                     Label("Run now", systemImage: "play.circle")
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
 
             if supportsRemoveAndEdit {
@@ -861,7 +858,7 @@ struct CronJobDetailView: View {
                 } label: {
                     Label("Remove", systemImage: "trash")
                 }
-                .buttonStyle(.bordered)
+                .portalButton(tint: .red)
             }
         }
     }

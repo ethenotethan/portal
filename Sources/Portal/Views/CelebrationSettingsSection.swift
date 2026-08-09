@@ -185,6 +185,6 @@ internal struct CelebrationSettingsSection: View {
         } label: {
             Label("Preview", systemImage: "play.circle")
         }
-        .buttonStyle(.bordered)
+        .portalButton()
     }
 }

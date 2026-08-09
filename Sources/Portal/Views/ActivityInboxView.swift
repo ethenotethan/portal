@@ -193,7 +193,7 @@ private struct ActivityDetailView: View {
                     } label: {
                         Label("Open Session", systemImage: "bubble.left.and.bubble.right")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .portalButton(prominent: true)
                 }
 
                 if !item.artifacts.isEmpty {

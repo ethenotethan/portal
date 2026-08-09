@@ -785,7 +785,7 @@ internal struct ContentView: View {
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(Theme.secondary)
                 Button("Close") { showCentaurWorkflows = false }
-                    .buttonStyle(.bordered)
+                    .portalButton()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -1591,7 +1591,7 @@ internal struct ContentView: View {
                 )
             }
         }
-        .buttonStyle(.borderedProminent)
+        .portalButton(prominent: true)
         .help(newSessionHelp)
     }
 
@@ -1768,8 +1768,11 @@ spawnTreeStore.subscribe(to: client)
                         // focus — clicking away and back restarted the retry
                         // sequence indefinitely and the cap was never reached.
                         // Let the existing schedule run; it ends in either a
-                        // connection or a terminal error.
-                        await gatewayClientWrapper.waitUntilConnected(timeout: 12)
+                        // connection or a terminal error. The outcome is
+                        // deliberately dropped: the retry loop owns what happens
+                        // next either way, and this await exists only to keep the
+                        // task alive while it does.
+                        _ = await gatewayClientWrapper.waitUntilConnected(timeout: 12)
                     } else if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
                         await gatewayClientWrapper.connectWithRetry(using: settings)
                     } else if gatewayClientWrapper.isConnecting {

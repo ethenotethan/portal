@@ -74,7 +74,7 @@ struct OnboardingView: View {
                                 Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
                                     showCFAuth = true
                                 }
-                                .buttonStyle(.bordered)
+                                .portalButton()
                             }
                         }
                     }
@@ -94,12 +94,12 @@ struct OnboardingView: View {
                         }
                     }
                     .disabled(testing)
-                    .buttonStyle(.bordered)
+                    .portalButton()
 
                     Button("Connect") {
                         settings.validate()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .portalButton(prominent: true)
                     .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
                 }
 
@@ -210,8 +210,7 @@ struct OnboardingView: View {
                                 Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
                                     showCFAuth = true
                                 }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                .portalButton(size: .small)
                             }
                         }
                     }
@@ -228,7 +227,7 @@ struct OnboardingView: View {
                                 Text("Test Connection")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .portalButton()
                         .disabled(testing)
 
                         Spacer()
@@ -237,7 +236,7 @@ struct OnboardingView: View {
                             settings.validate()
                         }
                         .accessibilityIdentifier("connectButton")
-                        .buttonStyle(.borderedProminent)
+                        .portalButton(prominent: true)
                         .disabled(settings.gatewayURL.isEmpty || (settings.needsCFAuth && settings.cfAuthCookie == nil))
                     }
                     .padding(.top, 8)

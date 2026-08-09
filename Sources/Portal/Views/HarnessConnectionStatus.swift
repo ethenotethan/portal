@@ -134,8 +134,7 @@ internal struct HarnessConnectionSection: View {
                 } label: {
                     Label("View connection log", systemImage: "wave.3.right.circle")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
                 .sheet(isPresented: $showLog) {
                     GatewayDebugPanelView(client: client)
                         .frame(minWidth: 560, minHeight: 620)
