@@ -17,6 +17,7 @@ internal final class SettingsViewModel: ObservableObject {
     nonisolated internal static let celebrationIntensityKey = "portal.celebrationIntensity"
     nonisolated internal static let celebrationParticlesKey = "portal.celebrationParticlesEnabled"
     nonisolated internal static let celebrationSoundKey = "portal.celebrationSoundEnabled"
+    nonisolated internal static let celebrationSoundNameKey = "portal.celebrationSoundName"
 
     @Published var gatewayURL: String {
         didSet {
@@ -158,6 +159,11 @@ internal final class SettingsViewModel: ObservableObject {
         didSet { persistCelebrationPrefs() }
     }
 
+    /// Which sound plays. `.random` is the shipped behavior.
+    @Published internal var celebrationSound: CelebrationSound {
+        didSet { persistCelebrationPrefs() }
+    }
+
     /// The five stored values as one value type, for the manager and the views.
     internal var celebrationPreferences: CelebrationPreferences {
         CelebrationPreferences(
@@ -165,7 +171,8 @@ internal final class SettingsViewModel: ObservableObject {
             style: celebrationStyle,
             intensity: celebrationIntensity,
             particlesEnabled: celebrationParticlesEnabled,
-            soundEnabled: celebrationSoundEnabled
+            soundEnabled: celebrationSoundEnabled,
+            sound: celebrationSound
         )
     }
 
@@ -182,6 +189,7 @@ internal final class SettingsViewModel: ObservableObject {
         defaults.set(celebrationIntensity.rawValue, forKey: Self.celebrationIntensityKey)
         defaults.set(celebrationParticlesEnabled, forKey: Self.celebrationParticlesKey)
         defaults.set(celebrationSoundEnabled, forKey: Self.celebrationSoundKey)
+        defaults.set(celebrationSound.rawValue, forKey: Self.celebrationSoundNameKey)
         CelebrationManager.shared.apply(celebrationPreferences)
     }
 
@@ -198,7 +206,8 @@ internal final class SettingsViewModel: ObservableObject {
                 storedValue: defaults.string(forKey: celebrationIntensityKey)
             ),
             particlesEnabled: defaults.object(forKey: celebrationParticlesKey) as? Bool ?? true,
-            soundEnabled: defaults.object(forKey: celebrationSoundKey) as? Bool ?? true
+            soundEnabled: defaults.object(forKey: celebrationSoundKey) as? Bool ?? true,
+            sound: CelebrationSound(storedValue: defaults.string(forKey: celebrationSoundNameKey))
         )
     }
 
@@ -307,6 +316,7 @@ internal final class SettingsViewModel: ObservableObject {
         self.celebrationIntensity = celebrations.intensity
         self.celebrationParticlesEnabled = celebrations.particlesEnabled
         self.celebrationSoundEnabled = celebrations.soundEnabled
+        self.celebrationSound = celebrations.sound
 
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)

@@ -149,6 +149,105 @@ internal struct CelebrationPreferencesTests {
         }
     }
 
+    // MARK: - Sound
+
+    @Test("no sound plays when celebrations are off, whatever the sound setting")
+    internal func disabledPlaysNoSound() {
+        var prefs = CelebrationPreferences.default
+        prefs.isEnabled = false
+        prefs.soundEnabled = true
+        prefs.sound = .hero
+        // "Off" has to mean silent too — a celebration that is invisible but
+        // still audible is the worst of both.
+        #expect(prefs.soundToPlay() == nil)
+    }
+
+    @Test("no sound plays when sound is off")
+    internal func soundDisabledPlaysNothing() {
+        var prefs = CelebrationPreferences.default
+        prefs.soundEnabled = false
+        prefs.sound = .glass
+        #expect(prefs.soundToPlay() == nil)
+    }
+
+    @Test("a chosen sound is the sound that plays")
+    internal func chosenSoundPlays() {
+        var prefs = CelebrationPreferences.default
+        prefs.sound = .submarine
+        #expect(prefs.soundToPlay() == .submarine)
+    }
+
+    @Test("random resolves to a concrete sound, never to itself")
+    internal func randomResolvesToConcrete() {
+        var prefs = CelebrationPreferences.default
+        prefs.sound = .random
+        for _ in 0..<40 {
+            let played = prefs.soundToPlay()
+            // `.random` reaching the player would find no `systemSoundName` and
+            // silently play nothing — a celebration that is randomly silent.
+            #expect(played != .random)
+            #expect(played != nil)
+            #expect(CelebrationSound.randomPool.contains(played ?? .random))
+        }
+    }
+
+    @Test("random draws more than one distinct sound")
+    internal func randomActuallyVaries() {
+        var prefs = CelebrationPreferences.default
+        prefs.sound = .random
+        // Guards against a "random" that always returns the pool's first
+        // element, which is indistinguishable from a fixed choice in use.
+        let drawn = Set((0..<80).compactMap { _ in prefs.soundToPlay() })
+        #expect(drawn.count > 1)
+    }
+
+    @Test("a concrete sound resolves to itself")
+    internal func concreteSoundIsIdempotent() {
+        for sound in CelebrationSound.selectableSounds {
+            #expect(sound.resolved() == sound)
+        }
+    }
+
+    @Test("every selectable sound names a real system sound file")
+    internal func selectableSoundsExist() {
+        for sound in CelebrationSound.selectableSounds {
+            let name = sound.systemSoundName
+            #expect(name != nil)
+            // `NSSound(named:)` resolves from /System/Library/Sounds, so a typo'd
+            // case is a silently-silent celebration. Checking the file rather
+            // than constructing NSSound keeps this runnable headless.
+            let path = "/System/Library/Sounds/\(name ?? "").aiff"
+            #expect(FileManager.default.fileExists(atPath: path),
+                    "no system sound at \(path) for case .\(sound.rawValue)")
+        }
+    }
+
+    @Test("random has no sound name of its own")
+    internal func randomHasNoName() {
+        // It is a strategy, not a sound; a name here would bypass `resolved()`.
+        #expect(CelebrationSound.random.systemSoundName == nil)
+        #expect(!CelebrationSound.selectableSounds.contains(.random))
+        #expect(!CelebrationSound.randomPool.contains(.random))
+    }
+
+    @Test("an unknown stored sound falls back to random")
+    internal func unknownSoundDowngrades() {
+        #expect(CelebrationSound(storedValue: "airhorn") == .random)
+        #expect(CelebrationSound(storedValue: nil) == .random)
+        #expect(CelebrationSound(storedValue: "purr") == .purr)
+    }
+
+    @Test("every sound round-trips and has a label")
+    internal func soundsRoundTrip() {
+        for sound in CelebrationSound.allCases {
+            #expect(CelebrationSound(storedValue: sound.rawValue) == sound)
+            #expect(!sound.label.isEmpty)
+        }
+        // Labels must be unique or the picker shows two identical rows.
+        let labels = CelebrationSound.allCases.map(\.label)
+        #expect(Set(labels).count == labels.count)
+    }
+
     // MARK: - Defaults
 
     @Test("the default preserves the behavior that shipped")
@@ -160,6 +259,9 @@ internal struct CelebrationPreferencesTests {
         #expect(prefs.style == .confetti)
         #expect(prefs.intensity == .normal)
         #expect(prefs.soundEnabled)
+        // The shipped sound was a random pick each time, so that has to stay the
+        // default rather than freezing on whichever case is listed first.
+        #expect(prefs.sound == .random)
         // 60 particles at normal is exactly what the hard-coded call passed.
         #expect(prefs.resolvedParticleCount == 60)
         // …and 2s is the throttle the manager hard-coded.
@@ -192,6 +294,7 @@ internal struct CelebrationPreferencesTests {
         defaults.set("party", forKey: SettingsViewModel.celebrationIntensityKey)
         defaults.set(false, forKey: SettingsViewModel.celebrationParticlesKey)
         defaults.set(false, forKey: SettingsViewModel.celebrationSoundKey)
+        defaults.set("submarine", forKey: SettingsViewModel.celebrationSoundNameKey)
 
         let prefs = SettingsViewModel.storedCelebrationPreferences(defaults)
         #expect(!prefs.isEnabled)
@@ -199,6 +302,9 @@ internal struct CelebrationPreferencesTests {
         #expect(prefs.intensity == .party)
         #expect(!prefs.particlesEnabled)
         #expect(!prefs.soundEnabled)
+        // The chosen sound is remembered even though sound is currently off, so
+        // switching the toggle back on restores the pick instead of resetting it.
+        #expect(prefs.sound == .submarine)
     }
 
     /// Read through a `suiteName` domain, never `.standard`: the app's real
@@ -210,6 +316,7 @@ internal struct CelebrationPreferencesTests {
         SettingsViewModel.celebrationIntensityKey,
         SettingsViewModel.celebrationParticlesKey,
         SettingsViewModel.celebrationSoundKey,
+        SettingsViewModel.celebrationSoundNameKey,
     ]
 }
 

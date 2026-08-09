@@ -98,6 +98,75 @@ internal enum CelebrationIntensity: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// Which sound a celebration plays.
+///
+/// Backed by the macOS system sounds in `/System/Library/Sounds`, which every
+/// install has — no bundled audio, so a sound can't fail to load for the same
+/// reason a Lottie asset can. `random` preserves the shipped behavior (a
+/// different pick each time) as an explicit choice rather than the only one.
+///
+/// On iOS these names have no meaning: there is no `NSSound` and no system
+/// sound by these names, so the platform plays a haptic instead and the picker
+/// is hidden. The enum is still shared because the preference persists across
+/// devices and must round-trip on both.
+internal enum CelebrationSound: String, CaseIterable, Codable, Sendable {
+    /// A different one of the curated sounds on each celebration — the original
+    /// behavior.
+    case random
+    case hero
+    case glass
+    case funk
+    case blow
+    case purr
+    case ping
+    case pop
+    case tink
+    case submarine
+
+    internal var label: String {
+        switch self {
+        case .random: return "Random"
+        case .hero: return "Hero"
+        case .glass: return "Glass"
+        case .funk: return "Funk"
+        case .blow: return "Blow"
+        case .purr: return "Purr"
+        case .ping: return "Ping"
+        case .pop: return "Pop"
+        case .tink: return "Tink"
+        case .submarine: return "Submarine"
+        }
+    }
+
+    /// The `NSSound(named:)` name, or nil for `.random`, which has none of its
+    /// own and resolves through `randomPool` instead.
+    internal var systemSoundName: String? {
+        self == .random ? nil : label
+    }
+
+    /// Every case that names an actual sound.
+    internal static var selectableSounds: [CelebrationSound] {
+        allCases.filter { $0 != .random }
+    }
+
+    /// What `.random` draws from. The shipped list, minus "Funk" and "Blow"
+    /// being the only two of five that aren't celebratory — kept anyway, since
+    /// removing them would silently change a behavior a user may have grown
+    /// used to, and they are individually selectable now regardless.
+    internal static let randomPool: [CelebrationSound] = [.hero, .glass, .funk, .blow, .purr]
+
+    /// The sound to actually play for this preference: `.random` resolves to a
+    /// member of `randomPool`, everything else is itself.
+    internal func resolved() -> CelebrationSound {
+        guard self == .random else { return self }
+        return Self.randomPool.randomElement() ?? .hero
+    }
+
+    internal init(storedValue: String?) {
+        self = storedValue.flatMap(CelebrationSound.init(rawValue:)) ?? .random
+    }
+}
+
 /// The user's celebration configuration, resolved from persisted values.
 ///
 /// A value type so the decision logic is testable without a live
@@ -112,16 +181,27 @@ internal struct CelebrationPreferences: Equatable, Sendable {
     /// Particles, controlled separately from the style so the animated dots can
     /// be switched off while keeping the rest of the celebration.
     internal var particlesEnabled: Bool
-    /// The random macOS system sound / iOS haptic on each celebration.
+    /// Whether a sound (macOS) or haptic (iOS) accompanies a celebration.
     internal var soundEnabled: Bool
+    /// Which sound. Ignored when `soundEnabled` is false.
+    internal var sound: CelebrationSound
 
     internal static let `default` = CelebrationPreferences(
         isEnabled: true,
         style: .confetti,
         intensity: .normal,
         particlesEnabled: true,
-        soundEnabled: true
+        soundEnabled: true,
+        sound: .random
     )
+
+    /// The sound to play right now, or nil when none should be. One place to ask
+    /// so the two gates (`isEnabled`, `soundEnabled`) and the `.random` draw
+    /// can't be applied inconsistently by different callers.
+    internal func soundToPlay() -> CelebrationSound? {
+        guard isEnabled, soundEnabled else { return nil }
+        return sound.resolved()
+    }
 
     /// Whether particles should actually be drawn: the toggle only has meaning
     /// for a style that draws them, and never fires when celebrations are off.

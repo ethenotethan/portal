@@ -101,6 +101,18 @@ final class CelebrationManager: ObservableObject {
         celebrate(.milestone(level: .gold, message: "Good job"))
     }
 
+    /// Play one sound, with no animation and no throttle.
+    ///
+    /// Separate from `preview()` because choosing a sound from a list of ten
+    /// means hearing each candidate, and routing that through a full 3.4s
+    /// celebration would make comparing two of them take most of a minute.
+    /// Deliberately ignores `soundEnabled` — the user is tapping a specific
+    /// sound to hear it, and silence would read as a broken button — but honors
+    /// `.random` resolving to a concrete pick so what plays is representative.
+    internal func audition(_ sound: CelebrationSound) {
+        soundEffects.play(sound.resolved())
+    }
+
     // MARK: - Triggers
 
     /// Call when a response stream completes.
@@ -177,8 +189,8 @@ final class CelebrationManager: ObservableObject {
         lastCelebrationDate = Date()
 
         activeCelebration = event
-        if preferences.soundEnabled {
-            soundEffects.playSuccess()
+        if let sound = preferences.soundToPlay() {
+            soundEffects.play(sound)
         }
 
         // Auto-clear after the performance, cancelling any earlier pending
@@ -203,18 +215,23 @@ final class CelebrationManager: ObservableObject {
 @MainActor
 private final class SoundEffects {
     #if os(macOS)
+    /// Retained for the duration of playback. `NSSound.play()` is asynchronous
+    /// and a sound released immediately after the call can be cut off, which is
+    /// audible as a clipped first few milliseconds — the reason a property
+    /// existed here before this played anything specific.
     private var sound: NSSound?
     #endif
 
-    func playSuccess() {
+    /// Play `sound`, which the caller has already resolved (so `.random` has
+    /// become a concrete pick and the enable gates have been checked).
+    func play(_ sound: CelebrationSound) {
         #if os(macOS)
-        // Use a pleasant built-in macOS sound
-        let names = ["Hero", "Glass", "Funk", "Blow", "Purr"]
-        if let name = names.randomElement(), let s = NSSound(named: name) {
-            s.play()
-        }
+        guard let name = sound.systemSoundName, let loaded = NSSound(named: name) else { return }
+        self.sound = loaded
+        loaded.play()
         #elseif os(iOS)
-        // Light haptic tap for success
+        // No system sounds by these names on iOS; a light haptic is the
+        // platform's equivalent acknowledgement.
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
         #endif

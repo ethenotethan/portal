@@ -124,8 +124,60 @@ internal struct CelebrationSettingsSection: View {
             }
 
             Toggle("Sound", isOn: $settings.celebrationSoundEnabled)
+            if settings.celebrationSoundEnabled {
+                soundPicker
+            }
         }
     }
+
+    // MARK: - Sound
+
+    #if os(macOS)
+    private var soundPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Picker("", selection: $settings.celebrationSound) {
+                    ForEach(CelebrationSound.allCases, id: \.self) { sound in
+                        Text(sound.label).tag(sound)
+                    }
+                }
+                .labelsHidden()
+                .frame(maxWidth: 200)
+
+                // Auditions the SELECTED sound, not the whole celebration:
+                // comparing two candidates through a 3.4s animation each would
+                // take most of a minute.
+                Button {
+                    celebrations.audition(settings.celebrationSound)
+                } label: {
+                    Image(systemName: "speaker.wave.2")
+                }
+                .buttonStyle(.borderless)
+                .help("Play this sound")
+            }
+            // Changing the selection plays it, so picking down the list is how
+            // you hear the list.
+            .onChange(of: settings.celebrationSound) { _, newValue in
+                celebrations.audition(newValue)
+            }
+
+            if settings.celebrationSound == .random {
+                Text("A different sound each time, from \(CelebrationSound.randomPool.count) built-in sounds.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+    #else
+    /// iOS has no `NSSound` and no system sounds by these names — the platform
+    /// gets a haptic instead, so offering a choice of sound would be a control
+    /// that does nothing.
+    private var soundPicker: some View {
+        Text("On iOS, celebrations use a haptic tap rather than a sound.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+    #endif
 
     private var previewButton: some View {
         Button {
