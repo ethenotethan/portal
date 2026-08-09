@@ -6,8 +6,14 @@ import SwiftUI
 /// on the right with a Rendered/History tab switch. History shows the
 /// revision audit trail with kind-aware diffs and one-click restore.
 struct ArtifactsPane: View {
+    internal enum LayoutMode: Equatable {
+        case drillDown
+        case split
+    }
+
     var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject private var store = ArtifactStore.shared
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
@@ -21,6 +27,13 @@ struct ArtifactsPane: View {
         } ?? visibleArtifacts.first
     }
 
+    /// iPhone-class widths cannot satisfy the desktop pane's 760-point split.
+    /// Keep the split for regular widths and drill into a full-width detail on
+    /// compact widths so renderers receive the actual viewport width.
+    internal static func layoutMode(isCompactWidth: Bool) -> LayoutMode {
+        isCompactWidth ? .drillDown : .split
+    }
+
     internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -29,24 +42,63 @@ struct ArtifactsPane: View {
                 Divider().overlay(Theme.border)
                 if visibleArtifacts.isEmpty {
                     emptyState
+                } else if Self.layoutMode(isCompactWidth: horizontalSizeClass == .compact) == .drillDown {
+                    compactContent
                 } else {
-                    HSplitViewCompat {
-                        artifactList
-                            .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
-                        if let artifact = selected {
-                            ArtifactDetailView(artifact: artifact)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            Text("Select an artifact")
-                                .foregroundStyle(Theme.tertiary)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
+                    splitContent
                 }
             }
         }
+        #if os(macOS)
         .frame(minWidth: 760, minHeight: 480)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .task { await store.pull() }
+    }
+
+    private var compactContent: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 3) {
+                    ForEach(visibleArtifacts) { artifact in
+                        NavigationLink(value: artifact.id) {
+                            artifactRowLabel(artifact, isSelected: false)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            deleteButton(for: artifact)
+                        }
+                    }
+                }
+                .padding(10)
+            }
+            .background(Theme.surface.opacity(0.4))
+            .navigationDestination(for: String.self) { artifactID in
+                if let artifact = store.artifacts[artifactID] {
+                    ArtifactDetailView(artifact: artifact)
+                        .navigationTitle(artifact.displayName)
+                } else {
+                    Text("This artifact is no longer available")
+                        .foregroundStyle(Theme.tertiary)
+                }
+            }
+        }
+    }
+
+    private var splitContent: some View {
+        HSplitViewCompat {
+            artifactList
+                .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
+            if let artifact = selected {
+                ArtifactDetailView(artifact: artifact)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Text("Select an artifact")
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
     }
 
     private var header: some View {
@@ -118,7 +170,16 @@ struct ArtifactsPane: View {
 
     private func artifactRow(_ artifact: LivingArtifact) -> some View {
         let isSelected = artifact.id == selected?.id
-        return VStack(alignment: .leading, spacing: 3) {
+        return artifactRowLabel(artifact, isSelected: isSelected)
+            .contentShape(Rectangle())
+            .onTapGesture { selectedID = artifact.id }
+            .contextMenu {
+                deleteButton(for: artifact)
+            }
+    }
+
+    private func artifactRowLabel(_ artifact: LivingArtifact, isSelected: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 7) {
                 Image(systemName: Self.icon(for: artifact.kind))
                     .font(.system(size: 11))
@@ -154,14 +215,13 @@ struct ArtifactsPane: View {
             isSelected ? Theme.accent.opacity(0.10) : Color.clear,
             in: RoundedRectangle(cornerRadius: 8)
         )
-        .contentShape(Rectangle())
-        .onTapGesture { selectedID = artifact.id }
-        .contextMenu {
-            Button(role: .destructive) {
-                store.remove(id: artifact.id)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
+    }
+
+    private func deleteButton(for artifact: LivingArtifact) -> some View {
+        Button(role: .destructive) {
+            store.remove(id: artifact.id)
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
@@ -201,6 +261,7 @@ private struct HSplitViewCompat<Content: View>: View {
 /// surface (Rendered / History) everywhere artifacts are inspected.
 internal struct ArtifactDetailView: View {
     internal let artifact: LivingArtifact
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
@@ -220,9 +281,11 @@ internal struct ArtifactDetailView: View {
                 .frame(width: 210)
                 Spacer()
                 ArtifactExportMenu(artifact: artifact)
-                Text(artifact.id)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(Theme.tertiary)
+                if horizontalSizeClass != .compact {
+                    Text(artifact.id)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Theme.tertiary)
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
