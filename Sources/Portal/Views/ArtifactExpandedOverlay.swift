@@ -1,4 +1,3 @@
-#if os(macOS)
 import SwiftUI
 
 /// Full-screen takeover showing a single artifact. The title/revision chrome and
@@ -52,7 +51,7 @@ internal struct ArtifactExpandedOverlay: View {
 
     private var titleBar: some View {
         HStack(spacing: 10) {
-            Image(systemName: ArtifactKindGlyph.icon(for: artifact.kind))
+            Image(systemName: ArtifactsPane.icon(for: artifact.kind))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.accent)
             Text(artifact.displayName)
@@ -99,7 +98,7 @@ internal struct ArtifactExpandedOverlay: View {
                 Image(systemName: "chevron.up")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Theme.secondary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: titleBarControlSize, height: titleBarControlSize)
                     .background(Theme.surfaceHover, in: Circle())
             }
             .buttonStyle(.plain)
@@ -120,7 +119,7 @@ internal struct ArtifactExpandedOverlay: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
-                    .frame(width: 26, height: 26)
+                    .frame(width: collapsedControlSize, height: collapsedControlSize)
             }
             .help("Show title and revision bar")
 
@@ -131,7 +130,7 @@ internal struct ArtifactExpandedOverlay: View {
             } label: {
                 Image(systemName: showsMaintenance ? "wrench.and.screwdriver.fill" : "wrench.and.screwdriver")
                     .foregroundStyle(showsMaintenance ? Theme.accent : Theme.secondary)
-                    .frame(width: 26, height: 26)
+                    .frame(width: collapsedControlSize, height: collapsedControlSize)
             }
             .help(showsMaintenance ? "Collapse maintenance" : "Show maintenance")
 
@@ -139,7 +138,7 @@ internal struct ArtifactExpandedOverlay: View {
                 Button(action: enterImmersiveFullscreen) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .foregroundStyle(Theme.accent)
-                        .frame(width: 26, height: 26)
+                        .frame(width: collapsedControlSize, height: collapsedControlSize)
                 }
                 .help("Open in native full screen with mouse & keyboard capture")
             }
@@ -160,7 +159,7 @@ internal struct ArtifactExpandedOverlay: View {
             Image(systemName: "arrow.down.right.and.arrow.up.left")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(Theme.tertiary)
-                .frame(width: 28, height: 28)
+                .frame(width: titleBarControlSize, height: titleBarControlSize)
                 .background(Theme.surfaceHover, in: Circle())
         }
         .buttonStyle(.plain)
@@ -169,6 +168,22 @@ internal struct ArtifactExpandedOverlay: View {
         // collapses the artifact.
         .keyboardShortcut(pageHoldsPointer ? nil : KeyboardShortcut(.escape, modifiers: []))
         .help("Collapse artifact")
+    }
+
+    private var titleBarControlSize: CGFloat {
+        #if os(iOS)
+        44
+        #else
+        28
+        #endif
+    }
+
+    private var collapsedControlSize: CGFloat {
+        #if os(iOS)
+        44
+        #else
+        26
+        #endif
     }
 
     @ViewBuilder
@@ -235,10 +250,15 @@ internal struct ArtifactExpandedOverlay: View {
     /// Web-backed interactive kinds (html, model3d) are the ones that benefit
     /// from native fullscreen + Pointer Lock; document kinds stay in-app.
     private var supportsImmersiveFullscreen: Bool {
+        #if os(macOS)
         InteractiveArtifactWeb.supportsImmersiveFullscreen(artifact.kind)
+        #else
+        false
+        #endif
     }
 
     private func enterImmersiveFullscreen() {
+        #if os(macOS)
         let content = store.artifacts[artifact.id]?.content ?? artifact.content
         guard let html = InteractiveArtifactWeb.immersiveHTML(kind: artifact.kind, content: content) else { return }
         ArtifactFullscreenWindowController.shared.present(
@@ -247,6 +267,7 @@ internal struct ArtifactExpandedOverlay: View {
             autoCapturesPointer: InteractiveArtifactWeb.autoCapturesPointer(
                 kind: artifact.kind, content: content)
         )
+        #endif
     }
 
     private func refreshCrons() async {
@@ -257,4 +278,3 @@ internal struct ArtifactExpandedOverlay: View {
         }
     }
 }
-#endif

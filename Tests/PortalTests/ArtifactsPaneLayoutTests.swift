@@ -13,4 +13,11 @@ internal struct ArtifactsPaneLayoutTests {
     internal func regularWidthUsesSplit() {
         #expect(ArtifactsPane.layoutMode(isCompactWidth: false) == .split)
     }
+
+    @Test("iOS rendered artifacts expose full-screen expansion")
+    internal func iOSRenderedArtifactCanExpand() {
+        #expect(ArtifactDetailView.showsExpandControl(isRenderedTab: true, isIOS: true))
+        #expect(!ArtifactDetailView.showsExpandControl(isRenderedTab: false, isIOS: true))
+        #expect(!ArtifactDetailView.showsExpandControl(isRenderedTab: true, isIOS: false))
+    }
 }
