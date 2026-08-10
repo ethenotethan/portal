@@ -4,6 +4,8 @@ Native macOS + iOS client for AI agent backends — built with Swift + SwiftUI.
 
 Supports **Hermes** (WebSocket JSON-RPC) and **Centaur** (REST + SSE) from a single app. No local server or CLI required.
 
+The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/harness), a fork of [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent). The fork is required, not preferred: stock hermes-agent has no `/v1/ws` endpoint. See [docs/gateway-setup.md](docs/gateway-setup.md).
+
 **[ethenotethan.github.io/portal](https://ethenotethan.github.io/portal/)** — the feature tour, with screenshots and an architecture walkthrough.
 
 ## Features
@@ -23,7 +25,7 @@ Supports **Hermes** (WebSocket JSON-RPC) and **Centaur** (REST + SSE) from a sin
 - macOS 14 (Sonoma) / iOS 17+
 - Xcode 16+ / Swift 6.1+
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-- A running gateway: **Hermes** (`researchoors/hermes-agent`) or **Centaur**
+- A running backend: **Hermes** ([`ethenotethan/harness`](https://github.com/ethenotethan/harness)) or **Centaur** ([`paradigmxyz/centaur`](https://github.com/paradigmxyz/centaur))
 
 ## Build & Run
 
