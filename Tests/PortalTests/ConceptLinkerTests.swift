@@ -89,4 +89,24 @@ internal struct ConceptLinkerTests {
         let link = ConceptLink(reasoningID: "r1", toolID: "t1", concept: "authservice")
         #expect(link.id == "r1~t1~authservice")
     }
+
+    // MARK: - Salient tokens (direct extraction)
+
+    @Test("salientTokens extracts file basename from a tool's confident file path")
+    internal func salientTokensExtractsConfidentFilePath() {
+        // A patch tool with a file path in context triggers confidentFilePath,
+        // whose basename stem becomes a salient token.
+        let node = ThoughtGraphNode(
+            id: "t1",
+            name: "patch",
+            context: "Editing Sources/PaymentProcessor.swift",
+            isComplete: true,
+            startedAt: Date()
+        )
+        let tokens = ConceptLinker.salientTokens(in: node)
+        // File basename stem (without extension) from confidentFilePath
+        #expect(tokens.contains("paymentprocessor"))
+        // Stopword "Editing" is filtered out
+        #expect(!tokens.contains("editing"))
+    }
 }

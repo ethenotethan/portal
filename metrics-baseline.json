@@ -268,19 +268,19 @@
     ]
   },
   "coverage": {
-    "testable_pct": 44.22,
-    "testable_covered": 11930,
-    "testable_count": 26976,
+    "testable_pct": 44.45,
+    "testable_covered": 12038,
+    "testable_count": 27081,
     "layers": {
       "Models": {
-        "covered": 5620,
-        "count": 7949,
-        "pct": 70.7
+        "covered": 5674,
+        "count": 7986,
+        "pct": 71.05
       },
       "Services": {
-        "covered": 3227,
-        "count": 10515,
-        "pct": 30.69
+        "covered": 3245,
+        "count": 10540,
+        "pct": 30.79
       },
       "Utilities": {
         "covered": 411,
@@ -288,9 +288,9 @@
         "pct": 28.8
       },
       "ViewModels": {
-        "covered": 2672,
-        "count": 7085,
-        "pct": 37.71
+        "covered": 2708,
+        "count": 7128,
+        "pct": 37.99
       }
     },
     "uncovered": {
@@ -646,17 +646,16 @@
         53,
         54,
         55,
-        74,
-        75,
-        79,
-        80,
-        87,
-        88,
+        92,
+        93,
+        97,
+        98,
         105,
-        158,
-        167,
-        170,
-        212
+        106,
+        176,
+        185,
+        188,
+        230
       ],
       "Sources/Portal/Models/GatewayDebugSnapshot.swift": [
         6,
@@ -834,8 +833,7 @@
         56
       ],
       "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift": [
-        10,
-        21
+        10
       ],
       "Sources/Portal/Models/Learning/Curriculum.swift": [
         81,
@@ -1119,7 +1117,6 @@
         33,
         34,
         64,
-        69,
         110,
         111,
         125,
@@ -1132,14 +1129,9 @@
         135,
         136,
         137,
-        149,
-        150,
-        151,
-        152,
-        153,
-        154,
         155,
-        156,
+        159,
+        160,
         161,
         162,
         165,
@@ -1918,6 +1910,11 @@
         46,
         48,
         49
+      ],
+      "Sources/Portal/Services/GatewayClient+Restart.swift": [
+        37,
+        60,
+        62
       ],
       "Sources/Portal/Services/GatewayClient+Wiki.swift": [
         51,
@@ -4365,8 +4362,7 @@
         133,
         135,
         137,
-        139,
-        192
+        139
       ],
       "Sources/Portal/ViewModels/ChatViewModel.swift": [
         322,
@@ -5081,6 +5077,11 @@
         26,
         28,
         30
+      ],
+      "Sources/Portal/ViewModels/GatewayRestartController.swift": [
+        42,
+        45,
+        59
       ],
       "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift": [
         28,
@@ -7017,59 +7018,63 @@
         31,
         32,
         33,
-        68,
-        83,
-        84,
-        85,
-        94,
-        96,
-        98,
-        107,
-        111,
-        113,
-        143,
-        144,
-        145,
-        147,
-        148,
-        150,
-        151,
-        153,
-        154,
-        155,
+        72,
+        73,
+        74,
+        86,
+        101,
+        102,
+        103,
+        112,
+        114,
+        116,
+        123,
+        125,
+        129,
+        131,
+        161,
         162,
         163,
-        164,
+        165,
         166,
+        168,
         169,
+        171,
         172,
         173,
-        174,
-        177,
-        178,
-        179,
+        180,
         181,
         182,
-        183,
-        186,
+        184,
+        187,
+        190,
+        191,
         192,
-        193,
-        194,
+        195,
         196,
         197,
-        198,
         199,
         200,
         201,
-        203,
         204,
-        206,
-        208,
         210,
         211,
-        213,
+        212,
         214,
-        217
+        215,
+        216,
+        217,
+        218,
+        219,
+        221,
+        222,
+        224,
+        226,
+        228,
+        229,
+        231,
+        232,
+        235
       ],
       "Sources/Portal/Models/GatewayDebugSnapshot.swift": [
         29,
@@ -7170,6 +7175,32 @@
         570,
         571
       ],
+      "Sources/Portal/Models/GatewayRestartOutcome.swift": [
+        26,
+        27,
+        28,
+        29,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        65,
+        66,
+        67,
+        68,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81
+      ],
       "Sources/Portal/Models/HTMLArtifactIntentBridge.swift": [
         19,
         24,
@@ -7267,6 +7298,9 @@
         84,
         85,
         86
+      ],
+      "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift": [
+        21
       ],
       "Sources/Portal/Models/KanbanSpec.swift": [
         40,
@@ -8130,6 +8164,7 @@
         63,
         66,
         67,
+        69,
         71,
         75,
         90,
@@ -8150,8 +8185,13 @@
         142,
         144,
         146,
-        159,
-        160
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        156
       ],
       "Sources/Portal/Models/SharedEntity.swift": [
         54,
@@ -8879,6 +8919,18 @@
         23,
         26
       ],
+      "Sources/Portal/Services/GatewayClient+Restart.swift": [
+        33,
+        36,
+        40,
+        41,
+        45,
+        57,
+        59,
+        64,
+        65,
+        66
+      ],
       "Sources/Portal/Services/GatewayClient+Wiki.swift": [
         107,
         126,
@@ -8942,6 +8994,7 @@
         360,
         361,
         363,
+        364,
         365,
         380,
         384,
@@ -10260,6 +10313,7 @@
         182,
         186,
         188,
+        192,
         194,
         199,
         202,
@@ -10783,6 +10837,23 @@
         262,
         263
       ],
+      "Sources/Portal/ViewModels/GatewayRestartController.swift": [
+        14,
+        19,
+        27,
+        28,
+        31,
+        33,
+        40,
+        41,
+        44,
+        47,
+        48,
+        49,
+        50,
+        53,
+        69
+      ],
       "Sources/Portal/ViewModels/PersonaManager.swift": [
         11,
         13,
@@ -11269,17 +11340,10 @@
       "redundantConformance": 6,
       "redundantProtocol": 2,
       "redundantPublicAccessibility": 4,
-      "unused": 344
+      "unused": 343
     },
-    "total": 513,
+    "total": 512,
     "sites": [
-      {
-        "file": "../../../../projects/portal/Sources/Portal/Views/GatewayRestartSection.swift",
-        "line": 14,
-        "kind": "struct",
-        "name": "GatewayRestartSection",
-        "hint": "unused"
-      },
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 73,
@@ -14488,7 +14552,7 @@
       },
       {
         "file": "Sources/Portal/Views/SettingsView.swift",
-        "line": 655,
+        "line": 668,
         "kind": "var.instance",
         "name": "capabilitiesSummary",
         "hint": "unused"
