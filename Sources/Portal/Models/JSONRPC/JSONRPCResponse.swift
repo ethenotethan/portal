@@ -24,10 +24,7 @@ struct JSONRPCError: Decodable, Equatable {
         self.data = data
     }
 
-    static let parseError = JSONRPCError(code: -32700, message: "parse error")
-    static let invalidRequest = JSONRPCError(code: -32600, message: "invalid request")
     static let methodNotFound = JSONRPCError(code: -32601, message: "method not found")
-    static let invalidParams = JSONRPCError(code: -32602, message: "invalid params")
     static let internalError = JSONRPCError(code: -32603, message: "internal error")
 
     // Hermes-specific error codes
