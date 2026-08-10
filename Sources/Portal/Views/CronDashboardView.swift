@@ -21,11 +21,17 @@ struct CronDashboardView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    // On the macOS canvas the Jobs panel (and its folder tree) is
+                    // visible beside the charts. In this single-column compact
+                    // surface, placing two metric panels first pushed categories
+                    // below the initial viewport and made them appear absent.
+                    // Keep the actionable job hierarchy first; activity metrics
+                    // follow once the user scrolls.
+                    CronJobsView(vm: cronListVM)
+                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
                     CronSummaryView(records: filteredRecords)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
                     CronVolumeView(records: filteredRecords, horizon: timeHorizon)
-                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    CronJobsView(vm: cronListVM)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
                     if !filteredRecords.isEmpty {
                         CronTimelineView(records: filteredRecords, horizon: timeHorizon)
