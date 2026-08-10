@@ -109,4 +109,24 @@ internal struct ConceptLinkerTests {
         // Stopword "Editing" is filtered out
         #expect(!tokens.contains("editing"))
     }
+
+    @Test("salientTokens extracts compound identifiers from a reasoning beat that has no file path")
+    internal func salientTokensOnReasoningBeat() {
+        // A reasoning beat has category == .reasoning, so confidentFilePath
+        // returns nil and tokens come only from text-based regex matching.
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: "refactoring the UserManagerDelegate protocol",
+            isComplete: true,
+            startedAt: Date()
+        )
+        let tokens = ConceptLinker.salientTokens(in: node)
+        // Compound camelCase identifier extracted from the text
+        #expect(tokens.contains("usermanagerdelegate"))
+        // Stopword "the" is filtered out
+        #expect(!tokens.contains("the"))
+        // Longer non-compound words still pass the length gate
+        #expect(tokens.contains("refactoring"))
+    }
 }
