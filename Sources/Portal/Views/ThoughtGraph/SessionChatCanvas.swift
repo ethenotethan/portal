@@ -178,7 +178,7 @@ internal struct SessionChatCanvas: View {
         return PanelContext(
             nodes: liveNodes,
             compactions: chatViewModel.currentTurnCompactions,
-            skills: chatViewModel.activeSkills,
+            skills: chatViewModel.currentTurnSkills,
             isThinking: reasoningGraph.isThinking,
             isStreaming: chatViewModel.isStreaming,
             selection: $selectedNodeID,
