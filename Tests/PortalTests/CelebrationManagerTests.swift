@@ -139,6 +139,28 @@ internal struct CelebrationManagerTests {
         #expect(manager.activeCelebration == nil)
     }
 
+    @Test("a celebration auto-clears after the performance duration")
+    internal func autoClearsAfterPerformance() async {
+        let manager = CelebrationManager.shared
+        let original = manager.preferences
+        defer { restore(manager, to: original) }
+
+        manager.apply(prefs(enabled: true, soundEnabled: false))
+        manager.activeCelebration = nil
+        manager.preview()
+        #expect(manager.activeCelebration != nil)
+
+        // Wait long enough for the auto-clear DispatchWorkItem to fire.
+        // The work item is created in `celebrate()` (line 199) and fires after
+        // `performanceDuration`. We wait 1s past that to be safe on a loaded
+        // machine, but not so long that the serialized suite is dominated by it.
+        let wait = CelebrationManager.performanceDuration + 1
+        try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+
+        // The closure body (self?.activeCelebration = nil) must have fired.
+        #expect(manager.activeCelebration == nil)
+    }
+
     // MARK: - Helpers
 
     private func prefs(
