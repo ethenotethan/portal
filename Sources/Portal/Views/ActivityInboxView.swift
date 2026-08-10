@@ -86,10 +86,13 @@ struct ActivityInboxView: View {
     }
 }
 
-private struct ActivityRowView: View {
-    let item: ActivityItem
+/// `internal` rather than `private` so it can be rendered on its own — the
+/// product site's activity screenshot captures this row directly, and a
+/// hand-copied replica in the capture harness would drift from what ships.
+internal struct ActivityRowView: View {
+    internal let item: ActivityItem
 
-    var body: some View {
+    internal var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: item.severity.icon)
                 .foregroundStyle(color(for: item.severity))
