@@ -653,7 +653,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 3695
+      "line_count": 3801
     },
     {
       "declaration_count": 20,
@@ -4408,7 +4408,7 @@
     "assigned_files": 303,
     "declarations": 934,
     "swift_files": 303,
-    "swift_lines": 88578,
+    "swift_lines": 88684,
     "unassigned_files": []
   },
   "layers": [
@@ -4440,6 +4440,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "653690ac208be4802a6f1bad3834500dcad170f84332864d5ef4c765a0fa7f51",
+  "source_tree_sha256": "4747fb9dd5ae840d3b76b0ba9c9c08018d734a3ae307a9efcf829af35b22f49d",
   "title": "Portal Architecture"
 }
