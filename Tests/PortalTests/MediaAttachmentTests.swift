@@ -96,4 +96,15 @@ struct MediaAttachmentTests {
         let previewURL = try #require(attachment.previewFileURL)
         #expect(try Data(contentsOf: previewURL) == data)
     }
+
+    @Test("Mobile file preview does not impose the desktop minimum size")
+    internal func mobileFilePreviewFitsViewport() {
+        let mobile = FilePreviewLayout.minimumSize(isMobile: true)
+        let desktop = FilePreviewLayout.minimumSize(isMobile: false)
+
+        #expect(mobile.width == 0)
+        #expect(mobile.height == 0)
+        #expect(desktop.width == 800)
+        #expect(desktop.height == 600)
+    }
 }

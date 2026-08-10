@@ -192,6 +192,12 @@ extension FileAttachment {
 
 // MARK: - File Preview (Sheet)
 
+internal enum FilePreviewLayout {
+    internal static func minimumSize(isMobile: Bool) -> CGSize {
+        isMobile ? .zero : CGSize(width: 800, height: 600)
+    }
+}
+
 /// Full-sheet preview for file attachments.
 /// Supports both local files and remote (downloaded) data.
 struct FilePreviewView: View {
@@ -220,6 +226,8 @@ struct FilePreviewView: View {
                         .foregroundStyle(Theme.tertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close file preview")
+                .accessibilityIdentifier("filePreviewCloseButton")
 
                 if attachment.previewFileURL != nil {
                     Button {
@@ -296,8 +304,21 @@ struct FilePreviewView: View {
                 }
             }
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(
+            minWidth: previewMinimumSize.width,
+            maxWidth: .infinity,
+            minHeight: previewMinimumSize.height,
+            maxHeight: .infinity
+        )
         .background(Theme.background)
+    }
+
+    private var previewMinimumSize: CGSize {
+        #if os(iOS)
+        FilePreviewLayout.minimumSize(isMobile: true)
+        #else
+        FilePreviewLayout.minimumSize(isMobile: false)
+        #endif
     }
 
     /// Decode raw bytes as human-readable text, or nil if it looks binary.

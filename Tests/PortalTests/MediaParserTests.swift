@@ -75,6 +75,32 @@ internal struct MediaParserTests {
         #expect(atts.allSatisfy { $0.path.hasPrefix("http://host/") })
     }
 
+    @Test("Resumed gateway history reconstructs remote video attachments")
+    internal func resumedHistoryReconstructsVideoAttachment() throws {
+        let raw: [[String: AnyCodable]] = [[
+            "role": AnyCodable("assistant"),
+            "text": AnyCodable("Your clip\nMEDIA:https://gateway.example/v1/files/s1/clip.mp4"),
+        ]]
+
+        let message = try #require(ChatViewModel.parseHistoryMessages(raw).first)
+        let attachment = try #require(message.attachments.first)
+        #expect(attachment.category == .video)
+        #expect(attachment.path == "https://gateway.example/v1/files/s1/clip.mp4")
+    }
+
+    @Test("History merge preserves locally cached attachment identity")
+    internal func historyMergePreservesLocalAttachment() throws {
+        let content = "Your clip\nMEDIA:https://gateway.example/v1/files/s1/clip.mp4"
+        let gateway = ChatMessage(role: .assistant, content: content, status: "complete")
+        var local = ChatMessage(role: .assistant, content: content, status: "complete")
+        local.attachments = [try #require(MediaParser.extractAttachments(from: content).first)]
+
+        let message = try #require(ChatViewModel.mergeHistory(gateway: [gateway], local: [local]).first)
+        let attachment = try #require(message.attachments.first)
+        #expect(attachment.id == local.attachments[0].id)
+        #expect(attachment.category == .video)
+    }
+
     // MARK: - stripMediaTags (unchanged behavior, guarded)
 
     @Test("stripMediaTags removes MEDIA lines and trims")
