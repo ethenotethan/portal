@@ -10,3 +10,5 @@ HermesNative.xcodeproj/project.xcworkspace/xcuserdata/
 google-cloud-sdk/
 .build-xcode/
 Signing.local.xcconfig
+# Assembled by `make site-serve` — mirrors the Pages deploy tree.
+.site-preview/

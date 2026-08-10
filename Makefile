@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve
+.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -116,6 +116,21 @@ architecture-check:
 # .github/workflows/architecture-pages.yml after merge to main.
 architecture-serve: architecture
 	python3 -m http.server 4173 --directory architecture/site
+
+# The product site has no build step, so the only thing to check is that its
+# relative asset references (screenshots, stylesheet) actually resolve.
+site-check:
+	python3 scripts/check_site_assets.py
+
+# Preview the DEPLOYED layout — product site at /, observatory at
+# /architecture/ — by assembling the same tree the Pages workflow does. Serving
+# site/ alone would 404 every /architecture/ link and hide a broken nav.
+site-serve: architecture site-check
+	rm -rf .site-preview
+	mkdir -p .site-preview/architecture
+	cp -R site/. .site-preview/
+	cp -R architecture/site/. .site-preview/architecture/
+	python3 -m http.server 4173 --directory .site-preview
 
 # Metric ratchet: fail if a tracked code-health metric regressed vs the base
 # branch. Four metrics are wired:
