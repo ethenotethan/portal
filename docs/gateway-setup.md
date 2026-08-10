@@ -7,14 +7,15 @@ HermesNative talks to a Hermes Agent gateway over WebSocket JSON-RPC at `/v1/ws`
 an OpenAI-compatible HTTP API (`/v1/chat/completions`, `/v1/responses`). The WebSocket
 JSON-RPC endpoint — along with the wiki, feed, push-notification, and digest RPCs this
 app depends on — lives only in the
-[`researchoors/hermes-agent`](https://github.com/researchoors/hermes-agent) fork.
+[`ethenotethan/harness`](https://github.com/ethenotethan/harness) fork.
 
 If you point HermesNative at a stock hermes-agent install, the connection health probe
 may succeed but the WebSocket upgrade will fail. You must run the fork.
 
-> **Fork status caveat:** the fork currently trails upstream by several thousand
-> commits. Do **not** run `hermes update` on a fork checkout — it will pull upstream
-> and remove the `/v1/ws` endpoint. Update by pulling the fork's `main` instead.
+> **Fork status caveat:** the fork has diverged — as of 2026-08-10 it is 44 commits
+> ahead of upstream and roughly 5,600 behind. Do **not** run `hermes update` on a fork
+> checkout: it will pull upstream and remove the `/v1/ws` endpoint. Update by pulling
+> the fork's `main` instead.
 
 ## 1. Install the fork
 
@@ -32,7 +33,7 @@ Then repoint the managed checkout at the fork:
 
 ```bash
 cd ~/.hermes/hermes-agent
-git remote add fork https://github.com/researchoors/hermes-agent.git
+git remote add fork https://github.com/ethenotethan/harness.git
 git fetch fork
 git checkout -B main fork/main
 
@@ -47,7 +48,7 @@ Same remote swap, on your existing checkout:
 ```bash
 cd ~/.hermes/hermes-agent    # or wherever your checkout lives
 git stash                    # if you have local changes
-git remote add fork https://github.com/researchoors/hermes-agent.git
+git remote add fork https://github.com/ethenotethan/harness.git
 git fetch fork
 git checkout -B main fork/main
 uv pip install -e ".[all,dev]"
@@ -61,8 +62,8 @@ data migration in either direction; only the code changes.
 ### Manual clone (containers / CI)
 
 ```bash
-git clone https://github.com/researchoors/hermes-agent.git
-cd hermes-agent
+git clone https://github.com/ethenotethan/harness.git
+cd harness
 uv venv venv --python 3.11
 export VIRTUAL_ENV="$(pwd)/venv"
 uv pip install -e ".[all,dev]"
