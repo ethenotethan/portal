@@ -249,6 +249,24 @@ final class ChatViewModel: ObservableObject {
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
     @Published var activeSkills: [SkillInfo] = []
+    /// Skills the agent has pulled in *itself* during the in-flight turn, via the
+    /// gateway's `skill_view` tool.
+    ///
+    /// Separate from `activeSkills` because the app doesn't choose these and
+    /// can't know them in advance — they're observed as they happen, by watching
+    /// tool calls. Surfacing them is the difference between "the model quietly
+    /// read a skill" and the user being able to see that it did.
+    @Published internal private(set) var loadedSkills: [TurnSkillRecord] = []
+
+    /// Everything shaping the current turn, attached and agent-loaded, in the
+    /// order it arrived. This is what the live skills lens renders.
+    internal var currentTurnSkills: [TurnSkillRecord] {
+        var records = activeSkills.map(TurnSkillRecord.attached)
+        for loaded in loadedSkills {
+            records.appendSkillRecord(loaded)
+        }
+        return records
+    }
     /// How the agent shapes answers for this session (deep map / balanced / direct).
     /// Composed into the ephemeral system prompt; per-session, sticky as the
     /// default for new sessions.
@@ -311,6 +329,16 @@ final class ChatViewModel: ObservableObject {
         /// Model this session reported via session.info (or the user picked).
         /// Per-session so switching sessions shows each one's actual model.
         var currentModel: String = ""
+        /// Skills the user attached to this session. Per-session because
+        /// attachment is a property of the conversation: without this, switching
+        /// away and back silently dropped every attached skill, so the next turn
+        /// went out with no SKILL.md prepended while the UI had already stopped
+        /// showing them.
+        var activeSkills: [SkillInfo] = []
+        /// Skills the agent read via `skill_view` during the in-flight turn,
+        /// accumulated until the turn completes and they are stamped onto the
+        /// assistant message. Cleared at the start of each turn.
+        var pendingLoadedSkills: [TurnSkillRecord] = []
     }
 
 
@@ -578,6 +606,7 @@ client.eventStream
         isRemoteTurn = false
         pendingAttachments = []
         activeSkills = []
+        loadedSkills = []
         responseStyle = .storedDefault
         slashSuggestions = []
         slashMode = false
@@ -658,7 +687,9 @@ client.eventStream
             streamingMessageID: streamingMessageID,
             isRemoteTurn: isRemoteTurn,
             responseStyle: responseStyle,
-            currentModel: currentModel
+            currentModel: currentModel,
+            activeSkills: activeSkills,
+            pendingLoadedSkills: loadedSkills
         )
         evictColdSessionMessages(keeping: displayID)
     }
@@ -700,6 +731,8 @@ client.eventStream
         isRemoteTurn = state.isRemoteTurn
         responseStyle = state.responseStyle
         currentModel = state.currentModel
+        activeSkills = state.activeSkills
+        loadedSkills = state.pendingLoadedSkills
         if state.messages.isEmpty && !state.isStreaming,
            ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
             let generation = sessionSwitchGeneration
@@ -1001,6 +1034,33 @@ if restoreSessionState(displayID: key) {
         let names = activeSkills.map { $0.name }
         guard !names.isEmpty else { return }
         try? await client.setSessionSkills(sessionID: sessionID, skillNames: names)
+    }
+
+    /// The gateway tool the agent calls to read a skill on its own initiative.
+    /// `skills_list` is deliberately not included — listing the catalog is the
+    /// agent browsing, not a skill shaping the turn.
+    private static let skillViewToolName = "skill_view"
+
+    /// Note a skill the agent read mid-turn, from the `skill_view` tool call.
+    ///
+    /// This is the only visibility the app has into agent-initiated skill use:
+    /// the gateway exposes `skill_view` as a normal tool, so a dynamic load
+    /// arrives as an ordinary tool call and is otherwise indistinguishable from
+    /// a `Read`. The skill name comes from the call's display label; a label
+    /// nothing name-shaped can be read out of is skipped rather than recorded as
+    /// an empty skill.
+    ///
+    /// The category is resolved from the local catalog so a dynamically loaded
+    /// skill gets the same chip color as the attached one, falling back to
+    /// "general" for skills the client's catalog doesn't know (host-side or
+    /// plugin skills the app never listed).
+    private func skillRecord(forToolNamed name: String, context: String?) -> TurnSkillRecord? {
+        guard name == Self.skillViewToolName,
+              let context,
+              let skillName = TurnSkillRecord.skillName(fromViewLabel: context) else { return nil }
+        let category = SkillStore.shared.skills
+            .first { $0.name == skillName }?.category ?? "general"
+        return TurnSkillRecord(name: skillName, category: category, origin: .loaded)
     }
 
     /// Build a preamble prepending attached skill instructions.
@@ -1497,13 +1557,20 @@ if restoreSessionState(displayID: key) {
         inputText = ""
         pendingAttachments = []
         isStreaming = true
+        // Agent-loaded skills are per-turn: the previous turn's dynamic loads
+        // are already stamped onto its message, and carrying them forward would
+        // claim this turn read a skill it hasn't.
+        loadedSkills = []
 
-        // Add user message to conversation (with attachments)
-        let userMessage = ChatMessage(
+        // Add user message to conversation (with attachments), recording the
+        // skills attached when it was sent — the prompt carries their SKILL.md,
+        // so this is what the user chose for this turn.
+        var userMessage = ChatMessage(
             role: .user,
             content: text,
             userAttachments: attachments
         )
+        userMessage.skills = activeSkills.map(TurnSkillRecord.attached)
         messages.append(userMessage)
 
         // Auto-title from first user message
@@ -2487,6 +2554,15 @@ if restoreSessionState(displayID: key) {
             if isDisplayedTurn {
                 state.messages[idx].graphSnapshot = captureGraphSnapshot()
             }
+            // Stamp what shaped this turn while the record is still in hand —
+            // both are per-session state, so a background turn attributes its own
+            // skills rather than the visible session's.
+            var turnSkills = state.activeSkills.map(TurnSkillRecord.attached)
+            for loaded in state.pendingLoadedSkills {
+                turnSkills.appendSkillRecord(loaded)
+            }
+            state.messages[idx].skills = turnSkills
+            state.pendingLoadedSkills = []
             state.activeToolCalls = [:]
             state.isStreaming = false
             state.streamingMessageID = nil
@@ -2531,6 +2607,9 @@ if restoreSessionState(displayID: key) {
                 context: payload.context,
                 startedAt: Date()
             )
+            if let record = skillRecord(forToolNamed: payload.name, context: payload.context) {
+                state.pendingLoadedSkills.appendSkillRecord(record)
+            }
 
         case .toolComplete(payload: let payload):
             if var record = state.activeToolCalls[payload.toolID] {
@@ -2707,6 +2786,13 @@ if restoreSessionState(displayID: key) {
                 slimState.sessionTitle = state.sessionTitle
                 slimState.streamingMessageID = state.streamingMessageID
                 slimState.currentModel = state.currentModel
+                // Carried like the other in-flight turn state: these accumulate
+                // across a background turn's tool calls and are consumed when it
+                // completes, so dropping them here would lose every skill the
+                // agent loaded in a session the user wasn't watching. (Messages
+                // are deliberately NOT carried — they were just persisted to
+                // disk — but this is turn state, not transcript.)
+                slimState.pendingLoadedSkills = state.pendingLoadedSkills
                 sessionStates[displayID] = slimState
             }
         }
@@ -2888,6 +2974,11 @@ if restoreSessionState(displayID: key) {
                 isDisplayed: true
             )
             messages[idx].graphSnapshot = captureGraphSnapshot()
+            // Record the skills that shaped this turn — attached up front plus
+            // whatever the agent read via `skill_view` — so the turn stays
+            // attributable after the attachment set moves on.
+            messages[idx].skills = currentTurnSkills
+            loadedSkills = []
 
             activeToolCalls = [:]
             isStreaming = false
@@ -2936,6 +3027,9 @@ if restoreSessionState(displayID: key) {
                 context: payload.context,
                 startedAt: Date()
             )
+            if let record = skillRecord(forToolNamed: payload.name, context: payload.context) {
+                loadedSkills.appendSkillRecord(record)
+            }
 
         case .toolComplete(payload: let payload):
             recordPerfEvent("toolComplete")

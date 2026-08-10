@@ -9,7 +9,7 @@ import SwiftUI
 internal struct PanelContext {
     internal let nodes: [ThoughtGraphNode]
     internal let compactions: [CompactionMarker]
-    internal let skills: [SkillInfo]
+    internal let skills: [TurnSkillRecord]
     internal let isThinking: Bool
     /// The turn is streaming right now — drives the flamechart's growing right
     /// edge and live rescale. `false` for settled past turns (the dashboard);
@@ -240,10 +240,11 @@ internal final class PanelRegistry {
 
 // MARK: - Small adapters for the panels that need a binding shim
 
-/// Wraps `TurnSkillsLens` with an honest empty state — past turns don't persist
-/// skills yet, so an empty list means "not recorded", not "no skills".
+/// Wraps `TurnSkillsLens` with an honest empty state. Turns recorded before
+/// per-turn capture existed (and gateway-resumed history, which carries no skill
+/// data) have an empty list meaning "not recorded", not "no skills".
 private struct SkillsPanel: View {
-    internal let skills: [SkillInfo]
+    internal let skills: [TurnSkillRecord]
 
     internal var body: some View {
         if skills.isEmpty {
