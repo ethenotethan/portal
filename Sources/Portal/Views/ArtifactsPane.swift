@@ -269,6 +269,11 @@ internal struct ArtifactDetailView: View {
     private enum Tab: String, CaseIterable { case rendered = "Rendered", history = "History" }
     @State private var tab: Tab = .rendered
     @State private var cronVM = CronListViewModel()
+    @State private var showsExpandedArtifact = false
+
+    internal static func showsExpandControl(isRenderedTab: Bool, isIOS: Bool) -> Bool {
+        isIOS && isRenderedTab
+    }
 
     internal var body: some View {
         VStack(spacing: 0) {
@@ -281,6 +286,22 @@ internal struct ArtifactDetailView: View {
                 )
                 .frame(width: 210)
                 Spacer()
+                if Self.showsExpandControl(
+                    isRenderedTab: tab == .rendered,
+                    isIOS: Self.runsOniOS
+                ) {
+                    Button {
+                        showsExpandedArtifact = true
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.secondary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Expand artifact to full screen")
+                    .accessibilityIdentifier("artifactExpandButton")
+                }
                 ArtifactExportMenu(artifact: artifact)
                 if horizontalSizeClass != .compact {
                     Text(artifact.id)
@@ -303,6 +324,23 @@ internal struct ArtifactDetailView: View {
         }
         // Tab resets when switching artifacts.
         .id(artifact.id)
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showsExpandedArtifact) {
+            ArtifactExpandedOverlay(artifact: artifact) {
+                showsExpandedArtifact = false
+            }
+            .environmentObject(gatewayClientWrapper)
+            .environmentObject(capabilitiesStore)
+        }
+        #endif
+    }
+
+    private static var runsOniOS: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
     }
 
     /// Kinds whose content manages its own scrolling/gestures (a WKWebView
