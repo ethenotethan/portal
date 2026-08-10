@@ -339,3 +339,161 @@ struct ChatViewModelLiveSessionRoutingTests {
         // saturation; message content is recovered on session resume.
     }
 }
+
+// MARK: - Concurrent Session Isolation Tests
+
+/// Two sessions streaming at once, with the user clicking between them. Every
+/// test here is a bleed the old code allowed: state that belongs to one session
+/// landing in the other because it was keyed off "whatever is on screen now"
+/// rather than off the event's own session.
+@Suite("ChatViewModel concurrent session isolation")
+internal struct ChatViewModelConcurrentSessionTests {
+
+    private static func complete(_ text: String, status: String = "complete") -> GatewayEvent {
+        .messageComplete(payload: MessageCompletePayload(
+            text: text,
+            status: status,
+            usage: nil,
+            reasoning: nil,
+            rendered: nil,
+            warning: nil
+        ))
+    }
+
+    @Test("deltas buffered before a switch land on their own session, not the new one")
+    @MainActor
+    internal func bufferedDeltasDoNotBleedIntoTheNewSession() async {
+        let vm = ChatViewModel()
+
+        // Session A streams while visible — its tokens enter the 500ms buffer.
+        _ = vm.beginSwitchToSession(key: "session-a")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-a")
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "A-tokens", rendered: nil), sessionID: "session-a")
+
+        // The user clicks over to B mid-window, and B starts its own turn.
+        _ = vm.beginSwitchToSession(key: "session-b")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-b")
+
+        // Whatever is still buffered now drains.
+        vm.flushDeltaBuffersForTesting()
+
+        // B's visible transcript must not contain A's tokens.
+        #expect(vm.currentSessionID == "session-b")
+        #expect(vm.messages.allSatisfy { !$0.content.contains("A-tokens") })
+        // A keeps them: they were its tokens, so switching back still shows them.
+        let cachedA = vm.testCachedMessages(displayID: "session-a")
+        #expect(cachedA.contains { $0.content.contains("A-tokens") })
+    }
+
+    @Test("switching sessions mid-stream does not splice two sessions' tokens together")
+    @MainActor
+    internal func interleavedDeltasStayInTheirOwnTranscripts() async {
+        let vm = ChatViewModel()
+
+        _ = vm.beginSwitchToSession(key: "session-a")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-a")
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "alpha", rendered: nil), sessionID: "session-a")
+
+        _ = vm.beginSwitchToSession(key: "session-b")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-b")
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "beta", rendered: nil), sessionID: "session-b")
+        vm.flushDeltaBuffersForTesting()
+
+        // B, on screen, shows only its own tokens.
+        let visible = vm.messages.map(\.content).joined()
+        #expect(visible.contains("beta"))
+        #expect(!visible.contains("alpha"))
+
+        // A, cached, shows only its own.
+        let cachedA = vm.testCachedMessages(displayID: "session-a").map(\.content).joined()
+        #expect(cachedA.contains("alpha"))
+        #expect(!cachedA.contains("beta"))
+    }
+
+    @Test("a background turn's completion does not open a quiz over the visible session")
+    @MainActor
+    internal func backgroundQuizDoesNotHijackVisibleSession() async {
+        let vm = ChatViewModel()
+
+        let quizJSON = """
+        {"questions":[
+        {"q":"q1","options":["A) a","B) b","C) c","D) d"],"correct":"A","explanation":"e"},
+        {"q":"q2","options":["A) a","B) b","C) c","D) d"],"correct":"B","explanation":"e"},
+        {"q":"q3","options":["A) a","B) b","C) c","D) d"],"correct":"C","explanation":"e"}]}
+        """
+
+        // Background session B runs a turn while A is on screen.
+        _ = vm.beginSwitchToSession(key: "session-b")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-b")
+        _ = vm.beginSwitchToSession(key: "session-a")
+        vm.receiveGatewayEventForTesting(Self.complete(quizJSON), sessionID: "session-b")
+
+        // No sheet over A: the quiz belongs to a chat the user isn't looking at.
+        #expect(vm.quizQuestions == nil)
+
+        // Switching to B and completing a turn there does surface it.
+        _ = vm.beginSwitchToSession(key: "session-b")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "session-b")
+        vm.receiveGatewayEventForTesting(Self.complete(quizJSON), sessionID: "session-b")
+        #expect(vm.quizQuestions?.count == 3)
+    }
+
+    @Test("a background turn does not claim the visible session's mic state")
+    @MainActor
+    internal func backgroundVoiceStatusDoesNotAffectVisibleSession() async {
+        let vm = ChatViewModel()
+
+        _ = vm.beginSwitchToSession(key: "session-a")
+        vm.receiveGatewayEventForTesting(.voiceStatus(state: "recording"), sessionID: "session-b")
+        #expect(vm.isVoiceRecording == false)
+
+        vm.receiveGatewayEventForTesting(.voiceStatus(state: "recording"), sessionID: "session-a")
+        #expect(vm.isVoiceRecording == true)
+    }
+
+    @Test("a background turn's run history is filed under its own session")
+    @MainActor
+    internal func backgroundRunHistoryIsNotMisattributed() async {
+        let vm = ChatViewModel()
+        let store = SessionRunHistoryStore.shared
+        let before = store.events(for: "run-visible").count
+
+        _ = vm.beginSwitchToSession(key: "run-visible")
+        // A turn starts on a DIFFERENT session while run-visible is on screen.
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "run-background")
+
+        // The visible session gained no run — it never ran anything.
+        #expect(store.events(for: "run-visible").count == before)
+        #expect(store.events(for: "run-background").contains { $0.status == .running })
+    }
+
+    @Test("a background turn does not steal the visible session's thought graph")
+    @MainActor
+    internal func backgroundCompletionDoesNotSnapshotVisibleGraph() async {
+        let vm = ChatViewModel()
+
+        // Visible session A builds live thought-graph depth.
+        _ = vm.beginSwitchToSession(key: "graph-a")
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "graph-a")
+        vm.receiveGatewayEventForTesting(
+            .subagentStart(payload: SubagentPayload(
+                goal: "dig",
+                taskCount: 1,
+                taskIndex: 0,
+                subagentID: "sub-1",
+                parentID: nil,
+                depth: nil,
+                model: nil
+            )),
+            sessionID: "graph-a"
+        )
+
+        // Background session B completes a turn it started earlier.
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: "graph-b")
+        vm.receiveGatewayEventForTesting(Self.complete("background done"), sessionID: "graph-b")
+
+        // B's message must not carry A's live subagent tree.
+        let cachedB = vm.testCachedMessages(displayID: "graph-b")
+        #expect(cachedB.allSatisfy { $0.graphSnapshot == nil })
+    }
+}
