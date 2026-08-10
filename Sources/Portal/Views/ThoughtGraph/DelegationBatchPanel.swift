@@ -188,6 +188,7 @@ private struct DelegationBatchRow: View {
     private func metric(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 10, design: .monospaced))
+            .monospaced()
             .foregroundStyle(Theme.tertiary)
     }
 
@@ -273,6 +274,7 @@ private struct DelegationLaneView: View {
 
             Text(node.durationString)
                 .font(.system(size: 9, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .frame(width: 34, alignment: .trailing)
         }
@@ -374,6 +376,7 @@ private struct DelegationDetailContent: View {
                 .frame(width: 40, alignment: .leading)
             Text(value)
                 .font(.system(size: 10, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -489,6 +492,7 @@ private struct DelegationRecordRow: View {
 
             Text(format(sub.duration))
                 .font(.system(size: 9, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .frame(width: 34, alignment: .trailing)
         }
@@ -503,6 +507,7 @@ private struct DelegationRecordRow: View {
     private func metric(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 10, design: .monospaced))
+            .monospaced()
             .foregroundStyle(Theme.tertiary)
     }
 

@@ -17,6 +17,7 @@ struct ToolPillView: View {
             if isRunning && !tool.isComplete {
                 Text(toolFrames[spinnerFrame % toolFrames.count])
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.warning)
                     .frame(width: 16)
                     .onReceive(timer) { _ in
@@ -56,6 +57,7 @@ struct ToolPillView: View {
             if tool.isComplete, let duration = tool.durationSeconds {
                 Text(String(format: "%.1fs", duration))
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
             }
         }

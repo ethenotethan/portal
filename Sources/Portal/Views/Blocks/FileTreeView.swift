@@ -100,6 +100,7 @@ struct FileTreeView: View {
                 .foregroundStyle(node.isDirectory ? Theme.accent : Theme.secondary)
             Text(node.name)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .textSelection(.enabled)
             if let annotation = node.annotation {

@@ -403,6 +403,7 @@ internal struct CronTimelineView: View {
                 let date = Date(timeInterval: fraction * span, since: min)
                 Text(date, format: format)
                     .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .frame(maxWidth: .infinity, alignment: i == 0 ? .leading : i == tickCount - 1 ? .trailing : .center)
             }
@@ -626,6 +627,7 @@ internal struct CronSingleRunPopover: View {
                 ScrollView {
                     Text(msg)
                         .font(.system(.caption2, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.red.opacity(0.85))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)

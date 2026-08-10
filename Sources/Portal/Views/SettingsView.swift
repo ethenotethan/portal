@@ -17,6 +17,7 @@ internal struct SettingsView: View {
     internal enum SidebarItem: Hashable, Identifiable {
         case appearance
         case notifications
+        case celebrations
         case x
         case gateway(SavedGateway)
 
@@ -24,6 +25,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "appearance"
             case .notifications: return "notifications"
+            case .celebrations: return "celebrations"
             case .x: return "x"
             case .gateway(let g): return g.id
             }
@@ -33,6 +35,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "Appearance"
             case .notifications: return "Notifications"
+            case .celebrations: return "Celebrations"
             case .x: return "X (Twitter)"
             case .gateway(let g): return g.displayName
             }
@@ -42,6 +45,7 @@ internal struct SettingsView: View {
             switch self {
             case .appearance: return "paintpalette"
             case .notifications: return "bell"
+            case .celebrations: return "party.popper"
             case .x: return "bird"
             case .gateway(let g): return g.kind.isSessionScoped ? g.kind.iconName : "server.rack"
             }
@@ -72,7 +76,10 @@ internal struct SettingsView: View {
         HStack(spacing: 0) {
             // Sidebar
             VStack(alignment: .leading, spacing: 0) {
-                sidebarGroup(header: nil, items: [.appearance, .notifications, .x])
+                sidebarGroup(
+                    header: nil,
+                    items: [.appearance, .notifications, .celebrations, .x]
+                )
 
                 Divider().padding(.vertical, 8)
 
@@ -145,9 +152,11 @@ internal struct SettingsView: View {
                 Group {
                     switch selection {
                     case .appearance:
-                        themesSection
+                        appearanceSection
                     case .notifications:
                         notificationsSection
+                    case .celebrations:
+                        CelebrationSettingsSection()
                     case .x:
                         xSection
                     case .gateway(let g):
@@ -260,6 +269,7 @@ internal struct SettingsView: View {
                 TextField("e.g. a1B2c3D4e5F6g7H8i9J0k", text: $xAuth.clientID)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12, design: .monospaced))
+                    .monospaced()
                     .frame(maxWidth: 420)
 
                 HStack(spacing: 8) {
@@ -268,6 +278,7 @@ internal struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Text(XAuthService.redirectURI)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.accent)
                         .textSelection(.enabled)
                 }
@@ -284,16 +295,14 @@ internal struct SettingsView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.success)
                     Button("Sign out") { xAuth.signOut() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                 } else {
                     Button {
                         xAuth.beginSignIn()
                     } label: {
                         Label("Sign in with X", systemImage: "bird")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .portalButton(prominent: true, size: .small)
                     .disabled(xAuth.clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -310,6 +319,22 @@ internal struct SettingsView: View {
     // MARK: - macOS Sections
 
     @State private var showAddGateway = false
+
+    /// Everything about how the app looks, in one pane: palette, buttons,
+    /// toolbar icons, type. These were separate sidebar entries and each one was
+    /// a click away from the others it has to be compared against — the palette
+    /// supplies the colors the button and icon treatments draw with.
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            themesSection
+            Divider()
+            AppFontSettingsSection()
+            Divider()
+            ButtonThemeSettingsSection()
+            Divider()
+            ToolbarIconSettingsSection()
+        }
+    }
 
     private var themesSection: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -464,14 +489,14 @@ private struct GatewayDetailPane: View {
                     }
                     Text(gateway.url)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 Spacer()
                 if !gateway.kind.isSessionScoped, !settings.isActive(gateway) {
                     Button("Make Active") { settings.selectGateway(gateway) }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                 }
                 Button { editingGateway = gateway } label: {
                     Image(systemName: "pencil")
@@ -588,7 +613,7 @@ private struct GatewayDetailPane: View {
                 Button(settings.cfAuthCookie != nil ? "Re-auth" : "Sign In") {
                     showCFAuth = true
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
         }
     }
@@ -729,9 +754,27 @@ extension SettingsView {
                     }
                 }
 
+                Section("Font") {
+                    AppFontSettingsSection(showsHeader: false)
+                }
+
+                Section("Buttons") {
+                    ButtonThemeSettingsSection(showsHeader: false)
+                }
+
+                // No toolbar-icon section here on purpose: the row it configures
+                // is `macOverlayIcons`, which is `#if os(macOS)` at both of its
+                // call sites in `ContentView`. Offering the setting on iOS would
+                // be ten previews of buttons that are not on screen. The stored
+                // values are shared, so a toolbar configured on the Mac stays
+                // configured; there is just nothing here to configure it with.
                 Section("Notifications") {
                     Toggle("Response complete", isOn: $settings.responseCompleteNotificationsEnabled)
                     APNsStatusRow()
+                }
+
+                Section("Celebrations") {
+                    CelebrationSettingsSection(showsHeader: false)
                 }
 
                 Section("Capabilities") {
@@ -784,7 +827,7 @@ internal struct SystemPromptSection: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
             }
 
             if isLoading {
@@ -805,7 +848,7 @@ internal struct SystemPromptSection: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Retry") { Task { await loadPrompt() } }
-                        .buttonStyle(.bordered)
+                        .portalButton()
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 40)
@@ -934,6 +977,7 @@ internal struct SystemPromptSection: View {
                     if !section.source.isEmpty {
                         Text(section.source)
                             .font(.system(size: 9, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }
@@ -948,6 +992,7 @@ internal struct SystemPromptSection: View {
                 ScrollView {
                     Text(section.fullContent.isEmpty ? "(empty)" : section.fullContent)
                         .font(.system(size: 11, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -977,6 +1022,7 @@ internal struct SystemPromptSection: View {
 
             TextEditor(text: $ephemeralPrompt)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .frame(minHeight: 100)
                 .padding(8)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
@@ -998,13 +1044,13 @@ internal struct SystemPromptSection: View {
                     ephemeralPrompt = ""
                     Task { await savePrompt() }
                 }
-                .buttonStyle(.bordered)
+                .portalButton()
                 .disabled(originalEphemeralPrompt.isEmpty && ephemeralPrompt.isEmpty)
 
                 Button("Apply") {
                     Task { await savePrompt() }
                 }
-                .buttonStyle(.borderedProminent)
+                .portalButton(prominent: true)
                 .disabled(ephemeralPrompt == originalEphemeralPrompt)
             }
         }

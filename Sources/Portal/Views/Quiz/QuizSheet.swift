@@ -218,6 +218,7 @@ struct QuizSheet: View {
                 // Letter badge
                 Text(label)
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(labelBadgeColor(isCorrect: isCorrect, isSelected: isSelected, showResult: showResult))
                     .frame(width: 28, height: 28)
                     .background(
@@ -493,6 +494,7 @@ struct QuizSheet: View {
             HStack(spacing: 8) {
                 Text("Your answer: \(item.selected)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(.red)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -500,6 +502,7 @@ struct QuizSheet: View {
 
                 Text("Correct: \(item.question.correct)")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.success)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

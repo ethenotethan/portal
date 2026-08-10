@@ -66,7 +66,7 @@ struct CFAuthView: View {
                                     viewModel.webView?.load(URLRequest(url: url))
                                 }
                             }
-                            .buttonStyle(.bordered)
+                            .portalButton()
                         }
                     }
                 }

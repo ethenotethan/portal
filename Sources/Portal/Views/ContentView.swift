@@ -80,12 +80,21 @@ internal struct ContentView: View {
                     .environmentObject(chatViewModel)
             }
 
-            // Celebration overlay — positive reinforcement effects
-            if celebrationManager.activeCelebration != nil {
-                CelebrationOverlay(
-                    particles: ConfettiParticle.burst(count: 60),
+            // Celebration effects. The EVENT is passed through, not just
+            // tested for nil: this used to render 60 confetti particles
+            // regardless, so a `.milestone(level:message:)` payload — "Skill
+            // unlocked: X" — was computed and thrown away. The style and
+            // particle count come from Settings.
+            if let celebration = celebrationManager.activeCelebration {
+                CelebrationStage(
+                    event: celebration,
+                    preferences: celebrationManager.preferences,
                     onComplete: { celebrationManager.activeCelebration = nil }
                 )
+                // Keyed on the event so a celebration arriving during another
+                // one restarts the stage from beat 0 instead of inheriting the
+                // previous performance's elapsed time and appearing mid-exit.
+                .id(celebration.id)
             }
         }
         // Intercept in-app `hermesnative://` links (e.g. an activity item's
@@ -776,7 +785,7 @@ internal struct ContentView: View {
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(Theme.secondary)
                 Button("Close") { showCentaurWorkflows = false }
-                    .buttonStyle(.bordered)
+                    .portalButton()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -870,8 +879,14 @@ internal struct ContentView: View {
             }
             return "Connected. Click to switch harness."
         }
+        // statusLabel, not a bare "Connecting…": an exhausted retry loop and a
+        // first dial both set isConnecting, and collapsing them here is what
+        // made an endless reconnect look like a connect that never finished.
         if gatewayClientWrapper.isConnecting {
-            return "Connecting…"
+            return gatewayClientWrapper.statusLabel
+        }
+        if let message = gatewayClientWrapper.connectionErrorMessage {
+            return "\(message) Open the menu to retry or switch harness."
         }
         return "Disconnected — open the menu to reconnect or switch harness."
     }
@@ -889,7 +904,7 @@ internal struct ContentView: View {
                 Label("Settings", systemImage: "gearshape")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.settings)
             .keyboardShortcut(",", modifiers: .command)
             .accessibilityLabel("Settings")
 
@@ -900,7 +915,7 @@ internal struct ContentView: View {
                 Label("Sessions", systemImage: "square.grid.2x2")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.sessions)
             .keyboardShortcut("l", modifiers: .command)
             .accessibilityLabel("Sessions")
 
@@ -917,7 +932,7 @@ internal struct ContentView: View {
                     Label("Cron", systemImage: "clock.badge.checkmark")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.cron)
                 .overlay(alignment: .topTrailing) {
                     if cronRunStore.unreadCronRunCount > 0 {
                         Text("\(cronRunStore.unreadCronRunCount)")
@@ -939,8 +954,7 @@ internal struct ContentView: View {
                     Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(Theme.primary)
+                .toolbarIcon(.activity)
                 .accessibilityLabel("Activity")
                 .accessibilityIdentifier("activityInboxButton")
             }
@@ -953,7 +967,7 @@ internal struct ContentView: View {
                     Label("Skills", systemImage: "sparkles")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.skills)
                 .keyboardShortcut("j", modifiers: .command)
                 .accessibilityLabel("Skills")
             }
@@ -966,7 +980,7 @@ internal struct ContentView: View {
                     Label("Feed", systemImage: "newspaper")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.feed)
                 .keyboardShortcut("f", modifiers: .command)
                 .accessibilityLabel("Feed")
 
@@ -977,7 +991,7 @@ internal struct ContentView: View {
                     Label("Learning", systemImage: "books.vertical.fill")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.learning)
                 .keyboardShortcut("e", modifiers: .command)
                 .accessibilityLabel("Learning")
             }
@@ -990,7 +1004,7 @@ internal struct ContentView: View {
                     Label("Wiki", systemImage: "network")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.wiki)
                 .keyboardShortcut("w", modifiers: .command)
                 .accessibilityLabel("Wiki Graph")
             }
@@ -1004,7 +1018,7 @@ internal struct ContentView: View {
                 Label("Artifacts", systemImage: "internaldrive")
                     .labelStyle(.iconOnly)
             }
-            .buttonStyle(.borderless)
+            .toolbarIcon(.artifacts)
             .keyboardShortcut("d", modifiers: .command)
             .accessibilityLabel("Artifacts")
 
@@ -1019,7 +1033,7 @@ internal struct ContentView: View {
                     Label("Workflows", systemImage: "point.3.connected.trianglepath.dotted")
                         .labelStyle(.iconOnly)
                 }
-                .buttonStyle(.borderless)
+                .toolbarIcon(.workflows)
                 .keyboardShortcut("k", modifiers: .command)
                 .accessibilityLabel("Centaur Workflows")
             }
@@ -1576,7 +1590,7 @@ internal struct ContentView: View {
                 )
             }
         }
-        .buttonStyle(.borderedProminent)
+        .portalButton(prominent: true)
         .help(newSessionHelp)
     }
 
@@ -1745,7 +1759,20 @@ spawnTreeStore.subscribe(to: client)
                 // error state that otherwise survives until app restart (#178).
                 gatewayClientWrapper.resetReconnectBudget()
                 Task {
-                    if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
+                    if gatewayClientWrapper.reconnectAttempt != nil {
+                        // Auto-reconnect is already working through its backoff.
+                        // Dialing again here would rebuild the transport with a
+                        // brand-new client whose attempt counter starts at zero,
+                        // so on macOS — where scenePhase flips on mere window
+                        // focus — clicking away and back restarted the retry
+                        // sequence indefinitely and the cap was never reached.
+                        // Let the existing schedule run; it ends in either a
+                        // connection or a terminal error. The outcome is
+                        // deliberately dropped: the retry loop owns what happens
+                        // next either way, and this await exists only to keep the
+                        // task alive while it does.
+                        _ = await gatewayClientWrapper.waitUntilConnected(timeout: 12)
+                    } else if !gatewayClientWrapper.isConnected, !gatewayClientWrapper.isConnecting {
                         await gatewayClientWrapper.connectWithRetry(using: settings)
                     } else if gatewayClientWrapper.isConnecting {
                         // A wedged in-flight connect must not make foregrounding

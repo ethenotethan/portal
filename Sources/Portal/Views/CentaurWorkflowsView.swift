@@ -167,7 +167,7 @@ struct CentaurWorkflowsView: View {
                     .foregroundStyle(Theme.secondary)
                     .multilineTextAlignment(.center)
                 Button("Retry") { Task { await load(initial: true) } }
-                    .buttonStyle(.bordered)
+                    .portalButton()
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -306,6 +306,7 @@ private struct WorkflowGroupRow: View {
                 HStack(spacing: 7) {
                     Text(group.name)
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.primary)
                     if let schedule = group.schedule {
                         Text(schedule.kindLabel)
@@ -458,6 +459,7 @@ private struct RunRow: View {
             if let created = run.createdAt {
                 Text(created.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 11, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
             }
             if let duration = durationLabel {
@@ -479,8 +481,7 @@ private struct RunRow: View {
             Spacer()
             if run.isActive {
                 Button(isCancelling ? "Cancelling…" : "Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .portalButton(size: .small)
                     .disabled(isCancelling)
             }
             Image(systemName: "chevron.right")
@@ -573,6 +574,7 @@ private struct RunDetailSheet: View {
                 .foregroundStyle(Theme.tertiary)
             Text(value)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .textSelection(.enabled)
         }
@@ -586,6 +588,7 @@ private struct RunDetailSheet: View {
             ScrollView {
                 Text(value.displayString)
                     .font(.system(.caption2, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

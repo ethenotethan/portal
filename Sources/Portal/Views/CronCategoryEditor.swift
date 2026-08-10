@@ -109,7 +109,7 @@ internal struct CronCategoryEditor: View {
         if isCompact {
             button.buttonStyle(.borderless)
         } else {
-            button.buttonStyle(.bordered)
+            button.portalButton()
         }
     }
 
@@ -131,6 +131,7 @@ internal struct CronCategoryEditor: View {
                 // user is ready to type, so don't make them click the field.
                 TextField("new/category/path", text: $newCategory)
                     .font(.system(isCompact ? .caption : .callout, design: .monospaced))
+                    .monospaced()
                     .textFieldStyle(.roundedBorder)
                     .focused($newCategoryFocused)
                     .onSubmit(commitMove)
@@ -166,12 +167,10 @@ internal struct CronCategoryEditor: View {
                 Spacer()
 
                 Button("Cancel") { reset() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .portalButton(size: .small)
 
                 Button("Move", action: commitMove)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .portalButton(prominent: true, size: .small)
                     .disabled(!canMove)
             }
         }
@@ -314,6 +313,7 @@ internal struct CronCategoryEditor: View {
         VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
             TextField("life/training/morning-run", text: $editedName)
                 .font(.system(isCompact ? .caption : .body, design: .monospaced))
+                .monospaced()
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(commit)
 
@@ -339,12 +339,10 @@ internal struct CronCategoryEditor: View {
             HStack {
                 Spacer()
                 Button("Cancel") { reset() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .portalButton(size: .small)
 
                 Button("Save", action: commit)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .portalButton(prominent: true, size: .small)
                     .disabled(!CronCategory.isRenameable(editedName, from: name))
             }
         }

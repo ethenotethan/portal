@@ -337,10 +337,12 @@ internal enum ArtifactExporter {
             HStack(spacing: 10) {
                 Text(artifact.kind.uppercased())
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.accent)
                 if artifact.rev > 0 {
                     Text("r\(artifact.rev)")
                         .font(.system(size: 10, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
                 Text("· \(artifact.updatedAt.formatted(date: .abbreviated, time: .shortened))")

@@ -9,6 +9,15 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Settin
 internal final class SettingsViewModel: ObservableObject {
     static let responseCompleteNotificationsKey = "portal.responseCompleteNotificationsEnabled"
     internal static let mlxReasoningKey = "portal.mlxReasoningEnabled"
+    // `nonisolated` so `storedCelebrationPreferences` can read them without the
+    // main actor: the manager needs the stored configuration at its own property
+    // initialization, before any actor context exists.
+    nonisolated internal static let celebrationsEnabledKey = "portal.celebrationsEnabled"
+    nonisolated internal static let celebrationStyleKey = "portal.celebrationStyle"
+    nonisolated internal static let celebrationIntensityKey = "portal.celebrationIntensity"
+    nonisolated internal static let celebrationParticlesKey = "portal.celebrationParticlesEnabled"
+    nonisolated internal static let celebrationSoundKey = "portal.celebrationSoundEnabled"
+    nonisolated internal static let celebrationSoundNameKey = "portal.celebrationSoundName"
 
     @Published var gatewayURL: String {
         didSet {
@@ -120,6 +129,88 @@ internal final class SettingsViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Celebrations
+
+    /// Master switch for celebration effects. On by default — the behavior that
+    /// shipped — but the user gets to turn the positive-reinforcement machinery
+    /// off entirely, which previously required a rebuild.
+    @Published internal var celebrationsEnabled: Bool {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    /// Which effect performs a celebration. Stored as the raw string so an
+    /// unknown value from a newer build degrades to `.confetti` rather than
+    /// failing to decode.
+    @Published internal var celebrationStyle: CelebrationStyle {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    @Published internal var celebrationIntensity: CelebrationIntensity {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    /// The animated particles specifically — separable from the effect so the
+    /// dots can go without losing the rest.
+    @Published internal var celebrationParticlesEnabled: Bool {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    @Published internal var celebrationSoundEnabled: Bool {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    /// Which sound plays. `.random` is the shipped behavior.
+    @Published internal var celebrationSound: CelebrationSound {
+        didSet { persistCelebrationPrefs() }
+    }
+
+    /// The five stored values as one value type, for the manager and the views.
+    internal var celebrationPreferences: CelebrationPreferences {
+        CelebrationPreferences(
+            isEnabled: celebrationsEnabled,
+            style: celebrationStyle,
+            intensity: celebrationIntensity,
+            particlesEnabled: celebrationParticlesEnabled,
+            soundEnabled: celebrationSoundEnabled,
+            sound: celebrationSound
+        )
+    }
+
+    /// One writer for all five, so a change to any of them publishes a single
+    /// coherent `CelebrationPreferences` to the manager. Guarded on
+    /// `didCompleteInit` for the same reason `mlxReasoningEnabled` is: the
+    /// property initializers in `init` fire `didSet`, and writing there would
+    /// persist defaults over stored values before they have all been read.
+    private func persistCelebrationPrefs() {
+        guard didCompleteInit else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(celebrationsEnabled, forKey: Self.celebrationsEnabledKey)
+        defaults.set(celebrationStyle.rawValue, forKey: Self.celebrationStyleKey)
+        defaults.set(celebrationIntensity.rawValue, forKey: Self.celebrationIntensityKey)
+        defaults.set(celebrationParticlesEnabled, forKey: Self.celebrationParticlesKey)
+        defaults.set(celebrationSoundEnabled, forKey: Self.celebrationSoundKey)
+        defaults.set(celebrationSound.rawValue, forKey: Self.celebrationSoundNameKey)
+        CelebrationManager.shared.apply(celebrationPreferences)
+    }
+
+    /// Read the persisted celebration configuration without constructing a
+    /// `SettingsViewModel` — whose `init` reads the Keychain and whose property
+    /// `didSet`s write to it. Tests and the manager's own startup use this.
+    nonisolated internal static func storedCelebrationPreferences(
+        _ defaults: UserDefaults = .standard
+    ) -> CelebrationPreferences {
+        CelebrationPreferences(
+            isEnabled: defaults.object(forKey: celebrationsEnabledKey) as? Bool ?? true,
+            style: CelebrationStyle(storedValue: defaults.string(forKey: celebrationStyleKey)),
+            intensity: CelebrationIntensity(
+                storedValue: defaults.string(forKey: celebrationIntensityKey)
+            ),
+            particlesEnabled: defaults.object(forKey: celebrationParticlesKey) as? Bool ?? true,
+            soundEnabled: defaults.object(forKey: celebrationSoundKey) as? Bool ?? true,
+            sound: CelebrationSound(storedValue: defaults.string(forKey: celebrationSoundNameKey))
+        )
+    }
+
     /// Set at init when the Keychain holds harness data it refused to hand over
     /// (`errSecAuthFailed`, `errSecInteractionNotAllowed`, a corrupt blob…).
     ///
@@ -219,6 +310,14 @@ internal final class SettingsViewModel: ObservableObject {
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
         self.mlxReasoningEnabled = UserDefaults.standard.bool(forKey: Self.mlxReasoningKey)
 
+        let celebrations = Self.storedCelebrationPreferences()
+        self.celebrationsEnabled = celebrations.isEnabled
+        self.celebrationStyle = celebrations.style
+        self.celebrationIntensity = celebrations.intensity
+        self.celebrationParticlesEnabled = celebrations.particlesEnabled
+        self.celebrationSoundEnabled = celebrations.soundEnabled
+        self.celebrationSound = celebrations.sound
+
         let onboarded = UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
             || (savedURL != nil && savedURL != Constants.defaultGatewayURL)
         self.isConfigured = onboarded || (isUITest && !(uiTestGatewayURL?.isEmpty ?? true))
@@ -275,6 +374,10 @@ internal final class SettingsViewModel: ObservableObject {
         // (no-op when they already agree). Covers entries left stale by
         // crashes mid-switch or by edits that predate name/url syncing.
         syncActiveGateway()
+        // The manager decides whether to celebrate before any view is on
+        // screen, so it needs the stored configuration at startup rather than
+        // on the first toggle.
+        CelebrationManager.shared.apply(celebrations)
 
         if isUITest {
             log.info("UITest settings gatewayURL=\(self.gatewayURL) apiKeySet=\(!self.apiKey.isEmpty)")

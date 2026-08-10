@@ -258,6 +258,7 @@ struct SkillsView: View {
                 ScrollView {
                     Text(diag)
                         .font(.system(.caption, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.secondary)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -276,8 +277,7 @@ struct SkillsView: View {
             Text(title)
                 .font(.caption)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
+        .portalButton(size: .small)
     }
 
     private func skillCategoryGroup(category: String, skills: [SkillInfo]) -> some View {
@@ -426,6 +426,7 @@ struct SkillCard: View {
                         if skill.description.isEmpty {
                             Text("No description available")
                                 .font(.system(.caption, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.tertiary)
                                 .italic()
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -442,8 +443,7 @@ struct SkillCard: View {
                                 Label("Edit Markdown", systemImage: "doc.text")
                                     .font(.caption)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .portalButton(size: .small)
                         }
                         if let dir = skill.skillDir {
                             detailRow("Directory", value: dir)
@@ -670,14 +670,12 @@ struct SkillCard: View {
                 Button("Confirm Uninstall", role: .destructive) {
                     onUninstall()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small, tint: .red)
 
                 Button("Cancel") {
                     onCancelUninstall()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
             } else {
                 Button(role: .destructive) {
                     onUninstall()
@@ -685,8 +683,7 @@ struct SkillCard: View {
                     Label("Uninstall", systemImage: "trash")
                         .font(.caption)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small, tint: .red)
             }
         }
     }
@@ -735,7 +732,7 @@ private struct SkillMarkdownSheet: View {
                             .font(.caption).foregroundStyle(Theme.tertiary)
                             .multilineTextAlignment(.center).frame(maxWidth: 320)
                         Button("Retry") { Task { await loadMarkdown() } }
-                            .buttonStyle(.bordered).controlSize(.small)
+                            .portalButton(size: .small)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if content.isEmpty {
@@ -769,6 +766,7 @@ private struct SkillMarkdownSheet: View {
                                 .padding(.bottom, 6)
                             TextEditor(text: $content)
                                 .font(.system(.body, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.primary)
                                 .padding(8)
                                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
@@ -890,8 +888,7 @@ private struct HubResultRow: View {
                 Button("Install") {
                     onInstall()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .font(.caption)
             }
         }

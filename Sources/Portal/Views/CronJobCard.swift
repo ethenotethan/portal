@@ -300,6 +300,7 @@ internal struct CronJobCard: View {
                         .foregroundStyle(.red)
                     Text(err)
                         .font(.system(.caption2, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.red.opacity(0.9))
                         .lineLimit(3)
                         .textSelection(.enabled)
@@ -373,6 +374,7 @@ internal struct CronJobCard: View {
             } else if promptText == "No prompt available" {
                 Text(promptText)
                     .font(.system(.caption, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -389,6 +391,7 @@ internal struct CronJobCard: View {
         VStack(spacing: 8) {
             TextEditor(text: $editedPrompt)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .scrollContentBackground(.hidden)
                 .background(Theme.background)
@@ -404,15 +407,13 @@ internal struct CronJobCard: View {
                 Button("Cancel") {
                     isEditingPrompt = false
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
 
                 Button("Save") {
                     onUpdatePrompt(editedPrompt)
                     isEditingPrompt = false
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .disabled(editedPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -433,16 +434,14 @@ internal struct CronJobCard: View {
                 } label: {
                     Label("Resume", systemImage: "play.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
             } else {
                 Button {
                     onPause()
                 } label: {
                     Label("Pause", systemImage: "pause.fill")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .portalButton(size: .small)
             }
 
             Button(role: .destructive) {
@@ -450,8 +449,7 @@ internal struct CronJobCard: View {
             } label: {
                 Label("Remove", systemImage: "trash")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .portalButton(size: .small, tint: .red)
         }
     }
 

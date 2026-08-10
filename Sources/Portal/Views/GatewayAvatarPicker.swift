@@ -40,8 +40,7 @@ internal struct GatewayAvatarPicker: View {
 
                 HStack(spacing: 8) {
                     Button("Upload…") { showImporter = true }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                     if gateway.avatarImagePath != nil {
                         Button("Reset") { resetAvatar() }
                             .buttonStyle(.borderless)

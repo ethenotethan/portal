@@ -21,20 +21,20 @@ struct WikiPathPickerSheet: View {
                     Button("Cancel", role: .cancel) {
                         dismiss()
                     }
-                    .buttonStyle(.bordered)
+                    .portalButton()
 
                     Button("Load Default") {
                         onSelect(nil)
                         dismiss()
                     }
-                    .buttonStyle(.bordered)
+                    .portalButton()
 
                     Button("Load Custom") {
                         let path = customPath.trimmingCharacters(in: .whitespaces)
                         onSelect(path.isEmpty ? nil : path)
                         dismiss()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .portalButton(prominent: true)
                     .disabled(customPath.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(.horizontal)

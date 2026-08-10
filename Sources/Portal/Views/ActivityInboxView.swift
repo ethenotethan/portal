@@ -193,7 +193,7 @@ private struct ActivityDetailView: View {
                     } label: {
                         Label("Open Session", systemImage: "bubble.left.and.bubble.right")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .portalButton(prominent: true)
                 }
 
                 if !item.artifacts.isEmpty {
@@ -302,6 +302,7 @@ private struct ActivityArtifactView: View {
                     ScrollView {
                         Text(artifact.content ?? "")
                             .font(.system(.body, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.primary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)

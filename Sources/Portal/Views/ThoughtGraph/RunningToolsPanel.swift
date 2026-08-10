@@ -48,6 +48,7 @@ internal struct RunningToolsPanel: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(node.name)
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(node.category.color)
                 if let sub = subtitle(node) {
                     Text(sub)
@@ -61,6 +62,7 @@ internal struct RunningToolsPanel: View {
             if let secs = node.durationSeconds, node.isComplete {
                 Text(format(secs))
                     .font(.system(size: 10, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
             }
         }

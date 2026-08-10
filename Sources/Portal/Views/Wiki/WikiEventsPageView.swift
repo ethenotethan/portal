@@ -391,7 +391,7 @@ struct WikiEventsPageView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             Button("Retry") { Task { await load() } }
-                .buttonStyle(.bordered)
+                .portalButton()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -199,11 +199,67 @@ internal final class ThemeManager: ObservableObject {
     nonisolated(unsafe) internal static let shared = ThemeManager()
 
     private static let storageKey = "portal.activeTheme"
+    internal static let buttonStorageKey = "portal.buttonTheme"
+    internal static let fontStorageKey = "portal.appFont"
+    internal static let toolbarIconStorageKey = "portal.toolbarIconTheme"
+    internal static let toolbarIconTintStorageKey = "portal.toolbarIconTint"
+    internal static let toolbarIconOverrideStorageKey = "portal.toolbarIconOverrides"
 
     @Published internal var current: AppTheme {
         didSet {
             UserDefaults.standard.set(current.id, forKey: Self.storageKey)
             rebuildColors()
+        }
+    }
+
+    /// Button treatment, stored alongside the palette because both are "how the
+    /// app looks" and both need to be readable before any view exists. Kept as a
+    /// separate axis: it carries geometry and emphasis only and takes its colors
+    /// from `current`, so the two compose instead of multiplying into one preset
+    /// list per combination.
+    @Published internal var buttonTheme: ButtonTheme {
+        didSet {
+            UserDefaults.standard.set(buttonTheme.rawValue, forKey: Self.buttonStorageKey)
+        }
+    }
+
+    /// The app's typeface. A fourth axis for the same reason as the others: it
+    /// carries letterforms only, and every size, weight, and color still comes
+    /// from the call site and the palette.
+    @Published internal var appFont: AppFontTheme {
+        didSet {
+            UserDefaults.standard.set(appFont.rawValue, forKey: Self.fontStorageKey)
+        }
+    }
+
+    /// Collective treatment for the top-right chrome icons. A third axis for the
+    /// same reason as `buttonTheme`: those buttons are icon-only and sit on the
+    /// window background, so the label-and-footprint geometry of a `ButtonTheme`
+    /// does not describe them.
+    @Published internal var toolbarIconTheme: ToolbarIconTreatment {
+        didSet {
+            UserDefaults.standard.set(toolbarIconTheme.rawValue, forKey: Self.toolbarIconStorageKey)
+        }
+    }
+
+    /// Collective color for the same icons, kept separate from the treatment so
+    /// "all amber" and "all outlined" are two choices rather than a matrix of
+    /// treatment-and-color presets.
+    @Published internal var toolbarIconTint: ToolbarIconTint {
+        didSet {
+            UserDefaults.standard.set(toolbarIconTint.rawValue, forKey: Self.toolbarIconTintStorageKey)
+        }
+    }
+
+    /// Per-button deviations from `toolbarIconTheme`. One blob rather than a key
+    /// per slot: the settings pane reads all ten together on every render, and a
+    /// partially-written set of keys would show a toolbar no one chose.
+    @Published internal var toolbarIconOverrides: ToolbarIconOverrides {
+        didSet {
+            UserDefaults.standard.set(
+                toolbarIconOverrides.encoded(),
+                forKey: Self.toolbarIconOverrideStorageKey
+            )
         }
     }
 
@@ -216,10 +272,76 @@ internal final class ThemeManager: ObservableObject {
         let selected = AppTheme.allCases.first { $0.id == savedID } ?? .midnight
         self.current = selected
         self.colors = ThemeColors(theme: selected)
+        self.buttonTheme = ButtonTheme(
+            storedValue: UserDefaults.standard.string(forKey: Self.buttonStorageKey)
+        )
+        self.appFont = AppFontTheme(
+            storedValue: UserDefaults.standard.string(forKey: Self.fontStorageKey)
+        )
+        self.toolbarIconTheme = ToolbarIconTreatment(
+            storedValue: UserDefaults.standard.string(forKey: Self.toolbarIconStorageKey)
+        )
+        self.toolbarIconTint = ToolbarIconTint(
+            storedValue: UserDefaults.standard.string(forKey: Self.toolbarIconTintStorageKey)
+        )
+        self.toolbarIconOverrides = ToolbarIconOverrides.decode(
+            from: UserDefaults.standard.data(forKey: Self.toolbarIconOverrideStorageKey)
+        )
     }
 
     internal func select(_ theme: AppTheme) {
         current = theme
+    }
+
+    internal func select(buttonTheme theme: ButtonTheme) {
+        buttonTheme = theme
+    }
+
+    internal func select(appFont theme: AppFontTheme) {
+        appFont = theme
+    }
+
+    internal func select(toolbarIconTheme theme: ToolbarIconTreatment) {
+        toolbarIconTheme = theme
+    }
+
+    internal func select(toolbarIconTint tint: ToolbarIconTint) {
+        toolbarIconTint = tint
+    }
+
+    /// What `slot` should draw right now. The single read path for both the
+    /// toolbar and the settings previews, so the two cannot disagree.
+    internal func toolbarIconAppearance(for slot: ToolbarIconSlot) -> ToolbarIconAppearance {
+        toolbarIconOverrides.resolve(
+            slot,
+            treatment: toolbarIconTheme,
+            tint: toolbarIconTint
+        )
+    }
+
+    /// `nil` returns the slot to the collective theme.
+    internal func setToolbarIcon(treatment: ToolbarIconTreatment?, for slot: ToolbarIconSlot) {
+        var updated = toolbarIconOverrides
+        updated.setTreatment(treatment, for: slot)
+        toolbarIconOverrides = updated
+    }
+
+    internal func setToolbarIcon(tint: ToolbarIconTint?, for slot: ToolbarIconSlot) {
+        var updated = toolbarIconOverrides
+        updated.setTint(tint, for: slot)
+        toolbarIconOverrides = updated
+    }
+
+    internal func resetToolbarIcon(_ slot: ToolbarIconSlot) {
+        var updated = toolbarIconOverrides
+        updated.reset(slot)
+        toolbarIconOverrides = updated
+    }
+
+    internal func resetAllToolbarIcons() {
+        var updated = toolbarIconOverrides
+        updated.resetAll()
+        toolbarIconOverrides = updated
     }
 
     private func rebuildColors() {

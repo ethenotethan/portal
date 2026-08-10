@@ -67,7 +67,10 @@ internal struct PortalMenuBarContent: View {
 
     private var connectionLabel: String {
         if gateway.isConnected { return "Connected" }
-        if gateway.isConnecting { return "Connecting…" }
+        // Shared label so a reconnect loop reads as one, with its attempt count,
+        // instead of an indefinite "Connecting…".
+        if gateway.isConnecting { return gateway.statusLabel }
+        if gateway.connectionErrorMessage != nil { return "Can't connect" }
         return "Offline"
     }
 

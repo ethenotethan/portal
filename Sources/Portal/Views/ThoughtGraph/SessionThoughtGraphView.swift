@@ -359,6 +359,7 @@ internal struct SessionThoughtGraphView: View {
             HStack(spacing: 8) {
                 Text("Turn \(turn.index)")
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.accent)
                 if selectedTurnIsLive {
                     TurnLiveBadge()
@@ -444,6 +445,7 @@ internal struct SessionThoughtGraphView: View {
             HStack(spacing: 6) {
                 Text("Turn \(turn.index)")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(isSelected ? Theme.accent : Theme.primary)
                 if isLive {
                     Circle()
@@ -454,6 +456,7 @@ internal struct SessionThoughtGraphView: View {
                 Spacer()
                 Text("\(turn.toolCount)")
                     .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                 if turn.toolsOnly {
                     Image(systemName: "square.dashed")

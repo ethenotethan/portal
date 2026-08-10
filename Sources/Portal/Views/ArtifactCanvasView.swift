@@ -163,9 +163,7 @@ internal struct ArtifactCanvasView: View {
                 Button(isEditing ? "Done" : "Edit") {
                     isEditing.toggle()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(isEditing ? Theme.accent : nil)
+                .portalButton(size: .small, tint: isEditing ? Theme.accent : nil)
                 .help(isEditing ? "Lock layout — enable scroll/click inside panels" : "Edit layout — drag and resize panels")
             }
 
@@ -270,6 +268,7 @@ internal struct ArtifactCanvasView: View {
                 if artifact.rev > 0 {
                     Text("r\(artifact.rev)")
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
             }
@@ -579,6 +578,7 @@ private struct ArtifactPanelContent: View {
             if artifact.rev > 0 {
                 Text("r\(artifact.rev)")
                     .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
             }
             Text(artifact.updatedAt.formatted(.relative(presentation: .named)))
@@ -649,6 +649,7 @@ private struct ArtifactPanelContent: View {
             if artifact.rev > 0 {
                 Text("r\(artifact.rev)")
                     .font(.system(size: 9, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
             }
 

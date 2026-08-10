@@ -45,6 +45,10 @@ internal struct ExportTableView: View {
             baseColor: isHeader ? Theme.accent : nil,
             baseFont: isHeader ? .system(size: 11, weight: .bold, design: .monospaced) : .system(size: 12)
         )
+        // See the note on the same pattern in `MarkdownContentView.tableCell`: a
+        // root `.fontDesign` overrides the design carried on a `Font` value, so
+        // the header re-asserts itself at the view level.
+        .monospaced(isHeader)
         .multilineTextAlignment(.leading)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
@@ -70,10 +74,12 @@ internal struct ExportCodeText: View {
             if !language.isEmpty {
                 Text(language)
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
             }
             Text(code)
                 .font(.system(size: 11, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -120,6 +120,7 @@ private struct FileTreeRow: View {
                 if node.touchCount > 1 {
                     Text("×\(node.touchCount)")
                         .font(.system(size: 8, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
             }

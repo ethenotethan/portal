@@ -54,8 +54,7 @@ struct DiagramExplorerView: View {
             Button("Done") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .portalButton(prominent: true, size: .small)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

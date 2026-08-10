@@ -159,6 +159,7 @@ private struct DarkMangaThinkingBlock: View {
             if isExpanded {
                 Text(reasoning)
                     .font(.system(size: 12, design: .monospaced))
+                    .monospaced()
                     .italic()
                     .foregroundStyle(Theme.secondary)
                     .padding(.leading, 10)
@@ -219,6 +220,7 @@ private struct DarkMangaStreamingIndicator: View {
                                 .foregroundStyle(Theme.accent)
                             Text(tool.name)
                                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .monospaced()
                                 .foregroundStyle(Theme.primary)
                             Text(tool.context ?? tool.name)
                                 .font(.system(size: 11))
@@ -277,6 +279,7 @@ private struct StreamingBrailleSpinner: View {
     var body: some View {
         Text(frames[frame % frames.count])
             .font(.system(size: 12, design: .monospaced))
+            .monospaced()
             .foregroundStyle(Theme.accent)
             .onReceive(timer) { _ in
                 frame = (frame + 1) % frames.count

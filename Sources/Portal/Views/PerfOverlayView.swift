@@ -51,6 +51,11 @@ struct PerfOverlayView: View {
                 }
             }
             .padding(8)
+            // The whole overlay, once: every row is a fixed-width column of
+            // numbers, and the selected app typeface would override the
+            // `design: .monospaced` written at each site and make them jitter as
+            // the values change.
+            .monospaced()
             .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.15), lineWidth: 0.5))
             .offset(x: accumulated.width + offset.width, y: accumulated.height + offset.height)

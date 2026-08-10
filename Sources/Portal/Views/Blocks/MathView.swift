@@ -66,6 +66,7 @@ private struct TypesetTeX: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(tex)
                     .font(.system(size: 13, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
                 Text(parseError)

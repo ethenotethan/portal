@@ -123,6 +123,7 @@ private struct StreamingPlainTextView: View {
     var body: some View {
         Text(text)
             .font(.system(.body, design: .monospaced))
+            .monospaced()
             .foregroundStyle(Theme.primary)
             .textSelection(.enabled)
             .lineSpacing(3)

@@ -59,6 +59,7 @@ internal struct TurnSkillsLens: View {
             Spacer(minLength: 0)
             Text("\(skills.count)")
                 .font(.system(size: 9, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
         }
     }
@@ -71,6 +72,7 @@ internal struct TurnSkillsLens: View {
                     .frame(width: 5, height: 5)
                 Text(category.uppercased())
                     .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .lineLimit(1)
             }

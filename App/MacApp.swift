@@ -34,6 +34,11 @@ struct PortalAppMac: App {
                 .environmentObject(xAuth)
                 .background(MacWindowConfigurator())
                 .perfOverlay()
+                // Applied per scene root rather than once: SwiftUI scenes are
+                // siblings, so a modifier on one does not reach the others, and
+                // the settings window is exactly where the user is looking when
+                // they change this.
+                .portalAppFont()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 900, height: 700)
@@ -49,6 +54,7 @@ struct PortalAppMac: App {
                 .environmentObject(personaManager)
                 .environmentObject(capabilitiesStore)
                 .environmentObject(gatewayClientWrapper)
+                .portalAppFont()
         }
 
         // A menu-bar item that stays reachable when every window is closed
@@ -60,7 +66,11 @@ struct PortalAppMac: App {
                 gateway: gatewayClientWrapper,
                 personaManager: personaManager
             )
+            .portalAppFont()
         } label: {
+            // Not the label: that is a menu-bar glyph rendered by the system
+            // next to the OS's own items, and restyling it makes Portal the odd
+            // one out in the menu bar.
             PortalMenuBarLabel()
         }
         .menuBarExtraStyle(.window)

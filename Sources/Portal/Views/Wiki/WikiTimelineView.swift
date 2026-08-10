@@ -348,7 +348,7 @@ struct WikiTimelineView: View {
             Button("Retry") {
                 Task { await viewModel.reload(client: gatewayClientWrapper.client) }
             }
-            .buttonStyle(.bordered)
+            .portalButton()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -477,6 +477,7 @@ private struct WikiChangesetRow: View {
                                 .foregroundStyle(Theme.warning)
                         }
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .monospaced()
                     }
 
                     if !changeset.gitCommit.isEmpty {
@@ -486,6 +487,7 @@ private struct WikiChangesetRow: View {
                     if showPage {
                         Text(changeset.page)
                             .font(.system(size: 10, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.tertiary)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -594,6 +596,7 @@ private struct WikiChangesetRow: View {
     private func provenanceChipBody(_ ref: WikiEventRef, tint: Color) -> some View {
         Text(ref.shortLabel)
             .font(.system(size: 10, design: .monospaced))
+            .monospaced()
             .lineLimit(1)
             .truncationMode(.middle)
             .foregroundStyle(tint)

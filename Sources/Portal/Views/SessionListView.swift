@@ -80,8 +80,7 @@ struct SessionListView: View {
                                         Button("Start First Chat") {
                                             onCreateSession?()
                                         }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
+                                        .portalButton(prominent: true, size: .small)
                                         .accessibilityIdentifier("startNewChatButton")
                                     }
                                     .frame(maxWidth: .infinity, alignment: .center)

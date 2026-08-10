@@ -30,6 +30,7 @@ struct ToolTrailView: View {
                     TreeBranch(isLast: tools.isEmpty && !isStreaming) {
                         Text(reasoning)
                             .font(.system(.caption, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                             .padding(.trailing, 8)
@@ -120,6 +121,7 @@ struct ToolRow: View {
                             ForEach(findings, id: \.self) { finding in
                                 Text("• \(finding)")
                                     .font(.system(.caption2, design: .monospaced))
+                                    .monospaced()
                                     .foregroundStyle(.secondary)
                                     .textSelection(.enabled)
                             }
@@ -159,6 +161,7 @@ struct ToolRow: View {
                         ScrollView {
                             Text(diff)
                                 .font(.system(.caption2, design: .monospaced))
+                                .monospaced()
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -224,6 +227,7 @@ struct TreeBranch<Content: View>: View {
             // Tree rail
             Text(isLast ? "└─ " : "├─ ")
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(.quaternary)
                 .frame(width: 28, alignment: .leading)
 
@@ -255,10 +259,12 @@ struct ChevronRow: View {
                 Text(isExpanded ? "▾ " : "▸ ")
                     .foregroundStyle(accentColor)
                     .font(.system(.caption, design: .monospaced))
+                    .monospaced()
 
                 if spinner {
                     Text(spinnerFrames[spinnerFrame % spinnerFrames.count])
                         .font(.system(.caption, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(accentColor)
                         .onReceive(timer) { _ in
                             spinnerFrame = (spinnerFrame + 1) % spinnerFrames.count

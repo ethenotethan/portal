@@ -135,6 +135,7 @@ internal struct WikiPageEditorView: View {
             // Markdown body
             TextEditor(text: $bodyText)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 10)
@@ -164,8 +165,7 @@ internal struct WikiPageEditorView: View {
                         Text(isSaving ? "Saving…" : "Save")
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .portalButton(prominent: true, size: .small)
                 .disabled(isSaving || !isDirty || title.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.horizontal, 14)

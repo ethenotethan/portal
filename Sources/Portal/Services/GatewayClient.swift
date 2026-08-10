@@ -251,6 +251,25 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     static let maxReconnectAttempts: Int = 10
     private var isIntentionalDisconnect = false
 
+    /// True once a socket has actually opened since the reconnect budget was
+    /// last granted. This is what makes `resetReconnectBudget` safe.
+    ///
+    /// #178 made every foreground and every explicit connect grant a fresh
+    /// budget so "max retries exceeded" was never a dead end. But the grant was
+    /// unconditional, so against a host that is simply unreachable the cap could
+    /// never be reached: each reset put `reconnectAttempt` back to 0 and the
+    /// client cycled at the 30s ceiling forever. On macOS `scenePhase` flips on
+    /// window focus, so clicking away and back was enough to re-arm it. Every
+    /// one of those attempts published `.reconnecting`, which the wrapper
+    /// collapsed into `isConnecting` — so an endless loop read as a permanent
+    /// "Connecting…", the "it never actually opens" report.
+    ///
+    /// Gating the reset on a real success keeps #178's fix for the case it was
+    /// written for (a flaky link that does come back, so each recovery earns the
+    /// next budget) while letting a genuinely dead address exhaust its attempts
+    /// once and stop with an error the user can act on.
+    internal private(set) var hasConnectedSinceBudgetGrant = false
+
     // MARK: - Session Resume
 
     /// The session key from the last session.create — used to resume on reconnect.
@@ -397,6 +416,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         isIntentionalDisconnect = false
         reconnectAttempt = 0
         isReconnectScheduled = false
+        // A fresh dial has earned nothing yet — the next grant must wait for
+        // this attempt to actually open, or the cap becomes unreachable again.
+        hasConnectedSinceBudgetGrant = false
         connectionState = .connecting
         refreshDebugSnapshot()
         recordDebugEvent(.state, name: "connect", detail: "opening")
@@ -427,7 +449,23 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// client in a terminal `.error` state and nothing ever reconnects until
     /// process restart. Called on app foreground and on explicit user
     /// connection requests so "max retries exceeded" is never a dead end (#178).
-    func resetReconnectBudget() {
+    ///
+    /// The grant is **success-gated**: it only applies if a socket has opened
+    /// since the last grant (see `hasConnectedSinceBudgetGrant`). Without that
+    /// condition an unreachable harness never reaches the cap, because ambient
+    /// triggers — macOS window focus, every `connectIfNeeded` — kept zeroing the
+    /// counter, and the client retried at the 30s ceiling indefinitely while the
+    /// UI showed a motionless "Connecting…".
+    ///
+    /// A user asking to connect *again* is a different signal from the window
+    /// regaining focus, so an explicit retry passes `force: true` to get the old
+    /// unconditional behavior.
+    internal func resetReconnectBudget(force: Bool = false) {
+        guard force || hasConnectedSinceBudgetGrant else {
+            log.debug("resetReconnectBudget ignored — no successful connection since the last grant")
+            return
+        }
+        hasConnectedSinceBudgetGrant = false
         guard reconnectAttempt != 0 else { return }
         reconnectAttempt = 0
         refreshDebugSnapshot()
@@ -439,9 +477,30 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         refreshDebugSnapshot()
     }
 
+    /// Test seam: enter `.connecting` without dialing, so the "socket never
+    /// opened" failure path can be exercised against no server.
+    internal func beginConnectingForTesting() {
+        connectionState = .connecting
+        refreshDebugSnapshot()
+    }
+
+    /// Test seam: stand in for a socket having opened. The real flag is only set
+    /// from the `didOpenWithProtocol` delegate callback, which needs a live
+    /// server — so the success-gated reset is otherwise untestable.
+    internal func markConnectedForTesting() {
+        hasConnectedSinceBudgetGrant = true
+    }
+
     /// Test seam: run the disconnect/backoff state machine without a socket.
     func handleDisconnectForTesting(reason: String) {
         handleDisconnect(reason: reason)
+    }
+
+    /// Test seam: stand in for the armed backoff timer firing. `openWebSocket`
+    /// clears this flag when the scheduled attempt begins; without it a test
+    /// walking several attempts is deduped down to one.
+    internal func clearReconnectScheduleForTesting() {
+        isReconnectScheduled = false
     }
 
     /// /health on the gateway's own scheme+host+PORT. Dropping the port sent
@@ -737,8 +796,16 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         guard !isReconnectScheduled else { return }
 
         if reconnectAttempt >= Self.maxReconnectAttempts {
-            onLog?("✗ Max reconnect attempts reached", true)
-            connectionState = .error("Connection lost: \(reason). Max retries exceeded.")
+            onLog?("✗ Gave up after \(Self.maxReconnectAttempts) attempts — \(reason)", true)
+            // Terminal, and now genuinely reachable: with the budget grant
+            // success-gated, ambient triggers no longer silently re-arm the
+            // loop, so this state persists until the user retries. Name the
+            // address — the usual cause is a harness that isn't listening or
+            // isn't routable, not a transient blip.
+            connectionState = .error(
+                "Can't reach \(gatewayURL.host ?? "the harness") after "
+                    + "\(Self.maxReconnectAttempts) attempts. \(reason)"
+            )
             return
         }
 
@@ -874,6 +941,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     internal func forceReconnectAndWait(timeout: Double) async {
         reconnectAttempt = 0
         isReconnectScheduled = false
+        hasConnectedSinceBudgetGrant = false
         reconnectTask?.cancel()
         reconnectTask = nil
         openWebSocket()
@@ -2075,14 +2143,19 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         } catch {
             log.debug("receiveLoop error: \(error)")
             switch connectionState {
-            case .connecting:
-                connectionState = .error(error.localizedDescription)
-            case .connected, .reconnecting:
+            case .connecting, .connected, .reconnecting:
                 let nsError = error as NSError
                 if nsError.domain == NSPOSIXErrorDomain && nsError.code == 57 {
                     log.debug("receiveLoop ended after socket close; waiting for delegate close")
                     return
                 }
+                // `.connecting` used to be special-cased into a bare `.error`
+                // with no retry scheduled, which left a failed FIRST connect
+                // permanently dead — the case that matters most, since a
+                // harness that isn't up yet is exactly when you want a retry.
+                // It now takes the same path as a drop from `.connected`;
+                // handleDisconnect owns the terminal-vs-retry decision and
+                // dedupes the several signals one dead socket emits.
                 handleDisconnect(reason: error.localizedDescription)
             default:
                 break
@@ -2244,6 +2317,23 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
                     connectionState = .error("Server rejected connection (\(code): \(description))")
                     return
                 }
+
+                // Every other failure — notably -1004 (cannot connect) and
+                // -1001 (timed out), the two an unreachable or non-listening
+                // harness produces — is transient, so hand it to the reconnect
+                // state machine.
+                //
+                // This handler used to just log and return. The client was left
+                // in `.error` with reconnectAttempt=0 and NOTHING scheduled a
+                // retry: `connect()` only auto-reconnects after a socket has
+                // opened, and this was the socket failing to open. Measured
+                // against an unreachable host, the client sat at
+                // `.error("Could not connect to the server.")` forever. The UI
+                // read that as "Connecting…" because the wrapper's connectTask
+                // was still awaiting, holding `isConnecting` true — the actual
+                // "hangs on Connecting" bug, upstream of the backoff loop and
+                // the wait-timeout race both.
+                handleDisconnect(reason: description)
             }
         }
     }
@@ -2258,6 +2348,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             onLog?("✓ WebSocket connected", false)
             connectionState = .connected
             reconnectAttempt = 0
+            // The one place a budget grant is earned: the socket really opened,
+            // so a later drop deserves a full set of retries.
+            hasConnectedSinceBudgetGrant = true
             recordDebugEvent(.state, name: "websocket.open", detail: "connected")
 
             // Start keepalive pings

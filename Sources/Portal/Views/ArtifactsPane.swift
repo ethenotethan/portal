@@ -193,6 +193,7 @@ struct ArtifactsPane: View {
                 if artifact.rev > 0 {
                     Text("r\(artifact.rev)")
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
             }
@@ -284,6 +285,7 @@ internal struct ArtifactDetailView: View {
                 if horizontalSizeClass != .compact {
                     Text(artifact.id)
                         .font(.system(size: 10, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
             }
@@ -382,7 +384,7 @@ private struct ArtifactHistoryView: View {
                         .font(.caption)
                         .foregroundStyle(Theme.secondary)
                     Button("Retry") { Task { await load() } }
-                        .buttonStyle(.bordered)
+                        .portalButton()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if revisions.isEmpty {
@@ -424,6 +426,7 @@ private struct ArtifactHistoryView: View {
             HStack(spacing: 6) {
                 Text("r\(revision.rev)")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(isCurrent ? Theme.accent : Theme.primary)
                 if isCurrent {
                     Text("current")
@@ -487,8 +490,7 @@ private struct ArtifactHistoryView: View {
                         Button(isRestoring ? "Restoring…" : "Restore this revision") {
                             Task { await restore(revision) }
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .portalButton(size: .small)
                         .disabled(isRestoring || selectedContent == nil)
                     }
                 }

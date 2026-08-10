@@ -17,12 +17,15 @@ struct GitHubLinkCard: View {
                     HStack(spacing: 6) {
                         Text(link.owner)
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.secondary)
                         Text("/")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.tertiary)
                         Text(link.repo)
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(Theme.primary)
                     }
                     .lineLimit(1)

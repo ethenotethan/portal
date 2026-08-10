@@ -62,6 +62,7 @@ internal struct ArtifactExpandedOverlay: View {
             if artifact.rev > 0 {
                 Text("r\(artifact.rev)")
                     .font(.system(size: 10, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
             }
             Spacer()

@@ -27,6 +27,7 @@ struct AttachmentChipView: View {
 
                     Text(attachment.fileExtension.uppercased())
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.tertiary)
                 }
 
@@ -115,6 +116,7 @@ struct AttachmentChipView: View {
             if let progress = attachment.downloadProgress {
                 Text("\(Int(progress * 100))%")
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.accent)
             } else {
                 Image(systemName: "arrow.down.circle")
@@ -414,6 +416,7 @@ internal struct AudioPreview: View {
                 if let player {
                     Text(formatTime(player.duration))
                         .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(Theme.secondary)
 
                     ProgressView(value: progress, total: 1.0)
@@ -715,7 +718,7 @@ struct FallbackPreview: View {
                     UIApplication.shared.open(url)
                     #endif
                 }
-                .buttonStyle(.borderedProminent)
+                .portalButton(prominent: true)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -731,6 +734,7 @@ struct TextFilePreview: View {
         ScrollView([.vertical, .horizontal]) {
             Text(text)
                 .font(.system(size: 12, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.primary)
                 .textSelection(.enabled)
                 .padding(16)

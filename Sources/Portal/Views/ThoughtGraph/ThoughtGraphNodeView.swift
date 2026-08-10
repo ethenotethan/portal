@@ -77,6 +77,7 @@ struct ThoughtGraphNodeView: View {
         } else if node.isAgent, let model = node.modelName, !model.isEmpty {
             Text(shortModelName(model))
                 .font(.system(size: 8, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.agentAccent.opacity(0.9))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
@@ -97,11 +98,13 @@ struct ThoughtGraphNodeView: View {
             if collapsedStepCount != nil {
                 Text("loop collapsed")
                     .font(.system(size: 8, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if let goal = node.context, !goal.isEmpty {
                 Text(goal)
                     .font(.system(size: 8, design: .monospaced))
+                    .monospaced()
                     .foregroundStyle(Theme.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -119,6 +122,7 @@ struct ThoughtGraphNodeView: View {
         } else if let contextPath = node.extractedFilePath {
             Text(contextPath)
                 .font(.system(size: 8, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .lineLimit(1)
                 .truncationMode(.middle)

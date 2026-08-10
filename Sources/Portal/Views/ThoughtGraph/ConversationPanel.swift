@@ -381,6 +381,7 @@ private struct PeeledBlockCard: View {
         } else {
             Text(text)
                 .font(.system(.caption, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

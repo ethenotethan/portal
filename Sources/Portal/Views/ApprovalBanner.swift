@@ -94,6 +94,7 @@ internal struct ApprovalBanner: View {
                     // order and cannot be answered out of turn.
                     Text("\(index + 2).")
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.tertiary)
                     if let tool = entry.toolName, !tool.isEmpty {
                         Text(tool)
@@ -102,6 +103,7 @@ internal struct ApprovalBanner: View {
                     }
                     Text(entry.command.truncated(to: 80))
                         .font(.system(size: 9, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -130,9 +132,7 @@ internal struct ApprovalBanner: View {
             respond("deny")
         }
         .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .tint(.red)
-        .controlSize(.small)
+        .portalButton(size: .small, tint: .red)
         .fixedSize()
     }
 
@@ -176,9 +176,7 @@ internal struct ApprovalBanner: View {
             respond("once")
         }
         .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .tint(.green)
-        .controlSize(.small)
+        .portalButton(size: .small, tint: .green)
         .fixedSize()
         .help("Approve runs this once; hold for session/permanent scopes")
     }

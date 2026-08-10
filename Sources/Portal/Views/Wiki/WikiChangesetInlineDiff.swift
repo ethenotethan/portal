@@ -109,6 +109,7 @@ struct WikiChangesetInlineDiff: View {
 
         Text(line.isEmpty ? " " : line)
             .font(.system(size: 11.5, design: .monospaced))
+            .monospaced()
             .foregroundStyle(color)
             .padding(.horizontal, 12)
             .padding(.vertical, 0.5)

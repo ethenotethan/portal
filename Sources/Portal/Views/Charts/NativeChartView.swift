@@ -835,6 +835,7 @@ private struct ChartErrorCard: View {
 
             Text(message)
                 .font(.system(.caption2, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -844,6 +845,7 @@ private struct ChartErrorCard: View {
 
             Text(source)
                 .font(.system(.caption2, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)

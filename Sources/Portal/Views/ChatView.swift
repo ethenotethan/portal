@@ -850,8 +850,7 @@ struct ChatView: View {
             Label("Stop", systemImage: "stop.fill")
                 .font(.caption)
         }
-        .buttonStyle(.bordered)
-        .tint(.red)
+        .portalButton(tint: .red)
     }
 
     private var creatingSessionIndicator: some View {
@@ -1636,6 +1635,7 @@ struct ChatInputBar: View {
                                 HStack(spacing: 8) {
                                     Text(skill.slashCommand)
                                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                        .monospaced()
                                         .foregroundStyle(Theme.accent)
                                     Text(skill.name)
                                         .font(.system(size: 13))
@@ -2039,6 +2039,7 @@ struct DebugLogPanel: View {
                     ForEach(wrapper.log) { entry in
                         Text(entry.text)
                             .font(.system(.caption2, design: .monospaced))
+                            .monospaced()
                             .foregroundStyle(entry.isError ? .red : .secondary)
                             .id(entry.id)
                     }
@@ -2104,9 +2105,7 @@ struct ClarifyBanner: View {
                             .onSubmit { submitText() }
 
                         Button("Answer") { submitText() }
-                            .buttonStyle(.borderedProminent)
-                            .tint(Theme.accent)
-                            .controlSize(.small)
+                            .portalButton(prominent: true, size: .small, tint: Theme.accent)
                             .disabled(answerText.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 } else {
@@ -2116,9 +2115,7 @@ struct ClarifyBanner: View {
                             Button(choice) {
                                 Task { await chatViewModel.respondClarify(answer: choice) }
                             }
-                            .buttonStyle(.bordered)
-                            .tint(Theme.accent)
-                            .controlSize(.small)
+                            .portalButton(size: .small, tint: Theme.accent)
                         }
                     }
                 }
