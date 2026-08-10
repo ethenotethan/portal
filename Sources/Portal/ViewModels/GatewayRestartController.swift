@@ -20,16 +20,24 @@ internal final class GatewayRestartController: ObservableObject {
 
     private var task: Task<Void, Never>?
 
-    internal func restart(client: GatewayClient, capabilities: GatewayCapabilitiesStore?) {
+    internal func restart(
+        client: GatewayClient,
+        capabilities: GatewayCapabilitiesStore?,
+        returnTimeout: Double = GatewayClient.restartReturnTimeout
+    ) {
         guard !isRestarting else { return }
         phase = .requesting
         task?.cancel()
         task = Task { [weak self] in
-            await self?.run(client: client, capabilities: capabilities)
+            await self?.run(client: client, capabilities: capabilities, returnTimeout: returnTimeout)
         }
     }
 
-    private func run(client: GatewayClient, capabilities: GatewayCapabilitiesStore?) async {
+    private func run(
+        client: GatewayClient,
+        capabilities: GatewayCapabilitiesStore?,
+        returnTimeout: Double
+    ) async {
         switch await client.requestGatewayRestart() {
         case .unsupported:
             phase = .unsupported
@@ -42,10 +50,10 @@ internal final class GatewayRestartController: ObservableObject {
         }
 
         phase = .waitingForGateway
-        guard await client.waitForGatewayReturn() else {
+        guard await client.waitForGatewayReturn(timeout: returnTimeout) else {
             phase = .failed(
                 "the gateway did not come back within "
-                    + "\(Int(GatewayClient.restartReturnTimeout))s. It may still be starting."
+                    + "\(Int(returnTimeout))s. It may still be starting."
             )
             return
         }

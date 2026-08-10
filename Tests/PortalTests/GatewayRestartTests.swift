@@ -146,12 +146,35 @@ internal struct GatewayRestartControllerTests {
     private func makeClient() -> GatewayClient {
         // Port 9 (discard): never accepts, so `requestGatewayRestart` fails the
         // way an unreachable gateway does without needing a live server.
-        GatewayClient(gatewayURL: URL(string: "ws://127.0.0.1:9/v1/ws")!, apiKey: "")
+        var components = URLComponents()
+        components.scheme = "ws"
+        components.host = "127.0.0.1"
+        components.port = 9
+        components.path = "/v1/ws"
+        guard let url = components.url else {
+            fatalError("static gateway test URL must be valid")
+        }
+        return GatewayClient(gatewayURL: url, apiKey: ***
     }
 
     @Test("starts idle")
     internal func startsIdle() {
         #expect(GatewayRestartController().phase == .idle)
+    }
+
+    @Test("an unreachable gateway restart request is accepted for reconnect verification")
+    internal func unreachableRequestIsAccepted() async {
+        let client = makeClient()
+        let outcome = await client.requestGatewayRestart()
+        #expect(outcome == .accepted)
+        client.disconnect()
+    }
+
+    @Test("a zero return deadline fails immediately without dialing")
+    internal func zeroReturnDeadlineFailsImmediately() async {
+        let client = makeClient()
+        #expect(await !client.waitForGatewayReturn(timeout: 0))
+        client.disconnect()
     }
 
     /// With no socket, `call` throws `.notConnected` — which classifies as
@@ -164,15 +187,22 @@ internal struct GatewayRestartControllerTests {
         let controller = GatewayRestartController()
         let client = makeClient()
 
-        controller.restart(client: client, capabilities: nil)
+        controller.restart(client: client, capabilities: nil, returnTimeout: 0)
         #expect(controller.phase == .requesting)
         #expect(controller.isRestarting)
 
         // Second press while in flight must not re-ask a mid-exec gateway.
-        controller.restart(client: client, capabilities: nil)
+        controller.restart(client: client, capabilities: nil, returnTimeout: 0)
         #expect(controller.phase == .requesting)
 
-        controller.reset()
+        while controller.phase.isBusy {
+            await Task.yield()
+        }
+        guard case .failed(let reason) = controller.phase else {
+            Issue.record("expected the zero-deadline reconnect to fail, got \(controller.phase)")
+            return
+        }
+        #expect(reason.contains("did not come back"))
         client.disconnect()
     }
 
