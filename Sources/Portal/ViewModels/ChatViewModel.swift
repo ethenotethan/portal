@@ -1248,10 +1248,11 @@ if restoreSessionState(displayID: key) {
         guard !local.isEmpty else { return gateway }
         guard !gateway.isEmpty else { return local }
 
-        // Align same-role messages by their order of appearance. Build a
-        // per-role queue of local contents to draw from.
-        var localByRole: [ChatMessage.Role: [String]] = [:]
-        for m in local { localByRole[m.role, default: []].append(m.content) }
+        // Align same-role messages by their order of appearance. Keep the full
+        // local message — not just its text — because delivered attachments
+        // carry stable IDs that point at their persisted download-cache files.
+        var localByRole: [ChatMessage.Role: [ChatMessage]] = [:]
+        for message in local { localByRole[message.role, default: []].append(message) }
         var cursor: [ChatMessage.Role: Int] = [:]
 
         var merged = gateway
@@ -1259,12 +1260,16 @@ if restoreSessionState(displayID: key) {
             let role = merged[i].role
             let idx = cursor[role, default: 0]
             cursor[role] = idx + 1
-            guard let contents = localByRole[role], idx < contents.count else { continue }
-            let localContent = contents[idx]
+            guard let localMessages = localByRole[role], idx < localMessages.count else { continue }
+            let localMessage = localMessages[idx]
+            let localContent = localMessage.content
             // Keep the longer text — the local full body beats a gateway preview
             // that dropped the fenced HTML/code block.
             if localContent.count > merged[i].content.count {
                 merged[i].content = localContent
+            }
+            if !localMessage.attachments.isEmpty {
+                merged[i].attachments = localMessage.attachments
             }
         }
         return merged
@@ -1297,7 +1302,9 @@ if restoreSessionState(displayID: key) {
                 // upgrades this to the full local content when available.
                 let text = raw["text"]?.stringValue ?? raw["preview"]?.stringValue ?? ""
                 guard !text.isEmpty else { continue }
-                messages.append(ChatMessage(role: .assistant, content: text, status: "complete"))
+                var message = ChatMessage(role: .assistant, content: text, status: "complete")
+                message.attachments = MediaParser.extractAttachments(from: text)
+                messages.append(message)
 
             case "tool":
                 let name = raw["name"]?.stringValue ?? "tool"
