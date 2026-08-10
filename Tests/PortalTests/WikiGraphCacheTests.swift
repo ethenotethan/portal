@@ -45,6 +45,18 @@ internal struct WikiGraphCacheTests {
         #expect(loaded == nil)
     }
 
+    @Test("Corrupted cache file returns nil via the decode-failure catch path")
+    internal func corruptedFileReturnsNil() async throws {
+        let dir = scratchDir()
+        let cache = WikiGraphCache(directory: dir)
+        let slug = WikiGraphCache.slug(identity: "gw", wiki: nil)
+        let url = dir.appendingPathComponent("\(slug).json")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not valid json".utf8).write(to: url)
+        let loaded = await cache.load(identity: "gw", wiki: nil)
+        #expect(loaded == nil)
+    }
+
     @Test("Distinct identity or wiki maps to distinct entries")
     internal func keyIsolation() {
         let a = WikiGraphCache.slug(identity: "gw-a", wiki: "main")
