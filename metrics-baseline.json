@@ -268,19 +268,19 @@
     ]
   },
   "coverage": {
-    "testable_pct": 44.15,
-    "testable_covered": 11910,
+    "testable_pct": 44.22,
+    "testable_covered": 11930,
     "testable_count": 26976,
     "layers": {
       "Models": {
-        "covered": 5591,
+        "covered": 5620,
         "count": 7949,
-        "pct": 70.34
+        "pct": 70.7
       },
       "Services": {
-        "covered": 3230,
+        "covered": 3227,
         "count": 10515,
-        "pct": 30.72
+        "pct": 30.69
       },
       "Utilities": {
         "covered": 411,
@@ -288,9 +288,9 @@
         "pct": 28.8
       },
       "ViewModels": {
-        "covered": 2678,
+        "covered": 2672,
         "count": 7085,
-        "pct": 37.8
+        "pct": 37.71
       }
     },
     "uncovered": {
@@ -310,29 +310,14 @@
       ],
       "Sources/Portal/Models/ActivityStore.swift": [
         19,
-        24,
         36,
         65,
         66,
         87,
-        91,
-        95,
-        96,
-        97,
-        98,
-        99,
-        100,
         101,
-        102,
-        103,
-        115,
-        116,
-        117,
-        118,
-        119,
-        120,
         121,
-        123,
+        126,
+        127,
         128,
         129,
         132,
@@ -3296,6 +3281,7 @@
         78,
         79,
         82,
+        96,
         102,
         103,
         104,
@@ -4376,7 +4362,11 @@
         263
       ],
       "Sources/Portal/ViewModels/CelebrationManager.swift": [
-        199
+        133,
+        135,
+        137,
+        139,
+        192
       ],
       "Sources/Portal/ViewModels/ChatViewModel.swift": [
         322,
@@ -5220,6 +5210,7 @@
         87,
         112,
         113,
+        123,
         127,
         130,
         138,
@@ -5986,6 +5977,7 @@
         18,
         21,
         22,
+        24,
         26,
         27,
         30,
@@ -6011,12 +6003,26 @@
         79,
         81,
         84,
+        91,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        102,
+        103,
         107,
         108,
         110,
         112,
-        126,
-        127
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        123
       ],
       "Sources/Portal/Models/AgentModel.swift": [
         31,
@@ -9559,7 +9565,6 @@
         91,
         92,
         94,
-        96,
         99
       ],
       "Sources/Portal/Services/SessionPDFExporter.swift": [
@@ -10239,10 +10244,6 @@
         120,
         126,
         132,
-        133,
-        135,
-        137,
-        139,
         140,
         144,
         147,
@@ -10259,8 +10260,8 @@
         182,
         186,
         188,
-        192,
         194,
+        199,
         202,
         227,
         228,
@@ -10823,7 +10824,7 @@
         119,
         120,
         122,
-        123,
+        124,
         146,
         151,
         211,
@@ -11268,10 +11269,17 @@
       "redundantConformance": 6,
       "redundantProtocol": 2,
       "redundantPublicAccessibility": 4,
-      "unused": 347
+      "unused": 344
     },
-    "total": 516,
+    "total": 513,
     "sites": [
+      {
+        "file": "../../../../projects/portal/Sources/Portal/Views/GatewayRestartSection.swift",
+        "line": 14,
+        "kind": "struct",
+        "name": "GatewayRestartSection",
+        "hint": "unused"
+      },
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
         "line": 73,
@@ -13773,7 +13781,7 @@
       },
       {
         "file": "Sources/Portal/Views/ArtifactsPane.swift",
-        "line": 593,
+        "line": 631,
         "kind": "var.parameter",
         "name": "revision",
         "hint": "unused"
@@ -14154,13 +14162,6 @@
         "line": 6,
         "kind": "struct",
         "name": "CronDashboardView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/CronJobRow.swift",
-        "line": 7,
-        "kind": "struct",
-        "name": "CronJobRow",
         "hint": "unused"
       },
       {
@@ -14606,13 +14607,6 @@
       },
       {
         "file": "Sources/Portal/Views/Theme.swift",
-        "line": 187,
-        "kind": "var.static",
-        "name": "pillRadius",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/Theme.swift",
         "line": 188,
         "kind": "var.static",
         "name": "pillSpacing",
@@ -14630,13 +14624,6 @@
         "line": 190,
         "kind": "var.static",
         "name": "illustrationHeight",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/Theme.swift",
-        "line": 444,
-        "kind": "var.static",
-        "name": "pillRadius",
         "hint": "unused"
       },
       {
@@ -14683,9 +14670,9 @@
       },
       {
         "file": "Sources/Portal/Views/ThoughtGraph/InlineTurnTimelineStrip.swift",
-        "line": 47,
-        "kind": "struct",
-        "name": "InlineTurnTimelineStrip",
+        "line": 88,
+        "kind": "var.instance",
+        "name": "worldWidth",
         "hint": "unused"
       },
       {
@@ -14833,13 +14820,6 @@
         "line": 296,
         "kind": "struct",
         "name": "ToolCallView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/ToolPillView.swift",
-        "line": 6,
-        "kind": "struct",
-        "name": "ToolPillView",
         "hint": "unused"
       },
       {
