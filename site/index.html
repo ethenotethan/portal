@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Portal is a native macOS and iOS client for AI agent backends — chat, canvas, thought graph, wiki, cron, and learning in one Swift app.">
+  <title>Portal — a native client for AI agent backends</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <div>
+        <div class="eyebrow">ETHENOTETHAN / PORTAL</div>
+        <h1>Portal</h1>
+      </div>
+    </div>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#overview">Overview</a>
+      <a href="#features">Features</a>
+      <a href="architecture/">Architecture ↗</a>
+      <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">Repository ↗</a>
+    </nav>
+  </header>
+
+  <main id="main">
+
+    <!-- ───────────────────────── Hero ───────────────────────── -->
+    <section class="hero" id="overview">
+      <div class="hero-copy">
+        <p class="eyebrow">MACOS 14 · IOS 17 · SWIFT 6</p>
+        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it lives here.</h2>
+        <p class="lede">
+          Portal is a native macOS and iOS client for AI agent backends. It talks to
+          <strong>Hermes</strong> over a WebSocket JSON-RPC connection and to
+          <strong>Centaur</strong> over REST + SSE — from one app, with no local
+          server, no CLI, and no Electron. What arrives over that socket is not
+          just text: tool calls, reasoning traces, subagent spawns, artifacts and
+          approvals all get a real surface built for them.
+        </p>
+        <div class="cta-row">
+          <a class="button primary" href="#features">See the surfaces</a>
+          <a class="button" href="architecture/">Architecture Observatory ↗</a>
+        </div>
+      </div>
+      <!-- Counts come from architecture/model/model.json, which the
+           architecture compiler regenerates from source; keep them in step with
+           the observatory's own header rather than counting by hand. -->
+      <ul class="hero-stats" aria-label="Repository scale">
+        <li><strong>303</strong><span>Swift files</span></li>
+        <li><strong>88,578</strong><span>lines</span></li>
+        <li><strong>1,048</strong><span>tests</span></li>
+        <li><strong>87</strong><span>RPC methods &amp; events</span></li>
+      </ul>
+    </section>
+
+    <!-- ─────────────────────── What it is ─────────────────────── -->
+    <section class="band" id="what">
+      <div class="band-head">
+        <p class="eyebrow">THE SHORT VERSION</p>
+        <h3>One socket, many lenses</h3>
+      </div>
+      <div class="card-grid three">
+        <article class="card">
+          <h4>Native, not wrapped</h4>
+          <p>
+            SwiftUI throughout, Swift 6 strict concurrency, and Apple frameworks
+            for everything load-bearing: <code>URLSessionWebSocketTask</code> for
+            the transport, <code>SecItem</code> for credentials. There is no
+            third-party networking library in the app.
+          </p>
+        </article>
+        <article class="card">
+          <h4>Two backends, one app</h4>
+          <p>
+            Hermes speaks WebSocket JSON-RPC and serves the full surface; Centaur
+            is a session-scoped REST + SSE control plane; Hermes Standard is a
+            management-scoped HTTP API. Each declares its own capabilities, so the
+            UI only offers what the backend can actually honour.
+          </p>
+        </article>
+        <article class="card">
+          <h4>The turn is the unit</h4>
+          <p>
+            A single prompt fans out into tool calls, reasoning beats and spawned
+            subagents. Portal keeps that structure instead of flattening it to
+            prose — which is what makes the timeline, the graph and the token
+            rollups possible.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Features ───────────────────────── -->
+    <section class="band" id="features">
+      <div class="band-head">
+        <p class="eyebrow">FEATURE SET</p>
+        <h3>Eight surfaces</h3>
+        <p class="lede">
+          Every image below is a real render of the shipping SwiftUI view, captured
+          from the app's own code with sample data — not a mockup.
+        </p>
+      </div>
+
+      <!-- Chat -->
+      <article class="feature" id="chat">
+        <div class="feature-copy">
+          <p class="kicker">01 — CHAT</p>
+          <h4>Streaming conversation with the structure kept intact</h4>
+          <p>
+            Responses stream in as markdown with syntax-highlighted code, Mermaid
+            diagrams, LaTeX, tables and file attachments. Reasoning traces arrive
+            as a collapsible section rather than being interleaved into the answer,
+            so the transcript stays readable while the thinking stays available.
+          </p>
+          <p>
+            Deltas arrive fast enough to cause layout storms, so events are batched
+            on a ~32&nbsp;ms window before they reach the view — the transcript
+            keeps up with a firehose without dropping frames.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/chat.png" alt="A Portal chat transcript: a user question in a rounded bubble above a full-width assistant response with inline code spans." loading="lazy" width="1760" height="488">
+        </figure>
+      </article>
+
+      <!-- Tools -->
+      <article class="feature reverse" id="tools">
+        <div class="feature-copy">
+          <p class="kicker">02 — TOOL TRACE</p>
+          <h4>Tool calls are their own surface, not chat chrome</h4>
+          <p>
+            The default transcript is just the conversation. The tool trace —
+            what ran, against what, for how long — is an opt-in canvas panel, so
+            a fifty-call turn doesn't bury the answer it produced.
+          </p>
+          <p>
+            Each pill carries the tool name, its target, a result summary and
+            elapsed time. Durations and identifiers stay monospaced no matter
+            which app typeface you pick, because columns that jitter are columns
+            you can't scan.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/tools.png" alt="Three completed tool-call pills: read_file, grep and edit_file, each with a green check, a result summary and an elapsed time." loading="lazy" width="1440" height="272">
+        </figure>
+      </article>
+
+      <!-- Thought graph -->
+      <article class="feature" id="graph">
+        <div class="feature-copy">
+          <p class="kicker">03 — THOUGHT GRAPH</p>
+          <h4>The shape of a turn, filling in as it happens</h4>
+          <p>
+            The turn is drawn as a flamechart: horizontal position is when a step
+            started, bar width is how long it took, and every actor — the main
+            loop plus each spawned subagent — owns its own lane. A compact strip
+            sits inline in the chat; tapping it opens the full plot with the time
+            ruler, reasoning gists and a per-node inspector.
+          </p>
+          <p>
+            Reasoning beats are durationless diamonds. Subagent lanes collapse to
+            a step count. An on-device MLX model summarizes long reasoning streams
+            into the gists the graph labels itself with.
+          </p>
+        </div>
+        <figure class="shot stack">
+          <img src="img/timeline.png" alt="The inline turn timeline: colored bars on stacked lanes, a reasoning diamond, and a subagent lane holding two nested edit bars." loading="lazy" width="1720" height="432">
+          <img src="img/graphnodes.png" alt="Four thought-graph node cards: a completed grep with a 1.2s chip, a reasoning beat, a selected collapsed agent showing 2 hidden steps, and a running swift build." loading="lazy" width="600" height="536">
+        </figure>
+      </article>
+
+      <!-- Canvas / wiki. Prose only: the canvas and both wiki force graphs are
+           live-gateway surfaces, and every honest capture here is a real render
+           of shipping code — a staged mock-up would be the one lie on the page. -->
+      <article class="feature prose-only" id="canvas">
+        <div class="feature-copy">
+          <p class="kicker">04 — CANVAS &amp; WIKI</p>
+          <h4>Panels you arrange, not a layout you accept</h4>
+          <p>
+            The conversation is one resizable panel on a free-form canvas. Any
+            message can be peeled into a floating card, and roughly two dozen
+            lenses dock beside it — flamechart, thinking beats, running tools,
+            the skills taxonomy for the turn, the files it touched, session
+            artifacts, delegation batches, cron activity, sessions timeline.
+          </p>
+          <p>
+            Panel kinds are registrable at runtime rather than a closed enum, so a
+            saved layout referencing a lens this build doesn't know still loads —
+            it renders a placeholder instead of crashing. The wiki gets the same
+            treatment: an Obsidian-style browser with 2D and 3D force graphs and
+            an edit timeline.
+          </p>
+        </div>
+      </article>
+
+      <!-- Activity -->
+      <article class="feature" id="activity">
+        <div class="feature-copy">
+          <p class="kicker">05 — ACTIVITY INBOX</p>
+          <h4>The things that need you, in one place</h4>
+          <p>
+            Tool approvals, clarification requests, artifact drops and failures
+            land in a severity-sorted inbox with session pills and artifact
+            previews. Approvals matter most: the gateway resolves an unanswered
+            request as a <em>denial</em> after a timeout, so a request you never
+            saw is a silently killed command.
+          </p>
+          <p>
+            Because parallel subagents can each block at once, the approval banner
+            reads a queue rather than a single slot — the head is answerable and
+            the rest stay visible behind a disclosure. Approve is a split control:
+            the primary tap is the narrow "once", broader scopes are a deliberate
+            second gesture.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/activity.png" alt="Three activity inbox rows: a warning-severity approval request, an info-severity coverage artifact with an HTML pill, and a read error row for a failed cron job." loading="lazy" width="1640" height="576">
+        </figure>
+      </article>
+
+      <!-- Skills & cron -->
+      <article class="feature reverse" id="cron">
+        <div class="feature-copy">
+          <p class="kicker">06 — SKILLS &amp; CRON</p>
+          <h4>Schedule the agent, then watch what it did</h4>
+          <p>
+            Browse, edit and schedule agent skills; group cron jobs into
+            categories; and inspect run history as an activity canvas — volume
+            over time, per-job OK/error breakdown, a lane-per-job scatter of
+            activations, and the session each activation opened.
+          </p>
+          <p>
+            Sessions get the same treatment through Mission Control: a spawn tree,
+            a live observer, a playback timeline, prompt breakdowns and token
+            usage — all as panels on a canvas you arrange.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/cron.png" alt="Three cron job rows: a healthy daily run, a failed nightly ratchet with a red status dot, and a paused digest job." loading="lazy" width="1520" height="524">
+          <figcaption>Category paths, schedule badges, last/next run and a one-line prompt preview — the failed job carries the error through to the row.</figcaption>
+        </figure>
+      </article>
+
+      <!-- Learning -->
+      <article class="feature" id="learning">
+        <div class="feature-copy">
+          <p class="kicker">07 — LEARNING</p>
+          <h4>Turn a session into something you retain</h4>
+          <p>
+            Any conversation can become a structured course: ordered modules of
+            lessons and quizzes, with per-step progress so "where was I" is
+            answerable at every level. Flashcard decks use SM-2 spaced repetition
+            and surface what's due.
+          </p>
+          <p>
+            Course content is stored inline rather than referenced by id — an
+            agent-authored curriculum <em>is</em> its content, which also makes
+            dangling references to a single historical quiz attempt impossible.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/learning.png" alt="The Learning dashboard: four stat tiles, a course card at 50% with 2 of 4 steps done, and a completed quiz card scored 4 out of 5." loading="lazy" width="1640" height="496">
+        </figure>
+      </article>
+
+      <!-- Appearance -->
+      <article class="feature reverse" id="appearance">
+        <div class="feature-copy">
+          <p class="kicker">08 — APPEARANCE</p>
+          <h4>Themes that reach every call site</h4>
+          <p>
+            Palette, button shape, toolbar icon treatment and app typeface are all
+            one pane. Themes apply collectively, and every individual toolbar
+            button can still be overridden on its own — shape and colour
+            independently, each clearable back to the theme.
+          </p>
+          <p>
+            One root modifier reaches roughly 1,700 text call sites. The catch
+            found while building it: a root <code>.fontDesign</code> silently
+            overrides a <code>design:</code> written inside a site's own
+            <code>.font(...)</code>, so every monospaced surface had to re-assert
+            itself at the view level. A test now enforces that, with a documented
+            allowlist for the surfaces defended by an ancestor instead.
+          </p>
+        </div>
+        <figure class="shot">
+          <img src="img/appearance.png" alt="Portal's Appearance settings: a Font section with five typeface cards and a Buttons section with six button-style cards including glass and neon." loading="lazy" width="1720" height="1044">
+        </figure>
+      </article>
+
+      <!-- The two proofs for the claim above, full width so the grids are
+           actually legible rather than squeezed into a half-column. -->
+      <div class="proof-grid">
+        <figure class="shot">
+          <img src="img/toolbar.png" alt="A grid of Portal toolbar icons: five treatments — plain, soft, outlined, filled, glow — each shown in neutral, accent and warning tints." loading="lazy" width="2040" height="500">
+          <figcaption>Five toolbar treatments across three tints. Every entry is themable collectively or overridden one button at a time.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="img/typefaces.png" alt="The same sentence and a monospaced timestamp rendered in all five Portal typefaces: system, rounded, serif, condensed and monospaced." loading="lazy" width="1520" height="612">
+          <figcaption>All five app typefaces. Timestamps and session IDs hold their monospaced columns in each — an architecture test fails the build if a new site forgets to re-assert it.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Architecture ───────────────────────── -->
+    <section class="band" id="architecture">
+      <div class="band-head">
+        <p class="eyebrow">ARCHITECTURE</p>
+        <h3>How it's put together</h3>
+        <p class="lede">
+          Five layers, twenty components, one strict dependency direction:
+          <code>Models → Services → ViewModels → Views</code>. The interactive,
+          source-backed model lives in the
+          <a href="architecture/">Architecture Observatory</a>.
+        </p>
+      </div>
+
+      <div class="layer-stack" aria-label="Architecture layers">
+        <div class="layer" data-layer="experience">
+          <div class="layer-label"><span>Experience</span><em>6 components · 125 files</em></div>
+          <p>SwiftUI surfaces — app shell, chat, operations, wiki, artifacts, thought graph.</p>
+        </div>
+        <div class="layer" data-layer="orchestration">
+          <div class="layer-label"><span>Orchestration</span><em>3 components · 18 files</em></div>
+          <p><code>@MainActor</code> observable objects holding chat, operations and wiki state.</p>
+        </div>
+        <div class="layer" data-layer="integration">
+          <div class="layer-label"><span>Integration</span><em>4 components · 46 files</em></div>
+          <p>The backend contract, Hermes and Centaur clients, and device-local services.</p>
+        </div>
+        <div class="layer" data-layer="foundation">
+          <div class="layer-label"><span>Foundation</span><em>3 components · 114 files</em></div>
+          <p>Value types, codable wire models, shared UI primitives and utilities.</p>
+        </div>
+        <div class="layer" data-layer="external">
+          <div class="layer-label"><span>External systems</span><em>4 runtime boundaries</em></div>
+          <p>Hermes gateway, Hermes Standard, the Centaur API, and OS device services.</p>
+        </div>
+      </div>
+
+      <div class="card-grid two">
+        <article class="card wide">
+          <h4>One socket, multiplexed</h4>
+          <p>
+            A single persistent WebSocket per app process. Sessions are
+            multiplexed over it by <code>session_id</code>, so creating or
+            switching a session never recreates the transport. Events fan out
+            through Combine; connections are deduped on a signature of URL, API
+            key and Cloudflare cookie, so redundant reconnects are skipped while a
+            genuine gateway switch rebuilds everything and resets in-memory state.
+          </p>
+        </article>
+        <article class="card wide">
+          <h4>Two session identities</h4>
+          <p>
+            The short hex <code>session_id</code> addresses the current
+            connection; the database-format <code>session_key</code> (e.g.
+            <code>20260810_041255_d91274</code>) is what survives a reconnect.
+            Keepalive pings run every 15&nbsp;s, reconnect backs off
+            1→2→4→…→30&nbsp;s for up to ten attempts, and resume goes through the
+            session key.
+          </p>
+        </article>
+      </div>
+
+      <div class="lifecycle">
+        <h4>Connection lifecycle</h4>
+        <ol>
+          <li>HTTP health probe against <code>/health</code>, 5&nbsp;s timeout.</li>
+          <li>If a Cloudflare Access cookie is held, verify it — a redirect or 401 clears it and fails closed.</li>
+          <li>Open the WebSocket to <code>/v1/ws</code> with <code>Authorization: Bearer</code>.</li>
+          <li>Gateway announces itself with <code>gateway.ready</code>.</li>
+          <li><code>session.create</code> returns both id formats.</li>
+          <li><code>prompt.submit</code>, and the event stream begins.</li>
+          <li>Message, tool, reasoning and subagent events stream in.</li>
+          <li>Interrupts and approval responses go back up the same socket.</li>
+          <li>Ping/pong every 15&nbsp;s; on drop, backoff and retry.</li>
+          <li>Resume through <code>session_key</code>.</li>
+        </ol>
+      </div>
+
+      <div class="card-grid two">
+        <article class="card wide">
+          <h4>Quality is a ratchet, not a wish</h4>
+          <p>
+            SwiftLint runs <code>--strict</code> against a frozen baseline, so
+            existing debt is allowed to shrink and never grow. Four metrics are
+            ratcheted against the base branch: compiler warnings per category,
+            testable-layer coverage with 80% required on lines a change adds,
+            skipped-test count, and Periphery's dead-declaration total. Custom
+            rules enforce the layer direction, ban new singletons, keep SwiftUI
+            out of Services, and require explicit access control.
+          </p>
+        </article>
+        <article class="card wide">
+          <h4>Apple frameworks where it counts</h4>
+          <p>
+            <code>URLSessionWebSocketTask</code> over Starscream or NIO: zero
+            networking dependencies, native backpressure, and it inherits
+            <code>URLSession</code>'s proxy, TLS and cookie handling — which is
+            what makes Cloudflare Access work at all. The third-party packages are
+            for presentation and on-device inference: Lottie, Highlightr, a Mermaid
+            renderer, and MLX with swift-transformers.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Get started ───────────────────────── -->
+    <section class="band" id="start">
+      <div class="band-head">
+        <p class="eyebrow">GET STARTED</p>
+        <h3>Build it</h3>
+      </div>
+      <div class="start-grid">
+        <div>
+          <h4>Requirements</h4>
+          <ul class="plain">
+            <li>macOS 14 (Sonoma) or iOS 17+</li>
+            <li>Xcode 16+ / Swift 6.1+</li>
+            <li><code>brew install xcodegen</code></li>
+            <li>A running Hermes or Centaur gateway</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Clone and run</h4>
+<pre><code>git clone https://github.com/ethenotethan/portal.git
+cd portal
+
+swift build     <span class="c"># SwiftPM library build</span>
+make build      <span class="c"># full macOS app</span>
+make run        <span class="c"># build and launch</span></code></pre>
+          <p class="note">
+            <code>make build</code> regenerates the Xcode project from
+            <code>project.yml</code> first — building a stale
+            <code>.xcodeproj</code> silently misses new files. On first launch,
+            enter your gateway URL and API key; Portal converts
+            <code>https://</code> to <code>wss://</code> and appends
+            <code>/v1/ws</code> for Hermes gateways itself.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>Portal</strong> — MIT licensed. Built with Swift and SwiftUI.</p>
+    <p>
+      <a href="architecture/">Architecture Observatory</a> ·
+      <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">GitHub</a>
+    </p>
+  </footer>
+</body>
+</html>

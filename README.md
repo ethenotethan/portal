@@ -4,6 +4,8 @@ Native macOS + iOS client for AI agent backends — built with Swift + SwiftUI.
 
 Supports **Hermes** (WebSocket JSON-RPC) and **Centaur** (REST + SSE) from a single app. No local server or CLI required.
 
+**[ethenotethan.github.io/portal](https://ethenotethan.github.io/portal/)** — the feature tour, with screenshots and an architecture walkthrough.
+
 ## Features
 
 - **Chat** — streaming responses with tool calls, reasoning traces, Mermaid diagrams, LaTeX, syntax-highlighted code, and file attachments
@@ -46,11 +48,13 @@ Add or switch gateways any time from **Settings → Connection → Saved Gateway
 
 ## Architecture
 
-The public [Architecture Observatory](https://ethenotethan.github.io/portal/)
+The public [Architecture Observatory](https://ethenotethan.github.io/portal/architecture/)
 combines an interactive source-backed component graph with reviewed
 specifications and evidence. Its model is maintained through pull requests and
-published from `main` with GitHub Pages. Build or preview it locally with
-`make architecture` and `make architecture-serve`.
+published from `main` with GitHub Pages, alongside the
+[product site](https://ethenotethan.github.io/portal/) at the root. Build or
+preview the observatory locally with `make architecture` and
+`make architecture-serve`; preview both together with `make site-serve`.
 
 ```
 App/

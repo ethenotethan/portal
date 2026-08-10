@@ -1,9 +1,10 @@
-name: Architecture Portal
+name: Pages
 
 on:
   push:
     branches: [main]
     paths:
+      - site/**
       - architecture/**
       - scripts/build_architecture.py
       - scripts/test_architecture.py
@@ -11,6 +12,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - site/**
       - architecture/**
       - scripts/build_architecture.py
       - scripts/architecture_agent.py
@@ -42,11 +44,26 @@ jobs:
       - name: Check browser JavaScript
         run: node --check architecture/site/app.js
 
+      # The product site references its screenshots by relative path; a rename
+      # under site/img/ would otherwise 404 silently on a live page.
+      - name: Check product site asset references
+        run: python3 scripts/check_site_assets.py
+
+      # Assemble the deployed tree: the product site at the Pages root, the
+      # observatory nested under /architecture/. Both jobs build it the same
+      # way, so validate's artifact is exactly what deploy publishes.
+      - name: Assemble Pages tree
+        run: |
+          mkdir -p _site
+          cp -R site/. _site/
+          mkdir -p _site/architecture
+          cp -R architecture/site/. _site/architecture/
+
       - name: Upload validated site
         uses: actions/upload-artifact@v4
         with:
-          name: architecture-site
-          path: architecture/site
+          name: pages-site
+          path: _site
           if-no-files-found: error
           retention-days: 14
 
@@ -62,13 +79,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Assemble Pages tree
+        run: |
+          mkdir -p _site
+          cp -R site/. _site/
+          mkdir -p _site/architecture
+          cp -R architecture/site/. _site/architecture/
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: architecture/site
+          path: _site
 
-      - name: Deploy architecture portal
+      - name: Deploy Pages site
         uses: actions/deploy-pages@v4

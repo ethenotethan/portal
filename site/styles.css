@@ -1,0 +1,392 @@
+/* Portal product site.
+   Design tokens are deliberately identical to architecture/site/styles.css so
+   the two pages read as one property — change them in both or neither. */
+:root {
+  color-scheme: dark;
+  --bg: #111112;
+  --surface: #19191b;
+  --surface-raised: #202024;
+  --surface-hover: #29292e;
+  --ink: #f2f0eb;
+  --muted: #a5a2a0;
+  --faint: #6d6a68;
+  --line: #353437;
+  --line-strong: #4b494d;
+  --accent: #8b83ff;
+  --experience: #e7a84b;
+  --orchestration: #8b83ff;
+  --integration: #5ca8d8;
+  --foundation: #70b98d;
+  --external: #d16f86;
+  --danger: #e06f6f;
+  --radius: 8px;
+  --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+  --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --pad: clamp(20px, 4vw, 64px);
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    var(--bg);
+  background-size: 32px 32px;
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+code { font-family: var(--mono); font-size: .92em; color: var(--ink); }
+p code { color: #cfcaff; }
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: -80px;
+  z-index: 20;
+  padding: 10px 14px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 4px;
+}
+.skip-link:focus { top: 16px; }
+
+/* ── Topbar ────────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  min-height: 76px;
+  padding: 16px var(--pad);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(17,17,18,.92);
+  backdrop-filter: blur(16px);
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line-strong);
+  font: 700 19px var(--mono);
+  transform: rotate(-2deg);
+}
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--faint);
+  font: 600 10px/1.2 var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
+
+.topnav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.topnav a {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  font: 600 12px var(--mono);
+  text-decoration: none;
+}
+.topnav a:hover { border-color: var(--line-strong); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Hero ──────────────────────────────────────────────────────────── */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: end;
+  padding: clamp(48px, 8vw, 104px) var(--pad) clamp(40px, 6vw, 72px);
+  border-bottom: 1px solid var(--line);
+}
+.hero h2 {
+  margin: 0 0 22px;
+  font-size: clamp(30px, 5.2vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -.03em;
+}
+.lede {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 15.5px;
+  line-height: 1.65;
+}
+.lede strong { color: var(--ink); font-weight: 600; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.button {
+  padding: 11px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink);
+  font: 600 12.5px var(--mono);
+  text-decoration: none;
+}
+.button:hover { background: var(--surface-hover); }
+.button.primary {
+  border-color: var(--accent);
+  background: rgba(139,131,255,.14);
+}
+.button.primary:hover { background: rgba(139,131,255,.24); }
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.hero-stats li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 16px;
+  background: var(--surface);
+}
+.hero-stats strong { font: 600 22px var(--mono); letter-spacing: -.02em; }
+.hero-stats span { color: var(--faint); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+
+/* ── Bands ─────────────────────────────────────────────────────────── */
+.band {
+  padding: clamp(48px, 7vw, 88px) var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.band-head { max-width: 72ch; margin-bottom: clamp(28px, 4vw, 48px); }
+.band-head h3 {
+  margin: 0 0 16px;
+  font-size: clamp(24px, 3.4vw, 34px);
+  line-height: 1.12;
+  letter-spacing: -.02em;
+}
+.band-head a { color: var(--accent); }
+
+.card-grid { display: grid; gap: 18px; }
+.card-grid.three { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.card-grid.two { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); margin-top: 24px; }
+.card {
+  padding: 22px 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.card h4 { margin: 0 0 10px; font-size: 15px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+
+/* ── Feature rows ──────────────────────────────────────────────────── */
+.feature {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: center;
+  padding: clamp(36px, 5vw, 56px) 0;
+  border-top: 1px solid var(--line);
+}
+.feature:first-of-type { border-top: 0; padding-top: 0; }
+/* Reversed rows put the figure first in the visual order, so the column widths
+   have to flip with it — otherwise every other screenshot lands in the narrow
+   column and the prose gets the space. */
+.feature.reverse { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); }
+.feature.reverse .feature-copy { order: 2; }
+
+/* Surfaces whose screenshot would be a live-gateway capture: prose only, laid
+   out in two columns so the row doesn't read as a figure that failed to load. */
+.feature.prose-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+.feature.prose-only .feature-copy {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 0 clamp(28px, 4vw, 56px);
+}
+.feature.prose-only .kicker,
+.feature.prose-only h4 { grid-column: 1 / -1; }
+.kicker {
+  margin: 0 0 12px;
+  color: var(--accent);
+  font: 600 10px var(--mono);
+  letter-spacing: .16em;
+}
+.feature h4 {
+  margin: 0 0 16px;
+  font-size: clamp(19px, 2.4vw, 25px);
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+.feature-copy p:not(.kicker) {
+  margin: 0 0 14px;
+  max-width: 56ch;
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+.feature-copy p:last-child { margin-bottom: 0; }
+.feature-copy em { color: var(--ink); font-style: italic; }
+
+.shot { margin: 0; }
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.shot.stack { display: grid; gap: 14px; }
+.proof-grid {
+  display: grid;
+  /* `min()` rather than a bare 420px: on a phone the container is narrower than
+     the track minimum, and a fixed minmax floor overflows instead of shrinking. */
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: clamp(20px, 3vw, 40px);
+  padding-top: clamp(28px, 4vw, 44px);
+  border-top: 1px solid var(--line);
+}
+.shot figcaption {
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* ── Architecture layers ───────────────────────────────────────────── */
+.layer-stack {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.layer {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: baseline;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.layer[data-layer="experience"] { border-left-color: var(--experience); }
+.layer[data-layer="orchestration"] { border-left-color: var(--orchestration); }
+.layer[data-layer="integration"] { border-left-color: var(--integration); }
+.layer[data-layer="foundation"] { border-left-color: var(--foundation); }
+.layer[data-layer="external"] { border-left-color: var(--external); }
+.layer-label { display: flex; flex-direction: column; gap: 4px; }
+.layer-label span { font: 600 14px var(--sans); letter-spacing: -.01em; }
+.layer-label em { color: var(--faint); font: 10.5px var(--mono); font-style: normal; letter-spacing: .08em; text-transform: uppercase; }
+.layer p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+
+.lifecycle {
+  margin-top: 24px;
+  padding: 24px 26px 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.lifecycle h4 { margin: 0 0 16px; font-size: 15px; }
+.lifecycle ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 10px 28px;
+}
+/* The step number is absolutely positioned rather than a grid/flex track: an
+   `li` laid out as a grid turns every child — including the inline `<code>`
+   spans in the step text — into its own grid item, which breaks each step
+   across several rows and overlaps the text. */
+.lifecycle li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 32px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.lifecycle li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  color: var(--faint);
+  font: 600 11px var(--mono);
+}
+
+/* ── Get started ───────────────────────────────────────────────────── */
+.start-grid {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: clamp(28px, 4vw, 56px);
+}
+.start-grid h4 { margin: 0 0 14px; font-size: 15px; }
+ul.plain { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; }
+ul.plain li { color: var(--muted); font-size: 14px; }
+pre {
+  margin: 0 0 16px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: 12.5px/1.75 var(--mono);
+}
+pre .c { color: var(--faint); }
+.note { margin: 0; max-width: 62ch; color: var(--muted); font-size: 13.5px; line-height: 1.65; }
+
+/* ── Footer ────────────────────────────────────────────────────────── */
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 34px var(--pad) 48px;
+  color: var(--faint);
+  font-size: 13px;
+}
+footer p { margin: 0; }
+footer strong { color: var(--muted); }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--ink); text-decoration: underline; }
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+@media (max-width: 980px) {
+  .hero,
+  .feature,
+  /* `.feature.reverse` has to be named explicitly: media queries add no
+     specificity, so its two-class rule above outranks a bare `.feature` here
+     and the reversed rows would stay two-column — wide enough to overflow the
+     viewport and put the whole page into horizontal scroll. */
+  .feature.reverse,
+  .start-grid,
+  .layer { grid-template-columns: minmax(0, 1fr); }
+  .hero { align-items: start; }
+  /* On one column the image must follow its prose, so the reversed rows
+     have to give up their explicit order or every other shot leads. */
+  .feature.reverse .feature-copy { order: 0; }
+  .layer { gap: 10px; }
+}
+@media (max-width: 620px) {
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .hero-stats { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
