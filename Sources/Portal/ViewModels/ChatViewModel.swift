@@ -365,7 +365,14 @@ final class ChatViewModel: ObservableObject {
     private var streamStartDate: Date?
     private var cancellables = Set<AnyCancellable>()
     private(set) var isCreatingSession = false
-    private var isStopping = false
+    /// Display IDs with an interrupt in flight. Per-session: a Stop on session
+    /// A must not gate submits on B, and must not make B's incoming
+    /// `message.start` look like a local stop-drain rather than a remote turn.
+    private var stoppingSessions: Set<String> = []
+    private var isStopping: Bool {
+        guard let sessionID else { return false }
+        return stoppingSessions.contains(displaySessionID(for: sessionID))
+    }
     /// True when the active session hasn't been properly resumed on the gateway
     /// (e.g. after WebSocket reconnection). Prompt submission will auto-resume first.
     private var needsGatewayResume = false
@@ -373,6 +380,11 @@ final class ChatViewModel: ObservableObject {
     private var pendingVisibleMessageDelta = ""
     private var pendingVisibleReasoningDelta = ""
     private var pendingVisibleThinkingDelta = ""
+    /// Display ID the buffered deltas above belong to. The buffers feed the
+    /// PUBLISHED arrays, which only ever show one session — so a buffer filled
+    /// while session A was visible must never be applied after a switch to B.
+    /// Set on the first append of a batch, cleared on flush/cancel.
+    private var pendingVisibleDeltaOwner: String?
     private var perfEventCounts: [String: Int] = [:]
     private var perfLastLog = Date()
     private var perfFlushCount = 0
@@ -672,7 +684,7 @@ client.eventStream
     }
 
     private func restoreSessionState(displayID: String, runtimeID: String? = nil) -> Bool {
-        guard var state = sessionStates[displayID] else { return false }
+        guard let state = sessionStates[displayID] else { return false }
         // Lazy-reload messages evicted on session switch — use background load
         sessionID = runtimeID ?? runtimeSessionID(for: displayID)
         messages = state.messages
@@ -690,13 +702,24 @@ client.eventStream
         currentModel = state.currentModel
         if state.messages.isEmpty && !state.isStreaming,
            ChatHistoryStore.shared.hasLocalMessages(forSession: displayID) {
+            let generation = sessionSwitchGeneration
             Task {
                 if let cached = await ChatHistoryStore.shared.loadMessagesBackground(forSession: displayID) {
-                    state.messages = cached
-                    sessionStates[displayID] = state
-                    if self.sessionID == (runtimeID ?? displayID) {
-                        self.messages = cached
+                    // Re-read state: a live event may have mutated it while the
+                    // disk read was in flight, and `state` here is a stale copy.
+                    var latest = self.sessionStates[displayID] ?? state
+                    if latest.messages.isEmpty {
+                        latest.messages = cached
+                        self.sessionStates[displayID] = latest
                     }
+                    // Compare DISPLAY ids: `sessionID` holds a runtime id, so the
+                    // old `sessionID == (runtimeID ?? displayID)` test silently
+                    // failed for bound sessions (never applying the load) and
+                    // could pass for the wrong session after a switch.
+                    guard generation == self.sessionSwitchGeneration,
+                          let current = self.sessionID,
+                          self.displaySessionID(for: current) == displayID else { return }
+                    self.messages = latest.messages
                 }
             }
         }
@@ -1119,6 +1142,36 @@ if restoreSessionState(displayID: key) {
         """
     }
 
+    /// Surface an inline quiz / flashcard deck, or act on a `[[QUIZ:topic]]`
+    /// marker, from a completed turn's text. Both the foreground and
+    /// session-routed messageComplete paths call this, and BOTH only call it for
+    /// the session currently on screen: these open sheets and submit follow-up
+    /// prompts, so a background turn firing them hijacks the visible chat.
+    private func applyLearningArtifacts(from text: String, sessionID eventSessionID: String?) {
+        if let questions = QuizResponse.extract(from: text), questions.count >= 3 {
+            log.info("Quiz parsed (auto-detect): \(questions.count) questions")
+            let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
+            quizTopic = String(inferredTopic)
+            quizQuestions = questions
+            return
+        }
+        if let deck = FlashcardResponse.extract(from: text), deck.cards.count >= 3 {
+            log.info("Flashcard deck parsed (auto-detect): \(deck.cards.count) cards on \"\(deck.topic)\"")
+            quizTopic = deck.topic
+            flashcardDeckReady = deck
+            return
+        }
+        guard let quizMatch = text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) else { return }
+        let matchText = String(text[quizMatch])
+        guard let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) else { return }
+        let topic = String(matchText[topicRange]).trimmingCharacters(in: .whitespaces)
+        guard !topic.isEmpty else { return }
+        log.info("Quiz marker detected: \(topic)")
+        quizTopic = topic
+        awaitingQuizResponse = true
+        Task { await autoGenerateQuiz(topic: topic, questionCount: 5) }
+    }
+
     /// Agent embedded [[QUIZ:topic]] — fire a quiz generation prompt.
     func autoGenerateQuiz(topic: String, questionCount: Int = 5) async {
         guard let client = gatewayClient, let sid = sessionID else { return }
@@ -1139,10 +1192,13 @@ if restoreSessionState(displayID: key) {
     /// Load history for the current session (for reconnects where resume isn't used).
     func loadSessionHistory() async {
         guard let client = gatewayClient, let sid = sessionID else { return }
+        let generation = sessionSwitchGeneration
         do {
             let historyMessages = try await client.sessionHistory(sessionID: sid)
             let parsed = Self.parseHistoryMessages(historyMessages)
-            if !parsed.isEmpty {
+            // Same staleness guard as loadSessionHistoryPreservingStream: drop
+            // history that arrived after the user switched away.
+            if !parsed.isEmpty, generation == sessionSwitchGeneration, sessionID == sid {
                 self.messages = parsed
             }
         } catch {
@@ -1156,10 +1212,16 @@ if restoreSessionState(displayID: key) {
     /// assistant placeholder only exists locally.
     func loadSessionHistoryPreservingStream() async {
         guard let client = gatewayClient, let sid = sessionID else { return }
+        let generation = sessionSwitchGeneration
         do {
             let historyMessages = try await client.sessionHistory(sessionID: sid)
             let parsed = Self.parseHistoryMessages(historyMessages)
             guard !parsed.isEmpty else { return }
+            // The fetch is async: if the user switched sessions while it was in
+            // flight, this history belongs to a chat that is no longer on screen
+            // and writing it to `messages` would replace the visible transcript
+            // with another session's.
+            guard generation == sessionSwitchGeneration, sessionID == sid else { return }
             let streaming = messages.filter { $0.isStreaming }
             self.messages = parsed + streaming
             snapshotCurrentSessionState()
@@ -1606,8 +1668,9 @@ if restoreSessionState(displayID: key) {
             return
         }
 
-        isStopping = true
-        defer { isStopping = false }
+        let stoppingID = displaySessionID(for: sid)
+        stoppingSessions.insert(stoppingID)
+        defer { stoppingSessions.remove(stoppingID) }
 
         // Update the UI immediately. On iOS this avoids the Stop button looking
         // dead while the gateway waits for the in-flight turn to unwind.
@@ -1926,6 +1989,18 @@ if restoreSessionState(displayID: key) {
     func applyTestEvent(_ event: GatewayEvent, sessionID: String) {
         applySessionEvent(event, to: sessionID)
     }
+
+    /// Drain the coalesced delta buffers synchronously, as the 500ms timer
+    /// would. Tests use this to assert WHERE buffered tokens land across a
+    /// session switch without waiting on the real cadence.
+    internal func flushDeltaBuffersForTesting() {
+        flushPendingVisibleEventDeltas()
+    }
+
+    /// Messages cached for a session that isn't necessarily on screen.
+    internal func testCachedMessages(displayID: String) -> [ChatMessage] {
+        sessionStates[displayID]?.messages ?? []
+    }
 #endif
 
 
@@ -2115,14 +2190,28 @@ if restoreSessionState(displayID: key) {
         writePerfLog("[PortalPerf] \(fields.joined(separator: " "))")
     }
 
-    private func appendPendingVisibleMessageDelta(_ text: String) {
+    /// Claim the delta buffers for `displayID`, flushing anything another
+    /// session left behind first. Deltas are coalesced across a 500ms window,
+    /// so without this a session switch mid-window would splice one session's
+    /// tokens into the other's transcript.
+    private func claimDeltaBuffers(for displayID: String) {
+        guard pendingVisibleDeltaOwner != displayID else { return }
+        if pendingVisibleDeltaOwner != nil {
+            flushPendingVisibleEventDeltas()
+        }
+        pendingVisibleDeltaOwner = displayID
+    }
+
+    private func appendPendingVisibleMessageDelta(_ text: String, owner: String) {
         recordPerfEvent("messageDelta", bytes: text.count)
+        claimDeltaBuffers(for: owner)
         pendingVisibleMessageDelta += text
         scheduleVisibleEventFlush()
     }
 
-    private func appendPendingVisibleReasoningDelta(_ text: String, separator: String = "") {
+    private func appendPendingVisibleReasoningDelta(_ text: String, owner: String, separator: String = "") {
         recordPerfEvent("reasoningDelta", bytes: text.count)
+        claimDeltaBuffers(for: owner)
         if !pendingVisibleReasoningDelta.isEmpty || !pendingVisibleThinkingDelta.isEmpty {
             pendingVisibleReasoningDelta += separator
         }
@@ -2130,8 +2219,9 @@ if restoreSessionState(displayID: key) {
         scheduleVisibleEventFlush()
     }
 
-    private func appendPendingVisibleThinkingDelta(_ text: String, separator: String = "") {
+    private func appendPendingVisibleThinkingDelta(_ text: String, owner: String, separator: String = "") {
         recordPerfEvent("thinkingDelta", bytes: text.count)
+        claimDeltaBuffers(for: owner)
         if !pendingVisibleThinkingDelta.isEmpty || !pendingVisibleReasoningDelta.isEmpty {
             pendingVisibleThinkingDelta += separator
         }
@@ -2145,6 +2235,7 @@ if restoreSessionState(displayID: key) {
         pendingVisibleMessageDelta = ""
         pendingVisibleReasoningDelta = ""
         pendingVisibleThinkingDelta = ""
+        pendingVisibleDeltaOwner = nil
     }
 
     private func scheduleVisibleEventFlush() {
@@ -2165,11 +2256,27 @@ if restoreSessionState(displayID: key) {
         let messageDelta = pendingVisibleMessageDelta
         let reasoningDelta = pendingVisibleReasoningDelta
         let thinkingDelta = pendingVisibleThinkingDelta
+        let owner = pendingVisibleDeltaOwner
         pendingVisibleMessageDelta = ""
         pendingVisibleReasoningDelta = ""
         pendingVisibleThinkingDelta = ""
+        pendingVisibleDeltaOwner = nil
 
         guard !messageDelta.isEmpty || !reasoningDelta.isEmpty || !thinkingDelta.isEmpty else { return }
+        // The buffers only ever hold the visible session's tokens, but the user
+        // may have switched away during the 500ms coalescing window. Those
+        // tokens belong to the session that produced them: fold them into its
+        // cached state and leave the published arrays (now showing a different
+        // session) alone.
+        if let owner, displaySessionID(for: sessionID ?? "") != owner {
+            applyDeltasToCachedState(
+                displayID: owner,
+                message: messageDelta,
+                reasoning: reasoningDelta,
+                thinking: thinkingDelta
+            )
+            return
+        }
         perfFlushCount += 1
         recordPerfEvent("visibleFlush")
         if perfLoggingEnabled {
@@ -2186,35 +2293,53 @@ if restoreSessionState(displayID: key) {
         // Update the streaming message in-place instead of replacing the
         // entire messages array.  This avoids a full SwiftUI re-render of
         // every message view on each 500ms flush tick.
-        if !messageDelta.isEmpty || !reasoningDelta.isEmpty || !thinkingDelta.isEmpty {
-            let msgDelta = messageDelta
-            let reasDelta = reasoningDelta
-            let thinkDelta = thinkingDelta
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                if !msgDelta.isEmpty {
-                    if let msgID = self.streamingMessageID,
-                       let idx = self.messages.firstIndex(where: { $0.id == msgID }) {
-                        self.messages[idx].content += msgDelta
-                    } else if self.isStreaming, let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                        self.messages[idx].content += msgDelta
-                    }
-                }
-                if !reasDelta.isEmpty {
-                    if let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                        let existing = self.messages[idx].reasoning ?? ""
-                        self.messages[idx].reasoning = existing + reasDelta
-                    }
-                }
-                if !thinkDelta.isEmpty {
-                    if let idx = self.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
-                        let existing = self.messages[idx].reasoning ?? ""
-                        self.messages[idx].reasoning = existing + thinkDelta
-                    }
-                }
-                self.snapshotCurrentSessionState()
+        //
+        // Applied SYNCHRONOUSLY: we are already on the main actor, and the old
+        // DispatchQueue.main.async hop deferred the append past any session
+        // switch queued behind it — so tokens were appended to whichever chat
+        // the user had clicked to by the time the block ran. The hop bought
+        // nothing (same thread, same runloop turn's end) and cost correctness.
+        if !messageDelta.isEmpty {
+            if let msgID = streamingMessageID,
+               let idx = messages.firstIndex(where: { $0.id == msgID }) {
+                messages[idx].content += messageDelta
+            } else if isStreaming, let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+                messages[idx].content += messageDelta
             }
         }
+        let thoughtDelta = reasoningDelta + thinkingDelta
+        if !thoughtDelta.isEmpty,
+           let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+            messages[idx].reasoning = (messages[idx].reasoning ?? "") + thoughtDelta
+        }
+        snapshotCurrentSessionState()
+    }
+
+    /// Fold coalesced deltas into a session's CACHED state, for tokens whose
+    /// session left the screen before the buffer flushed. Mirrors the published
+    /// path above so switching back shows the tokens rather than dropping them.
+    private func applyDeltasToCachedState(
+        displayID: String,
+        message: String,
+        reasoning: String,
+        thinking: String
+    ) {
+        guard var state = sessionStates[displayID] else { return }
+        // Slim (evicted) background state has no messages array to append to;
+        // its transcript is recovered from disk/session.resume on switch-back.
+        guard !state.messages.isEmpty else { return }
+        if !message.isEmpty {
+            if let msgID = state.streamingMessageID,
+               let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
+                state.messages[idx].content += message
+            }
+        }
+        let thoughts = reasoning + thinking
+        if !thoughts.isEmpty,
+           let idx = state.messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
+            state.messages[idx].reasoning = (state.messages[idx].reasoning ?? "") + thoughts
+        }
+        sessionStates[displayID] = state
     }
 
     private func applySessionEvent(_ event: GatewayEvent, to eventSessionID: String) {
@@ -2284,7 +2409,7 @@ if restoreSessionState(displayID: key) {
             // it on this shared session. Mirror it: the local user prompt is
             // missing, so pull history (which includes the just-submitted
             // user message) before streaming content arrives.
-            let isRemoteStart = !state.isStreaming && !isStopping
+            let isRemoteStart = !state.isStreaming && !stoppingSessions.contains(displayID)
             if isRemoteStart {
                 state.isRemoteTurn = true
                 if displaySessionID(for: sessionID ?? "") == displayID {
@@ -2305,9 +2430,11 @@ if restoreSessionState(displayID: key) {
                 currentTurnCompactions = []
                 manualCompactionsThisTurn = 0
             }
-            if let sid = sessionID ?? currentSessionID {
-                SessionRunHistoryStore.shared.recordRunStart(sessionID: sid)
-            }
+            // Attribute the run to the session the EVENT belongs to, not to
+            // whichever session happens to be on screen — a background turn
+            // starting while another session is visible used to file its run
+            // (and, at message-complete, its token usage) under the visible one.
+            SessionRunHistoryStore.shared.recordRunStart(sessionID: displayID)
 
         case .messageDelta(let text, _):
             if let msgID = state.streamingMessageID,
@@ -2315,6 +2442,7 @@ if restoreSessionState(displayID: key) {
                 state.messages[idx].content += text
                 if displaySessionID(for: sessionID ?? "") == displayID {
                     recordPerfEvent("sessionMessageDelta", bytes: text.count)
+                    claimDeltaBuffers(for: displayID)
                     pendingVisibleMessageDelta += text
                     scheduleVisibleEventFlush()
                 }
@@ -2346,59 +2474,46 @@ if restoreSessionState(displayID: key) {
             // snapshot reads; the baseline advances for every session.
             let isDisplayedTurn = displaySessionID(for: sessionID ?? "") == displayID
             noteCompactionCounter(displayID: displayID, usage: payload.usage, isDisplayed: isDisplayedTurn)
-            state.messages[idx].graphSnapshot = captureGraphSnapshot()
+            // The integrators are turn-scoped to the DISPLAYED session, so a
+            // background turn completing must not snapshot them — that grafted
+            // the visible session's thinking/subagent tree onto this message.
+            if isDisplayedTurn {
+                state.messages[idx].graphSnapshot = captureGraphSnapshot()
+            }
             state.activeToolCalls = [:]
             state.isStreaming = false
             state.streamingMessageID = nil
             state.avatarState = .idle
             state.isRemoteTurn = false
-            if let sid = sessionID ?? currentSessionID {
-                let runStatus: SessionRunEvent.RunStatus = payload.status == "error" ? .failed : .completed
-                SessionRunHistoryStore.shared.recordRunEnd(
-                    sessionID: sid,
-                    inputTokens: payload.usage?.inputTokens,
-                    outputTokens: payload.usage?.outputTokens,
-                    totalTokens: payload.usage?.totalTokens,
-                    apiCalls: 1,
-                    status: runStatus
-                )
-            }
+            let runStatus: SessionRunEvent.RunStatus = payload.status == "error" ? .failed : .completed
+            SessionRunHistoryStore.shared.recordRunEnd(
+                sessionID: displayID,
+                inputTokens: payload.usage?.inputTokens,
+                outputTokens: payload.usage?.outputTokens,
+                totalTokens: payload.usage?.totalTokens,
+                apiCalls: 1,
+                status: runStatus
+            )
 
             // ── Curriculum Response Handling ──
             // Checked before the quiz parser: a course carries `questions`
             // arrays inside its steps, so `QuizResponse.extract` would claim it
             // first and reduce a whole course to one loose quiz.
+            //
+            // A course is PERSISTED for any session (it's a Learning artifact,
+            // not chat UI), but the quiz/flashcard sheets and the Learning
+            // navigation only fire for the session on screen: a background turn
+            // used to yank the user out of the chat they were watching, and its
+            // [[QUIZ:…]] marker submitted a follow-up prompt into the VISIBLE
+            // session (autoGenerateQuiz uses `sessionID`).
             if let course = CurriculumResponse.extract(from: payload.text) {
                 log.info("Curriculum parsed: \(course.modules.count) modules, \(course.totalSteps) steps")
                 curriculumStore.save(course)
-                curriculumReady = course
-            } else if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
-                log.info("Quiz parsed (session auto-detect): \(questions.count) questions")
-                // Infer topic from the first question text
-                let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
-                quizTopic = String(inferredTopic)
-                quizQuestions = questions
-            } else if let deck = FlashcardResponse.extract(from: payload.text), deck.cards.count >= 3 {
-                log.info("Flashcard deck parsed (session auto-detect): \(deck.cards.count) cards on \"\(deck.topic)\"")
-                quizTopic = deck.topic
-                flashcardDeckReady = deck
-            } else {
-                // Also check for [[QUIZ:topic]] markers — agent wants to offer a quiz
-                if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
-                    let matchText = String(payload.text[quizMatch])
-                    if let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) {
-                        let topic = String(matchText[topicRange]).trimmingCharacters(in: .whitespaces)
-                        if !topic.isEmpty {
-                            log.info("Quiz marker detected: \(topic)")
-                            quizTopic = topic
-                            awaitingQuizResponse = true
-                            // Fire off a quiz generation prompt
-                            Task {
-                                await autoGenerateQuiz(topic: topic, questionCount: 5)
-                            }
-                        }
-                    }
+                if isDisplayedTurn {
+                    curriculumReady = course
                 }
+            } else if isDisplayedTurn {
+                applyLearningArtifacts(from: payload.text, sessionID: eventSessionID)
             }
 
         case .toolStart(payload: let payload):
@@ -2458,6 +2573,7 @@ if restoreSessionState(displayID: key) {
                     state.messages[idx].reasoning = existing + text
                 }
                 if displaySessionID(for: sessionID ?? "") == displayID {
+                    claimDeltaBuffers(for: displayID)
                     pendingVisibleReasoningDelta += text
                     scheduleVisibleEventFlush()
                     reasoningGraph.feed(delta: text)
@@ -2468,7 +2584,7 @@ if restoreSessionState(displayID: key) {
             if state.avatarState != .toolUse && state.avatarState != .thinking { state.avatarState = .thinking }
             if state.messages.last(where: { $0.role == .assistant && $0.isStreaming }) != nil {
                 if displaySessionID(for: sessionID ?? "") == displayID {
-                    appendPendingVisibleThinkingDelta(text, separator: "\n")
+                    appendPendingVisibleThinkingDelta(text, owner: displayID, separator: "\n")
                     reasoningGraph.feed(delta: text)
                 }
             }
@@ -2520,6 +2636,10 @@ if restoreSessionState(displayID: key) {
 
         case .voiceTranscript(let text, let noSpeechLimit):
             // Walkie-talkie mode: auto-submit transcribed speech as a prompt.
+            // Only for the session on screen: `isVoiceRecording` and
+            // `submitPrompt` are both bound to the VISIBLE session, so acting on
+            // another session's transcript would type its speech into this chat.
+            guard displaySessionID(for: sessionID ?? "") == displayID else { break }
             guard !isStopping, let client = gatewayClient, sessionID != nil else { break }
             // If gateway says no_speech or text is empty, just stop recording.
             guard !noSpeechLimit, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -2543,8 +2663,12 @@ if restoreSessionState(displayID: key) {
                 await submitPrompt()
             }
 
-        case .voiceStatus(let state):
-            isVoiceRecording = (state == "recording")
+        case .voiceStatus(let voiceState):
+            // Same reason as voiceTranscript: the mic indicator describes the
+            // visible chat's composer.
+            if displaySessionID(for: sessionID ?? "") == displayID {
+                isVoiceRecording = (voiceState == "recording")
+            }
         }
 
         // Persist state for lifecycle events, but use slim metadata for
@@ -2726,7 +2850,7 @@ if restoreSessionState(displayID: key) {
             // late deltas after an interrupt; the gateway can still drain one
             // in-flight turn after the UI has already stopped it locally.
             guard isStreaming else { break }
-            appendPendingVisibleMessageDelta(text)
+            appendPendingVisibleMessageDelta(text, owner: displaySessionID(for: sessionID ?? ""))
 
         case .messageComplete(payload: let payload):
             flushPendingVisibleEventDeltas()
@@ -2793,29 +2917,7 @@ if restoreSessionState(displayID: key) {
 
             // ── Quiz Response Handling ──
             // Always check for quiz JSON and [[QUIZ:topic]] markers
-            if let questions = QuizResponse.extract(from: payload.text), questions.count >= 3 {
-                log.info("Quiz parsed (auto-detect): \(questions.count) questions")
-                let inferredTopic = questions.first?.q.prefix(80) ?? "Quiz"
-                quizTopic = String(inferredTopic)
-                quizQuestions = questions
-            } else if let deck = FlashcardResponse.extract(from: payload.text), deck.cards.count >= 3 {
-                log.info("Flashcard deck parsed (auto-detect): \(deck.cards.count) cards on \"\(deck.topic)\"")
-                quizTopic = deck.topic
-                flashcardDeckReady = deck
-            } else if let quizMatch = payload.text.range(of: #"\[\[QUIZ:([^\]]+)\]\]"#, options: .regularExpression) {
-                let matchText = String(payload.text[quizMatch])
-                if let topicRange = matchText.range(of: #"(?<=\[\[QUIZ:)[^\]]+"#, options: .regularExpression) {
-                    let topic = String(matchText[topicRange]).trimmingCharacters(in: .whitespaces)
-                    if !topic.isEmpty {
-                        log.info("Quiz marker detected: \(topic)")
-                        quizTopic = topic
-                        awaitingQuizResponse = true
-                        Task {
-                            await autoGenerateQuiz(topic: topic, questionCount: 5)
-                        }
-                    }
-                }
-            }
+            applyLearningArtifacts(from: payload.text, sessionID: eventSessionID)
 
         case .toolStart(payload: let payload):
             recordPerfEvent("toolStart")
@@ -2871,7 +2973,7 @@ if restoreSessionState(displayID: key) {
             // Thinking/reasoning — avatar thinks
             guard isStreaming else { break }
             if avatarState != .toolUse && avatarState != .thinking { avatarState = .thinking }
-            appendPendingVisibleReasoningDelta(text)
+            appendPendingVisibleReasoningDelta(text, owner: displaySessionID(for: sessionID ?? ""))
             reasoningGraph.feed(delta: text)
 
         case .thinkingDelta(let text):
@@ -2887,7 +2989,11 @@ if restoreSessionState(displayID: key) {
             } else {
                 separator = ""
             }
-            appendPendingVisibleThinkingDelta(text, separator: separator)
+            appendPendingVisibleThinkingDelta(
+                text,
+                owner: displaySessionID(for: sessionID ?? ""),
+                separator: separator
+            )
 
         case .reasoningAvailable:
             break
