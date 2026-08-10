@@ -106,6 +106,8 @@ internal struct DashboardLayout: Codable, Equatable {
     internal static let sessionsDashboardKey = "sessionsDashboardLayout.v4"
     /// The cron activity canvas layout (summary + volume + jobs + timeline + breakdown).
     internal static let cronDashboardKey = "cronDashboardLayout.v1"
+    /// The skills canvas layout (folders + list + detail + stats).
+    internal static let skillsDashboardKey = "skillsDashboardLayout.v1"
 
     /// Load the saved layout for `key`, or `nil` if the user has never arranged
     /// one (the caller then seeds a sensible default). Corrupt JSON is logged and
@@ -251,6 +253,48 @@ internal struct DashboardLayout: Codable, Equatable {
                 frame: CGRect(x: gap, y: breakdownY, width: leftW, height: chartH)),
             DashboardPanel(kind: .cronJobs,
                 frame: CGRect(x: rightX, y: gap, width: rightW, height: h - gap * 2)),
+        ]).clamped(to: bounds)
+    }
+
+    /// First-run arrangement for the **skills canvas**:
+    ///
+    /// ```
+    /// ┌───────────┬─────────────────────┬────────────┐
+    /// │  Folders  │       Stats         │            │
+    /// │           ├─────────────────────┤   Detail   │
+    /// │           │    Skills list      │            │
+    /// └───────────┴─────────────────────┴────────────┘
+    /// ```
+    /// Folders on the left (navigation), the roll-down list in the middle (the
+    /// classic Skills view), and the inspector on the right — the shape a file
+    /// browser trains people to expect, so the canvas reads before it's rearranged.
+    /// The editor and hub are addable but not seeded: both are large, and neither
+    /// is useful until a skill is selected or a search is typed.
+    internal static func seededSkillsDashboard(for bounds: CGSize) -> DashboardLayout {
+        let w = max(bounds.width, DashboardPanel.minSize.width * 3 + 32)
+        let h = max(bounds.height, DashboardPanel.minSize.height * 2 + 24)
+        let gap: CGFloat = 8
+        // columns: folders 24%, list 44%, detail 32%
+        let foldersW = max(DashboardPanel.minSize.width, w * 0.24)
+        let detailW  = max(DashboardPanel.minSize.width, w * 0.32)
+        let listW    = w - foldersW - detailW - gap * 4
+        let listX    = gap + foldersW + gap
+        let detailX  = listX + listW + gap
+        // minSize.height, not a smaller "nice" number: `clamped(to:)` grows any
+        // shorter panel back up to the minimum, which would push the stats strip
+        // down over the list it is supposed to sit above.
+        let statsH = DashboardPanel.minSize.height
+        let listY = gap + statsH + gap
+        let listH = h - listY - gap
+        return DashboardLayout(panels: [
+            DashboardPanel(kind: .skillsFolders,
+                frame: CGRect(x: gap, y: gap, width: foldersW, height: h - gap * 2)),
+            DashboardPanel(kind: .skillsStats,
+                frame: CGRect(x: listX, y: gap, width: listW, height: statsH)),
+            DashboardPanel(kind: .skillsList,
+                frame: CGRect(x: listX, y: listY, width: listW, height: listH)),
+            DashboardPanel(kind: .skillsDetail,
+                frame: CGRect(x: detailX, y: gap, width: detailW, height: h - gap * 2)),
         ]).clamped(to: bounds)
     }
 
