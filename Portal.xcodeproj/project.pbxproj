@@ -128,6 +128,7 @@
 		2C93F1C632EDE1C85B02CF0D /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD14FA0E7332B800017824D8 /* Constants.swift */; };
 		2CAEC1431F660EB31E2A0B91 /* Identicon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CEA112C173DC783B4B36F40 /* Identicon.swift */; };
 		2D17F7630CFD474510E61BEF /* FeedArticle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CC149A8A95FD687281EB28C /* FeedArticle.swift */; };
+		2DAFDFFA4D746941AFFE744F /* TurnSkillAttributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F518C497D9473CBF0F04A4C /* TurnSkillAttributionTests.swift */; };
 		2DBA4B2C68340F359C2B06CB /* PromptBreakdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252743FDE501DDF9275ED4EE /* PromptBreakdownView.swift */; };
 		2DE7116776CCDFB00347DF48 /* LearningDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DE9B99AA5EEF98910A7787E /* LearningDashboardView.swift */; };
 		2E20D0B2289A369E5211D375 /* CelebrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */; };
@@ -209,6 +210,7 @@
 		4946A50252D664AEF202973A /* GatewaySessionConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59ECEB7DE2961280C528A311 /* GatewaySessionConfigTests.swift */; };
 		49498ADE6B690E04B5979269 /* AgentPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61DF392E7C7DDF86EDE89DC3 /* AgentPanel.swift */; };
 		49B057AC0BCDB053A9D91D78 /* ArtifactsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE662B6E86264722C3A7CF6 /* ArtifactsPanel.swift */; };
+		4A1995EDA2209E67AA0918C4 /* TurnSkillRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A9D82B01F6346410845 /* TurnSkillRecord.swift */; };
 		4A282F33F96AA8844E0FC573 /* FileTreeAggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F3A452B02A2F02596E98F80 /* FileTreeAggregator.swift */; };
 		4ADB193E6613A21EB2C1CAB8 /* WikiEventFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FE2ABA51B232133B6F3724 /* WikiEventFeedView.swift */; };
 		4BCE40B109253DB3DD385A70 /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A49B242A9B0DF616F62743 /* FileDownloadManager.swift */; };
@@ -303,6 +305,7 @@
 		672E3CC8D1D7A33F41669B70 /* ActivityItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FE76B41CC6C94C4892A18FA /* ActivityItemTests.swift */; };
 		674111BE05C5339D7DC3645E /* PromptBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36968DD40239F1EA6AC6BC3A /* PromptBreakdown.swift */; };
 		6755DADBA52259C2FF5DBF9F /* InlineMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A2EF35794E0D22009946F6 /* InlineMath.swift */; };
+		67B01513369CC2DE584CE58F /* SiteCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11FAD6FC88CA2CFF1A8B3EFA /* SiteCapture.swift */; };
 		67B01755F51E5A8C386FA820 /* Skill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A4500C837BEE83EE7D26533 /* Skill.swift */; };
 		6823BA7EAE284AAE72744F64 /* ThinkingBeatsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3B7C2CDA9BA958D0AEFE82 /* ThinkingBeatsPanel.swift */; };
 		685DD2C74BD30E3D37280E0D /* InlineTurnTimelineStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21385A8C9911C7F6BD9AB756 /* InlineTurnTimelineStrip.swift */; };
@@ -743,6 +746,7 @@
 		FF74C28FBC418297C0E48D4C /* CelebrationPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827A47D6E1A8CAFE71466664 /* CelebrationPreferencesTests.swift */; };
 		FFD8790994486F746D7A3A02 /* ArtifactCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194FFCA4DF6D02ECF2AE60E3 /* ArtifactCanvasView.swift */; };
 		FFDBB7B763D1371844A34481 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E4433A1BFCCB1AB04532BD /* ModelCatalog.swift */; };
+		FFFFBA6E7302C85D70E9A69D /* TurnSkillRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0E7A9D82B01F6346410845 /* TurnSkillRecord.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -779,7 +783,6 @@
 		02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
 		0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
 		02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLayout.swift; sourceTree = "<group>"; };
-		04096B720BF84A671AC5E21B /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGraphSpec.swift; sourceTree = "<group>"; };
 		04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExporter.swift; sourceTree = "<group>"; };
 		054EA87213F72FA39BED81CB /* PortalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PortalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -801,6 +804,7 @@
 		0F46F03E7FF2A626EE522B64 /* CronJobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobsView.swift; sourceTree = "<group>"; };
 		1026CF18503BB52CA0CD9B3E /* MonkeyScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonkeyScene.swift; sourceTree = "<group>"; };
 		1058977B438F9C79974ECD0C /* ToolbarIconThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarIconThemeTests.swift; sourceTree = "<group>"; };
+		11FAD6FC88CA2CFF1A8B3EFA /* SiteCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteCapture.swift; sourceTree = "<group>"; };
 		139EF846BE7D5E3C53A27D45 /* PerfCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfCounter.swift; sourceTree = "<group>"; };
 		1433E18DBF1DC71CED7C7DB6 /* SessionExporter+PDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionExporter+PDF.swift"; sourceTree = "<group>"; };
 		1444549B4F2BEDB9361E541C /* HermesNativeDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesNativeDeepLink.swift; sourceTree = "<group>"; };
@@ -819,6 +823,7 @@
 		19775F8FF34D0C811D1A5218 /* MapExportRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapExportRenderer.swift; sourceTree = "<group>"; };
 		1AE618A82E60385625B36F89 /* ThoughtGraphNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphNode.swift; sourceTree = "<group>"; };
 		1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactIntentSessionLink.swift; sourceTree = "<group>"; };
+		1B0E7A9D82B01F6346410845 /* TurnSkillRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnSkillRecord.swift; sourceTree = "<group>"; };
 		1BCFC282B5C390338603360A /* SessionUsageBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionUsageBadge.swift; sourceTree = "<group>"; };
 		1D03E0CA1FFD6072E3A68B7E /* SRSStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSStore.swift; sourceTree = "<group>"; };
 		1F906EEE885CFC04B7639A28 /* AppFontThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontThemeTests.swift; sourceTree = "<group>"; };
@@ -959,6 +964,7 @@
 		6EB864C3C84925748D5EB6EB /* LivingArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifact.swift; sourceTree = "<group>"; };
 		6EDA2632CA57A266F027D530 /* GatewayEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayEventDecodingTests.swift; sourceTree = "<group>"; };
 		6EE0C45339C8364B54C1BA18 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		6F518C497D9473CBF0F04A4C /* TurnSkillAttributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnSkillAttributionTests.swift; sourceTree = "<group>"; };
 		6F8AEF67B7B79CCE89754178 /* JSONRPCRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONRPCRequest.swift; sourceTree = "<group>"; };
 		7170E4B05EE7B7542652519E /* GatewayClient+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Push.swift"; sourceTree = "<group>"; };
 		721656D1D31475F30AA4C397 /* WikiEventLogSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventLogSource.swift; sourceTree = "<group>"; };
@@ -1075,6 +1081,7 @@
 		C1A84BD2459261A89F2283C1 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManager.swift; sourceTree = "<group>"; };
 		C303F264B267F822638D1F50 /* SessionsFilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsFilterState.swift; sourceTree = "<group>"; };
+		C349FA1CF228F48B97893959 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		C34F454AF5F229C910AB4021 /* SRSEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SRSEngine.swift; sourceTree = "<group>"; };
 		C36A56C550ABA26F761DC0F9 /* HermesStandardClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStandardClientTests.swift; sourceTree = "<group>"; };
 		C3FE9BB8CC70B170B8EA708F /* CentaurWorkflowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWorkflowsView.swift; sourceTree = "<group>"; };
@@ -1262,8 +1269,8 @@
 			isa = PBXGroup;
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
-				EC420DB82F3343AB7A53C0A7 /* portal */,
 				61851216B4FFCF80111C87E3 /* Portal */,
+				EC420DB82F3343AB7A53C0A7 /* portal */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -1406,6 +1413,7 @@
 				1AE618A82E60385625B36F89 /* ThoughtGraphNode.swift */,
 				01C73EE9E684A12438F66485 /* TimelineSpec.swift */,
 				5035FD5D8526D7D150AB1740 /* ToolbarIconTheme.swift */,
+				1B0E7A9D82B01F6346410845 /* TurnSkillRecord.swift */,
 				F860E18D4A7E50128104782D /* WikiEventTimeline.swift */,
 				FD08D23C3A494DECC1E5BED0 /* WikiEventTypeRegistry.swift */,
 				3AD1A24AEBBBFFCB5ADC71F5 /* WikiGraph.swift */,
@@ -1730,6 +1738,15 @@
 			path = Learning;
 			sourceTree = "<group>";
 		};
+		EC420DB82F3343AB7A53C0A7 /* portal */ = {
+			isa = PBXGroup;
+			children = (
+				C349FA1CF228F48B97893959 /* Local.xcconfig */,
+			);
+			name = portal;
+			path = .;
+			sourceTree = "<group>";
+		};
 		B166989F9AB9F4E8C3BDF340 /* PortalUITests */ = {
 			isa = PBXGroup;
 			children = (
@@ -1837,6 +1854,7 @@
 				7D3ED8C066694223E2E3F108 /* SessionTurnBuilderTests.swift */,
 				92488B8A5F0F6836ED4A3D46 /* SettingsViewModelGatewayTests.swift */,
 				DF77AD925D93465401A3EF42 /* SharedEntityExtractorTests.swift */,
+				11FAD6FC88CA2CFF1A8B3EFA /* SiteCapture.swift */,
 				FEEE68099D400B4874FE6079 /* SkillTests.swift */,
 				9C1C58002A6915CCEDB85A65 /* SRSEngineTests.swift */,
 				A1A2E27E012455718160A45D /* StandardManagementViewModelTests.swift */,
@@ -1845,6 +1863,7 @@
 				E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */,
 				FF2B75557ECF4979A6D6457D /* ThoughtGraphNodeRoleTests.swift */,
 				1058977B438F9C79974ECD0C /* ToolbarIconThemeTests.swift */,
+				6F518C497D9473CBF0F04A4C /* TurnSkillAttributionTests.swift */,
 				E001B2A23FD790B5B54E9164 /* ViewSnapshotTests.swift */,
 				880CD68FCD6DD7E474B9F1BA /* WikiDockedReaderTests.swift */,
 				5F1AE596EC42FF32902DD6B7 /* WikiEventLogTests.swift */,
@@ -1870,15 +1889,6 @@
 				79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */,
 			);
 			path = JSONRPC;
-			sourceTree = "<group>";
-		};
-		EC420DB82F3343AB7A53C0A7 /* portal */ = {
-			isa = PBXGroup;
-			children = (
-				04096B720BF84A671AC5E21B /* Local.xcconfig */,
-			);
-			name = portal;
-			path = .;
 			sourceTree = "<group>";
 		};
 		FB6E90D116D900F079442E44 /* Diagram */ = {
@@ -2396,6 +2406,7 @@
 				BC55CE962CE80ABAF2DD215E /* ToolbarIconButtonStyle.swift in Sources */,
 				0646C5043250BEB3A31E6125 /* ToolbarIconSettingsSection.swift in Sources */,
 				C0C573AB163E7E75C070D8FC /* ToolbarIconTheme.swift in Sources */,
+				FFFFBA6E7302C85D70E9A69D /* TurnSkillRecord.swift in Sources */,
 				E13E75BDE8639A73256718E0 /* TurnSkillsLens.swift in Sources */,
 				F390BCF790CD1148695CBA70 /* TweetContentService.swift in Sources */,
 				FA98C10A1C08906F39105F39 /* TweetPostCard.swift in Sources */,
@@ -2528,6 +2539,7 @@
 				A2AA8B1E9B31DAE830FE6990 /* SessionTurnBuilderTests.swift in Sources */,
 				169AC39D992A98AA4E0066D4 /* SettingsViewModelGatewayTests.swift in Sources */,
 				BED9CFA719501876CF422B30 /* SharedEntityExtractorTests.swift in Sources */,
+				67B01513369CC2DE584CE58F /* SiteCapture.swift in Sources */,
 				5F23AC298E3A539F38841072 /* SkillTests.swift in Sources */,
 				99FEAEAF2893C19815A7CD17 /* StandardManagementViewModelTests.swift in Sources */,
 				BDC88A99CB1C3D1B70CC0BEA /* SubagentGraphIntegratorTests.swift in Sources */,
@@ -2535,6 +2547,7 @@
 				CDF783D3D45F37FE94F8CC04 /* ThoughtGraphLayoutEngineTests.swift in Sources */,
 				B79EC7762772251608DB5240 /* ThoughtGraphNodeRoleTests.swift in Sources */,
 				4F440CF0D0FC0E6D12699040 /* ToolbarIconThemeTests.swift in Sources */,
+				2DAFDFFA4D746941AFFE744F /* TurnSkillAttributionTests.swift in Sources */,
 				33F466A63A4E0AFC4B83E6BA /* ViewSnapshot.swift in Sources */,
 				B7A369E00A05D770F6DD1E07 /* ViewSnapshotTests.swift in Sources */,
 				4EA4313896E56B6414E5D14C /* WikiDockedReaderTests.swift in Sources */,
@@ -2825,6 +2838,7 @@
 				B849396D89E0E0E0F77B9225 /* ToolbarIconButtonStyle.swift in Sources */,
 				2C865F0EE01C3BE0E360F8D9 /* ToolbarIconSettingsSection.swift in Sources */,
 				0CD46F1D6B652728B36EE69F /* ToolbarIconTheme.swift in Sources */,
+				4A1995EDA2209E67AA0918C4 /* TurnSkillRecord.swift in Sources */,
 				BB74802C5B347E2EBD9680DB /* TurnSkillsLens.swift in Sources */,
 				DC5C663E22AD27E3A46F4B1A /* TweetContentService.swift in Sources */,
 				40F7F0EDEBA25D68FDFAC17E /* TweetPostCard.swift in Sources */,
@@ -2906,7 +2920,7 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = C349FA1CF228F48B97893959 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -2929,7 +2943,7 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = C349FA1CF228F48B97893959 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -3015,7 +3029,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = C349FA1CF228F48B97893959 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -3078,7 +3092,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = C349FA1CF228F48B97893959 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";

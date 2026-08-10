@@ -14,6 +14,16 @@ struct ChatMessage: Identifiable, Codable {
     /// each turn). Empty for turns recorded before this was captured or for
     /// gateway-resumed history without live graph data.
     internal var graphSnapshot: TurnGraphSnapshot?
+    /// Skills that shaped this turn — the ones the user attached before sending
+    /// plus the ones the agent read mid-turn via `skill_view`.
+    ///
+    /// Recorded on the message because a turn's skills are a fact about that
+    /// turn, not about the session: the attachment set changes as the
+    /// conversation goes on, so asking "which skill produced this answer" is
+    /// only answerable if each turn keeps its own copy. Empty for turns recorded
+    /// before this was captured and for gateway-resumed history, which carries
+    /// no skill data — those render as "not recorded" rather than as "none".
+    internal var skills: [TurnSkillRecord] = []
     var reasoning: String?
     var thinkingTrace: ThinkingTrace?
     var usage: UsageInfo?
@@ -42,7 +52,7 @@ struct ChatMessage: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
-        case usage, status, attachments, userAttachments, graphSnapshot
+        case usage, status, attachments, userAttachments, graphSnapshot, skills
     }
 
     public init(from decoder: Decoder) throws {
@@ -53,6 +63,7 @@ struct ChatMessage: Identifiable, Codable {
         isStreaming = try container.decodeIfPresent(Bool.self, forKey: .isStreaming) ?? false
         toolCalls = try container.decodeIfPresent([ToolCallRecord].self, forKey: .toolCalls) ?? []
         graphSnapshot = try container.decodeIfPresent(TurnGraphSnapshot.self, forKey: .graphSnapshot)
+        skills = try container.decodeIfPresent([TurnSkillRecord].self, forKey: .skills) ?? []
         reasoning = try container.decodeIfPresent(String.self, forKey: .reasoning)
         thinkingTrace = try container.decodeIfPresent(ThinkingTrace.self, forKey: .thinkingTrace)
         usage = try container.decodeIfPresent(UsageInfo.self, forKey: .usage)
@@ -73,6 +84,7 @@ struct ChatMessage: Identifiable, Codable {
         isStreaming: Bool = false,
         toolCalls: [ToolCallRecord] = [],
         graphSnapshot: TurnGraphSnapshot? = nil,
+        skills: [TurnSkillRecord] = [],
         reasoning: String? = nil,
         thinkingTrace: ThinkingTrace? = nil,
         usage: UsageInfo? = nil,
@@ -85,6 +97,7 @@ struct ChatMessage: Identifiable, Codable {
         self.isStreaming = isStreaming
         self.toolCalls = toolCalls
         self.graphSnapshot = graphSnapshot
+        self.skills = skills
         self.reasoning = reasoning
         self.thinkingTrace = thinkingTrace
         self.usage = usage

@@ -41,7 +41,7 @@ internal struct SessionGraphPane: View {
                     replyPreview: "",
                     nodes: liveNodes,
                     compactions: chatViewModel.currentTurnCompactions,
-                    skills: chatViewModel.activeSkills,
+                    skills: chatViewModel.currentTurnSkills,
                     toolCount: chatViewModel.activeToolCalls.count,
                     toolsOnly: false
                 ))

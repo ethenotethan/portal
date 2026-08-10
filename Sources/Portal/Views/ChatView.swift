@@ -946,8 +946,8 @@ struct ChatView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                                    if !chatViewModel.activeSkills.isEmpty {
-                                        TurnSkillsLens(skills: chatViewModel.activeSkills)
+                                    if !chatViewModel.currentTurnSkills.isEmpty {
+                                        TurnSkillsLens(skills: chatViewModel.currentTurnSkills)
                                             .frame(width: 168)
                                             .id("turn-skills-lens")
                                     }
