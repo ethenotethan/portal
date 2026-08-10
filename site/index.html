@@ -35,8 +35,8 @@
         <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it lives here.</h2>
         <p class="lede">
           Portal is a native macOS and iOS client for AI agent backends. It talks to
-          <strong>Hermes</strong> over a WebSocket JSON-RPC connection and to
-          <strong>Centaur</strong> over REST + SSE — from one app, with no local
+          a <strong>Hermes</strong> gateway over a WebSocket JSON-RPC connection and
+          to <strong>Centaur</strong> over REST + SSE — from one app, with no local
           server, no CLI, and no Electron. What arrives over that socket is not
           just text: tool calls, reasoning traces, subagent spawns, artifacts and
           approvals all get a real surface built for them.
@@ -76,7 +76,10 @@
         <article class="card">
           <h4>Two backends, one app</h4>
           <p>
-            Hermes speaks WebSocket JSON-RPC and serves the full surface; Centaur
+            The Hermes gateway is
+            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">ethenotethan/harness</a>,
+            which speaks WebSocket JSON-RPC and serves the full surface;
+            <a href="https://github.com/paradigmxyz/centaur" target="_blank" rel="noreferrer">Centaur</a>
             is a session-scoped REST + SSE control plane; Hermes Standard is a
             management-scoped HTTP API. Each declares its own capabilities, so the
             UI only offers what the backend can actually honour.
@@ -338,8 +341,78 @@
         </div>
         <div class="layer" data-layer="external">
           <div class="layer-label"><span>External systems</span><em>4 runtime boundaries</em></div>
-          <p>Hermes gateway, Hermes Standard, the Centaur API, and OS device services.</p>
+          <p>The <code>harness</code> Hermes gateway, Hermes Standard, the Centaur API, and OS device services.</p>
         </div>
+      </div>
+
+      <!-- The two backends named concretely. Capability claims below mirror
+           `BackendCapabilities.hermes` / `.centaur` in AgentBackend.swift —
+           that struct is what actually gates the UI, so it's the source of
+           truth for anything asserted here. -->
+      <div class="card-grid two">
+        <article class="card wide">
+          <h4>Hermes — <code>ethenotethan/harness</code></h4>
+          <p>
+            The gateway Portal was built against is
+            <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">ethenotethan/harness</a>,
+            a fork of
+            <a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noreferrer">NousResearch/hermes-agent</a>.
+            The fork is what matters: <strong>stock hermes-agent has no
+            <code>/v1/ws</code></strong>. Upstream exposes only an
+            OpenAI-compatible HTTP API, so the WebSocket JSON-RPC endpoint —
+            and with it the wiki, feed, cron, skills, artifact and
+            push-notification RPCs this app is built on — exists only in the
+            fork. Point Portal at a stock install and the health probe passes
+            while the socket upgrade fails.
+          </p>
+          <p>
+            Everything served over that one endpoint: session lifecycle,
+            <code>prompt.submit</code>, interactive approvals and clarifications,
+            subagent events, model catalog and switching, session timeline and
+            usage introspection, and voice.
+          </p>
+          <p>
+            The gateway advertises its own surface at
+            <code>/v1/capabilities</code>, so a feature the running gateway
+            doesn't have stays hidden rather than failing on use — and that
+            endpoint 404ing is the quickest way to tell you're on stock
+            upstream. <a href="https://github.com/ethenotethan/portal/blob/main/docs/gateway-setup.md" target="_blank" rel="noreferrer">docs/gateway-setup.md</a>
+            walks through bootstrapping one, including the trap that
+            <code>hermes update</code> pulls upstream and removes
+            <code>/v1/ws</code>.
+          </p>
+        </article>
+        <article class="card wide">
+          <h4>Centaur — a sandboxed harness</h4>
+          <p>
+            <a href="https://github.com/paradigmxyz/centaur" target="_blank" rel="noreferrer">Centaur</a>
+            is a different shape of backend, not a second Hermes: REST for
+            control, SSE for the stream, no WebSocket. Five endpoints under
+            <code>/api/session/{thread_key}</code> — create, append the user
+            turn, execute, interrupt, and an event stream that replays from
+            <code>?after_event_id=N</code>.
+          </p>
+          <p>
+            Its wire events are sparse — harness stdout plus execution
+            lifecycle — so <code>CentaurEventAdapter</code> normalizes them into
+            the same <code>GatewayEvent</code> enum the gateway emits, and the
+            chat view model renders a Centaur session unchanged. Because there
+            is no transcript-fetch endpoint, the persisted SSE cursor is the only
+            "where was I" marker; it survives launches so a resume doesn't replay
+            the transcript from zero.
+          </p>
+          <p>
+            The asymmetry is declared rather than discovered. Centaur runs
+            non-interactively in a sandbox, so approvals, subagent events,
+            skills, attachments, model switching, response styles and voice are
+            all off, and the gateway services — cron, activity inbox, feed,
+            learning — never apply. It gains what Hermes lacks: workflow
+            schedules and run history under <code>/api/workflows/*</code>, and
+            wiki reads over a public REST wiki API instead of
+            <code>wiki.*</code> RPCs. It also carries a fixed identity, since a
+            harness is a different agent platform and not a Hermes persona.
+          </p>
+        </article>
       </div>
 
       <div class="card-grid two">
@@ -368,7 +441,7 @@
       </div>
 
       <div class="lifecycle">
-        <h4>Connection lifecycle</h4>
+        <h4>Connection lifecycle <em>— Hermes gateway</em></h4>
         <ol>
           <li>HTTP health probe against <code>/health</code>, 5&nbsp;s timeout.</li>
           <li>If a Cloudflare Access cookie is held, verify it — a redirect or 401 clears it and fails closed.</li>
@@ -381,6 +454,12 @@
           <li>Ping/pong every 15&nbsp;s; on drop, backoff and retry.</li>
           <li>Resume through <code>session_key</code>.</li>
         </ol>
+        <p class="note">
+          Centaur has no transport to establish — REST is usable the moment the
+          client exists, so it reports connected until a request or stream
+          actually fails, and its reconnect is the replayable SSE cursor rather
+          than steps 1–4.
+        </p>
       </div>
 
       <div class="card-grid two">
@@ -423,7 +502,12 @@
             <li>macOS 14 (Sonoma) or iOS 17+</li>
             <li>Xcode 16+ / Swift 6.1+</li>
             <li><code>brew install xcodegen</code></li>
-            <li>A running Hermes or Centaur gateway</li>
+            <li>
+              A running backend: an
+              <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer">ethenotethan/harness</a>
+              gateway (the fork — stock hermes-agent has no <code>/v1/ws</code>)
+              or a Centaur control plane
+            </li>
           </ul>
         </div>
         <div>

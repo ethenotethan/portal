@@ -187,6 +187,10 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
 }
 .card h4 { margin: 0 0 10px; font-size: 15px; letter-spacing: -.01em; }
 .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+/* Cards carrying more than one paragraph need the break; with margin:0 above,
+   consecutive paragraphs run together into one wall of text. */
+.card p + p { margin-top: 13px; }
+.card h4 code { font-size: .88em; }
 
 /* ── Feature rows ──────────────────────────────────────────────────── */
 .feature {
@@ -299,6 +303,18 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   background: var(--surface);
 }
 .lifecycle h4 { margin: 0 0 16px; font-size: 15px; }
+/* The scope qualifier in the heading — the steps are Hermes-only. */
+.lifecycle h4 em { color: var(--faint); font-style: normal; font-weight: 400; }
+/* `max-width` is overridden: `.note`'s 62ch is right for a prose column, but
+   here the rule sits under a full-width step grid and a short rule reads as a
+   rendering fault rather than a divider. */
+.lifecycle .note {
+  max-width: none;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
 .lifecycle ol {
   margin: 0;
   padding: 0;
