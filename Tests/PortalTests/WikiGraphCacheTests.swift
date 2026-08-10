@@ -95,4 +95,24 @@ internal struct WikiGraphCacheTests {
         #expect(loaded?.pages.count == 2)
         #expect(loaded?.pages.contains { $0.id == "new1" } == true)
     }
+
+    @Test("A write that fails is silently swallowed (cache is a pure optimization)")
+    internal func writeFailureIsSilent() async throws {
+        let dir = scratchDir()
+        let cache = WikiGraphCache(directory: dir)
+        let graph = WikiGraph(pages: [page("test")], links: [])
+
+        // Replace the cache directory path with a plain file so createDirectory
+        // fails in the background task, exercising the catch block (line 65).
+        try Data("not a directory".utf8).write(to: dir)
+
+        cache.store(graph, identity: "gw", wiki: nil)
+
+        // Wait for the background task to execute.
+        try await Task.sleep(for: .milliseconds(200))
+
+        // The write never happened, so load should return nil.
+        let loaded = await cache.load(identity: "gw", wiki: nil)
+        #expect(loaded == nil)
+    }
 }
