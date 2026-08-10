@@ -56,6 +56,24 @@ struct GatewayCapabilities: Equatable, Sendable {
         })
     }
 
+    /// Whether to offer the "Restart gateway" control.
+    ///
+    /// Inverted relative to `supportsArtifactActions`: a gateway that reports
+    /// nothing at all still gets the button. The other capability gates hide a
+    /// feature when unsure because a hidden feature costs the user nothing,
+    /// whereas restart is the recovery control — hiding it is how you get back
+    /// to needing shell access on the host, which is the whole thing it exists
+    /// to avoid. So an unknown gateway is allowed to be asked, and answers for
+    /// itself: `gateway.restart` returns method-not-found on gateways that
+    /// predate it, and that reply is surfaced honestly rather than as a failure.
+    ///
+    /// A gateway that DID report capabilities and didn't list restart is taken
+    /// at its word.
+    internal var supportsGatewayRestart: Bool {
+        guard !capabilityNames.isEmpty else { return true }
+        return capabilityNames.contains { $0.contains("gateway.restart") || $0.contains("gateway_restart") }
+    }
+
     static let conservativeDefaults = GatewayCapabilities(
         gatewayVersion: nil,
         agentVersion: nil,

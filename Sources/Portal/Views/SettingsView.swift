@@ -519,6 +519,19 @@ private struct GatewayDetailPane: View {
             // Live connection status + link into the full transport log.
             HarnessConnectionSection(gateway: gateway)
 
+            // Restarting the backend belongs next to the connection state: it
+            // is the same question ("is the gateway healthy?") and the restart
+            // is answered by watching that state recover.
+            if !gateway.kind.isSessionScoped {
+                Divider()
+                GatewayRestartSection(
+                    client: gatewayClientWrapper.liveClient(
+                        for: gateway,
+                        isActive: settings.isActive(gateway)
+                    ) as? GatewayClient
+                )
+            }
+
             Divider()
 
             // Persona avatar (name = persona name; upload or use the identicon)
@@ -719,6 +732,10 @@ extension SettingsView {
                             .buttonStyle(.plain)
                         }
                     }
+                }
+
+                Section {
+                    GatewayRestartSection(client: gatewayClientWrapper.client)
                 }
 
                 Section("System Prompt") {

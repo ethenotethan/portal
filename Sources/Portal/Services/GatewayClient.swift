@@ -339,7 +339,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         scheduleDebugNotify()
     }
 
-    private func recordDebugEvent(
+    internal func recordDebugEvent(
         _ direction: GatewayDebugSnapshot.EventRecord.Direction,
         name: String,
         sessionID: String? = nil,
