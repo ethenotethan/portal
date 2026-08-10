@@ -154,7 +154,8 @@ internal struct GatewayRestartControllerTests {
         guard let url = components.url else {
             fatalError("static gateway test URL must be valid")
         }
-        return GatewayClient(gatewayURL: url, apiKey: ***
+        let apiKey = String()
+        return GatewayClient(gatewayURL: url, apiKey: apiKey)
     }
 
     @Test("starts idle")
