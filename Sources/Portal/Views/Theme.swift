@@ -186,8 +186,6 @@ internal struct AppTheme: Identifiable, Codable, Sendable {
     internal static let bubblePaddingV: CGFloat = 14
     internal static let pillRadius: CGFloat = 12
     internal static let pillSpacing: CGFloat = 10
-    internal static let avatarSize: CGFloat = 48
-    internal static let illustrationHeight: CGFloat = 260
 }
 
 // MARK: - Theme Manager
@@ -442,6 +440,4 @@ internal enum Theme {
     internal static var bubblePaddingH: CGFloat { AppTheme.bubblePaddingH }
     internal static var bubblePaddingV: CGFloat { AppTheme.bubblePaddingV }
     internal static var pillSpacing: CGFloat { AppTheme.pillSpacing }
-    internal static var avatarSize: CGFloat { AppTheme.avatarSize }
-    internal static var illustrationHeight: CGFloat { AppTheme.illustrationHeight }
 }
