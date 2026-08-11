@@ -83,6 +83,16 @@ struct MaintainerRefTests {
         #expect(MaintainerRef.write([.cron(jobID: "j1")], into: "# doc") == nil)
     }
 
+    /// `JSONSerialization` parses `-1e999` into a non-finite Double, which
+    /// `isValidJSONObject` then rejects — a value that parses but can't
+    /// round-trip. `write` must return nil rather than crash (NSException)
+    /// when the surrounding content holds such a value.
+    @Test("Writing into content with non-finite values fails gracefully")
+    internal func writeRejectsNonFiniteContent() {
+        let content = "{\"id\":\"a\",\"v\":-1e999}"
+        #expect(MaintainerRef.write([.cron(jobID: "j1")], into: content) == nil)
+    }
+
     @Test("Parse→write round-trips")
     func roundTrip() throws {
         let content = #"{"id":"a","maintainers":["cron:j1","workflow:wf2"]}"#
