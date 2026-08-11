@@ -441,7 +441,6 @@ internal enum Theme {
     internal static var bubbleRadius: CGFloat { AppTheme.bubbleRadius }
     internal static var bubblePaddingH: CGFloat { AppTheme.bubblePaddingH }
     internal static var bubblePaddingV: CGFloat { AppTheme.bubblePaddingV }
-    internal static var pillRadius: CGFloat { AppTheme.pillRadius }
     internal static var pillSpacing: CGFloat { AppTheme.pillSpacing }
     internal static var avatarSize: CGFloat { AppTheme.avatarSize }
     internal static var illustrationHeight: CGFloat { AppTheme.illustrationHeight }
