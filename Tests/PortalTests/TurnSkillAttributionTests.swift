@@ -226,3 +226,111 @@ internal struct SessionTurnSkillTests {
         #expect(turns[1].skills.map(\.name) == ["plan"])
     }
 }
+
+/// Pin the live event paths as well as the value-level persistence rules above.
+/// These are the two paths that stamp a completed turn: the session currently
+/// on screen and a different session continuing in the background.
+@Suite("Live Turn Skill Attribution")
+@MainActor
+internal struct LiveTurnSkillAttributionTests {
+
+    private func skill(_ name: String = "graphify") -> SkillInfo {
+        SkillInfo(
+            name: name,
+            description: "",
+            category: "knowledge",
+            source: "local",
+            identifier: nil,
+            tags: [],
+            skillMdPath: nil,
+            skillDir: nil,
+            skillMdPreview: nil,
+            skillMdFullContent: nil,
+            slashCommand: name
+        )
+    }
+
+    private func complete(_ text: String = "done") -> GatewayEvent {
+        .messageComplete(payload: MessageCompletePayload(
+            text: text,
+            status: "complete",
+            usage: nil,
+            reasoning: nil,
+            rendered: nil,
+            warning: nil
+        ))
+    }
+
+    private func loadedSkillEvent(id: String = "skill-tool") -> GatewayEvent {
+        .toolStart(payload: ToolStartPayload(
+            toolID: id,
+            name: "skill_view",
+            context: "graphify"
+        ))
+    }
+
+    @Test("the visible turn records attached and agent-loaded skills")
+    internal func visibleTurnRecordsBothOrigins() {
+        let vm = ChatViewModel()
+        let sessionID = "visible-skills-\(UUID().uuidString)"
+        _ = vm.beginSwitchToSession(key: sessionID)
+        vm.attachSkill(skill())
+
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: sessionID)
+        vm.receiveGatewayEventForTesting(loadedSkillEvent(), sessionID: sessionID)
+
+        #expect(vm.currentTurnSkills.map(\.id) == ["attached:graphify", "loaded:graphify"])
+
+        vm.receiveGatewayEventForTesting(complete(), sessionID: sessionID)
+        let assistant = vm.messages.last { $0.role == .assistant }
+        #expect(assistant?.skills.map(\.id) == ["attached:graphify", "loaded:graphify"])
+        #expect(vm.loadedSkills.isEmpty)
+    }
+
+    @Test("a background turn stamps its own skills, not the visible session's")
+    internal func backgroundTurnRecordsItsOwnSkills() async {
+        let vm = ChatViewModel()
+        let backgroundID = "background-skills-\(UUID().uuidString)"
+        let visibleID = "visible-other-\(UUID().uuidString)"
+        _ = vm.beginSwitchToSession(key: backgroundID)
+        vm.attachSkill(skill())
+        _ = vm.beginSwitchToSession(key: visibleID)
+
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: backgroundID)
+        vm.receiveGatewayEventForTesting(
+            loadedSkillEvent(id: "background-skill-tool"),
+            sessionID: backgroundID
+        )
+        vm.receiveGatewayEventForTesting(complete("background done"), sessionID: backgroundID)
+
+        // Background transcript writes intentionally use a detached task. Poll
+        // the real store rather than asserting against an in-memory copy that
+        // production deliberately releases after completion.
+        var assistant: ChatMessage?
+        for _ in 0..<100 where assistant == nil {
+            assistant = ChatHistoryStore.shared.loadMessages(forSession: backgroundID)?
+                .last { $0.role == .assistant }
+            if assistant == nil {
+                try? await Task.sleep(nanoseconds: 10_000_000)
+            }
+        }
+        #expect(assistant?.skills.map(\.id) == ["attached:graphify", "loaded:graphify"])
+        #expect(vm.currentSessionID == visibleID)
+        #expect(vm.loadedSkills.isEmpty)
+    }
+
+    @Test("attached skills survive switching away and back")
+    internal func attachmentsAreSessionState() {
+        let vm = ChatViewModel()
+        let sessionA = "skills-a-\(UUID().uuidString)"
+        let sessionB = "skills-b-\(UUID().uuidString)"
+        _ = vm.beginSwitchToSession(key: sessionA)
+        vm.attachSkill(skill())
+
+        _ = vm.beginSwitchToSession(key: sessionB)
+        #expect(vm.activeSkills.isEmpty)
+
+        _ = vm.beginSwitchToSession(key: sessionA)
+        #expect(vm.activeSkills.map(\.name) == ["graphify"])
+    }
+}

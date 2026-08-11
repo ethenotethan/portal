@@ -842,6 +842,8 @@ if restoreSessionState(displayID: key) {
         self.pendingClarify = nil
         self.avatarState = .idle
         self.error = nil
+        self.activeSkills = []
+        self.loadedSkills = []
         snapshotCurrentSessionState()
 
         if ChatHistoryStore.shared.hasLocalMessages(forSession: key) {
@@ -1109,6 +1111,7 @@ if restoreSessionState(displayID: key) {
     func attachSkill(_ skill: SkillInfo) {
         guard !activeSkills.contains(where: { $0.name == skill.name }) else { return }
         activeSkills.append(skill)
+        snapshotCurrentSessionState()
         inputText = ""
         slashMode = false
         slashSuggestions = []
@@ -1127,6 +1130,7 @@ if restoreSessionState(displayID: key) {
 
     func detachSkill(named name: String) {
         activeSkills.removeAll { $0.name == name }
+        snapshotCurrentSessionState()
         Task {
             if let sid = sessionID, let client = gatewayClient {
                 let names = activeSkills.map { $0.name }
@@ -2776,6 +2780,12 @@ if restoreSessionState(displayID: key) {
                     ChatHistoryStore.shared.saveMessages(state.messages, forSession: displayID)
                 }
                 var slimState = sessionStates[displayID] ?? SessionRuntimeState()
+                // Keep the in-flight assistant shell across sparse lifecycle
+                // events. Dropping it after message.start meant the following
+                // tool.start/message.complete could no longer find the message
+                // to stamp or persist. Once complete, the transcript is on disk
+                // and can be released again.
+                slimState.messages = state.isStreaming ? state.messages : []
                 slimState.isStreaming = state.isStreaming
                 slimState.isSessionReady = state.isSessionReady
                 slimState.approvalQueue = state.approvalQueue
@@ -2786,6 +2796,7 @@ if restoreSessionState(displayID: key) {
                 slimState.sessionTitle = state.sessionTitle
                 slimState.streamingMessageID = state.streamingMessageID
                 slimState.currentModel = state.currentModel
+                slimState.activeSkills = state.activeSkills
                 // Carried like the other in-flight turn state: these accumulate
                 // across a background turn's tool calls and are consumed when it
                 // completes, so dropping them here would lose every skill the
@@ -2825,6 +2836,7 @@ if restoreSessionState(displayID: key) {
                     activeToolCalls = state.activeToolCalls
                     avatarState = state.avatarState
                     streamingMessageID = state.streamingMessageID
+                    loadedSkills = state.pendingLoadedSkills
                 }
             }
             if case .messageComplete(let payload) = event {

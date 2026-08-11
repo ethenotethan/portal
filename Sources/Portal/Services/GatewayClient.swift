@@ -1508,9 +1508,7 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// a `skills` field — one that currently reports the host's whole installed
     /// catalog rather than the session's, so it can't be read as attachment
     /// today. When that RPC exists, this is where it goes.
-    func setSessionSkills(sessionID: String, skillNames: [String]) async throws {
-        log.debug("setSessionSkills(\(skillNames.count) skills): client-side only; no gateway RPC exists")
-    }
+    internal func setSessionSkills(sessionID _: String, skillNames _: [String]) async throws {}
 
     // MARK: - Activity Inbox RPCs
 
