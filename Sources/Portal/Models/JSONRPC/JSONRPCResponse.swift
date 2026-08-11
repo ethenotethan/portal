@@ -25,7 +25,6 @@ struct JSONRPCError: Decodable, Equatable {
     }
 
     static let methodNotFound = JSONRPCError(code: -32601, message: "method not found")
-    static let internalError = JSONRPCError(code: -32603, message: "internal error")
 
     // Hermes-specific error codes
     static let sessionNotFound = JSONRPCError(code: 4001, message: "session not found")
