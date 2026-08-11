@@ -84,11 +84,6 @@ internal struct InlineTurnTimelineStrip: View {
         isStreaming && nodes.contains { $0.status == .running && $0.category != .reasoning }
     }
 
-    /// World width of the laid-out graph (before fitting).
-    private var worldWidth: CGFloat {
-        max(engine.totalSize.width, 1)
-    }
-
     internal var body: some View {
         // Fit-to-width: the whole turn always fits the strip. As time passes
         // the world grows, so the fit scale shrinks and bars smoothly rescale
