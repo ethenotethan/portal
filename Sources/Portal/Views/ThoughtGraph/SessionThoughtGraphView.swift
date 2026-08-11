@@ -20,11 +20,12 @@ internal struct SessionTurn: Identifiable {
     /// across the flamechart. Empty for turns with no compaction (the common
     /// case) or persisted before compaction capture existed.
     internal let compactions: [CompactionMarker]
-    /// Skills active during this turn ("what"). Live-only for now — the current
-    /// turn carries `ChatViewModel.activeSkills`; past turns are empty because
-    /// skills aren't persisted per-turn yet (the skills panel shows an honest
-    /// "not recorded" state rather than inventing them).
-    internal let skills: [SkillInfo]
+    /// Skills that shaped this turn ("what") — those the user attached before
+    /// sending plus those the agent read mid-turn via `skill_view`, replayed from
+    /// `ChatMessage.skills`. Empty for turns recorded before per-turn capture
+    /// existed and for gateway-resumed history, which carries no skill data; the
+    /// panel shows an honest "not recorded" state rather than inventing them.
+    internal let skills: [TurnSkillRecord]
     /// Tool-call count, for the rail badge.
     internal let toolCount: Int
     /// Whether full depth (reasoning/subagents) is available, vs tool-only —
@@ -45,12 +46,14 @@ internal enum SessionTurnBuilder {
     internal static func turns(from messages: [ChatMessage]) -> [SessionTurn] {
         var turns: [SessionTurn] = []
         var pendingPrompt = ""
+        var pendingSkills: [TurnSkillRecord] = []
         var turnIndex = 0
 
         for message in messages {
             switch message.role {
             case .user:
                 pendingPrompt = message.content
+                pendingSkills = message.skills
             case .assistant:
                 // Skip empty assistant turns (no tools, no reply) — nothing to graph.
                 guard !message.toolCalls.isEmpty
@@ -70,11 +73,16 @@ internal enum SessionTurnBuilder {
                     replyPreview: String(message.content.prefix(80)),
                     nodes: nodes,
                     compactions: snapshot?.compactions ?? [],
-                    skills: [],
+                    // The assistant message carries the full record (attached +
+                    // agent-loaded). Fall back to the prompt's attached-only set
+                    // for a turn interrupted before it completed, which never got
+                    // stamped.
+                    skills: message.skills.isEmpty ? pendingSkills : message.skills,
                     toolCount: message.toolCalls.count,
                     toolsOnly: snapshot == nil || snapshot?.isEmpty == true
                 ))
                 pendingPrompt = ""
+                pendingSkills = []
             }
         }
         return turns

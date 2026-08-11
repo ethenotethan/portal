@@ -1,30 +1,34 @@
 import SwiftUI
 
-/// The "what capability" lens: the skills active for the current turn, shown as
-/// the taxonomy they self-organize into (grouped by `category`), pinned to the
+/// The "what capability" lens: the skills that shaped a turn, pinned to the
 /// far-right of the streaming plane beside the running-tools trace.
 ///
 /// It's the sibling of the timeline ("when" — tool bars) and the file tree
-/// ("where" — files touched): this answers "what capability is loaded." The
-/// source is `ChatViewModel.activeSkills` — the skills whose SKILL.md is
-/// prepended to the turn's prompt — so it's honest ("skills active", not
-/// "skills invoked") and updates live as skills attach/detach, since the host
-/// observes that published list.
+/// ("where" — files touched): this answers "what capability was in play."
+///
+/// Grouped by *origin* rather than by category, because origin is the fact that
+/// was previously missing: a skill the user attached with `/name` and a skill the
+/// agent decided to read mid-turn are different events, and only the first was
+/// ever visible. Category survives as the chip color, so the taxonomy still
+/// reads at a glance without a second axis of headers.
 internal struct TurnSkillsLens: View {
-    /// Skills active for this turn (from `ChatViewModel.activeSkills`).
-    internal let skills: [SkillInfo]
+    /// Skills recorded for this turn — live for the in-flight turn, replayed
+    /// from `ChatMessage.skills` for past ones.
+    internal let skills: [TurnSkillRecord]
 
-    /// Skills bucketed by their category taxonomy, categories in stable
-    /// (alphabetical) order and skills alphabetical within each — deterministic
-    /// so the cluster doesn't reshuffle as unrelated state changes.
-    private var groups: [(category: String, skills: [SkillInfo])] {
-        Dictionary(grouping: skills, by: { $0.category.isEmpty ? "general" : $0.category })
-            .map { (category: $0.key, skills: $0.value.sorted { $0.name < $1.name }) }
-            .sorted { $0.category < $1.category }
+    /// Origins in a fixed order (attached first — it precedes the turn), each
+    /// with its skills alphabetized so the cluster doesn't reshuffle as
+    /// unrelated state changes.
+    private var groups: [(origin: TurnSkillOrigin, skills: [TurnSkillRecord])] {
+        TurnSkillOrigin.allCases.compactMap { origin in
+            let matching = skills.filter { $0.origin == origin }.sorted { $0.name < $1.name }
+            return matching.isEmpty ? nil : (origin: origin, skills: matching)
+        }
     }
 
-    /// One category is the common case (most local skills are "general"); only
-    /// then do we drop the per-category headers and show a flat chip list.
+    /// With only one origin present the header would be the only thing
+    /// distinguishing it, and the section label already says which — so a single
+    /// group renders flat.
     private var isFlat: Bool { groups.count <= 1 }
 
     internal var body: some View {
@@ -32,11 +36,11 @@ internal struct TurnSkillsLens: View {
             header
             if isFlat {
                 ForEach(skills.sorted { $0.name < $1.name }) { skill in
-                    chip(skill.name, category: skill.category)
+                    chip(skill)
                 }
             } else {
-                ForEach(groups, id: \.category) { group in
-                    categoryBlock(group.category, group.skills)
+                ForEach(groups, id: \.origin) { group in
+                    originBlock(group.origin, group.skills)
                 }
             }
         }
@@ -48,12 +52,14 @@ internal struct TurnSkillsLens: View {
         )
     }
 
+    /// Names the single origin when there is only one ("Skills attached" /
+    /// "Skills loaded"), so the flat list still says how the skills got there.
     private var header: some View {
         HStack(spacing: 5) {
             Image(systemName: "puzzlepiece.extension.fill")
                 .font(.system(size: 9))
                 .foregroundStyle(Theme.accent)
-            Text("Skills")
+            Text(isFlat ? (groups.first.map { "Skills \($0.origin.rawValue)" } ?? "Skills") : "Skills")
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
             Spacer(minLength: 0)
@@ -64,39 +70,70 @@ internal struct TurnSkillsLens: View {
         }
     }
 
-    private func categoryBlock(_ category: String, _ skills: [SkillInfo]) -> some View {
+    private func originBlock(_ origin: TurnSkillOrigin, _ skills: [TurnSkillRecord]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                Circle()
-                    .fill(Self.color(for: category))
-                    .frame(width: 5, height: 5)
-                Text(category.uppercased())
+                Image(systemName: Self.icon(for: origin))
+                    .font(.system(size: 7))
+                    .foregroundStyle(Theme.tertiary)
+                Text(Self.label(for: origin).uppercased())
                     .font(.system(size: 8, weight: .semibold, design: .monospaced))
                     .monospaced()
                     .foregroundStyle(Theme.tertiary)
                     .lineLimit(1)
             }
             ForEach(skills) { skill in
-                chip(skill.name, category: category)
+                chip(skill)
             }
         }
     }
 
-    private func chip(_ name: String, category: String) -> some View {
+    private func chip(_ skill: TurnSkillRecord) -> some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 1.5)
-                .fill(Self.color(for: category))
+                .fill(Self.color(for: skill.category))
                 .frame(width: 3)
-            Text(name)
+            Text(skill.name)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Theme.primary)
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
+            // Only agent-loaded skills carry a marker: attached is the default
+            // reading, and badging both would be noise on every chip.
+            if skill.origin == .loaded {
+                Image(systemName: Self.icon(for: .loaded))
+                    .font(.system(size: 7))
+                    .foregroundStyle(Theme.tertiary)
+            }
         }
         .padding(.vertical, 3)
         .padding(.horizontal, 6)
-        .background(Self.color(for: category).opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+        .background(Self.color(for: skill.category).opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
+        .help(Self.tooltip(for: skill))
+    }
+
+    private static func label(for origin: TurnSkillOrigin) -> String {
+        switch origin {
+        case .attached: return "attached"
+        case .loaded: return "agent-loaded"
+        }
+    }
+
+    private static func icon(for origin: TurnSkillOrigin) -> String {
+        switch origin {
+        case .attached: return "paperclip"
+        case .loaded: return "sparkles"
+        }
+    }
+
+    private static func tooltip(for skill: TurnSkillRecord) -> String {
+        switch skill.origin {
+        case .attached:
+            return "\(skill.name) — attached before this turn; its instructions were included in the prompt."
+        case .loaded:
+            return "\(skill.name) — the agent read this skill itself during the turn."
+        }
     }
 
     /// Stable per-category color from a small palette (hash the name → index),

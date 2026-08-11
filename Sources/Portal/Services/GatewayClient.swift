@@ -1489,16 +1489,26 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return SkillsReloadResult(output: output, added: added, removed: removed, total: total)
     }
 
-    /// Set the active skills for a session.
-    func setSessionSkills(sessionID: String, skillNames: [String]) async throws {
-        let response = try await call("session.attach_skills", params: [
-            "session_id": AnyCodable(sessionID),
-            "skills": .array(skillNames.map(AnyCodable.init))
-        ])
-        if let error = response.error {
-            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
-        }
-    }
+    /// Record the active skills for a session.
+    ///
+    /// Intentionally a no-op against the gateway. This used to call
+    /// `session.attach_skills`, which no gateway has ever implemented — every
+    /// attach fired an RPC that came back method-not-found, and all three call
+    /// sites discarded that error rather than surfacing it, so the failure was
+    /// invisible while looking like the mechanism that made skills work.
+    ///
+    /// What actually delivers a skill is the client: `ChatViewModel` prepends
+    /// each attached skill's SKILL.md to the outgoing prompt. Attachment is
+    /// therefore client-side state, and the app records it per turn on
+    /// `ChatMessage.skills`.
+    ///
+    /// Kept as a method (rather than deleted from `AgentBackend`) because the
+    /// gateway owning session-skill state is a reasonable future: it would let
+    /// other clients see what a session is using, and `session.info` already has
+    /// a `skills` field — one that currently reports the host's whole installed
+    /// catalog rather than the session's, so it can't be read as attachment
+    /// today. When that RPC exists, this is where it goes.
+    internal func setSessionSkills(sessionID _: String, skillNames _: [String]) async throws {}
 
     // MARK: - Activity Inbox RPCs
 
