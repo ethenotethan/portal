@@ -87,6 +87,28 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     internal static let cronTimeline = PanelKind(rawValue: "cronTimeline")
     /// Per-job OK/Error split bar + success-rate + count rows.
     internal static let cronBreakdown = PanelKind(rawValue: "cronBreakdown")
+
+    // MARK: Skills canvas lenses (host-rendered singletons)
+
+    /// Search field + source/sort chips. Drives the shared `SkillsFilterState`
+    /// that every other skills panel observes.
+    internal static let skillsSearch = PanelKind(rawValue: "skillsSearch")
+    /// The roll-down skill list — the existing expand-in-place `SkillCard` stack,
+    /// filtered by the shared state. This is the classic Skills view as a panel.
+    internal static let skillsList = PanelKind(rawValue: "skillsList")
+    /// The folder tree over `SkillCategory` paths. Clicking a folder scopes the
+    /// list panel beside it; the tree is both navigation and filter.
+    internal static let skillsFolders = PanelKind(rawValue: "skillsFolders")
+    /// Inline inspector for the selected skill — metadata, tags, paths, and the
+    /// on-device AI summary.
+    internal static let skillsDetail = PanelKind(rawValue: "skillsDetail")
+    /// Live SKILL.md editor for the selected skill, with save-back to the harness.
+    internal static let skillsEditor = PanelKind(rawValue: "skillsEditor")
+    /// Total / categories / sources tiles for the filtered set.
+    internal static let skillsStats = PanelKind(rawValue: "skillsStats")
+    /// The Skills Hub — remote search and one-click install. Gateway-only; a
+    /// Standard backend manages a fixed local skill set with no hub.
+    internal static let skillsHub = PanelKind(rawValue: "skillsHub")
 }
 
 /// One panel on the dashboard canvas: a kind (what it shows) placed at a frame

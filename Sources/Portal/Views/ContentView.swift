@@ -1152,11 +1152,19 @@ internal struct ContentView: View {
             }
 
             if showSkills {
+                #if os(macOS)
+                SkillsCanvasView()
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+                #else
                 SkillsView()
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
+                #endif
             }
 
             if showFeedSheet {
