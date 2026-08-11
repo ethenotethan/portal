@@ -1,5 +1,6 @@
 import SwiftUI
 
+#if !os(macOS)
 struct SkillsView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject internal var settings: SettingsViewModel
@@ -393,6 +394,7 @@ struct SkillsView: View {
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
     }
 }
+#endif
 
 // MARK: - Skill Card
 
@@ -691,6 +693,7 @@ struct SkillCard: View {
 
 // MARK: - Skill Markdown Sheet
 
+#if !os(macOS)
 private struct SkillMarkdownSheet: View {
     let skill: SkillInfo
     var viewModel: SkillsViewModel
@@ -896,3 +899,4 @@ private struct HubResultRow: View {
         .background(Theme.background, in: RoundedRectangle(cornerRadius: 8))
     }
 }
+#endif
