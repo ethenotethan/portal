@@ -103,9 +103,11 @@ internal final class SkillsViewModel {
         }
     }
 
+    #if os(iOS)
     func refresh() async {
         await SkillStore.shared.reload()
     }
+    #endif
 
     func refreshIfNeeded() async {
         await SkillStore.shared.refreshIfNeeded()
@@ -173,6 +175,7 @@ internal final class SkillsViewModel {
         await SkillStore.shared.reload()
     }
 
+    #if os(iOS)
     enum DiagnosticTest {
         case list, scan, search
     }
@@ -224,6 +227,7 @@ internal final class SkillsViewModel {
         }
         diagnosticResult = output
     }
+    #endif
 
     func requestSummary(for skill: SkillInfo) async {
         switch skillSummaries[skill.name] {
