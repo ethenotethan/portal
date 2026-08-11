@@ -62,6 +62,28 @@ internal struct TurnSkillRecordTests {
         #expect(record.origin == .attached)
         #expect(record.name == "graphify")
     }
+
+    @Test("the live turn includes its attached skills")
+    @MainActor
+    internal func currentTurnIncludesAttachedSkills() {
+        let skill = SkillInfo(
+            name: "graphify",
+            description: "",
+            category: "knowledge",
+            source: "local",
+            identifier: nil,
+            tags: [],
+            skillMdPath: nil,
+            skillDir: nil,
+            skillMdPreview: nil,
+            skillMdFullContent: nil,
+            slashCommand: "graphify"
+        )
+        let viewModel = ChatViewModel()
+        viewModel.activeSkills = [skill]
+
+        #expect(viewModel.currentTurnSkills == [TurnSkillRecord.attached(skill)])
+    }
 }
 
 /// The gateway sends a *rendered label* for a tool call, not raw arguments, so
