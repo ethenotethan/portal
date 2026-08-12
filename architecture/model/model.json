@@ -901,7 +901,25 @@
       "line_count": 1422
     },
     {
-      "declaration_count": 73,
+      "declaration_count": 2,
+      "declarations": [
+        "WikiChangesetSource",
+        "WikiEventLogSource"
+      ],
+      "description": "Capability markers for knowledge backends: which source records an edit history, and which can report the ingestion events behind a page. Wiki surfaces gate their affordances on conformance rather than on backend identity. WikiSource and the Centaur-only timeline rollups are declared with the Centaur client and stay under centaur-services.",
+      "external": false,
+      "file_count": 2,
+      "files": [
+        "Sources/Portal/Services/WikiChangesetSource.swift",
+        "Sources/Portal/Services/WikiEventLogSource.swift"
+      ],
+      "id": "wiki-sources",
+      "label": "Wiki source contract",
+      "layer": "integration",
+      "line_count": 118
+    },
+    {
+      "declaration_count": 71,
       "declarations": [
         "AgentRun",
         "CacheEntry",
@@ -965,8 +983,6 @@
         "TweetEmbedText",
         "TweetFields",
         "VideoCache",
-        "WikiChangesetSource",
-        "WikiEventLogSource",
         "WikiGraphCache",
         "XAPIClient",
         "XAPIError",
@@ -979,7 +995,7 @@
       ],
       "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
       "external": false,
-      "file_count": 29,
+      "file_count": 27,
       "files": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
@@ -1004,8 +1020,6 @@
         "Sources/Portal/Services/TTSService.swift",
         "Sources/Portal/Services/TweetContentService.swift",
         "Sources/Portal/Services/VideoCache.swift",
-        "Sources/Portal/Services/WikiChangesetSource.swift",
-        "Sources/Portal/Services/WikiEventLogSource.swift",
         "Sources/Portal/Services/WikiGraphCache.swift",
         "Sources/Portal/Services/XAPIClient.swift",
         "Sources/Portal/Services/XAuthService.swift",
@@ -1014,7 +1028,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6077
+      "line_count": 5959
     },
     {
       "declaration_count": 219,
@@ -1586,6 +1600,42 @@
       "source": "wiki-ui",
       "target": "wiki-state",
       "type": "observes",
+      "weight": 20
+    },
+    {
+      "authority": "specified",
+      "description": "Wiki surfaces test the source for capability conformance to decide what to offer: the changeset drawer requires an edit history, the events plot and feed require an ingestion log. A missing affordance means the backend has nothing to show.",
+      "evidence": [
+        "Sources/Portal/Views/Wiki/WikiEventsPageView.swift",
+        "Sources/Portal/Views/Wiki/WikiGraphView.swift"
+      ],
+      "source": "wiki-ui",
+      "target": "wiki-sources",
+      "type": "depends_on",
+      "weight": 20
+    },
+    {
+      "authority": "specified",
+      "description": "The gateway serves the wiki graph, pages, changeset history and an event log whose entries carry the changesets they caused.",
+      "evidence": [
+        "Sources/Portal/Services/GatewayClient+Wiki.swift",
+        "Sources/Portal/Services/WikiChangesetSource.swift"
+      ],
+      "source": "wiki-sources",
+      "target": "hermes-services",
+      "type": "implemented_by",
+      "weight": 20
+    },
+    {
+      "authority": "specified",
+      "description": "The REST wiki-api serves the event log with directive attribution, plus the bucketed revision volume and baseline the knowledge-accrued pane needs.",
+      "evidence": [
+        "Sources/Portal/Services/CentaurWikiClient+Timeline.swift",
+        "Sources/Portal/Services/WikiEventLogSource.swift"
+      ],
+      "source": "wiki-sources",
+      "target": "centaur-services",
+      "type": "implemented_by",
       "weight": 20
     },
     {
@@ -3311,23 +3361,18 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by centaur-services.",
+      "description": "References 2 declaration(s) owned by centaur-services.",
       "evidence": [
-        "Sources/Portal/Services/RawEventLog.swift",
-        "Sources/Portal/Services/WikiChangesetSource.swift",
-        "Sources/Portal/Services/WikiEventLogSource.swift"
+        "Sources/Portal/Services/RawEventLog.swift"
       ],
       "source": "local-services",
       "symbols": [
-        "CentaurWikiClient",
         "Frame",
-        "SSEParser",
-        "WikiEventTimelineProviding",
-        "WikiSource"
+        "SSEParser"
       ],
       "target": "centaur-services",
       "type": "references",
-      "weight": 8
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -3352,7 +3397,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 29 declaration(s) owned by domain-models.",
+      "description": "References 28 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
@@ -3384,7 +3429,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 51
+      "weight": 49
     },
     {
       "authority": "observed",
@@ -3392,9 +3437,7 @@
       "evidence": [
         "Sources/Portal/Services/SessionMetaSyncService.swift",
         "Sources/Portal/Services/SkillCache.swift",
-        "Sources/Portal/Services/SkillStore.swift",
-        "Sources/Portal/Services/WikiChangesetSource.swift",
-        "Sources/Portal/Services/WikiEventLogSource.swift"
+        "Sources/Portal/Services/SkillStore.swift"
       ],
       "source": "local-services",
       "symbols": [
@@ -3403,7 +3446,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 7
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -4413,6 +4456,38 @@
       "authority": "observed",
       "description": "References 3 declaration(s) owned by centaur-services.",
       "evidence": [
+        "Sources/Portal/Services/WikiChangesetSource.swift",
+        "Sources/Portal/Services/WikiEventLogSource.swift"
+      ],
+      "source": "wiki-sources",
+      "symbols": [
+        "CentaurWikiClient",
+        "WikiEventTimelineProviding",
+        "WikiSource"
+      ],
+      "target": "centaur-services",
+      "type": "references",
+      "weight": 5
+    },
+    {
+      "authority": "observed",
+      "description": "References 1 declaration(s) owned by hermes-services.",
+      "evidence": [
+        "Sources/Portal/Services/WikiChangesetSource.swift",
+        "Sources/Portal/Services/WikiEventLogSource.swift"
+      ],
+      "source": "wiki-sources",
+      "symbols": [
+        "GatewayClient"
+      ],
+      "target": "hermes-services",
+      "type": "references",
+      "weight": 3
+    },
+    {
+      "authority": "observed",
+      "description": "References 3 declaration(s) owned by centaur-services.",
+      "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
       ],
@@ -4469,20 +4544,33 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by local-services.",
+      "description": "References 2 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
       ],
       "source": "wiki-state",
       "symbols": [
         "Page",
-        "WikiChangesetSource",
-        "WikiEventLogSource",
         "WikiGraphCache"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 5
+      "weight": 3
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by wiki-sources.",
+      "evidence": [
+        "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
+      ],
+      "source": "wiki-state",
+      "symbols": [
+        "WikiChangesetSource",
+        "WikiEventLogSource"
+      ],
+      "target": "wiki-sources",
+      "type": "references",
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -4602,24 +4690,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by local-services.",
+      "description": "References 1 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiEventTimelineCharts.swift",
-        "Sources/Portal/Views/Wiki/WikiEventsPageView.swift",
-        "Sources/Portal/Views/Wiki/WikiGraphControlsBar.swift",
         "Sources/Portal/Views/Wiki/WikiGraphView.swift",
         "Sources/Portal/Views/Wiki/WikiPageEditorView.swift",
         "Sources/Portal/Views/Wiki/WikiTimelineView.swift"
       ],
       "source": "wiki-ui",
       "symbols": [
-        "Page",
-        "WikiChangesetSource",
-        "WikiEventLogSource"
+        "Page"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 9
+      "weight": 5
     },
     {
       "authority": "observed",
@@ -4641,6 +4725,23 @@
       "target": "shared-ui",
       "type": "references",
       "weight": 9
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by wiki-sources.",
+      "evidence": [
+        "Sources/Portal/Views/Wiki/WikiEventsPageView.swift",
+        "Sources/Portal/Views/Wiki/WikiGraphControlsBar.swift",
+        "Sources/Portal/Views/Wiki/WikiGraphView.swift"
+      ],
+      "source": "wiki-ui",
+      "symbols": [
+        "WikiChangesetSource",
+        "WikiEventLogSource"
+      ],
+      "target": "wiki-sources",
+      "type": "references",
+      "weight": 5
     },
     {
       "authority": "observed",
