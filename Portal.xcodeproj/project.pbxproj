@@ -280,6 +280,7 @@
 		5B007BEC8BBCBFA8D8DE4523 /* BeautifulMermaid in Frameworks */ = {isa = PBXBuildFile; productRef = 1364723B97A9EA53B386901A /* BeautifulMermaid */; };
 		5B21B370401D8F8C9C4E317A /* MapExportRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19775F8FF34D0C811D1A5218 /* MapExportRenderer.swift */; };
 		5B4CF55F252F5EDDEDFC3DEA /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */; };
+		5C397A8DB6BA38D588EFA02C /* StuckStreamRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4FA75BA89BB21D0867535C /* StuckStreamRecoveryTests.swift */; };
 		5C434929EA1714D588922051 /* PanelResizeMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55F053C2D0C8CADA44499693 /* PanelResizeMathTests.swift */; };
 		5C74289EDEBFA77C921A9C2E /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
 		5C8E5426D95D11D06CC12A25 /* CurriculumStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694563F263FAF44A54A89E47 /* CurriculumStore.swift */; };
@@ -822,6 +823,7 @@
 		0A3591C0AF41F327701D87C1 /* TUISkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TUISkin.swift; sourceTree = "<group>"; };
 		0A8A43DD1E54D0C9FF6CEE36 /* XAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XAuthService.swift; sourceTree = "<group>"; };
 		0A9DB00CF24E0D67A792F30D /* KeychainStoreUpsertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStoreUpsertTests.swift; sourceTree = "<group>"; };
+		0B4FA75BA89BB21D0867535C /* StuckStreamRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StuckStreamRecoveryTests.swift; sourceTree = "<group>"; };
 		0BBDCEE4C7FC08F8C0062DC7 /* CelebrationPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationPreferences.swift; sourceTree = "<group>"; };
 		0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		0D55468F628900177771F916 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
@@ -1316,8 +1318,8 @@
 			isa = PBXGroup;
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
-				EC420DB82F3343AB7A53C0A7 /* portal */,
 				61851216B4FFCF80111C87E3 /* Portal */,
+				EC420DB82F3343AB7A53C0A7 /* portal */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -1333,6 +1335,15 @@
 				0A3591C0AF41F327701D87C1 /* TUISkin.swift */,
 			);
 			path = Skins;
+			sourceTree = "<group>";
+		};
+		EC420DB82F3343AB7A53C0A7 /* portal */ = {
+			isa = PBXGroup;
+			children = (
+				04096B720BF84A671AC5E21B /* Local.xcconfig */,
+			);
+			name = portal;
+			path = .;
 			sourceTree = "<group>";
 		};
 		478C43A556D1BB4322590DA6 /* MissionControl */ = {
@@ -1901,6 +1912,7 @@
 				FEEE68099D400B4874FE6079 /* SkillTests.swift */,
 				9C1C58002A6915CCEDB85A65 /* SRSEngineTests.swift */,
 				A1A2E27E012455718160A45D /* StandardManagementViewModelTests.swift */,
+				0B4FA75BA89BB21D0867535C /* StuckStreamRecoveryTests.swift */,
 				AD63814BE6C5063E6D308021 /* SubagentGraphIntegratorTests.swift */,
 				B45FA6A5C4912C0FFEA65FD1 /* ThemeCodeHighlightTests.swift */,
 				E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */,
@@ -1932,15 +1944,6 @@
 				79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */,
 			);
 			path = JSONRPC;
-			sourceTree = "<group>";
-		};
-		EC420DB82F3343AB7A53C0A7 /* portal */ = {
-			isa = PBXGroup;
-			children = (
-				04096B720BF84A671AC5E21B /* Local.xcconfig */,
-			);
-			name = portal;
-			path = .;
 			sourceTree = "<group>";
 		};
 		FB6E90D116D900F079442E44 /* Diagram */ = {
@@ -2608,6 +2611,7 @@
 				5F23AC298E3A539F38841072 /* SkillTests.swift in Sources */,
 				BE5BE3147E14DF930DD4780C /* SkillsFilterStateTests.swift in Sources */,
 				99FEAEAF2893C19815A7CD17 /* StandardManagementViewModelTests.swift in Sources */,
+				5C397A8DB6BA38D588EFA02C /* StuckStreamRecoveryTests.swift in Sources */,
 				BDC88A99CB1C3D1B70CC0BEA /* SubagentGraphIntegratorTests.swift in Sources */,
 				12A70D29C3A4554EAFCB4BA3 /* ThemeCodeHighlightTests.swift in Sources */,
 				CDF783D3D45F37FE94F8CC04 /* ThoughtGraphLayoutEngineTests.swift in Sources */,
