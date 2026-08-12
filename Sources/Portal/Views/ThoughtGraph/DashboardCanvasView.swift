@@ -167,6 +167,28 @@ internal struct DashboardCanvasView: View {
         let visibleHeight: CGFloat = panel.isCollapsed ? Self.titleBarHeight : panel.frame.height
         ZStack(alignment: .topLeading) {
             card(panel, isFocused: isFocused, visibleHeight: visibleHeight)
+                // The SECOND alignment-resolution site, and the one that kept the
+                // relayout loop alive after the outer ZStack's guides were pinned
+                // (below, in `body`). Same mechanism, one level down: this stack
+                // resolves `.topLeading` against the card, which walks the card's
+                // layout — `.frame(width:height:)` → VStack → `content(panel)` →
+                // the transcript's ScrollView → LazyVStack — and measuring a lazy
+                // stack at its ideal height enumerates every row, misses the
+                // estimates, and re-arms the next update pass.
+                //
+                // Pinning the outer container alone was not enough because the
+                // descent doesn't need the whole path to be guide-driven: any
+                // ancestor that asks for a dimension restarts it. Sampled on a
+                // build that already carried the outer fix, the surviving chain
+                // was still `_ZStackLayout.sizeThatFits` → `explicitAlignment` →
+                // `childPlacement` → `_FrameLayout` → … → `LazyStack`, which is
+                // precisely this stack over `card`'s fixed frame.
+                //
+                // The card is already sized explicitly and the layers above it are
+                // each sized to their own hit target, so `.topLeading` has nothing
+                // to compute — zero is where it resolves anyway.
+                .alignmentGuide(.leading) { _ in 0 }
+                .alignmentGuide(.top) { _ in 0 }
 
             if isEditing {
                 // 2. Move layer — sized to the visible area so the grab zone matches
@@ -205,7 +227,19 @@ internal struct DashboardCanvasView: View {
             }
             if !panel.isCollapsed {
                 content(panel)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    // `minHeight: 0` for the same reason ConversationPanel's scroll
+                    // view carries it: a bare flexible max still answers an
+                    // *ideal*-height query with the full content height, and the
+                    // sampled loop descends through this exact frame
+                    // (`_FlexFrameLayout.sizeThatFits` → `ScrollViewLayoutComputer`
+                    // → `LazyStack.measureEstimates`). Answering 0 satisfies the
+                    // measurement without enumerating the panel's content, and the
+                    // flexible max still fills the card exactly as before.
+                    .frame(
+                        minWidth: 0, maxWidth: .infinity,
+                        minHeight: 0, maxHeight: .infinity,
+                        alignment: .topLeading
+                    )
                     .clipped()
             }
         }
