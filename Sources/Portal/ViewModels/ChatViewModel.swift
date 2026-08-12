@@ -173,6 +173,27 @@ final class ChatViewModel: ObservableObject {
         from the first trusted click. Calling it again is harmless but redundant.
       - HUD overlays (crosshair, stats, help text) must be `pointer-events: none` unless they are real
         buttons, so clicks pass through to the scene.
+    - **Backend intents in HTML artifacts** — an html artifact (a dashboard, a world, any page) can carry
+      buttons that DISPATCH REAL BACKEND ACTIONS, including kicking off contained agent sessions. Two parts:
+      1. Declare the intents in the artifact's action manifest (same "actions" array as datasets):
+         {"type": "intent", "id": "archive-issue", "label": "Archive", "intent": "linear.issue.archive",
+          "presentation": {"role": "destructive"}}. Only declared bindings can ever fire; the gateway
+         re-validates every click against the stored revision.
+      2. Mark up the page with INERT attributes — no JS, no fetch, no scheme URLs (the host injects the
+         only bridge that exists and ignores everything else):
+         <button data-hermes-binding="archive-issue" data-hermes-entity="issues/ARC-42">Archive</button>
+         `data-hermes-binding` names the declared intent id; `data-hermes-entity` (optional, ≤512 bytes)
+         says which entity the click is about. The host reflects progress back onto the SAME element as
+         `data-hermes-status` = "pending" | "needs-confirmation" | "succeeded" | "failed" | "conflict" |
+         "unsupported" — style those states with CSS attribute selectors (e.g.
+         [data-hermes-status="pending"] { opacity: .5 }) so the control shows its own progress.
+      In a 3D world, stage the binding from your raycast instead of wiring click handlers: while
+      `document.pointerLockElement` is set and the crosshair hits an actionable object, setAttribute the
+      binding and entity ONTO THE CANVAS (removeAttribute when it leaves, and whenever the lock is not
+      held — the first unlocked click must capture the mouse, not fire an action). The user's trusted
+      click then dispatches whatever they were aiming at — never call dispatchEvent or element.click(),
+      synthetic clicks are deliberately ignored. Confirmation for destructive intents is native chrome;
+      don't build your own.
     - **Courses** when the user asks to be TAUGHT a subject rather than told about it — "teach me X",
       "build me a curriculum/course on X", "I want to learn X properly". Emit a curriculum envelope and
       the app files it in Learning as a course with per-step progress, instead of a wall of chat prose
