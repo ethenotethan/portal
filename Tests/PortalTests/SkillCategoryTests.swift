@@ -112,6 +112,22 @@ internal struct SkillCategoryTests {
         #expect(writing.children[0].skills.map(\.name) == ["a"])
     }
 
+    /// A parent with several child folders exercises the child-level sort inside
+    /// `buildNode` (distinct from the root sort): children are alphabetized by
+    /// their own folder name, not by insertion order or root order.
+    @Test("grouping sorts nested child folders alphabetically under their parent")
+    internal func groupsSortsNestedChildren() {
+        let grouping = SkillCategory.group([
+            skill("z", category: "writing/zebra"),
+            skill("a", category: "writing/apple"),
+            skill("m", category: "writing/mango"),
+        ])
+        #expect(grouping.roots.count == 1)
+        let writing = grouping.roots[0]
+        #expect(writing.path == ["writing"])
+        #expect(writing.children.map(\.name) == ["apple", "mango", "zebra"])
+    }
+
     @Test("uncategorized skills land in their own bucket, not a folder")
     internal func groupsUncategorizedSeparately() {
         let grouping = SkillCategory.group([
