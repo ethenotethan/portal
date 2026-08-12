@@ -248,8 +248,11 @@ internal final class ArtifactPointerLockDelegate: NSObject, WKUIDelegate {
 /// Escape is handled in two stages by a monitor scoped to this window: while the
 /// page holds the pointer the key is passed through untouched so WebKit performs
 /// its standard release; once unlocked, Escape leaves fullscreen and closes.
+///
+/// `ObservableObject` so SwiftUI chrome (the return-to-world pill) can watch
+/// `suspendedWorldTitle` without polling an AppKit singleton.
 @MainActor
-internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDelegate {
+internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDelegate, ObservableObject {
     // no_new_singletons exempt in .swiftlint.yml (window-hosting controllers,
     // like HTMLPreviewPresenter, are app-lifetime singletons by nature).
     internal static let shared = ArtifactFullscreenWindowController()
@@ -281,11 +284,21 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
     /// window is torn down only after the fullscreen transition finishes, or the
     /// screen is left with an empty green space.
     private var closeAfterExitingFullScreen = false
+    /// Like `closeAfterExitingFullScreen`, but the window is ordered out with
+    /// the page kept alive instead of torn down — the suspend path for "peek
+    /// at the session, come back to the world".
+    private var suspendAfterExitingFullScreen = false
+    /// Non-nil while a world is suspended: its title, for the return pill.
+    /// Published so SwiftUI shows/hides the pill without polling.
+    @Published internal private(set) var suspendedWorldTitle: String?
+    /// The document currently loaded (live or suspended). Lets `present`
+    /// recognize "the same world" and resume instead of reloading.
+    private var presentedHTML: String?
 
     override private init() { super.init() }
 
     /// Whether an artifact is currently presented fullscreen.
-    internal var isPresenting: Bool { window != nil }
+    internal var isPresenting: Bool { window != nil && suspendedWorldTitle == nil }
 
     /// Build a fresh interactive web view, load `html`, and take it to native
     /// fullscreen. Any prior presentation is torn down first so a previous
@@ -310,8 +323,17 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         autoCapturesPointer: Bool = true,
         intents: ArtifactFullscreenIntentContext? = nil
     ) {
+        // Re-presenting the world that's suspended is a return, not a reload —
+        // "Enter Full Screen" on the same artifact must not discard the page
+        // state the suspend path exists to preserve. Compared by content, not
+        // title, so a revised artifact still gets the fresh document.
+        if suspendedWorldTitle != nil, html == presentedHTML {
+            resume()
+            return
+        }
         let dragLookShim = InteractiveArtifactWeb.pageDragsToLook(html)
         close()
+        presentedHTML = html
         pointerLock.reset()
         intentContext = intents
 
@@ -643,11 +665,14 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
     }
 
     /// Click-through into the contained agent session an intent started.
-    /// Leaves the immersive window first — the session UI lives in the main
-    /// window, and a fullscreen scene on top of it would swallow the switch.
+    /// SUSPENDS the immersive window rather than closing it — the session UI
+    /// lives in the main window (a fullscreen scene on top would swallow the
+    /// switch), but the world keeps its page state so the return pill brings
+    /// the user back exactly where they were standing, with the dispatched
+    /// object already wearing its final data-hermes-status.
     @objc private func openIntentSession(_ sender: NSButton) {
         let sessionID = sender.identifier?.rawValue ?? ""
-        requestClose()
+        suspend()
         ArtifactIntentSessionLink.open(sessionID: sessionID)
     }
 
@@ -765,6 +790,53 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         close()
     }
 
+    // MARK: - Suspend / resume (the world survives a trip to the session view)
+
+    /// Order the window out but keep the page ALIVE — WebGL context, page
+    /// memory, the user's position in the world all survive, so returning is
+    /// `makeKeyAndOrderFront`, not a reload. WebKit throttles rAF for
+    /// non-visible views, so a suspended world idles instead of burning GPU.
+    ///
+    /// Fullscreen needs the same two-step dance as closing: ordering out a
+    /// window that still owns the screen leaves an empty space, so exit the
+    /// transition first and finish in `windowDidExitFullScreen`.
+    internal func suspend() {
+        guard let window, suspendedWorldTitle == nil else { return }
+        releasePointerLockForChrome()
+        if window.styleMask.contains(.fullScreen) {
+            suspendAfterExitingFullScreen = true
+            window.toggleFullScreen(nil)
+            return
+        }
+        finishSuspend()
+    }
+
+    private func finishSuspend() {
+        guard let window else { return }
+        suspendAfterExitingFullScreen = false
+        // The monitor and hint are presentation chrome; the intent plumbing
+        // stays — the store keeps publishing and marks re-stamp on resume.
+        removeEscapeMonitor()
+        fadeOutHint()
+        hideStatusStrip()
+        window.orderOut(nil)
+        suspendedWorldTitle = window.title
+        log.debug("suspended artifact fullscreen: \(window.title, privacy: .public)")
+    }
+
+    /// Bring a suspended world back exactly where it was left. No reload —
+    /// the page never stopped existing, only the window left the screen.
+    internal func resume() {
+        guard let window, suspendedWorldTitle != nil else { return }
+        suspendedWorldTitle = nil
+        installEscapeMonitor()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeFirstResponder(webView)
+        enterFullScreen(window)
+        log.debug("resumed artifact fullscreen: \(window.title, privacy: .public)")
+    }
+
     /// Tear down the current presentation, stopping the page so its render loop
     /// releases. Idempotent.
     internal func close() {
@@ -776,6 +848,9 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         pointerLock.reset()
         teardownIntentPlumbing()
         closeAfterExitingFullScreen = false
+        suspendAfterExitingFullScreen = false
+        suspendedWorldTitle = nil
+        presentedHTML = nil
         guard let window else { return }
         // Blank the page first so any WebGL/rAF loop halts before teardown.
         webView?.loadHTMLString("", baseURL: nil)
@@ -819,6 +894,8 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
         if closeAfterExitingFullScreen {
             closeAfterExitingFullScreen = false
             close()
+        } else if suspendAfterExitingFullScreen {
+            finishSuspend()
         } else {
             focusWebView()
         }
@@ -835,6 +912,9 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
             pointerLock.onLockChange = nil
             pointerLock.reset()
             teardownIntentPlumbing()
+            suspendAfterExitingFullScreen = false
+            suspendedWorldTitle = nil
+            presentedHTML = nil
             webView?.loadHTMLString("", baseURL: nil)
             webView?.stopLoading()
             webView?.uiDelegate = nil
@@ -842,6 +922,56 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
             window?.delegate = nil
             window = nil
             webView = nil
+        }
+    }
+}
+
+// MARK: - Return-to-world pill
+
+/// Floating affordance shown in the main window while an immersive world is
+/// suspended (the user clicked through into a session the world dispatched).
+/// One click resumes the fullscreen presentation exactly where it was left —
+/// no reload, page state intact. The X closes the world for good.
+internal struct ReturnToWorldPill: View {
+    @ObservedObject private var controller = ArtifactFullscreenWindowController.shared
+
+    internal init() {}
+
+    internal var body: some View {
+        if let title = controller.suspendedWorldTitle {
+            HStack(spacing: 8) {
+                Button {
+                    controller.resume()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.uturn.backward.circle.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Return to \(title)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(1)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Go back into the world, right where you left it")
+
+                Button {
+                    ArtifactFullscreenWindowController.shared.close()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Theme.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Close the world")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.border.opacity(0.6)))
+            .shadow(color: .black.opacity(0.25), radius: 8, y: 2)
+            .foregroundStyle(Theme.accent)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 }
