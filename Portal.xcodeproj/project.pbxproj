@@ -711,6 +711,7 @@
 		EF5BA1B008BD8BA64D51BEFB /* ClarifyRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06E9202DE8361A6F71A9F7E /* ClarifyRequestTests.swift */; };
 		EFF90FB2505E5AA851CB04A2 /* PortalOfflineSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250EB09F699471E388BC10E3 /* PortalOfflineSmokeUITests.swift */; };
 		F01D5AED671BA701DC7176C2 /* ArtifactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17A02E263AEC6AE34AE912AF /* ArtifactStore.swift */; };
+		F020698A3CBA27F6CF88A7F9 /* ArtifactFullscreenIntentContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958F21132EE4D1699F2453A2 /* ArtifactFullscreenIntentContextTests.swift */; };
 		F02317A519998C0C37747B8C /* WikiEventTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F860E18D4A7E50128104782D /* WikiEventTimeline.swift */; };
 		F114E2D34CDFA73773409591 /* PushRegistrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32BA1CA8CCACEEBB1C97B7EF /* PushRegistrationService.swift */; };
 		F19CFF65596A85D8849DE213 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 430B2CA1E22DD13601BD963B /* SwiftMath */; };
@@ -749,6 +750,7 @@
 		FA7618796F0E1D4F72C6F1BF /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = EEEDDEB051B56FBADB30719F /* MLXLMCommon */; };
 		FA98C10A1C08906F39105F39 /* TweetPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2528230688CC5940286A9C55 /* TweetPostCard.swift */; };
 		FB4BE5FB76F8034FFA8EC075 /* PortalButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849C1154A3B7777673AF9B3C /* PortalButtonStyle.swift */; };
+		FB8C3E4870F9E5138CED5A4F /* CanvasRelayoutGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0173AF8064C7B04D8CF8801D /* CanvasRelayoutGuardTests.swift */; };
 		FC29228143913AC2ECA42452 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5815387798570E917861661 /* SkillsViewModel.swift */; };
 		FC37C83DB22F87A4CC23526B /* WikiGraph2DCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5113F487FD4185AE7226B855 /* WikiGraph2DCanvas.swift */; };
 		FC38BAB849C9F3E2F57B0147 /* ConceptLinker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CFA18C2D0C8F14E47572C1 /* ConceptLinker.swift */; };
@@ -801,6 +803,7 @@
 		00F40D0A962137B83FB5BB65 /* CelebrationStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationStage.swift; sourceTree = "<group>"; };
 		0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeStore.swift; sourceTree = "<group>"; };
 		015E6939E5C8CBC3F89CF1B3 /* WikiEventTimelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineTests.swift; sourceTree = "<group>"; };
+		0173AF8064C7B04D8CF8801D /* CanvasRelayoutGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasRelayoutGuardTests.swift; sourceTree = "<group>"; };
 		01C73EE9E684A12438F66485 /* TimelineSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineSpec.swift; sourceTree = "<group>"; };
 		02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
 		0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
@@ -1049,6 +1052,7 @@
 		94562E6D8D4F32997ACE811B /* ActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStore.swift; sourceTree = "<group>"; };
 		94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillMarkdownEditor.swift; sourceTree = "<group>"; };
 		95450F797EE4865E40CA114A /* NativeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChartView.swift; sourceTree = "<group>"; };
+		958F21132EE4D1699F2453A2 /* ArtifactFullscreenIntentContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactFullscreenIntentContextTests.swift; sourceTree = "<group>"; };
 		966F0221DEACC5BE86FA501E /* CalendarSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSpec.swift; sourceTree = "<group>"; };
 		969D7459C6EAEA7FAB4E80B0 /* Model3DTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model3DTemplate.swift; sourceTree = "<group>"; };
 		9A3B7C2CDA9BA958D0AEFE82 /* ThinkingBeatsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingBeatsPanel.swift; sourceTree = "<group>"; };
@@ -1828,6 +1832,7 @@
 				1F906EEE885CFC04B7639A28 /* AppFontThemeTests.swift */,
 				4BABB326214CE2BF5CE19CDF /* ApprovalQueueTests.swift */,
 				BCD2E9C0991E1C9B7D50E565 /* ArchitectureTests.swift */,
+				958F21132EE4D1699F2453A2 /* ArtifactFullscreenIntentContextTests.swift */,
 				6123B6778763CDA474BCCD51 /* ArtifactIntentContractTests.swift */,
 				2B5D62361169F6B40127A7EA /* ArtifactIntentStoreTests.swift */,
 				3D8B1319CCE257066419871B /* ArtifactsPaneLayoutTests.swift */,
@@ -1835,6 +1840,7 @@
 				CBD0AE7AF15289D52F5BF54C /* BackendKindTests.swift */,
 				771C3D05CAE5E48B5A6AD239 /* BlockViewParserTests.swift */,
 				6794320152EABF823C879746 /* ButtonThemeTests.swift */,
+				0173AF8064C7B04D8CF8801D /* CanvasRelayoutGuardTests.swift */,
 				D73BDAD983F086DF3C33CC0E /* CelebrationManagerTests.swift */,
 				827A47D6E1A8CAFE71466664 /* CelebrationPreferencesTests.swift */,
 				F598AFF21B0CDB1D948A16D0 /* CentaurClientTests.swift */,
@@ -2533,6 +2539,7 @@
 				3CB20D672FEF5050452C3524 /* AppFontThemeTests.swift in Sources */,
 				562F7CBBD572235503719843 /* ApprovalQueueTests.swift in Sources */,
 				A1065EF2596CC96B6F4A4E24 /* ArchitectureTests.swift in Sources */,
+				F020698A3CBA27F6CF88A7F9 /* ArtifactFullscreenIntentContextTests.swift in Sources */,
 				1E826FA35F7907FDE5219175 /* ArtifactIntentContractTests.swift in Sources */,
 				CFBB8870B76CCFFC26E4334C /* ArtifactIntentStoreTests.swift in Sources */,
 				A00E8A06137A0415A10B6C44 /* ArtifactStatusReflectionTests.swift in Sources */,
@@ -2540,6 +2547,7 @@
 				D59500DEC6B9F779FBACFFAD /* BackendKindTests.swift in Sources */,
 				3252DB4C26A15DCABB4FC46E /* BlockViewParserTests.swift in Sources */,
 				2B1155CAAF64B8DE5C144055 /* ButtonThemeTests.swift in Sources */,
+				FB8C3E4870F9E5138CED5A4F /* CanvasRelayoutGuardTests.swift in Sources */,
 				525839E4A60214A40B537A8F /* CelebrationManagerTests.swift in Sources */,
 				FF74C28FBC418297C0E48D4C /* CelebrationPreferencesTests.swift in Sources */,
 				6DA7A10775592D29425C1F12 /* CentaurClientTests.swift in Sources */,
