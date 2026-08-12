@@ -498,7 +498,7 @@ internal struct SiteCapture {
                     // A source that only recorded ingest time plots as a hollow
                     // diamond; a real log has a few. Off the index, not an RNG —
                     // `SiteCapture` renders have to be reproducible.
-                    eventTimeEstimated: i % 11 == 0,
+                    eventTimeEstimated: i.isMultiple(of: 11),
                     actorSlackID: nil, actorName: nil, directiveBody: nil,
                     directiveExcerpt: nil, targetPages: nil, directiveStatus: nil,
                     resultingRevisionIDs: nil
