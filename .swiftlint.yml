@@ -217,6 +217,9 @@ custom_rules:
       - ".*/Services/ArtifactStore\\.swift"
       - ".*/Services/ChatHistoryStore\\.swift"
       - ".*/Services/KeychainStore\\.swift"
+      # LearningStore consolidates two census singletons (QuizStore, SRSStore)
+      # into one gateway-synced store, mirroring ArtifactStore — net reduction.
+      - ".*/Services/LearningStore\\.swift"
       - ".*/Services/NotificationService\\.swift"
       - ".*/Services/PushRegistrationService\\.swift"
       - ".*/Services/QuizStore\\.swift"

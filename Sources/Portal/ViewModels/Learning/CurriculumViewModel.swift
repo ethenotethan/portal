@@ -29,10 +29,13 @@ internal final class CurriculumViewModel {
     internal private(set) var lastAnswerCorrect = false
 
     /// Where progress is written. Injected so the dashboard and the player share
-    /// one store, and so tests can hand over a temp-directory instance.
-    private let store: CurriculumStore
+    /// one store, and so tests can hand over an isolated instance. Progress
+    /// routes through the store's record methods (optimistic local fold +
+    /// gateway event) rather than whole-course saves, so the server's
+    /// commutative fold sees individual events, not blobs.
+    private let store: LearningStore
 
-    internal init(curriculum: Curriculum, store: CurriculumStore) {
+    internal init(curriculum: Curriculum, store: LearningStore) {
         self.curriculum = curriculum
         self.store = store
     }
@@ -103,7 +106,7 @@ internal final class CurriculumViewModel {
     internal func markLessonRead() {
         guard let activeStep, !activeStep.isQuiz else { return }
         curriculum.markLessonRead(stepID: activeStep.id)
-        persist()
+        store.recordLessonRead(courseID: curriculum.id, stepID: activeStep.id)
     }
 
     // MARK: - Quiz playback
@@ -144,7 +147,7 @@ internal final class CurriculumViewModel {
         guard quizState?.isComplete == true, let activeStep else { return }
         let percent = quizScorePercent
         curriculum.recordQuizAttempt(stepID: activeStep.id, scorePercent: percent)
-        persist()
+        store.recordQuizAttempt(courseID: curriculum.id, stepID: activeStep.id, scorePercent: percent)
         log.info("Curriculum quiz step scored \(percent)% (pass \(Curriculum.passThreshold)%)")
     }
 
@@ -185,14 +188,12 @@ internal final class CurriculumViewModel {
 
     // MARK: - Course-level actions
 
-    /// Clear all progress and return to the outline.
+    /// Clear all progress and return to the outline. Local-only by design:
+    /// the gateway's fold rules are monotonic (first stamp wins), so restart
+    /// is a client presentation choice, not upstream history rewriting.
     internal func restartCourse() {
         curriculum.resetProgress()
         closeStep()
-        persist()
-    }
-
-    private func persist() {
-        store.save(curriculum)
+        store.resetCourseProgress(id: curriculum.id)
     }
 }

@@ -68,6 +68,54 @@ internal extension ArtifactGateway {
 /// signatures, so conformance is declaration-only.
 extension GatewayClient: ArtifactGateway {}
 
+/// The slice of the gateway that `LearningStore` depends on — the learning.*
+/// sync surface plus the event stream for live `learning.changed` pushes.
+/// Same idiom and rationale as `ArtifactGateway` above.
+@MainActor
+internal protocol LearningGateway: AnyObject, Sendable {
+    /// Live gateway events; the store filters for `.learningChanged`.
+    var eventStream: PassthroughSubject<(GatewayEvent, String?), Never> { get }
+
+    // Courses
+    func learningCourseList() async throws -> [LearningCourseSummary]?
+    func learningCourseGet(id: String) async throws -> LearningCourseWire?
+    func learningCourseSet(
+        id: String?, title: String, summary: String, sourceSessionID: String?
+    ) async throws -> (id: String, rev: Int)?
+    func learningCourseDelete(id: String) async throws
+    func learningModuleSet(
+        courseID: String, moduleID: String?, title: String?, overview: String?, position: Int?
+    ) async throws -> (id: String, rev: Int)?
+    func learningStepSet(
+        courseID: String, moduleID: String, stepID: String?,
+        title: String?, type: String?, markdown: String?,
+        questions: [[String: Any]]?
+    ) async throws -> (id: String, rev: Int)?
+
+    // Decks
+    func learningDeckList() async throws -> [LearningDeckSummary]?
+    func learningDeckGet(id: String) async throws -> LearningDeckWire?
+    func learningDeckSet(id: String?, topic: String) async throws -> (id: String, rev: Int)?
+    func learningDeckDelete(id: String) async throws
+    func learningCardSet(
+        deckID: String, cards: [[String: Any]]
+    ) async throws -> (cardIDs: [String], rev: Int)?
+
+    // Learner state (client-written, server-folded)
+    func learningProgressRecord(
+        courseID: String, stepID: String, kind: String, scorePercent: Int?, at: Date?
+    ) async throws
+    func learningReviewRecord(
+        deckID: String, cardID: String, quality: Int,
+        reviewedAt: Date, bootstrapState: [String: Any]?
+    ) async throws
+    func learningAttemptRecord(_ attempt: [String: Any]) async throws
+}
+
+/// `GatewayClient` already implements every member (GatewayClient+Learning),
+/// so conformance is declaration-only.
+extension GatewayClient: LearningGateway {}
+
 /// Adopted by any type that tracks LLM token consumption and cost.
 /// Canonical field names follow the Anthropic API convention (input/output,
 /// not prompt/completion). `totalTokens` is a derived convenience; conforming

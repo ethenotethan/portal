@@ -1,20 +1,28 @@
 import Foundation
 
 /// A single quiz question with 4 multiple-choice options.
+///
+/// `id` is a String, not a UUID: question identity now round-trips through
+/// the gateway learning store, whose ids are server-minted strings
+/// (`q-<hex8>`). Locally-minted questions use a UUID string, which the
+/// gateway id grammar accepts verbatim — so pushing a local quiz up needs
+/// no id translation.
 struct QuizQuestion: Identifiable, Codable, Equatable {
-    let id: UUID
+    internal let id: String
     let q: String
     let options: [String]
     let correct: String       // "A", "B", "C", or "D"
     let explanation: String
 
-    init(q: String, options: [String], correct: String, explanation: String) {
-        self.id = UUID()
+    internal init(q: String, options: [String], correct: String, explanation: String, id: String = UUID().uuidString) {
+        self.id = id
         self.q = q
         self.options = options
         self.correct = correct
         self.explanation = explanation
     }
+    // No decode shim needed for `id` itself: Swift encodes UUID as a JSON
+    // string, so legacy files decode into the String field unchanged.
 
     /// The full answer text for the correct option (e.g. "Paris" when correct = "A" and options[A] = "Paris").
     var correctAnswer: String {
@@ -45,8 +53,8 @@ struct QuizState {
     let questions: [QuizQuestion]
     let topic: String
     var currentIndex: Int = 0
-    var selectedAnswers: [UUID: String] = [:]  // questionID → selected option letter
-    var answeredQuestions: Set<UUID> = []
+    internal var selectedAnswers: [String: String] = [:]  // questionID → selected option letter
+    internal var answeredQuestions: Set<String> = []
     var score: Int = 0
     var isComplete: Bool = false
 
@@ -69,7 +77,7 @@ struct QuizState {
     }
 
     /// Record an answer and return whether it was correct.
-    mutating func answer(questionID: UUID, option: String) -> Bool {
+    internal mutating func answer(questionID: String, option: String) -> Bool {
         guard let question = questions.first(where: { $0.id == questionID }) else { return false }
         selectedAnswers[questionID] = option
         answeredQuestions.insert(questionID)
@@ -167,10 +175,10 @@ extension QuizResponse {
 /// Stores the questions, answers, score, and metadata so users can retake
 /// or review past quizzes from the home page.
 struct PersistedQuizSession: Identifiable, Codable, Equatable {
-    let id: UUID
+    internal let id: String
     let topic: String
     let questions: [QuizQuestion]
-    let selectedAnswers: [UUID: String]
+    internal let selectedAnswers: [String: String]
     let score: Int
     let completedAt: Date
     let sourceSessionID: String?
@@ -198,13 +206,37 @@ struct PersistedQuizSession: Identifiable, Codable, Equatable {
         "\(score)/\(totalCount) · \(scorePercent)%"
     }
 
-    init(questions: [QuizQuestion], topic: String, selectedAnswers: [UUID: String], score: Int, sourceSessionID: String?) {
-        self.id = UUID()
+    internal init(questions: [QuizQuestion], topic: String, selectedAnswers: [String: String], score: Int, sourceSessionID: String?) {
+        self.id = UUID().uuidString
         self.topic = topic
         self.questions = questions
         self.selectedAnswers = selectedAnswers
         self.score = score
         self.completedAt = Date()
         self.sourceSessionID = sourceSessionID
+    }
+
+    /// Decode tolerating BOTH key shapes for `selectedAnswers`: Swift
+    /// encodes `[UUID: String]` as a FLAT ARRAY (`[key, value, key, value]`),
+    /// not an object, so legacy quiz files on disk carry the array form. A
+    /// naive `[String: String]` decode would throw and silently drop the
+    /// user's saved quiz history.
+    internal init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.topic = try c.decode(String.self, forKey: .topic)
+        self.questions = try c.decode([QuizQuestion].self, forKey: .questions)
+        self.score = try c.decode(Int.self, forKey: .score)
+        self.completedAt = try c.decode(Date.self, forKey: .completedAt)
+        self.sourceSessionID = try c.decodeIfPresent(String.self, forKey: .sourceSessionID)
+        do {
+            self.selectedAnswers = try c.decode([String: String].self, forKey: .selectedAnswers)
+        } catch {
+            // Expected branch for pre-migration files: [UUID: V] encodes as
+            // a flat array, which the modern object decode rejects.
+            let legacy = try c.decode([UUID: String].self, forKey: .selectedAnswers)
+            self.selectedAnswers = Dictionary(
+                uniqueKeysWithValues: legacy.map { ($0.key.uuidString, $0.value) })
+        }
     }
 }

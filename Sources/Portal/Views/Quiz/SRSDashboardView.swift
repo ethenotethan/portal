@@ -141,7 +141,7 @@ struct SRSDashboardView: View {
 
     private func confirmDelete() {
         guard let deck = pendingDeleteDeck else { return }
-        SRSStore.shared.deleteDeck(id: deck.id)
+        LearningStore.shared.deleteDeck(id: deck.id)
         decks.removeAll { $0.id == deck.id }
         pendingDeleteDeck = nil
     }
@@ -149,7 +149,7 @@ struct SRSDashboardView: View {
     // MARK: - Data
 
     private func refreshDecks() {
-        decks = SRSStore.shared.allDecks()
+        decks = LearningStore.shared.sortedDecks
     }
 }
 

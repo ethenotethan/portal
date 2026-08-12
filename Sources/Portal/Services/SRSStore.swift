@@ -13,14 +13,19 @@ final class SRSStore {
     private let fileManager = FileManager.default
     private let srsDir: URL
 
-    private init() {
-        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+    /// - Parameter directory: Where decks live. Defaults to Application
+    ///   Support; `LearningStore`'s test initializer passes a temp dir so
+    ///   tests never touch the user's real review history.
+    internal init(directory: URL? = nil) {
+        if let directory {
+            srsDir = directory
+        } else if let appSupport = fileManager.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask).first {
+            srsDir = appSupport.appendingPathComponent("portal/srs-decks", isDirectory: true)
+        } else {
             log.error("SRSStore: cannot locate Application Support directory")
             srsDir = URL(fileURLWithPath: "/tmp/portal/srs-decks")
-            try? fileManager.createDirectory(at: srsDir, withIntermediateDirectories: true)
-            return
         }
-        srsDir = appSupport.appendingPathComponent("portal/srs-decks", isDirectory: true)
         try? fileManager.createDirectory(at: srsDir, withIntermediateDirectories: true)
     }
 
@@ -40,17 +45,10 @@ final class SRSStore {
         }
     }
 
-    /// Persist multiple decks at once.
-    func saveDecks(_ decks: [FlashcardDeck]) {
-        for deck in decks {
-            saveDeck(deck)
-        }
-    }
-
     // MARK: - Load
 
     /// Load a single deck by ID. Returns nil if no local file exists.
-    func loadDeck(id: UUID) -> FlashcardDeck? {
+    internal func loadDeck(id: String) -> FlashcardDeck? {
         let file = srsDir.appendingPathComponent("\(id).json")
         guard fileManager.fileExists(atPath: file.path) else { return nil }
         do {
@@ -81,30 +79,13 @@ final class SRSStore {
         }
     }
 
-    /// Return only decks that have cards due for review right now.
-    func dueDecks() -> [FlashcardDeck] {
-        allDecks().filter { $0.dueCount > 0 }
-    }
-
     // MARK: - Delete
 
     /// Remove a deck's persisted file from disk.
-    func deleteDeck(id: UUID) {
+    internal func deleteDeck(id: String) {
         let file = srsDir.appendingPathComponent("\(id).json")
         Task.detached(priority: .background) { [file] in
             try? FileManager.default.removeItem(at: file)
         }
-    }
-
-    // MARK: - Update
-
-    /// Update the SRS state for a specific card within a deck and persist immediately.
-    func updateCardState(deckID: UUID, cardID: UUID, newState: SRSState) {
-        guard var deck = loadDeck(id: deckID) else {
-            log.error("Cannot update card state: deck \(deckID) not found")
-            return
-        }
-        deck.srsStates[cardID] = newState
-        saveDeck(deck)
     }
 }

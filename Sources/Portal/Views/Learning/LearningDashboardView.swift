@@ -29,11 +29,12 @@ struct LearningDashboardView: View {
     /// When set, that course opens straight away instead of the dashboard —
     /// used when the agent has just generated one, so the user lands in the
     /// course rather than hunting for it in a list.
-    internal var openCurriculumID: UUID?
+    internal var openCurriculumID: String?
 
-    /// Course persistence. Held for the view's lifetime so directory setup runs
-    /// once, and handed to the player so both read and write the same store.
-    @State private var curriculumStore = CurriculumStore()
+    /// The one learning owner: courses/decks/attempts, disk-cached and
+    /// gateway-synced. Observed so agent-built courses stream into the
+    /// dashboard live via learning.changed, without a manual refresh.
+    @ObservedObject private var learningStore = LearningStore.shared
 
     enum LearningSection: String, CaseIterable {
         case courses = "Courses"
@@ -51,7 +52,7 @@ struct LearningDashboardView: View {
 
     private struct LearningDeleteTarget: Identifiable {
         enum Kind { case quiz, deck, curriculum }
-        let id: UUID
+        let id: String
         let kind: Kind
         let title: String
     }
@@ -86,7 +87,7 @@ struct LearningDashboardView: View {
         if let course = activeCurriculum {
             CurriculumPlayerView(
                 curriculum: course,
-                store: curriculumStore,
+                store: learningStore,
                 onClose: {
                     activeCurriculum = nil
                     refresh()
@@ -371,18 +372,18 @@ struct LearningDashboardView: View {
     // MARK: - Data
 
     private func refresh() {
-        quizzes = QuizStore.shared.allQuizzes()
-        decks = SRSStore.shared.allDecks()
-        curricula = curriculumStore.allCurricula()
+        quizzes = learningStore.attempts
+        decks = learningStore.sortedDecks
+        curricula = learningStore.sortedCourses
     }
 
-    /// Open the course named by `openCurriculumID`, if it's on disk. Reads from
-    /// the store rather than the in-memory list so ordering and refresh timing
-    /// can't make a just-saved course unreachable.
+    /// Open the course named by `openCurriculumID`, if it exists. Reads from
+    /// the store rather than the local list copy so ordering and refresh
+    /// timing can't make a just-saved course unreachable.
     private func openRequestedCurriculum() {
         guard let openCurriculumID,
               activeCurriculum?.id != openCurriculumID,
-              let course = curriculumStore.load(id: openCurriculumID) else { return }
+              let course = learningStore.course(id: openCurriculumID) else { return }
         section = .courses
         activeCurriculum = course
     }
@@ -392,13 +393,13 @@ struct LearningDashboardView: View {
         switch target.kind {
         case .quiz:
             quizzes.removeAll { $0.id == target.id }
-            QuizStore.shared.deleteQuiz(id: target.id)
+            learningStore.deleteAttempt(id: target.id)
         case .deck:
             decks.removeAll { $0.id == target.id }
-            SRSStore.shared.deleteDeck(id: target.id)
+            learningStore.deleteDeck(id: target.id)
         case .curriculum:
             curricula.removeAll { $0.id == target.id }
-            curriculumStore.delete(id: target.id)
+            learningStore.deleteCourse(id: target.id)
         }
         pendingDelete = nil
     }
