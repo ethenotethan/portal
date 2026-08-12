@@ -674,7 +674,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 3935
+      "line_count": 4036
     },
     {
       "declaration_count": 21,
@@ -780,7 +780,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 930
+      "line_count": 958
     },
     {
       "declaration_count": 28,
@@ -4674,7 +4674,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 92176,
+    "swift_lines": 92305,
     "unassigned_files": []
   },
   "layers": [
@@ -4706,6 +4706,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "f90f4b428d9fab236a9e5280c3a6a87934b35d90a6cbe46eb410d0143a88b657",
+  "source_tree_sha256": "9e9945e92b8237dc45136f2d8d43e904e4238e9c02c542f5308361e8e003f901",
   "title": "Portal Architecture"
 }
