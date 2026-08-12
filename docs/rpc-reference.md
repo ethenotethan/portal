@@ -265,6 +265,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
+| `learning.changed` | `learningChanged(kind, id, rev, deleted)` | Course or deck mutation — entity kind/id, revision, and deletion flag; clients refetch newer content through `learning.*` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors
