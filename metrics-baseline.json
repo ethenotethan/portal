@@ -11437,13 +11437,13 @@
   },
   "deadcode": {
     "counts": {
-      "assignOnlyProperty": 157,
+      "assignOnlyProperty": 156,
       "redundantConformance": 6,
       "redundantProtocol": 2,
       "redundantPublicAccessibility": 4,
-      "unused": 336
+      "unused": 335
     },
-    "total": 505,
+    "total": 503,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -11734,196 +11734,196 @@
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 66,
+        "line": 94,
         "kind": "var.instance",
         "name": "isSessionScopedRequestEvent",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 338,
+        "line": 366,
         "kind": "var.instance",
         "name": "reasoningEffort",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 339,
+        "line": 367,
         "kind": "var.instance",
         "name": "fast",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 340,
+        "line": 368,
         "kind": "var.instance",
         "name": "tools",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 341,
+        "line": 369,
         "kind": "var.instance",
         "name": "skills",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 342,
+        "line": 370,
         "kind": "var.instance",
         "name": "cwd",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 343,
+        "line": 371,
         "kind": "var.instance",
         "name": "version",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 345,
+        "line": 373,
         "kind": "var.instance",
         "name": "mcpServers",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 376,
+        "line": 404,
         "kind": "protocol",
         "name": "TokenAccountable",
         "hint": "redundantConformance"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 389,
+        "line": 417,
         "kind": "var.instance",
         "name": "costUSD",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 408,
+        "line": 436,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 409,
+        "line": 437,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 417,
+        "line": 445,
         "kind": "var.instance",
         "name": "rendered",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 418,
+        "line": 446,
         "kind": "var.instance",
         "name": "warning",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 448,
+        "line": 476,
         "kind": "var.instance",
         "name": "name",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 452,
+        "line": 480,
         "kind": "var.instance",
         "name": "todos",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 479,
+        "line": 507,
         "kind": "var.instance",
         "name": "id",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 480,
+        "line": 508,
         "kind": "var.instance",
         "name": "content",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 481,
+        "line": 509,
         "kind": "var.instance",
         "name": "status",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 513,
+        "line": 541,
         "kind": "var.instance",
         "name": "sessionKey",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 515,
+        "line": 543,
         "kind": "var.instance",
         "name": "rawArgs",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 600,
+        "line": 628,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 601,
+        "line": 629,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 603,
+        "line": 631,
         "kind": "var.instance",
         "name": "parentID",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 604,
+        "line": 632,
         "kind": "var.instance",
         "name": "depth",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 631,
+        "line": 659,
         "kind": "var.instance",
         "name": "goal",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 632,
+        "line": 660,
         "kind": "var.instance",
         "name": "taskCount",
         "hint": "assignOnlyProperty"
       },
       {
         "file": "Sources/Portal/Models/GatewayEvent.swift",
-        "line": 633,
+        "line": 661,
         "kind": "var.instance",
         "name": "taskIndex",
         "hint": "assignOnlyProperty"
@@ -13414,14 +13414,7 @@
       },
       {
         "file": "Sources/Portal/Utilities/MainThreadWatchdog.swift",
-        "line": 144,
-        "kind": "var.instance",
-        "name": "observer",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Utilities/MainThreadWatchdog.swift",
-        "line": 145,
+        "line": 228,
         "kind": "var.instance",
         "name": "monitor",
         "hint": "assignOnlyProperty"
@@ -13498,91 +13491,84 @@
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 783,
-        "kind": "function.method.instance",
-        "name": "mutateSessionState(for:_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1235,
+        "line": 1277,
         "kind": "var.parameter",
         "name": "eventSessionID",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1278,
+        "line": 1320,
         "kind": "function.method.instance",
         "name": "loadSessionHistory()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 1438,
+        "line": 1480,
         "kind": "function.method.instance",
         "name": "clearAttachments()",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2013,
+        "line": 2062,
         "kind": "function.method.instance",
         "name": "loadLocalHistory(sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2030,
+        "line": 2079,
         "kind": "function.method.instance",
         "name": "deleteLocalHistory(sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2042,
+        "line": 2091,
         "kind": "function.method.instance",
         "name": "createLocalTestSession(id:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2059,
+        "line": 2108,
         "kind": "function.method.instance",
         "name": "switchToLocalTestSession(id:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2064,
+        "line": 2113,
         "kind": "var.instance",
         "name": "testCachedMessageCount",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2069,
+        "line": 2118,
         "kind": "function.method.instance",
         "name": "simulateTestResumeResult(displayID:runtimeID:history:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2088,
+        "line": 2137,
         "kind": "function.method.instance",
         "name": "applyTestEvent(_:sessionID:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 2221,
+        "line": 2270,
         "kind": "function.method.instance",
         "name": "appendThinkingTrace(_:kind:to:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/ViewModels/ChatViewModel.swift",
-        "line": 3187,
+        "line": 3288,
         "kind": "function.method.instance",
         "name": "notifyResponseCompleteIfNeeded(payload:eventSessionID:)",
         "hint": "unused"
@@ -14163,84 +14149,84 @@
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1112,
+        "line": 1119,
         "kind": "var.instance",
         "name": "renderedMessages",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1122,
+        "line": 1129,
         "kind": "var.instance",
         "name": "latestMessageRenderKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1133,
+        "line": 1140,
         "kind": "var.instance",
         "name": "activeToolCallRenderKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1235,
+        "line": 1242,
         "kind": "function.method.instance",
         "name": "scheduleScrollToBottom(proxy:reason:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1246,
+        "line": 1253,
         "kind": "function.method.instance",
         "name": "scrollToBottom(proxy:)",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1272,
+        "line": 1279,
         "kind": "struct",
         "name": "FloatingAvatarView",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1311,
+        "line": 1318,
         "kind": "struct",
         "name": "LatestBotTurnYKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1318,
+        "line": 1325,
         "kind": "struct",
         "name": "ChatViewportHeightKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1328,
+        "line": 1335,
         "kind": "struct",
         "name": "BottomFoldDistanceKey",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1337,
+        "line": 1344,
         "kind": "struct",
         "name": "SkinPickerView",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 2032,
+        "line": 2039,
         "kind": "struct",
         "name": "DebugLogPanel",
         "hint": "unused"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 2230,
+        "line": 2237,
         "kind": "struct",
         "name": "ErrorBannerView",
         "hint": "unused"
