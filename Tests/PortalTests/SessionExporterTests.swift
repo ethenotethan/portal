@@ -197,6 +197,24 @@ struct SessionExporterMarkdownTests {
         #expect(md.contains("images and file attachments are referenced by filename, not embedded"))
     }
 
+    @Test("A user's sent media attachments are referenced by filename in the user section")
+    internal func userAttachmentReferences() {
+        // userAttachments (MediaAttachment) is a distinct field from the
+        // assistant-side attachments (FileAttachment) above, rendered by a
+        // separate branch in userSection. Covering it confirms the user's own
+        // uploads survive the export as filename references, not embedded data.
+        let message = ChatMessage(
+            role: .user,
+            content: "Here are the screenshots",
+            userAttachments: [
+                MediaAttachment(path: "/tmp/screenshot1.png"),
+                MediaAttachment(path: "/tmp/screenshot2.jpg"),
+            ]
+        )
+        let md = export([message])
+        #expect(md.contains("**Attachments (referenced, not embedded):** `screenshot1.png`, `screenshot2.jpg`"))
+    }
+
     @Test("Interrupted turn status is noted")
     func turnStatus() {
         let md = export([ChatMessage(role: .assistant, content: "Partial answer", status: "interrupted")])
