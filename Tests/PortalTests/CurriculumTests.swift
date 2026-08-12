@@ -68,6 +68,9 @@ internal struct CurriculumTests {
         #expect(quiz("y", count: 3).kindLabel == "Quiz · 3 questions")
         #expect(quiz("y", count: 1).kindLabel == "Quiz · 1 question")
         #expect(quiz("y").isQuiz)
+        // SF Symbol per kind — the outline and step rows key off this.
+        #expect(lesson("x").icon == "doc.text")
+        #expect(quiz("y").icon == "questionmark.circle")
     }
 
     @Test("a step's owning module is discoverable")
@@ -414,6 +417,20 @@ internal struct CurriculumParsingTests {
         let course = try #require(CurriculumResponse.extract(from: json))
         #expect(course.totalSteps == 1)
         #expect(course.orderedSteps.first?.isQuiz == false)
+    }
+
+    @Test("a step with an unrecognized type is dropped by the strict parser")
+    internal func dropsUnrecognizedStepType() throws {
+        let json = """
+            {"curriculum":{"title":"T","modules":[{"title":"M","steps":[
+              {"type":"lesson","title":"L","content":"body"},
+              {"type":"video","title":"V","content":"mp4"}]}]}}
+            """
+        let course = try #require(CurriculumResponse.extract(from: json))
+        // The unknown type falls through to `default` and returns nil, so only
+        // the valid lesson survives.
+        #expect(course.totalSteps == 1)
+        #expect(course.orderedSteps.first?.title == "L")
     }
 
     @Test("a module whose steps all fail is dropped")
