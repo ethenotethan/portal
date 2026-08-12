@@ -81,7 +81,8 @@ final class QuizViewModel {
         }
     }
 
-    /// Close the quiz and clear all state. Auto-saves completed quizzes to QuizStore.
+    /// Close the quiz and clear all state. Auto-records completed quizzes
+    /// into the learning store (local attempt history + gateway attempt log).
     func close(sessionID: String? = nil) {
         // Save completed quizzes before clearing
         if let state, state.isComplete {
@@ -92,7 +93,7 @@ final class QuizViewModel {
                 score: state.score,
                 sourceSessionID: sessionID
             )
-            QuizStore.shared.saveQuiz(persisted)
+            LearningStore.shared.recordAttempt(persisted)
         }
         state = nil
         selectedAnswer = nil
@@ -117,10 +118,12 @@ final class QuizViewModel {
         errorMessage = nil
     }
 
-    /// Update the deck after a study session (persisted SRS state).
+    /// Update the deck after a study session. The learning store persists
+    /// locally and records the session's new grades upstream (diffed by
+    /// reviewCount against its stored copy).
     func updateDeck(_ deck: FlashcardDeck) {
         flashcardDeck = deck
-        SRSStore.shared.saveDeck(deck)
+        LearningStore.shared.saveDeck(deck)
     }
 
     /// Switch between quiz and flashcard modes.

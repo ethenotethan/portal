@@ -4,16 +4,22 @@ import Foundation
 
 /// A single flashcard with front (question) and back (answer) sides.
 /// Used for self-graded spaced repetition study.
+///
+/// `id` is a String: card identity round-trips through the gateway learning
+/// store (server-minted `c-<hex8>` ids); locally-minted cards use a UUID
+/// string, which the gateway id grammar accepts, so no translation table.
+/// Legacy files decode unchanged — Swift encodes UUID as a JSON string.
 struct Flashcard: Identifiable, Codable, Equatable {
-    let id: UUID
+    internal let id: String
     let front: String
     let back: String
     let explanation: String
     let category: String?
     let tags: [String]
 
-    init(front: String, back: String, explanation: String, category: String? = nil, tags: [String] = []) {
-        self.id = UUID()
+    internal init(front: String, back: String, explanation: String, category: String? = nil,
+                  tags: [String] = [], id: String = UUID().uuidString) {
+        self.id = id
         self.front = front
         self.back = back
         self.explanation = explanation
@@ -61,7 +67,7 @@ enum SRSQuality: Int, Codable, CaseIterable {
 /// Persisted as part of FlashcardDeck.
 struct SRSState: Codable, Equatable {
     /// The flashcard this state tracks
-    var cardID: UUID
+    internal var cardID: String
     /// Days until next review (0 = due now, 1 = tomorrow, 6 = next week, etc.)
     var interval: TimeInterval = 0
     /// SM-2 ease factor (minimum 1.3, default 2.5)
@@ -82,7 +88,7 @@ struct SRSState: Codable, Equatable {
         Date() >= nextReviewDate
     }
 
-    init(cardID: UUID) {
+    internal init(cardID: String) {
         self.cardID = cardID
     }
 }
@@ -91,12 +97,15 @@ struct SRSState: Codable, Equatable {
 
 /// A collection of flashcards with SRS state, persisted across sessions.
 struct FlashcardDeck: Identifiable, Codable, Equatable {
-    let id: UUID
+    internal let id: String
     let topic: String
     var cards: [Flashcard]
-    var srsStates: [UUID: SRSState]
+    internal var srsStates: [String: SRSState]
     let created: Date
     let sourceSessionID: String?
+    /// Gateway revision. 0 = local-only (never pushed) — the migration
+    /// marker `LearningStore.pull()` uses, mirroring `LivingArtifact`.
+    internal var rev: Int = 0
 
     /// Number of cards due for review right now.
     var dueCount: Int {
@@ -127,13 +136,42 @@ struct FlashcardDeck: Identifiable, Codable, Equatable {
         }
     }
 
-    init(topic: String, cards: [Flashcard], sourceSessionID: String? = nil) {
-        self.id = UUID()
+    internal init(topic: String, cards: [Flashcard], sourceSessionID: String? = nil, id: String = UUID().uuidString) {
+        self.id = id
         self.topic = topic
         self.cards = cards
         self.srsStates = Dictionary(uniqueKeysWithValues: cards.map { ($0.id, SRSState(cardID: $0.id)) })
         self.created = Date()
         self.sourceSessionID = sourceSessionID
+    }
+
+    /// Decode tolerating BOTH key shapes for `srsStates`: Swift encodes
+    /// `[UUID: SRSState]` as a FLAT ARRAY, not an object, so every deck
+    /// saved before the String-id migration carries the array form on disk.
+    /// A naive `[String: SRSState]` decode would throw — and since
+    /// `allDecks()` drops files that fail to decode, that failure mode is
+    /// the user's entire review history silently vanishing.
+    internal init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.topic = try c.decode(String.self, forKey: .topic)
+        self.cards = try c.decode([Flashcard].self, forKey: .cards)
+        self.created = try c.decode(Date.self, forKey: .created)
+        self.sourceSessionID = try c.decodeIfPresent(String.self, forKey: .sourceSessionID)
+        self.rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 0
+        do {
+            self.srsStates = try c.decode([String: SRSState].self, forKey: .srsStates)
+        } catch {
+            // Expected branch for pre-migration files: [UUID: V] encodes as
+            // a flat array, which the modern object decode rejects. Only the
+            // KEY shape differs — the value's cardID was a UUID, which
+            // encodes as a JSON string and decodes into the String-typed
+            // SRSState unchanged.
+            let legacy = try c.decode([UUID: SRSState].self, forKey: .srsStates)
+            self.srsStates = Dictionary(uniqueKeysWithValues: legacy.map {
+                ($0.key.uuidString, $0.value)
+            })
+        }
     }
 }
 

@@ -60,7 +60,7 @@ internal final class CurriculumStore {
 
     // MARK: - Load
 
-    internal func load(id: UUID) -> Curriculum? {
+    internal func load(id: String) -> Curriculum? {
         let file = curriculaDir.appendingPathComponent("\(id).json")
         guard fileManager.fileExists(atPath: file.path) else { return nil }
         do {
@@ -95,7 +95,7 @@ internal final class CurriculumStore {
 
     // MARK: - Delete
 
-    internal func delete(id: UUID) {
+    internal func delete(id: String) {
         let file = curriculaDir.appendingPathComponent("\(id).json")
         Task.detached(priority: .background) { [file] in
             do {

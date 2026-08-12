@@ -44,7 +44,7 @@ internal struct ContentView: View {
     @State private var showLearning = false
     /// Course to jump straight into when Learning opens — set when the agent
     /// generates one, cleared once Learning has consumed it.
-    @State private var pendingCurriculumID: UUID?
+    @State private var pendingCurriculumID: String?
     @State private var showCentaurWorkflows = false
     @State private var showArtifactsPane = false
     @State private var selectedTab = 0
@@ -1679,6 +1679,7 @@ internal struct ContentView: View {
         activityInbox.setGatewayClient(client)
         SkillStore.shared.setGatewayClient(client)
         ArtifactStore.shared.setClient(client)
+        LearningStore.shared.setClient(client)
         observeChatRunState()
 spawnTreeStore.subscribe(to: client)
         cronPoller.setGatewayClient(client)

@@ -14,7 +14,7 @@ internal struct CurriculumPlayerView: View {
 
     internal init(
         curriculum: Curriculum,
-        store: CurriculumStore,
+        store: LearningStore,
         onClose: @escaping () -> Void,
         onReviewWithAgent: ((String) -> Void)? = nil
     ) {
