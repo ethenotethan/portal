@@ -268,8 +268,8 @@
     ]
   },
   "coverage": {
-    "testable_pct": 45.39,
-    "testable_covered": 12431,
+    "testable_pct": 45.4,
+    "testable_covered": 12434,
     "testable_count": 27388,
     "layers": {
       "Models": {
@@ -278,9 +278,9 @@
         "pct": 71.93
       },
       "Services": {
-        "covered": 3272,
+        "covered": 3277,
         "count": 10531,
-        "pct": 31.07
+        "pct": 31.12
       },
       "Utilities": {
         "covered": 411,
@@ -288,9 +288,9 @@
         "pct": 28.8
       },
       "ViewModels": {
-        "covered": 2830,
+        "covered": 2828,
         "count": 7202,
-        "pct": 39.29
+        "pct": 39.27
       }
     },
     "uncovered": {
@@ -3242,9 +3242,6 @@
       "Sources/Portal/Services/SessionExporter+PDF.swift": [
         211
       ],
-      "Sources/Portal/Services/SessionExporter.swift": [
-        132
-      ],
       "Sources/Portal/Services/SessionMetaSyncService.swift": [
         25,
         26,
@@ -4343,7 +4340,8 @@
         133,
         135,
         137,
-        139
+        139,
+        192
       ],
       "Sources/Portal/ViewModels/ChatViewModel.swift": [
         350,
@@ -9622,6 +9620,7 @@
         126,
         129,
         130,
+        132,
         134,
         142,
         146,
@@ -10384,7 +10383,6 @@
         182,
         186,
         188,
-        192,
         194,
         199,
         202,
