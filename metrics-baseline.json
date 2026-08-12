@@ -268,8 +268,8 @@
     ]
   },
   "coverage": {
-    "testable_pct": 45.36,
-    "testable_covered": 12423,
+    "testable_pct": 45.39,
+    "testable_covered": 12431,
     "testable_count": 27388,
     "layers": {
       "Models": {
@@ -278,9 +278,9 @@
         "pct": 71.93
       },
       "Services": {
-        "covered": 3258,
+        "covered": 3272,
         "count": 10531,
-        "pct": 30.94
+        "pct": 31.07
       },
       "Utilities": {
         "covered": 411,
@@ -288,9 +288,9 @@
         "pct": 28.8
       },
       "ViewModels": {
-        "covered": 2836,
+        "covered": 2830,
         "count": 7202,
-        "pct": 39.38
+        "pct": 39.29
       }
     },
     "uncovered": {
@@ -3243,10 +3243,7 @@
         211
       ],
       "Sources/Portal/Services/SessionExporter.swift": [
-        132,
-        185,
-        210,
-        277
+        132
       ],
       "Sources/Portal/Services/SessionMetaSyncService.swift": [
         25,
@@ -4341,6 +4338,12 @@
         106,
         107,
         263
+      ],
+      "Sources/Portal/ViewModels/CelebrationManager.swift": [
+        133,
+        135,
+        137,
+        139
       ],
       "Sources/Portal/ViewModels/ChatViewModel.swift": [
         350,
@@ -9635,6 +9638,7 @@
         176,
         178,
         182,
+        185,
         187,
         188,
         190,
@@ -9646,6 +9650,7 @@
         203,
         204,
         209,
+        210,
         215,
         216,
         222,
@@ -9665,7 +9670,8 @@
         262,
         263,
         264,
-        269
+        269,
+        277
       ],
       "Sources/Portal/Services/SessionMetaSyncService.swift": [
         36,
@@ -10362,10 +10368,6 @@
         120,
         126,
         132,
-        133,
-        135,
-        137,
-        139,
         140,
         144,
         147,
