@@ -83,8 +83,41 @@ internal struct DashboardCanvasView: View {
 
                 ForEach(layout.panels) { panel in
                     panelView(panel, bounds: geo.size)
+                        // Cut the alignment query at the panel boundary. Every
+                        // panel is placed absolutely by `.position()`, so this
+                        // ZStack's `.topLeading` contributes nothing to where a
+                        // panel lands — but the container still *resolves* that
+                        // guide against each child, and resolving it walks the
+                        // child's whole layout: explicitAlignment →
+                        // childPlacement → commonPlacement →
+                        // LayoutProxy.dimensions → sizeThatFits, straight down
+                        // into whatever the panel hosts. When that content is a
+                        // ScrollView over a LazyVStack (the transcript), the
+                        // walk measures it at its ideal — i.e. unbounded —
+                        // height, so LazyStack.measureEstimates enumerates every
+                        // row, misses its estimates, and calls
+                        // LazyLayoutViewCache.signalPrefetch, which lands in
+                        // NSHostingView.requestUpdate(after:) → setNeedsUpdate.
+                        // That schedules the next pass, which does it all again:
+                        // a self-sustaining relayout loop at 100% CPU that never
+                        // reaches idle. Sampled live (25 minutes of spin, RSS
+                        // flat, so churn rather than growth), the recursion was
+                        // ~170 frames deep with that exact cycle repeating.
+                        //
+                        // A constant guide is read directly, so the container
+                        // never asks the subtree for a dimension and the descent
+                        // never starts. Zero is the panel's own top-left, which
+                        // is what `.topLeading` would have resolved to anyway.
+                        .alignmentGuide(.leading) { _ in 0 }
+                        .alignmentGuide(.top) { _ in 0 }
                 }
             }
+            // Size the canvas from the reader, not from its children. The
+            // backdrop already fills it and the panels report the proposed size
+            // back through `.position()`, so this is the size ZStack computed
+            // regardless — stating it keeps a panel's content off the container's
+            // sizing path entirely.
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .coordinateSpace(name: Self.coordSpace)
             .onChange(of: geo.size) { oldSize, newSize in
                 // Window resized: scale the layout proportionally so a full
@@ -95,7 +128,20 @@ internal struct DashboardCanvasView: View {
                 // yet at that point, and reflowed(from:.zero) would clamped()
                 // an empty layout and stomp the seed that's about to land.
                 guard activeDrag == nil, oldSize.width > 0, oldSize.height > 0 else { return }
-                layout = layout.reflowed(from: oldSize, to: newSize)
+                // Dead band. This writes @State from a GeometryReader whose own
+                // children are the panels it resizes, so the write re-enters this
+                // handler on the next pass — an unguarded measure→adopt pair here
+                // spins the view graph forever (the beachball; same reason
+                // ChatLayoutMath gates every measurement on the chat surface).
+                // Sub-point size churn carries no user intent, so ignore it
+                // entirely rather than relying on the write being a no-op.
+                guard DashboardLayout.quantize(oldSize) != DashboardLayout.quantize(newSize) else { return }
+                let reflowed = layout.reflowed(from: oldSize, to: newSize)
+                // Equatable guard: even a real resize can leave the layout
+                // untouched (already clamped, or every panel at minSize), and an
+                // identical-value @State write still invalidates the graph.
+                guard reflowed != layout else { return }
+                layout = reflowed
             }
         }
     }
