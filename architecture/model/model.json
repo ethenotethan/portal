@@ -137,7 +137,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6831
+      "line_count": 6838
     },
     {
       "declaration_count": 133,
@@ -649,7 +649,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7040
+      "line_count": 7133
     },
     {
       "declaration_count": 7,
@@ -1313,7 +1313,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11162
+      "line_count": 11203
     },
     {
       "declaration_count": 73,
@@ -1488,7 +1488,7 @@
       "id": "utilities",
       "label": "Utilities",
       "layer": "foundation",
-      "line_count": 2203
+      "line_count": 2378
     },
     {
       "declaration_count": 0,
@@ -3101,14 +3101,16 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by thought-graph-ui.",
+      "description": "References 5 declaration(s) owned by thought-graph-ui.",
       "evidence": [
+        "Sources/Portal/Models/DashboardLayout.swift",
         "Sources/Portal/Models/DashboardPanel.swift",
         "Sources/Portal/Models/FileTreeAggregator.swift",
         "Sources/Portal/Models/ThoughtGraphNode.swift"
       ],
       "source": "domain-models",
       "symbols": [
+        "DashboardCanvasView",
         "PanelContext",
         "PanelRegistry",
         "ThoughtGraphLayoutEngine",
@@ -3116,15 +3118,16 @@
       ],
       "target": "thought-graph-ui",
       "type": "references",
-      "weight": 7
+      "weight": 9
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by utilities.",
+      "description": "References 5 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Models/CalendarSpec.swift",
         "Sources/Portal/Models/ChartSpec.swift",
         "Sources/Portal/Models/ChecklistSpec.swift",
+        "Sources/Portal/Models/DashboardLayout.swift",
         "Sources/Portal/Models/KanbanSpec.swift",
         "Sources/Portal/Models/NetworkGraphSpec.swift",
         "Sources/Portal/Models/SankeySpec.swift",
@@ -3134,6 +3137,7 @@
       ],
       "source": "domain-models",
       "symbols": [
+        "ChatLayoutMath",
         "GatewayURL",
         "JSONObjectParse",
         "PerfCounter",
@@ -3141,7 +3145,7 @@
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 13
+      "weight": 15
     },
     {
       "authority": "observed",
@@ -4320,8 +4324,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by utilities.",
+      "description": "References 4 declaration(s) owned by utilities.",
       "evidence": [
+        "Sources/Portal/Views/ThoughtGraph/DashboardCanvasView.swift",
         "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
         "Sources/Portal/Views/ThoughtGraph/SessionFileTreePane.swift",
         "Sources/Portal/Views/ThoughtGraph/ThoughtGraphLayoutEngine.swift",
@@ -4329,13 +4334,14 @@
       ],
       "source": "thought-graph-ui",
       "symbols": [
+        "ChatLayoutMath",
         "Constants",
         "FocusableTextView",
         "RenderMemo"
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 7
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -4355,20 +4361,22 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by domain-models.",
+      "description": "References 4 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Utilities/Extensions.swift",
+        "Sources/Portal/Utilities/MainThreadWatchdog.swift",
         "Sources/Portal/Utilities/PerfCounter.swift"
       ],
       "source": "utilities",
       "symbols": [
         "AnyCodable",
+        "Edge",
         "NetworkGraphLayout",
         "SankeyLayout"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 5
+      "weight": 7
     },
     {
       "authority": "observed",
@@ -4666,7 +4674,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 91860,
+    "swift_lines": 92176,
     "unassigned_files": []
   },
   "layers": [
@@ -4698,6 +4706,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "699420fb716f6783fd4dce8cf0c1e961f075280e92df773387a60a85ef3f7e3a",
+  "source_tree_sha256": "f90f4b428d9fab236a9e5280c3a6a87934b35d90a6cbe46eb410d0143a88b657",
   "title": "Portal Architecture"
 }
