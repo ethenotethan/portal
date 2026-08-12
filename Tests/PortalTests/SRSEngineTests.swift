@@ -6,7 +6,7 @@ import Testing
 internal struct SRSEngineTests {
 
     private func newState() -> SRSState {
-        SRSState(cardID: UUID())
+        SRSState(cardID: UUID().uuidString)
     }
 
     // MARK: - Failed recall resets the card

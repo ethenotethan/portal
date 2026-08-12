@@ -45,6 +45,7 @@ enum GatewayEvent {
         case .activityUpdated: "activity.updated"
         case .reviewSummary: "review.summary"
         case .artifactChanged: "artifact.changed"
+        case .learningChanged: "learning.changed"
         }
     }
 
@@ -177,6 +178,10 @@ enum GatewayEvent {
     // Living artifacts (gateway store mutations — id + summary fields;
     // clients refetch content via artifact.get when they care)
     case artifactChanged(id: String, deleted: Bool)
+
+    // Learning surface (course/deck/progress mutations — metadata only;
+    // clients refetch via learning.course.get / learning.deck.get)
+    case learningChanged(entity: String, id: String, rev: Int, deleted: Bool)
 
     /// Parse from raw JSON-RPC event params.
     static func from(type: String, payload: AnyCodable?) -> GatewayEvent {
@@ -343,6 +348,14 @@ enum GatewayEvent {
         case "artifact.changed":
             return .artifactChanged(
                 id: p["id"]?.stringValue ?? "",
+                deleted: p["deleted"]?.boolValue ?? false
+            )
+
+        case "learning.changed":
+            return .learningChanged(
+                entity: p["entity"]?.stringValue ?? "",
+                id: p["id"]?.stringValue ?? "",
+                rev: p["rev"]?.intValue ?? 0,
                 deleted: p["deleted"]?.boolValue ?? false
             )
 

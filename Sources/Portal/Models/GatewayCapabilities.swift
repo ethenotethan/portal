@@ -56,6 +56,14 @@ struct GatewayCapabilities: Equatable, Sendable {
         })
     }
 
+    /// Whether the gateway persists the learning surface (learning.* RPCs:
+    /// courses, decks, progress, SRS reviews). `LearningStore` also probes
+    /// at runtime (nil list = unsupported), so this flag is for UI gating
+    /// like a "synced" badge, not correctness.
+    internal var supportsLearning: Bool {
+        capabilityNames.contains(where: { $0.contains("learning.") })
+    }
+
     /// Whether to offer the "Restart gateway" control.
     ///
     /// Inverted relative to `supportsArtifactActions`: a gateway that reports

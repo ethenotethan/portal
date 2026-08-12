@@ -195,11 +195,19 @@ final class ChatViewModel: ObservableObject {
       synthetic clicks are deliberately ignored. Confirmation for destructive intents is native chrome;
       don't build your own.
     - **Courses** when the user asks to be TAUGHT a subject rather than told about it — "teach me X",
-      "build me a curriculum/course on X", "I want to learn X properly". Emit a curriculum envelope and
-      the app files it in Learning as a course with per-step progress, instead of a wall of chat prose
-      the user has to scroll back through. 3-5 modules, each 2-4 lesson steps then one quiz step over
-      that module's material; lesson `content` is markdown (explain, give a concrete example, a few
-      hundred words); quiz options are labeled "A) …"–"D) …" and `correct` is the letter alone:
+      "build me a curriculum/course on X", "I want to learn X properly". A good course: 3-5 modules,
+      each 2-4 lesson steps then one quiz step over that module's material; lessons are markdown
+      (explain, give a concrete example, a few hundred words); quiz options are labeled "A) …"–"D) …"
+      and `correct` is the letter alone.
+      If the `learning` tool is available, BUILD THE COURSE WITH IT — `course_create`, then
+      `module_set` per module, then `step_set` per lesson/quiz — and later update individual steps by
+      id (`course_get` first, then `step_set` that one step; `append_questions` extends a quiz without
+      resending it). The course streams into the user's Learning page as you build; never ALSO emit
+      the JSON envelope for the same course, and never rebuild a course to change one step. You can
+      read the user's progress (`progress_get`/`stats_get`) to adapt: low quiz scores in a module
+      deserve a remedial lesson inserted there.
+      ONLY when the learning tool is absent, fall back to emitting a curriculum envelope, alone with
+      no prose around it — the app parses and files it:
       ```json
       {"curriculum": {"title": "…", "summary": "one paragraph", "modules": [
         {"title": "…", "overview": "one sentence", "steps": [
@@ -207,9 +215,8 @@ final class ChatViewModel: ObservableObject {
           {"type": "quiz", "title": "…", "questions": [
             {"q": "…", "options": ["A) …", "B) …", "C) …", "D) …"], "correct": "A", "explanation": "…"}]}]}]}}
       ```
-      Emit the envelope ALONE with no prose around it — the app renders the course, so a chat summary
-      is redundant. For a single quick knowledge check rather than a course, use a bare
-      {"questions": [...]} array in the same question shape.
+      For a single quick knowledge check rather than a course, use a bare {"questions": [...]} array
+      in the same question shape.
     """
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
@@ -325,7 +332,6 @@ final class ChatViewModel: ObservableObject {
     /// Where a generated course is written before the Learning page opens it.
     /// Owned rather than shared: the store is stateless beyond its directory, so
     /// each owner holding its own instance reads and writes the same courses.
-    private let curriculumStore = CurriculumStore()
 
     /// Monotonic token for user-driven session switches/creates. Async resume
     /// calls must check this before committing returned history; otherwise a
@@ -2557,9 +2563,10 @@ if restoreSessionState(displayID: key) {
         }
 
         switch event {
-        case .artifactChanged, .unknown:
-            // Store-level concern; ArtifactStore subscribes directly.
-            // .unknown never reaches consumers (GatewayClient drops it).
+        case .artifactChanged, .learningChanged, .unknown:
+            // Store-level concerns; ArtifactStore/LearningStore subscribe
+            // directly. .unknown never reaches consumers (GatewayClient
+            // drops it).
             break
 
         case .sessionTitle:
@@ -2702,7 +2709,7 @@ if restoreSessionState(displayID: key) {
             // session (autoGenerateQuiz uses `sessionID`).
             if let course = CurriculumResponse.extract(from: payload.text) {
                 log.info("Curriculum parsed: \(course.modules.count) modules, \(course.totalSteps) steps")
-                curriculumStore.save(course)
+                LearningStore.shared.saveCourse(course)
                 if isDisplayedTurn {
                     curriculumReady = course
                 }
@@ -3038,7 +3045,7 @@ if restoreSessionState(displayID: key) {
 
         switch event {
         case .gatewayReady, .activityCreated, .activityUpdated, .reviewSummary, .artifactChanged,
-             .sessionTitle, .unknown:
+             .learningChanged, .sessionTitle, .unknown:
             break
 
         case .sessionInfo(let info):
@@ -3147,9 +3154,20 @@ if restoreSessionState(displayID: key) {
 
             Task { await reasoningGraph.finalize() }
 
-            // ── Quiz Response Handling ──
-            // Always check for quiz JSON and [[QUIZ:topic]] markers
-            applyLearningArtifacts(from: payload.text, sessionID: eventSessionID)
+            // ── Curriculum / Quiz Response Handling ──
+            // Curriculum first, for the same reason as the session-routed
+            // path (2610): a course carries `questions` arrays inside its
+            // steps, so the quiz parser would claim it and reduce a whole
+            // course to one loose quiz. This path previously skipped the
+            // curriculum check entirely — a course arriving via the legacy
+            // no-session-id event was never persisted.
+            if let course = CurriculumResponse.extract(from: payload.text) {
+                log.info("Curriculum parsed (legacy path): \(course.modules.count) modules")
+                LearningStore.shared.saveCourse(course)
+                curriculumReady = course
+            } else {
+                applyLearningArtifacts(from: payload.text, sessionID: eventSessionID)
+            }
 
         case .toolStart(payload: let payload):
             recordPerfEvent("toolStart")

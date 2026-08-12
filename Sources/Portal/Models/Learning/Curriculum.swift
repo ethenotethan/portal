@@ -11,26 +11,35 @@ import Foundation
 /// historical attempt while retakes landed in unrelated records. An
 /// agent-authored curriculum *is* its content, so owning it outright also makes
 /// dangling references impossible.
+/// Ids are Strings, not UUIDs: course/module/step identity round-trips
+/// through the gateway learning store, whose ids are server-minted strings
+/// (`crs-`/`m-`/`s-` + hex8). Locally-minted entities use a UUID string —
+/// the gateway id grammar accepts it verbatim, so pushing a local course up
+/// needs no id translation.
 internal struct Curriculum: Identifiable, Codable, Equatable {
-    internal let id: UUID
-    internal let title: String
+    internal let id: String
+    internal var title: String
     /// One-paragraph description of what the course covers.
-    internal let summary: String
+    internal var summary: String
     internal var modules: [CurriculumModule]
     internal let created: Date
     /// Chat session this was generated from, when known.
     internal let sourceSessionID: String?
     /// Per-step progress, keyed by step id — mirrors how `FlashcardDeck` keys
     /// `srsStates` by card id.
-    internal var progress: [UUID: CurriculumStepProgress]
+    internal var progress: [String: CurriculumStepProgress]
+    /// Gateway revision. 0 = local-only (never pushed) — the migration
+    /// marker `LearningStore.pull()` uses, mirroring `LivingArtifact`.
+    internal var rev: Int = 0
 
     internal init(
         title: String,
         summary: String,
         modules: [CurriculumModule],
-        sourceSessionID: String? = nil
+        sourceSessionID: String? = nil,
+        id: String = UUID().uuidString
     ) {
-        self.id = UUID()
+        self.id = id
         self.title = title
         self.summary = summary
         self.modules = modules
@@ -38,20 +47,47 @@ internal struct Curriculum: Identifiable, Codable, Equatable {
         self.sourceSessionID = sourceSessionID
         self.progress = [:]
     }
+
+    /// Decode tolerating BOTH key shapes for `progress`: Swift encodes
+    /// `[UUID: V]` as a FLAT ARRAY, not an object, so every course saved
+    /// before the String-id migration carries the array form on disk. A
+    /// naive `[String: V]` decode would throw — and `allCurricula()` drops
+    /// files that fail to decode, which reads as the user's course history
+    /// silently vanishing.
+    internal init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.summary = try c.decode(String.self, forKey: .summary)
+        self.modules = try c.decode([CurriculumModule].self, forKey: .modules)
+        self.created = try c.decode(Date.self, forKey: .created)
+        self.sourceSessionID = try c.decodeIfPresent(String.self, forKey: .sourceSessionID)
+        self.rev = try c.decodeIfPresent(Int.self, forKey: .rev) ?? 0
+        do {
+            self.progress = try c.decode([String: CurriculumStepProgress].self, forKey: .progress)
+        } catch {
+            // Expected branch for pre-migration files: [UUID: V] encodes as
+            // a flat array, which the modern object decode rejects.
+            let legacy = try c.decode([UUID: CurriculumStepProgress].self, forKey: .progress)
+            self.progress = Dictionary(uniqueKeysWithValues: legacy.map {
+                ($0.key.uuidString, $0.value)
+            })
+        }
+    }
 }
 
 // MARK: - Module
 
 /// A named group of steps — the unit a learner thinks of as "a chapter".
 internal struct CurriculumModule: Identifiable, Codable, Equatable {
-    internal let id: UUID
+    internal let id: String
     internal let title: String
     /// Short framing shown above the module's steps. May be empty.
     internal let overview: String
     internal var steps: [CurriculumStep]
 
-    internal init(title: String, overview: String, steps: [CurriculumStep]) {
-        self.id = UUID()
+    internal init(title: String, overview: String, steps: [CurriculumStep], id: String = UUID().uuidString) {
+        self.id = id
         self.title = title
         self.overview = overview
         self.steps = steps
@@ -62,12 +98,12 @@ internal struct CurriculumModule: Identifiable, Codable, Equatable {
 
 /// One thing to do: read a lesson or take a quiz.
 internal struct CurriculumStep: Identifiable, Codable, Equatable {
-    internal let id: UUID
+    internal let id: String
     internal let title: String
     internal let kind: CurriculumStepKind
 
-    internal init(title: String, kind: CurriculumStepKind) {
-        self.id = UUID()
+    internal init(title: String, kind: CurriculumStepKind, id: String = UUID().uuidString) {
+        self.id = id
         self.title = title
         self.kind = kind
     }
@@ -242,7 +278,7 @@ extension Curriculum {
 
     /// Mark a lesson read. Idempotent — the first completion timestamp stands,
     /// so re-reading doesn't rewrite history.
-    internal mutating func markLessonRead(stepID: UUID) {
+    internal mutating func markLessonRead(stepID: String) {
         var record = progress[stepID] ?? CurriculumStepProgress()
         record.attempts += 1
         if record.completedAt == nil {
@@ -253,7 +289,7 @@ extension Curriculum {
 
     /// Record a finished quiz attempt. Keeps the best score, and stamps
     /// completion the first time the attempt clears `passThreshold`.
-    internal mutating func recordQuizAttempt(stepID: UUID, scorePercent: Int) {
+    internal mutating func recordQuizAttempt(stepID: String, scorePercent: Int) {
         var record = progress[stepID] ?? CurriculumStepProgress()
         record.attempts += 1
         record.bestScorePercent = max(record.bestScorePercent ?? 0, scorePercent)
