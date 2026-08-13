@@ -70,6 +70,23 @@ internal struct CanvasRelayoutGuardTests {
         )
     }
 
+    /// `source` with `//` comment bodies removed.
+    ///
+    /// Needed for the guards that assert a construct is *absent*: the fix for a
+    /// bug this subtle documents the wrong pattern by name right above the right
+    /// one, so a plain `contains` check finds the explanation and fails on a file
+    /// that is actually correct. (It did — on the very commit that added it.)
+    /// Only the `//` form is stripped; nothing here uses `/* */`.
+    private static func sourceWithoutComments(_ relativePath: String) throws -> String {
+        try source(relativePath)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                guard let marker = line.range(of: "//") else { return String(line) }
+                return String(line[line.startIndex..<marker.lowerBound])
+            }
+            .joined(separator: "\n")
+    }
+
     @Test("Canvas panels pin their alignment guides to a constant")
     internal func panelsPinAlignmentGuides() throws {
         let source = try Self.source("Views/ThoughtGraph/DashboardCanvasView.swift")
@@ -166,5 +183,91 @@ internal struct CanvasRelayoutGuardTests {
         // The flexible max is what fills the panel; losing it would trade a
         // beachball for a collapsed transcript.
         #expect(source.contains("maxHeight: .infinity"))
+    }
+
+    // MARK: - The plain ChatView transcript
+    //
+    // The loop came back a THIRD time, and this is why: every guard above reads
+    // a canvas file, but the sampled beachball had no canvas open at all. Zero
+    // `ConversationPanel`, `DashboardCanvasView`, or `SessionChatCanvas` frames
+    // appeared anywhere on the main thread — only `ChatMessage`,
+    // `MessageBubbleView`, and `PortalProgressView`. `ChatView.messageListArea`
+    // is a second, independent host of the same
+    // `ScrollView → ZStack(.topLeading) → LazyVStack` shape, and it carried
+    // neither cut. Same 100% CPU, same
+    // `measureEstimates → signalPrefetch → requestUpdate → setNeedsUpdate`
+    // chain, and the leaking variant again: RSS climbing ~4 MB/sec through
+    // 3.1 GB with `SelectionOverlay.updateNSView` on the hot path.
+    //
+    // The lesson from the second recurrence was "count the pins, don't assert
+    // one exists". The lesson from this one is that the pins must be counted on
+    // every view that hosts the shape, not just the one that reported first.
+
+    @Test("ChatView's transcript stack pins its alignment guides")
+    internal func chatViewTranscriptPinsAlignmentGuides() throws {
+        let source = try Self.source("Views/ChatView.swift")
+        #expect(
+            source.contains(".alignmentGuide(.leading) { _ in 0 }"),
+            """
+            ChatView's transcript ZStack(alignment: .topLeading) must pin \
+            .leading to a constant. Resolving the guide against the transcript \
+            descends into LazyStack.measureEstimates → signalPrefetch → \
+            requestUpdate and schedules the next pass — the same 100%-CPU loop \
+            fixed twice in the canvas, recurring here because this view hosts \
+            the same shape and was never pinned.
+            """
+        )
+        #expect(
+            source.contains(".alignmentGuide(.top) { _ in 0 }"),
+            "Same as .leading — the vertical guide alone restarts the descent."
+        )
+    }
+
+    @Test("ChatView's transcript answers an ideal-height query with zero")
+    internal func chatViewTranscriptDoesNotReportIdealHeight() throws {
+        let source = try Self.source("Views/ChatView.swift")
+        #expect(
+            source.contains("frame(maxWidth: .infinity, minHeight: 0, alignment: .leading)"),
+            """
+            ChatView's transcript content frame needs minHeight: 0, the same cut \
+            ConversationPanel's ScrollView carries. The sampled chain runs \
+            sizeChildrenIdeally → LazyVStackLayout.sizeThatFits → \
+            measureEstimates straight through this frame, so an ideal-height \
+            query enumerates every message row and re-arms the loop.
+            """
+        )
+    }
+
+    // MARK: - Spinner animation scope
+
+    @Test("PortalProgressView scopes its repeatForever to one value")
+    internal func progressViewDoesNotAnimateTheTransaction() throws {
+        let source = try Self.sourceWithoutComments("Views/PortalProgressView.swift")
+        // `withAnimation` applies the animation to the entire transaction, so
+        // every change flushed alongside it inherits the curve. This curve is
+        // `repeatForever` — it never completes — so an ancestor frame changing
+        // in the same update animated forever and kept SwiftUI's animator
+        // permanently scheduled, re-laying out the window every tick.
+        // `AnimatableFrameAttribute.updateValue` and `AnimatorState.nextUpdate`
+        // were both on the sampled hot path.
+        //
+        // This view is on screen during every stream (MessageBubbleView's
+        // thinking trace and reasoning section, ChatView's transient status),
+        // which is why the spin correlated with streaming.
+        #expect(
+            !source.contains("withAnimation"),
+            """
+            PortalProgressView must not drive its repeatForever spin with \
+            withAnimation: that sets the animation on the whole transaction, so \
+            an ancestor's frame change inherits a curve that never ends and the \
+            animator never settles. Use .animation(_:value:), which is what the \
+            app's other four repeatForever sites already do.
+            """
+        )
+        #expect(
+            source.contains(".animation("),
+            "The spin still has to be animated — a scoped .animation(_:value:), not a dropped one."
+        )
+        #expect(source.contains("repeatForever"))
     }
 }

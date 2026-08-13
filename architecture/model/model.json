@@ -137,7 +137,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6845
+      "line_count": 6865
     },
     {
       "declaration_count": 133,
@@ -1446,7 +1446,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6045
+      "line_count": 6060
     },
     {
       "declaration_count": 27,
@@ -2864,12 +2864,14 @@
     },
     {
       "authority": "observed",
-      "description": "References 5 declaration(s) owned by thought-graph-ui.",
+      "description": "References 7 declaration(s) owned by thought-graph-ui.",
       "evidence": [
         "Sources/Portal/Views/ChatView.swift"
       ],
       "source": "chat-ui",
       "symbols": [
+        "ConversationPanel",
+        "DashboardCanvasView",
         "DelegationBatchNoticeView",
         "InlineTurnTimelineLive",
         "SessionChatCanvas",
@@ -2878,7 +2880,7 @@
       ],
       "target": "thought-graph-ui",
       "type": "references",
-      "weight": 6
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -4138,6 +4140,22 @@
     },
     {
       "authority": "observed",
+      "description": "References 3 declaration(s) owned by operations-ui.",
+      "evidence": [
+        "Sources/Portal/Views/PortalProgressView.swift"
+      ],
+      "source": "shared-ui",
+      "symbols": [
+        "CentaurWorkflowsView",
+        "FeedView",
+        "SessionListView"
+      ],
+      "target": "operations-ui",
+      "type": "references",
+      "weight": 4
+    },
+    {
+      "authority": "observed",
       "description": "References 3 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/PerfOverlayView.swift"
@@ -4775,7 +4793,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 92462,
+    "swift_lines": 92497,
     "unassigned_files": []
   },
   "layers": [
@@ -4807,6 +4825,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "7a5cd0a4f9562493cee076218f72befb8599d62adb34e89767438e94719820d7",
+  "source_tree_sha256": "46aedc05aeffbaf9da5ea5b96e36cb43a0cb68e2f3ff7b2181f0b8b88783c26c",
   "title": "Portal Architecture"
 }
