@@ -14,15 +14,46 @@ final class ChatHistoryStore {
     private let sessionsDir: URL
 
     private init() {
-        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            log.error("ChatHistoryStore: cannot locate Application Support directory")
-            sessionsDir = URL(fileURLWithPath: "/tmp/portal/sessions")
-            try? fileManager.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
-            return
-        }
-        sessionsDir = appSupport.appendingPathComponent("portal/sessions", isDirectory: true)
+        sessionsDir = Self.resolveSessionsDir(fileManager: fileManager)
         try? fileManager.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
     }
+
+    /// Where session transcripts live. Extracted from `init` so the
+    /// test-process redirection is assertable without constructing the
+    /// singleton, which would itself touch whichever directory it picks.
+    ///
+    /// Under test this is a scratch directory, NOT Application Support. Tests
+    /// drive `ChatViewModel`, which saves history on every message change, and
+    /// the store is a singleton with no injection seam — so a plain unit run
+    /// wrote fixture transcripts (`stable-a.json`, `session-b.json`,
+    /// `background-skills-<UUID>.json`, …) straight into the user's real
+    /// `portal/sessions`. That is not merely litter: `localSessionIDs()` is the
+    /// "local-only sessions" source for the sidebar, so every fixture file
+    /// became a session row the user had to scroll past, and the real sessions
+    /// were pushed out of view. Same defect class as the gateway pushes
+    /// `ArtifactStore.isTestProcess` already guards — one shared singleton, one
+    /// process-external side effect, no seam.
+    ///
+    /// Per-process-unique so parallel swift-testing suites don't collide, and
+    /// under `/tmp` so nothing survives to be mistaken for user data.
+    private static func resolveSessionsDir(fileManager: FileManager) -> URL {
+        if ProcessInfo.isTestProcess {
+            return URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent(
+                    "portal-tests-\(ProcessInfo.processInfo.processIdentifier)/sessions",
+                    isDirectory: true
+                )
+        }
+        guard let appSupport = fileManager
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            log.error("ChatHistoryStore: cannot locate Application Support directory")
+            return URL(fileURLWithPath: "/tmp/portal/sessions")
+        }
+        return appSupport.appendingPathComponent("portal/sessions", isDirectory: true)
+    }
+
+    /// Test seam: the directory this store reads and writes.
+    internal var sessionsDirectoryForTesting: URL { sessionsDir }
 
     // MARK: - Save
 

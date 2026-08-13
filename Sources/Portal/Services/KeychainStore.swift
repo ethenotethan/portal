@@ -15,6 +15,40 @@ final class KeychainStore: Sendable {
 
     private init() {}
 
+    // MARK: - Live-credential write guard
+
+    /// The accounts that hold the user's actual harness credentials.
+    ///
+    /// These are irreplaceable: the API key cannot be regenerated from the app,
+    /// and overwriting `gateways` destroys every saved harness at once.
+    internal static let liveAccounts: Set<String> = ["api-key", "gateway-url", "gateways"]
+
+    /// Whether `upsert` may write `account` in this process.
+    ///
+    /// False only for a live account in a test process. Tests must not write
+    /// these, and "must not" was previously only a convention — which failed:
+    /// `SettingsViewModel`'s `gatewayURL`/`apiKey` setters persist on every
+    /// assignment via `didSet`, so a test that did nothing but
+    /// `settings.gatewayURL = "ws://test-harness.example.com:8642/v1/ws"`
+    /// silently overwrote the real stored harness. The user then launched a
+    /// fresh build, found a testing default in Settings, and had to re-enter
+    /// their address by hand.
+    ///
+    /// Enforced at the `upsert` chokepoint rather than in the offending tests
+    /// because every credential write funnels through here — including writes
+    /// from production code a test merely *constructs*, which is exactly the
+    /// path that caused the loss and the path a per-test fix would miss. Tests
+    /// that legitimately exercise the Keychain already scope themselves to
+    /// throwaway accounts via `withTemporaryItem`, and those still work.
+    ///
+    /// Pure and static so the policy is testable without touching the Keychain.
+    nonisolated internal static func mayWrite(
+        account: String,
+        isTestProcess: Bool = ProcessInfo.isTestProcess
+    ) -> Bool {
+        !(isTestProcess && liveAccounts.contains(account))
+    }
+
     // MARK: - Upsert primitive
 
     /// Write `data` under `account`, creating the item or updating it in place.
@@ -32,6 +66,10 @@ final class KeychainStore: Sendable {
     /// Update-first is also atomic: there is no window where the item is gone.
     @discardableResult
     private func upsert(account: String, data: Data) -> Bool {
+        guard Self.mayWrite(account: account) else {
+            log.error("Refusing to write live account '\(account, privacy: .public)' from a test process")
+            return false
+        }
         let identity: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

@@ -1028,7 +1028,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 5959
+      "line_count": 6028
     },
     {
       "declaration_count": 219,
@@ -3378,6 +3378,21 @@
     },
     {
       "authority": "observed",
+      "description": "References 1 declaration(s) owned by chat-state.",
+      "evidence": [
+        "Sources/Portal/Services/ChatHistoryStore.swift",
+        "Sources/Portal/Services/NotificationService.swift"
+      ],
+      "source": "local-services",
+      "symbols": [
+        "ChatViewModel"
+      ],
+      "target": "chat-state",
+      "type": "references",
+      "weight": 3
+    },
+    {
+      "authority": "observed",
       "description": "References 8 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Services/SessionPDFExporter.swift"
@@ -4793,7 +4808,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 92497,
+    "swift_lines": 92566,
     "unassigned_files": []
   },
   "layers": [
@@ -4825,6 +4840,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "46aedc05aeffbaf9da5ea5b96e36cb43a0cb68e2f3ff7b2181f0b8b88783c26c",
+  "source_tree_sha256": "7e9db21d82e0bf13c9aea23e9266028de81f0814761639357920518f90b4648f",
   "title": "Portal Architecture"
 }
