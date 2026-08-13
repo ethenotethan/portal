@@ -100,7 +100,12 @@ internal struct ConversationPanel: View {
                 // eagerly; keep the lazy path for the full Scroll transcript
                 // where off-screen deferral actually matters.
                 Group {
-                    if focusedTurnID == nil {
+                    if chatViewModel.messages.isEmpty && !chatViewModel.isStreaming {
+                        // Cold launch and fresh sessions used to render a blank
+                        // pane here, which reads as "broken" (#258). Narrate
+                        // the connection state instead.
+                        EmptyTranscriptStateView()
+                    } else if focusedTurnID == nil {
                         LazyVStack(alignment: .leading, spacing: 2) { messageRows }
                     } else {
                         VStack(alignment: .leading, spacing: 2) { messageRows }
