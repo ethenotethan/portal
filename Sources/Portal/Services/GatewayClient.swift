@@ -994,6 +994,11 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         hasConnectedSinceBudgetGrant = false
         reconnectTask?.cancel()
         reconnectTask = nil
+        // The transport being replaced may still report `.connected`. Publish the
+        // new dial before opening it so the wait below cannot return success for
+        // the stale socket instead of the replacement.
+        connectionState = .connecting
+        refreshDebugSnapshot()
         openWebSocket()
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
