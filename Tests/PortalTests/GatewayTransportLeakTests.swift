@@ -166,40 +166,32 @@ internal struct GatewayTransportLeakTests {
         // Let the hogs actually claim the threads before measuring.
         try await Task.sleep(nanoseconds: 500_000_000)
 
-        let before = server.liveConnectionCount
-        let dials = 4
-        for dial in 1..<dials {
-            await client.forceReconnectAndWait(timeout: 3)
-            try await waitFor { server.upgradeCount > dial }
+        // Exercise exactly one replacement. URLSession's dial itself uses system
+        // scheduling that this fixture may starve, so do not require the replacement
+        // to upgrade. The initial upgrade above proves there is a real old socket;
+        // fewer live sockets than completed upgrades proves that socket closed,
+        // whether or not the replacement manages to reach the server.
+        await client.forceReconnectAndWait(timeout: 3)
+        try await waitFor(timeout: 5) {
+            server.liveConnectionCount < server.upgradeCount
         }
-        try await waitFor { server.upgradeCount >= dials }
-        // Generous, and deliberately so: this waits for closes that will never
-        // come if the teardown needs a thread it cannot get.
-        try await waitFor(timeout: 5) { server.liveConnectionCount <= before }
 
         let live = server.liveConnectionCount
         let upgrades = server.upgradeCount
         #expect(
-            upgrades >= dials,
+            live < upgrades,
             """
-            Only \(upgrades) upgrades reached the server for \(dials) dials, so \
-            the assertion below proves nothing — the starvation harness starved the \
-            dial path too. Fix the fixture, don't trust the result.
-            """
-        )
-        #expect(
-            live <= before,
-            """
-            \(live) WebSockets are still open after \(dials) dials with the \
-            cooperative pool starved; expected \(before). The teardown is waiting \
-            on a thread it will never get. Cancel the old task inline — it's a \
-            non-blocking signal — and defer only invalidateAndCancel(), which can \
-            block, to a dedicated queue rather than to a `.utility` task or global \
-            queue. This is the live defect: 30 ESTABLISHED sockets to the gateway, \
-            bytes unread in several of them, and because the delegate methods are \
-            gated on `session === self.urlSession` those frames were dropped \
-            silently — the session reads as still streaming while no updates arrive \
-            and the thought graph stays empty.
+            All \(live) of \(upgrades) upgraded WebSocket(s) remain after reconnect \
+            with the cooperative pool starved; the old transport did not close. \
+            The teardown is waiting on a thread it will never get. Cancel the old \
+            task inline — it's a non-blocking signal — and defer only \
+            invalidateAndCancel(), which can block, to a dedicated queue rather \
+            than to a `.utility` task or global queue. This is the live defect: 30 \
+            ESTABLISHED sockets to the gateway, bytes unread in several of them, \
+            and because the delegate methods are gated on \
+            `session === self.urlSession` those frames were dropped silently — the \
+            session reads as still streaming while no updates arrive and the \
+            thought graph stays empty.
             """
         )
     }
