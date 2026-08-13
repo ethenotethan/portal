@@ -2567,9 +2567,20 @@ if restoreSessionState(displayID: key) {
             break
 
         case .sessionInfo(let info):
-            state.currentModel = info.model
-            if displaySessionID(for: sessionID ?? "") == displayID {
-                currentModel = info.model
+            // Adopt the model only when the event names one. `session.info`
+            // fires for many reasons (usage updates at turn boundaries,
+            // workspace moves, …) and a session whose model is ROUTED per-turn
+            // reports "" — the field means "no pinned override", not "no
+            // model". Adopting it blindly wiped the badge to "No model" on the
+            // user's next turn while the backend routed fine. The harness's
+            // own `_session_info` documents the identical trap for
+            // `reasoning_effort` ("Reporting '' here made the desktop adopt
+            // the empty value after the first turn").
+            if !info.model.isEmpty {
+                state.currentModel = info.model
+                if displaySessionID(for: sessionID ?? "") == displayID {
+                    currentModel = info.model
+                }
             }
             // Seed the compaction counter (without emitting) so compactions
             // that happened before we connected don't fabricate a fold later.
@@ -3042,7 +3053,12 @@ if restoreSessionState(displayID: key) {
             break
 
         case .sessionInfo(let info):
-            currentModel = info.model
+            // Same empty-model guard as the session-scoped handler: "" means
+            // "routed per-turn / no pinned override", and adopting it wiped a
+            // badge that was correct a moment earlier.
+            if !info.model.isEmpty {
+                currentModel = info.model
+            }
             // A session-less session.info (gateway default announcement on
             // connect) must not mark a nonexistent session ready — that would
             // unlock the composer/picker before session.create succeeds.

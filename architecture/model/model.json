@@ -674,7 +674,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4036
+      "line_count": 4052
     },
     {
       "declaration_count": 21,
@@ -898,7 +898,7 @@
       "id": "artifact-intents",
       "label": "Artifact intents",
       "layer": "integration",
-      "line_count": 1422
+      "line_count": 1435
     },
     {
       "declaration_count": 2,
@@ -4808,7 +4808,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 92566,
+    "swift_lines": 92595,
     "unassigned_files": []
   },
   "layers": [
@@ -4840,6 +4840,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "7e9db21d82e0bf13c9aea23e9266028de81f0814761639357920518f90b4648f",
+  "source_tree_sha256": "49ec66f5ebb9d49f81209c290f2dc04952b65e3e1919f85bf102bcc58fe68a68",
   "title": "Portal Architecture"
 }
