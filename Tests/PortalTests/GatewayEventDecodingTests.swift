@@ -4,6 +4,19 @@ import Foundation
 
 @Suite("Gateway Event Decoding — new families")
 struct GatewayEventDecodingTests {
+    @Test("learning.changed decodes sync routing fields")
+    func learningChanged() {
+        let event = GatewayEvent.from(type: "learning.changed", payload: .dictionary([
+            "entity": .string("course"), "id": .string("c"),
+            "rev": .int(4), "deleted": .bool(true),
+        ]))
+        guard case .learningChanged(let entity, let id, let rev, let deleted) = event else {
+            Issue.record("expected learningChanged")
+            return
+        }
+        #expect(entity == "course" && id == "c" && rev == 4 && deleted)
+    }
+
 
     // MARK: - tool.output_risk
 

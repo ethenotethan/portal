@@ -222,6 +222,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     private var requestIDCounter = 0
     private var pendingRequests: [Int: CheckedContinuation<JSONRPCResponse, Error>] = [:]
     private var pendingRequestMethods: [Int: String] = [:]
+    /// Test seam for typed RPC adapters. Production leaves this nil and uses
+    /// the live WebSocket path below.
+    internal var rpcCallOverrideForTesting: ((String, [String: AnyCodable]?) async throws -> JSONRPCResponse)?
     private let pendingRequestsLock = NSLock()
     private var gatewayURL: URL
     private(set) var apiKey: String
@@ -890,6 +893,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         params: [String: AnyCodable]? = nil,
         timeout: Double? = nil
     ) async throws -> JSONRPCResponse {
+        if let override = rpcCallOverrideForTesting {
+            return try await override(method, params)
+        }
         let id = nextRequestID()
 
         let request = JSONRPCRequest(id: id, method: method, params: params)

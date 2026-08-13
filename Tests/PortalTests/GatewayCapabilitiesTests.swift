@@ -3,6 +3,16 @@ import Testing
 
 @Suite("GatewayCapabilities")
 struct GatewayCapabilitiesTests {
+    @Test("learning capability is detected from the advertised RPC family")
+    func detectsLearningCapability() {
+        let capabilities = GatewayCapabilities.from(
+            value: .dictionary(["capability_names": .array([.string("learning.course.list")])]),
+            method: "gateway.capabilities"
+        )
+        #expect(capabilities.supportsLearning)
+        #expect(!GatewayCapabilities.conservativeDefaults.supportsLearning)
+    }
+
     @Test("parses direct gateway capability booleans and version")
     func parsesDirectBooleans() {
         let payload: AnyCodable = .dictionary([
