@@ -885,6 +885,16 @@ struct ChatView: View {
                     }
                     .frame(height: 0)
 
+                    // `.topLeading` here resolves an alignment guide against the
+                    // transcript, and resolving a guide walks the child's whole
+                    // layout down into `LazyStack.measureEstimates` →
+                    // `signalPrefetch` → `requestUpdate` → the next pass. The
+                    // guides are pinned to constants below for the same reason
+                    // DashboardCanvasView's two `.topLeading` stacks are: a
+                    // constant is read directly, so the descent never begins.
+                    // Zero is what `.topLeading` resolved to anyway — the
+                    // overlays are the zero-height probe and an offset avatar,
+                    // neither of which needs the stack to consult the transcript.
                     ZStack(alignment: .topLeading) {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             let msgs = chatViewModel.messages
@@ -987,8 +997,18 @@ struct ChatView: View {
                             .padding(.leading, 16)
                         }
                     }
+                    .alignmentGuide(.leading) { _ in 0 }
+                    .alignmentGuide(.top) { _ in 0 }
                     .coordinateSpace(name: "chatContent")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // `minHeight: 0` alongside the flexible max, exactly as
+                    // ConversationPanel's scroll view carries: without it an
+                    // ideal-height query is answered with the full content
+                    // height, and computing that enumerates every row of the
+                    // LazyVStack — the measurement that arms the loop. The
+                    // sampled chain runs `sizeChildrenIdeally` →
+                    // `LazyVStackLayout.sizeThatFits` → `measureEstimates`
+                    // straight through this frame.
+                    .frame(maxWidth: .infinity, minHeight: 0, alignment: .leading)
                 }
             #if os(macOS)
                 VStack(spacing: 8) {
