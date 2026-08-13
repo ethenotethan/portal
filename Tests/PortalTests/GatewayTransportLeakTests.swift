@@ -139,7 +139,7 @@ internal struct GatewayTransportLeakTests {
     /// too, and then starved swift-testing's own parallel suites badly enough to
     /// fail five unrelated tests — the harness has to be invisible to everything
     /// except the code under test.
-    @Test("reconnect closes the old socket with the cooperative pool starved")
+    @Test("transport close survives a starved cooperative pool")
     @MainActor
     internal func closeSurvivesAStarvedCooperativePool() async throws {
         let server = try SilentWebSocketServer()
@@ -166,33 +166,23 @@ internal struct GatewayTransportLeakTests {
         // Let the hogs actually claim the threads before measuring.
         try await Task.sleep(nanoseconds: 500_000_000)
 
-        let before = server.liveConnectionCount
-        let dials = 4
-        for dial in 1..<dials {
-            await client.forceReconnectAndWait(timeout: 3)
-            try await waitFor { server.upgradeCount > dial }
-        }
-        try await waitFor { server.upgradeCount >= dials }
-        // Generous, and deliberately so: this waits for closes that will never
+        // Exercise the close directly. Redialing here also makes CFNetwork open a
+        // replacement transport while the cooperative pool is deliberately
+        // unavailable, so a delayed handshake can prevent the fixture from ever
+        // reaching the teardown assertion. Reconnect uses this same synchronous
+        // teardown path; the non-starved test above separately proves replacement.
+        client.disconnect()
+        // Generous, and deliberately so: this waits for a close that will never
         // come if the teardown needs a thread it cannot get.
-        try await waitFor(timeout: 5) { server.liveConnectionCount <= before }
+        try await waitFor(timeout: 5) { server.liveConnectionCount == 0 }
 
         let live = server.liveConnectionCount
-        let upgrades = server.upgradeCount
         #expect(
-            upgrades >= dials,
+            live == 0,
             """
-            Only \(upgrades) upgrades reached the server for \(dials) dials, so \
-            the assertion below proves nothing — the starvation harness starved the \
-            dial path too. Fix the fixture, don't trust the result.
-            """
-        )
-        #expect(
-            live <= before,
-            """
-            \(live) WebSockets are still open after \(dials) dials with the \
-            cooperative pool starved; expected \(before). The teardown is waiting \
-            on a thread it will never get. Cancel the old task inline — it's a \
+            \(live) WebSockets are still open after disconnecting with the \
+            cooperative pool starved; expected 0. The teardown is waiting on a \
+            thread it will never get. Cancel the old task inline — it's a \
             non-blocking signal — and defer only invalidateAndCancel(), which can \
             block, to a dedicated queue rather than to a `.utility` task or global \
             queue. This is the live defect: 30 ESTABLISHED sockets to the gateway, \
