@@ -4,7 +4,7 @@ import Testing
 @Suite("GatewayCapabilities")
 struct GatewayCapabilitiesTests {
     @Test("learning capability is detected from the advertised RPC family")
-    func detectsLearningCapability() {
+    internal func detectsLearningCapability() {
         let capabilities = GatewayCapabilities.from(
             value: .dictionary(["capability_names": .array([.string("learning.course.list")])]),
             method: "gateway.capabilities"

@@ -5,7 +5,7 @@ import Foundation
 @Suite("Gateway Event Decoding — new families")
 struct GatewayEventDecodingTests {
     @Test("learning.changed decodes sync routing fields")
-    func learningChanged() {
+    internal func learningChanged() {
         let event = GatewayEvent.from(type: "learning.changed", payload: .dictionary([
             "entity": .string("course"), "id": .string("c"),
             "rev": .int(4), "deleted": .bool(true),
