@@ -53,6 +53,22 @@ internal struct GatewaySessionConfigTests {
         #expect(config.timeoutIntervalForResource > config.timeoutIntervalForRequest)
     }
 
+    @Test("the resource timeout cannot behead a healthy socket")
+    internal func resourceTimeoutIsNotAnExecutionCeiling() {
+        let config = GatewayClient.makeSessionConfig()
+        // `timeoutIntervalForResource` is wall-clock over the task's whole
+        // lifetime and never resets on traffic. At its old value of 300 it
+        // killed every healthy WebSocket at exactly 5 minutes — measured live:
+        // a fresh gateway socket every 301s, an `.error` at each boundary, the
+        // dead socket left ESTABLISHED (11 accumulated in half an hour), and
+        // any turn streaming across the boundary lost its events mid-flight
+        // ("still streaming but nothing updates"). A day is a conservative
+        // floor for "not an execution ceiling"; the configured value is the
+        // 7-day system default.
+        #expect(config.timeoutIntervalForResource >= 24 * 3600)
+        #expect(config.timeoutIntervalForResource == GatewayClient.socketLifetimeCeiling)
+    }
+
     @Test("pipelining stays off for the WebSocket upgrade")
     internal func pipeliningDisabled() {
         #expect(GatewayClient.makeSessionConfig().httpShouldUsePipelining == false)

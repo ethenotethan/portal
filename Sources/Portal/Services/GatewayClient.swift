@@ -619,12 +619,35 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// and `handleDisconnect` already retries up to `maxReconnectAttempts` —
     /// which is the honest version of "wait for the network", because it says
     /// so on screen.
+    /// Effectively no ceiling on the socket's total lifetime (the system
+    /// default, stated explicitly so nobody "restores" a small bound).
+    ///
+    /// `timeoutIntervalForResource` is a WALL-CLOCK limit on the whole task —
+    /// it never resets on traffic. On a WebSocket that makes it an execution
+    /// ceiling: at 300 it beheaded every healthy connection at exactly 5
+    /// minutes. Measured live against a connected harness: a new gateway
+    /// socket every 301s, an `.error` surfaced through `setGatewayClient`'s
+    /// observer at each boundary, and the previous socket left behind
+    /// ESTABLISHED — 11 accumulated in half an hour, each frozen at the
+    /// ~2 KiB of its upgrade + hello + pings. Any turn that streamed across a
+    /// 5-minute boundary lost its event stream mid-flight, which is the
+    /// "session says streaming but nothing updates until I click away and
+    /// back" report, and a prompt submitted just before the boundary died
+    /// with the socket while Settings showed the (instantly reconnected)
+    /// gateway as healthy.
+    ///
+    /// The hang the 300 was guarding against — a dial that parks in
+    /// `.connecting` forever — is handled by `waitsForConnectivity = false`
+    /// (unreachable host fails in ~1s) and the `handshakeTimeout` request
+    /// bound, per the war story above `makeSessionConfig`.
+    internal static let socketLifetimeCeiling: TimeInterval = 7 * 24 * 3600
+
     internal static func makeSessionConfig() -> URLSessionConfiguration {
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.httpShouldUsePipelining = false
         sessionConfig.waitsForConnectivity = false
         sessionConfig.timeoutIntervalForRequest = handshakeTimeout
-        sessionConfig.timeoutIntervalForResource = 300
+        sessionConfig.timeoutIntervalForResource = socketLifetimeCeiling
         return sessionConfig
     }
 

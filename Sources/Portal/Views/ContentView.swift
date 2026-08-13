@@ -62,6 +62,9 @@ internal struct ContentView: View {
     /// its own push afterward, so the observer must skip that intermediate push.
     @State private var shouldSuppressNextCreateGenerationPush = false
     @State private var chatRunStateCancellable: AnyCancellable?
+    /// Debounce for reconnect-on-edit: the URL field writes `gatewayURL` on
+    /// every keystroke, and each write must reschedule rather than dial.
+    @State private var settingsReconnectTask: Task<Void, Never>?
     #if os(iOS)
     @State private var iOSNavigationPath: [String] = []
     #endif
@@ -186,6 +189,23 @@ internal struct ContentView: View {
             guard oldID != nil, newID != nil, settings.isConfigured else { return }
             handleGatewaySwitch()
         }
+        .onChange(of: settings.gatewayURL) { _, _ in
+            // Editing the ACTIVE gateway in place reaches here with no other
+            // observer firing: `updateGateway` (and the URL TextField's didSet)
+            // persist the new address but never change `activeGatewayID`, so
+            // `handleGatewaySwitch` doesn't run — the transport stayed dialed
+            // at the OLD address while Settings displayed the new one. A user
+            // whose URL was wrong could type the right one and nothing would
+            // change until they restarted the app or switched to a different
+            // gateway and back. ("Make Active" on the already-active entry
+            // early-returns, so it couldn't kick the transport either.)
+            scheduleSettingsReconnect()
+        }
+        .onChange(of: settings.apiKey) { _, _ in
+            // Same in-place-edit hole as the URL above: a corrected key never
+            // reached the wire without a restart.
+            scheduleSettingsReconnect()
+        }
         .onChange(of: settings.focusedBackendID) { _, focused in
             // Propagate the focused gateway to the artifact store so it can
             // scope sortedArtifacts and stamp new artifacts with the right owner.
@@ -210,6 +230,38 @@ internal struct ContentView: View {
                 client: gatewayClientWrapper.client,
                 gatewayURL: settings.gatewayURL
             )
+        }
+    }
+
+    /// Reconnect after an in-place edit of the live gateway URL or API key
+    /// settles. Debounced because the Settings/Onboarding text fields assign
+    /// `gatewayURL` per keystroke — dialing each prefix would spray half-typed
+    /// addresses at the network and tear the transport down mid-edit.
+    ///
+    /// Safe to fire spuriously: `connectIfNeeded` compares the connection
+    /// signature (URL + key + CF cookie) and an unforced call with an unchanged
+    /// signature on a live connection returns without touching the transport.
+    /// That also makes the overlap with `handleGatewaySwitch` benign — by the
+    /// time this debounce expires after a gateway *switch*, the signature
+    /// already matches and this is a no-op. `wireUpClient` is identity-guarded
+    /// for the same reason.
+    @MainActor
+    private func scheduleSettingsReconnect() {
+        guard settings.isConfigured else { return }
+        settingsReconnectTask?.cancel()
+        settingsReconnectTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: 1_200_000_000)
+            } catch {
+                // Cancelled — a newer keystroke superseded this dial.
+                return
+            }
+            await gatewayClientWrapper.connectWithRetry(using: settings)
+            wireUpClient()
+            if gatewayClientWrapper.isConnected {
+                await sessionList.refreshSessions()
+                await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
+            }
         }
     }
 

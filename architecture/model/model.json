@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4240
+      "line_count": 4293
     },
     {
       "declaration_count": 76,
@@ -137,7 +137,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6838
+      "line_count": 6845
     },
     {
       "declaration_count": 133,
@@ -832,7 +832,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4314
+      "line_count": 4342
     },
     {
       "declaration_count": 13,
@@ -1327,7 +1327,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11203
+      "line_count": 11222
     },
     {
       "declaration_count": 73,
@@ -4775,7 +4775,7 @@
     "assigned_files": 318,
     "declarations": 957,
     "swift_files": 318,
-    "swift_lines": 92355,
+    "swift_lines": 92462,
     "unassigned_files": []
   },
   "layers": [
@@ -4807,6 +4807,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "fb58eb3746055d6684593e31ab87aa089638e719eb33c43896004b93228894db",
+  "source_tree_sha256": "7a5cd0a4f9562493cee076218f72befb8599d62adb34e89767438e94719820d7",
   "title": "Portal Architecture"
 }
