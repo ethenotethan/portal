@@ -529,6 +529,19 @@ final class ArtifactStore: ObservableObject {
                         artifacts[summary.id] = stamped
                         changed = true
                     }
+                } else if var current = local,
+                          current.topLevelActions.isEmpty,
+                          !summary.topLevelActions.isEmpty {
+                    // Rev unchanged, but the local copy came from the disk
+                    // cache, which cannot persist actions (ArtifactAction is
+                    // not Codable — see LivingArtifact's custom Codable). An
+                    // app restart therefore wakes every artifact with an empty
+                    // manifest, and this rev guard would keep it that way
+                    // forever: every declared intent silently dead. The list
+                    // summary carries the actions (the gateway strips only
+                    // content), so re-adopt them in place.
+                    current.topLevelActions = summary.topLevelActions
+                    artifacts[summary.id] = current
                 }
             }
             // Push local-only artifacts up (offline creations).
