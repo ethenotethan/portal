@@ -238,6 +238,93 @@ internal struct CanvasRelayoutGuardTests {
         )
     }
 
+    @Test("ChatView's transcript SCROLL VIEW answers an ideal-height query with zero")
+    internal func chatViewScrollViewDoesNotReportIdealHeight() throws {
+        // The fourth recurrence, hours after the third. The content-side
+        // minHeight above was in the shipping build and the loop returned
+        // anyway (Wispr Flow dictation → Enter → 100% CPU, sampled live) —
+        // because the descent entered one level HIGHER: the enclosing
+        // ZStack(alignment: .bottom) resolves its guide against the
+        // ScrollView itself, and that query proposes the ideal size to the
+        // scroll view's own layout computer, which measures the full
+        // transcript without ever consulting the content frame's minHeight.
+        // The cut must sit on the ScrollView, exactly where ConversationPanel
+        // has carried it since the first canvas fix.
+        let source = try Self.source("Views/ChatView.swift")
+        #expect(
+            source.contains(".frame(minHeight: 0, maxHeight: .infinity)"),
+            """
+            ChatView's transcript ScrollView needs its own \
+            frame(minHeight: 0, maxHeight: .infinity) — the content-side cut \
+            cannot answer an ideal-size query addressed to the ScrollView. \
+            Without it the .bottom-aligned overlay stack's guide resolution \
+            enumerates every transcript row per pass at 100% CPU.
+            """
+        )
+    }
+
+    // MARK: - The transcript is eager
+
+    @Test("the canvas transcript is eager, not lazy")
+    internal func canvasTranscriptIsEager() throws {
+        // The engine of the fifth beachball, after every entrance-pin above
+        // held: LazyLayoutViewCache itself. Each pass runs updateItemPhases →
+        // value_set → propagate_dirty (lldb's stop frame mid-spin), which
+        // dirties the graph and schedules the next pass — with zero external
+        // input (socket bytes frozen, no stream), the loop ran at 100% CPU
+        // indefinitely. Layout pins can't fix that; they only close entrances.
+        // The transcript must render an eager VStack over a bounded tail
+        // window instead: no item phases, no prefetch, nothing to
+        // self-schedule.
+        let source = try Self.source("Views/ThoughtGraph/ConversationPanel.swift")
+        #expect(
+            !source.contains("LazyVStack("),
+            """
+            ConversationPanel must not host the transcript in a LazyVStack — \
+            the lazy cache's phase updates are the self-scheduling engine of \
+            the relayout loop. Eager over a bounded window (scrollWindowSize + \
+            Show earlier) renders the same content without the machinery.
+            """
+        )
+        #expect(
+            source.contains("scrollWindowSize"),
+            "Eager is only affordable windowed — the bounded tail must exist."
+        )
+    }
+
+    // MARK: - Live-tail follow
+
+    @Test("the live-tail follow is coalesced and unanimated")
+    internal func liveTailFollowIsCoalescedAndUnanimated() throws {
+        // The fifth recurrence, and the first that was NOT a layout-pin gap:
+        // ConversationPanel followed the stream tail with a bare ANIMATED
+        // scrollTo on every streamTailKey change (every 256 streamed chars).
+        // Tens of overlapping 150ms animations per second, each resolving the
+        // bottom anchor across the whole lazy transcript inside an animation
+        // transaction — the animator never settles and the main thread pins at
+        // 100% for the entire stream (Wispr dictation → Enter → beachball,
+        // sampled live twice on one build). The follow must funnel through
+        // followLiveTail, which batches to one UNANIMATED snap per 150ms.
+        let source = try Self.source("Views/ThoughtGraph/ConversationPanel.swift")
+        #expect(
+            !source.contains("if showsLiveTail { scrollToBottom(proxy) }"),
+            """
+            ConversationPanel's stream-follow handlers must not call the \
+            animated scrollToBottom directly — every 256 streamed characters \
+            that starts another overlapping animation over the whole lazy \
+            transcript, which is the 100%-CPU scroll storm.
+            """
+        )
+        #expect(
+            source.components(separatedBy: "followLiveTail(proxy)").count - 1 >= 2,
+            "Both live-tail triggers (streamTailKey and messages.count) must funnel through followLiveTail."
+        )
+        #expect(
+            source.contains("scrollToBottom(proxy, animated: false)"),
+            "The coalesced follow must snap, not animate — the ease was always outrun by the next trigger."
+        )
+    }
+
     // MARK: - Spinner animation scope
 
     @Test("PortalProgressView scopes its repeatForever to one value")

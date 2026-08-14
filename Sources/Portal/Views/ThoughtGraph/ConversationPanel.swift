@@ -52,6 +52,10 @@ internal struct ConversationPanel: View {
     /// whole transcript. Nil (Scroll mode) shows the full ever-growing thread.
     internal var focusedTurnID: UUID?
 
+    /// Coalescer for the live-tail follow — nil when no follow is pending.
+    /// See `followLiveTail` for why the follow must be batched and unanimated.
+    @State private var pendingTailFollow: Task<Void, Never>?
+
     /// Which blocks a turn has *collapsed* (returned), keyed by the assistant
     /// message id. Ephemeral per-session UI state — a viewing choice, not
     /// persisted content. Peeling is the DEFAULT: every available block renders
@@ -71,11 +75,28 @@ internal struct ConversationPanel: View {
     /// focused turn's user+assistant pair in Turns mode. The turn is keyed by its
     /// assistant message id (see SessionTurnBuilder); the immediately preceding
     /// user message is its prompt.
+    /// How many trailing messages Scroll mode renders. Bounded because the
+    /// transcript is now EAGER (see `body`): the window is what keeps eager
+    /// affordable, and "Show earlier" grows it on demand.
+    private static let scrollWindowSize = 60
+
+    /// Extra messages the user has revealed beyond the base window, reset when
+    /// the session changes.
+    @State private var revealedEarlierCount = 0
+
+    private var scrollWindow: Int { Self.scrollWindowSize + revealedEarlierCount }
+
+    /// Messages hidden above the window — drives the "Show earlier" affordance.
+    private var hiddenEarlierCount: Int {
+        guard focusedTurnID == nil else { return 0 }
+        return max(0, chatViewModel.messages.count - scrollWindow)
+    }
+
     private var visibleMessages: [ChatMessage] {
         let all = chatViewModel.messages
         guard let focusedTurnID,
               let assistantIdx = all.firstIndex(where: { $0.id == focusedTurnID }) else {
-            return all
+            return all.suffix(scrollWindow)
         }
         var start = assistantIdx
         if assistantIdx > 0, all[assistantIdx - 1].role == .user { start = assistantIdx - 1 }
@@ -92,23 +113,50 @@ internal struct ConversationPanel: View {
     internal var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                // Turns mode pins a single, bounded turn (its user+assistant
-                // pair) and scrolls the prompt to the top — so a diagram lower
-                // in a tall reply lands below the fold. A LazyVStack would then
-                // never instantiate that row (nor fire its diagram's onAppear),
-                // leaving it blank. The focused turn is tiny, so render it
-                // eagerly; keep the lazy path for the full Scroll transcript
-                // where off-screen deferral actually matters.
+                // Both modes render eagerly. Turns mode always did (a lazy
+                // stack never instantiates a below-the-fold row, so a diagram
+                // there never fired onAppear and stayed blank). Scroll mode
+                // joined it when the lazy machinery itself turned out to be
+                // the relayout-loop engine — see the comment on the VStack
+                // below; the bounded tail window is what keeps eager
+                // affordable.
                 Group {
                     if chatViewModel.messages.isEmpty && !chatViewModel.isStreaming {
                         // Cold launch and fresh sessions used to render a blank
                         // pane here, which reads as "broken" (#258). Narrate
                         // the connection state instead.
                         EmptyTranscriptStateView()
-                    } else if focusedTurnID == nil {
-                        LazyVStack(alignment: .leading, spacing: 2) { messageRows }
                     } else {
-                        VStack(alignment: .leading, spacing: 2) { messageRows }
+                        // EAGER, deliberately — this was a LazyVStack, and the
+                        // lazy machinery itself was the engine of the fifth
+                        // 100%-CPU beachball (sampled live, three times in one
+                        // evening; Wispr dictation → Enter each time). Every
+                        // layout pins/coalescing fix closed one ENTRANCE, and
+                        // the loop found another, because the engine is
+                        // LazyLayoutViewCache: each pass runs
+                        // updateItemPhases → value_set → propagate_dirty —
+                        // observed as lldb's stop frame mid-spin — which
+                        // dirties the graph and schedules the next pass. The
+                        // transcript's rows also host one AppKit
+                        // SelectionOverlay per paragraph (textSelection), so
+                        // the churn re-ran dozens of updateNSView calls per
+                        // pass. With no external input (socket bytes frozen),
+                        // the loop ran indefinitely; only killing the app
+                        // recovered it.
+                        //
+                        // An eager VStack has no item phases, no prefetch, and
+                        // nothing to re-schedule — the loop's engine is simply
+                        // absent. Eager stays affordable because Scroll mode
+                        // now renders a bounded tail window (visibleMessages),
+                        // with "Show earlier" growing it on demand; Turns mode
+                        // was already eager for its own reasons (rows below
+                        // the fold must exist for diagram onAppear).
+                        VStack(alignment: .leading, spacing: 2) {
+                            if hiddenEarlierCount > 0 {
+                                showEarlierButton
+                            }
+                            messageRows
+                        }
                     }
                 }
                 .padding(.horizontal, 12)
@@ -125,8 +173,13 @@ internal struct ConversationPanel: View {
             // panel exactly as before.
             .frame(minHeight: 0, maxHeight: .infinity)
             .background(Theme.background)
-            .onChange(of: streamTailKey) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
-            .onChange(of: chatViewModel.messages.count) { _, _ in if showsLiveTail { scrollToBottom(proxy) } }
+            .onChange(of: streamTailKey) { _, _ in if showsLiveTail { followLiveTail(proxy) } }
+            .onChange(of: chatViewModel.messages.count) { _, _ in if showsLiveTail { followLiveTail(proxy) } }
+            .onChange(of: chatViewModel.currentSessionID) { _, _ in
+                // The reveal is a per-session viewing choice; a switched-to
+                // session starts back at the bounded tail.
+                revealedEarlierCount = 0
+            }
             .onChange(of: focusedTurnID) { _, _ in scrollToTop(proxy) }
             .onAppear { if showsLiveTail { scrollToBottom(proxy, animated: false) } }
         }
@@ -293,6 +346,58 @@ internal struct ConversationPanel: View {
     }
 
     private static let bottomAnchor = "conversation-panel-bottom"
+
+    /// Reveal another window of older messages above the current tail.
+    private var showEarlierButton: some View {
+        Button {
+            revealedEarlierCount += Self.scrollWindowSize
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.circle")
+                    .font(.caption)
+                Text("Show \(min(Self.scrollWindowSize, hiddenEarlierCount)) earlier messages (\(hiddenEarlierCount) hidden)")
+                    .font(.caption)
+            }
+            .foregroundStyle(Theme.accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Follow the live tail: coalesced to at most one scroll per 150ms, and
+    /// UNANIMATED. Both properties are load-bearing, from a live 100%-CPU spin
+    /// (Wispr Flow dictation → Enter → beachball, sampled twice on the same
+    /// build):
+    ///
+    /// `streamTailKey` changes every 256 streamed characters, and each change
+    /// used to call `scrollToBottom(proxy)` directly — an ANIMATED
+    /// `proxy.scrollTo` with no coalescing. On a long transcript that is tens
+    /// of overlapping 150ms animations per second, each forcing the lazy stack
+    /// to resolve the bottom anchor (measureEstimates over every row) inside
+    /// an animation transaction. The animator never settles —
+    /// `AnimatableAttribute.updateValue` / `AnimatorState.nextUpdate`
+    /// saturated both samples — and the main thread pins at 100% for the
+    /// entire stream. "Click away and click back", the user's long-standing
+    /// recovery ritual, works precisely because leaving the view stops the
+    /// scroll storm.
+    ///
+    /// A snap (unanimated) follow at ≤7/s tracks a stream visually just as
+    /// well: deltas arrive faster than the eye separates, and the 0.15s ease
+    /// was always outrun by the next trigger anyway.
+    private func followLiveTail(_ proxy: ScrollViewProxy) {
+        guard pendingTailFollow == nil else { return }
+        pendingTailFollow = Task { @MainActor in
+            defer { pendingTailFollow = nil }
+            do {
+                try await Task.sleep(nanoseconds: 150_000_000)
+            } catch {
+                // Cancelled — the view is gone; nothing to follow.
+                return
+            }
+            scrollToBottom(proxy, animated: false)
+        }
+    }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy, animated: Bool = true) {
         let action = { proxy.scrollTo(Self.bottomAnchor, anchor: .bottom) }
