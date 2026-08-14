@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4305
+      "line_count": 4306
     },
     {
       "declaration_count": 76,
@@ -332,7 +332,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 15707
+      "line_count": 15708
     },
     {
       "declaration_count": 37,
@@ -649,7 +649,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7258
+      "line_count": 7243
     },
     {
       "declaration_count": 7,
@@ -674,7 +674,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4077
+      "line_count": 4070
     },
     {
       "declaration_count": 21,
@@ -720,7 +720,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3111
+      "line_count": 3115
     },
     {
       "declaration_count": 5,
@@ -780,10 +780,10 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 958
+      "line_count": 971
     },
     {
-      "declaration_count": 28,
+      "declaration_count": 32,
       "declarations": [
         "Action",
         "CodingKeys",
@@ -801,6 +801,10 @@
         "HermesStandardSession",
         "HermesStandardSessionEnvelope",
         "HermesStandardSkill",
+        "LearningCourseSummary",
+        "LearningCourseWire",
+        "LearningDeckSummary",
+        "LearningDeckWire",
         "LivenessProbeCompletion",
         "LogEntry",
         "ParsedMessage",
@@ -816,10 +820,11 @@
       ],
       "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
       "external": false,
-      "file_count": 10,
+      "file_count": 11,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
+        "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
@@ -832,7 +837,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4342
+      "line_count": 4628
     },
     {
       "declaration_count": 13,
@@ -919,7 +924,7 @@
       "line_count": 118
     },
     {
-      "declaration_count": 71,
+      "declaration_count": 73,
       "declarations": [
         "AgentRun",
         "CacheEntry",
@@ -946,6 +951,7 @@
         "HFTokenizerWrapper",
         "HeuristicReasoningSummarizer",
         "KeychainStore",
+        "LearningStore",
         "MLXReasoningSummarizer",
         "Metadata",
         "NotificationCategory",
@@ -976,6 +982,7 @@
         "SubagentGraphIntegrator",
         "SummarizerError",
         "SummaryState",
+        "SyncAvailability",
         "TTSDelegate",
         "TTSService",
         "TweetContentService",
@@ -995,13 +1002,14 @@
       ],
       "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
       "external": false,
-      "file_count": 27,
+      "file_count": 28,
       "files": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
         "Sources/Portal/Services/FileDownloadManager.swift",
         "Sources/Portal/Services/GitHubContentService.swift",
         "Sources/Portal/Services/KeychainStore.swift",
+        "Sources/Portal/Services/LearningStore.swift",
         "Sources/Portal/Services/NotificationService.swift",
         "Sources/Portal/Services/QuizStore.swift",
         "Sources/Portal/Services/RawEventLog.swift",
@@ -1028,10 +1036,10 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6079
+      "line_count": 6545
     },
     {
-      "declaration_count": 219,
+      "declaration_count": 221,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1133,6 +1141,8 @@
         "JSONRPCResponse",
         "KanbanSpec",
         "Kind",
+        "LearningGateway",
+        "LearningWire",
         "Link",
         "LivingArtifact",
         "MediaAttachment",
@@ -1255,7 +1265,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 66,
+      "file_count": 67,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1289,6 +1299,7 @@
         "Sources/Portal/Models/JSONRPC/JSONRPCResponse.swift",
         "Sources/Portal/Models/KanbanSpec.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
+        "Sources/Portal/Models/Learning/LearningWire.swift",
         "Sources/Portal/Models/LivingArtifact.swift",
         "Sources/Portal/Models/MediaAttachment.swift",
         "Sources/Portal/Models/ModelCatalog.swift",
@@ -1327,7 +1338,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11222
+      "line_count": 11574
     },
     {
       "declaration_count": 75,
@@ -1917,7 +1928,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by local-services.",
+      "description": "References 5 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/HermesNativeApp.swift",
         "Sources/Portal/Views/ContentView.swift",
@@ -1925,6 +1936,7 @@
       ],
       "source": "app-shell",
       "symbols": [
+        "LearningStore",
         "NotificationService",
         "SkillStore",
         "TTSService",
@@ -1932,7 +1944,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 7
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -2594,9 +2606,9 @@
       "source": "chat-state",
       "symbols": [
         "ChatHistoryStore",
-        "CurriculumStore",
         "FileDownloadManager",
         "HeuristicReasoningSummarizer",
+        "LearningStore",
         "MLXReasoningSummarizer",
         "NotificationService",
         "Page",
@@ -3047,10 +3059,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by hermes-services.",
+      "description": "References 7 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/GatewayRestartOutcome.swift",
+        "Sources/Portal/Models/Learning/LearningWire.swift",
         "Sources/Portal/Models/SavedGateway.swift",
         "Sources/Portal/Models/WikiEventTimeline.swift",
         "Sources/Portal/Models/WikiEventTypeRegistry.swift"
@@ -3059,19 +3072,27 @@
       "symbols": [
         "GatewayClient",
         "GatewayError",
+        "LearningCourseSummary",
+        "LearningCourseWire",
+        "LearningDeckSummary",
+        "LearningDeckWire",
         "WikiChangeset"
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 8
+      "weight": 13
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by local-services.",
+      "description": "References 9 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Models/CronRunHistory.swift",
+        "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/FeedArticle.swift",
+        "Sources/Portal/Models/GatewayCapabilities.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
+        "Sources/Portal/Models/Learning/LearningWire.swift",
+        "Sources/Portal/Models/Quiz/FlashcardModels.swift",
         "Sources/Portal/Models/SavedGateway.swift",
         "Sources/Portal/Models/SpawnNode.swift",
         "Sources/Portal/Models/SpawnTreeModels.swift",
@@ -3083,14 +3104,16 @@
         "Document",
         "Entry",
         "KeychainStore",
+        "LearningStore",
         "NotificationService",
         "Page",
         "QuizStore",
+        "SRSEngine",
         "YouTubeContentService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 15
+      "weight": 21
     },
     {
       "authority": "observed",
@@ -3239,10 +3262,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 53 declaration(s) owned by domain-models.",
+      "description": "References 55 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
+        "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Push.swift",
         "Sources/Portal/Services/GatewayClient+Restart.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
@@ -3261,30 +3285,32 @@
         "CronJob",
         "CronRunHistoryStore",
         "CronRunRecord",
+        "Curriculum",
         "Direction",
         "DroppedEventReason",
-        "Event",
-        "EventRecord"
+        "Event"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 62
+      "weight": 65
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by local-services.",
+      "description": "References 3 declaration(s) owned by local-services.",
       "evidence": [
+        "Sources/Portal/Services/GatewayClient+Learning.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
         "Sources/Portal/Services/GatewayClient.swift"
       ],
       "source": "hermes-services",
       "symbols": [
+        "LearningStore",
         "Page",
         "SessionMetaSyncService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 4
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -3336,6 +3362,21 @@
       "target": "app-shell",
       "type": "references",
       "weight": 4
+    },
+    {
+      "authority": "observed",
+      "description": "References 1 declaration(s) owned by artifact-intents.",
+      "evidence": [
+        "Sources/Portal/Services/ChatHistoryStore.swift",
+        "Sources/Portal/Services/LearningStore.swift"
+      ],
+      "source": "local-services",
+      "symbols": [
+        "ArtifactStore"
+      ],
+      "target": "artifact-intents",
+      "type": "references",
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -3433,20 +3474,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 28 declaration(s) owned by domain-models.",
+      "description": "References 30 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
         "Sources/Portal/Services/FileDownloadManager.swift",
         "Sources/Portal/Services/KeychainStore.swift",
+        "Sources/Portal/Services/LearningStore.swift",
         "Sources/Portal/Services/NotificationService.swift",
         "Sources/Portal/Services/QuizStore.swift",
         "Sources/Portal/Services/RawEventLog.swift",
         "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
         "Sources/Portal/Services/ReasoningSummarizer.swift",
         "Sources/Portal/Services/SRSEngine.swift",
-        "Sources/Portal/Services/SRSStore.swift",
-        "Sources/Portal/Services/SessionExporter.swift"
+        "Sources/Portal/Services/SRSStore.swift"
       ],
       "source": "local-services",
       "symbols": [
@@ -3461,11 +3502,11 @@
         "FileAttachment",
         "FlashcardDeck",
         "JSONRPCError",
-        "ModelProjections"
+        "LearningGateway"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 49
+      "weight": 52
     },
     {
       "authority": "observed",
@@ -3642,7 +3683,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by local-services.",
+      "description": "References 12 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
@@ -3658,17 +3699,17 @@
         "Document",
         "Entry",
         "KeychainStore",
+        "LearningStore",
         "Metadata",
         "NotificationService",
-        "QuizStore",
-        "SRSStore",
         "SessionMetaSyncService",
         "SkillStore",
-        "SkillSummaryService"
+        "SkillSummaryService",
+        "SummaryState"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 19
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -3838,7 +3879,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 17 declaration(s) owned by local-services.",
+      "description": "References 15 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Views/FeedView.swift",
         "Sources/Portal/Views/Learning/CurriculumPlayerView.swift",
@@ -3853,21 +3894,21 @@
       "source": "operations-ui",
       "symbols": [
         "ChatHistoryStore",
-        "CurriculumStore",
         "Entry",
         "GitHubContentService",
+        "LearningStore",
         "Metadata",
-        "QuizStore",
         "SRSEngine",
-        "SRSStore",
         "SessionExporter",
         "SessionPDFExporter",
         "SkillSummaryService",
-        "SummaryState"
+        "SummaryState",
+        "TweetContentService",
+        "VideoCache"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 26
+      "weight": 24
     },
     {
       "authority": "observed",
@@ -4846,10 +4887,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 319,
-    "declarations": 959,
-    "swift_files": 319,
-    "swift_lines": 92977,
+    "assigned_files": 322,
+    "declarations": 967,
+    "swift_files": 322,
+    "swift_lines": 94078,
     "unassigned_files": []
   },
   "layers": [
@@ -4881,6 +4922,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "4514d27c87ba9e919feddfb9334f688a6dac72ff68938427271ef4fa62ece6cb",
+  "source_tree_sha256": "5c7cea69425d5415d31726e70790beb67dd3b9f831c44ab8c89051408e5f3611",
   "title": "Portal Architecture"
 }

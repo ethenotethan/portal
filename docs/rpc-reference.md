@@ -174,6 +174,29 @@ conform, so Hermes wikis never show the Events button):
 | `feed.get` | `sources?`, `since?`, `limit`, `offset` | Articles + `total` + `has_more` |
 | `feed.sources` | — | Source name → article count |
 
+### learning.*
+
+Gateway-synced courses, decks, and progress. Every `set` returns `{id, rev}`;
+a gateway that predates the surface answers `method not found`, which the
+client's runtime probe maps to nil (local-only mode) rather than an error.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `learning.course.list` | — | Course summaries (id, title, rev, …) |
+| `learning.course.get` | `id` | Full course: modules, steps, progress |
+| `learning.course.set` | `id?`, `title`, `summary`, `source_session_id?` | Create/update a course → `{id, rev}` |
+| `learning.course.delete` | `id` | Delete a course |
+| `learning.module.set` | `course_id`, `id?`, `title?`, `overview?`, `position?` | Create/update a module → `{id, rev}` |
+| `learning.step.set` | `course_id`, `module_id`, `id?`, `title?`, `type?`, `markdown?`, … | Create/update a step → `{id, rev}` |
+| `learning.deck.list` | — | Flashcard deck summaries |
+| `learning.deck.get` | `id` | Full deck with cards |
+| `learning.deck.set` | `id?`, `topic` | Create/update a deck → `{id, rev}` |
+| `learning.deck.delete` | `id` | Delete a deck |
+| `learning.card.set` | `deck_id`, card fields | Create/update a flashcard |
+| `learning.progress.record` | course/step identifiers + state | Record step progress |
+| `learning.review.record` | deck/card identifiers + grade | Record an SRS review |
+| `learning.attempt.record` | quiz identifiers + answers | Record a quiz attempt |
+
 ### config.* / image.* / capabilities
 
 | Method | Params | Description |
@@ -265,6 +288,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
+| `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 
 ## Errors
