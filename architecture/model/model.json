@@ -1028,7 +1028,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6033
+      "line_count": 6079
     },
     {
       "declaration_count": 219,
@@ -4849,7 +4849,7 @@
     "assigned_files": 319,
     "declarations": 959,
     "swift_files": 319,
-    "swift_lines": 92853,
+    "swift_lines": 92899,
     "unassigned_files": []
   },
   "layers": [
@@ -4881,6 +4881,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "63bf2121fbfcecf65b4fb3a02611300bd0b3d0245147ce52044a07713a317abe",
+  "source_tree_sha256": "f09de8469b5f80e741c95603177cadb90464dab271e59d36f5c5512d9a20ddc9",
   "title": "Portal Architecture"
 }

@@ -8,21 +8,43 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillS
 
 @MainActor
 enum SkillStoreDisk {
-    private static let key = "portal.skillStore.v2"
-    private static let timestampKey = "portal.skillStore.timestamp"
-    private static let versionKey = "portal.skillStore.version"
-    private static let fileStorageKey = "portal.skillStore.fileMigrated"
+    nonisolated private static let key = "portal.skillStore.v2"
+    nonisolated private static let timestampKey = "portal.skillStore.timestamp"
+    nonisolated private static let versionKey = "portal.skillStore.version"
+    nonisolated private static let fileStorageKey = "portal.skillStore.fileMigrated"
 
-    private static let currentVersion = 2
+    nonisolated private static let currentVersion = 2
 
-    private static let fileManager = FileManager.default
-    private static var storageDir: URL = {
+    // FileManager.default is documented thread-safe for these operations.
+    nonisolated(unsafe) private static let fileManager = FileManager.default
+    nonisolated private static let storageDir: URL = {
+        // Under test: a per-process scratch directory, NOT real Application
+        // Support. This enum was one of the unguarded app-support writers the
+        // ChatHistoryStore incident exposed — `save` runs from production code
+        // a test merely constructs, and the real skill-store.json is user
+        // data. Same pattern as ChatHistoryStore.resolveSessionsDir.
+        if ProcessInfo.isTestProcess {
+            return URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent(
+                    "portal-tests-\(ProcessInfo.processInfo.processIdentifier)/skills",
+                    isDirectory: true
+                )
+        }
         guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return URL(fileURLWithPath: "/tmp/portal")
         }
         return appSupport.appendingPathComponent("portal", isDirectory: true)
     }()
-    private static var skillStoreFile: URL { storageDir.appendingPathComponent("skill-store.json") }
+    nonisolated private static var skillStoreFile: URL { storageDir.appendingPathComponent("skill-store.json") }
+
+    /// Test seam: the directory this store reads and writes.
+    nonisolated internal static var storageDirForTesting: URL { storageDir }
+
+    /// Test seam: read the file directly, bypassing `load()`'s
+    /// UserDefaults-gated migration branch (tests never touch .standard).
+    internal static func loadFromFileForTesting() -> [SkillInfo]? {
+        loadFromFile()
+    }
 
     struct StoredSkills: Codable {
         let skills: [StoredSkillInfo]
@@ -44,7 +66,15 @@ enum SkillStoreDisk {
         let slashCommand: String
     }
 
-    static func save(_ skills: [SkillInfo]) {
+    /// nonisolated: the encode below is main-thread poison. With ~all skills
+    /// carrying `skillMdFullContent`, encoding the array took 287ms — caught
+    /// by the hang watchdog as a beachball, stack ending in
+    /// `JSONWriter.serializeString` under `SkillStore.persistToDisk` on the
+    /// main actor. Everything here is safe off-main: JSONEncoder and
+    /// FileManager are thread-safe for this use, `.atomic` writes keep the
+    /// file consistent under concurrent saves (last writer wins), and
+    /// UserDefaults is thread-safe.
+    nonisolated internal static func save(_ skills: [SkillInfo]) {
         let stored = skills.map { s in
             StoredSkillInfo(
                 name: s.name,
@@ -64,9 +94,15 @@ enum SkillStoreDisk {
             let data = try JSONEncoder().encode(StoredSkills(skills: stored, timestamp: Date(), version: currentVersion))
             try fileManager.createDirectory(at: storageDir, withIntermediateDirectories: true)
             try data.write(to: skillStoreFile, options: .atomic)
-            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)
-            UserDefaults.standard.set(currentVersion, forKey: versionKey)
-            UserDefaults.standard.set(true, forKey: fileStorageKey)
+            // Standing rule: tests never write UserDefaults.standard — these
+            // are the user's real defaults, and bumping the timestamp alone
+            // would make the live app treat a fixture write as a fresh cache.
+            // The file above is already redirected to scratch under test.
+            if !ProcessInfo.isTestProcess {
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)
+                UserDefaults.standard.set(currentVersion, forKey: versionKey)
+                UserDefaults.standard.set(true, forKey: fileStorageKey)
+            }
         } catch {
             log.error("SkillStoreDisk.save failed: \(error.localizedDescription)")
         }
@@ -544,6 +580,16 @@ internal final class SkillStore {
     }
 
     private func persistToDisk() {
-        SkillStoreDisk.save(skills)
+        // Off the main actor: encoding the full skill list (every entry
+        // carries its complete SKILL.md content) blocked the main thread for
+        // 287ms per save — a watchdog-reported beachball on every skill
+        // refresh. `skills` is a value-type array, so the detached task gets
+        // an immutable snapshot; concurrent saves are safe because the write
+        // is atomic and last-wins, the same discipline ChatHistoryStore's
+        // saveMessages already uses.
+        let snapshot = skills
+        Task.detached(priority: .background) {
+            SkillStoreDisk.save(snapshot)
+        }
     }
 }
