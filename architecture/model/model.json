@@ -837,7 +837,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4628
+      "line_count": 4644
     },
     {
       "declaration_count": 13,
@@ -4890,7 +4890,7 @@
     "assigned_files": 322,
     "declarations": 967,
     "swift_files": 322,
-    "swift_lines": 94078,
+    "swift_lines": 94094,
     "unassigned_files": []
   },
   "layers": [
@@ -4922,6 +4922,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "5c7cea69425d5415d31726e70790beb67dd3b9f831c44ab8c89051408e5f3611",
+  "source_tree_sha256": "eb5cdbd2ed7a34b3ae0e8df7dc43d43c5055b31f661f851183d80253db56291a",
   "title": "Portal Architecture"
 }

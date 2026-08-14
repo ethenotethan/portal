@@ -283,7 +283,8 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     // MARK: - Init
 
     override init() {
-        self.gatewayURL = URL(string: Constants.defaultGatewayURL) ?? URL(string: "ws://localhost:8642/v1/ws")!
+        self.gatewayURL = URL(string: Constants.defaultGatewayURL)
+            ?? URL(fileURLWithPath: "/invalid-gateway-url")
         self.apiKey = ""
         super.init()
         refreshDebugSnapshot()
@@ -2472,6 +2473,12 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             }
         }
     }
+
+    /// Narrow test seam for the learning RPC wrappers. Production leaves this
+    /// nil and uses the real WebSocket transport; wrapper tests inject decoded
+    /// responses so every method's wire contract is exercised without a server.
+    internal var learningCallOverrideForTesting:
+        ((String, [String: AnyCodable]) async throws -> JSONRPCResponse)?
 }
 
 // MARK: - Errors

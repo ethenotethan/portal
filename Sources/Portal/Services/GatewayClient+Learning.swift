@@ -93,12 +93,21 @@ internal struct LearningDeckSummary {
 @MainActor
 extension GatewayClient {
 
+    private func learningRawCall(
+        _ method: String, params: [String: AnyCodable] = [:]
+    ) async throws -> JSONRPCResponse {
+        if let override = learningCallOverrideForTesting {
+            return try await override(method, params)
+        }
+        return try await call(method, params: params)
+    }
+
     /// Shared error handling: nil result on method-not-found (probe), throw
     /// on real errors, result dict otherwise.
     private func learningCall(
         _ method: String, params: [String: AnyCodable] = [:]
     ) async throws -> [String: AnyCodable]? {
-        let response = try await call(method, params: params)
+        let response = try await learningRawCall(method, params: params)
         if let error = response.error {
             if error.code == -32601 { return nil }
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
@@ -116,7 +125,7 @@ extension GatewayClient {
     }
 
     internal func learningCourseGet(id: String) async throws -> LearningCourseWire? {
-        let response = try await call("learning.course.get", params: ["id": AnyCodable(id)])
+        let response = try await learningRawCall("learning.course.get", params: ["id": AnyCodable(id)])
         if let error = response.error {
             if error.code == -32601 || error.code == 4004 { return nil }
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
@@ -198,7 +207,7 @@ extension GatewayClient {
     }
 
     internal func learningDeckGet(id: String) async throws -> LearningDeckWire? {
-        let response = try await call("learning.deck.get", params: ["id": AnyCodable(id)])
+        let response = try await learningRawCall("learning.deck.get", params: ["id": AnyCodable(id)])
         if let error = response.error {
             if error.code == -32601 || error.code == 4004 { return nil }
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))

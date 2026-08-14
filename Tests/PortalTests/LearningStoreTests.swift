@@ -23,6 +23,7 @@ private final class FakeLearningGateway: LearningGateway {
     var progressRecordCalls: [(courseID: String, stepID: String, kind: String, score: Int?, at: Date?)] = []
     var reviewRecordCalls: [(deckID: String, cardID: String, quality: Int, bootstrap: Bool)] = []
     var attemptRecords: [[String: Any]] = []
+    var cardSetCalls: [(deckID: String, count: Int)] = []
 
     func learningCourseList() async throws -> [LearningCourseSummary]? {
         guard supportsLearning else { return nil }
@@ -94,7 +95,8 @@ private final class FakeLearningGateway: LearningGateway {
     func learningCardSet(
         deckID: String, cards: [[String: Any]]
     ) async throws -> (cardIDs: [String], rev: Int)? {
-        (cards.compactMap { $0["id"] as? String }, 2)
+        cardSetCalls.append((deckID, cards.count))
+        return (cards.compactMap { $0["id"] as? String }, 2)
     }
 
     func learningProgressRecord(
@@ -303,5 +305,83 @@ internal struct LearningStoreTests {
         #expect(gateway.attemptRecords.count == 1)
         #expect(gateway.attemptRecords[0]["topic"] as? String == "T")
         #expect(gateway.attemptRecords[0]["score"] as? Int == 1)
+    }
+
+    @Test("pull migrates a local deck with cards and reviewed SRS history")
+    internal func pullMigratesDeckWithBootstrap() async throws {
+        let store = makeStore()
+        let card = Flashcard(front: "Front", back: "Back", explanation: "")
+        var deck = FlashcardDeck(topic: "Deck", cards: [card])
+        let initial = try #require(deck.srsStates[card.id])
+        deck.srsStates[card.id] = SRSEngine.calculate(quality: 4, state: initial)
+        store.saveDeck(deck)
+
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+        await store.pull()
+
+        #expect(gateway.cardSetCalls.count == 1)
+        #expect(gateway.cardSetCalls[0].deckID == deck.id)
+        #expect(gateway.cardSetCalls[0].count == 1)
+        #expect(gateway.reviewRecordCalls.count == 1)
+        #expect(gateway.reviewRecordCalls[0].bootstrap)
+    }
+
+    @Test("delete and reset operations update disk-backed state and mirror content deletes")
+    internal func deletesAndReset() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+
+        let course = sampleCourse()
+        store.saveCourse(course)
+        store.recordLessonRead(courseID: course.id, stepID: course.modules[0].steps[0].id)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.course(id: course.id)?.progress.isEmpty == false)
+        #expect(gateway.progressRecordCalls.last?.kind == "lesson_read")
+        store.resetCourseProgress(id: course.id)
+        #expect(store.course(id: course.id)?.progress.isEmpty == true)
+        store.deleteCourse(id: course.id)
+
+        let deck = FlashcardDeck(topic: "Deck", cards: [
+            Flashcard(front: "F", back: "B", explanation: "")
+        ])
+        store.saveDeck(deck)
+        store.deleteDeck(id: deck.id)
+
+        let session = PersistedQuizSession(
+            questions: [], topic: "T", selectedAnswers: [:], score: 0, sourceSessionID: nil)
+        store.recordAttempt(session)
+        store.deleteAttempt(id: session.id)
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(store.course(id: course.id) == nil)
+        #expect(store.decks[deck.id] == nil)
+        #expect(store.attempts.isEmpty)
+        #expect(gateway.remoteCourses[course.id] == nil)
+        #expect(gateway.remoteDecks[deck.id] == nil)
+    }
+
+    @Test("deck events refetch newer content, ignore stale revs, and apply deletion")
+    internal func deckEventsRespectRevision() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        gateway.remoteDecks["deck-event"] = LearningDeckWire(
+            id: "deck-event", topic: "Remote", rev: 3, cards: [], srs: [:])
+        store.setClient(gateway)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.decks["deck-event"]?.rev == 3)
+
+        gateway.remoteDecks["deck-event"] = LearningDeckWire(
+            id: "deck-event", topic: "Stale", rev: 2, cards: [], srs: [:])
+        gateway.eventStream.send((
+            .learningChanged(entity: "deck", id: "deck-event", rev: 2, deleted: false), nil))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.decks["deck-event"]?.topic == "Remote")
+
+        gateway.eventStream.send((
+            .learningChanged(entity: "deck", id: "deck-event", rev: 4, deleted: true), nil))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.decks["deck-event"] == nil)
     }
 }
