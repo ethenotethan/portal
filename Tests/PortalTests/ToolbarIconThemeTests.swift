@@ -409,6 +409,24 @@ internal struct ToolbarIconThemeTests {
             source.contains(".allowsHitTesting(false)"),
             "the chip must not steal the hover or click from the icon it names"
         )
+
+        // The chip hangs below the 40pt chrome bar, and VStack siblings paint
+        // in declaration order — without a raised zIndex on the chrome row the
+        // split content drew over the chip and only its top half showed
+        // (reported immediately: "they're behind a bar… I can only see the
+        // top half, looks like a layering pain issue").
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Portal/Views/ContentView.swift"),
+            encoding: .utf8
+        )
+        #expect(
+            contentView.contains("macTopChromeRow\n                // Paint the chrome row over the content"),
+            "macTopChromeRow must carry the zIndex that lets the hover chips overflow the bar"
+        )
+        #expect(
+            contentView.contains(".zIndex(1)"),
+            "the chrome row's raised paint order is what keeps the chips in front"
+        )
     }
 
     @Test("every slot has a short label for the hover chip")

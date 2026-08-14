@@ -507,6 +507,12 @@ internal struct ContentView: View {
     private var macLayout: some View {
         VStack(spacing: 0) {
             macTopChromeRow
+                // Paint the chrome row over the content below it. Siblings
+                // paint in declaration order, so anything the row overflows —
+                // the toolbar icons' hover name chips hang below the 40pt bar
+                // — was drawn BEHIND the split content and showed only its top
+                // half. zIndex changes paint order only; layout is untouched.
+                .zIndex(1)
             macSplitContent
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

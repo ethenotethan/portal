@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4299
+      "line_count": 4305
     },
     {
       "declaration_count": 76,
@@ -4849,7 +4849,7 @@
     "assigned_files": 319,
     "declarations": 959,
     "swift_files": 319,
-    "swift_lines": 92931,
+    "swift_lines": 92937,
     "unassigned_files": []
   },
   "layers": [
@@ -4881,6 +4881,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "a5203b4313450e77e93a0376b92eda4bfc83f35e91431c41103664a890de8b19",
+  "source_tree_sha256": "125e63008f38c7269887984765eb76280eee747448b057e6157697349022e31f",
   "title": "Portal Architecture"
 }
