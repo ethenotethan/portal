@@ -1016,6 +1016,18 @@ struct ChatView: View {
                     // straight through this frame.
                     .frame(maxWidth: .infinity, minHeight: 0, alignment: .leading)
                 }
+                // The same cut ON THE SCROLL VIEW ITSELF, not only on its
+                // content: the enclosing ZStack(alignment: .bottom) resolves
+                // its guide against this child, and that query proposes the
+                // IDEAL size to the ScrollView — whose layout computer then
+                // measures the full transcript (sampled live at 100% CPU:
+                // explicitAlignment → _FlexFrameLayout →
+                // ScrollViewLayoutComputer.sizeThatFits → sizeChildrenIdeally
+                // → LazyVStack.measureEstimates → signalPrefetch →
+                // requestUpdate → next pass). The content-side minHeight above
+                // can't answer for the ScrollView; ConversationPanel has
+                // carried exactly this frame since the first canvas fix.
+                .frame(minHeight: 0, maxHeight: .infinity)
             #if os(macOS)
                 VStack(spacing: 8) {
                     if chatViewModel.pendingApproval != nil {
