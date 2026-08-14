@@ -898,6 +898,12 @@ struct ChatView: View {
                     ZStack(alignment: .topLeading) {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             let msgs = chatViewModel.messages
+                            if msgs.isEmpty && !chatViewModel.isStreaming {
+                                // Cold launch and fresh sessions used to render
+                                // a blank pane, which reads as "broken" (#258).
+                                // Narrate the connection state instead.
+                                EmptyTranscriptStateView()
+                            }
                             ForEach(renderedMessages, id: \.element.id) { index, message in
                                 if let noticeLabel = message.delegationBatchNoticeLabel {
                                     // A gateway async-delegation batch marker —

@@ -311,4 +311,9 @@ extension Notification.Name {
     /// Posted when the user chooses "Review with Agent" after an inline quiz in
     /// the Learning view; userInfo["reviewPrompt"] carries the prompt.
     static let hermesReviewQuiz = Notification.Name("portal.reviewQuiz")
+    /// Posted by the empty-transcript "Try Again" button (#258). Handled by
+    /// ContentView's debounced reconnect so the dial also re-wires the view
+    /// models — a connect can replace the wrapper's inner client, and only
+    /// ContentView holds the wiring.
+    internal static let hermesReconnectRequested = Notification.Name("portal.reconnectRequested")
 }

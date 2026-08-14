@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4293
+      "line_count": 4299
     },
     {
       "declaration_count": 76,
@@ -137,7 +137,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6865
+      "line_count": 6871
     },
     {
       "declaration_count": 133,
@@ -649,7 +649,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7133
+      "line_count": 7138
     },
     {
       "declaration_count": 7,
@@ -1028,7 +1028,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6028
+      "line_count": 6033
     },
     {
       "declaration_count": 219,
@@ -1330,7 +1330,7 @@
       "line_count": 11222
     },
     {
-      "declaration_count": 73,
+      "declaration_count": 75,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
@@ -1353,6 +1353,7 @@
         "DarkMangaStreamingIndicator",
         "DarkMangaThinkingBlock",
         "DottedCanvasBackdrop",
+        "EmptyTranscriptStateView",
         "ExportCodeText",
         "ExportTableView",
         "FloatingBrowserCanvas",
@@ -1376,6 +1377,7 @@
         "InAppWebViewNSView",
         "InAppWebViewRepresentable",
         "InAppWebViewUIView",
+        "LaunchPaneState",
         "Layout",
         "LinkifiedText",
         "LottieCharacterView",
@@ -1408,7 +1410,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 32,
+      "file_count": 33,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -1417,6 +1419,7 @@
         "Sources/Portal/Views/CelebrationOverlay.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/FlowLayout.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
@@ -1446,7 +1449,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6060
+      "line_count": 6179
     },
     {
       "declaration_count": 27,
@@ -2832,7 +2835,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 12 declaration(s) owned by shared-ui.",
+      "description": "References 13 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -2850,17 +2853,17 @@
         "CharacterExpression",
         "ChatSkin",
         "ChatSkinProviding",
+        "EmptyTranscriptStateView",
         "GatewayDebugPanelView",
         "GitHubLinkCard",
         "Layout",
         "LottieCharacterView",
         "PortalButtonStyle",
-        "PortalProgressView",
-        "ThumbnailImageView"
+        "PortalProgressView"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 20
+      "weight": 21
     },
     {
       "authority": "observed",
@@ -3317,6 +3320,22 @@
       "target": "utilities",
       "type": "references",
       "weight": 7
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by app-shell.",
+      "evidence": [
+        "Sources/Portal/Services/NotificationService.swift",
+        "Sources/Portal/Services/SessionPDFExporter.swift"
+      ],
+      "source": "local-services",
+      "symbols": [
+        "ContentView",
+        "Theme"
+      ],
+      "target": "app-shell",
+      "type": "references",
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -3966,30 +3985,31 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by app-shell.",
+      "description": "References 4 declaration(s) owned by app-shell.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
         "Sources/Portal/Views/GatewayDebugPanelView.swift",
         "Sources/Portal/Views/GatewayRestartSection.swift",
         "Sources/Portal/Views/GitHubLinkCard.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
-        "Sources/Portal/Views/HarnessConnectionStatus.swift",
-        "Sources/Portal/Views/InAppBrowserView.swift"
+        "Sources/Portal/Views/HarnessConnectionStatus.swift"
       ],
       "source": "shared-ui",
       "symbols": [
+        "ContentView",
         "SettingsView",
         "Theme",
         "ThemeManager"
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 27
+      "weight": 29
     },
     {
       "authority": "observed",
@@ -4012,6 +4032,7 @@
       "description": "References 3 declaration(s) owned by chat-state.",
       "evidence": [
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
         "Sources/Portal/Views/GatewayRestartSection.swift"
       ],
@@ -4023,12 +4044,13 @@
       ],
       "target": "chat-state",
       "type": "references",
-      "weight": 6
+      "weight": 7
     },
     {
       "authority": "observed",
       "description": "References 7 declaration(s) owned by chat-ui.",
       "evidence": [
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
         "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
@@ -4047,7 +4069,7 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 12
+      "weight": 13
     },
     {
       "authority": "observed",
@@ -4060,11 +4082,11 @@
         "Sources/Portal/Views/CelebrationOverlay.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
         "Sources/Portal/Views/GatewayDebugPanelView.swift",
-        "Sources/Portal/Views/GatewayRestartSection.swift",
-        "Sources/Portal/Views/GitHubLinkCard.swift"
+        "Sources/Portal/Views/GatewayRestartSection.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -4083,12 +4105,13 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 63
+      "weight": 64
     },
     {
       "authority": "observed",
       "description": "References 5 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/GatewayDebugPanelView.swift",
         "Sources/Portal/Views/GatewayRestartSection.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift",
@@ -4105,7 +4128,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 10
+      "weight": 11
     },
     {
       "authority": "observed",
@@ -4138,6 +4161,7 @@
       "evidence": [
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
         "Sources/Portal/Views/GatewayRestartSection.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift"
@@ -4151,7 +4175,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 9
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -4166,6 +4190,22 @@
         "SessionListView"
       ],
       "target": "operations-ui",
+      "type": "references",
+      "weight": 4
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by thought-graph-ui.",
+      "evidence": [
+        "Sources/Portal/Views/EmptyTranscriptStateView.swift",
+        "Sources/Portal/Views/InAppBrowserView.swift"
+      ],
+      "source": "shared-ui",
+      "symbols": [
+        "ConversationPanel",
+        "DashboardCanvasView"
+      ],
+      "target": "thought-graph-ui",
       "type": "references",
       "weight": 4
     },
@@ -4376,7 +4416,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by shared-ui.",
+      "description": "References 8 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift",
@@ -4389,6 +4429,7 @@
         "ApprovalBanner",
         "CharacterExpression",
         "ChatSkinProviding",
+        "EmptyTranscriptStateView",
         "Layout",
         "LottieCharacterView",
         "PortalProgressView",
@@ -4396,7 +4437,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 12
+      "weight": 13
     },
     {
       "authority": "observed",
@@ -4805,10 +4846,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 318,
-    "declarations": 957,
-    "swift_files": 318,
-    "swift_lines": 92595,
+    "assigned_files": 319,
+    "declarations": 959,
+    "swift_files": 319,
+    "swift_lines": 92736,
     "unassigned_files": []
   },
   "layers": [
@@ -4840,6 +4881,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "49ec66f5ebb9d49f81209c290f2dc04952b65e3e1919f85bf102bcc58fe68a68",
+  "source_tree_sha256": "2fd03a546e8c6c2194b8c54290a643a590eebc418bd020f43766b145534debaf",
   "title": "Portal Architecture"
 }

@@ -222,6 +222,12 @@ internal struct ContentView: View {
             // re-adopt so the header/menu-bar picture updates without a switch.
             refreshPersona()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .hermesReconnectRequested)) { _ in
+            // The empty-transcript "Try Again" button (#258). Same funnel as a
+            // Settings edit: connectWithRetry plus wireUpClient, debounced —
+            // mashing the button coalesces into one dial.
+            scheduleSettingsReconnect()
+        }
         .onReceive(PushRegistrationService.shared.$deviceTokenHex) { token in
             // The OS usually grants the APNs token AFTER the first connect
             // completes — re-sync when it lands so cold launch registers too.
