@@ -106,6 +106,7 @@ private struct ToolbarIconModifierBody<Content: View>: View {
     internal let content: Content
     internal let slot: ToolbarIconSlot
     @ObservedObject private var themeManager = ThemeManager.shared
+    @State private var isHovered = false
 
     internal var body: some View {
         let appearance = themeManager.toolbarIconAppearance(for: slot)
@@ -123,5 +124,36 @@ private struct ToolbarIconModifierBody<Content: View>: View {
             }
         }
         .help(slot.helpText)
+        // The instant name chip. `.help` above is real but rides macOS's
+        // multi-second hover delay, which in practice reads as "no tooltip" —
+        // reported directly: "when I put my cursor over them, it should just
+        // give me an indication of what it is. Currently it's not showing."
+        // Like the help text, it lives in this shared modifier so no call
+        // site (or future slot) can forget it.
+        .onHover { isHovered = $0 }
+        .overlay(alignment: .bottom) {
+            if isHovered {
+                Text(slot.label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Theme.surface)
+                            .overlay(Capsule().stroke(Theme.border, lineWidth: 0.5))
+                            .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+                    )
+                    .fixedSize()
+                    // Hangs just below the 40pt chrome bar, over the content
+                    // edge — never under the cursor, so it can't flicker.
+                    .offset(y: 24)
+                    // Purely informative: it must not steal the hover or the
+                    // click from the icon it names.
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: isHovered)
     }
 }

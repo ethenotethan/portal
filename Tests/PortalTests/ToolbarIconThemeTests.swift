@@ -381,4 +381,61 @@ internal struct ToolbarIconThemeTests {
         // means scheduled tasks". The tooltip must answer that guess.
         #expect(ToolbarIconSlot.cron.helpText.localizedCaseInsensitiveContains("scheduled"))
     }
+
+    /// The `.help` tooltip above turned out not to be enough: it rides macOS's
+    /// multi-second hover delay, which the next round of feedback read as "no
+    /// tooltip at all" ("when I put my cursor over them, it should just give
+    /// me an indication of what it is — currently it's not showing"). The
+    /// instant name chip answers that, and like the help text it lives in the
+    /// shared `toolbarIcon` modifier so no call site or future slot can skip
+    /// it. Structural pins, same style as CanvasRelayoutGuardTests.
+    @Test("hovering a toolbar icon shows an instant name chip")
+    internal func hoverShowsAnInstantNameChip() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("Sources/Portal/Views/ToolbarIconButtonStyle.swift"),
+            encoding: .utf8
+        )
+        #expect(
+            source.contains(".onHover"),
+            "the shared modifier must track hover — the .help tooltip alone is delay-gated and reads as absent"
+        )
+        #expect(
+            source.contains("Text(slot.label)"),
+            "the chip must show the slot's name, not the long helpText sentence"
+        )
+        #expect(
+            source.contains(".allowsHitTesting(false)"),
+            "the chip must not steal the hover or click from the icon it names"
+        )
+
+        // The chip hangs below the 40pt chrome bar, and VStack siblings paint
+        // in declaration order — without a raised zIndex on the chrome row the
+        // split content drew over the chip and only its top half showed
+        // (reported immediately: "they're behind a bar… I can only see the
+        // top half, looks like a layering pain issue").
+        let contentView = try String(
+            contentsOf: root.appendingPathComponent("Sources/Portal/Views/ContentView.swift"),
+            encoding: .utf8
+        )
+        #expect(
+            contentView.contains("macTopChromeRow\n                // Paint the chrome row over the content"),
+            "macTopChromeRow must carry the zIndex that lets the hover chips overflow the bar"
+        )
+        #expect(
+            contentView.contains(".zIndex(1)"),
+            "the chrome row's raised paint order is what keeps the chips in front"
+        )
+    }
+
+    @Test("every slot has a short label for the hover chip")
+    internal func everySlotHasAChipLabel() {
+        for slot in ToolbarIconSlot.allCases {
+            let label = slot.label.trimmingCharacters(in: .whitespaces)
+            #expect(!label.isEmpty, "\(slot.rawValue) has no chip label")
+            // A chip is a name, not a sentence — the long form belongs to .help.
+            #expect(label.count <= 20, "\(slot.rawValue)'s label is prose, not a name: \(label)")
+        }
+    }
 }
