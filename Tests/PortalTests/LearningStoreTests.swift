@@ -47,6 +47,15 @@ private final class FakeLearningGateway: LearningGateway {
         return (storedID, remoteCourses[storedID]?.rev ?? 1)
     }
 
+    /// Rebuild a stored course wire with `modules` swapped — the wire struct is
+    /// immutable, and the fake must mirror pushed modules/steps or the store's
+    /// adopt-after-push would install a hollow copy over the local document.
+    private func withModules(_ wire: LearningCourseWire, _ modules: [[String: AnyCodable]]) -> LearningCourseWire {
+        LearningCourseWire(
+            id: wire.id, title: wire.title, summary: wire.summary,
+            rev: wire.rev, modules: modules, progress: wire.progress)
+    }
+
     func learningCourseDelete(id: String) async throws {
         remoteCourses.removeValue(forKey: id)
     }
@@ -55,7 +64,20 @@ private final class FakeLearningGateway: LearningGateway {
         courseID: String, moduleID: String?, title: String?, overview: String?, position: Int?
     ) async throws -> (id: String, rev: Int)? {
         moduleSetCalls.append((courseID, moduleID))
-        return (moduleID ?? "m-minted", 2)
+        let mid = moduleID ?? "m-minted"
+        if let wire = remoteCourses[courseID] {
+            var modules = wire.modules
+            if !modules.contains(where: { $0["id"]?.stringValue == mid }) {
+                modules.append([
+                    "id": AnyCodable(mid),
+                    "title": AnyCodable(title ?? ""),
+                    "overview": AnyCodable(overview ?? ""),
+                    "steps": .array([]),
+                ])
+            }
+            remoteCourses[courseID] = withModules(wire, modules)
+        }
+        return (mid, 2)
     }
 
     func learningStepSet(
@@ -64,7 +86,24 @@ private final class FakeLearningGateway: LearningGateway {
         questions: [[String: Any]]?
     ) async throws -> (id: String, rev: Int)? {
         stepSetCalls.append((courseID, moduleID, stepID, type))
-        return (stepID ?? "s-minted", 3)
+        let sid = stepID ?? "s-minted"
+        if let wire = remoteCourses[courseID] {
+            var modules = wire.modules
+            if let idx = modules.firstIndex(where: { $0["id"]?.stringValue == moduleID }) {
+                var steps = modules[idx]["steps"]?.arrayValue ?? []
+                var step: [String: AnyCodable] = [
+                    "id": AnyCodable(sid),
+                    "type": AnyCodable(type ?? "lesson"),
+                    "title": AnyCodable(title ?? ""),
+                ]
+                if let markdown { step["markdown"] = AnyCodable(markdown) }
+                if let questions { step["questions"] = AnyCodable(any: questions) }
+                steps.append(.dictionary(step))
+                modules[idx]["steps"] = .array(steps)
+            }
+            remoteCourses[courseID] = withModules(wire, modules)
+        }
+        return (sid, 3)
     }
 
     func learningDeckList() async throws -> [LearningDeckSummary]? {
@@ -276,6 +315,9 @@ internal struct LearningStoreTests {
 
         store.saveCourse(sampleCourse())
         let id = store.sortedCourses[0].id
+        // saveCourse now pushes and adopts asynchronously; let that land so
+        // the adopt cannot resurrect the course after the delete below.
+        try await Task.sleep(for: .milliseconds(150))
 
         gateway.eventStream.send((
             .learningChanged(entity: "course", id: id, rev: 0, deleted: true), nil))
@@ -303,5 +345,196 @@ internal struct LearningStoreTests {
         #expect(gateway.attemptRecords.count == 1)
         #expect(gateway.attemptRecords[0]["topic"] as? String == "T")
         #expect(gateway.attemptRecords[0]["score"] as? Int == 1)
+    }
+
+    // MARK: - Remote-change events (learning.changed → refetch/delete)
+
+    @Test("a course change event refetches and adopts the newer remote copy")
+    internal func changeEventAdoptsNewerCourse() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.setClient(gateway)  // subscribes the event stream + pulls
+        try await Task.sleep(for: .milliseconds(50))
+
+        gateway.remoteCourses["crs-e"] = LearningCourseWire(
+            id: "crs-e", title: "From event", summary: "", rev: 4, modules: [], progress: [:])
+        gateway.eventStream.send((.learningChanged(entity: "course", id: "crs-e", rev: 4, deleted: false), nil))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(store.course(id: "crs-e")?.title == "From event")
+        #expect(store.course(id: "crs-e")?.rev == 4)
+    }
+
+    @Test("a stale course event (rev not newer) does not refetch — our own echo")
+    internal func changeEventRevGuards() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        gateway.remoteCourses["crs-g"] = LearningCourseWire(
+            id: "crs-g", title: "v5", summary: "", rev: 5, modules: [], progress: [:])
+        store.setClient(gateway)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.course(id: "crs-g")?.rev == 5)
+
+        // Remote now claims something newer exists, but the EVENT is the echo
+        // of rev 5 — the guard must not refetch (and so must not adopt v6).
+        gateway.remoteCourses["crs-g"] = LearningCourseWire(
+            id: "crs-g", title: "v6", summary: "", rev: 6, modules: [], progress: [:])
+        gateway.eventStream.send((.learningChanged(entity: "course", id: "crs-g", rev: 5, deleted: false), nil))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.course(id: "crs-g")?.title == "v5")
+    }
+
+    @Test("a deleted-course event removes the local copy; deck events mirror both")
+    internal func changeEventDeletesAndDecks() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        gateway.remoteCourses["crs-d"] = LearningCourseWire(
+            id: "crs-d", title: "Doomed", summary: "", rev: 1, modules: [], progress: [:])
+        gateway.remoteDecks["dk-d"] = LearningDeckWire(
+            id: "dk-d", topic: "Decks", rev: 1, cards: [], srs: [:])
+        store.setClient(gateway)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(store.course(id: "crs-d") != nil)
+        #expect(store.decks["dk-d"] != nil)
+
+        gateway.eventStream.send((.learningChanged(entity: "course", id: "crs-d", rev: 2, deleted: true), nil))
+        gateway.remoteDecks["dk-d"] = LearningDeckWire(
+            id: "dk-d", topic: "Fresh topic", rev: 3, cards: [], srs: [:])
+        gateway.eventStream.send((.learningChanged(entity: "deck", id: "dk-d", rev: 3, deleted: false), nil))
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(store.course(id: "crs-d") == nil)
+        #expect(store.decks["dk-d"]?.topic == "Fresh topic")
+
+        gateway.eventStream.send((.learningChanged(entity: "deck", id: "dk-d", rev: 4, deleted: true), nil))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.decks["dk-d"] == nil)
+    }
+
+    @Test("a progress event refetches unconditionally — folds have no rev")
+    internal func progressEventAlwaysRefetches() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        gateway.remoteCourses["crs-p"] = LearningCourseWire(
+            id: "crs-p", title: "P", summary: "", rev: 2, modules: [], progress: [:])
+        store.setClient(gateway)
+        try await Task.sleep(for: .milliseconds(50))
+
+        // Same rev, but now the server copy carries folded progress.
+        gateway.remoteCourses["crs-p"] = LearningCourseWire(
+            id: "crs-p", title: "P", summary: "", rev: 2, modules: [],
+            progress: ["step-1": .dictionary(["attempts": AnyCodable(1)])])
+        gateway.eventStream.send((.learningChanged(entity: "progress", id: "crs-p", rev: 0, deleted: false), nil))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.course(id: "crs-p")?.progress["step-1"]?.attempts == 1)
+    }
+
+    // MARK: - Push-on-save and upstream deletes
+
+    @Test("saving a course pushes it granularly and adopts the server rev")
+    internal func saveCoursePushesGranularly() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+
+        let course = sampleCourse()
+        store.saveCourse(course)
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(gateway.courseSetCalls.map(\.id) == [course.id])
+        #expect(gateway.moduleSetCalls.count == course.modules.count)
+        #expect(gateway.stepSetCalls.count == course.modules.reduce(0) { $0 + $1.steps.count })
+        // The server copy is adopted so later events rev-guard correctly.
+        #expect(store.course(id: course.id)?.rev == 1)
+    }
+
+    @Test("saving a rev-0 deck creates it upstream")
+    internal func saveNewDeckPushesUp() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+
+        let deck = FlashcardDeck(topic: "New Deck", cards: [Flashcard(front: "f", back: "b", explanation: "")])
+        store.saveDeck(deck)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(gateway.remoteDecks[deck.id] != nil || gateway.remoteDecks["dk-minted"] != nil)
+    }
+
+    @Test("deleting a course or deck removes it locally and upstream")
+    internal func deletesPropagateUpstream() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        gateway.remoteCourses["crs-x"] = LearningCourseWire(
+            id: "crs-x", title: "X", summary: "", rev: 1, modules: [], progress: [:])
+        gateway.remoteDecks["dk-x"] = LearningDeckWire(
+            id: "dk-x", topic: "X", rev: 1, cards: [], srs: [:])
+        store.injectClientForTesting(gateway)
+        await store.pull()
+        #expect(store.course(id: "crs-x") != nil)
+
+        store.deleteCourse(id: "crs-x")
+        store.deleteDeck(id: "dk-x")
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(store.course(id: "crs-x") == nil)
+        #expect(store.decks["dk-x"] == nil)
+        #expect(gateway.remoteCourses["crs-x"] == nil)
+        #expect(gateway.remoteDecks["dk-x"] == nil)
+    }
+
+    // MARK: - Learner state odds and ends
+
+    @Test("recordLessonRead folds locally and records upstream with a stamp")
+    internal func lessonReadRecordsUpstream() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+        let course = sampleCourse()
+        let lessonID = course.modules[0].steps[0].id
+        store.saveCourse(course)
+        // Let the save's async push+adopt land first — the adopt replaces the
+        // local document, so folding before it would be overwritten.
+        try await Task.sleep(for: .milliseconds(150))
+
+        store.recordLessonRead(courseID: course.id, stepID: lessonID)
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(store.course(id: course.id)?.progress[lessonID]?.completedAt != nil)
+        let call = try #require(gateway.progressRecordCalls.last)
+        #expect(call.kind == "lesson_read")
+        #expect(call.at != nil)
+    }
+
+    @Test("resetCourseProgress clears locally without rewriting server history")
+    internal func resetIsLocalOnly() async throws {
+        let store = makeStore()
+        let gateway = FakeLearningGateway()
+        store.injectClientForTesting(gateway)
+        var course = sampleCourse()
+        course.markLessonRead(stepID: course.modules[0].steps[0].id)
+        store.saveCourse(course)
+        // As above: the push+adopt is async and replaces the document.
+        try await Task.sleep(for: .milliseconds(150))
+        let recordedBefore = gateway.progressRecordCalls.count
+
+        store.resetCourseProgress(id: course.id)
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(store.course(id: course.id)?.progress.isEmpty == true)
+        // Monotonic server fold: a reset sends NOTHING upstream.
+        #expect(gateway.progressRecordCalls.count == recordedBefore)
+    }
+
+    @Test("deleteAttempt removes only the local ledger row")
+    internal func deleteAttemptIsLocal() async throws {
+        let store = makeStore()
+        let question = QuizQuestion(q: "?", options: ["a"], correct: "A", explanation: "", id: "q-1")
+        let session = PersistedQuizSession(
+            questions: [question], topic: "T",
+            selectedAnswers: ["q-1": "A"], score: 1, sourceSessionID: nil)
+        store.recordAttempt(session)
+        #expect(store.attempts.count == 1)
+        store.deleteAttempt(id: session.id)
+        #expect(store.attempts.isEmpty)
     }
 }

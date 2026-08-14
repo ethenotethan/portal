@@ -52,10 +52,20 @@ internal final class LearningStore: ObservableObject {
     private let quizDisk: QuizStore
     private let srsDisk: SRSStore
 
+    /// Whether content saves may schedule an upstream push. False for the
+    /// SHARED singleton in a test process — same guard as ArtifactStore: unit
+    /// tests share it, and an unguarded save would schedule a REAL gateway
+    /// push when a client is wired, leaking test entities into the production
+    /// store. True for test-constructed instances, whose only clients are the
+    /// fakes the test injected — which is precisely how the push paths get
+    /// their coverage.
+    private let allowsUpstreamPush: Bool
+
     private init() {
         curriculumDisk = CurriculumStore()
         quizDisk = QuizStore.shared
         srsDisk = SRSStore.shared
+        allowsUpstreamPush = !ProcessInfo.isTestProcess
         loadFromDisk()
     }
 
@@ -64,6 +74,7 @@ internal final class LearningStore: ObservableObject {
         curriculumDisk = CurriculumStore(directory: curriculumDirectory)
         quizDisk = QuizStore(directory: curriculumDirectory.appendingPathComponent("quizzes"))
         srsDisk = SRSStore(directory: curriculumDirectory.appendingPathComponent("decks"))
+        allowsUpstreamPush = true
         loadFromDisk()
     }
 
@@ -359,7 +370,7 @@ internal final class LearningStore: ObservableObject {
     /// then each step — the same calls the agent tool makes, so the gateway
     /// never receives (and we never construct) a whole-course blob.
     private func pushCourse(_ course: Curriculum) {
-        guard let client, sync == .available, !Self.isTestProcess else { return }
+        guard let client, sync == .available, allowsUpstreamPush else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -453,7 +464,7 @@ internal final class LearningStore: ObservableObject {
     /// Push a brand-new deck's content (rev 0 = never pushed). Reviewed
     /// decks that already live server-side sync per-review instead.
     private func pushDeckIfNew(_ deck: FlashcardDeck) {
-        guard deck.rev == 0, let client, sync == .available, !Self.isTestProcess else { return }
+        guard deck.rev == 0, let client, sync == .available, allowsUpstreamPush else { return }
         Task { [weak self] in
             await self?.migrateDeckUp(deck)
             _ = client  // captured for lifetime; migrate uses self.client
@@ -493,9 +504,4 @@ internal final class LearningStore: ObservableObject {
             log.info("deck migration failed: \(error.localizedDescription)")
         }
     }
-
-    /// Same guard as ArtifactStore: unit tests share the singleton, and an
-    /// unguarded save would schedule a REAL gateway push when a client is
-    /// wired, leaking test entities into the production store.
-    private static let isTestProcess = ProcessInfo.isTestProcess
 }

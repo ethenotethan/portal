@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4306
+      "line_count": 4318
     },
     {
       "declaration_count": 76,
@@ -403,7 +403,7 @@
       "line_count": 5198
     },
     {
-      "declaration_count": 112,
+      "declaration_count": 113,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -500,6 +500,7 @@
         "OpenInPanelButton",
         "PaneDivider",
         "ReadoutCapsule",
+        "ReturnToWorldPill",
         "SankeyBlockView",
         "SankeyCard",
         "Sparkline",
@@ -559,7 +560,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11117
+      "line_count": 11247
     },
     {
       "declaration_count": 57,
@@ -649,7 +650,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7243
+      "line_count": 7258
     },
     {
       "declaration_count": 7,
@@ -674,7 +675,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4070
+      "line_count": 4095
     },
     {
       "declaration_count": 21,
@@ -1036,7 +1037,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6545
+      "line_count": 6551
     },
     {
       "declaration_count": 221,
@@ -1794,18 +1795,19 @@
     },
     {
       "authority": "observed",
-      "description": "References 2 declaration(s) owned by artifact-ui.",
+      "description": "References 3 declaration(s) owned by artifact-ui.",
       "evidence": [
         "Sources/Portal/Views/ContentView.swift"
       ],
       "source": "app-shell",
       "symbols": [
         "ArtifactCanvasView",
-        "ArtifactsPane"
+        "ArtifactsPane",
+        "ReturnToWorldPill"
       ],
       "target": "artifact-ui",
       "type": "references",
-      "weight": 3
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -2099,14 +2101,14 @@
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
+        "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/CalendarBlockView.swift",
-        "Sources/Portal/Views/Blocks/ChecklistBlockView.swift"
+        "Sources/Portal/Views/Blocks/CalendarBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -2115,7 +2117,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 31
+      "weight": 32
     },
     {
       "authority": "observed",
@@ -2204,14 +2206,14 @@
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
         "Sources/Portal/Views/ArtifactExportMenu.swift",
         "Sources/Portal/Views/ArtifactExporter.swift",
+        "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
         "Sources/Portal/Views/ArtifactKindRenderer.swift",
         "Sources/Portal/Views/ArtifactTopLevelActionBar.swift",
         "Sources/Portal/Views/ArtifactsPane.swift",
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/CalendarBlockView.swift",
-        "Sources/Portal/Views/Blocks/ChecklistBlockView.swift"
+        "Sources/Portal/Views/Blocks/CalendarBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -2230,7 +2232,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 67
+      "weight": 68
     },
     {
       "authority": "observed",
@@ -4888,9 +4890,9 @@
   ],
   "inventory": {
     "assigned_files": 322,
-    "declarations": 967,
+    "declarations": 968,
     "swift_files": 322,
-    "swift_lines": 94078,
+    "swift_lines": 94266,
     "unassigned_files": []
   },
   "layers": [
@@ -4922,6 +4924,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "5c7cea69425d5415d31726e70790beb67dd3b9f831c44ab8c89051408e5f3611",
+  "source_tree_sha256": "b5517f537f1cef63910154a509ecd1084c84167eb73603b3a7b502e1767a8e88",
   "title": "Portal Architecture"
 }
