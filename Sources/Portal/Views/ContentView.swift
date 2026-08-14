@@ -517,6 +517,7 @@ internal struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
+        #if os(macOS)
         // While an immersive world is suspended (the user clicked through to
         // the session an intent started), offer the way back in — bottom
         // center, over whatever surface they're on, gone the moment the world
@@ -525,6 +526,7 @@ internal struct ContentView: View {
             ReturnToWorldPill()
                 .padding(.bottom, 14)
         }
+        #endif
         .onOpenURL { url in
             handleDeepLink(url)
         }
