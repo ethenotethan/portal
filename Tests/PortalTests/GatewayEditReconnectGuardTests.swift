@@ -72,3 +72,35 @@ internal struct GatewayEditReconnectGuardTests {
         )
     }
 }
+
+/// Session-creation feedback must exist on BOTH platforms. It was
+/// `#if os(iOS)` only, which made macOS creation silent in exactly the state
+/// where feedback matters (create pressed during transport reconnect: the
+/// task burns ~26s in connect retries invisibly, the error lands nowhere,
+/// and re-presses are swallowed by the isCreatingSession guard — "the New
+/// Session button does nothing, existing sessions work").
+@Suite("Session creation feedback")
+internal struct SessionCreationFeedbackTests {
+
+    @Test("the creation status bar is not platform-gated")
+    internal func statusBarIsCrossPlatform() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("Sources/Portal/Views/ContentView.swift"),
+            encoding: .utf8
+        )
+        let start = try #require(source.range(of: "private var sessionCreationStatusBar"))
+        let end = try #require(source.range(of: "accessibilityIdentifier(\"sessionCreationStatus\")"))
+        let body = source[start.upperBound..<end.lowerBound]
+        #expect(
+            !body.contains("#if os("),
+            "sessionCreationStatusBar must render on every platform — gating it made macOS creation failures invisible"
+        )
+        // And macOS actually mounts it: the sidebar overlay is the mount point.
+        #expect(
+            source.contains(".overlay(alignment: .bottom) {\n                        sessionCreationStatusBar"),
+            "the macOS sidebar must dock the status bar — an unmounted view is as silent as a gated one"
+        )
+    }
+}

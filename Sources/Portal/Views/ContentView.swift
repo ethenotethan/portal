@@ -1140,6 +1140,16 @@ internal struct ContentView: View {
                     )
                     .environmentObject(sessionList)
                     .frame(width: macSidebarWidth)
+                    // Creation feedback docks under the sidebar that owns the
+                    // New Session button — see sessionCreationStatusBar for
+                    // the silent-failure incident this closes.
+                    .overlay(alignment: .bottom) {
+                        sessionCreationStatusBar
+                            .background(Theme.surface)
+                            .overlay(alignment: .top) {
+                                Rectangle().fill(Theme.border).frame(height: 0.5)
+                            }
+                    }
                     .transition(.move(edge: .leading).combined(with: .opacity))
 
                     Rectangle()
@@ -1484,15 +1494,26 @@ internal struct ContentView: View {
         }
     }
 
+    /// Session-creation feedback: a spinner while the create's connect
+    /// retries run, an error with Retry when it failed. Cross-platform —
+    /// this was `#if os(iOS)` only, which made macOS creation SILENT in
+    /// exactly the state where feedback matters: press New Session while the
+    /// transport is mid-reconnect (the gateway resets connections
+    /// periodically) and the first press's task spends up to ~26s in
+    /// `connectWithRetry` + `connectedClient(timeout:)` with nothing on
+    /// screen, the eventual "Harness is not connected" goes nowhere, and
+    /// every impatient re-press is swallowed by the `isCreatingSession`
+    /// guard. Existing sessions keep working throughout, so the button just
+    /// reads as dead — reported as "unable to start new sessions, some
+    /// stateful permutation of the application is blocking it."
     @ViewBuilder
     private var sessionCreationStatusBar: some View {
-        #if os(iOS)
         if isCreatingSession || sessionCreationError != nil || chatViewModel.error != nil {
             HStack(spacing: 8) {
                 if isCreatingSession {
                     PortalProgressView()
                         .scaleEffect(0.7)
-                    Text("Connecting…")
+                    Text("Creating session — connecting to the harness…")
                         .font(.caption)
                 } else if let error = sessionCreationError ?? chatViewModel.error {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -1513,7 +1534,6 @@ internal struct ContentView: View {
             .foregroundStyle(Theme.primary)
             .accessibilityIdentifier("sessionCreationStatus")
         }
-        #endif
     }
 
     /// Create a new session on a session-scoped backend instead of the
