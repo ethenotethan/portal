@@ -139,7 +139,7 @@ internal struct GatewayTransportLeakTests {
     /// too, and then starved swift-testing's own parallel suites badly enough to
     /// fail five unrelated tests — the harness has to be invisible to everything
     /// except the code under test.
-    @Test("reconnect closes the old socket with the cooperative pool starved")
+    @Test("transport close survives a starved cooperative pool")
     @MainActor
     internal func closeSurvivesAStarvedCooperativePool() async throws {
         let server = try SilentWebSocketServer()
@@ -166,32 +166,30 @@ internal struct GatewayTransportLeakTests {
         // Let the hogs actually claim the threads before measuring.
         try await Task.sleep(nanoseconds: 500_000_000)
 
-        // Exercise exactly one replacement. URLSession's dial itself uses system
-        // scheduling that this fixture may starve, so do not require the replacement
-        // to upgrade. The initial upgrade above proves there is a real old socket;
-        // fewer live sockets than completed upgrades proves that socket closed,
-        // whether or not the replacement manages to reach the server.
-        await client.forceReconnectAndWait(timeout: 3)
-        try await waitFor(timeout: 5) {
-            server.liveConnectionCount < server.upgradeCount
-        }
+        // Exercise the close directly. Redialing here also makes CFNetwork open a
+        // replacement transport while the cooperative pool is deliberately
+        // unavailable, so a delayed handshake can prevent the fixture from ever
+        // reaching the teardown assertion. Reconnect uses this same synchronous
+        // teardown path; the non-starved test above separately proves replacement.
+        client.disconnect()
+        // Generous, and deliberately so: this waits for a close that will never
+        // come if the teardown needs a thread it cannot get.
+        try await waitFor(timeout: 5) { server.liveConnectionCount == 0 }
 
         let live = server.liveConnectionCount
-        let upgrades = server.upgradeCount
         #expect(
-            live < upgrades,
+            live == 0,
             """
-            All \(live) of \(upgrades) upgraded WebSocket(s) remain after reconnect \
-            with the cooperative pool starved; the old transport did not close. \
-            The teardown is waiting on a thread it will never get. Cancel the old \
-            task inline — it's a non-blocking signal — and defer only \
-            invalidateAndCancel(), which can block, to a dedicated queue rather \
-            than to a `.utility` task or global queue. This is the live defect: 30 \
-            ESTABLISHED sockets to the gateway, bytes unread in several of them, \
-            and because the delegate methods are gated on \
-            `session === self.urlSession` those frames were dropped silently — the \
-            session reads as still streaming while no updates arrive and the \
-            thought graph stays empty.
+            \(live) WebSockets are still open after disconnecting with the \
+            cooperative pool starved; expected 0. The teardown is waiting on a \
+            thread it will never get. Cancel the old task inline — it's a \
+            non-blocking signal — and defer only invalidateAndCancel(), which can \
+            block, to a dedicated queue rather than to a `.utility` task or global \
+            queue. This is the live defect: 30 ESTABLISHED sockets to the gateway, \
+            bytes unread in several of them, and because the delegate methods are \
+            gated on `session === self.urlSession` those frames were dropped \
+            silently — the session reads as still streaming while no updates arrive \
+            and the thought graph stays empty.
             """
         )
     }
