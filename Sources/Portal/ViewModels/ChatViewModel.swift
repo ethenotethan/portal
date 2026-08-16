@@ -779,6 +779,7 @@ client.eventStream
 
     private func restoreSessionState(displayID: String, runtimeID: String? = nil) -> Bool {
         guard let state = sessionStates[displayID] else { return false }
+        resetTurnScopedGraphsIfSwitching(to: displayID)
         // Lazy-reload messages evicted on session switch — use background load
         sessionID = runtimeID ?? runtimeSessionID(for: displayID)
         messages = state.messages
@@ -876,6 +877,26 @@ client.eventStream
     /// generation token. Call `resumeSession(key:generation:)` to revalidate the
     /// same selection from the gateway; stale generations are ignored.
     @discardableResult
+    /// The turn-scoped graph integrators (subagent lanes, reasoning beats,
+    /// compaction folds) belong to the VISIBLE session's live turn, but they
+    /// are only reset when a turn STARTS while its session is visible. A
+    /// session whose turn began in the background never gets that reset when
+    /// the user switches to it, so the canvas widgets kept rendering the
+    /// PREVIOUS session's graph — "when I click to another active session, it
+    /// just shows the widgets from the session before; there's some hanging
+    /// false state." Cleared on every visible-session change instead. The
+    /// nodes the background turn accumulated before the switch were never
+    /// captured anyway (subagent events for invisible sessions are dropped by
+    /// design), so empty-then-accumulate is honest; the settled turns replay
+    /// from the transcript as always.
+    private func resetTurnScopedGraphsIfSwitching(to displayID: String) {
+        let previous = sessionID.map { displaySessionID(for: $0) }
+        guard previous != displayID else { return }
+        reasoningGraph.reset()
+        subagentGraph.reset()
+        currentTurnCompactions = []
+    }
+
     func beginSwitchToSession(key: String) -> Int {
         flushPendingVisibleEventDeltas()
         snapshotCurrentSessionState()
@@ -895,6 +916,10 @@ if restoreSessionState(displayID: key) {
 
         // Show empty chat immediately to avoid spinning wheel.
         // Load messages from disk in background and apply when ready.
+        // Same turn-scoped graph reset as the cached path above — this branch
+        // bypasses restoreSessionState, and an uncached session must not
+        // inherit the previous session's widget graphs either.
+        resetTurnScopedGraphsIfSwitching(to: key)
         self.sessionID = runtimeSessionID(for: key)
         self.messages = []
         self.isSessionReady = true
