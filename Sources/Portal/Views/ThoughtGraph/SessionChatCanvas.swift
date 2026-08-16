@@ -163,12 +163,19 @@ internal struct SessionChatCanvas: View {
     /// while the conversation, artifacts, and metrics stay put.
     private var panelContext: PanelContext {
         if displayMode == .turns, let turn = selectedTurn {
+            // The selected turn can BE the live one — the newest turn while a
+            // stream runs. Hardcoding `isStreaming: false` here told the
+            // flamechart the turn was settled while its bars were still
+            // growing, which disabled the live re-fit and let the graph crawl
+            // off the widget's right edge. Same liveness rule as
+            // SessionThoughtGraphView.selectedTurnIsLive.
+            let turnIsLive = chatViewModel.isStreaming && turn.id == turns.last?.id
             return PanelContext(
                 nodes: turn.nodes,
                 compactions: turn.compactions,
                 skills: turn.skills,
-                isThinking: false,
-                isStreaming: false,
+                isThinking: turnIsLive && reasoningGraph.isThinking,
+                isStreaming: turnIsLive,
                 selection: $selectedNodeID,
                 engine: engine,
                 onJumpToTool: nil,
