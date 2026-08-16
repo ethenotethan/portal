@@ -196,6 +196,7 @@
 		429DA0F6FF2E29DA7326363E /* WikiEventTypeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD08D23C3A494DECC1E5BED0 /* WikiEventTypeRegistry.swift */; };
 		429E67C973B4277143FE4C9C /* ActivityInboxViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFEC1700F2A04117EBE36FCA /* ActivityInboxViewModelTests.swift */; };
 		42E1FFE64FE9C28448E149E0 /* ChartSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6100B0C1D3B3AAC7FB39E03B /* ChartSpec.swift */; };
+		4305A00163043C73CCCA0808 /* ArtifactFullscreenSuspendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E655BD8AFCBD0EA2BA2B3368 /* ArtifactFullscreenSuspendTests.swift */; };
 		432605BB40DBEE5380FD14A3 /* TUISkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3591C0AF41F327701D87C1 /* TUISkin.swift */; };
 		434B9999591CE13A29F052F9 /* SessionListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09DCF1D4A15D3681D1614BDA /* SessionListViewModel.swift */; };
 		43805D76EC7E80365FDE650A /* GatewayRestartController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC461817C688A90A049AFB81 /* GatewayRestartController.swift */; };
@@ -1193,6 +1194,7 @@
 		E44C92AE8C346CF75D7A2C93 /* AgentBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentBackend.swift; sourceTree = "<group>"; };
 		E45A3C5BEC6B99EE33B623FB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBlockView.swift; sourceTree = "<group>"; };
+		E655BD8AFCBD0EA2BA2B3368 /* ArtifactFullscreenSuspendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactFullscreenSuspendTests.swift; sourceTree = "<group>"; };
 		E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphLayoutEngineTests.swift; sourceTree = "<group>"; };
 		E8D143F31889C8C1632DAE59 /* GatewayURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayURL.swift; sourceTree = "<group>"; };
 		E9403B0AABD3D56F6AF07759 /* InAppLinkRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppLinkRoutingTests.swift; sourceTree = "<group>"; };
@@ -1851,6 +1853,7 @@
 				4BABB326214CE2BF5CE19CDF /* ApprovalQueueTests.swift */,
 				BCD2E9C0991E1C9B7D50E565 /* ArchitectureTests.swift */,
 				958F21132EE4D1699F2453A2 /* ArtifactFullscreenIntentContextTests.swift */,
+				E655BD8AFCBD0EA2BA2B3368 /* ArtifactFullscreenSuspendTests.swift */,
 				6123B6778763CDA474BCCD51 /* ArtifactIntentContractTests.swift */,
 				2B5D62361169F6B40127A7EA /* ArtifactIntentStoreTests.swift */,
 				3D8B1319CCE257066419871B /* ArtifactsPaneLayoutTests.swift */,
@@ -2566,6 +2569,7 @@
 				562F7CBBD572235503719843 /* ApprovalQueueTests.swift in Sources */,
 				A1065EF2596CC96B6F4A4E24 /* ArchitectureTests.swift in Sources */,
 				F020698A3CBA27F6CF88A7F9 /* ArtifactFullscreenIntentContextTests.swift in Sources */,
+				4305A00163043C73CCCA0808 /* ArtifactFullscreenSuspendTests.swift in Sources */,
 				1E826FA35F7907FDE5219175 /* ArtifactIntentContractTests.swift in Sources */,
 				CFBB8870B76CCFFC26E4334C /* ArtifactIntentStoreTests.swift in Sources */,
 				A00E8A06137A0415A10B6C44 /* ArtifactStatusReflectionTests.swift in Sources */,
