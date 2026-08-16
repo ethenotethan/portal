@@ -325,6 +325,49 @@ internal struct CanvasRelayoutGuardTests {
         )
     }
 
+    // MARK: - Widget flamechart fit
+
+    @Test("the flamechart's live refit is gated on growth, not the host's isStreaming")
+    internal func flamechartRefitsWheneverBarsGrow() throws {
+        // Running bars grow toward `now` at draw time regardless of what the
+        // host believes, so a refit gated on the host's `isStreaming` flag
+        // breaks the moment any host wires it wrong — the canvas's Turns mode
+        // passed `isStreaming: false` for the live turn, and the flamechart
+        // crawled off the widget's right edge instead of shrinking to fit.
+        let source = try Self.source("Views/ThoughtGraph/ThoughtGraphView.swift")
+        #expect(
+            !source.contains("guard isStreaming, !hasUserAdjustedCamera"),
+            """
+            advanceMotion's refit must not require the host's isStreaming — the \
+            frames it already decided to produce (running bars, appear \
+            animations) are the correct gate. Growth without refit overflows \
+            the widget.
+            """
+        )
+        #expect(
+            source.contains("guard !hasUserAdjustedCamera, canvasSize.width > 0 else { return }"),
+            "the refit still defers to manual camera control and needs a measured canvas"
+        )
+    }
+
+    @Test("the canvas's Turns mode computes liveness instead of hardcoding settled")
+    internal func turnsModeKnowsTheLiveTurn() throws {
+        let source = try Self.source("Views/ThoughtGraph/SessionChatCanvas.swift")
+        #expect(
+            source.contains("turn.id == turns.last?.id"),
+            """
+            panelContext's Turns branch must ask whether the selected turn IS \
+            the live one (newest turn while streaming — the same rule as \
+            SessionThoughtGraphView.selectedTurnIsLive). Hardcoding \
+            isStreaming: false told the flamechart a growing turn was settled.
+            """
+        )
+        #expect(
+            !source.contains("isThinking: false,\n                isStreaming: false,"),
+            "the settled-turn hardcoding must not return"
+        )
+    }
+
     // MARK: - Spinner animation scope
 
     @Test("PortalProgressView scopes its repeatForever to one value")

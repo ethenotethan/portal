@@ -411,10 +411,18 @@ struct ThoughtGraphView: View {
         guard needsFrame else { return }
         now = t
 
-        // Re-fit continuously while streaming so the growing turn always fills
-        // the panel width. Cheap: pure arithmetic on the laid-out bounds, no
-        // relayout. Skipped once the user takes manual control of the camera.
-        guard isStreaming, !hasUserAdjustedCamera, canvasSize.width > 0 else { return }
+        // Re-fit continuously while anything is growing so the turn always
+        // fills the panel width. Gated on the frames THIS function decided to
+        // produce (`needsFrame` above), NOT on the host's `isStreaming` flag:
+        // running bars grow toward `now` at draw time regardless of what the
+        // host believes, so any wiring mismatch — the canvas's Turns mode
+        // passed `isStreaming: false` for the live turn — meant growth without
+        // refit, and the flamechart crawled off the widget's right edge
+        // instead of shrinking to fit ("I need to see it fill in the box and
+        // shrink with it while fitting"). Cheap: pure arithmetic on the
+        // laid-out bounds, no relayout. Skipped once the user takes manual
+        // control of the camera.
+        guard !hasUserAdjustedCamera, canvasSize.width > 0 else { return }
         fitToView(animated: false)
     }
 
