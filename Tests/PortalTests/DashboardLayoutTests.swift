@@ -97,6 +97,7 @@ internal struct DashboardLayoutTests {
         let data = try JSONEncoder().encode(custom)
         let decoded = try JSONDecoder().decode(DashboardLayout.self, from: data)
         #expect(decoded.panels.first?.kind.rawValue == "custom.myPlugin")
+        #expect(decoded.panels.first?.kind.id == "custom.myPlugin")
     }
 
     // MARK: - Reflow on resize
