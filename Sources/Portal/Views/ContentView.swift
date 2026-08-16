@@ -522,8 +522,12 @@ internal struct ContentView: View {
         // center, over whatever surface they're on, gone the moment the world
         // resumes or closes.
         .overlay(alignment: .bottom) {
+            #if os(macOS)
             ReturnToWorldPill()
                 .padding(.bottom, 14)
+            #else
+            EmptyView()
+            #endif
         }
         .onOpenURL { url in
             handleDeepLink(url)
