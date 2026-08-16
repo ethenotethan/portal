@@ -12,14 +12,19 @@ final class QuizStore {
     private let fileManager = FileManager.default
     private let quizzesDir: URL
 
-    private init() {
-        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+    /// - Parameter directory: Where quizzes live. Defaults to Application
+    ///   Support; `LearningStore`'s test initializer passes a temp dir so
+    ///   tests never write into the user's real attempt history.
+    internal init(directory: URL? = nil) {
+        if let directory {
+            quizzesDir = directory
+        } else if let appSupport = fileManager.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask).first {
+            quizzesDir = appSupport.appendingPathComponent("portal/quizzes", isDirectory: true)
+        } else {
             log.error("QuizStore: cannot locate Application Support directory")
             quizzesDir = URL(fileURLWithPath: "/tmp/portal/quizzes")
-            try? fileManager.createDirectory(at: quizzesDir, withIntermediateDirectories: true)
-            return
         }
-        quizzesDir = appSupport.appendingPathComponent("portal/quizzes", isDirectory: true)
         try? fileManager.createDirectory(at: quizzesDir, withIntermediateDirectories: true)
     }
 
@@ -35,21 +40,6 @@ final class QuizStore {
             } catch {
                 log.error("Failed to save quiz \(session.id): \(error)")
             }
-        }
-    }
-
-    // MARK: - Load
-
-    /// Load a single quiz session by ID.
-    func loadQuiz(id: UUID) -> PersistedQuizSession? {
-        let file = quizzesDir.appendingPathComponent("\(id).json")
-        guard fileManager.fileExists(atPath: file.path) else { return nil }
-        do {
-            let data = try Data(contentsOf: file)
-            return try JSONDecoder().decode(PersistedQuizSession.self, from: data)
-        } catch {
-            log.error("Failed to load quiz \(id): \(error)")
-            return nil
         }
     }
 
@@ -75,7 +65,7 @@ final class QuizStore {
     // MARK: - Delete
 
     /// Remove a quiz's persisted file from disk.
-    func deleteQuiz(id: UUID) {
+    internal func deleteQuiz(id: String) {
         let file = quizzesDir.appendingPathComponent("\(id).json")
         Task.detached(priority: .background) { [file] in
             try? FileManager.default.removeItem(at: file)
@@ -83,10 +73,4 @@ final class QuizStore {
     }
 
     /// Remove all quizzes from disk.
-    func deleteAllQuizzes() {
-        let quizzes = allQuizzes()
-        for quiz in quizzes {
-            deleteQuiz(id: quiz.id)
-        }
-    }
 }

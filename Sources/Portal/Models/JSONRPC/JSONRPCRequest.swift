@@ -70,6 +70,24 @@ enum AnyCodable: Codable, @unchecked Sendable, Equatable {
     init(_ value: Int) { self = .int(value) }
     init(_ value: Double) { self = .double(value) }
     init(_ value: Bool) { self = .bool(value) }
+
+    /// Bridge an untyped JSON-shaped value (nested [String: Any] / [Any] /
+    /// scalars, e.g. from JSONSerialization or hand-built wire dicts) into
+    /// the typed tree. Unrepresentable leaves become .null rather than
+    /// throwing — a lossy leaf must not drop the whole request.
+    internal init(any value: Any) {
+        switch value {
+        case let v as String: self = .string(v)
+        case let v as Bool: self = .bool(v)
+        case let v as Int: self = .int(v)
+        case let v as Double: self = .double(v)
+        case let v as [Any]: self = .array(v.map { AnyCodable(any: $0) })
+        case let v as [String: Any]:
+            self = .dictionary(v.mapValues { AnyCodable(any: $0) })
+        case let v as AnyCodable: self = v
+        default: self = .null
+        }
+    }
 }
 
 // Equatable for testing

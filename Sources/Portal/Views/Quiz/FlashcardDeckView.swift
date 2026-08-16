@@ -11,7 +11,7 @@ struct FlashcardDeckView: View {
     @State private var currentIndex: Int = 0
     @State private var updatedDeck: FlashcardDeck
     @State private var isComplete: Bool = false
-    @State private var grades: [UUID: SRSQuality] = [:]
+    @State private var grades: [String: SRSQuality] = [:]
     @State private var dragOffset: CGFloat = 0
 
     init(deck: FlashcardDeck, onClose: @escaping () -> Void, onDeckUpdated: @escaping (FlashcardDeck) -> Void) {
