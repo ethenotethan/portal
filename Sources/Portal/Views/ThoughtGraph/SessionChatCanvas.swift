@@ -352,17 +352,19 @@ internal struct SessionChatCanvas: View {
             .foregroundStyle(Theme.secondary)
             .help("Reset to the default view — a single full-width conversation")
 
-            // Graph opener — docks the per-turn thought graph as an IN-CANVAS
+            // Graph toggle — docks the per-turn thought graph as an IN-CANVAS
             // panel (the shape of the turn the pager is on), not a fullscreen
-            // sheet. If it's already on the canvas this brings it to front
-            // instead of adding a duplicate (it's a singleton kind).
+            // sheet; clicking again removes it (it's a singleton kind, and the
+            // accent highlight below is the toggle's on-state).
             Button(action: revealSessionGraph) {
                 Label("Thought Graph", systemImage: "chart.bar.xaxis")
                     .font(.system(size: 11, weight: .medium))
             }
             .buttonStyle(.plain)
             .foregroundStyle(hasSessionGraphPanel ? Theme.accent : Theme.secondary)
-            .help("Show the per-turn thought graph as a panel")
+            .help(hasSessionGraphPanel
+                ? "Hide the thought-graph panel"
+                : "Show the per-turn thought graph as a panel")
 
             // Session-global metrics: cumulative tokens / cost / context %.
             // Pinned here so it persists across turns and scroll — it never
@@ -734,10 +736,18 @@ internal struct SessionChatCanvas: View {
 
     /// Reveal the Session Graph as an in-canvas panel: bring it to front if it's
     /// already there, else add it. Replaces the old fullscreen-sheet opener.
+    /// TOGGLE, not reveal-only: clicking the toolbar button while the graph
+    /// panel is already docked removes it. It used to bring-to-front instead,
+    /// which left no way to close the panel at all — the only exit was "Reset
+    /// to default view", which nukes the user's whole arrangement ("I can't
+    /// click Thought Graph and then click the button again; it only goes away
+    /// if I click Reset, but that also modifies my defaults"). The button
+    /// already renders accented while the panel is docked, so toggle is the
+    /// semantics its own highlight promises.
     private func revealSessionGraph() {
         withAnimation(.easeInOut(duration: 0.18)) {
             if let existing = layout.panels.first(where: { $0.kind == .sessionGraph }) {
-                layout.bringToFront(existing.id)
+                layout.remove(existing.id)
                 layout.store(key: currentLayoutKey)
             } else {
                 addPanel(kind: .sessionGraph)

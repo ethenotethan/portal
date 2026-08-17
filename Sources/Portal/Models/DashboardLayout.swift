@@ -342,11 +342,15 @@ internal struct DashboardLayout: Codable, Equatable {
     internal static func seededChatCanvas(for bounds: CGSize) -> DashboardLayout {
         let w = max(bounds.width, DashboardPanel.minSize.width)
         let h = max(bounds.height, DashboardPanel.minSize.height)
-        let gap: CGFloat = 8
+        // Full bleed, no gap: the default state is ONE conversation panel and
+        // it should read as the classic transcript filling the canvas, not a
+        // card floating in margins the user has to drag away ("by default it
+        // should just be fully expanded to fit the entire canvas"). The 8pt
+        // gutters only earn their place once a second panel exists.
         return DashboardLayout(panels: [
             DashboardPanel(
                 kind: .conversation,
-                frame: CGRect(x: gap, y: gap, width: w - gap * 2, height: h - gap * 2)
+                frame: CGRect(x: 0, y: 0, width: w, height: h)
             )
         ]).clamped(to: bounds)
     }
