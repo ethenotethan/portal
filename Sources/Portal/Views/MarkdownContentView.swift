@@ -23,7 +23,21 @@ struct MarkdownContentView: View, Equatable {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(blocks) { block in
+            // POSITIONAL identity, not `ForEach(blocks)`: `MarkdownBlock.id`
+            // is content-derived (`content.prefix(64)`, and every horizontal
+            // rule is literally "hr"), so any document that repeats itself —
+            // two `---` separators, a recurring "Key takeaway:" paragraph, the
+            // same list item in two lists — hands SwiftUI DUPLICATE ids, and
+            // ForEach's behavior under duplicates is undefined: views render
+            // under the wrong identity or not at all. Caught live as
+            // `ForEach<Array<MarkdownBlock>, String, …> Invalid Configuration`
+            // in the run log while Learning lesson pages (structured,
+            // repetitive markdown — 4 of 10 lessons in the reporting course
+            // collide) rendered wrong. Offsets are unique by construction and
+            // stable for streaming's append-only growth: the last block keeps
+            // its identity as its content grows, so in-place updates still
+            // diff cheaply.
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .codeBlock(let language, let code):
                     if MarkdownParser.isChartLanguage(language) {
