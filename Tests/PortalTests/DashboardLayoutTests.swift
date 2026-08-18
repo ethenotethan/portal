@@ -311,4 +311,37 @@ internal struct DashboardLayoutTests {
         #expect(kinds == [.cronSummary, .cronVolume, .cronJobs, .cronTimeline, .cronBreakdown])
         #expect(layout.panels.count == 5)
     }
+
+    // MARK: - Chat canvas default
+
+    @Test("the chat canvas default is one conversation panel, full bleed")
+    internal func chatCanvasDefaultFillsTheCanvas() {
+        // The default state is the classic transcript. It used to seed with an
+        // 8pt gutter on every side — a card floating in margins the user had
+        // to drag to full size by hand ("there's some space in between it on
+        // the sides; the default state should be fully expanded").
+        let bounds = CGSize(width: 1200, height: 800)
+        let layout = DashboardLayout.seededChatCanvas(for: bounds)
+        #expect(layout.panels.count == 1)
+        #expect(layout.panels.first?.kind == .conversation)
+        #expect(layout.panels.first?.frame == CGRect(origin: .zero, size: bounds))
+    }
+
+    @Test("removing a panel by id deletes it — the graph toggle's close half")
+    internal func removeByIDDeletes() {
+        // The canvas's Thought Graph button toggles: present → remove. The
+        // remove used to be unreachable (the button only brought-to-front),
+        // leaving "Reset to default view" — which nukes the whole arrangement
+        // — as the only way to close the panel.
+        var layout = DashboardLayout.seededChatCanvas(for: CGSize(width: 1200, height: 800))
+        let graph = DashboardPanel(
+            kind: .sessionGraph,
+            frame: CGRect(x: 10, y: 10, width: 400, height: 300)
+        )
+        layout.panels.append(graph)
+        #expect(layout.panels.contains { $0.kind == .sessionGraph })
+        layout.remove(graph.id)
+        #expect(!layout.panels.contains { $0.kind == .sessionGraph })
+        #expect(layout.panels.count == 1, "only the graph goes; the conversation stays")
+    }
 }
