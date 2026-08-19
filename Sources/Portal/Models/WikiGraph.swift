@@ -31,13 +31,30 @@ struct WikiLink: Identifiable, Hashable, Codable {
     let id: UUID
     let source: String      // source page id
     let target: String      // target page id
-    let type: String        // e.g. "wikilink"
+    let type: String        // relationship kind — "wikilink" for a plain link,
+                            // else the predicate the gateway typed it with
+                            // (e.g. "deployed_on", "implements"; SCHEMA §3.3)
+    /// An explicit human-readable label when the gateway sends one; usually
+    /// absent, in which case the relationship is derived from `type`. `nil` and
+    /// `type == "wikilink"` together mean a plain link with nothing to render.
+    internal let label: String?
 
-    init(source: String, target: String, type: String) {
+    init(source: String, target: String, type: String, label: String? = nil) {
         self.id = UUID()
         self.source = source
         self.target = target
         self.type = type
+        self.label = label
+    }
+
+    /// The relationship to draw on the edge: the explicit `label` if present,
+    /// otherwise the predicate `type` prettified ("deployed_on" → "deployed
+    /// on"). `nil` for a plain wikilink, which carries no relationship.
+    internal var displayRelation: String? {
+        if let label, !label.isEmpty { return label }
+        guard type != "wikilink", !type.isEmpty else { return nil }
+        return type.replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
     }
 }
 

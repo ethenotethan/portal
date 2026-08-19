@@ -168,6 +168,9 @@ final class WikiGraphViewModel: ObservableObject {
 
     @Published var simNodes: [SimNode] = []
     @Published var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
+    /// Per-edge relationship label, aligned 1:1 with `simLinks` (built in the
+    /// same pass). `nil` = a plain, untyped wikilink with nothing to render.
+    @Published internal private(set) var simLinkLabels: [String?] = []
     /// Node indices sorted by Y (painter's order for the 2D canvas).
     /// Recomputed ONLY when positions actually change — setup, applied
     /// physics frames, drags, settle adoption — never per canvas frame, so
@@ -665,10 +668,12 @@ final class WikiGraphViewModel: ObservableObject {
         var seenIds = Set<String>()
         simNodes = simNodes.filter { node in guard !seenIds.contains(node.id) else { return false }; seenIds.insert(node.id); return true }
         let idToIndex = Dictionary(uniqueKeysWithValues: simNodes.enumerated().map { ($1.id, $0) })
-        simLinks = graph.links.compactMap { link -> (Int, Int)? in
+        let resolved: [(edge: (sourceIndex: Int, targetIndex: Int), label: String?)] = graph.links.compactMap { link in
             guard let si = idToIndex[link.source], let ti = idToIndex[link.target] else { return nil }
-            return (si, ti)
+            return ((si, ti), link.displayRelation)
         }
+        simLinks = resolved.map(\.edge)
+        simLinkLabels = resolved.map(\.label)
         degrees = Array(repeating: 0, count: simNodes.count)
         adjacency = Array(repeating: Set<Int>(), count: simNodes.count)
         for (si, ti) in simLinks {

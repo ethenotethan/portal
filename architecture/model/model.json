@@ -406,7 +406,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5198
+      "line_count": 5211
     },
     {
       "declaration_count": 113,
@@ -752,7 +752,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1370
+      "line_count": 1375
     },
     {
       "declaration_count": 20,
@@ -847,7 +847,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4680
+      "line_count": 4687
     },
     {
       "declaration_count": 13,
@@ -878,7 +878,7 @@
       "id": "centaur-services",
       "label": "Centaur services",
       "layer": "integration",
-      "line_count": 1208
+      "line_count": 1210
     },
     {
       "declaration_count": 15,
@@ -1352,7 +1352,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11676
+      "line_count": 11744
     },
     {
       "declaration_count": 75,
@@ -4911,7 +4911,7 @@
     "assigned_files": 326,
     "declarations": 977,
     "swift_files": 326,
-    "swift_lines": 94968,
+    "swift_lines": 95063,
     "unassigned_files": []
   },
   "layers": [
@@ -4943,6 +4943,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "1499d932e43746551d19f11626a19cf51557eaa6da60b2f4fd0683f2d6e9830c",
+  "source_tree_sha256": "379addee3fc456a9457cd167e64a1c3f15d532b20ebd99680c31fde7a1bfe40d",
   "title": "Portal Architecture"
 }

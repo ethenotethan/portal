@@ -127,7 +127,9 @@ final class CentaurWikiClient: WikiSource {
         let links: [WikiLink] = edges.compactMap { e in
             guard let source = e["source"] as? String,
                   let target = e["target"] as? String else { return nil }
-            return WikiLink(source: source, target: target, type: "wikilink")
+            let label = e["label"] as? String
+            let type = (e["type"] as? String) ?? "wikilink"
+            return WikiLink(source: source, target: target, type: type, label: label)
         }
         return WikiGraph(pages: pages, links: links)
     }

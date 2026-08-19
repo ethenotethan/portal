@@ -511,4 +511,68 @@ struct WikiGraphViewModelTests {
         vm.resetForGatewaySwitch()
         #expect(vm.eventTypes.isEmpty)
     }
+
+    // MARK: - Typed edge labels
+
+    /// The relationship to render is derived from the wire shape the gateway
+    /// actually sends (SCHEMA §3.3): the predicate rides in `type`, prettified
+    /// for display; an explicit `label` wins when present; a plain wikilink
+    /// renders nothing.
+    @Test("displayRelation derives the edge label from type, label, or neither")
+    internal func displayRelationDerivation() {
+        // Gateway's real shape: predicate in `type`, no label → prettified.
+        #expect(WikiLink(source: "a", target: "b", type: "deployed_on").displayRelation == "deployed on")
+        // An explicit label wins over the type slug.
+        #expect(WikiLink(source: "a", target: "b", type: "deployed_on", label: "runs on").displayRelation == "runs on")
+        // A plain wikilink has no relationship to draw.
+        #expect(WikiLink(source: "a", target: "b", type: "wikilink").displayRelation == nil)
+    }
+
+    /// The derived relationship must reach the renderer: `simLinkLabels` stays
+    /// index-aligned with `simLinks` so the canvas can label each edge, and a
+    /// plain link contributes `nil`.
+    @Test("Edge labels align 1:1 with sim links, nil for plain links")
+    internal func edgeLabelsAlignWithLinks() {
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        vm.graph = WikiGraph(
+            pages: [
+                page("alpha", path: "concepts/alpha.md"),
+                page("beta", path: "concepts/beta.md"),
+                page("gamma", path: "entities/gamma.md"),
+            ],
+            links: [
+                WikiLink(source: "alpha", target: "beta", type: "deployed_on"),
+                WikiLink(source: "gamma", target: "beta", type: "wikilink"),
+            ]
+        )
+        vm.setupSimulation()
+
+        #expect(vm.simLinks.count == 2)
+        #expect(vm.simLinkLabels.count == vm.simLinks.count, "labels must stay index-aligned with edges")
+        #expect(vm.simLinkLabels.contains("deployed on"), "the predicate edge renders its prettified type")
+        #expect(vm.simLinkLabels.contains(nil), "a plain wikilink has no relationship label")
+    }
+
+    /// A link whose endpoint isn't in the page set is dropped from `simLinks`;
+    /// its label must be dropped with it, or every later edge mislabels.
+    @Test("Dropping a dangling link keeps labels aligned to surviving edges")
+    internal func danglingLinkKeepsLabelsAligned() {
+        let vm = WikiGraphViewModel()
+        vm.canvasSize = CGSize(width: 800, height: 600)
+        vm.graph = WikiGraph(
+            pages: [
+                page("alpha", path: "concepts/alpha.md"),
+                page("beta", path: "concepts/beta.md"),
+            ],
+            links: [
+                WikiLink(source: "alpha", target: "ghost", type: "operates"),
+                WikiLink(source: "alpha", target: "beta", type: "deployed_on"),
+            ]
+        )
+        vm.setupSimulation()
+
+        #expect(vm.simLinks.count == 1, "the link to a non-existent page is dropped")
+        #expect(vm.simLinkLabels == ["deployed on"], "the surviving edge keeps its own label, not the dropped one's")
+    }
 }
