@@ -25,6 +25,12 @@ extension GatewayClient {
                 url: d["url"]?.stringValue ?? "", summary: d["summary"]?.stringValue ?? "",
                 source: source, tags: d["tags"]?.arrayValue?.compactMap { $0.stringValue } ?? [],
                 imageUrl: resolvedMediaURL(d["image_url"]?.stringValue ?? ""), ts: d["ts"]?.stringValue ?? "",
+                // Real publication date + approximation flag. This manual
+                // construction bypasses FeedArticle's Codable init, so these
+                // MUST be mapped here too — otherwise the card falls back to
+                // ingest time and every item in a batch shows the same age.
+                publishedTs: d["published_ts"]?.stringValue ?? "",
+                validTimeApprox: d["valid_time_approx"]?.boolValue ?? false,
                 videoUrl: resolvedMediaURL(d["video_url"]?.stringValue ?? ""),
                 thumbnailUrl: resolvedMediaURL(d["thumbnail_url"]?.stringValue ?? ""),
                 authorName: d["author_name"]?.stringValue,

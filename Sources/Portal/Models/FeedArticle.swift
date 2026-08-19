@@ -61,7 +61,18 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     let source: String
     let tags: [String]
     let imageUrl: String
+    /// Ingest time — when the article entered OUR feed. Not the publication
+    /// date; identical across a whole ingest batch. Kept for `since` polling.
     let ts: String
+    /// When the SOURCE published the article (bitemporal counterpart to `ts`).
+    /// This is what the UI must show — `ts` makes every item in a batch read
+    /// "18h ago" regardless of whether it was written today or last year.
+    /// Empty when the backend predates this field; falls back to `ts`.
+    let publishedTs: String
+    /// True when `publishedTs` is a fetch-time guess because the source exposed
+    /// no date (e.g. an index page with no timestamps), so the UI can mark the
+    /// date as approximate instead of presenting an inference as fact.
+    let validTimeApprox: Bool
     /// Optional video media (e.g. digest_video source). Empty when absent.
     let videoUrl: String
     let thumbnailUrl: String
@@ -85,6 +96,7 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     func withID(_ newID: String) -> FeedArticle {
         FeedArticle(id: newID, title: title, url: url, summary: summary,
                     source: source, tags: tags, imageUrl: imageUrl, ts: ts,
+                    publishedTs: publishedTs, validTimeApprox: validTimeApprox,
                     videoUrl: videoUrl, thumbnailUrl: thumbnailUrl,
                     authorName: authorName, authorHandle: authorHandle,
                     authorAvatarUrl: authorAvatarUrl, metrics: metrics, replies: replies)
@@ -92,6 +104,7 @@ struct FeedArticle: Codable, Identifiable, Hashable {
 
     init(id: String, title: String, url: String, summary: String, source: String,
          tags: [String], imageUrl: String, ts: String,
+         publishedTs: String = "", validTimeApprox: Bool = false,
          videoUrl: String = "", thumbnailUrl: String = "",
          authorName: String? = nil, authorHandle: String? = nil,
          authorAvatarUrl: String? = nil, metrics: TweetMetrics? = nil,
@@ -104,6 +117,8 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         self.tags = tags
         self.imageUrl = imageUrl
         self.ts = ts
+        self.publishedTs = publishedTs
+        self.validTimeApprox = validTimeApprox
         self.videoUrl = videoUrl
         self.thumbnailUrl = thumbnailUrl
         self.authorName = authorName
@@ -291,19 +306,51 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         }
     }
 
+    /// Parses an ISO-8601 stamp tolerating the shapes the backend mixes:
+    /// fractional seconds ("...T00:30:32.807357+00:00"), whole seconds with a
+    /// "Z" suffix, and a numeric offset. Returns nil only if all shapes fail.
+    private static func parseISO(_ raw: String) -> Date? {
+        if raw.isEmpty { return nil }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = withFraction.date(from: raw) { return d }
+        return ISO8601DateFormatter().date(from: raw)
+    }
+
+    /// The date to present: real publication date when known, else ingest time.
+    var displayDate: Date? {
+        FeedArticle.parseISO(publishedTs) ?? FeedArticle.parseISO(ts)
+    }
+
+    /// Human-facing age of the article, based on its PUBLICATION date.
+    ///
+    /// Relative phrasing ("2h ago") is only meaningful for recent items; a
+    /// backfilled paper from last year reads better as an absolute date than as
+    /// "8 months ago", so anything older than a week switches to a real date.
+    /// An approximate date is prefixed with "~" so an inferred timestamp is
+    /// never displayed as though it were confirmed.
     var relativeTime: String {
-        let fmt = ISO8601DateFormatter()
-        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = fmt.date(from: ts) ?? ISO8601DateFormatter().date(from: ts) else {
-            return ""
+        guard let date = displayDate else { return "" }
+        let text: String
+        if abs(date.timeIntervalSinceNow) < 7 * 24 * 60 * 60 {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.unitsStyle = .abbreviated
+            text = formatter.localizedString(for: date, relativeTo: Date())
+        } else {
+            let df = DateFormatter()
+            // Year only when it differs from now, to keep the label compact.
+            let sameYear = Calendar.current.component(.year, from: date)
+                == Calendar.current.component(.year, from: Date())
+            df.setLocalizedDateFormatFromTemplate(sameYear ? "MMMd" : "MMMdyyyy")
+            text = df.string(from: date)
         }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return validTimeApprox ? "~\(text)" : text
     }
 
     enum CodingKeys: String, CodingKey {
         case id, title, url, summary, source, tags, ts, metrics, replies
+        case publishedTs = "published_ts"
+        case validTimeApprox = "valid_time_approx"
         case imageUrl = "image_url"
         case videoUrl = "video_url"
         case thumbnailUrl = "thumbnail_url"
@@ -322,6 +369,10 @@ struct FeedArticle: Codable, Identifiable, Hashable {
         tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
         imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl) ?? ""
         ts = try c.decodeIfPresent(String.self, forKey: .ts) ?? ""
+        // Publication date + its approximation flag. Both optional so payloads
+        // from an older gateway still decode (falls back to `ts` for display).
+        publishedTs = try c.decodeIfPresent(String.self, forKey: .publishedTs) ?? ""
+        validTimeApprox = try c.decodeIfPresent(Bool.self, forKey: .validTimeApprox) ?? false
         // Optional video fields — absent on non-video feed sources.
         videoUrl = try c.decodeIfPresent(String.self, forKey: .videoUrl) ?? ""
         thumbnailUrl = try c.decodeIfPresent(String.self, forKey: .thumbnailUrl) ?? ""
