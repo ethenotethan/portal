@@ -30,8 +30,8 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "description": "Sessions, cron, activity, skills, learning, and mission-control surfaces.",
-      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/CentaurWorkflow*.swift"]
+      "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
+      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/CentaurWorkflow*.swift", "Views/Files/**"]
     },
     {
       "id": "wiki-ui",
@@ -65,8 +65,8 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, and learning state machines.",
-      "patterns": ["ViewModels/Cron*.swift", "ViewModels/Session*.swift", "ViewModels/Activity*.swift", "ViewModels/Feed*.swift", "ViewModels/Skills*.swift", "ViewModels/Settings*.swift", "ViewModels/GatewayRestart*.swift", "ViewModels/Quiz/**", "ViewModels/Learning/**", "ViewModels/Celebration*.swift"]
+      "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
+      "patterns": ["ViewModels/Cron*.swift", "ViewModels/Session*.swift", "ViewModels/Activity*.swift", "ViewModels/Feed*.swift", "ViewModels/Skills*.swift", "ViewModels/Settings*.swift", "ViewModels/GatewayRestart*.swift", "ViewModels/Quiz/**", "ViewModels/Learning/**", "ViewModels/Celebration*.swift", "ViewModels/FilesBrowser*.swift"]
     },
     {
       "id": "wiki-state",

@@ -170,8 +170,9 @@ internal struct ToolbarIconThemeTests {
     internal func everyToolbarButtonIsAddressable() {
         // A button with no slot is one the settings pane cannot reach, and the
         // symptom is a single icon that stays plain while the row around it
-        // restyles. Ten is the count in `macOverlayIcons`.
-        #expect(ToolbarIconSlot.allCases.count == 10)
+        // restyles. Eleven is the count in `macOverlayIcons` (the Files browser
+        // added the eleventh).
+        #expect(ToolbarIconSlot.allCases.count == 11)
     }
 
     // MARK: - Overrides

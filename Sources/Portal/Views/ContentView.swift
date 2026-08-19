@@ -47,6 +47,7 @@ internal struct ContentView: View {
     @State private var pendingCurriculumID: String?
     @State private var showCentaurWorkflows = false
     @State private var showArtifactsPane = false
+    @State private var showFiles = false
     @State private var selectedTab = 0
     @State private var isCreatingSession = false
     @State private var sessionCreationError: String?
@@ -357,6 +358,13 @@ internal struct ContentView: View {
                 Label("Learning", systemImage: "books.vertical.fill")
             }
             .tag(6)
+
+            FilesBrowserView()
+                .environmentObject(gatewayClientWrapper)
+                .tabItem {
+                    Label("Files", systemImage: "folder")
+                }
+                .tag(7)
         }
     }
 
@@ -589,7 +597,7 @@ internal struct ContentView: View {
     private var isOverlayActive: Bool {
         showCronDashboard || showLiveSessions || showActivitySheet
             || showFeedSheet || showSkills || showWikiGraph || showLearning || showCentaurWorkflows
-            || showArtifactsPane || showSettingsOverlay
+            || showArtifactsPane || showFiles || showSettingsOverlay
     }
 
     private var overlayTitle: String {
@@ -597,6 +605,7 @@ internal struct ContentView: View {
         if showWikiGraph { return "Wiki Graph" }
         if showCentaurWorkflows { return "Workflows" }
         if showArtifactsPane { return "Artifacts" }
+        if showFiles { return "Files" }
         if showFeedSheet { return "Feed" }
         if showSkills { return "Skills" }
         if showLiveSessions { return "Sessions" }
@@ -660,6 +669,7 @@ internal struct ContentView: View {
         showWikiGraph = false
         showCentaurWorkflows = false
         showArtifactsPane = false
+        showFiles = false
         showFeedSheet = false
         showLearning = false
         showSettingsOverlay = false
@@ -1086,6 +1096,19 @@ internal struct ContentView: View {
                 .accessibilityLabel("Wiki Graph")
             }
 
+            if chatViewModel.backendCapabilities.supportsGatewayServices {
+                Button {
+                    closeAllOverlays()
+                    showFiles = true
+                } label: {
+                    Label("Files", systemImage: "folder")
+                        .labelStyle(.iconOnly)
+                }
+                .toolbarIcon(.files)
+                .keyboardShortcut("b", modifiers: .command)
+                .accessibilityLabel("Files")
+            }
+
             // Living artifacts — named models any writer maintains (chat,
             // cron, workflows), rendered live. Cross-backend surface.
             Button {
@@ -1299,6 +1322,14 @@ internal struct ContentView: View {
 
             if showCentaurWorkflows {
                 centaurWorkflowsOverlay
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.background)
+                    .transition(.opacity)
+            }
+
+            if showFiles {
+                FilesBrowserView()
+                    .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
