@@ -180,6 +180,26 @@ internal struct StuckStreamRecoveryTests {
         #expect(vm.avatarState == .idle)
     }
 
+    @Test("a completion with no streaming shell still surfaces a video attachment")
+    internal func unstampableCompletionSurfacesVideoAttachment() throws {
+        let vm = ChatViewModel()
+        let sid = "unstampable-media-\(UUID().uuidString)"
+        _ = vm.beginSwitchToSession(key: sid)
+
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: sid)
+        vm.dropCachedMessagesForTesting(sessionID: sid)
+
+        let text = "Your video\nMEDIA:https://gateway.example/v1/files/\(sid)/clip.mp4"
+        vm.receiveGatewayEventForTesting(complete(text), sessionID: sid)
+
+        let assistant = try #require(vm.messages.last { $0.role == .assistant })
+        let attachment = try #require(assistant.attachments.first)
+        #expect(assistant.content == text)
+        #expect(assistant.isStreaming == false)
+        #expect(attachment.category == .video)
+        #expect(attachment.path == "https://gateway.example/v1/files/\(sid)/clip.mp4")
+    }
+
     /// The same latch on the BACKGROUND path, which is where it actually bit: a
     /// visible session gets settled by `finishStreaming` regardless, but a
     /// background one is only ever settled inside the handler that just bailed.

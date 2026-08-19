@@ -2717,23 +2717,17 @@ if restoreSessionState(displayID: key) {
                 state = sessionStates[displayID] ?? state
                 Task { await reasoningGraph.finalize() }
             }
-            guard let msgID = state.streamingMessageID,
-                  let idx = state.messages.firstIndex(where: { $0.id == msgID }) else {
-                // No message to stamp — but the turn IS over on the gateway, so
-                // settle the flags anyway. This `break` used to leave
-                // `isStreaming` true forever, which is the second way a session
-                // wedged on "Thinking…": a background turn whose transcript was
-                // dropped (message eviction, or a slim state that outlived its
-                // shell) can't find its shell here, and the stuck flag then
-                // blocked `submitPrompt`'s `guard !isStreaming` too — so the
-                // session could neither finish nor accept a new prompt until
-                // Stop (which calls finishStreaming) or a relaunch cleared it.
-                state.activeToolCalls = [:]
-                state.isStreaming = false
-                state.streamingMessageID = nil
-                state.avatarState = .idle
-                state.isRemoteTurn = false
-                break
+            let idx: Int
+            if let msgID = state.streamingMessageID,
+               let streamingIdx = state.messages.firstIndex(where: { $0.id == msgID }) {
+                idx = streamingIdx
+            } else {
+                // A TUI-originated turn can reach Portal only at message.complete,
+                // with no preceding message.start and therefore no streaming
+                // shell. The completion is authoritative: materialize the missing
+                // assistant message instead of dropping its text and MEDIA lines.
+                state.messages.append(ChatMessage(role: .assistant, content: payload.text))
+                idx = state.messages.index(before: state.messages.endIndex)
             }
             state.messages[idx].content = payload.text
             state.messages[idx].isStreaming = false
