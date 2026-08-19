@@ -117,11 +117,12 @@ internal struct FeedPublishedDateTests {
 
     @Test("Codable decodes published_ts and valid_time_approx")
     internal func decodesNewFields() throws {
-        let json = """
+        let jsonString = """
         {"id":"x","title":"t","url":"u","summary":"s","source":"agentic-payments",
          "ts":"2026-08-19T00:30:32.807357+00:00",
          "published_ts":"2026-06-11T00:00:00Z","valid_time_approx":true}
-        """.data(using: .utf8)!
+        """
+        let json = Data(jsonString.utf8)
         let a = try JSONDecoder().decode(FeedArticle.self, from: json)
         #expect(a.publishedTs == "2026-06-11T00:00:00Z")
         #expect(a.validTimeApprox)
@@ -130,10 +131,11 @@ internal struct FeedPublishedDateTests {
 
     @Test("Payloads without the new keys still decode (backward compatible)")
     internal func decodesLegacyPayload() throws {
-        let json = """
+        let jsonString = """
         {"id":"x","title":"t","url":"u","summary":"s","source":"agentic-payments",
          "ts":"2026-08-19T00:30:32.807357+00:00"}
-        """.data(using: .utf8)!
+        """
+        let json = Data(jsonString.utf8)
         let a = try JSONDecoder().decode(FeedArticle.self, from: json)
         #expect(a.publishedTs.isEmpty)
         #expect(!a.validTimeApprox)

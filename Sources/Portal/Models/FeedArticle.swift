@@ -68,11 +68,11 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     /// This is what the UI must show — `ts` makes every item in a batch read
     /// "18h ago" regardless of whether it was written today or last year.
     /// Empty when the backend predates this field; falls back to `ts`.
-    let publishedTs: String
+    internal let publishedTs: String
     /// True when `publishedTs` is a fetch-time guess because the source exposed
     /// no date (e.g. an index page with no timestamps), so the UI can mark the
     /// date as approximate instead of presenting an inference as fact.
-    let validTimeApprox: Bool
+    internal let validTimeApprox: Bool
     /// Optional video media (e.g. digest_video source). Empty when absent.
     let videoUrl: String
     let thumbnailUrl: String
@@ -318,7 +318,7 @@ struct FeedArticle: Codable, Identifiable, Hashable {
     }
 
     /// The date to present: real publication date when known, else ingest time.
-    var displayDate: Date? {
+    internal var displayDate: Date? {
         FeedArticle.parseISO(publishedTs) ?? FeedArticle.parseISO(ts)
     }
 
