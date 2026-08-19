@@ -522,4 +522,15 @@ internal struct CurriculumParsingTests {
         #expect(course.completedCount == 0)
         #expect(course.nextStep?.title == "Moves")
     }
+
+    @Test("a truncated fragment with no closing brace is rejected, not sliced")
+    internal func rejectsUnbalancedBraces() {
+        // `bracedJSON` asks for the first `{` and the last `}`; a fragment
+        // that opens but never closes (or closes before opening) has no
+        // braced slice to offer. The strict and lenient parsers decline the
+        // raw text too, so the answer is nil — not a course built from a
+        // half-written object.
+        #expect(CurriculumResponse.extract(from: #"An unclosed start {"title": "Broken"#) == nil)
+        #expect(CurriculumResponse.extract(from: "A stray close } before any open {") == nil)
+    }
 }
