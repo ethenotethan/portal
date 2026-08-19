@@ -31,7 +31,7 @@ struct WikiLink: Identifiable, Hashable, Codable {
     let id: UUID
     let source: String      // source page id
     let target: String      // target page id
-    let type: String        // relationship kind — "wikilink" for a plain link,
+    internal let type: String // relationship kind — "wikilink" for a plain link,
                             // else the predicate the gateway typed it with
                             // (e.g. "deployed_on", "implements"; SCHEMA §3.3)
     /// An explicit human-readable label when the gateway sends one; usually
@@ -39,7 +39,7 @@ struct WikiLink: Identifiable, Hashable, Codable {
     /// `type == "wikilink"` together mean a plain link with nothing to render.
     internal let label: String?
 
-    init(source: String, target: String, type: String, label: String? = nil) {
+    internal init(source: String, target: String, type: String, label: String? = nil) {
         self.id = UUID()
         self.source = source
         self.target = target
