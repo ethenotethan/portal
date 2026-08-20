@@ -345,7 +345,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17254
+      "line_count": 17284
     },
     {
       "declaration_count": 37,
@@ -4953,7 +4953,7 @@
     "assigned_files": 334,
     "declarations": 993,
     "swift_files": 334,
-    "swift_lines": 97351,
+    "swift_lines": 97381,
     "unassigned_files": []
   },
   "layers": [
@@ -4985,6 +4985,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "026a1125acd8af7c0ed47f82952c22e2dbd77168b49b3e1a19be67a101140171",
+  "source_tree_sha256": "2fb792a1b044ba2e2e4ceb5521941e776274a7b448032d1924a252f74864c1fd",
   "title": "Portal Architecture"
 }

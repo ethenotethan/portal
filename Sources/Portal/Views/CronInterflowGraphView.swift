@@ -34,6 +34,12 @@ internal struct CronInterflowGraphView: View {
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
+    /// Whether the bottom-left legend is expanded. Persisted so the choice sticks
+    /// across launches and stays in step between the inline panel and the
+    /// full-screen surface. The legend stacks kinds, cron categories, and group
+    /// toggles, so on a busy graph folding it away reclaims real estate.
+    @AppStorage("cronGraphLegendExpanded") private var isLegendExpanded = true
+
     internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -185,18 +191,21 @@ internal struct CronInterflowGraphView: View {
             Spacer()
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
-                        HStack(spacing: 7) {
-                            CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
-                                .fill(viewModel.color(forKind: entry.kind))
-                                .frame(width: 11, height: 11)
-                            Text(entry.label)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(Theme.secondary)
+                    legendHeader
+                    if isLegendExpanded {
+                        ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
+                            HStack(spacing: 7) {
+                                CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
+                                    .fill(viewModel.color(forKind: entry.kind))
+                                    .frame(width: 11, height: 11)
+                                Text(entry.label)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Theme.secondary)
+                            }
                         }
+                        categoryLegendRows
+                        groupToggleRows
                     }
-                    categoryLegendRows
-                    groupToggleRows
                 }
                 .padding(10)
                 .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
@@ -208,6 +217,27 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .padding(14)
+    }
+
+    /// The legend's toggle: the whole row is the hit target, so a single click
+    /// folds the key away to just this chip or unfolds it again.
+    private var legendHeader: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { isLegendExpanded.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 9, weight: .semibold))
+                Text("Legend")
+                    .font(.system(size: 10, weight: .semibold))
+                Image(systemName: isLegendExpanded ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(Theme.secondary.opacity(0.9))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isLegendExpanded ? "Hide the legend" : "Show the legend")
     }
 
     /// Under the kind legend, one swatch per cron category folder so a tinted
