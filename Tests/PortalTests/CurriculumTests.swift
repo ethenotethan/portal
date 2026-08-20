@@ -304,6 +304,40 @@ internal struct CurriculumTests {
         let decoded = try JSONDecoder().decode(CurriculumStepKind.self, from: data)
         #expect(decoded == .lesson(markdown: "hello"))
     }
+
+    @Test("pre-migration UUID-keyed progress remains readable")
+    internal func decodesLegacyUUIDProgress() throws {
+        struct LegacyCurriculum: Encodable {
+            let id: String
+            let title: String
+            let summary: String
+            let modules: [CurriculumModule]
+            let created: Date
+            let sourceSessionID: String?
+            let progress: [UUID: CurriculumStepProgress]
+        }
+
+        let stepID = try #require(UUID(uuidString: "7E57D004-2B97-4E7A-9D9A-2F645221B8A1"))
+        let legacy = LegacyCurriculum(
+            id: "legacy-course",
+            title: "Migrated course",
+            summary: "Saved before step IDs became strings.",
+            modules: [],
+            created: Date(timeIntervalSince1970: 1_700_000_000),
+            sourceSessionID: nil,
+            progress: [
+                stepID: CurriculumStepProgress(bestScorePercent: 90, attempts: 2),
+            ]
+        )
+
+        let decoded = try JSONDecoder().decode(
+            Curriculum.self,
+            from: JSONEncoder().encode(legacy)
+        )
+
+        #expect(decoded.progress[stepID.uuidString]?.bestScorePercent == 90)
+        #expect(decoded.progress[stepID.uuidString]?.attempts == 2)
+    }
 }
 
 // MARK: - Parsing
