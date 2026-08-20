@@ -46,6 +46,126 @@ struct SessionTests {
     }
 }
 
+// MARK: - Sessions Filter State Tests
+
+@Suite("Sessions Filter State")
+@MainActor
+internal struct SessionsFilterStateTests {
+    private func session(
+        _ id: String,
+        source: String? = nil,
+        messageCount: Int = 0,
+        startedAt: Date? = nil,
+        endedAt: Date? = nil,
+        lastActive: Date? = nil,
+        gatewayID: String? = nil,
+        runState: SessionRunState? = nil
+    ) -> Session {
+        Session(
+            id: id,
+            source: source,
+            messageCount: messageCount,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            lastActive: lastActive,
+            gatewayID: gatewayID,
+            runState: runState
+        )
+    }
+
+    @Test("cron sessions are always excluded")
+    internal func excludesCronSessions() {
+        let state = SessionsFilterState()
+        let sessions = [session("native"), session("cron", source: "CRON")]
+
+        #expect(state.filteredSessions(from: sessions).map(\.id) == ["native"])
+    }
+
+    @Test("status filters use explicit run state and ended state")
+    internal func filtersByStatus() {
+        let state = SessionsFilterState()
+        let sessions = [
+            session("live", runState: .toolRunning),
+            session("idle", runState: .idle),
+            session("ended", endedAt: Date(), runState: .streaming)
+        ]
+
+        state.filterStatus = .live
+        #expect(state.filteredSessions(from: sessions).map(\.id) == ["live"])
+        state.filterStatus = .ended
+        #expect(state.filteredSessions(from: sessions).map(\.id) == ["idle", "ended"])
+    }
+
+    @Test("source filtering uses the displayed source")
+    internal func filtersByDisplaySource() {
+        let state = SessionsFilterState()
+        state.filterSource = "Native"
+        let sessions = [
+            session("owned", source: "cli", gatewayID: "runtime-id"),
+            session("telegram", source: "telegram"),
+            session("unknown")
+        ]
+
+        #expect(state.filteredSessions(from: sessions).map(\.id) == ["owned"])
+    }
+
+    @Test("custom time window prefers start time, then last activity")
+    internal func filtersByCustomTimeWindow() {
+        let cutoff = Date(timeIntervalSince1970: 1_000)
+        let state = SessionsFilterState()
+        state.timeWindow = .since(cutoff)
+        let sessions = [
+            session("started-after", startedAt: Date(timeIntervalSince1970: 1_001),
+                    lastActive: Date(timeIntervalSince1970: 100)),
+            session("active-after", lastActive: Date(timeIntervalSince1970: 1_001)),
+            session("before", startedAt: Date(timeIntervalSince1970: 999),
+                    lastActive: Date(timeIntervalSince1970: 2_000)),
+            session("undated")
+        ]
+
+        #expect(state.filteredSessions(from: sessions).map(\.id) == ["started-after", "active-after"])
+    }
+
+    @Test("recent sort prefers last activity, then start time")
+    internal func sortsByRecentActivity() {
+        let state = SessionsFilterState()
+        let sessions = [
+            session("undated"),
+            session("started", startedAt: Date(timeIntervalSince1970: 20)),
+            session("active", startedAt: Date(timeIntervalSince1970: 10),
+                    lastActive: Date(timeIntervalSince1970: 30))
+        ]
+
+        #expect(state.sorted(sessions).map(\.id) == ["active", "started", "undated"])
+    }
+
+    @Test("duration sort uses ended time, then last activity")
+    internal func sortsByDuration() {
+        let state = SessionsFilterState()
+        state.sortOrder = .duration
+        let start = Date(timeIntervalSince1970: 100)
+        let sessions = [
+            session("missing-start", endedAt: Date(timeIntervalSince1970: 1_000)),
+            session("last-active", startedAt: start, lastActive: Date(timeIntervalSince1970: 120)),
+            session("ended", startedAt: start, endedAt: Date(timeIntervalSince1970: 150))
+        ]
+
+        #expect(state.sorted(sessions).map(\.id) == ["ended", "last-active", "missing-start"])
+    }
+
+    @Test("message sort places the largest transcript first")
+    internal func sortsByMessageCount() {
+        let state = SessionsFilterState()
+        state.sortOrder = .messages
+
+        #expect(state.sorted([
+            session("small", messageCount: 2),
+            session("large", messageCount: 20),
+            session("empty")
+        ]).map(\.id) == ["large", "small", "empty"])
+    }
+}
+
 // MARK: - SessionListViewModel Tests
 
 @Suite("SessionListViewModel")
