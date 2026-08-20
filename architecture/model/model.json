@@ -1352,7 +1352,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11744
+      "line_count": 11741
     },
     {
       "declaration_count": 75,
@@ -4911,7 +4911,7 @@
     "assigned_files": 326,
     "declarations": 977,
     "swift_files": 326,
-    "swift_lines": 95063,
+    "swift_lines": 95060,
     "unassigned_files": []
   },
   "layers": [
@@ -4943,6 +4943,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e1695a56c7d5c7b413574a7f84bd8af4747f1be0b7a70569b8b997d3b4bdf0ec",
+  "source_tree_sha256": "ecd599cd69b3c4845569e67467a8c31b049cf68e12e6c1cff0fd15308ec3a091",
   "title": "Portal Architecture"
 }

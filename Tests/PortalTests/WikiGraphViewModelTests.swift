@@ -6,11 +6,11 @@ import Foundation
 @MainActor
 struct WikiGraphViewModelTests {
 
-    private func page(_ id: String, path: String) -> WikiPage {
+    private func page(_ id: String, path: String, tagPath: [String] = []) -> WikiPage {
         WikiPage(
             id: id, title: id.capitalized, type: "concept", tags: [],
             path: path, created: nil, updated: nil, confidence: nil,
-            contested: false, tagPath: [], integrationLinks: []
+            contested: false, tagPath: tagPath, integrationLinks: []
         )
     }
 
@@ -127,6 +127,21 @@ struct WikiGraphViewModelTests {
         #expect(betaBacklinks.map(\.id).sorted() == ["alpha", "gamma"])
         let alphaBacklinks = vm.backlinks(for: vm.graph.pages.first { $0.id == "alpha" })
         #expect(alphaBacklinks.isEmpty)
+    }
+
+    @Test("Taxonomy tree retains nested paths and shared prefixes")
+    internal func taxonomyTreeBuildsNestedPaths() {
+        let graph = WikiGraph(
+            pages: [
+                page("speculation", path: "concepts/speculation.md", tagPath: ["ml/inference/speculative-decoding"]),
+                page("training", path: "concepts/training.md", tagPath: ["ml/training"]),
+            ],
+            links: []
+        )
+
+        #expect(graph.tagPathTree.flatPaths == [
+            "ml", "ml/inference", "ml/inference/speculative-decoding", "ml/training",
+        ])
     }
 
     @Test("Clearing page selection resets path, history, and node")
