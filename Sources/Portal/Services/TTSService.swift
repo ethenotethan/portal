@@ -1,5 +1,5 @@
 import AVFoundation
-import SwiftUI
+import Combine
 import os
 
 private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "TTSService")
