@@ -622,6 +622,28 @@ final class SessionListViewModel: ObservableObject {
             ?? sessions.first(where: { $0.id == id || $0.gatewayID == id })?.runState
     }
 
+    /// Reconcile the live dots with the set of sessions that actually have a
+    /// turn in flight (display IDs published by ChatViewModel). Sessions that
+    /// dropped out of the set fall back to `.idle`.
+    ///
+    /// This has to be set-shaped rather than "the visible session started or
+    /// stopped": background turns never reached the sidebar, so a second live
+    /// session read as idle until the user clicked into it. Terminal states
+    /// (`.failed`, `.canceled`) are left alone — only a row currently showing
+    /// `.streaming` is downgraded.
+    func applyStreamingSessions(_ streamingIDs: Set<String>) {
+        for id in streamingIDs where runState(for: id) != .streaming {
+            setRunState(.streaming, for: id)
+        }
+        for session in sessions where session.runState == .streaming {
+            let isLive = streamingIDs.contains(session.id)
+                || (session.gatewayID.map(streamingIDs.contains) ?? false)
+            if !isLive {
+                setRunState(.idle, for: session.id)
+            }
+        }
+    }
+
 
     /// Pin or unpin a session. Pinned rows are sorted to the top of each section.
     func setPinned(_ isPinned: Bool, for id: String) {
