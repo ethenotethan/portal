@@ -609,3 +609,147 @@ internal struct CronCategoryTests {
         #expect(CronCategory.separatorWarning(for: "A B//testing digest") != nil)
     }
 }
+
+/// `CronFilterState` is the pure filtering layer behind the cron list. Keep its
+/// user-visible combinations pinned here alongside the category grouping it
+/// delegates to; no gateway or view needs to be involved.
+@MainActor
+@Suite("Cron Filter State")
+internal struct CronFilterStateTests {
+    private func job(
+        _ name: String,
+        enabled: Bool = true,
+        state: String = "scheduled",
+        lastStatus: String? = "ok",
+        lastRunAt: Date? = nil,
+        nextRunAt: Date? = nil,
+        deliver: String = "local",
+        promptPreview: String? = nil,
+        prompt: String? = nil
+    ) -> CronJob {
+        CronJob(
+            id: name,
+            name: name,
+            schedule: "every 60m",
+            nextRunAt: nextRunAt,
+            lastRunAt: lastRunAt,
+            lastStatus: lastStatus,
+            enabled: enabled,
+            state: state,
+            deliver: deliver,
+            promptPreview: promptPreview,
+            prompt: prompt,
+            lastError: nil
+        )
+    }
+
+    @Test("defaults leave jobs visible and order the most recent run first")
+    internal func defaultsApplyRecentOrder() {
+        let state = CronFilterState()
+        let early = job("early", lastRunAt: Date(timeIntervalSince1970: 100))
+        let never = job("never")
+        let late = job("late", lastRunAt: Date(timeIntervalSince1970: 200))
+
+        #expect(state.filterStatus == .all)
+        #expect(state.timeWindow == .all)
+        #expect(state.sortOrder == .recent)
+        #expect(state.apply(to: [early, never, late]).map(\.name) == ["late", "early", "never"])
+    }
+
+    @Test("status filters distinguish active, paused, and failing jobs")
+    internal func statusFiltersAndCounts() {
+        let active = job("active")
+        let disabled = job("disabled", enabled: false)
+        let paused = job("paused", state: "paused")
+        let failing = job("failing", lastStatus: "error")
+        let jobs = [active, disabled, paused, failing]
+        let state = CronFilterState()
+
+        state.filterStatus = .active
+        #expect(state.apply(to: jobs).map(\.name).sorted() == ["active", "failing"])
+        state.filterStatus = .paused
+        #expect(state.apply(to: jobs).map(\.name).sorted() == ["disabled", "paused"])
+        state.filterStatus = .failing
+        #expect(state.apply(to: jobs).map(\.name) == ["failing"])
+        #expect(state.count(for: .all, in: jobs) == 4)
+        #expect(state.count(for: .active, in: jobs) == 2)
+        #expect(state.count(for: .paused, in: jobs) == 2)
+        #expect(state.count(for: .failing, in: jobs) == 1)
+    }
+
+    @Test("search is trimmed, case-insensitive, and covers every visible facet")
+    internal func searchCoversVisibleFacets() {
+        let jobs = [
+            job("Nightly Backup"),
+            job("delivery", deliver: "TELEGRAM:ops"),
+            job("preview", promptPreview: "Summarize incidents"),
+            job("prompt", prompt: "Inspect the deploy queue"),
+        ]
+        let state = CronFilterState()
+
+        for (query, expected) in [
+            (" nightly ", "Nightly Backup"),
+            ("telegram", "delivery"),
+            ("INCIDENTS", "preview"),
+            ("deploy queue", "prompt"),
+            ("60M", "Nightly Backup"),
+        ] {
+            state.searchText = query
+            #expect(state.apply(to: jobs).first?.name == expected)
+        }
+    }
+
+    @Test("next-run and name sorts put missing dates last and ignore name case")
+    internal func alternateSortOrders() {
+        let first = job("zulu", nextRunAt: Date(timeIntervalSince1970: 100))
+        let second = job("Alpha", nextRunAt: Date(timeIntervalSince1970: 200))
+        let unscheduled = job("beta")
+        let state = CronFilterState()
+
+        state.sortOrder = .next
+        #expect(state.apply(to: [unscheduled, second, first]).map(\.name) == ["zulu", "Alpha", "beta"])
+        state.sortOrder = .name
+        #expect(state.apply(to: [first, unscheduled, second]).map(\.name) == ["Alpha", "beta", "zulu"])
+    }
+
+    @Test("grouping applies the active filter and sort before building the tree")
+    internal func groupingUsesFilteredOrder() throws {
+        let state = CronFilterState()
+        state.filterStatus = .active
+        state.sortOrder = .name
+        let grouping = state.grouped([
+            job("life/zulu"),
+            job("life/Alpha"),
+            job("life/hidden", enabled: false),
+        ])
+
+        let life = try #require(grouping.roots.first)
+        #expect(life.jobs.map(\.name) == ["life/Alpha", "life/zulu"])
+    }
+
+    @Test("category expansion toggles one node and can reveal an entire tree")
+    internal func categoryExpansionState() throws {
+        let state = CronFilterState()
+        let grouping = state.grouped([
+            job("life/training/run"),
+            job("work/review"),
+        ])
+        let life = try #require(grouping.roots.first { $0.id == "life" })
+
+        #expect(!state.isExpanded(life))
+        state.toggleExpanded(life)
+        #expect(state.isExpanded(life))
+        state.toggleExpanded(life)
+        #expect(!state.isExpanded(life))
+
+        state.expandAll(in: grouping)
+        #expect(state.expandedCategories == ["life", "life/training", "work"])
+    }
+
+    @Test("time-window presets retain their UI order and labels")
+    internal func timeWindowPresetsAndLabels() {
+        #expect(CronFilterState.TimeWindow.presets == [.all, .hour, .day, .week, .month])
+        #expect(CronFilterState.TimeWindow.presets.map(\.label)
+                == ["All time", "Last hour", "Last 24h", "Last 7d", "Last 30d"])
+    }
+}
