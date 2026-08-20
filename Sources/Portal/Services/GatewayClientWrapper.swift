@@ -1,5 +1,5 @@
-import SwiftUI
 import Combine
+import Foundation
 import os
 #if canImport(UIKit)
 import UIKit

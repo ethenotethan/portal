@@ -44,15 +44,6 @@ struct ArchitectureTests {
         // Legit presentation service: renders SwiftUI views to PDF pages via
         // ImageRenderer — SwiftUI is the point of the file.
         "SessionPDFExporter.swift",
-        // TODO: imports SwiftUI only for ObservableObject/@Published —
-        // switch to `import Combine` and remove from this allowlist.
-        "GatewayClientWrapper.swift",
-        // TODO: same — ObservableObject only; swap to Combine.
-        "SkillCache.swift",
-        // TODO: same — ObservableObject only; swap to Combine.
-        "SkillStore.swift",
-        // TODO: same — ObservableObject only; swap to Combine.
-        "TTSService.swift",
     ]
 
     @Test("Services do not import SwiftUI (except the allowlist)")
