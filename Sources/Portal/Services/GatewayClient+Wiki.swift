@@ -180,7 +180,8 @@ extension GatewayClient {
             return WikiLink(
                 source: source,
                 target: target,
-                type: d["type"]?.stringValue ?? "wikilink"
+                type: d["type"]?.stringValue ?? "wikilink",
+                label: d["label"]?.stringValue
             )
         }
 

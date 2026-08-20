@@ -512,7 +512,8 @@ struct CentaurWikiMappingTests {
                 ["title": "no id — dropped"],
             ],
             "edges": [
-                ["source": "wiki:entity:person-greg", "target": "wiki:topic:glossary-mcp"],
+                ["source": "wiki:entity:person-greg", "target": "wiki:topic:glossary-mcp",
+                 "type": "knows", "label": "knows"],
                 ["source": "dangling"],
             ],
         ]
@@ -524,6 +525,10 @@ struct CentaurWikiMappingTests {
         #expect(greg.tagPath == ["entity"])              // kind drives taxonomy
         #expect(greg.updated == "2026-06-29T12:33:56Z")
         #expect(graph.links[0].source == "wiki:entity:person-greg")
+        // A typed edge carries its relationship through instead of being
+        // flattened to the "wikilink" constant.
+        #expect(graph.links[0].type == "knows")
+        #expect(graph.links[0].label == "knows")
     }
 
     @Test("glossary-prefixed topics reclassify as taxonomy definitions")

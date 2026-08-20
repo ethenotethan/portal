@@ -280,7 +280,7 @@ struct WikiGraph2DCanvas: View {
                 var litEdges = Path()
                 var dimEdges = Path()
                 var quietEdges = Path()
-                for (si, ti) in viewModel.simLinks {
+                for (linkIndex, (si, ti)) in viewModel.simLinks.enumerated() {
                     guard viewModel.simNodes.indices.contains(si),
                           viewModel.simNodes.indices.contains(ti) else { continue }
 
@@ -312,7 +312,20 @@ struct WikiGraph2DCanvas: View {
                         quietEdges.addQuadCurve(to: tp, control: ctrl)
                     }
 
-                    if isConnected, hasSelection,
+                    // A typed link ([[target|deployed-on]]) renders its
+                    // relationship on the edge whenever the edge is lit — that's
+                    // the whole point of an aliased link. Plain links keep the
+                    // old on-selection behaviour: label the neighbour's title.
+                    let relationLabel = linkIndex < viewModel.simLinkLabels.count
+                        ? viewModel.simLinkLabels[linkIndex] : nil
+                    if let relationLabel, !relationLabel.isEmpty, isConnected, linkFilterMatch {
+                        context.draw(
+                            Text(relationLabel)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor((Color(hex: "8a8aff") ?? Theme.accent).opacity(0.85)),
+                            at: ctrl, anchor: .center
+                        )
+                    } else if isConnected, hasSelection,
                        let selIdx = viewModel.selectedNodeIndex,
                        viewModel.simNodes.indices.contains(selIdx) {
                         let source = viewModel.simNodes[si]
