@@ -167,7 +167,7 @@ private final class Coordinator: NSObject {
         for (idx, simNode) in vm.simNodes.enumerated() {
             let r = CGFloat(4 + vm.nodeRadius(at: idx) * 0.8)
             let sphere = SCNSphere(radius: r)
-            let nodeColor = vm.color(for: simNode.type)
+            let nodeColor = vm.color(forNode: simNode)
             let nsColor = PlatformColor(nodeColor)
             sphere.firstMaterial?.diffuse.contents = nsColor
             sphere.firstMaterial?.emission.contents = nsColor.withAlphaComponent(0.25)
@@ -357,8 +357,7 @@ private final class Coordinator: NSObject {
                 #endif
                 scnNode.removeAllActions()
             } else {
-                let nodeType = idx.map { vm.simNodes[$0].type } ?? ""
-                let nodeColor = vm.color(for: nodeType)
+                let nodeColor = idx.map { vm.color(forNode: vm.simNodes[$0]) } ?? vm.color(for: "")
                 geom.firstMaterial?.diffuse.contents = PlatformColor(nodeColor).withAlphaComponent(filterDim)
                 scnNode.removeAllActions()
             }
