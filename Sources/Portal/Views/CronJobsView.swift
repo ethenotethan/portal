@@ -26,6 +26,9 @@ internal struct CronJobsView: View {
     /// Whether to draw an in-body "Jobs" heading. False on the macOS canvas,
     /// whose panel chrome supplies it (see the type doc).
     internal var showsTitle: Bool
+    /// Forwarded to each card's Dataflow chips. Set on the macOS canvas so a chip
+    /// tap highlights the matching node in the Dataflow panel; nil elsewhere.
+    internal var onSelectEndpoint: ((CronDataflowEndpoint) -> Void)?
 
     @ObservedObject private var store = CronRunHistoryStore.shared
     @State private var expandedJobID: String?
@@ -38,9 +41,14 @@ internal struct CronJobsView: View {
     /// true durations the passively-observed store records lack.
     @State private var ledgers: [String: [CronRunRecord]] = [:]
 
-    internal init(vm: CronListViewModel, showsTitle: Bool = true) {
+    internal init(
+        vm: CronListViewModel,
+        showsTitle: Bool = true,
+        onSelectEndpoint: ((CronDataflowEndpoint) -> Void)? = nil
+    ) {
         self.vm = vm
         self.showsTitle = showsTitle
+        self.onSelectEndpoint = onSelectEndpoint
     }
 
     private var grouping: CronCategoryGrouping {
@@ -120,7 +128,8 @@ internal struct CronJobsView: View {
             siblingJobs: vm.jobs,
             supportsRemoveAndEdit: vm.supportsRemoveAndEdit,
             showsCategoryPath: !underCategory,
-            dataflow: vm.dataflow(for: job.id)
+            dataflow: vm.dataflow(for: job.id),
+            onSelectEndpoint: onSelectEndpoint
         )
     }
 

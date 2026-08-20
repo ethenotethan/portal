@@ -145,8 +145,12 @@ internal struct DashboardLayout: Codable, Equatable {
     internal static let chatTurnsKey = "sessionChatCanvasLayout.turns.v1"
     /// The sessions dashboard canvas layout (list + timeline panels).
     internal static let sessionsDashboardKey = "sessionsDashboardLayout.v4"
-    /// The cron activity canvas layout (summary + volume + jobs + timeline + breakdown).
-    internal static let cronDashboardKey = "cronDashboardLayout.v1"
+    /// The cron activity canvas layout (dataflow + summary + volume). Bumped to
+    /// v2 when the default became dataflow-first (dataflow dominant, summary and
+    /// volume beside it; jobs/timeline/per-job dropped from the seed but still
+    /// addable) — the bump discards the stale v1 six-panel arrangement so every
+    /// user gets the new default rather than their persisted old one.
+    internal static let cronDashboardKey = "cronDashboardLayout.v2"
     /// The skills canvas layout (folders + list + detail + stats).
     internal static let skillsDashboardKey = "skillsDashboardLayout.v1"
 
@@ -259,50 +263,41 @@ internal struct DashboardLayout: Codable, Equatable {
     /// artifacts are added by the user or peeled out; while the conversation is
     /// the only panel it runs in solo mode and shows the inline live strip, so a
     /// bare canvas reads exactly like today's transcript.
-    /// First-run arrangement for the **cron activity canvas**:
+    /// First-run arrangement for the **cron activity canvas** — dataflow-first:
     ///
     /// ```
-    /// ┌── Summary ──────────────┬──────────────┐
-    /// ├── Volume ───────────────┤     Jobs     │
-    /// ├── Timeline ─────────────┤              │
-    /// │            Breakdown    │              │
+    /// ┌─────────────────────────┬── Summary ───┐
+    /// │                         ├──────────────┤
+    /// │        Dataflow         │              │
+    /// │                         │    Volume    │
+    /// │                         │              │
     /// └─────────────────────────┴──────────────┘
     /// ```
-    /// Left column stacks the charts (summary strip, volume, timeline,
-    /// breakdown); the jobs list rides full-height on the right.
+    /// The interflow graph is the centerpiece (dominant, left), with the summary
+    /// strip and the volume chart stacked in a right column. Jobs, Timeline, and
+    /// Per-Job are no longer seeded — they stay registered singletons, so they
+    /// appear under "Add panel" for anyone who wants them back.
     internal static func seededCronDashboard(for bounds: CGSize) -> DashboardLayout {
         let w = max(bounds.width, DashboardPanel.minSize.width * 2 + 24)
-        let h = max(bounds.height, DashboardPanel.minSize.height * 3 + 32)
+        let h = max(bounds.height, DashboardPanel.minSize.height * 2 + 24)
         let gap: CGFloat = 8
-        let rightW = max(DashboardPanel.minSize.width, w * 0.34)
+        let rightW = max(DashboardPanel.minSize.width, w * 0.30)
         let leftW = w - rightW - gap * 3
         let rightX = gap + leftW + gap
-        let summaryH: CGFloat = 96
-        let remaining = h - gap * 5 - summaryH
-        let chartH = max(DashboardPanel.minSize.height, remaining / 3)
+        // Summary is a short chip strip. Pin it to the minimum height rather than
+        // a smaller "nice" number: `clamped(to:)` grows any shorter panel back up
+        // to the minimum, which would then push the volume chart down over its
+        // own top edge (same reason noted on the skills seed below).
+        let summaryH = DashboardPanel.minSize.height
         let volumeY = gap + summaryH + gap
-        let timelineY = volumeY + chartH + gap
-        let breakdownY = timelineY + chartH + gap
-        // Right column is split: the jobs list on top, the dataflow graph below
-        // it, so the interflow view is visible on first open rather than hidden
-        // behind an "Add panel" gesture.
-        let rightColH = h - gap * 2
-        let jobsH = max(DashboardPanel.minSize.height, rightColH * 0.52)
-        let graphY = gap + jobsH + gap
-        let graphH = max(DashboardPanel.minSize.height, h - gap - graphY)
+        let volumeH = max(DashboardPanel.minSize.height, h - gap - volumeY)
         return DashboardLayout(panels: [
-            DashboardPanel(kind: .cronSummary,
-                frame: CGRect(x: gap, y: gap, width: leftW, height: summaryH)),
-            DashboardPanel(kind: .cronVolume,
-                frame: CGRect(x: gap, y: volumeY, width: leftW, height: chartH)),
-            DashboardPanel(kind: .cronTimeline,
-                frame: CGRect(x: gap, y: timelineY, width: leftW, height: chartH)),
-            DashboardPanel(kind: .cronBreakdown,
-                frame: CGRect(x: gap, y: breakdownY, width: leftW, height: chartH)),
-            DashboardPanel(kind: .cronJobs,
-                frame: CGRect(x: rightX, y: gap, width: rightW, height: jobsH)),
             DashboardPanel(kind: .cronGraph,
-                frame: CGRect(x: rightX, y: graphY, width: rightW, height: graphH)),
+                frame: CGRect(x: gap, y: gap, width: leftW, height: h - gap * 2)),
+            DashboardPanel(kind: .cronSummary,
+                frame: CGRect(x: rightX, y: gap, width: rightW, height: summaryH)),
+            DashboardPanel(kind: .cronVolume,
+                frame: CGRect(x: rightX, y: volumeY, width: rightW, height: volumeH)),
         ]).clamped(to: bounds)
     }
 

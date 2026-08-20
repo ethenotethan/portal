@@ -232,6 +232,28 @@ internal final class CronGraphViewModel: ObservableObject {
         alpha = max(alpha, dragReheat)
     }
 
+    /// Zoom by `factor` while keeping the graph point under `point` (a canvas
+    /// coordinate) fixed on screen, so pinching or scroll-zoom homes in on what
+    /// the cursor is over rather than the origin. Mirrors the wiki graph's
+    /// `zoomAtPoint`; clamps to a usable range so the graph can't invert or
+    /// vanish. Pan compensates by the zoom delta about that point.
+    internal func zoomAtPoint(factor: CGFloat, around point: CGPoint) {
+        guard factor.isFinite, factor > 0 else { return }
+        let oldZoom = zoom
+        let newZoom = max(0.3, min(5.0, oldZoom * factor))
+        guard newZoom != oldZoom else { return }
+        panOffset.width += point.x * (oldZoom - newZoom)
+        panOffset.height += point.y * (oldZoom - newZoom)
+        zoom = newZoom
+    }
+
+    /// Zoom about the canvas center — the anchor for the +/- buttons, which have
+    /// no cursor to home on.
+    internal func zoomAtCenter(_ factor: CGFloat) {
+        let size = effectiveCanvasSize
+        zoomAtPoint(factor: factor, around: CGPoint(x: size.width / 2, y: size.height / 2))
+    }
+
     // MARK: - Interaction
 
     internal func hitTest(point: CGPoint) -> Int? {
@@ -281,6 +303,15 @@ internal final class CronGraphViewModel: ObservableObject {
         } else {
             selectedNodeIndex = nil
         }
+    }
+
+    /// Select the node whose id matches `id`, highlighting it and dimming the
+    /// rest exactly as a tap would. No-op if no node carries that id. Drives the
+    /// job card's tappable dataflow chips and the expanded view's neighbor
+    /// navigation — both key off the shared `CronGraphNode.id`.
+    internal func selectNode(withID id: String) {
+        guard let idx = simNodes.firstIndex(where: { $0.id == id }) else { return }
+        selectedNodeIndex = idx
     }
 
     // MARK: - Selection helpers
