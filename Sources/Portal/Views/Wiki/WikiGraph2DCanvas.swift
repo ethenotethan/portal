@@ -387,7 +387,7 @@ struct WikiGraph2DCanvas: View {
                     let matchFilter = !filtering || filteredSet.contains(index)
                     let baseOpacity: CGFloat = isConnected ? (matchFilter ? 1.0 : 0.13) : 0.18
                     let r = viewModel.nodeRadius(at: index)
-                    let base = viewModel.color(for: node.type)
+                    let base = viewModel.color(forNode: node)
 
                     // Glow halo — an expensive radial gradient per node. At rest
                     // every connected node carries one (the neural-glow look);
