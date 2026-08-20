@@ -413,7 +413,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5228
+      "line_count": 5227
     },
     {
       "declaration_count": 113,
@@ -765,7 +765,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1472
+      "line_count": 1481
     },
     {
       "declaration_count": 20,
@@ -4724,7 +4724,6 @@
       "authority": "observed",
       "description": "References 2 declaration(s) owned by local-services.",
       "evidence": [
-        "Sources/Portal/ViewModels/WikiGraphViewModel+TypeColors.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
       ],
       "source": "wiki-state",
@@ -4734,7 +4733,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 4
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -4954,7 +4953,7 @@
     "assigned_files": 334,
     "declarations": 993,
     "swift_files": 334,
-    "swift_lines": 97343,
+    "swift_lines": 97351,
     "unassigned_files": []
   },
   "layers": [
@@ -4986,6 +4985,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e320162ba1011bc0eeb0de8925fabc0bdbab3291a6466554fb02ac7af51b9e1f",
+  "source_tree_sha256": "026a1125acd8af7c0ed47f82952c22e2dbd77168b49b3e1a19be67a101140171",
   "title": "Portal Architecture"
 }
