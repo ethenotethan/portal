@@ -749,17 +749,18 @@
       ],
       "description": "Wiki graph and timeline loading, stale-result rejection, filtering, and selection state.",
       "external": false,
-      "file_count": 4,
+      "file_count": 5,
       "files": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+Provenance.swift",
+        "Sources/Portal/ViewModels/WikiGraphViewModel+TypeColors.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
         "Sources/Portal/ViewModels/WikiTimelineViewModel.swift"
       ],
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1375
+      "line_count": 1428
     },
     {
       "declaration_count": 20,
@@ -4714,6 +4715,7 @@
       "authority": "observed",
       "description": "References 2 declaration(s) owned by local-services.",
       "evidence": [
+        "Sources/Portal/ViewModels/WikiGraphViewModel+TypeColors.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
       ],
       "source": "wiki-state",
@@ -4723,7 +4725,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 3
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -4940,10 +4942,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 330,
+    "assigned_files": 331,
     "declarations": 987,
-    "swift_files": 330,
-    "swift_lines": 96301,
+    "swift_files": 331,
+    "swift_lines": 96354,
     "unassigned_files": []
   },
   "layers": [
@@ -4975,6 +4977,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "379c194007679d3c851db8b6371a085e4f4033753da097011547ca80b3694ce7",
+  "source_tree_sha256": "09153469d3c11b43865c1df94cb013db97e547d1074ecc71f4c7d4cd8f06ec00",
   "title": "Portal Architecture"
 }
