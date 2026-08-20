@@ -140,7 +140,7 @@
       "line_count": 6929
     },
     {
-      "declaration_count": 142,
+      "declaration_count": 143,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -169,6 +169,7 @@
         "CronJobsView",
         "CronLegendItem",
         "CronListView",
+        "CronNodeGlyphShape",
         "CronOpenSessionButton",
         "CronRunListPopover",
         "CronRunMetrics",
@@ -344,7 +345,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17008
+      "line_count": 17254
     },
     {
       "declaration_count": 37,
@@ -690,7 +691,7 @@
       "line_count": 4095
     },
     {
-      "declaration_count": 24,
+      "declaration_count": 25,
       "declarations": [
         "ActivityInboxViewModel",
         "CelebrationEvent",
@@ -707,6 +708,7 @@
         "HermesStandardCronManaging",
         "HermesStandardSkillManaging",
         "MilestoneLevel",
+        "NodeGlyph",
         "QuizMode",
         "QuizViewModel",
         "SessionListViewModel",
@@ -738,7 +740,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3684
+      "line_count": 3875
     },
     {
       "declaration_count": 5,
@@ -1061,7 +1063,7 @@
       "line_count": 6551
     },
     {
-      "declaration_count": 229,
+      "declaration_count": 232,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1114,8 +1116,11 @@
         "CronGraph",
         "CronGraphEdge",
         "CronGraphNode",
+        "CronGroupHull",
         "CronJob",
         "CronJobDataflow",
+        "CronNodeGroup",
+        "CronNodeGrouping",
         "CronRunHistoryStore",
         "CronRunRecord",
         "Curriculum",
@@ -1295,7 +1300,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 69,
+      "file_count": 70,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1313,6 +1318,7 @@
         "Sources/Portal/Models/CronCategory.swift",
         "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/CronJob.swift",
+        "Sources/Portal/Models/CronNodeGroup.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DashboardLayout.swift",
         "Sources/Portal/Models/DashboardPanel.swift",
@@ -1370,7 +1376,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11876
+      "line_count": 12017
     },
     {
       "declaration_count": 75,
@@ -3659,7 +3665,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 40 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -3691,7 +3697,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 53
+      "weight": 56
     },
     {
       "authority": "observed",
@@ -3855,7 +3861,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 47 declaration(s) owned by domain-models.",
+      "description": "References 48 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -3887,7 +3893,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 98
+      "weight": 99
     },
     {
       "authority": "observed",
@@ -3952,7 +3958,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 12 declaration(s) owned by operations-state.",
+      "description": "References 13 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
@@ -3976,15 +3982,15 @@
         "CurriculumViewModel",
         "FeedViewModel",
         "FilesBrowserViewModel",
+        "NodeGlyph",
         "QuizMode",
         "QuizViewModel",
         "SessionListViewModel",
-        "SettingsViewModel",
-        "SkillsViewModel"
+        "SettingsViewModel"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 45
+      "weight": 46
     },
     {
       "authority": "observed",
@@ -4944,10 +4950,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 333,
-    "declarations": 988,
-    "swift_files": 333,
-    "swift_lines": 96773,
+    "assigned_files": 334,
+    "declarations": 993,
+    "swift_files": 334,
+    "swift_lines": 97351,
     "unassigned_files": []
   },
   "layers": [
@@ -4979,6 +4985,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "fc95150ea6ad18dba773c46f903cd4c802075b1d9b268813790b067827843fef",
+  "source_tree_sha256": "026a1125acd8af7c0ed47f82952c22e2dbd77168b49b3e1a19be67a101140171",
   "title": "Portal Architecture"
 }

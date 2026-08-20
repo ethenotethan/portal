@@ -38,6 +38,69 @@ internal struct CronGraphViewModelTests {
         #expect(vm.selectedNodeIndex == nil)
     }
 
+    // MARK: - glyph(forKind:)
+
+    @Test("each node kind maps to its own silhouette; unknown kinds fall back to a circle")
+    internal func glyphMapsKindToShape() {
+        let vm = CronGraphViewModel()
+        #expect(vm.glyph(forKind: "cron") == .circle)
+        #expect(vm.glyph(forKind: "source") == .triangle)
+        #expect(vm.glyph(forKind: "artifact") == .cylinder)
+        #expect(vm.glyph(forKind: "sink") == .diamond)
+        // Every real kind is distinct, so shape alone delineates them.
+        let shapes: [CronGraphViewModel.NodeGlyph] = ["cron", "source", "artifact", "sink"].map { vm.glyph(forKind: $0) }
+        #expect(Set(shapes).count == 4)
+        // An unrecognized kind still draws something rather than vanishing.
+        #expect(vm.glyph(forKind: "mystery") == .circle)
+    }
+
+    // MARK: - effectiveGraph / collapse
+
+    private func groupedVM() -> CronGraphViewModel {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                CronGraphNode(id: "job", kind: "cron", type: "cron", label: "job",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "wiki:b", kind: "artifact", type: "wiki", label: "b",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "job", target: "wiki:a", type: "writes"),
+                CronGraphEdge(source: "job", target: "wiki:b", type: "writes"),
+            ]
+        ))
+        return vm
+    }
+
+    @Test("collapsing a scheme folds its members into one super-node and reroutes edges")
+    internal func collapseFoldsMembersAndReroutesEdges() {
+        let vm = groupedVM()
+        #expect(vm.effectiveGraph().nodes.count == 3) // uncollapsed: raw graph
+
+        vm.toggleGroupCollapsed("wiki")
+        let effective = vm.effectiveGraph()
+        // job + one wiki super-node = 2 nodes; the two members are gone.
+        #expect(effective.nodes.count == 2)
+        #expect(effective.nodes.contains { $0.id == "group:wiki" && $0.kind == "group" })
+        #expect(!effective.nodes.contains { $0.id == "wiki:a" })
+        // Both write edges rerouted to the super-node and deduped into one.
+        #expect(effective.edges.count == 1)
+        #expect(effective.edges.first?.target == "group:wiki")
+    }
+
+    @Test("toggling the same scheme twice restores the original graph")
+    internal func collapseRoundTrips() {
+        let vm = groupedVM()
+        vm.toggleGroupCollapsed("wiki")
+        #expect(vm.isGroupCollapsed("wiki"))
+        vm.toggleGroupCollapsed("wiki")
+        #expect(!vm.isGroupCollapsed("wiki"))
+        #expect(vm.effectiveGraph().nodes.count == 3)
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")
