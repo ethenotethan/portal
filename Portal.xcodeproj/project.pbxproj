@@ -155,6 +155,7 @@
 		33F466A63A4E0AFC4B83E6BA /* ViewSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B400AF748A0246E44CCDF6FB /* ViewSnapshot.swift */; };
 		34877DCB107B2FDC88F09709 /* SkillsFilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487EC264D75CE09B8F47C489 /* SkillsFilterState.swift */; };
 		34A11733DEDCA3D557CB3CE4 /* WikiGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA37D2649DCF0677BDD8A2F /* WikiGraphView.swift */; };
+		34F6F3E0F545A1186DAA33C7 /* CronGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A5470443A7B5DACCB8A540 /* CronGraphViewModel.swift */; };
 		3500E229145AE9C0B36F6C00 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3772BAD993D4BE7106C8635C /* Session.swift */; };
 		364C7AD1C0A9F608B8F81306 /* ArtifactCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194FFCA4DF6D02ECF2AE60E3 /* ArtifactCanvasView.swift */; };
 		36CEBB400CC97E6B08BB6F3B /* ThemedSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8492E542387C512C6F6128D8 /* ThemedSegmentedControl.swift */; };
@@ -298,6 +299,7 @@
 		5C74289EDEBFA77C921A9C2E /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
 		5C8E5426D95D11D06CC12A25 /* CurriculumStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694563F263FAF44A54A89E47 /* CurriculumStore.swift */; };
 		5CB2C130C259164504B0C341 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8640118DA7C59B631CDDFC7F /* CelebrationOverlay.swift */; };
+		5D05F1D2FB688F9CBBDB1757 /* CronGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A5470443A7B5DACCB8A540 /* CronGraphViewModel.swift */; };
 		5D13B4AF0AC7BC33CA42C6EE /* HermesStandardClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C731594AC06AB4D5256EBC /* HermesStandardClient.swift */; };
 		5DABDDBD4FB0C1869D588D9E /* SkillMarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A456EA58E0312B70EB9276 /* SkillMarkdownEditor.swift */; };
 		5E6D991941E234EEF68EF071 /* Model3DBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */; };
@@ -307,6 +309,7 @@
 		5EFA082A1D008E829CB597EC /* SpawnNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */; };
 		5F23AC298E3A539F38841072 /* SkillTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEE68099D400B4874FE6079 /* SkillTests.swift */; };
 		5F667BE99C65112B5BACC968 /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79DA5B81AD8A414D281027 /* ReasoningGraphIntegrator.swift */; };
+		5F81B1532F2379AB5EDE1B7D /* FeedPublishedDateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 904A995F61303A169764A4AD /* FeedPublishedDateTests.swift */; };
 		5F8E4B7007A4CD39C9BE70F1 /* WikiEventTypeRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B561CF4288A99A9681A89C94 /* WikiEventTypeRegistryTests.swift */; };
 		5FE5EDDD139B9A351ADFC7BC /* FilesBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD1DBFF7C35F08F7E93A037 /* FilesBrowserView.swift */; };
 		6076A862290BEB15AAEE4E8A /* ReasoningSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FB27BF126B31441AE3F23DE /* ReasoningSummarizer.swift */; };
@@ -406,6 +409,7 @@
 		80EE17C834A0EE96650D9F30 /* TestProcessDataIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCBF659EDB9D4735F1D67E5E /* TestProcessDataIsolationTests.swift */; };
 		8116FB36DCFC6BDA3F43CE56 /* SkillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 779E85EE39689E3891CC1F43 /* SkillStore.swift */; };
 		8119E8254931B745AEB0C4E7 /* PerfCountHarnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B583DDF8C1CC472F01013B3D /* PerfCountHarnessTests.swift */; };
+		81462E0C048B1CC901F28DDC /* GatewayClient+Cron.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */; };
 		8190B38218F297C7FEAFF79B /* GatewayCapabilitiesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1494A95398CE4553074F49AF /* GatewayCapabilitiesStore.swift */; };
 		81C721CEBB643A33B8253A0F /* AgentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A5D8242F20D9F2ADD0AF98 /* AgentModel.swift */; };
 		81CECEE3AD5FC2FAFECAB7DA /* WikiEventTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = F860E18D4A7E50128104782D /* WikiEventTimeline.swift */; };
@@ -554,6 +558,7 @@
 		B097125AA519FA984720AE59 /* CurriculumPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492D1C0208D90468D003850C /* CurriculumPlayerView.swift */; };
 		B115449CBCDDB2C0A968F7F1 /* SessionsStatsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3218DA57BA3CD1EDBF30526 /* SessionsStatsPanel.swift */; };
 		B118AEB153F030DEFC89EC8C /* ArtifactFullscreenWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE7C202452509205D09D3F0 /* ArtifactFullscreenWindow.swift */; };
+		B13C74D2E568D05F5CC797A3 /* CronGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = D679FCAE9EFA152CECED5610 /* CronGraph.swift */; };
 		B15FDDCAE9EEAA40C5720A95 /* ApprovalBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655695FD8715C64EAF819A46 /* ApprovalBanner.swift */; };
 		B19DB794AF3E07EF8C13CAA4 /* PortalProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16268C503F0599DCBE946CA6 /* PortalProgressView.swift */; };
 		B1A09471AB0582E12AEA14AC /* WikiTimelineDateParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC3B5FC2587637739C3FCE8 /* WikiTimelineDateParsingTests.swift */; };
@@ -575,6 +580,7 @@
 		B69FC2BC7033A6DD1DF72303 /* SkillCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9E6D4451DB81A371FC2ADDD /* SkillCategoryTests.swift */; };
 		B6AC8259F872A37FCD3599DD /* SessionRunEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEF801BBAE40165E72C69391 /* SessionRunEvent.swift */; };
 		B6CB336015487A12535F90D6 /* WikiGraphViewModel+EventTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC8375A2FB7873DBD16440A /* WikiGraphViewModel+EventTypes.swift */; };
+		B6DA195EE15705C61F399DB9 /* CronGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = D679FCAE9EFA152CECED5610 /* CronGraph.swift */; };
 		B6E7E70A660B4505DFBC7A22 /* DelegationBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6956A737E63AE0E0454412B6 /* DelegationBatchTests.swift */; };
 		B72787C33B02B4E1E590CEAF /* MonkeyScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1026CF18503BB52CA0CD9B3E /* MonkeyScene.swift */; };
 		B79EC7762772251608DB5240 /* ThoughtGraphNodeRoleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF2B75557ECF4979A6D6457D /* ThoughtGraphNodeRoleTests.swift */; };
@@ -683,6 +689,7 @@
 		D9CAE227C2B3F54CFEFC1D6F /* ChecklistBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4532702E01A34652A0065CAF /* ChecklistBlockView.swift */; };
 		DA0F64BD568B03D7ED003B82 /* SkillStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 779E85EE39689E3891CC1F43 /* SkillStore.swift */; };
 		DA755CF8E27C902DF185BEB2 /* HermesNativeDeepLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543F19F3B800A536FD442798 /* HermesNativeDeepLinkTests.swift */; };
+		DA84DFF8ED916170F029B450 /* CronInterflowGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003541A6EC33B66DEB47BED3 /* CronInterflowGraphView.swift */; };
 		DA9A81327EE848892EF63F09 /* WikiFileTreeSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2838D75C8C76F8F720111F /* WikiFileTreeSidebar.swift */; };
 		DA9E33B100B6C5D0FCF0B30B /* ArtifactPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78FA2A665949614A12ECD37F /* ArtifactPanel.swift */; };
 		DAA5EB1831526B7302C05F5E /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC1CAB2036BF2DECFF141C /* PlatformCompat.swift */; };
@@ -712,6 +719,7 @@
 		E2F850B785A78B791C66C9C1 /* SavedGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7FB945E773A940CC79BB9A /* SavedGateway.swift */; };
 		E37D224091DC0BAD06581BC9 /* SessionsStatsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3218DA57BA3CD1EDBF30526 /* SessionsStatsPanel.swift */; };
 		E4291E47476A22BEA172D4A6 /* WikiGraphViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1453EC6C9E872F3B4AE74ED8 /* WikiGraphViewModel.swift */; };
+		E5050C3EBD0A2105BFB91ABF /* CronInterflowGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003541A6EC33B66DEB47BED3 /* CronInterflowGraphView.swift */; };
 		E5E9C22F633FF48F9C8FE871 /* WikiProvenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D73B551D49F9B90740A06E /* WikiProvenance.swift */; };
 		E66777571CD1892C77BFD07B /* HTMLPointerLockBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */; };
 		E6F2E3A4C1903D95562271ED /* HarnessPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C3C6AD6F18D1A7BA71169E /* HarnessPresentationTests.swift */; };
@@ -796,6 +804,7 @@
 		FD264DC2ED48E9B92D70D647 /* ApprovalBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655695FD8715C64EAF819A46 /* ApprovalBanner.swift */; };
 		FD7A698B6B345BB57124589E /* FileDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A49B242A9B0DF616F62743 /* FileDownloadManager.swift */; };
 		FDBFD6A07A1C18C1977737B9 /* CFAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646A815661E6703CCAF37660 /* CFAuthView.swift */; };
+		FE6C3A5FE182E095E3905C05 /* GatewayClient+Cron.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */; };
 		FE764C0479EC3336AA2D75D3 /* HarnessConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0675DD9D99175430D720D8A4 /* HarnessConnectionStatus.swift */; };
 		FEB9B9FFEF7987765C37A27B /* HeuristicReasoningSummarizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61AA00A60CDA628433B21798 /* HeuristicReasoningSummarizerTests.swift */; };
 		FF74C28FBC418297C0E48D4C /* CelebrationPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827A47D6E1A8CAFE71466664 /* CelebrationPreferencesTests.swift */; };
@@ -830,6 +839,7 @@
 
 /* Begin PBXFileReference section */
 		000F61BAD56D4B9BFE92BF37 /* DatasetBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetBlockView.swift; sourceTree = "<group>"; };
+		003541A6EC33B66DEB47BED3 /* CronInterflowGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronInterflowGraphView.swift; sourceTree = "<group>"; };
 		009ED1D7D107F1CF746F1604 /* Model3DBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model3DBlockView.swift; sourceTree = "<group>"; };
 		00F40D0A962137B83FB5BB65 /* CelebrationStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationStage.swift; sourceTree = "<group>"; };
 		0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeStore.swift; sourceTree = "<group>"; };
@@ -955,6 +965,7 @@
 		437F051D9AE2A5A9F53C5F29 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		4532702E01A34652A0065CAF /* ChecklistBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistBlockView.swift; sourceTree = "<group>"; };
 		467135BD2437BF725C9C314D /* ChatLayoutMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLayoutMath.swift; sourceTree = "<group>"; };
+		46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Cron.swift"; sourceTree = "<group>"; };
 		4771AF472C6EBB3988409889 /* CentaurWorkflowActivityChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWorkflowActivityChart.swift; sourceTree = "<group>"; };
 		47E433D1965080CB220166FB /* QuizSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizSheet.swift; sourceTree = "<group>"; };
 		47F8D52D74A9409A5D5C498E /* SessionsTimelinePlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsTimelinePlot.swift; sourceTree = "<group>"; };
@@ -983,6 +994,7 @@
 		55506D93A7C7BEE29EFCBCA2 /* ExportPrimitives.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportPrimitives.swift; sourceTree = "<group>"; };
 		55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpawnTreeModels.swift; sourceTree = "<group>"; };
 		55F053C2D0C8CADA44499693 /* PanelResizeMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelResizeMathTests.swift; sourceTree = "<group>"; };
+		56A5470443A7B5DACCB8A540 /* CronGraphViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphViewModel.swift; sourceTree = "<group>"; };
 		56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventTimelineCharts.swift; sourceTree = "<group>"; };
 		56BAA567637217364E09C42C /* DiagramExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagramExplorerView.swift; sourceTree = "<group>"; };
 		5753A652B70A5134A6AD1E1E /* SubagentGraphIntegrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubagentGraphIntegrator.swift; sourceTree = "<group>"; };
@@ -1089,6 +1101,7 @@
 		8E5B566C8A4F7E75F031D483 /* WikiGraphCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphCacheTests.swift; sourceTree = "<group>"; };
 		8F3A452B02A2F02596E98F80 /* FileTreeAggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTreeAggregator.swift; sourceTree = "<group>"; };
 		8F5928C59FC1812C7C200B78 /* CronJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJob.swift; sourceTree = "<group>"; };
+		904A995F61303A169764A4AD /* FeedPublishedDateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedPublishedDateTests.swift; sourceTree = "<group>"; };
 		9062A84C9FDE51679DDC8771 /* YouTubeVideoCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeVideoCard.swift; sourceTree = "<group>"; };
 		91A5D8242F20D9F2ADD0AF98 /* AgentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentModel.swift; sourceTree = "<group>"; };
 		92488B8A5F0F6836ED4A3D46 /* SettingsViewModelGatewayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelGatewayTests.swift; sourceTree = "<group>"; };
@@ -1200,6 +1213,7 @@
 		D55A30D466FF8CA0ED2AB869 /* CurriculumCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumCard.swift; sourceTree = "<group>"; };
 		D5798D1367ED862755773F47 /* GitHubLinkCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLinkCard.swift; sourceTree = "<group>"; };
 		D5DC09F6FFCDDB56400D05E0 /* GatewayTransportLeakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayTransportLeakTests.swift; sourceTree = "<group>"; };
+		D679FCAE9EFA152CECED5610 /* CronGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraph.swift; sourceTree = "<group>"; };
 		D73BDAD983F086DF3C33CC0E /* CelebrationManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationManagerTests.swift; sourceTree = "<group>"; };
 		D76A158D6294E4F7FD2887C7 /* LearningRPCSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningRPCSurfaceTests.swift; sourceTree = "<group>"; };
 		D7C731594AC06AB4D5256EBC /* HermesStandardClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStandardClient.swift; sourceTree = "<group>"; };
@@ -1471,6 +1485,7 @@
 				8B53EAA642267D9CC16376E6 /* ChecklistSpec.swift */,
 				E2CFA18C2D0C8F14E47572C1 /* ConceptLinker.swift */,
 				0697099F689730431AFE3573 /* CronCategory.swift */,
+				D679FCAE9EFA152CECED5610 /* CronGraph.swift */,
 				8F5928C59FC1812C7C200B78 /* CronJob.swift */,
 				28B41D9EBC0A420A1FD3B6B3 /* CronRunHistory.swift */,
 				02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */,
@@ -1601,6 +1616,7 @@
 				5EC79355B935477949484956 /* CronCategoryTree.swift */,
 				3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */,
 				CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */,
+				003541A6EC33B66DEB47BED3 /* CronInterflowGraphView.swift */,
 				7A38058167062C45FD8CE7BE /* CronJobCard.swift */,
 				9E5A8B266061DACABE48C7A0 /* CronJobRow.swift */,
 				0F46F03E7FF2A626EE522B64 /* CronJobsView.swift */,
@@ -1679,6 +1695,7 @@
 				694563F263FAF44A54A89E47 /* CurriculumStore.swift */,
 				82A49B242A9B0DF616F62743 /* FileDownloadManager.swift */,
 				C7D16606E646CC305A7A54C3 /* GatewayClient.swift */,
+				46A53D6196EA4E6568BBD951 /* GatewayClient+Cron.swift */,
 				42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */,
 				551309708B19E7D53F5C3283 /* GatewayClient+Files.swift */,
 				57ED21252C123FFEF150C9F1 /* GatewayClient+Learning.swift */,
@@ -1797,6 +1814,7 @@
 				C2105544B09AA9C8FC538BE9 /* CelebrationManager.swift */,
 				6EE0C45339C8364B54C1BA18 /* ChatViewModel.swift */,
 				E2D15C239734F7A06F3A195A /* CronFilterState.swift */,
+				56A5470443A7B5DACCB8A540 /* CronGraphViewModel.swift */,
 				5345D4F493040CE252399895 /* CronListViewModel.swift */,
 				834BA31940CE15D7D075854E /* FeedViewModel.swift */,
 				72EC243EDCBFCF6FAFA350B9 /* FilesBrowserViewModel.swift */,
@@ -1930,6 +1948,7 @@
 				38A470AA4B538860FF1FB6DE /* DocumentTextExtractorTests.swift */,
 				34409CA8CD17A6CC11C0ED47 /* EmptyTranscriptStateTests.swift */,
 				E1FAA201FAF4D2E29AFFF6A8 /* ExtensionsTests.swift */,
+				904A995F61303A169764A4AD /* FeedPublishedDateTests.swift */,
 				6025651F55CDBA530BF0CD2F /* FeedTweetModelTests.swift */,
 				228E5072CFE61349B92B4BF5 /* FileBrowseModelsTests.swift */,
 				4034C1A7BA21EE59A4B2DFF3 /* FileTreeAggregatorTests.swift */,
@@ -2337,6 +2356,9 @@
 				5397B0852563C8C584FBB258 /* CronDashboardSections.swift in Sources */,
 				7F2E9F9F7D7C8DB7D62AE64D /* CronDashboardView.swift in Sources */,
 				46D2C01ABEFA63A7ED87B5D5 /* CronFilterState.swift in Sources */,
+				B6DA195EE15705C61F399DB9 /* CronGraph.swift in Sources */,
+				34F6F3E0F545A1186DAA33C7 /* CronGraphViewModel.swift in Sources */,
+				E5050C3EBD0A2105BFB91ABF /* CronInterflowGraphView.swift in Sources */,
 				2AFF7759D9BB3E7489F80CA0 /* CronJob.swift in Sources */,
 				265F8D8522974266662023B8 /* CronJobCard.swift in Sources */,
 				C0EF72A93046B8EBD595F428 /* CronJobRow.swift in Sources */,
@@ -2386,6 +2408,7 @@
 				870F1D88511AD652EB784A94 /* GatewayAvatarPicker.swift in Sources */,
 				169D466BB9DDA1B39FE1B258 /* GatewayCapabilities.swift in Sources */,
 				8190B38218F297C7FEAFF79B /* GatewayCapabilitiesStore.swift in Sources */,
+				81462E0C048B1CC901F28DDC /* GatewayClient+Cron.swift in Sources */,
 				752935AE988FC005CDDDA785 /* GatewayClient+Feed.swift in Sources */,
 				0274FAA4D26E4D9C0BBBD92A /* GatewayClient+Files.swift in Sources */,
 				8CBC9F1D66FF596B73ED5D10 /* GatewayClient+Learning.swift in Sources */,
@@ -2660,6 +2683,7 @@
 				9D0A8C7563A6D96E07E79E43 /* DocumentTextExtractorTests.swift in Sources */,
 				2A0614B3BA399251F4DBB202 /* EmptyTranscriptStateTests.swift in Sources */,
 				1F040916C806E3FCF9A3EFDE /* ExtensionsTests.swift in Sources */,
+				5F81B1532F2379AB5EDE1B7D /* FeedPublishedDateTests.swift in Sources */,
 				7C18E2BD3F1DBAEC922A0238 /* FeedTweetModelTests.swift in Sources */,
 				C26B08165F12156AC70CF83D /* FileBrowseModelsTests.swift in Sources */,
 				BA7F8E347D777C77D3CB870C /* FileTreeAggregatorTests.swift in Sources */,
@@ -2806,6 +2830,9 @@
 				A59234251340BB8EE8D46A8C /* CronDashboardSections.swift in Sources */,
 				424FA44A6338FD9BC3C22527 /* CronDashboardView.swift in Sources */,
 				967ED93EB3FF210F3A8FF427 /* CronFilterState.swift in Sources */,
+				B13C74D2E568D05F5CC797A3 /* CronGraph.swift in Sources */,
+				5D05F1D2FB688F9CBBDB1757 /* CronGraphViewModel.swift in Sources */,
+				DA84DFF8ED916170F029B450 /* CronInterflowGraphView.swift in Sources */,
 				6D0FABEA1647311473E90F01 /* CronJob.swift in Sources */,
 				5EA4337E9A9161B6DB599CE1 /* CronJobCard.swift in Sources */,
 				D7EB2B6E9B8811AFE16FEB0B /* CronJobRow.swift in Sources */,
@@ -2855,6 +2882,7 @@
 				FC9EB3489575D6687DE8EE93 /* GatewayAvatarPicker.swift in Sources */,
 				FCCB11AFB5B0AB95B8EABFB1 /* GatewayCapabilities.swift in Sources */,
 				5556A9ECDA7693BA7DEE5CDD /* GatewayCapabilitiesStore.swift in Sources */,
+				FE6C3A5FE182E095E3905C05 /* GatewayClient+Cron.swift in Sources */,
 				C5724EC878CA1AFC01A62A27 /* GatewayClient+Feed.swift in Sources */,
 				5415F5621CFF3E13211E17C3 /* GatewayClient+Files.swift in Sources */,
 				47BE094403FA67800112D450 /* GatewayClient+Learning.swift in Sources */,

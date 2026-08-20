@@ -23,6 +23,12 @@ internal final class CronListViewModel {
     var jobs: [CronJob] = []
     var isLoading = false
 
+    /// The cron interflow graph, loaded alongside the job list on the Gateway
+    /// path so a card can list its own inputs, outputs, and side effects. Empty
+    /// on a Standard backend (no `cron.graph` RPC) or against a harness too old
+    /// to answer it — a card then simply omits its dataflow section.
+    internal private(set) var graph: CronGraph = .empty
+
     /// Why the last move/rename failed, or nil when the last one succeeded.
     ///
     /// A failed rename used to be logged and dropped, which made it
@@ -87,7 +93,27 @@ internal final class CronListViewModel {
         } catch {
             log.error("Failed to fetch cron jobs: \(error)")
         }
+        await loadGraph(client: client)
         isLoading = false
+    }
+
+    /// Fetch the interflow graph so cards can show per-job dataflow. Non-fatal
+    /// and independent of the job fetch: a failure (older harness that lacks
+    /// `cron.graph`) leaves the previous graph in place rather than blanking the
+    /// dataflow that other cards are already showing.
+    private func loadGraph(client: GatewayClient) async {
+        do {
+            graph = try await client.cronGraph()
+        } catch {
+            log.error("Failed to fetch cron graph: \(error)")
+        }
+    }
+
+    /// The inputs / outputs / side effects for one job, projected from the
+    /// interflow graph. Empty until the graph loads or when the job declares no
+    /// dataflow.
+    internal func dataflow(for jobID: String) -> CronJobDataflow {
+        graph.dataflow(forCronID: jobID)
     }
 
     /// Run a job immediately. Standard-only — the WebSocket Gateway exposes no

@@ -15,6 +15,7 @@ internal struct CronDashboardCanvas: View {
     @ObservedObject private var store = CronRunHistoryStore.shared
 
     @State private var cronListVM = CronListViewModel()
+    @StateObject private var cronGraphVM = CronGraphViewModel()
     @State private var timeHorizon: CronTimeHorizon = .day
 
     @State private var layout = DashboardLayout()
@@ -208,6 +209,11 @@ internal struct CronDashboardCanvas: View {
             return AnyView(ScrollView { CronTimelineView(records: records, horizon: timeHorizon) })
         case .cronBreakdown:
             return AnyView(ScrollView { CronBreakdownView(records: records) })
+        case .cronGraph:
+            return AnyView(
+                CronInterflowGraphView(viewModel: cronGraphVM)
+                    .environmentObject(gatewayClientWrapper)
+            )
         default:
             return AnyView(PanelEmptyState(
                 icon: "questionmark.square.dashed",
@@ -294,6 +300,7 @@ internal struct CronDashboardCanvas: View {
         registry.register(PanelDescriptor(kind: .cronJobs,      title: "Jobs",      icon: "clock.arrow.circlepath", singleton: true, build: nil))
         registry.register(PanelDescriptor(kind: .cronTimeline,  title: "Timeline",  icon: "timeline.selection",  singleton: true, build: nil))
         registry.register(PanelDescriptor(kind: .cronBreakdown, title: "Per-Job",   icon: "chart.bar.doc.horizontal", singleton: true, build: nil))
+        registry.register(PanelDescriptor(kind: .cronGraph,     title: "Dataflow",  icon: "point.3.connected.trianglepath.dotted", singleton: true, build: nil))
         return registry
     }
 }

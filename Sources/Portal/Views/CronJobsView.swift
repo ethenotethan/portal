@@ -119,7 +119,8 @@ internal struct CronJobsView: View {
             onRename: { name in Task { await vm.renameJob(id: job.id, newName: name) } },
             siblingJobs: vm.jobs,
             supportsRemoveAndEdit: vm.supportsRemoveAndEdit,
-            showsCategoryPath: !underCategory
+            showsCategoryPath: !underCategory,
+            dataflow: vm.dataflow(for: job.id)
         )
     }
 
