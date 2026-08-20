@@ -293,7 +293,7 @@ internal struct DashboardLayoutTests {
         #expect(flame != nil)
     }
 
-    @Test("Seeded cron dashboard tiles all five sections inside the canvas")
+    @Test("Seeded cron dashboard tiles all six sections inside the canvas")
     internal func seededCronDashboardFitsBounds() {
         let bounds = CGSize(width: 1200, height: 800)
         let layout = DashboardLayout.seededCronDashboard(for: bounds)
@@ -306,10 +306,12 @@ internal struct DashboardLayoutTests {
             #expect(panel.frame.width >= DashboardPanel.minSize.width)
             #expect(panel.frame.height >= DashboardPanel.minSize.height)
         }
-        // All five cron lenses are present exactly once.
+        // All six cron lenses are present exactly once.
         let kinds = Set(layout.panels.map(\.kind))
-        #expect(kinds == [.cronSummary, .cronVolume, .cronJobs, .cronTimeline, .cronBreakdown])
-        #expect(layout.panels.count == 5)
+        #expect(kinds == [
+            .cronSummary, .cronVolume, .cronJobs, .cronTimeline, .cronBreakdown, .cronGraph,
+        ])
+        #expect(layout.panels.count == 6)
     }
 
     // MARK: - Chat canvas default
