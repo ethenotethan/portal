@@ -410,7 +410,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5211
+      "line_count": 5228
     },
     {
       "declaration_count": 113,
@@ -749,9 +749,10 @@
       ],
       "description": "Wiki graph and timeline loading, stale-result rejection, filtering, and selection state.",
       "external": false,
-      "file_count": 5,
+      "file_count": 6,
       "files": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
+        "Sources/Portal/ViewModels/WikiGraphViewModel+Interaction.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+Provenance.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+TypeColors.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
@@ -760,7 +761,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1428
+      "line_count": 1472
     },
     {
       "declaration_count": 20,
@@ -4942,10 +4943,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 331,
+    "assigned_files": 332,
     "declarations": 987,
-    "swift_files": 331,
-    "swift_lines": 96354,
+    "swift_files": 332,
+    "swift_lines": 96415,
     "unassigned_files": []
   },
   "layers": [
@@ -4977,6 +4978,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "09153469d3c11b43865c1df94cb013db97e547d1074ecc71f4c7d4cd8f06ec00",
+  "source_tree_sha256": "cd32e268896e875cbe98f1539ec8edae56b5de7f01644ced9adb28fd390f3e4c",
   "title": "Portal Architecture"
 }

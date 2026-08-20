@@ -815,17 +815,6 @@ final class WikiGraphViewModel: ObservableObject {
         if anyDragging { alpha = max(alpha, dragReheat) } else { alpha += (alphaMin - alpha) * alphaDecay }
     }
 
-    func hitTest(point: CGPoint) -> Int? {
-        let mx = (point.width - panOffset.width) / zoom
-        let my = (point.height - panOffset.height) / zoom
-        let modelPoint = CGPoint(x: mx, y: my)
-        for (index, node) in simNodes.enumerated().reversed() {
-            let r = nodeRadius(for: node.type) + 4
-            if abs(node.position.x - modelPoint.x) < r && abs(node.position.y - modelPoint.y) < r { return index }
-        }
-        return nil
-    }
-
     func startDragging(index: Int, at point: CGPoint) {
         guard simNodes.indices.contains(index) else { return }
         simNodes[index].isDragging = true; simNodes[index].velocity = .zero
@@ -842,34 +831,38 @@ final class WikiGraphViewModel: ObservableObject {
     }
 
     func stopDragging(index: Int) { guard simNodes.indices.contains(index) else { return }; simNodes[index].isDragging = false }
-    func updateHover(at point: CGPoint) { let idx = hitTest(point: CGPoint(x: point.x, y: point.y)); if idx != hoveredNodeIndex { hoveredNodeIndex = idx } }
+    internal func updateHover(at point: CGPoint) {
+        noteInteraction()
+        let idx = hitTest(point: CGPoint(x: point.x, y: point.y)); if idx != hoveredNodeIndex { hoveredNodeIndex = idx }
+    }
     func clearHover() { if hoveredNodeIndex != nil { hoveredNodeIndex = nil } }
     var highlightAnchor: Int? { selectedNodeIndex ?? hoveredNodeIndex }
 
-    func handleTap(at point: CGPoint) {
-        if let index = hitTest(point: point) {
-            activateNode(index)
-        } else {
-            deactivateSelection()
+    /// True while the user is actively moving the camera or cursor over the
+    /// canvas — hovering, pinch-zooming, or scroll-panning. The 2D canvas draws
+    /// a cheaper frame while this holds (no ambient per-node glow, no gradient
+    /// body fills, no label pass — the expensive passes on a large graph) and
+    /// restores the full-fidelity render once motion stops. The drag/pan states
+    /// the canvas already tracks locally cover click-drag; this covers the input
+    /// paths that leave `mouseState` idle (hover, magnify, scroll wheel), which
+    /// otherwise repaint every node's radial gradients on each event.
+    @Published internal private(set) var isInteracting = false
+    private var interactionSettleTask: Task<Void, Never>?
+
+    /// Mark a camera/cursor interaction as ongoing and (re)arm the settle timer.
+    /// Publishes only on the leading edge, so a continuous gesture flips the flag
+    /// once, not once per event. Full fidelity returns a beat after the last move.
+    internal func noteInteraction() {
+        if !isInteracting { isInteracting = true }
+        interactionSettleTask?.cancel()
+        interactionSettleTask = Task { @MainActor [weak self] in
+            // Cancellation (a newer interaction re-armed the timer) is the
+            // expected exit — swallow only that, and don't clear the flag.
+            do { try await Task.sleep(nanoseconds: 120_000_000) } catch { return }
+            guard let self, !Task.isCancelled else { return }
+            self.isInteracting = false
         }
     }
-
-    /// Selection-driven reader: tapping a node (2D or 3D) selects it and
-    /// opens the reader over the always-alive graph.
-    func activateNode(_ index: Int) {
-        selectNode(index)
-        openReaderForSelection()
-    }
-
-    /// Tapping empty canvas deselects and closes the reader — back to the
-    /// full-bleed graph. Path/history survive for the sidebar and timeline.
-    func deactivateSelection() {
-        selectedNodeIndex = nil
-        showPageDetail = false
-        readerFullscreen = false
-    }
-
-    func deselectNode() { selectedNodeIndex = nil }
 
     func selectedNodeNeighbors() -> [Int] {
         guard let sel = selectedNodeIndex else { return [] }
@@ -896,6 +889,7 @@ final class WikiGraphViewModel: ObservableObject {
         guard factor.isFinite, factor > 0 else { return }
         let oldZoom = zoom; let newZoom = max(0.3, min(5.0, oldZoom * factor))
         guard newZoom != oldZoom else { return }
+        noteInteraction()
         panOffset.width += point.x * (oldZoom - newZoom)
         panOffset.height += point.y * (oldZoom - newZoom)
         zoom = newZoom

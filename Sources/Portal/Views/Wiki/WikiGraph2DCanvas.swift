@@ -200,6 +200,7 @@ struct WikiGraph2DCanvas: View {
     }
 
     private func handleScrollWheel(_ delta: CGSize) {
+        viewModel.noteInteraction()
         viewModel.panOffset = CGSize(
             width: viewModel.panOffset.width + delta.width,
             height: viewModel.panOffset.height + delta.height
@@ -260,6 +261,13 @@ struct WikiGraph2DCanvas: View {
                 let filteredSet = viewModel.filteredNodeIndices
                 let zoom = viewModel.zoom
                 let pan = viewModel.panOffset
+                // The camera or cursor is moving — click-drag/pan (tracked here)
+                // or hover/pinch/scroll (tracked on the VM). Draw a cheaper frame
+                // while it holds: the ambient per-node glow and gradient body
+                // fills are the dominant per-frame cost on a large graph, and
+                // they're imperceptible mid-motion. Full fidelity returns at rest.
+                let interacting = mouseState == .panning || mouseState == .draggingNode
+                    || viewModel.isInteracting
 
                 // Visible world rect, padded past the largest node glow, for
                 // culling — off-screen nodes/edges cost nothing.
@@ -381,8 +389,12 @@ struct WikiGraph2DCanvas: View {
                     let r = viewModel.nodeRadius(at: index)
                     let base = viewModel.color(for: node.type)
 
-                    // Glow halo
-                    if isConnected {
+                    // Glow halo — an expensive radial gradient per node. At rest
+                    // every connected node carries one (the neural-glow look);
+                    // mid-motion only the hovered/selected anchor keeps its glow
+                    // so a large graph doesn't repaint hundreds of gradients a
+                    // frame while the camera moves.
+                    if isConnected && (!interacting || isSelected || isHovered) {
                         let glowR = r * (isSelected || isHovered ? 3.4 : 2.4)
                         let glowRect = CGRect(x: pos.x - glowR, y: pos.y - glowR,
                                               width: glowR * 2, height: glowR * 2)
@@ -408,16 +420,20 @@ struct WikiGraph2DCanvas: View {
                         )
                     }
 
-                    // Node body — radial gradient for depth
+                    // Node body — a radial gradient for depth at rest; a flat
+                    // fill mid-motion (one more per-node gradient dropped while
+                    // the camera moves, restored the instant it stops).
                     let nodeRect = CGRect(x: pos.x - r, y: pos.y - r, width: r * 2, height: r * 2)
-                    let bodyShading = GraphicsContext.Shading.radialGradient(
-                        Gradient(colors: [
-                            base.opacity(baseOpacity),
-                            base.opacity(baseOpacity * 0.62)
-                        ]),
-                        center: CGPoint(x: pos.x - r * 0.3, y: pos.y - r * 0.3),
-                        startRadius: 0, endRadius: r * 1.4
-                    )
+                    let bodyShading: GraphicsContext.Shading = interacting
+                        ? .color(base.opacity(baseOpacity))
+                        : .radialGradient(
+                            Gradient(colors: [
+                                base.opacity(baseOpacity),
+                                base.opacity(baseOpacity * 0.62)
+                            ]),
+                            center: CGPoint(x: pos.x - r * 0.3, y: pos.y - r * 0.3),
+                            startRadius: 0, endRadius: r * 1.4
+                        )
                     context.fill(Path(ellipseIn: nodeRect), with: bodyShading)
                     context.stroke(
                         Path(ellipseIn: nodeRect),
@@ -427,10 +443,11 @@ struct WikiGraph2DCanvas: View {
                 }
 
                 // ── Labels (screen space, unscaled) ──
-                // Skipped while panning/dragging: hundreds of Text draws are
-                // the priciest pass per frame, and labels only matter once
-                // the camera stops — they pop back on release.
-                guard mouseState != .panning && mouseState != .draggingNode else { return }
+                // Skipped while the camera or cursor moves — click-drag/pan,
+                // hover, pinch-zoom, scroll-pan: hundreds of Text draws are the
+                // priciest pass per frame, and labels only matter once motion
+                // stops, so they pop back a beat after the last move.
+                guard !interacting else { return }
                 context.transform = .identity
                 let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
                 for (index, node) in viewModel.simNodes.enumerated() {
