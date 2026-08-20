@@ -1,41 +1,31 @@
 import SwiftUI
 
-// MARK: - Hierarchical type colors
+// MARK: - Folder-branch colors
 //
-// Page types are author-defined and can be hierarchical folder paths like
-// "entities/chain/base". The fixed `color(for:)` switch only knows the flat
-// hermes/Centaur kinds, so every nested type used to fall through to grey —
-// "entities/chain/base", ".../solana", ".../tempo" were all indistinguishable.
-// Here we group nested types by their parent branch ("entities/chain") and give
-// each distinct branch in the graph its own, unique hue.
+// A page's `type` is author-defined but, in real compendia, flat: "org",
+// "chain", "meta". The hierarchy lives entirely in the file `path`
+// ("entities/chain/base.md", "entities/org/0x.md"). So the graph groups nodes
+// by their folder branch ("entities/chain") and gives each distinct branch its
+// own hue — otherwise the hundreds of flat-typed nodes all collapse to grey.
 
 extension WikiGraphViewModel {
 
-    /// The parent branch of a hierarchical type — "entities/chain/base" →
-    /// "entities/chain" — or nil for a flat type like "entity" with no "/".
-    /// The branch is the grouping key: siblings under it share one color.
-    internal static func branchKey(for type: String) -> String? {
-        let parts = type.split(separator: "/")
+    /// The folder a page lives in, used as its color group: the path's directory
+    /// with the filename dropped — "entities/chain/base.md" → "entities/chain".
+    /// Nil for a root-level page ("index.md") that has no folder. Pages sharing a
+    /// folder share a hue.
+    internal static func branchKey(for path: String) -> String? {
+        let parts = path.split(separator: "/")
         guard parts.count > 1 else { return nil }
         return parts.dropLast().joined(separator: "/")
     }
 
-    /// Color for a type outside the fixed known set: a hierarchical type resolves
-    /// to its branch's color from the per-graph palette; a flat unknown type
-    /// keeps the neutral grey.
-    internal func nestedColor(for type: String) -> Color {
-        if let branch = Self.branchKey(for: type), let color = nestedTypeColors[branch] {
-            return color
-        }
-        return Color(hex: "aaaaaa") ?? .gray
-    }
-
-    /// Give every distinct nested branch in the current graph its own hue, evenly
-    /// spaced around the wheel so no two branches ever collide — the whole point
-    /// being that "entities/chain/*" no longer collapses to grey. Called from
+    /// Give every distinct folder branch in the current graph its own hue, evenly
+    /// spaced around the wheel so no two families collide — the whole point being
+    /// that "entities/chain/*" no longer collapses to grey. Called from
     /// `graph.didSet`.
     internal func rebuildNestedTypeColors() {
-        let branches = Set(graph.pages.compactMap { Self.branchKey(for: $0.type) }).sorted()
+        let branches = Set(graph.pages.compactMap { Self.branchKey(for: $0.path) }).sorted()
         guard !branches.isEmpty else { nestedTypeColors = [:]; return }
         var map: [String: Color] = [:]
         for (offset, branch) in branches.enumerated() {

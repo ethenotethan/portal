@@ -592,64 +592,70 @@ struct WikiGraphViewModelTests {
         #expect(vm.simLinkLabels == ["deployed on"], "the surviving edge keeps its own label, not the dropped one's")
     }
 
-    // MARK: - Hierarchical type colors
+    // MARK: - Folder-branch colors
 
-    private func typedPage(_ id: String, type: String) -> WikiPage {
+    /// A page with a flat `type` and an explicit hierarchical `path` — the real
+    /// compendium shape, where the folder (not the type) carries the hierarchy.
+    private func foldered(_ id: String, type: String, path: String) -> WikiPage {
         WikiPage(
             id: id, title: id.capitalized, type: type, tags: [],
-            path: "\(type)/\(id).md", created: nil, updated: nil, confidence: nil,
+            path: path, created: nil, updated: nil, confidence: nil,
             contested: false, tagPath: [], integrationLinks: []
         )
     }
 
-    /// The grouping key is the parent branch: hierarchical types collapse to the
-    /// path minus their leaf, and a flat type has no branch.
-    @Test("branchKey groups a hierarchical type by its parent path")
+    private func node(path: String, type: String) -> WikiGraphViewModel.SimNode {
+        WikiGraphViewModel.SimNode(id: path, position: .zero, type: type, label: path, path: path)
+    }
+
+    /// The grouping key is the page's folder: a path collapses to its directory,
+    /// and a root-level file has no branch.
+    @Test("branchKey groups a page by its folder path")
     internal func branchKeyDerivation() {
-        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/base") == "entities/chain")
-        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/solana") == "entities/chain")
-        #expect(WikiGraphViewModel.branchKey(for: "entities/token/usdc") == "entities/token")
-        #expect(WikiGraphViewModel.branchKey(for: "orgs/anthropic") == "orgs")
-        #expect(WikiGraphViewModel.branchKey(for: "entity") == nil, "a flat type has no branch")
+        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/base.md") == "entities/chain")
+        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/solana.md") == "entities/chain")
+        #expect(WikiGraphViewModel.branchKey(for: "entities/org/0x.md") == "entities/org")
+        #expect(WikiGraphViewModel.branchKey(for: "SCHEMA.md") == nil, "a root-level file has no folder")
+        #expect(WikiGraphViewModel.branchKey(for: "index.md") == nil)
         #expect(WikiGraphViewModel.branchKey(for: "") == nil)
     }
 
-    /// Every node sharing a branch gets one color; different branches get
-    /// different colors; and no nested type falls back to the neutral grey.
-    @Test("Nested types share a branch color, unique per branch, never grey")
-    internal func nestedTypesAreColoredByBranch() {
+    /// Every node sharing a folder gets one color; different folders get
+    /// different colors; and no foldered node — even one with a flat, unknown
+    /// `type` like "org" or "chain" — falls back to the neutral grey.
+    @Test("Nodes sharing a folder share a color, unique per folder, never grey")
+    internal func foldersAreColoredByBranch() {
         let vm = WikiGraphViewModel()
         vm.graph = WikiGraph(
             pages: [
-                typedPage("base", type: "entities/chain/base"),
-                typedPage("solana", type: "entities/chain/solana"),
-                typedPage("tempo", type: "entities/chain/tempo"),
-                typedPage("usdc", type: "entities/token/usdc"),
+                foldered("base", type: "chain", path: "entities/chain/base.md"),
+                foldered("solana", type: "chain", path: "entities/chain/solana.md"),
+                foldered("0x", type: "org", path: "entities/org/0x.md"),
             ],
             links: []
         )
 
-        let chainBase = vm.color(for: "entities/chain/base")
-        let chainSolana = vm.color(for: "entities/chain/solana")
-        let chainTempo = vm.color(for: "entities/chain/tempo")
-        let token = vm.color(for: "entities/token/usdc")
+        let chainBase = vm.color(forNode: node(path: "entities/chain/base.md", type: "chain"))
+        let chainSolana = vm.color(forNode: node(path: "entities/chain/solana.md", type: "chain"))
+        let org = vm.color(forNode: node(path: "entities/org/0x.md", type: "org"))
         let grey = Color(hex: "aaaaaa")
 
         #expect(chainBase == chainSolana, "siblings under entities/chain share one color")
-        #expect(chainBase == chainTempo, "all chain nodes are the same color")
-        #expect(chainBase != token, "a different branch gets a unique color")
-        #expect(chainBase != grey, "a nested type is no longer the default grey")
-        #expect(token != grey)
+        #expect(chainBase != org, "a different folder gets a unique color")
+        #expect(chainBase != grey, "a foldered flat type is no longer the default grey")
+        #expect(org != grey)
     }
 
-    /// The fixed known kinds keep their colors, and a flat unknown type still
-    /// falls through to grey — only hierarchical types change.
-    @Test("Known and flat-unknown types are unaffected by branch coloring")
-    internal func knownAndFlatTypesUnchanged() {
+    /// A root-level page (no folder) uses the flat-type palette: a known root
+    /// type keeps its color, an unknown one stays grey — and the palette itself
+    /// is unchanged.
+    @Test("Root-level nodes use the flat-type palette")
+    internal func rootLevelNodesUsePalette() {
         let vm = WikiGraphViewModel()
-        vm.graph = WikiGraph(pages: [typedPage("base", type: "entities/chain/base")], links: [])
+        vm.graph = WikiGraph(pages: [foldered("base", type: "chain", path: "entities/chain/base.md")], links: [])
 
-        #expect(vm.color(for: "entity") == Color(hex: "7c7cff"))
-        #expect(vm.color(for: "wat") == Color(hex: "aaaaaa"), "a flat unknown type stays grey")
+        #expect(vm.color(forNode: node(path: "index.md", type: "meta")) == Color(hex: "5ad4e6"), "a known root type keeps its color")
+        #expect(vm.color(forNode: node(path: "wat.md", type: "wat")) == Color(hex: "aaaaaa"), "an unknown root type stays grey")
+        #expect(vm.color(for: "entity") == Color(hex: "7c7cff"), "the flat palette is unchanged")
     }
 }

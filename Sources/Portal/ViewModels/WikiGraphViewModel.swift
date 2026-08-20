@@ -164,6 +164,10 @@ final class WikiGraphViewModel: ObservableObject {
         var isDragging = false
         let type: String
         let label: String
+        /// The page's file path, e.g. "entities/chain/base.md". The graph colors
+        /// nodes by their folder branch (see `color(forNode:)`), which is derived
+        /// from this rather than `type` — real compendia keep `type` flat.
+        internal let path: String
     }
 
     @Published var simNodes: [SimNode] = []
@@ -214,11 +218,25 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var panOffset: CGSize = .zero
     var canvasSize: CGSize = .zero
 
-    /// Per-graph color for each hierarchical type branch (e.g. "entities/chain"),
-    /// rebuilt whenever `graph` changes. Every branch present in the graph gets
-    /// its own hue so no two families collide; empty when there are no nested
-    /// types. Rebuilt in `rebuildNestedTypeColors` (WikiGraphViewModel+TypeColors).
+    /// Per-graph color for each folder branch (e.g. "entities/chain"), rebuilt
+    /// whenever `graph` changes. Every branch present in the graph gets its own
+    /// hue so no two families collide; empty when no page lives in a folder.
+    /// Rebuilt in `rebuildNestedTypeColors` (WikiGraphViewModel+TypeColors).
     internal var nestedTypeColors: [String: Color] = [:]
+
+    /// The fill for a graph node: its folder-branch hue when the page sits in a
+    /// colored folder, else the flat-type palette below.
+    ///
+    /// The graph colors by folder because that's where a real compendium's
+    /// hierarchy lives — every `type` is flat ("org", "chain", "meta") while the
+    /// nesting is entirely in the path ("entities/chain/base.md"). Keying color
+    /// off `type` left ~all nodes grey; keying off the path folder groups them.
+    internal func color(forNode node: SimNode) -> Color {
+        if let branch = Self.branchKey(for: node.path), let color = nestedTypeColors[branch] {
+            return color
+        }
+        return color(for: node.type)
+    }
 
     func color(for type: String) -> Color {
         switch type {
@@ -232,7 +250,7 @@ final class WikiGraphViewModel: ObservableObject {
         case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
         case "project": return Color(hex: "e8a838")!
         case "goal": return Color(hex: "ff6b9d")!
-        default: return nestedColor(for: type)
+        default: return Color(hex: "aaaaaa")!
         }
     }
 
@@ -651,7 +669,7 @@ final class WikiGraphViewModel: ObservableObject {
         simNodes = graph.pages.map { page in
             let angle = Double.random(in: 0...(2 * .pi), using: &rng)
             let dist = Double.random(in: 50...200, using: &rng)
-            return SimNode(id: page.id, position: CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist), type: page.type, label: page.title)
+            return SimNode(id: page.id, position: CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist), type: page.type, label: page.title, path: page.path)
         }
         finishSetup()
         settleAndReveal()
@@ -665,7 +683,8 @@ final class WikiGraphViewModel: ObservableObject {
             let phi = Float.random(in: 0...(2 * .pi), using: &rng)
             let theta = Float.random(in: (-Float.pi / 2)...(Float.pi / 2), using: &rng)
             let r = Float.random(in: (spread * 0.4)...spread, using: &rng)
-            return SimNode(id: page.id, position: .zero, position3D: SIMD3(r * cos(theta) * cos(phi), r * cos(theta) * sin(phi), r * sin(theta)), type: page.type, label: page.title)
+            let position3D = SIMD3(r * cos(theta) * cos(phi), r * cos(theta) * sin(phi), r * sin(theta))
+            return SimNode(id: page.id, position: .zero, position3D: position3D, type: page.type, label: page.title, path: page.path)
         }
         finishSetup()
     }
