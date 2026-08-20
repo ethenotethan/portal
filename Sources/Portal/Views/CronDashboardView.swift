@@ -7,6 +7,7 @@ struct CronDashboardView: View {
     @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
     @ObservedObject var store: CronRunHistoryStore = .shared
     @State private var cronListVM = CronListViewModel()
+    @StateObject private var cronGraphVM = CronGraphViewModel()
     @State private var timeHorizon: CronTimeHorizon = .day
 
     private var filteredRecords: [CronRunRecord] {
@@ -29,6 +30,14 @@ struct CronDashboardView: View {
                     // follow once the user scrolls.
                     CronJobsView(vm: cronListVM)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    // The dataflow graph rides here on the cron surface itself,
+                    // between the jobs list and the activity metrics — a fixed
+                    // height so it reads as a section inside the scroll rather
+                    // than fighting the outer scroll for drag gestures.
+                    CronInterflowGraphView(viewModel: cronGraphVM)
+                        .environmentObject(gatewayClientWrapper)
+                        .frame(height: 360)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     CronSummaryView(records: filteredRecords)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
                     CronVolumeView(records: filteredRecords, horizon: timeHorizon)

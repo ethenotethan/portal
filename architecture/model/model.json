@@ -140,7 +140,7 @@
       "line_count": 6929
     },
     {
-      "declaration_count": 138,
+      "declaration_count": 141,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -160,6 +160,8 @@
         "CronDashboardCanvas",
         "CronDashboardView",
         "CronEmptyChart",
+        "CronGraphCanvas",
+        "CronInterflowGraphView",
         "CronJobCard",
         "CronJobDetailView",
         "CronJobRow",
@@ -222,6 +224,7 @@
         "LearningStatTile",
         "Link",
         "Mode",
+        "MouseState",
         "NativeVideoPlayer",
         "Node",
         "PulseEffect",
@@ -283,7 +286,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 49,
+      "file_count": 50,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -292,6 +295,7 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
         "Sources/Portal/Views/CronJobsView.swift",
@@ -338,7 +342,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 16062
+      "line_count": 16684
     },
     {
       "declaration_count": 37,
@@ -684,12 +688,13 @@
       "line_count": 4095
     },
     {
-      "declaration_count": 22,
+      "declaration_count": 24,
       "declarations": [
         "ActivityInboxViewModel",
         "CelebrationEvent",
         "CelebrationManager",
         "CronFilterState",
+        "CronGraphViewModel",
         "CronListViewModel",
         "CurriculumViewModel",
         "DiagnosticTest",
@@ -704,6 +709,7 @@
         "QuizViewModel",
         "SessionListViewModel",
         "SettingsViewModel",
+        "SimNode",
         "SkillsViewModel",
         "SortOrder",
         "SoundEffects",
@@ -711,11 +717,12 @@
       ],
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
       "external": false,
-      "file_count": 12,
+      "file_count": 13,
       "files": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
         "Sources/Portal/ViewModels/CronFilterState.swift",
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
@@ -729,7 +736,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3234
+      "line_count": 3653
     },
     {
       "declaration_count": 5,
@@ -829,9 +836,10 @@
       ],
       "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
       "external": false,
-      "file_count": 12,
+      "file_count": 13,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
+        "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
         "Sources/Portal/Services/GatewayClient+Files.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
@@ -847,7 +855,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4687
+      "line_count": 4747
     },
     {
       "declaration_count": 13,
@@ -1049,7 +1057,7 @@
       "line_count": 6551
     },
     {
-      "declaration_count": 224,
+      "declaration_count": 229,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1098,7 +1106,12 @@
         "CronCategoryGrouping",
         "CronCategoryNode",
         "CronCategoryRow",
+        "CronDataflowEndpoint",
+        "CronGraph",
+        "CronGraphEdge",
+        "CronGraphNode",
         "CronJob",
+        "CronJobDataflow",
         "CronRunHistoryStore",
         "CronRunRecord",
         "Curriculum",
@@ -1278,7 +1291,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 68,
+      "file_count": 69,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1294,6 +1307,7 @@
         "Sources/Portal/Models/ChecklistSpec.swift",
         "Sources/Portal/Models/ConceptLinker.swift",
         "Sources/Portal/Models/CronCategory.swift",
+        "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/CronJob.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DashboardLayout.swift",
@@ -1352,7 +1366,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11741
+      "line_count": 11881
     },
     {
       "declaration_count": 75,
@@ -3277,9 +3291,10 @@
     },
     {
       "authority": "observed",
-      "description": "References 57 declaration(s) owned by domain-models.",
+      "description": "References 60 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
+        "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
         "Sources/Portal/Services/GatewayClient+Files.swift",
         "Sources/Portal/Services/GatewayClient+Learning.swift",
@@ -3298,17 +3313,17 @@
         "AnyCodable",
         "ArtifactRevision",
         "ChatMessage",
+        "CronGraph",
+        "CronGraphEdge",
+        "CronGraphNode",
         "CronJob",
         "CronRunHistoryStore",
         "CronRunRecord",
-        "Curriculum",
-        "Direction",
-        "DroppedEventReason",
-        "Event"
+        "Curriculum"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 68
+      "weight": 72
     },
     {
       "authority": "observed",
@@ -3640,11 +3655,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 35 declaration(s) owned by domain-models.",
+      "description": "References 40 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
         "Sources/Portal/ViewModels/CronFilterState.swift",
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
@@ -3652,8 +3668,7 @@
         "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
         "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift",
         "Sources/Portal/ViewModels/SessionListViewModel.swift",
-        "Sources/Portal/ViewModels/SettingsViewModel.swift",
-        "Sources/Portal/ViewModels/SkillsViewModel.swift"
+        "Sources/Portal/ViewModels/SettingsViewModel.swift"
       ],
       "source": "operations-state",
       "symbols": [
@@ -3672,13 +3687,14 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 47
+      "weight": 53
     },
     {
       "authority": "observed",
       "description": "References 5 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
@@ -3697,7 +3713,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -3758,11 +3774,11 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
         "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift",
-        "Sources/Portal/Views/CronSearchBar.swift"
+        "Sources/Portal/Views/CronListView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3771,7 +3787,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 49
+      "weight": 50
     },
     {
       "authority": "observed",
@@ -3835,7 +3851,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 44 declaration(s) owned by domain-models.",
+      "description": "References 47 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -3844,11 +3860,11 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
         "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift",
-        "Sources/Portal/Views/CronSearchBar.swift"
+        "Sources/Portal/Views/CronListView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3863,17 +3879,18 @@
         "CronCategory",
         "CronCategoryGrouping",
         "CronCategoryNode",
-        "CronJob"
+        "CronDataflowEndpoint"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 93
+      "weight": 97
     },
     {
       "authority": "observed",
       "description": "References 4 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronSessionView.swift",
         "Sources/Portal/Views/FeedView.swift",
@@ -3883,8 +3900,7 @@
         "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
         "Sources/Portal/Views/Quiz/FlashcardDeckView.swift",
         "Sources/Portal/Views/Quiz/FlashcardView.swift",
-        "Sources/Portal/Views/Quiz/QuizSheet.swift",
-        "Sources/Portal/Views/SessionExportMenu.swift"
+        "Sources/Portal/Views/Quiz/QuizSheet.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3895,7 +3911,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 19
+      "weight": 20
     },
     {
       "authority": "observed",
@@ -3932,11 +3948,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 11 declaration(s) owned by operations-state.",
+      "description": "References 12 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
@@ -3944,13 +3961,13 @@
         "Sources/Portal/Views/FeedView.swift",
         "Sources/Portal/Views/Files/FilesBrowserView.swift",
         "Sources/Portal/Views/Learning/CurriculumPlayerView.swift",
-        "Sources/Portal/Views/Learning/LearningDashboardView.swift",
-        "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift"
+        "Sources/Portal/Views/Learning/LearningDashboardView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
         "ActivityInboxViewModel",
         "CronFilterState",
+        "CronGraphViewModel",
         "CronListViewModel",
         "CurriculumViewModel",
         "FeedViewModel",
@@ -3963,7 +3980,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 42
+      "weight": 44
     },
     {
       "authority": "observed",
@@ -3971,6 +3988,7 @@
       "evidence": [
         "Sources/Portal/Views/CentaurWorkflowsView.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronSessionView.swift",
         "Sources/Portal/Views/FeedView.swift",
@@ -3979,8 +3997,7 @@
         "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
         "Sources/Portal/Views/MissionControl/SessionsDetailPanel.swift",
         "Sources/Portal/Views/SessionExportMenu.swift",
-        "Sources/Portal/Views/SessionListView.swift",
-        "Sources/Portal/Views/Skills/SkillsCanvasView.swift"
+        "Sources/Portal/Views/SessionListView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3997,7 +4014,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 27
+      "weight": 28
     },
     {
       "authority": "observed",
@@ -4044,6 +4061,21 @@
       "target": "utilities",
       "type": "references",
       "weight": 7
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by wiki-ui.",
+      "evidence": [
+        "Sources/Portal/Views/CronInterflowGraphView.swift"
+      ],
+      "source": "operations-ui",
+      "symbols": [
+        "GraphMouseInterceptor",
+        "WikiGraph2DCanvas"
+      ],
+      "target": "wiki-ui",
+      "type": "references",
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -4908,10 +4940,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 326,
-    "declarations": 977,
-    "swift_files": 326,
-    "swift_lines": 95060,
+    "assigned_files": 330,
+    "declarations": 987,
+    "swift_files": 330,
+    "swift_lines": 96301,
     "unassigned_files": []
   },
   "layers": [
@@ -4943,6 +4975,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "ecd599cd69b3c4845569e67467a8c31b049cf68e12e6c1cff0fd15308ec3a091",
+  "source_tree_sha256": "379c194007679d3c851db8b6371a085e4f4033753da097011547ca80b3694ce7",
   "title": "Portal Architecture"
 }

@@ -283,6 +283,13 @@ internal struct DashboardLayout: Codable, Equatable {
         let volumeY = gap + summaryH + gap
         let timelineY = volumeY + chartH + gap
         let breakdownY = timelineY + chartH + gap
+        // Right column is split: the jobs list on top, the dataflow graph below
+        // it, so the interflow view is visible on first open rather than hidden
+        // behind an "Add panel" gesture.
+        let rightColH = h - gap * 2
+        let jobsH = max(DashboardPanel.minSize.height, rightColH * 0.52)
+        let graphY = gap + jobsH + gap
+        let graphH = max(DashboardPanel.minSize.height, h - gap - graphY)
         return DashboardLayout(panels: [
             DashboardPanel(kind: .cronSummary,
                 frame: CGRect(x: gap, y: gap, width: leftW, height: summaryH)),
@@ -293,7 +300,9 @@ internal struct DashboardLayout: Codable, Equatable {
             DashboardPanel(kind: .cronBreakdown,
                 frame: CGRect(x: gap, y: breakdownY, width: leftW, height: chartH)),
             DashboardPanel(kind: .cronJobs,
-                frame: CGRect(x: rightX, y: gap, width: rightW, height: h - gap * 2)),
+                frame: CGRect(x: rightX, y: gap, width: rightW, height: jobsH)),
+            DashboardPanel(kind: .cronGraph,
+                frame: CGRect(x: rightX, y: graphY, width: rightW, height: graphH)),
         ]).clamped(to: bounds)
     }
 

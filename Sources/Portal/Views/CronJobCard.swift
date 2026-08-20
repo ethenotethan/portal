@@ -37,6 +37,11 @@ internal struct CronJobCard: View {
     /// Mirrors `CronJobRow.showsCategoryPath`, so a job reads the same way on
     /// the Cron list page and on the activity board's Jobs pane.
     internal var showsCategoryPath = true
+    /// The job's inputs, outputs, and side effects, projected from the interflow
+    /// graph. The Dataflow section is hidden when this is empty (graph not loaded,
+    /// or a job that declares none). Passed in rather than derived here so the
+    /// card stays a pure function of its inputs and never reaches for a graph.
+    internal var dataflow: CronJobDataflow = .empty
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -58,7 +63,8 @@ internal struct CronJobCard: View {
         onRename: @escaping (String) -> Void,
         siblingJobs: [CronJob] = [],
         supportsRemoveAndEdit: Bool = true,
-        showsCategoryPath: Bool = true
+        showsCategoryPath: Bool = true,
+        dataflow: CronJobDataflow = .empty
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -72,6 +78,7 @@ internal struct CronJobCard: View {
         self.siblingJobs = siblingJobs
         self.supportsRemoveAndEdit = supportsRemoveAndEdit
         self.showsCategoryPath = showsCategoryPath
+        self.dataflow = dataflow
     }
 
     private var displayJob: CronJob { job }
@@ -105,6 +112,7 @@ internal struct CronJobCard: View {
                         )
                     }
                     detailRows
+                    dataflowSection
                     promptSection
                     recentRuns
                     introspectionSection
@@ -338,6 +346,86 @@ internal struct CronJobCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 5)
+    }
+
+    // MARK: - Dataflow
+
+    /// The job's inputs, outputs, and side effects — the same relationships the
+    /// interflow graph draws, listed at the single-job level so the card answers
+    /// "what does this cron touch?" without opening the graph. Hidden when the
+    /// job declares no dataflow (or the graph hasn't loaded).
+    @ViewBuilder
+    private var dataflowSection: some View {
+        if !dataflow.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Dataflow")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                dataflowRow("Reads", dataflow.reads, icon: "arrow.down.to.line")
+                dataflowRow("Writes", dataflow.writes, icon: "arrow.up.to.line")
+                dataflowRow("Side effects", dataflow.sideEffects, icon: "bolt")
+                dataflowRow("Feeds", dataflow.feeds, icon: "arrow.turn.down.right")
+                dataflowRow("Fed by", dataflow.fedBy, icon: "arrow.turn.left.up")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    @ViewBuilder
+    private func dataflowRow(_ label: String, _ items: [CronDataflowEndpoint], icon: String) -> some View {
+        if !items.isEmpty {
+            HStack(alignment: .top, spacing: 8) {
+                Label(label, systemImage: icon)
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: 96, alignment: .leading)
+                FlowLayout(spacing: 5) {
+                    ForEach(items) { endpoint in
+                        endpointChip(endpoint)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func endpointChip(_ endpoint: CronDataflowEndpoint) -> some View {
+        let tint = dataflowColor(forKind: endpoint.kind)
+        return HStack(spacing: 4) {
+            Circle().fill(tint).frame(width: 6, height: 6)
+            Text(endpoint.label)
+                .font(.caption2)
+                .foregroundStyle(Theme.primary)
+                .lineLimit(1)
+            if !endpoint.type.isEmpty, endpoint.type != endpoint.kind, endpoint.type != "cron" {
+                Text(endpoint.type)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(tint.opacity(0.15), in: Capsule())
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(Theme.background, in: Capsule())
+        .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
+    }
+
+    /// The graph's node palette, mirrored so a chip reads the same color as its
+    /// node on the interflow graph — cron blue, source green, artifact amber,
+    /// sink pink.
+    private func dataflowColor(forKind kind: String) -> Color {
+        switch kind {
+        case "cron": return Color(hex: "7c9cff") ?? .blue
+        case "source": return Color(hex: "5cb85c") ?? .green
+        case "artifact": return Color(hex: "e8a838") ?? .orange
+        case "sink": return Color(hex: "ff6b9d") ?? .pink
+        default: return Theme.secondary
+        }
     }
 
     private var promptSection: some View {

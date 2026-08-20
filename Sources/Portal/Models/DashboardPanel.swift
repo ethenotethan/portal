@@ -87,6 +87,10 @@ internal struct PanelKind: RawRepresentable, Codable, Hashable, Identifiable {
     internal static let cronTimeline = PanelKind(rawValue: "cronTimeline")
     /// Per-job OK/Error split bar + success-rate + count rows.
     internal static let cronBreakdown = PanelKind(rawValue: "cronBreakdown")
+    /// Force-directed dataflow graph of jobs ⇄ the sources they read, artifacts
+    /// they write, and sinks they drive — crons never call each other, so this
+    /// is the one view that shows how they interflow through shared data.
+    internal static let cronGraph = PanelKind(rawValue: "cronGraph")
 
     // MARK: Skills canvas lenses (host-rendered singletons)
 
