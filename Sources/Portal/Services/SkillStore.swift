@@ -1,5 +1,5 @@
 import Foundation
-import SwiftUI
+import Observation
 import os
 
 private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "SkillStore")
