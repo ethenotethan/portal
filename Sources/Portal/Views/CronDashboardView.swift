@@ -9,6 +9,7 @@ struct CronDashboardView: View {
     @State private var cronListVM = CronListViewModel()
     @StateObject private var cronGraphVM = CronGraphViewModel()
     @State private var timeHorizon: CronTimeHorizon = .day
+    @State private var isGraphExpanded = false
 
     private var filteredRecords: [CronRunRecord] {
         CronRunMetrics.filter(store.allRecordsSorted(), horizon: timeHorizon)
@@ -34,20 +35,17 @@ struct CronDashboardView: View {
                     // between the jobs list and the activity metrics — a fixed
                     // height so it reads as a section inside the scroll rather
                     // than fighting the outer scroll for drag gestures.
-                    CronInterflowGraphView(viewModel: cronGraphVM)
-                        .environmentObject(gatewayClientWrapper)
-                        .frame(height: 360)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    CronInterflowGraphView(
+                        viewModel: cronGraphVM,
+                        onExpand: { isGraphExpanded = true }
+                    )
+                    .environmentObject(gatewayClientWrapper)
+                    .frame(height: 360)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     CronSummaryView(records: filteredRecords)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
                     CronVolumeView(records: filteredRecords, horizon: timeHorizon)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    if !filteredRecords.isEmpty {
-                        CronTimelineView(records: filteredRecords, horizon: timeHorizon)
-                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                        CronBreakdownView(records: filteredRecords)
-                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -55,6 +53,16 @@ struct CronDashboardView: View {
             .refreshable { await refreshData() }
         }
         .background(Theme.background)
+        #if !os(macOS)
+        .fullScreenCover(isPresented: $isGraphExpanded) {
+            CronDataflowExpandedView(
+                graphVM: cronGraphVM,
+                listVM: cronListVM,
+                onDismiss: { isGraphExpanded = false }
+            )
+            .environmentObject(gatewayClientWrapper)
+        }
+        #endif
         .task { await refreshData() }
     }
 
