@@ -345,7 +345,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17146
+      "line_count": 17254
     },
     {
       "declaration_count": 37,
@@ -740,7 +740,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3709
+      "line_count": 3875
     },
     {
       "declaration_count": 5,
@@ -1063,7 +1063,7 @@
       "line_count": 6551
     },
     {
-      "declaration_count": 229,
+      "declaration_count": 232,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1116,8 +1116,11 @@
         "CronGraph",
         "CronGraphEdge",
         "CronGraphNode",
+        "CronGroupHull",
         "CronJob",
         "CronJobDataflow",
+        "CronNodeGroup",
+        "CronNodeGrouping",
         "CronRunHistoryStore",
         "CronRunRecord",
         "Curriculum",
@@ -1297,7 +1300,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 69,
+      "file_count": 70,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1315,6 +1318,7 @@
         "Sources/Portal/Models/CronCategory.swift",
         "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/CronJob.swift",
+        "Sources/Portal/Models/CronNodeGroup.swift",
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DashboardLayout.swift",
         "Sources/Portal/Models/DashboardPanel.swift",
@@ -1372,7 +1376,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11876
+      "line_count": 12017
     },
     {
       "declaration_count": 75,
@@ -3661,7 +3665,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 40 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -3693,7 +3697,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 53
+      "weight": 56
     },
     {
       "authority": "observed",
@@ -3857,7 +3861,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 47 declaration(s) owned by domain-models.",
+      "description": "References 48 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -3889,7 +3893,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 98
+      "weight": 99
     },
     {
       "authority": "observed",
@@ -4947,10 +4951,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 333,
-    "declarations": 990,
-    "swift_files": 333,
-    "swift_lines": 96928,
+    "assigned_files": 334,
+    "declarations": 993,
+    "swift_files": 334,
+    "swift_lines": 97343,
     "unassigned_files": []
   },
   "layers": [
@@ -4982,6 +4986,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "13d5217cc593616f4227d62945256faedae33564e0fa2aa78ff50291326a58fb",
+  "source_tree_sha256": "e320162ba1011bc0eeb0de8925fabc0bdbab3291a6466554fb02ac7af51b9e1f",
   "title": "Portal Architecture"
 }

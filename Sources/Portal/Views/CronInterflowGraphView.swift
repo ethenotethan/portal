@@ -196,6 +196,7 @@ internal struct CronInterflowGraphView: View {
                         }
                     }
                     categoryLegendRows
+                    groupToggleRows
                 }
                 .padding(10)
                 .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
@@ -232,6 +233,46 @@ internal struct CronInterflowGraphView: View {
                         .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
                 }
+            }
+        }
+    }
+
+    /// One toggle per scheme group (≥2 members): fold the cluster into a single
+    /// super-node or unfold it. The chevron shows the current state; the swatch
+    /// carries the group's tint so the row, its hull, and its super-node read as
+    /// one thing. Omitted when the graph has no multi-member scheme.
+    @ViewBuilder
+    private var groupToggleRows: some View {
+        let groups = viewModel.groups
+        if !groups.isEmpty {
+            Divider()
+                .overlay(Theme.secondary.opacity(0.2))
+                .padding(.vertical, 1)
+            Text("Groups")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Theme.secondary.opacity(0.7))
+            ForEach(groups) { group in
+                let collapsed = viewModel.isGroupCollapsed(group.key)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { viewModel.toggleGroupCollapsed(group.key) }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: collapsed ? "chevron.right.circle.fill" : "chevron.down.circle")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(viewModel.groupColor(forKey: group.key))
+                        Text(group.key)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(1)
+                        Text("\(group.memberIDs.count)")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Theme.secondary.opacity(0.6))
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(collapsed ? "Expand the \(group.key) cluster" : "Collapse the \(group.key) cluster")
             }
         }
     }
@@ -512,11 +553,13 @@ private struct CronGraphCanvas: View {
                 context.translateBy(x: pan.width, y: pan.height)
                 context.scaleBy(x: zoom, y: zoom)
 
+                drawHulls(context: context, hasSelection: hasSelection)
                 drawEdges(context: context, hasSelection: hasSelection)
                 drawNodes(context: context, hasSelection: hasSelection)
 
                 guard mouseState != .panning && mouseState != .draggingNode else { return }
                 context.transform = .identity
+                drawHullLabels(context: &context, size: size)
                 drawLabels(context: &context, size: size, hasSelection: hasSelection)
             }
             .onAppear {
@@ -539,6 +582,54 @@ private struct CronGraphCanvas: View {
                     viewModel.fitToView()
                 }
             }
+        }
+    }
+
+    /// Soft scheme boundaries behind the graph — the "circle around the inner
+    /// circles". Only expanded groups draw a hull; a collapsed one is already a
+    /// single super-node. Dimmed along with its members when a selection is
+    /// active elsewhere, so the highlighted subgraph stays the focus.
+    private func drawHulls(context: GraphicsContext, hasSelection: Bool) {
+        let byID = Dictionary(viewModel.simNodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for group in viewModel.groups where !viewModel.isGroupCollapsed(group.key) {
+            let members = group.memberIDs.compactMap { byID[$0] }
+            guard members.count >= 2 else { continue }
+            let points = members.map(\.position)
+            let padding = (members.map { viewModel.radius(forKind: $0.kind) }.max() ?? 8) + 16
+            let path = CronGroupHull.path(around: points, padding: padding)
+            let anyConnected = !hasSelection || members.contains { member in
+                viewModel.simNodes.firstIndex { $0.id == member.id }.map { viewModel.isNodeConnectedToSelection($0) } ?? false
+            }
+            let tint = viewModel.groupColor(forKey: group.key)
+            let dim: CGFloat = anyConnected ? 1 : 0.3
+            context.fill(path, with: .color(tint.opacity(0.08 * dim)))
+            context.stroke(path, with: .color(tint.opacity(0.4 * dim)),
+                           style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+        }
+    }
+
+    /// Group names above each hull, drawn in screen space so the label stays a
+    /// constant size regardless of zoom — same reasoning as the node labels.
+    private func drawHullLabels(context: inout GraphicsContext, size: CGSize) {
+        let byID = Dictionary(viewModel.simNodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for group in viewModel.groups where !viewModel.isGroupCollapsed(group.key) {
+            let members = group.memberIDs.compactMap { byID[$0] }
+            guard members.count >= 2 else { continue }
+            let minX = members.map { $0.position.x }.min() ?? 0
+            let maxX = members.map { $0.position.x }.max() ?? 0
+            let minY = members.map { $0.position.y }.min() ?? 0
+            let anchorGraph = CGPoint(x: (minX + maxX) / 2, y: minY)
+            let screen = CGPoint(
+                x: anchorGraph.x * viewModel.zoom + viewModel.panOffset.width,
+                y: anchorGraph.y * viewModel.zoom + viewModel.panOffset.height - 22
+            )
+            guard screen.x > -80, screen.x < size.width + 80, screen.y > -20, screen.y < size.height + 20 else { continue }
+            context.draw(
+                Text(group.key.uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(viewModel.groupColor(forKey: group.key).opacity(0.9)),
+                at: screen, anchor: .center
+            )
         }
     }
 
@@ -585,7 +676,7 @@ private struct CronGraphCanvas: View {
             let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
             let baseOpacity: CGFloat = isConnected ? 1.0 : 0.18
             let r = viewModel.radius(forKind: node.kind)
-            let base = viewModel.nodeColor(kind: node.kind, label: node.label)
+            let base = viewModel.nodeColor(kind: node.kind, type: node.type, label: node.label)
             let glyph = viewModel.glyph(forKind: node.kind)
 
             if isConnected {
@@ -684,7 +775,24 @@ internal struct CronNodeGlyphShape: Shape {
             return path
         case .cylinder:
             return Self.cylinderPath(in: rect)
+        case .cluster:
+            return Self.hexagonPath(in: rect)
         }
+    }
+
+    /// A flat-topped hexagon — the collapsed cluster super-node. Reads as a
+    /// container distinct from all four leaf silhouettes.
+    private static func hexagonPath(in rect: CGRect) -> Path {
+        let insetX = rect.width * 0.25
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + insetX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + insetX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.closeSubpath()
+        return path
     }
 
     /// A database can: an elliptical lid, straight sides, and a front-bulging

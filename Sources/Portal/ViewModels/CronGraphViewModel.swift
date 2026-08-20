@@ -30,7 +30,7 @@ internal final class CronGraphViewModel: ObservableObject {
     /// resource it touches. A round job, a triangular source, a database
     /// cylinder, and a diamond sink read at a glance regardless of hue.
     internal enum NodeGlyph {
-        case circle, triangle, cylinder, diamond
+        case circle, triangle, cylinder, diamond, cluster
     }
 
     @Published internal private(set) var graph = CronGraph.empty
@@ -40,6 +40,10 @@ internal final class CronGraphViewModel: ObservableObject {
     @Published internal private(set) var simLinkTypes: [String] = []
     @Published internal var selectedNodeIndex: Int?
     @Published internal var hoveredNodeIndex: Int?
+    /// Group scheme keys currently collapsed into a single super-node. Persists
+    /// across reloads (stale keys are ignored) so a folded-away cluster stays
+    /// folded when the graph refreshes.
+    @Published internal private(set) var collapsedGroups: Set<String> = []
     @Published internal var zoom: CGFloat = 1.0
     @Published internal var panOffset: CGSize = .zero
     @Published internal private(set) var isLoading = false
@@ -81,17 +85,26 @@ internal final class CronGraphViewModel: ObservableObject {
         isLoading = false
     }
 
+    #if DEBUG
+    /// Seed the raw graph directly, bypassing the gateway — tests exercise
+    /// grouping and projection without a live `cron.graph` response.
+    internal func setGraphForTesting(_ graph: CronGraph) {
+        self.graph = graph
+    }
+    #endif
+
     // MARK: - Simulation setup
 
     internal func setupSimulation() {
-        guard !graph.nodes.isEmpty else {
+        let effective = effectiveGraph()
+        guard !effective.nodes.isEmpty else {
             simNodes = []; simLinks = []; simLinkTypes = []; adjacency = []; drawOrder = []
             return
         }
         let size = effectiveCanvasSize
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         var rng = SystemRandomNumberGenerator()
-        simNodes = graph.nodes.map { node in
+        simNodes = effective.nodes.map { node in
             let angle = Double.random(in: 0...(2 * .pi), using: &rng)
             let dist = Double.random(in: 40...180, using: &rng)
             return SimNode(
@@ -100,10 +113,21 @@ internal final class CronGraphViewModel: ObservableObject {
                 kind: node.kind, type: node.type, label: node.label
             )
         }
+        rebuildTopology(from: effective)
+        selectedNodeIndex = nil
+        hoveredNodeIndex = nil
+        alpha = 1.0
+        settle()
+    }
+
+    /// Rebuild `simLinks` / `simLinkTypes` / `adjacency` from an edge set against
+    /// the current `simNodes`. Shared by the fresh seed and the grouping rebuild,
+    /// both of which lay down nodes first and then wire them.
+    private func rebuildTopology(from effective: CronGraph) {
         let idToIndex = Dictionary(uniqueKeysWithValues: simNodes.enumerated().map { ($1.id, $0) })
         var links: [(sourceIndex: Int, targetIndex: Int)] = []
         var types: [String] = []
-        for edge in graph.edges {
+        for edge in effective.edges {
             guard let si = idToIndex[edge.source], let ti = idToIndex[edge.target] else { continue }
             links.append((si, ti))
             types.append(edge.type)
@@ -115,10 +139,6 @@ internal final class CronGraphViewModel: ObservableObject {
             adjacency[si].insert(ti)
             adjacency[ti].insert(si)
         }
-        selectedNodeIndex = nil
-        hoveredNodeIndex = nil
-        alpha = 1.0
-        settle()
     }
 
     /// The canvas size, or a nominal fallback when the graph is laid out before
@@ -307,11 +327,18 @@ internal final class CronGraphViewModel: ObservableObject {
     }
 
     internal func handleTap(at point: CGPoint) {
-        if let idx = hitTest(point: point) {
-            selectedNodeIndex = (selectedNodeIndex == idx) ? nil : idx
-        } else {
+        guard let idx = hitTest(point: point) else {
             selectedNodeIndex = nil
+            return
         }
+        // A collapsed cluster's super-node expands on tap rather than selecting —
+        // there's no single ref behind it to open, so the useful action is to
+        // unfold it back into its members.
+        if let key = groupKey(fromSuperNodeID: simNodes[idx].id) {
+            toggleGroupCollapsed(key)
+            return
+        }
+        selectedNodeIndex = (selectedNodeIndex == idx) ? nil : idx
     }
 
     /// Select the node whose id matches `id`, highlighting it and dimming the
@@ -321,6 +348,127 @@ internal final class CronGraphViewModel: ObservableObject {
     internal func selectNode(withID id: String) {
         guard let idx = simNodes.firstIndex(where: { $0.id == id }) else { return }
         selectedNodeIndex = idx
+    }
+
+    // MARK: - Grouping
+
+    /// The scheme groups present in the current graph (≥2 members each), for the
+    /// hull boundaries and the collapse toggles. Recomputed from the raw graph so
+    /// it reflects every member regardless of what's currently collapsed.
+    internal var groups: [CronNodeGroup] {
+        CronNodeGrouping.groups(from: graph)
+    }
+
+    /// Whether a scheme's cluster is currently folded into its super-node.
+    internal func isGroupCollapsed(_ key: String) -> Bool {
+        collapsedGroups.contains(key)
+    }
+
+    /// The scheme key behind a super-node id, or nil for a real node — how a tap
+    /// or the sim tells a collapsed cluster apart from an ordinary ref.
+    internal func groupKey(fromSuperNodeID id: String) -> String? {
+        let prefix = "group:"
+        guard id.hasPrefix(prefix) else { return nil }
+        return String(id.dropFirst(prefix.count))
+    }
+
+    /// Fold a scheme's members into one super-node (or unfold them), then relax
+    /// the layout around the change. Members that survive keep their positions so
+    /// only the affected cluster moves; the super-node seeds at its members'
+    /// centroid and reheats so the tick animates the settle rather than snapping.
+    internal func toggleGroupCollapsed(_ key: String) {
+        if collapsedGroups.contains(key) {
+            collapsedGroups.remove(key)
+        } else {
+            collapsedGroups.insert(key)
+        }
+        applyGrouping()
+    }
+
+    /// The graph as the canvas should draw it given `collapsedGroups`: each
+    /// collapsed scheme's members are dropped and replaced by one `group`
+    /// super-node, and every edge touching a folded member is rerouted to that
+    /// super-node (self-loops and duplicates dropped). Uncollapsed — returns the
+    /// raw graph untouched.
+    internal func effectiveGraph() -> CronGraph {
+        guard !collapsedGroups.isEmpty else { return graph }
+        let groupsByKey = Dictionary(uniqueKeysWithValues: groups.map { ($0.key, $0) })
+        var remap: [String: String] = [:]
+        var superNodes: [CronGraphNode] = []
+        for key in collapsedGroups.sorted() {
+            guard let group = groupsByKey[key] else { continue }
+            for memberID in group.memberIDs { remap[memberID] = group.superNodeID }
+            superNodes.append(CronGraphNode(
+                id: group.superNodeID, kind: "group", type: key,
+                label: "\(key) · \(group.memberIDs.count)",
+                schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil
+            ))
+        }
+        guard !superNodes.isEmpty else { return graph }
+        let keptNodes = graph.nodes.filter { remap[$0.id] == nil }
+        var seen: Set<String> = []
+        var edges: [CronGraphEdge] = []
+        for edge in graph.edges {
+            let source = remap[edge.source] ?? edge.source
+            let target = remap[edge.target] ?? edge.target
+            guard source != target else { continue }
+            guard seen.insert("\(source)->\(target):\(edge.type)").inserted else { continue }
+            edges.append(CronGraphEdge(source: source, target: target, type: edge.type))
+        }
+        return CronGraph(nodes: keptNodes + superNodes, edges: edges)
+    }
+
+    /// Rebuild the simulation for the current collapse state while preserving the
+    /// positions of nodes that persist, so a toggle animates from where things
+    /// were instead of re-scrambling the whole graph.
+    private func applyGrouping() {
+        let priorPos = Dictionary(simNodes.map { ($0.id, $0.position) }, uniquingKeysWith: { first, _ in first })
+        let effective = effectiveGraph()
+        guard !effective.nodes.isEmpty else {
+            simNodes = []; simLinks = []; simLinkTypes = []; adjacency = []; drawOrder = []
+            return
+        }
+        let size = effectiveCanvasSize
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let groupsByKey = Dictionary(uniqueKeysWithValues: groups.map { ($0.key, $0) })
+        var rng = SystemRandomNumberGenerator()
+        simNodes = effective.nodes.map { node in
+            let position = seedPosition(
+                for: node, priorPos: priorPos, center: center, groupsByKey: groupsByKey, rng: &rng
+            )
+            return SimNode(id: node.id, position: position, kind: node.kind, type: node.type, label: node.label)
+        }
+        rebuildTopology(from: effective)
+        selectedNodeIndex = nil
+        hoveredNodeIndex = nil
+        recomputeDrawOrder()
+        alpha = 1.0
+    }
+
+    /// Where a node starts after a grouping change: an unchanged node stays put; a
+    /// fresh super-node lands at its members' centroid; a member reappearing on
+    /// expand pops out from where its super-node sat, jittered so the cluster
+    /// fans apart instead of stacking.
+    private func seedPosition(
+        for node: CronGraphNode,
+        priorPos: [String: CGPoint],
+        center: CGPoint,
+        groupsByKey: [String: CronNodeGroup],
+        rng: inout SystemRandomNumberGenerator
+    ) -> CGPoint {
+        if let existing = priorPos[node.id] { return existing }
+        if node.kind == "group", let group = groupsByKey[node.type] {
+            let points = group.memberIDs.compactMap { priorPos[$0] }
+            guard !points.isEmpty else { return center }
+            return CGPoint(x: points.reduce(0) { $0 + $1.x } / CGFloat(points.count),
+                           y: points.reduce(0) { $0 + $1.y } / CGFloat(points.count))
+        }
+        if let superPos = priorPos["group:\(node.type)"] {
+            let angle = Double.random(in: 0...(2 * .pi), using: &rng)
+            let dist = Double.random(in: 20...45, using: &rng)
+            return CGPoint(x: superPos.x + cos(angle) * dist, y: superPos.y + sin(angle) * dist)
+        }
+        return center
     }
 
     // MARK: - Selection helpers
@@ -355,6 +503,7 @@ internal final class CronGraphViewModel: ObservableObject {
         case "source": return Color(hex: "5cb85c") ?? .green
         case "artifact": return Color(hex: "e8a838") ?? .orange
         case "sink": return Color(hex: "ff6b9d") ?? .pink
+        case "group": return Color(hex: "b18cff") ?? .purple
         default: return Color(hex: "aaaaaa") ?? .gray
         }
     }
@@ -371,6 +520,21 @@ internal final class CronGraphViewModel: ObservableObject {
             return color(forKind: kind)
         }
         return Color(hue: stableHue(for: folder), saturation: 0.52, brightness: 0.98)
+    }
+
+    /// The fill for a sim node including cluster super-nodes, which are tinted by
+    /// their scheme key (carried in `type`) rather than the generic group color so
+    /// a folded `wiki` cluster keeps wiki's hue.
+    internal func nodeColor(kind: String, type: String, label: String) -> Color {
+        guard kind == "group" else { return nodeColor(kind: kind, label: label) }
+        return groupColor(forKey: type)
+    }
+
+    /// A stable per-scheme tint shared by a group's hull boundary, its super-node,
+    /// and its collapse toggle, so the three read as one cluster. Distinct schemes
+    /// of the same kind still separate by hue.
+    internal func groupColor(forKey key: String) -> Color {
+        Color(hue: stableHue(for: key), saturation: 0.5, brightness: 0.96)
     }
 
     /// The top-level category folder of a cron's name, or nil when ungrouped.
@@ -407,6 +571,7 @@ internal final class CronGraphViewModel: ObservableObject {
 
     internal func radius(forKind kind: String) -> CGFloat {
         switch kind {
+        case "group": return 14
         case "cron": return 9
         case "artifact": return 7
         default: return 6
@@ -425,6 +590,7 @@ internal final class CronGraphViewModel: ObservableObject {
         case "source": return .triangle
         case "artifact": return .cylinder
         case "sink": return .diamond
+        case "group": return .cluster
         default: return .circle
         }
     }
