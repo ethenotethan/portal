@@ -38,6 +38,22 @@ internal struct CronGraphViewModelTests {
         #expect(vm.selectedNodeIndex == nil)
     }
 
+    // MARK: - glyph(forKind:)
+
+    @Test("each node kind maps to its own silhouette; unknown kinds fall back to a circle")
+    internal func glyphMapsKindToShape() {
+        let vm = CronGraphViewModel()
+        #expect(vm.glyph(forKind: "cron") == .circle)
+        #expect(vm.glyph(forKind: "source") == .triangle)
+        #expect(vm.glyph(forKind: "artifact") == .cylinder)
+        #expect(vm.glyph(forKind: "sink") == .diamond)
+        // Every real kind is distinct, so shape alone delineates them.
+        let shapes: [CronGraphViewModel.NodeGlyph] = ["cron", "source", "artifact", "sink"].map { vm.glyph(forKind: $0) }
+        #expect(Set(shapes).count == 4)
+        // An unrecognized kind still draws something rather than vanishing.
+        #expect(vm.glyph(forKind: "mystery") == .circle)
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")

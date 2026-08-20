@@ -140,7 +140,7 @@
       "line_count": 6929
     },
     {
-      "declaration_count": 142,
+      "declaration_count": 143,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -169,6 +169,7 @@
         "CronJobsView",
         "CronLegendItem",
         "CronListView",
+        "CronNodeGlyphShape",
         "CronOpenSessionButton",
         "CronRunListPopover",
         "CronRunMetrics",
@@ -344,7 +345,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17008
+      "line_count": 17146
     },
     {
       "declaration_count": 37,
@@ -690,7 +691,7 @@
       "line_count": 4095
     },
     {
-      "declaration_count": 24,
+      "declaration_count": 25,
       "declarations": [
         "ActivityInboxViewModel",
         "CelebrationEvent",
@@ -707,6 +708,7 @@
         "HermesStandardCronManaging",
         "HermesStandardSkillManaging",
         "MilestoneLevel",
+        "NodeGlyph",
         "QuizMode",
         "QuizViewModel",
         "SessionListViewModel",
@@ -738,7 +740,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3684
+      "line_count": 3709
     },
     {
       "declaration_count": 5,
@@ -3952,7 +3954,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 12 declaration(s) owned by operations-state.",
+      "description": "References 13 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
@@ -3976,15 +3978,15 @@
         "CurriculumViewModel",
         "FeedViewModel",
         "FilesBrowserViewModel",
+        "NodeGlyph",
         "QuizMode",
         "QuizViewModel",
         "SessionListViewModel",
-        "SettingsViewModel",
-        "SkillsViewModel"
+        "SettingsViewModel"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 45
+      "weight": 46
     },
     {
       "authority": "observed",
@@ -4946,9 +4948,9 @@
   ],
   "inventory": {
     "assigned_files": 333,
-    "declarations": 988,
+    "declarations": 990,
     "swift_files": 333,
-    "swift_lines": 96765,
+    "swift_lines": 96928,
     "unassigned_files": []
   },
   "layers": [
@@ -4980,6 +4982,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "edaf158e3883a8ff139eea46f6d218ea31057d5dff9bcb21d19a5cfa229db391",
+  "source_tree_sha256": "13d5217cc593616f4227d62945256faedae33564e0fa2aa78ff50291326a58fb",
   "title": "Portal Architecture"
 }

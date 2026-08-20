@@ -24,6 +24,15 @@ internal final class CronGraphViewModel: ObservableObject {
         internal let label: String
     }
 
+    /// The silhouette drawn for a node kind. Shape — not color — is now the
+    /// primary "what kind of thing is this" cue: once cron nodes were tinted by
+    /// their category folder, color alone no longer told a job apart from a
+    /// resource it touches. A round job, a triangular source, a database
+    /// cylinder, and a diamond sink read at a glance regardless of hue.
+    internal enum NodeGlyph {
+        case circle, triangle, cylinder, diamond
+    }
+
     @Published internal private(set) var graph = CronGraph.empty
     @Published internal var simNodes: [SimNode] = []
     @Published internal private(set) var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
@@ -401,6 +410,22 @@ internal final class CronGraphViewModel: ObservableObject {
         case "cron": return 9
         case "artifact": return 7
         default: return 6
+        }
+    }
+
+    /// The silhouette for a node kind, in `legend` order: cron jobs are circles
+    /// (the actor that runs), sources are triangles (an external input feeding
+    /// in), artifacts are database cylinders (a written/persisted store), and
+    /// sinks are diamonds (a terminal side-effect target). Drives both the
+    /// canvas node bodies and the legend/detail swatches so the key teaches the
+    /// exact shapes on the graph.
+    internal func glyph(forKind kind: String) -> NodeGlyph {
+        switch kind {
+        case "cron": return .circle
+        case "source": return .triangle
+        case "artifact": return .cylinder
+        case "sink": return .diamond
+        default: return .circle
         }
     }
 
