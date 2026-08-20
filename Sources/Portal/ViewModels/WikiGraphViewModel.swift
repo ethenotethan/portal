@@ -9,7 +9,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiGr
 final class WikiGraphViewModel: ObservableObject {
 
     @Published var graph: WikiGraph = .empty {
-        didSet { rebuildBacklinks() }
+        didSet { rebuildBacklinks(); rebuildNestedTypeColors() }
     }
 
     // MARK: - Adaptive layout state
@@ -214,6 +214,12 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var panOffset: CGSize = .zero
     var canvasSize: CGSize = .zero
 
+    /// Per-graph color for each hierarchical type branch (e.g. "entities/chain"),
+    /// rebuilt whenever `graph` changes. Every branch present in the graph gets
+    /// its own hue so no two families collide; empty when there are no nested
+    /// types. Rebuilt in `rebuildNestedTypeColors` (WikiGraphViewModel+TypeColors).
+    internal var nestedTypeColors: [String: Color] = [:]
+
     func color(for type: String) -> Color {
         switch type {
         case "entity": return Color(hex: "7c7cff")!
@@ -226,7 +232,7 @@ final class WikiGraphViewModel: ObservableObject {
         case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
         case "project": return Color(hex: "e8a838")!
         case "goal": return Color(hex: "ff6b9d")!
-        default: return Color(hex: "aaaaaa")!
+        default: return nestedColor(for: type)
         }
     }
 

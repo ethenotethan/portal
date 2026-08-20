@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftUI
 @testable import Portal
 
 @Suite("Wiki Shared Selection Plane")
@@ -574,5 +575,66 @@ struct WikiGraphViewModelTests {
 
         #expect(vm.simLinks.count == 1, "the link to a non-existent page is dropped")
         #expect(vm.simLinkLabels == ["deployed on"], "the surviving edge keeps its own label, not the dropped one's")
+    }
+
+    // MARK: - Hierarchical type colors
+
+    private func typedPage(_ id: String, type: String) -> WikiPage {
+        WikiPage(
+            id: id, title: id.capitalized, type: type, tags: [],
+            path: "\(type)/\(id).md", created: nil, updated: nil, confidence: nil,
+            contested: false, tagPath: [], integrationLinks: []
+        )
+    }
+
+    /// The grouping key is the parent branch: hierarchical types collapse to the
+    /// path minus their leaf, and a flat type has no branch.
+    @Test("branchKey groups a hierarchical type by its parent path")
+    internal func branchKeyDerivation() {
+        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/base") == "entities/chain")
+        #expect(WikiGraphViewModel.branchKey(for: "entities/chain/solana") == "entities/chain")
+        #expect(WikiGraphViewModel.branchKey(for: "entities/token/usdc") == "entities/token")
+        #expect(WikiGraphViewModel.branchKey(for: "orgs/anthropic") == "orgs")
+        #expect(WikiGraphViewModel.branchKey(for: "entity") == nil, "a flat type has no branch")
+        #expect(WikiGraphViewModel.branchKey(for: "") == nil)
+    }
+
+    /// Every node sharing a branch gets one color; different branches get
+    /// different colors; and no nested type falls back to the neutral grey.
+    @Test("Nested types share a branch color, unique per branch, never grey")
+    internal func nestedTypesAreColoredByBranch() {
+        let vm = WikiGraphViewModel()
+        vm.graph = WikiGraph(
+            pages: [
+                typedPage("base", type: "entities/chain/base"),
+                typedPage("solana", type: "entities/chain/solana"),
+                typedPage("tempo", type: "entities/chain/tempo"),
+                typedPage("usdc", type: "entities/token/usdc"),
+            ],
+            links: []
+        )
+
+        let chainBase = vm.color(for: "entities/chain/base")
+        let chainSolana = vm.color(for: "entities/chain/solana")
+        let chainTempo = vm.color(for: "entities/chain/tempo")
+        let token = vm.color(for: "entities/token/usdc")
+        let grey = Color(hex: "aaaaaa")
+
+        #expect(chainBase == chainSolana, "siblings under entities/chain share one color")
+        #expect(chainBase == chainTempo, "all chain nodes are the same color")
+        #expect(chainBase != token, "a different branch gets a unique color")
+        #expect(chainBase != grey, "a nested type is no longer the default grey")
+        #expect(token != grey)
+    }
+
+    /// The fixed known kinds keep their colors, and a flat unknown type still
+    /// falls through to grey — only hierarchical types change.
+    @Test("Known and flat-unknown types are unaffected by branch coloring")
+    internal func knownAndFlatTypesUnchanged() {
+        let vm = WikiGraphViewModel()
+        vm.graph = WikiGraph(pages: [typedPage("base", type: "entities/chain/base")], links: [])
+
+        #expect(vm.color(for: "entity") == Color(hex: "7c7cff"))
+        #expect(vm.color(for: "wat") == Color(hex: "aaaaaa"), "a flat unknown type stays grey")
     }
 }
