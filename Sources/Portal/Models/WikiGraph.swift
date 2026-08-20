@@ -85,15 +85,12 @@ struct TaxonomyNode: Hashable, Codable {
 
     mutating func insert(path: String) {
         let parts = path.split(separator: "/")
-        var node = self
-        for (i, part) in parts.enumerated() {
-            let key = String(part)
-            let currentPath = parts[0...i].joined(separator: "/")
-            if node.children[key] == nil {
-                node.children[key] = TaxonomyNode(name: key, path: currentPath, children: [:])
-            }
-            node = node.children[key]!
-        }
+        guard let part = parts.first else { return }
+        let key = String(part)
+        let childPath = self.path.isEmpty ? key : "\(self.path)/\(key)"
+        var child = children[key] ?? TaxonomyNode(name: key, path: childPath, children: [:])
+        child.insert(path: parts.dropFirst().joined(separator: "/"))
+        children[key] = child
     }
 
     /// Recursively flat list of all paths in the tree

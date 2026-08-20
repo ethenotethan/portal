@@ -523,6 +523,15 @@ internal struct CurriculumParsingTests {
         #expect(course.nextStep?.title == "Moves")
     }
 
+    @Test("an unterminated markdown fence is rejected")
+    internal func rejectsUnterminatedFence() {
+        let fragment = """
+            ```json
+            {"curriculum":{"title":"Incomplete"
+            """
+        #expect(CurriculumResponse.extract(from: fragment) == nil)
+    }
+
     @Test("a truncated fragment with no closing brace is rejected, not sliced")
     internal func rejectsUnbalancedBraces() {
         // `bracedJSON` asks for the first `{` and the last `}`; a fragment
