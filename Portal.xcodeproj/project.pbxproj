@@ -403,6 +403,7 @@
 		7E1890FF6ADDF043A012F1B8 /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = D68791031BB82AA01D51B222 /* HuggingFace */; };
 		7E2D66CED8827F1D34EE4FBD /* ArtifactTopLevelActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA6B3DECE07A1FA170AFEE6 /* ArtifactTopLevelActionBar.swift */; };
 		7F2E9F9F7D7C8DB7D62AE64D /* CronDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */; };
+		7F7FBAC46BEDCF9437FADE20 /* WikiGraphViewModel+TypeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387677072A8571A787C56F1B /* WikiGraphViewModel+TypeColors.swift */; };
 		7FC8303A9E74F97000A161F8 /* QuizViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C5A6BD9058FFBC73F6DA5D /* QuizViewModel.swift */; };
 		80A20FC6845088F8D9BC0ACD /* CurriculumStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 694563F263FAF44A54A89E47 /* CurriculumStore.swift */; };
 		80E479037050EFD43F2DE88A /* ArtifactMaintenanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */; };
@@ -529,6 +530,7 @@
 		A8C6BBEA22A937E02F67B97B /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C1991A3E699A437ADB4554 /* FlashcardView.swift */; };
 		A951E0DB1980774FE2A9929F /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79DA5B81AD8A414D281027 /* ReasoningGraphIntegrator.swift */; };
 		A98D087D0CABA56B3DC27031 /* ToolPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC8A5590D3552402FA4965F /* ToolPillView.swift */; };
+		AA8982F52B283577080DE1F8 /* CronDataflowExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4172BACC2FD1AB8D6E8E6F32 /* CronDataflowExpandedView.swift */; };
 		AAD2DBC60BB6D2CBB38C39A5 /* CurriculumPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492D1C0208D90468D003850C /* CurriculumPlayerView.swift */; };
 		AB2F2165441F21D59F271A4F /* LearningWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A04A6EEE0F652B470F7D507 /* LearningWire.swift */; };
 		AB80DB23E1386B000AC357CE /* CronRunHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B41D9EBC0A420A1FD3B6B3 /* CronRunHistory.swift */; };
@@ -547,6 +549,7 @@
 		AE392F6839C75372909EA0DF /* SessionFileTreePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1717BE151F82544A60DE7A1 /* SessionFileTreePane.swift */; };
 		AE503166280EC565DF48725F /* WikiChangesetSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4EB0DFFC78682EEAB2515C /* WikiChangesetSource.swift */; };
 		AE550F55A7E1CA8CC7D505F4 /* ThoughtGraphNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE618A82E60385625B36F89 /* ThoughtGraphNode.swift */; };
+		AEA084DD2ADD8B7AF95D1D63 /* CronGraphViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EF4138FD7EC8F074A6A796A /* CronGraphViewModelTests.swift */; };
 		AEB52A4DB91661801B1AC029 /* CronListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5345D4F493040CE252399895 /* CronListViewModel.swift */; };
 		AECF0669D111F4829C7FD190 /* GatewayTransportLeakTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5DC09F6FFCDDB56400D05E0 /* GatewayTransportLeakTests.swift */; };
 		AF717CDF83F30D9E293910D2 /* ArtifactActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC816DBAA5505324AD883A6 /* ArtifactActions.swift */; };
@@ -622,6 +625,7 @@
 		C368AAECE6D6A489B5C4FE7F /* WriterRef.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB758FC85F5888574E37E901 /* WriterRef.swift */; };
 		C38097D0F4AF2916C06E8A02 /* SkillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D55E2098792DCE66D3CF1E5 /* SkillsView.swift */; };
 		C38E52A99D7D9D43458C04F6 /* SpawnTreeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */; };
+		C4007A691EBB4E7B5C4A503B /* CronDataflowExpandedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4172BACC2FD1AB8D6E8E6F32 /* CronDataflowExpandedView.swift */; };
 		C41440E71AF06455A281B928 /* JSONRPCResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */; };
 		C469DA67824FA5316462655E /* SessionSwitchGraphResetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89BE1F1066C272517BDCB6AE /* SessionSwitchGraphResetTests.swift */; };
 		C5724EC878CA1AFC01A62A27 /* GatewayClient+Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */; };
@@ -629,6 +633,7 @@
 		C649BB7C7806970FE83100B5 /* ModelPickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67BF2443917B11EA6C000FF3 /* ModelPickerMenu.swift */; };
 		C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */; };
 		C746900A4405F215C939A22C /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */; };
+		C74EE440F6D49E423A368FDB /* WikiGraphViewModel+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */; };
 		C8989F32625522C1AC706047 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF69936DE366B4A1663E549D /* KeychainStore.swift */; };
 		C89FA41B28A75D256F53DD51 /* MediaAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */; };
 		C8AB5B8B0D3B2A3863963EA4 /* WikiEventTypeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD08D23C3A494DECC1E5BED0 /* WikiEventTypeRegistry.swift */; };
@@ -779,6 +784,7 @@
 		F78BA32C32BD8A48AE9A478F /* SkillsHubPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549D5AE3F6109BB76711F73A /* SkillsHubPanel.swift */; };
 		F7998CFAB9A44D86DD5FE5B3 /* LivingArtifactCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753E282310FD326FD063B49D /* LivingArtifactCapture.swift */; };
 		F8248A128D359E6D72192D43 /* CelebrationStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F40D0A962137B83FB5BB65 /* CelebrationStage.swift */; };
+		F8273AAA3E8011770F44F39C /* WikiGraphViewModel+TypeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387677072A8571A787C56F1B /* WikiGraphViewModel+TypeColors.swift */; };
 		F8EDCA049DFEFC703A80A951 /* DarkMangaSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9223A5205A066F8CB68337 /* DarkMangaSkin.swift */; };
 		F8FF7240E9F456131B6879E8 /* StatTilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F266A56E6890ECD9F5EB364B /* StatTilesView.swift */; };
 		F93C176C09D927A1DC95D42F /* DelegationBatchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6062185BCD6D124A73739C /* DelegationBatchHistoryStore.swift */; };
@@ -789,6 +795,7 @@
 		FA7618796F0E1D4F72C6F1BF /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = EEEDDEB051B56FBADB30719F /* MLXLMCommon */; };
 		FA98C10A1C08906F39105F39 /* TweetPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2528230688CC5940286A9C55 /* TweetPostCard.swift */; };
 		FB4BE5FB76F8034FFA8EC075 /* PortalButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849C1154A3B7777673AF9B3C /* PortalButtonStyle.swift */; };
+		FB8846BEB1ACDDC14AAF7773 /* WikiGraphViewModel+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */; };
 		FB8C3E4870F9E5138CED5A4F /* CanvasRelayoutGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0173AF8064C7B04D8CF8801D /* CanvasRelayoutGuardTests.swift */; };
 		FC29228143913AC2ECA42452 /* SkillsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5815387798570E917861661 /* SkillsViewModel.swift */; };
 		FC37C83DB22F87A4CC23526B /* WikiGraph2DCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5113F487FD4185AE7226B855 /* WikiGraph2DCanvas.swift */; };
@@ -869,6 +876,7 @@
 		0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		0D55468F628900177771F916 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
 		0EEF4FE45ED2AF8CF940B9D2 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		0EF4138FD7EC8F074A6A796A /* CronGraphViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphViewModelTests.swift; sourceTree = "<group>"; };
 		0F2AFB97FA060BC957F3C3B3 /* RunningToolsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningToolsPanel.swift; sourceTree = "<group>"; };
 		0F46F03E7FF2A626EE522B64 /* CronJobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobsView.swift; sourceTree = "<group>"; };
 		1026CF18503BB52CA0CD9B3E /* MonkeyScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonkeyScene.swift; sourceTree = "<group>"; };
@@ -945,6 +953,7 @@
 		380F9167FA9A8B879B1ECD29 /* SessionsDetailPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDetailPanel.swift; sourceTree = "<group>"; };
 		38134D6C0CC22320A29A643B /* QuizModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModels.swift; sourceTree = "<group>"; };
 		3838A7851F34062B8D401249 /* ConversationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPanel.swift; sourceTree = "<group>"; };
+		387677072A8571A787C56F1B /* WikiGraphViewModel+TypeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WikiGraphViewModel+TypeColors.swift"; sourceTree = "<group>"; };
 		38A470AA4B538860FF1FB6DE /* DocumentTextExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractorTests.swift; sourceTree = "<group>"; };
 		391A2204090D298297E42D21 /* SessionsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDashboard.swift; sourceTree = "<group>"; };
 		39E1698942CA3B8E647FC444 /* CronSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionView.swift; sourceTree = "<group>"; };
@@ -959,6 +968,7 @@
 		4034C1A7BA21EE59A4B2DFF3 /* FileTreeAggregatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTreeAggregatorTests.swift; sourceTree = "<group>"; };
 		408D0E6553A2BFD0735CCAA6 /* SessionsListPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsListPanel.swift; sourceTree = "<group>"; };
 		41427D8A86CE79E848FAAFD2 /* ActivityItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityItem.swift; sourceTree = "<group>"; };
+		4172BACC2FD1AB8D6E8E6F32 /* CronDataflowExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDataflowExpandedView.swift; sourceTree = "<group>"; };
 		42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Feed.swift"; sourceTree = "<group>"; };
 		4299E269AEBAF1B7C58F3090 /* CurriculumViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumViewModel.swift; sourceTree = "<group>"; };
 		43767D723416DF6B72C6CC56 /* WikiGraphControlsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphControlsBar.swift; sourceTree = "<group>"; };
@@ -1073,6 +1083,7 @@
 		7F10EC3D188CE8970B077F65 /* LottieCharacterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottieCharacterView.swift; sourceTree = "<group>"; };
 		7FBBFB8D9F119489F4676515 /* PortalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PortalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8066B33986DB7AF91A50C611 /* CronSearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSearchBar.swift; sourceTree = "<group>"; };
+		80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WikiGraphViewModel+Interaction.swift"; sourceTree = "<group>"; };
 		8146991749E60E5DB327570E /* MapEntryTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapEntryTableView.swift; sourceTree = "<group>"; };
 		827A47D6E1A8CAFE71466664 /* CelebrationPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationPreferencesTests.swift; sourceTree = "<group>"; };
 		82A11CD6289A418CC185DA03 /* PortalGatewayConnectionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalGatewayConnectionUITests.swift; sourceTree = "<group>"; };
@@ -1616,6 +1627,7 @@
 				5EC79355B935477949484956 /* CronCategoryTree.swift */,
 				3A5D6B49679B69B3A229DA22 /* CronDashboardSections.swift */,
 				CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */,
+				4172BACC2FD1AB8D6E8E6F32 /* CronDataflowExpandedView.swift */,
 				003541A6EC33B66DEB47BED3 /* CronInterflowGraphView.swift */,
 				7A38058167062C45FD8CE7BE /* CronJobCard.swift */,
 				9E5A8B266061DACABE48C7A0 /* CronJobRow.swift */,
@@ -1827,7 +1839,9 @@
 				0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */,
 				1453EC6C9E872F3B4AE74ED8 /* WikiGraphViewModel.swift */,
 				CFC8375A2FB7873DBD16440A /* WikiGraphViewModel+EventTypes.swift */,
+				80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */,
 				C9A350F5AAF0F970DF8CC1D4 /* WikiGraphViewModel+Provenance.swift */,
+				387677072A8571A787C56F1B /* WikiGraphViewModel+TypeColors.swift */,
 				CA0C461B8DEE9BE068647E9E /* WikiTimelineViewModel.swift */,
 				2C299ADE3B12D661728DDD90 /* Learning */,
 				DBD769B0DF02EACAD59C8EEC /* Quiz */,
@@ -1940,6 +1954,7 @@
 				A06E9202DE8361A6F71A9F7E /* ClarifyRequestTests.swift */,
 				F8CEC99894FAA26FFB8883AC /* ConceptLinkerTests.swift */,
 				D9559C6BB8CC4D5A23041773 /* CronCategoryTests.swift */,
+				0EF4138FD7EC8F074A6A796A /* CronGraphViewModelTests.swift */,
 				EA8745028601F01F7FAA8466 /* CurriculumTests.swift */,
 				C4263D9C6D27546DDA5A6CDF /* DashboardLayoutTests.swift */,
 				9BAA25E9F3D61566B5174696 /* DelegationBatchHistoryTests.swift */,
@@ -2355,6 +2370,7 @@
 				016C2D1A529E567470CE1AAC /* CronDashboardCanvas.swift in Sources */,
 				5397B0852563C8C584FBB258 /* CronDashboardSections.swift in Sources */,
 				7F2E9F9F7D7C8DB7D62AE64D /* CronDashboardView.swift in Sources */,
+				C4007A691EBB4E7B5C4A503B /* CronDataflowExpandedView.swift in Sources */,
 				46D2C01ABEFA63A7ED87B5D5 /* CronFilterState.swift in Sources */,
 				B6DA195EE15705C61F399DB9 /* CronGraph.swift in Sources */,
 				34F6F3E0F545A1186DAA33C7 /* CronGraphViewModel.swift in Sources */,
@@ -2608,7 +2624,9 @@
 				A4B1F930C4BEA7FECBA48753 /* WikiGraphControlsBar.swift in Sources */,
 				34A11733DEDCA3D557CB3CE4 /* WikiGraphView.swift in Sources */,
 				B6CB336015487A12535F90D6 /* WikiGraphViewModel+EventTypes.swift in Sources */,
+				C74EE440F6D49E423A368FDB /* WikiGraphViewModel+Interaction.swift in Sources */,
 				CF8B1C79B770166F7460A36A /* WikiGraphViewModel+Provenance.swift in Sources */,
+				7F7FBAC46BEDCF9437FADE20 /* WikiGraphViewModel+TypeColors.swift in Sources */,
 				37AD4088033E20618F52D72F /* WikiGraphViewModel.swift in Sources */,
 				0BBA580CDBCBD21DF40598D4 /* WikiPageEditorView.swift in Sources */,
 				CA9CFC3CC2512F9DC15FBD73 /* WikiPageReaderBody.swift in Sources */,
@@ -2675,6 +2693,7 @@
 				EF5BA1B008BD8BA64D51BEFB /* ClarifyRequestTests.swift in Sources */,
 				52E93A780F636B349B08E8A4 /* ConceptLinkerTests.swift in Sources */,
 				7158726390721AE377318FE7 /* CronCategoryTests.swift in Sources */,
+				AEA084DD2ADD8B7AF95D1D63 /* CronGraphViewModelTests.swift in Sources */,
 				1521D48E2FD4351FACF50F9F /* CurriculumTests.swift in Sources */,
 				908DF7D671ACEBBFFD967A2C /* DashboardLayoutTests.swift in Sources */,
 				B402CC5A0113FF97EDAAD723 /* DelegationBatchHistoryTests.swift in Sources */,
@@ -2829,6 +2848,7 @@
 				D7C4DA25D58CC39358593C12 /* CronDashboardCanvas.swift in Sources */,
 				A59234251340BB8EE8D46A8C /* CronDashboardSections.swift in Sources */,
 				424FA44A6338FD9BC3C22527 /* CronDashboardView.swift in Sources */,
+				AA8982F52B283577080DE1F8 /* CronDataflowExpandedView.swift in Sources */,
 				967ED93EB3FF210F3A8FF427 /* CronFilterState.swift in Sources */,
 				B13C74D2E568D05F5CC797A3 /* CronGraph.swift in Sources */,
 				5D05F1D2FB688F9CBBDB1757 /* CronGraphViewModel.swift in Sources */,
@@ -3082,7 +3102,9 @@
 				E9D98FA58A57FD995460149B /* WikiGraphControlsBar.swift in Sources */,
 				F3BB8FDF6FBAC794F94B12EB /* WikiGraphView.swift in Sources */,
 				292DF2C8DD2231F9C1FD0AC4 /* WikiGraphViewModel+EventTypes.swift in Sources */,
+				FB8846BEB1ACDDC14AAF7773 /* WikiGraphViewModel+Interaction.swift in Sources */,
 				0F053C2F3083CA7E4A3DE7ED /* WikiGraphViewModel+Provenance.swift in Sources */,
+				F8273AAA3E8011770F44F39C /* WikiGraphViewModel+TypeColors.swift in Sources */,
 				E4291E47476A22BEA172D4A6 /* WikiGraphViewModel.swift in Sources */,
 				2C6858833A84E1883E12B32F /* WikiPageEditorView.swift in Sources */,
 				7C0449B6FE73DC595660A734 /* WikiPageReaderBody.swift in Sources */,

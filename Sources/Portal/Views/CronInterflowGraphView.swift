@@ -13,9 +13,23 @@ internal struct CronInterflowGraphView: View {
     @ObservedObject internal var viewModel: CronGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
+    /// When set, the controls overlay shows an expand affordance that calls this
+    /// — the host presents the full-screen dataflow takeover. Nil on the
+    /// full-screen surface itself (there's nothing further to expand into).
+    private let onExpand: (() -> Void)?
+    /// The full-screen surface renders its own detail sidebar, so it suppresses
+    /// the small in-graph detail card that the inline panel shows on selection.
+    private let showsInlineDetailCard: Bool
+
     @MainActor
-    internal init(viewModel: CronGraphViewModel? = nil) {
+    internal init(
+        viewModel: CronGraphViewModel? = nil,
+        showsInlineDetailCard: Bool = true,
+        onExpand: (() -> Void)? = nil
+    ) {
         self.viewModel = viewModel ?? CronGraphViewModel()
+        self.showsInlineDetailCard = showsInlineDetailCard
+        self.onExpand = onExpand
     }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
@@ -30,7 +44,7 @@ internal struct CronInterflowGraphView: View {
                 CronGraphCanvas(viewModel: viewModel)
                 legendOverlay
                 controlsOverlay
-                if let node = viewModel.selectedNode {
+                if showsInlineDetailCard, let node = viewModel.selectedNode {
                     detailCard(node)
                 }
             }
@@ -106,10 +120,24 @@ internal struct CronInterflowGraphView: View {
                     Task { await viewModel.load(client: gatewayClientWrapper.client) }
                 }
                 .help("Reload the cron graph")
+                controlButton(system: "minus.magnifyingglass") {
+                    viewModel.zoomAtCenter(0.8)
+                }
+                .help("Zoom out")
+                controlButton(system: "plus.magnifyingglass") {
+                    viewModel.zoomAtCenter(1.25)
+                }
+                .help("Zoom in")
                 controlButton(system: "scope") {
                     viewModel.resetView()
                 }
                 .help("Fit the whole graph to view")
+                if let onExpand {
+                    controlButton(system: "arrow.up.left.and.arrow.down.right") {
+                        onExpand()
+                    }
+                    .help("Expand the dataflow to full screen")
+                }
             }
             Spacer()
         }
@@ -257,6 +285,12 @@ private struct CronGraphCanvas: View {
     @State private var dragStartPan: CGSize = .zero
     @State private var dragStartPoint: CGPoint = .zero
     @State private var dragNodeIndex: Int?
+    /// The zoom at the start of the current pinch — `MagnificationGesture`'s
+    /// value is relative (starts at 1.0), so we scale from this baseline, which
+    /// is re-seeded from the live zoom at each gesture start so a pinch never
+    /// jumps after a button/fit zoom in between.
+    @State private var lastPinchScale: CGFloat = 1.0
+    @State private var isPinching = false
 
     private enum MouseState {
         case idle, deciding, panning, draggingNode
@@ -283,6 +317,26 @@ private struct CronGraphCanvas: View {
                 .gesture(iosDragGesture)
             #endif
         }
+        .gesture(pinchGesture)
+    }
+
+    /// Trackpad pinch (and iOS pinch) → zoom about the canvas center, homing on
+    /// the middle of the view. Mirrors the wiki graph's `pinchGesture`.
+    private var pinchGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                if !isPinching { isPinching = true; lastPinchScale = viewModel.zoom }
+                let targetZoom = lastPinchScale * value
+                let clamped = max(0.3, min(5.0, targetZoom))
+                let oldZoom = viewModel.zoom
+                guard abs(clamped - oldZoom) > 0.001 else { return }
+                let center = CGPoint(x: viewModel.canvasSize.width / 2,
+                                     y: viewModel.canvasSize.height / 2)
+                viewModel.zoomAtPoint(factor: clamped / oldZoom, around: center)
+            }
+            .onEnded { _ in
+                isPinching = false
+            }
     }
 
     // MARK: - Mouse handlers

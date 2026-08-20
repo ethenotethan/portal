@@ -42,6 +42,11 @@ internal struct CronJobCard: View {
     /// or a job that declares none). Passed in rather than derived here so the
     /// card stays a pure function of its inputs and never reaches for a graph.
     internal var dataflow: CronJobDataflow = .empty
+    /// Tapping a Dataflow endpoint chip. Set only where a graph is alongside the
+    /// card (the expanded dataflow surface, or a canvas with a Dataflow panel) so
+    /// the tap can highlight the matching node. Nil elsewhere — the chips then
+    /// render as static labels, unchanged from before.
+    internal var onSelectEndpoint: ((CronDataflowEndpoint) -> Void)?
 
     @State private var isEditingPrompt = false
     @State private var editedPrompt = ""
@@ -64,7 +69,8 @@ internal struct CronJobCard: View {
         siblingJobs: [CronJob] = [],
         supportsRemoveAndEdit: Bool = true,
         showsCategoryPath: Bool = true,
-        dataflow: CronJobDataflow = .empty
+        dataflow: CronJobDataflow = .empty,
+        onSelectEndpoint: ((CronDataflowEndpoint) -> Void)? = nil
     ) {
         self.job = job
         self.isExpanded = isExpanded
@@ -79,6 +85,7 @@ internal struct CronJobCard: View {
         self.supportsRemoveAndEdit = supportsRemoveAndEdit
         self.showsCategoryPath = showsCategoryPath
         self.dataflow = dataflow
+        self.onSelectEndpoint = onSelectEndpoint
     }
 
     private var displayJob: CronJob { job }
@@ -114,7 +121,6 @@ internal struct CronJobCard: View {
                     detailRows
                     dataflowSection
                     promptSection
-                    recentRuns
                     introspectionSection
                     actionButtons
                 }
@@ -392,7 +398,20 @@ internal struct CronJobCard: View {
         }
     }
 
+    @ViewBuilder
     private func endpointChip(_ endpoint: CronDataflowEndpoint) -> some View {
+        if let onSelectEndpoint {
+            Button { onSelectEndpoint(endpoint) } label: {
+                endpointChipLabel(endpoint)
+            }
+            .buttonStyle(.plain)
+            .help("Highlight \(endpoint.label) in the dataflow graph")
+        } else {
+            endpointChipLabel(endpoint)
+        }
+    }
+
+    private func endpointChipLabel(_ endpoint: CronDataflowEndpoint) -> some View {
         let tint = dataflowColor(forKind: endpoint.kind)
         return HStack(spacing: 4) {
             Circle().fill(tint).frame(width: 6, height: 6)
@@ -413,6 +432,7 @@ internal struct CronJobCard: View {
         .padding(.vertical, 3)
         .background(Theme.background, in: Capsule())
         .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
+        .contentShape(Capsule())
     }
 
     /// The graph's node palette, mirrored so a chip reads the same color as its
@@ -541,60 +561,13 @@ internal struct CronJobCard: View {
         }
     }
 
-    private var recentRuns: some View {
-        Group {
-            if !runRecords.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Recent Runs")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.primary)
+    // MARK: - Introspection
 
-                    let recent = Array(runRecords.suffix(5).reversed())
-                    ForEach(recent) { record in
-                        Button {
-                            selectedRunRecord = record
-                        } label: {
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(record.isOk ? Theme.success : Color.red)
-                                    .frame(width: 6, height: 6)
-                                Text(record.firedAt.relativeString)
-                                    .font(.caption2)
-                                    .foregroundStyle(Theme.secondary)
-                                Text(record.status)
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(record.isOk ? Theme.success : .red)
-                                if let dur = record.duration {
-                                    Text(dur < 60 ? String(format: "%.1fs", dur) : String(format: "%.1fm", dur / 60))
-                                        .font(.caption2.monospacedDigit())
-                                        .foregroundStyle(Theme.tertiary)
-                                }
-                                Spacer()
-                                if !record.isOk {
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 9, weight: .semibold))
-                                        .foregroundStyle(Theme.tertiary)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(8)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
-                .popover(item: $selectedRunRecord) { record in
-                    CronSingleRunPopover(record: record)
-                }
-            }
-        }
-    }
-
-    // MARK: - Second-level introspection
-
-    /// A deeper drawer beneath the card body: an activation-volume chart and a
-    /// per-run execution-duration plot, both driven by the real execution
-    /// ledger fetched on expand. Collapsed by default so the card stays compact.
+    /// One "Introspection" section, formerly split across "Recent Runs" and a
+    /// separate "Introspection" drawer that showed the same execution ledger
+    /// twice. The recent-runs list is always visible (the fast at-a-glance the
+    /// expanded card is for); the heavier volume + duration charts stay behind
+    /// the chevron so the card doesn't balloon by default.
     private var introspectionSection: some View {
         Group {
             if !runRecords.isEmpty {
@@ -618,7 +591,10 @@ internal struct CronJobCard: View {
                     }
                     .buttonStyle(.plain)
 
+                    recentRunsList
+
                     if showIntrospection {
+                        Divider().background(Theme.border)
                         CronVolumeView(records: runRecords, horizon: .week)
                             .frame(height: 200)
                         durationPlot
@@ -626,6 +602,46 @@ internal struct CronJobCard: View {
                 }
                 .padding(8)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 8))
+                .popover(item: $selectedRunRecord) { record in
+                    CronSingleRunPopover(record: record)
+                }
+            }
+        }
+    }
+
+    /// The last five runs, newest first — tap one to open its single-run popover.
+    private var recentRunsList: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            let recent = Array(runRecords.suffix(5).reversed())
+            ForEach(recent) { record in
+                Button {
+                    selectedRunRecord = record
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(record.isOk ? Theme.success : Color.red)
+                            .frame(width: 6, height: 6)
+                        Text(record.firedAt.relativeString)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.secondary)
+                        Text(record.status)
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(record.isOk ? Theme.success : .red)
+                        if let dur = record.duration {
+                            Text(dur < 60 ? String(format: "%.1fs", dur) : String(format: "%.1fm", dur / 60))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                        Spacer()
+                        if !record.isOk {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(Theme.tertiary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -24,6 +24,10 @@ internal struct CronDashboardCanvas: View {
     @State private var isEditing = false
     @State private var showsTitleBars = true
     @State private var showAddPalette = false
+    /// Whether the Dataflow panel is taken full screen. Presented as an in-place
+    /// edge-to-edge overlay so it reads as the same surface zooming open, not a
+    /// modal sheet over it.
+    @State private var isGraphExpanded = false
     @AppStorage("cronDashboardToolbarCollapsed") private var toolbarCollapsed = false
 
     private let registry = CronDashboardCanvas.makeRegistry()
@@ -64,6 +68,17 @@ internal struct CronDashboardCanvas: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
+        .overlay {
+            if isGraphExpanded {
+                CronDataflowExpandedView(
+                    graphVM: cronGraphVM,
+                    listVM: cronListVM,
+                    onDismiss: { withAnimation(.easeInOut(duration: 0.18)) { isGraphExpanded = false } }
+                )
+                .environmentObject(gatewayClientWrapper)
+                .transition(.opacity)
+            }
+        }
         .task { await refreshData() }
     }
 
@@ -204,15 +219,25 @@ internal struct CronDashboardCanvas: View {
             return AnyView(CronVolumeView(records: records, horizon: timeHorizon))
         case .cronJobs:
             // showsTitle: false — the panel chrome above already reads "Jobs".
-            return AnyView(ScrollView { CronJobsView(vm: cronListVM, showsTitle: false) })
+            // A dataflow chip tap highlights the matching node in the Dataflow panel.
+            return AnyView(ScrollView {
+                CronJobsView(
+                    vm: cronListVM,
+                    showsTitle: false,
+                    onSelectEndpoint: { cronGraphVM.selectNode(withID: $0.id) }
+                )
+            })
         case .cronTimeline:
             return AnyView(ScrollView { CronTimelineView(records: records, horizon: timeHorizon) })
         case .cronBreakdown:
             return AnyView(ScrollView { CronBreakdownView(records: records) })
         case .cronGraph:
             return AnyView(
-                CronInterflowGraphView(viewModel: cronGraphVM)
-                    .environmentObject(gatewayClientWrapper)
+                CronInterflowGraphView(
+                    viewModel: cronGraphVM,
+                    onExpand: { withAnimation(.easeInOut(duration: 0.18)) { isGraphExpanded = true } }
+                )
+                .environmentObject(gatewayClientWrapper)
             )
         default:
             return AnyView(PanelEmptyState(

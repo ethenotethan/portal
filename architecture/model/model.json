@@ -140,7 +140,7 @@
       "line_count": 6929
     },
     {
-      "declaration_count": 141,
+      "declaration_count": 142,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -159,6 +159,7 @@
         "CronCategoryTree",
         "CronDashboardCanvas",
         "CronDashboardView",
+        "CronDataflowExpandedView",
         "CronEmptyChart",
         "CronGraphCanvas",
         "CronInterflowGraphView",
@@ -286,7 +287,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 50,
+      "file_count": 51,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -295,6 +296,7 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
@@ -342,7 +344,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 16684
+      "line_count": 17008
     },
     {
       "declaration_count": 37,
@@ -736,7 +738,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3653
+      "line_count": 3684
     },
     {
       "declaration_count": 5,
@@ -1368,7 +1370,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 11881
+      "line_count": 11876
     },
     {
       "declaration_count": 75,
@@ -3776,11 +3778,11 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
-        "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift"
+        "Sources/Portal/Views/CronJobsView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3789,7 +3791,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 50
+      "weight": 51
     },
     {
       "authority": "observed",
@@ -3862,11 +3864,11 @@
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronJobRow.swift",
-        "Sources/Portal/Views/CronJobsView.swift",
-        "Sources/Portal/Views/CronListView.swift"
+        "Sources/Portal/Views/CronJobsView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3885,13 +3887,14 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 97
+      "weight": 98
     },
     {
       "authority": "observed",
       "description": "References 4 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -3901,8 +3904,7 @@
         "Sources/Portal/Views/MissionControl/SessionsDashboard.swift",
         "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
         "Sources/Portal/Views/Quiz/FlashcardDeckView.swift",
-        "Sources/Portal/Views/Quiz/FlashcardView.swift",
-        "Sources/Portal/Views/Quiz/QuizSheet.swift"
+        "Sources/Portal/Views/Quiz/FlashcardView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3913,7 +3915,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 20
+      "weight": 21
     },
     {
       "authority": "observed",
@@ -3955,6 +3957,7 @@
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
         "Sources/Portal/Views/CronDashboardView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
@@ -3962,8 +3965,7 @@
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/FeedView.swift",
         "Sources/Portal/Views/Files/FilesBrowserView.swift",
-        "Sources/Portal/Views/Learning/CurriculumPlayerView.swift",
-        "Sources/Portal/Views/Learning/LearningDashboardView.swift"
+        "Sources/Portal/Views/Learning/CurriculumPlayerView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3982,7 +3984,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 44
+      "weight": 45
     },
     {
       "authority": "observed",
@@ -4943,10 +4945,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 332,
-    "declarations": 987,
-    "swift_files": 332,
-    "swift_lines": 96415,
+    "assigned_files": 333,
+    "declarations": 988,
+    "swift_files": 333,
+    "swift_lines": 96765,
     "unassigned_files": []
   },
   "layers": [
@@ -4978,6 +4980,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "3a5d413db117e4da6c3f2ef6bf986b2a3f6aa4f1c559d46213445e972446a8fa",
+  "source_tree_sha256": "a91e287bc7518adc0cdd998cc25b90621c924e5312184cb2e31a4a3b1ceb7524",
   "title": "Portal Architecture"
 }

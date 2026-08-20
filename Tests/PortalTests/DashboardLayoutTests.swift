@@ -293,7 +293,7 @@ internal struct DashboardLayoutTests {
         #expect(flame != nil)
     }
 
-    @Test("Seeded cron dashboard tiles all six sections inside the canvas")
+    @Test("Seeded cron dashboard is dataflow-first: graph + summary + volume")
     internal func seededCronDashboardFitsBounds() {
         let bounds = CGSize(width: 1200, height: 800)
         let layout = DashboardLayout.seededCronDashboard(for: bounds)
@@ -306,12 +306,27 @@ internal struct DashboardLayoutTests {
             #expect(panel.frame.width >= DashboardPanel.minSize.width)
             #expect(panel.frame.height >= DashboardPanel.minSize.height)
         }
-        // All six cron lenses are present exactly once.
+        // Only the three seeded lenses — jobs/timeline/per-job stay addable but
+        // are no longer part of the default (dataflow is now the centerpiece).
         let kinds = Set(layout.panels.map(\.kind))
-        #expect(kinds == [
-            .cronSummary, .cronVolume, .cronJobs, .cronTimeline, .cronBreakdown, .cronGraph,
-        ])
-        #expect(layout.panels.count == 6)
+        #expect(kinds == [.cronGraph, .cronSummary, .cronVolume])
+        #expect(layout.panels.count == 3)
+
+        // The dataflow graph is the dominant panel: widest, and taller than the
+        // stacked right column's two panels.
+        let graph = layout.panels.first { $0.kind == .cronGraph }
+        let summary = layout.panels.first { $0.kind == .cronSummary }
+        let volume = layout.panels.first { $0.kind == .cronVolume }
+        #expect(graph != nil)
+        #expect(summary != nil)
+        #expect(volume != nil)
+        if let graph, let summary, let volume {
+            #expect(graph.frame.width > summary.frame.width)
+            // Summary sits above volume in the right column, no overlap.
+            #expect(summary.frame.maxY <= volume.frame.minY + 0.5)
+            // The two right-column panels share the graph's right edge.
+            #expect(summary.frame.minX > graph.frame.maxX - 0.5)
+        }
     }
 
     // MARK: - Chat canvas default
