@@ -34,7 +34,9 @@ internal final class CronGraphViewModel: ObservableObject {
         case circle, triangle, cylinder, diamond, cluster, roundedSquare
     }
 
-    @Published internal private(set) var graph = CronGraph.empty
+    @Published internal private(set) var graph = CronGraph.empty {
+        didSet { hulledCategoryFolders = Set(categoryHulls.map(\.key)) }
+    }
     @Published internal var simNodes: [SimNode] = []
     @Published internal private(set) var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     /// Edge type per link, aligned 1:1 with `simLinks` — drawn on the edge.
@@ -635,6 +637,31 @@ internal final class CronGraphViewModel: ObservableObject {
                 return (key: folder, memberIDs: ids, color: categoryColor(forFolder: folder))
             }
             .sorted { $0.memberIDs.count != $1.memberIDs.count ? $0.memberIDs.count > $1.memberIDs.count : $0.key < $1.key }
+    }
+
+    /// Category folders the canvas draws a hull label for, cached off `categoryHulls`
+    /// whenever the graph changes. `drawLabels` asks per node per frame, and
+    /// `categoryHulls` walks every node to build its answer.
+    internal private(set) var hulledCategoryFolders: Set<String> = []
+
+    /// The text drawn beside a node on the canvas.
+    ///
+    /// A cron inside a category hull is already sitting under that folder's name
+    /// in 9pt caps, so repeating it in the node label says `projection` twice and
+    /// pushes the part that actually identifies the job off the edge of the
+    /// screen: `projection / x402 wiki projection` under a `PROJECTION` hull reads
+    /// as `x402 wiki projection`. Deeper levels survive (`indexing/wiki/x402` →
+    /// `wiki/x402`) because the hull only names the top folder.
+    ///
+    /// A cron whose folder has no hull — an ungrouped job, or the only job in its
+    /// folder — keeps its full name: there the label is the one place the
+    /// category appears at all. Same rule the category tree uses for its rows,
+    /// which is why it lives in `CronCategory` rather than here.
+    internal func displayLabel(forKind kind: String, label: String) -> String {
+        guard kind == "cron",
+              let folder = categoryFolder(forLabel: label),
+              hulledCategoryFolders.contains(folder) else { return label }
+        return CronCategory.name(label, strippingLeadingFolder: folder)
     }
 
     internal func radius(forKind kind: String) -> CGFloat {

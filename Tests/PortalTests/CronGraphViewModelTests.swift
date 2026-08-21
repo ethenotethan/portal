@@ -158,6 +158,84 @@ internal struct CronGraphViewModelTests {
         #expect(!hulls.contains { $0.key == "wiki" || $0.key == "work" })
     }
 
+    // MARK: - displayLabel
+
+    /// Four jobs filed under `projection` plus one lone `work` job — the shape of
+    /// the real graph, where one folder earns a hull and another doesn't.
+    private func projectionVM() -> CronGraphViewModel {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("a", "projection / x402 wiki projection"),
+                cron("b", "projection / refresh dashboard matviews"),
+                cron("c", "projection/mpp/wiki projection"),
+                cron("d", "work/standup"),
+                CronGraphNode(id: "wiki:x", kind: "artifact", type: "wiki", label: "projection/x",
+                              description: "", schedule: nil, enabled: true, usesLLM: false,
+                              lastStatus: nil, deliver: nil),
+            ],
+            edges: []
+        ))
+        return vm
+    }
+
+    @Test("a hulled cron drops the folder the hull already spells out")
+    internal func labelDropsHulledFolder() {
+        // The canvas draws `PROJECTION` above the hull, so the node label saying
+        // it again pushes the identifying half of the name off screen.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / x402 wiki projection")
+                == "x402 wiki projection")
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / refresh dashboard matviews")
+                == "refresh dashboard matviews")
+    }
+
+    @Test("levels below the hull's folder survive")
+    internal func labelKeepsDeeperLevels() {
+        // Only the top folder is on screen, so `mpp` has nowhere else to appear.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "projection/mpp/wiki projection")
+                == "mpp/wiki projection")
+    }
+
+    @Test("a cron with no hull keeps its full name")
+    internal func labelKeepsUnhulledName() {
+        // `work` has a single job, so `categoryHulls` draws nothing over it and the
+        // label is the only place its category appears — stripping would lose it.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "work/standup") == "work/standup")
+    }
+
+    @Test("only cron labels are shortened")
+    internal func labelLeavesResourcesAlone() {
+        // A ref's label is a path in the *store*, not a cron category, and it
+        // collides with a folder name by coincidence. Kind decides, not the text.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "artifact", label: "projection/x") == "projection/x")
+    }
+
+    @Test("the shortened labels agree with the hulls actually drawn")
+    internal func labelAgreesWithHulls() {
+        // The guard against drift: whatever folder the hull label prints is exactly
+        // what the node labels beneath it stop printing.
+        let vm = projectionVM()
+        #expect(vm.hulledCategoryFolders == Set(vm.categoryHulls.map(\.key)))
+        #expect(vm.hulledCategoryFolders == ["projection"])
+    }
+
+    @Test("reloading a graph without a folder stops shortening its jobs")
+    internal func labelFollowsGraphReload() {
+        // `hulledCategoryFolders` is cached off the graph, so a reload that leaves
+        // one job in a folder must give its full name back rather than keep
+        // stripping from a stale set.
+        let vm = projectionVM()
+        vm.setGraphForTesting(CronGraph(nodes: [cron("a", "projection / x402 wiki projection")],
+                                        edges: []))
+        #expect(vm.hulledCategoryFolders.isEmpty)
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / x402 wiki projection")
+                == "projection / x402 wiki projection")
+    }
+
     // MARK: - edgeLegend
 
     @Test("edge legend lists present types in dataflow order and folds side-effects into Delivers")

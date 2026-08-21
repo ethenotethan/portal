@@ -459,6 +459,51 @@ internal struct CronCategoryTests {
                 == filed.name)
     }
 
+    // MARK: - Stripping one visible level
+
+    @Test("stripping the hull's folder leaves the job's own name")
+    internal func stripLeadingFolderLeavesLeaf() {
+        // The interflow graph draws `INDEXING` over the hull, so the node label
+        // repeating it wastes the width that identifies which job this is.
+        #expect(CronCategory.name("indexing/solana sweep", strippingLeadingFolder: "indexing")
+                == "solana sweep")
+    }
+
+    @Test("stripping keeps the levels the caller isn't showing")
+    internal func stripLeavesDeeperLevels() {
+        // Unlike the tree, the graph names only the top folder — so a nested job
+        // has to keep the rest or two different jobs collapse to the same label.
+        #expect(CronCategory.name("indexing/wiki/x402", strippingLeadingFolder: "indexing")
+                == "wiki/x402")
+    }
+
+    @Test("a job filed under a different folder is returned untouched")
+    internal func stripIgnoresForeignFolder() {
+        // Guards the caller that looks up the folder from one place and the name
+        // from another: a mismatch must not silently shorten an unrelated job.
+        #expect(CronCategory.name("work/standup", strippingLeadingFolder: "indexing")
+                == "work/standup")
+        #expect(CronCategory.name("db-backup", strippingLeadingFolder: "indexing") == "db-backup")
+    }
+
+    @Test("stripping normalizes the spacing agents write around separators")
+    internal func stripNormalizesSpacedSeparators() {
+        // Real job names arrive as `projection / x402 wiki projection`; `split`
+        // already trims, so the strip has to agree with it rather than doing
+        // prefix arithmetic on the raw string.
+        #expect(CronCategory.name("projection / x402 wiki projection",
+                                  strippingLeadingFolder: "projection")
+                == "x402 wiki projection")
+    }
+
+    @Test("stripping never blanks a label")
+    internal func stripNeverEmpties() {
+        // An ungrouped name has no leading folder to match, and a separators-only
+        // name keeps itself as its title — neither can render as an empty label.
+        #expect(CronCategory.name("run", strippingLeadingFolder: "run") == "run")
+        #expect(CronCategory.name("///", strippingLeadingFolder: "///") == "///")
+    }
+
     // MARK: - Moving without retyping the name
 
     @Test("moving an ungrouped job into a category keeps its leaf name")
