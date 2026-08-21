@@ -562,6 +562,15 @@ internal final class CronGraphViewModel: ObservableObject {
         return categoryColor(forFolder: folder)
     }
 
+    /// The label to draw on the canvas for a node. Crons drop their category
+    /// prefix — the node's tint and its category hull already encode the folder,
+    /// so `projection/x402` reads as just `x402`. An ungrouped cron and every
+    /// non-cron kind show their label verbatim.
+    internal func displayLabel(forKind kind: String, label: String) -> String {
+        guard kind == "cron" else { return label }
+        return CronCategory.split(name: label).title
+    }
+
     /// The tint for a cron category folder — a stable per-folder hue shared by the
     /// node fill, its legend swatch, and the hull drawn around the category, so
     /// the three read as one grouping.

@@ -740,7 +740,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3960
+      "line_count": 3969
     },
     {
       "declaration_count": 5,
@@ -4953,7 +4953,7 @@
     "assigned_files": 334,
     "declarations": 993,
     "swift_files": 334,
-    "swift_lines": 97550,
+    "swift_lines": 97559,
     "unassigned_files": []
   },
   "layers": [
@@ -4985,6 +4985,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "8d06b9658c310d057c2a5b3331e270399a951491404b621163c4d011fc4fe4f2",
+  "source_tree_sha256": "01f62dc67b35f4409e05ec19d1edda53ed96fa9dc6455bcf653b130e18403148",
   "title": "Portal Architecture"
 }

@@ -848,7 +848,7 @@ private struct CronGraphCanvas: View {
             guard screenPos.x > -80, screenPos.x < size.width + 80,
                   screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
             context.draw(
-                Text(node.label)
+                Text(viewModel.displayLabel(forKind: node.kind, label: node.label))
                     .font(.system(size: isAnchor ? 12 : 11, weight: isAnchor ? .semibold : .medium))
                     .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
                 at: screenPos, anchor: .leading

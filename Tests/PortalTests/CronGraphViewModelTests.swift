@@ -158,6 +158,20 @@ internal struct CronGraphViewModelTests {
         #expect(legend.map(\.label) == ["Reads", "Writes", "Delivers"])
     }
 
+    // MARK: - displayLabel
+
+    @Test("canvas label drops the cron category prefix, leaving ungrouped crons and other kinds intact")
+    internal func displayLabelStripsCategoryPrefix() {
+        let vm = CronGraphViewModel()
+        // The tint + hull already carry the folder, so the leaf is enough.
+        #expect(vm.displayLabel(forKind: "cron", label: "projection/x402") == "x402")
+        #expect(vm.displayLabel(forKind: "cron", label: "life/training/morning-run") == "morning-run")
+        // No category → nothing to strip.
+        #expect(vm.displayLabel(forKind: "cron", label: "db-backup") == "db-backup")
+        // Non-cron labels are shown verbatim.
+        #expect(vm.displayLabel(forKind: "artifact", label: "wiki:events/a") == "wiki:events/a")
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")
