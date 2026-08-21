@@ -98,6 +98,7 @@
 		20B2E7CE2EC7E98CC2B5FA37 /* SessionFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 065153606F5A316A339DCD71 /* SessionFolder.swift */; };
 		20F19BB6413E0E68E28DCC18 /* SessionMetaSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 262CF3C4067F3C1E15554122 /* SessionMetaSyncService.swift */; };
 		2162E0ED7AEFD5DED1208D6C /* ChecklistSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B53EAA642267D9CC16376E6 /* ChecklistSpec.swift */; };
+		223DB91AE0798088F1C6CA43 /* CronNodeGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F2A58854DF639A75D16B15 /* CronNodeGroup.swift */; };
 		224819357FD329C1243ED7EE /* ActivityInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8181164CA87FB204D1DF09 /* ActivityInboxView.swift */; };
 		2269B3C44B22BFA652851CA1 /* MacInputTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31AA97E9F0544A37C426EB22 /* MacInputTextField.swift */; };
 		22AD867639F6155AB360885F /* SessionsListPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408D0E6553A2BFD0735CCAA6 /* SessionsListPanel.swift */; };
@@ -371,6 +372,7 @@
 		71E62024F425DF2DA0F1B8F4 /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
 		722D1A26F3ADA6E9C5C83299 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */; };
 		725A4E4076088C64AF972396 /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8AEF67B7B79CCE89754178 /* JSONRPCRequest.swift */; };
+		7277CE440732D90B27D740F2 /* CronNodeGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47E1382A27E3B914312D505 /* CronNodeGroupingTests.swift */; };
 		72BD254076423F025CB5AC94 /* SessionsListPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408D0E6553A2BFD0735CCAA6 /* SessionsListPanel.swift */; };
 		72E5474716EB64D2EF3BE02F /* WikiEventTimelineCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */; };
 		734E1CF85208937154D28C4B /* DelegationBatchNoticeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1966743B5AFD177D2CE8856A /* DelegationBatchNoticeTests.swift */; };
@@ -698,6 +700,7 @@
 		DA9A81327EE848892EF63F09 /* WikiFileTreeSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2838D75C8C76F8F720111F /* WikiFileTreeSidebar.swift */; };
 		DA9E33B100B6C5D0FCF0B30B /* ArtifactPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78FA2A665949614A12ECD37F /* ArtifactPanel.swift */; };
 		DAA5EB1831526B7302C05F5E /* PlatformCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AC1CAB2036BF2DECFF141C /* PlatformCompat.swift */; };
+		DACD71EA14AE07BF53D5DA5D /* CronNodeGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F2A58854DF639A75D16B15 /* CronNodeGroup.swift */; };
 		DB15F810DE30FF88E1415314 /* MediaAttachmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9818BBBE3206900907DBF63 /* MediaAttachmentTests.swift */; };
 		DBF737D082B6975F7B97D978 /* ArtifactPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78FA2A665949614A12ECD37F /* ArtifactPanel.swift */; };
 		DC5C31DFAA64B74E61537C15 /* GatewayURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D86516120E3F9F9C02CEE1C3 /* GatewayURLTests.swift */; };
@@ -1068,6 +1071,7 @@
 		721656D1D31475F30AA4C397 /* WikiEventLogSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiEventLogSource.swift; sourceTree = "<group>"; };
 		72EC243EDCBFCF6FAFA350B9 /* FilesBrowserViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesBrowserViewModel.swift; sourceTree = "<group>"; };
 		753E282310FD326FD063B49D /* LivingArtifactCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifactCapture.swift; sourceTree = "<group>"; };
+		75F2A58854DF639A75D16B15 /* CronNodeGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronNodeGroup.swift; sourceTree = "<group>"; };
 		7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillGraph3DView.swift; sourceTree = "<group>"; };
 		771C3D05CAE5E48B5A6AD239 /* BlockViewParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockViewParserTests.swift; sourceTree = "<group>"; };
 		7792D9E2DC57229B4906B037 /* CronSessionNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionNavigation.swift; sourceTree = "<group>"; };
@@ -1221,6 +1225,7 @@
 		D321F96E42DD4C5EECB9FC23 /* CalendarBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBlockView.swift; sourceTree = "<group>"; };
 		D45B7F0FB83263EA427790C6 /* ChatHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryStore.swift; sourceTree = "<group>"; };
 		D46CCFEE94C5027C5E48F55F /* MediaParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaParserTests.swift; sourceTree = "<group>"; };
+		D47E1382A27E3B914312D505 /* CronNodeGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronNodeGroupingTests.swift; sourceTree = "<group>"; };
 		D55A30D466FF8CA0ED2AB869 /* CurriculumCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumCard.swift; sourceTree = "<group>"; };
 		D5798D1367ED862755773F47 /* GitHubLinkCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubLinkCard.swift; sourceTree = "<group>"; };
 		D5DC09F6FFCDDB56400D05E0 /* GatewayTransportLeakTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayTransportLeakTests.swift; sourceTree = "<group>"; };
@@ -1498,6 +1503,7 @@
 				0697099F689730431AFE3573 /* CronCategory.swift */,
 				D679FCAE9EFA152CECED5610 /* CronGraph.swift */,
 				8F5928C59FC1812C7C200B78 /* CronJob.swift */,
+				75F2A58854DF639A75D16B15 /* CronNodeGroup.swift */,
 				28B41D9EBC0A420A1FD3B6B3 /* CronRunHistory.swift */,
 				02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */,
 				F1390C2AEE5CAA97020CCD67 /* DashboardPanel.swift */,
@@ -1955,6 +1961,7 @@
 				F8CEC99894FAA26FFB8883AC /* ConceptLinkerTests.swift */,
 				D9559C6BB8CC4D5A23041773 /* CronCategoryTests.swift */,
 				0EF4138FD7EC8F074A6A796A /* CronGraphViewModelTests.swift */,
+				D47E1382A27E3B914312D505 /* CronNodeGroupingTests.swift */,
 				EA8745028601F01F7FAA8466 /* CurriculumTests.swift */,
 				C4263D9C6D27546DDA5A6CDF /* DashboardLayoutTests.swift */,
 				9BAA25E9F3D61566B5174696 /* DelegationBatchHistoryTests.swift */,
@@ -2381,6 +2388,7 @@
 				1C6D0A2E03554A5541018707 /* CronJobsView.swift in Sources */,
 				D3206BDD4BE6BDBB66428CDC /* CronListView.swift in Sources */,
 				AEB52A4DB91661801B1AC029 /* CronListViewModel.swift in Sources */,
+				DACD71EA14AE07BF53D5DA5D /* CronNodeGroup.swift in Sources */,
 				8DBB6BDD9BEEDC6A09565998 /* CronPoller.swift in Sources */,
 				CD0F703A804CCFFEFE8B3547 /* CronRunHistory.swift in Sources */,
 				480DBE935E93B8DD8851E825 /* CronSearchBar.swift in Sources */,
@@ -2694,6 +2702,7 @@
 				52E93A780F636B349B08E8A4 /* ConceptLinkerTests.swift in Sources */,
 				7158726390721AE377318FE7 /* CronCategoryTests.swift in Sources */,
 				AEA084DD2ADD8B7AF95D1D63 /* CronGraphViewModelTests.swift in Sources */,
+				7277CE440732D90B27D740F2 /* CronNodeGroupingTests.swift in Sources */,
 				1521D48E2FD4351FACF50F9F /* CurriculumTests.swift in Sources */,
 				908DF7D671ACEBBFFD967A2C /* DashboardLayoutTests.swift in Sources */,
 				B402CC5A0113FF97EDAAD723 /* DelegationBatchHistoryTests.swift in Sources */,
@@ -2859,6 +2868,7 @@
 				66299213F48722292B543860 /* CronJobsView.swift in Sources */,
 				55B759B688DDBAAB10D7D72E /* CronListView.swift in Sources */,
 				1C4263ADBA8E323FC869AAD4 /* CronListViewModel.swift in Sources */,
+				223DB91AE0798088F1C6CA43 /* CronNodeGroup.swift in Sources */,
 				BFB8C9100FE2BCAA69D1D7C0 /* CronPoller.swift in Sources */,
 				AB80DB23E1386B000AC357CE /* CronRunHistory.swift in Sources */,
 				A898A567AC998ECE2CC74983 /* CronSearchBar.swift in Sources */,
