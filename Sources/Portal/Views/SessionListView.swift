@@ -35,6 +35,16 @@ struct SessionListView: View {
         }
     }
 
+    /// Whether this row is the session open in the chat pane. `currentSessionID`
+    /// is the RUNTIME gateway ID while rows are keyed by the stable database ID,
+    /// so comparing only `session.id` left the open session unmarked (no bold
+    /// title, no checkmark) for every session whose two IDs differ — which is
+    /// all of them once `session.title` has resolved the database ID.
+    private func isCurrent(_ session: Session) -> Bool {
+        guard let currentSessionID else { return false }
+        return session.id == currentSessionID || session.gatewayID == currentSessionID
+    }
+
     private var mySessions: [Session] {
         sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && !$0.isArchived && gatewayFilter($0) })
     }
@@ -177,7 +187,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
             source: nil,
-            isActive: session.id == currentSessionID,
+            isActive: isCurrent(session),
             isOwned: true,
             isPinned: session.isPinned,
             tags: session.tags,
@@ -230,7 +240,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForOwnedSession(session, skin: activeSkin),
             source: nil,
-            isActive: session.id == currentSessionID,
+            isActive: isCurrent(session),
             isOwned: true,
             isArchived: true,
             isPinned: session.isPinned,
@@ -270,7 +280,7 @@ struct SessionListView: View {
             title: sessionList.titleForSession(session),
             subtitle: sessionList.subtitleForSession(session),
             source: session.source,
-            isActive: session.id == currentSessionID,
+            isActive: isCurrent(session),
             isOwned: false,
             isPinned: session.isPinned,
             tags: session.tags,

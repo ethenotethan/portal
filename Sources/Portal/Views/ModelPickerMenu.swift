@@ -42,6 +42,20 @@ struct ModelPickerMenu: View {
     }
 
     var body: some View {
+        picker
+            // Keyed on the session, and OUTSIDE the canSwitch branch: the
+            // inventory fetch is also what fills the badge for a session whose
+            // model is routed per-turn (session.info reports ""), so gating it
+            // on the menu being interactive left "No model" on screen whenever
+            // the picker first rendered mid-turn — and it never re-ran on a
+            // session switch, which is why the second session stayed blank.
+            .task(id: chatViewModel.currentSessionID) {
+                await chatViewModel.refreshModelCatalog()
+            }
+    }
+
+    @ViewBuilder
+    private var picker: some View {
         if canSwitch {
             Menu {
                 menuContent
@@ -53,9 +67,6 @@ struct ModelPickerMenu: View {
             .fixedSize()
             #endif
             .help("Model: \(currentModel.isEmpty ? "harness default" : currentModel). Click to switch this session's model.")
-            .task {
-                await chatViewModel.refreshModelCatalog()
-            }
             .confirmationDialog(
                 chatViewModel.pendingModelConfirmation?.message ?? "",
                 isPresented: Binding(
