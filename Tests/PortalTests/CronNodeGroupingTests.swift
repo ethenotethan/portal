@@ -8,7 +8,7 @@ internal struct CronNodeGroupingTests {
 
     private func node(_ id: String, kind: String, type: String) -> CronGraphNode {
         CronGraphNode(
-            id: id, kind: kind, type: type, label: id,
+            id: id, kind: kind, type: type, label: id, description: "",
             schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil
         )
     }

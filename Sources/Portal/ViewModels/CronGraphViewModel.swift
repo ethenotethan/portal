@@ -28,9 +28,10 @@ internal final class CronGraphViewModel: ObservableObject {
     /// primary "what kind of thing is this" cue: once cron nodes were tinted by
     /// their category folder, color alone no longer told a job apart from a
     /// resource it touches. A round job, a triangular source, a database
-    /// cylinder, and a diamond sink read at a glance regardless of hue.
+    /// cylinder, a diamond sink, and a rounded-square service read at a glance
+    /// regardless of hue.
     internal enum NodeGlyph {
-        case circle, triangle, cylinder, diamond, cluster
+        case circle, triangle, cylinder, diamond, cluster, roundedSquare
     }
 
     @Published internal private(set) var graph = CronGraph.empty
@@ -440,7 +441,7 @@ internal final class CronGraphViewModel: ObservableObject {
             for memberID in group.memberIDs { remap[memberID] = group.superNodeID }
             superNodes.append(CronGraphNode(
                 id: group.superNodeID, kind: "group", type: key,
-                label: "\(key) · \(group.memberIDs.count)",
+                label: "\(key) · \(group.memberIDs.count)", description: "",
                 schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil
             ))
         }
@@ -543,6 +544,7 @@ internal final class CronGraphViewModel: ObservableObject {
         case "source": return Color(hex: "5cb85c") ?? .green
         case "artifact": return Color(hex: "e8a838") ?? .orange
         case "sink": return Color(hex: "ff6b9d") ?? .pink
+        case "service": return Color(hex: "2fc4b6") ?? .teal
         case "group": return Color(hex: "b18cff") ?? .purple
         default: return Color(hex: "aaaaaa") ?? .gray
         }
@@ -638,7 +640,7 @@ internal final class CronGraphViewModel: ObservableObject {
     internal func radius(forKind kind: String) -> CGFloat {
         switch kind {
         case "group": return 14
-        case "cron": return 9
+        case "cron", "service": return 9
         case "artifact": return 7
         default: return 6
         }
@@ -649,13 +651,16 @@ internal final class CronGraphViewModel: ObservableObject {
     /// in), artifacts are database cylinders (a written/persisted store), and
     /// sinks are diamonds (a terminal side-effect target). Drives both the
     /// canvas node bodies and the legend/detail swatches so the key teaches the
-    /// exact shapes on the graph.
+    /// exact shapes on the graph. Services are rounded squares — a running box
+    /// (process/container), the one node kind that is an actor like a cron but
+    /// stays up instead of firing on a schedule.
     internal func glyph(forKind kind: String) -> NodeGlyph {
         switch kind {
         case "cron": return .circle
         case "source": return .triangle
         case "artifact": return .cylinder
         case "sink": return .diamond
+        case "service": return .roundedSquare
         case "group": return .cluster
         default: return .circle
         }
@@ -690,11 +695,12 @@ internal final class CronGraphViewModel: ObservableObject {
         return out
     }
 
-    /// Legend rows for the four node kinds, in dataflow order.
+    /// Legend rows for the node kinds, in dataflow order.
     internal static let legend: [(kind: String, label: String)] = [
         ("cron", "Cron job"),
         ("source", "Source"),
         ("artifact", "Artifact"),
         ("sink", "Sink"),
+        ("service", "Service"),
     ]
 }
