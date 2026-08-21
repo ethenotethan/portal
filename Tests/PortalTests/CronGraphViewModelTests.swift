@@ -265,6 +265,44 @@ internal struct CronGraphViewModelTests {
         #expect(legend.map(\.label) == ["Reads", "Writes", "Delivers"])
     }
 
+    @Test("hosts is a structural containment edge, not a delivery")
+    internal func hostsEdgeIsStructuralAndDistinct() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("job", "job"),
+                CronGraphNode(id: "postgres:app.events", kind: "artifact", type: "postgres",
+                              label: "events", description: "", schedule: nil, enabled: true,
+                              usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "docker:abc123", kind: "service", type: "service",
+                              label: "Postgres", description: "the store", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "job", target: "postgres:app.events", type: "writes"),
+                // The container RUNS the table the cron writes — containment.
+                CronGraphEdge(source: "docker:abc123", target: "postgres:app.events", type: "hosts"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        // `hosts` must appear as its own legend row, NOT folded into "Delivers".
+        let legend = vm.edgeLegend
+        #expect(legend.map(\.type) == ["writes", "hosts"])
+        #expect(legend.map(\.label) == ["Writes", "Hosts"])
+
+        // It must be tinted as infrastructure, distinct from both dataflow and sink.
+        #expect(vm.edgeColor(forType: "hosts") != vm.edgeColor(forType: "writes"))
+        #expect(vm.edgeColor(forType: "hosts") != vm.edgeColor(forType: "notify"))
+
+        // And it must be drawn as containment (dashed, no arrowhead).
+        #expect(vm.edgeIsContainment("hosts"))
+        for flow in ["reads", "writes", "feeds", "notify"] {
+            #expect(!vm.edgeIsContainment(flow))
+        }
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")
