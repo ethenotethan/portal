@@ -63,6 +63,12 @@ internal final class CronGraphViewModel: ObservableObject {
     private let springLength: CGFloat = 130
     private let springConstant: CGFloat = 0.01
     private let chargeConstant: CGFloat = 12000
+    /// Pulls members of the same cluster (a scheme group or a cron category)
+    /// toward their shared centroid. Without it, cluster-mates that don't link to
+    /// each other are only pushed apart by charge repulsion, so they scatter and
+    /// the hull drawn around them sprawls with nodes dangling on its edge. Charge
+    /// repulsion still wins at close range, so members tighten without collapsing.
+    private let cohesionConstant: CGFloat = 0.12
     private let centerPull: CGFloat = 0.0006
     private let maxVelocity: CGFloat = 30
     private let maxRepulsionForce: CGFloat = 500
@@ -180,6 +186,7 @@ internal final class CronGraphViewModel: ObservableObject {
     private func step(alpha: CGFloat) {
         guard simNodes.count > 1 else { return }
         let size = effectiveCanvasSize
+        let clusters = clusterIndexSets()
         for _ in 0..<iterationsPerFrame {
             var forces = Array(repeating: CGVector.zero, count: simNodes.count)
             // Repulsion — every pair pushes apart (O(n²); fine at this scale).
@@ -210,6 +217,17 @@ internal final class CronGraphViewModel: ObservableObject {
                 forces[si].dx += fx; forces[si].dy += fy
                 forces[ti].dx -= fx; forces[ti].dy -= fy
             }
+            // Cohesion — pull each cluster's members toward their centroid so
+            // grouped nodes settle together and the hull around them stays tight.
+            for members in clusters {
+                var cx: CGFloat = 0, cy: CGFloat = 0
+                for i in members { cx += simNodes[i].position.x; cy += simNodes[i].position.y }
+                cx /= CGFloat(members.count); cy /= CGFloat(members.count)
+                for i in members where !simNodes[i].isDragging {
+                    forces[i].dx += (cx - simNodes[i].position.x) * cohesionConstant
+                    forces[i].dy += (cy - simNodes[i].position.y) * cohesionConstant
+                }
+            }
             // Centering + integration.
             let meanX = simNodes.reduce(0) { $0 + $1.position.x } / CGFloat(simNodes.count)
             let meanY = simNodes.reduce(0) { $0 + $1.position.y } / CGFloat(simNodes.count)
@@ -234,6 +252,28 @@ internal final class CronGraphViewModel: ObservableObject {
 
     private func recomputeDrawOrder() {
         drawOrder = simNodes.indices.sorted { simNodes[$0].position.y < simNodes[$1].position.y }
+    }
+
+    /// The index sets the cohesion force pulls together — one per multi-member
+    /// cluster among the *present* sim nodes. Crons cluster by category folder,
+    /// resource/sink nodes by ref scheme; this mirrors exactly what draws a hull
+    /// (super-nodes and collapsed-away members never appear here). Recomputed each
+    /// step so membership tracks expand/collapse without extra bookkeeping.
+    private func clusterIndexSets() -> [[Int]] {
+        var byKey: [String: [Int]] = [:]
+        for (index, node) in simNodes.enumerated() {
+            switch node.kind {
+            case "cron":
+                if let folder = categoryFolder(forLabel: node.label) {
+                    byKey["cat:\(folder)", default: []].append(index)
+                }
+            case "group":
+                continue
+            default:
+                byKey["scheme:\(node.type)", default: []].append(index)
+            }
+        }
+        return byKey.values.filter { $0.count >= 2 }.map { $0 }
     }
 
     // MARK: - Framing
@@ -519,7 +559,14 @@ internal final class CronGraphViewModel: ObservableObject {
         guard kind == "cron", let folder = categoryFolder(forLabel: label) else {
             return color(forKind: kind)
         }
-        return Color(hue: stableHue(for: folder), saturation: 0.52, brightness: 0.98)
+        return categoryColor(forFolder: folder)
+    }
+
+    /// The tint for a cron category folder — a stable per-folder hue shared by the
+    /// node fill, its legend swatch, and the hull drawn around the category, so
+    /// the three read as one grouping.
+    internal func categoryColor(forFolder folder: String) -> Color {
+        Color(hue: stableHue(for: folder), saturation: 0.52, brightness: 0.98)
     }
 
     /// The fill for a sim node including cluster super-nodes, which are tinted by
@@ -569,6 +616,25 @@ internal final class CronGraphViewModel: ObservableObject {
         return out.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// Cron category folders with ≥2 jobs, each with its member ids and tint —
+    /// the source for the soft hull drawn around jobs filed together. Unlike the
+    /// scheme `groups` these are a visual grouping only: no collapse, no
+    /// super-node, no edge rerouting. Sorted by descending member count then name
+    /// so the draw order is stable across reloads.
+    internal var categoryHulls: [(key: String, memberIDs: [String], color: Color)] {
+        var membersByFolder: [String: [String]] = [:]
+        for node in graph.nodes where node.kind == "cron" {
+            guard let folder = categoryFolder(forLabel: node.label) else { continue }
+            membersByFolder[folder, default: []].append(node.id)
+        }
+        return membersByFolder
+            .compactMap { folder, ids -> (key: String, memberIDs: [String], color: Color)? in
+                guard ids.count >= 2 else { return nil }
+                return (key: folder, memberIDs: ids, color: categoryColor(forFolder: folder))
+            }
+            .sorted { $0.memberIDs.count != $1.memberIDs.count ? $0.memberIDs.count > $1.memberIDs.count : $0.key < $1.key }
+    }
+
     internal func radius(forKind kind: String) -> CGFloat {
         switch kind {
         case "group": return 14
@@ -603,6 +669,25 @@ internal final class CronGraphViewModel: ObservableObject {
         case "reads", "writes", "feeds": return Color(hex: "8a8aff") ?? .accentColor
         default: return color(forKind: "sink")
         }
+    }
+
+    /// The edge types present in the current graph, each with a display label and
+    /// its tint, in dataflow order (reads → writes → feeds → delivers). Drives the
+    /// edge key so the arrow colors on the canvas read without per-edge text. Any
+    /// non-structural type (a side-effect scheme like telegram/pr) folds into a
+    /// single "Delivers" entry, since they all share the warm sink hue.
+    internal var edgeLegend: [(type: String, label: String, color: Color)] {
+        let present = Set(simLinkTypes)
+        var out: [(type: String, label: String, color: Color)] = []
+        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds")]
+        where present.contains(type) {
+            out.append((type: type, label: label, color: edgeColor(forType: type)))
+        }
+        let structural: Set<String> = ["reads", "writes", "feeds"]
+        if present.contains(where: { !structural.contains($0) }) {
+            out.append((type: "deliver", label: "Delivers", color: edgeColor(forType: "deliver")))
+        }
+        return out
     }
 
     /// Legend rows for the four node kinds, in dataflow order.
