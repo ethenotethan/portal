@@ -748,17 +748,27 @@ private struct CronGraphCanvas: View {
 
             let type = linkIndex < viewModel.simLinkTypes.count ? viewModel.simLinkTypes[linkIndex] : "reads"
             let baseColor = viewModel.edgeColor(forType: type)
+            let isContainment = viewModel.edgeIsContainment(type)
 
             var path = Path()
             path.move(to: sp)
             path.addQuadCurve(to: tp, control: ctrl)
-            context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            if isContainment {
+                // Dashed: a `hosts` edge is containment, not flow. Nothing
+                // travels along it, so it must not look like the solid dataflow
+                // arrows next to it.
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.45 : 0.06)),
+                               style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+            } else {
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            }
 
             // Arrowhead at the target end points along the flow (reads: into the
             // cron; writes/delivers: into the resource/sink), so direction is
-            // legible without reading the edge label.
+            // legible without reading the edge label. Containment edges get no
+            // arrowhead — there is no direction of travel to indicate.
             let targetR = viewModel.radius(forKind: viewModel.simNodes[ti].kind)
-            if len > targetR + 6 {
+            if !isContainment, len > targetR + 6 {
                 drawArrowhead(context: context, tip: tp, control: ctrl,
                               backoff: targetR + 2, color: baseColor.opacity(isConnected ? 0.7 : 0.07))
             }
