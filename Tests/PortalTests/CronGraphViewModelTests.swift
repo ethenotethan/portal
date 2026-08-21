@@ -101,6 +101,63 @@ internal struct CronGraphViewModelTests {
         #expect(vm.effectiveGraph().nodes.count == 3)
     }
 
+    // MARK: - categoryHulls
+
+    private func cron(_ id: String, _ label: String) -> CronGraphNode {
+        CronGraphNode(id: id, kind: "cron", type: "cron", label: label,
+                      schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil)
+    }
+
+    @Test("cron category hulls group jobs by top-level folder, keeping only ≥2-member folders")
+    internal func categoryHullsGroupByFolder() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("a", "life/training/run"),
+                cron("b", "life/reading"),
+                cron("c", "work/standup"),
+                CronGraphNode(id: "wiki:x", kind: "artifact", type: "wiki", label: "x",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: []
+        ))
+        let hulls = vm.categoryHulls
+        // `life` has two jobs; `work` has one (dropped); resources never form a category hull.
+        #expect(hulls.count == 1)
+        #expect(hulls.first?.key == "life")
+        #expect(hulls.first?.memberIDs.sorted() == ["a", "b"])
+        #expect(!hulls.contains { $0.key == "wiki" || $0.key == "work" })
+    }
+
+    // MARK: - edgeLegend
+
+    @Test("edge legend lists present types in dataflow order and folds side-effects into Delivers")
+    internal func edgeLegendOrdersAndFolds() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("job", "job"),
+                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "telegram:x", kind: "sink", type: "telegram", label: "x",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "src:y", kind: "source", type: "src", label: "y",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "src:y", target: "job", type: "reads"),
+                CronGraphEdge(source: "job", target: "wiki:a", type: "writes"),
+                CronGraphEdge(source: "job", target: "telegram:x", type: "notify"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+        let legend = vm.edgeLegend
+        // reads → writes → (feeds absent) → the non-structural `notify` folds into one Delivers row.
+        #expect(legend.map(\.type) == ["reads", "writes", "deliver"])
+        #expect(legend.map(\.label) == ["Reads", "Writes", "Delivers"])
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")
