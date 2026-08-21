@@ -4,24 +4,33 @@ import Foundation
 
 /// One node in the cron interflow dataflow graph (from the `cron.graph` RPC).
 ///
-/// Four kinds:
+/// Five kinds:
 /// - `cron` — a scheduled job (id = the bare hex job id; carries schedule and
 ///   run metadata).
 /// - `source` — an external input read by ≥1 cron and written by none.
 /// - `artifact` — a data ref written by ≥1 cron: the join node between a
 ///   producer and its consumers (a produced ref outranks a plain source).
 /// - `sink` — a terminal side-effect target (telegram / pr / webhook …).
+/// - `service` — a long-running process or container the harness tracks (a
+///   dashboard, a Postgres, a Redis) that reads/writes the same refs a cron
+///   does. Liveness is the tracked process / `docker ps` presence, and it
+///   carries a required markdown `description` shown in the node detail card.
 ///
 /// Resource and sink ids are `scheme:value` (always contain a colon); cron ids
-/// are bare 12-hex, so the two id spaces never collide and shared refs dedupe.
+/// are bare 12-hex, and service ids are `docker:<id>` or a process handle — the
+/// id spaces never collide, so shared refs dedupe a service onto a cron's store.
 internal struct CronGraphNode: Identifiable, Hashable {
     internal let id: String
-    /// `cron` | `source` | `artifact` | `sink` — drives the node color.
+    /// `cron` | `source` | `artifact` | `sink` | `service` — drives node color.
     internal let kind: String
-    /// Fine-grained type: `cron` for jobs, else the ref scheme
-    /// (`https`, `wiki`, `telegram`, …).
+    /// Fine-grained type: `cron` for jobs, `service` for services, else the ref
+    /// scheme (`https`, `wiki`, `telegram`, …).
     internal let type: String
     internal let label: String
+    /// Markdown blurb of what a `service` node is / does — required on services
+    /// (the server rejects an empty one), empty for every other kind. Rendered
+    /// in the node detail card so you can expand a service and read its purpose.
+    internal let description: String
     // Cron-only metadata — nil / defaults for resource and sink nodes.
     internal let schedule: String?
     internal let enabled: Bool

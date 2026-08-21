@@ -365,7 +365,7 @@ internal struct CronInterflowGraphView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text(node.kind == "cron" ? "cron job" : node.type)
+                    Text(kindCaption(for: node))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Theme.secondary.opacity(0.8))
                     if let schedule = node.schedule, !schedule.isEmpty {
@@ -379,6 +379,12 @@ internal struct CronInterflowGraphView: View {
                         if let status = node.lastStatus, !status.isEmpty {
                             detailRow(icon: "circle.fill", value: status)
                         }
+                    }
+                    // A service self-declares a markdown blurb of what it is / does;
+                    // render it so expanding the node answers "wtf is this".
+                    if node.kind == "service", !node.description.isEmpty {
+                        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+                        MarkdownContentView(text: node.description)
                     }
                     connectionsList
                 }
@@ -431,6 +437,16 @@ internal struct CronInterflowGraphView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    /// The small caption under a node's title: its kind for the actor nodes
+    /// (cron / service), else the fine-grained ref scheme for a resource/sink.
+    private func kindCaption(for node: CronGraphNode) -> String {
+        switch node.kind {
+        case "cron": return "cron job"
+        case "service": return "service"
+        default: return node.type
         }
     }
 
@@ -891,6 +907,10 @@ internal struct CronNodeGlyphShape: Shape {
             return Self.cylinderPath(in: rect)
         case .cluster:
             return Self.hexagonPath(in: rect)
+        case .roundedSquare:
+            // A running box — a long-lived process/container. Distinct from the
+            // circle (a cron fires and exits) and the leaf resource shapes.
+            return Path(roundedRect: rect, cornerRadius: rect.width * 0.28)
         }
     }
 

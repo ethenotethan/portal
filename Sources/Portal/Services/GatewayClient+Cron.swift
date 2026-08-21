@@ -36,6 +36,7 @@ extension GatewayClient {
                 kind: kind,
                 type: d["type"]?.stringValue ?? kind,
                 label: d["label"]?.stringValue ?? id,
+                description: d["description"]?.stringValue ?? "",
                 schedule: d["schedule"]?.stringValue,
                 enabled: d["enabled"]?.boolValue ?? true,
                 usesLLM: d["uses_llm"]?.boolValue ?? false,

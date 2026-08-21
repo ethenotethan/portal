@@ -47,11 +47,40 @@ internal struct CronGraphViewModelTests {
         #expect(vm.glyph(forKind: "source") == .triangle)
         #expect(vm.glyph(forKind: "artifact") == .cylinder)
         #expect(vm.glyph(forKind: "sink") == .diamond)
+        #expect(vm.glyph(forKind: "service") == .roundedSquare)
         // Every real kind is distinct, so shape alone delineates them.
-        let shapes: [CronGraphViewModel.NodeGlyph] = ["cron", "source", "artifact", "sink"].map { vm.glyph(forKind: $0) }
-        #expect(Set(shapes).count == 4)
+        let shapes: [CronGraphViewModel.NodeGlyph] = ["cron", "source", "artifact", "sink", "service"].map { vm.glyph(forKind: $0) }
+        #expect(Set(shapes).count == 5)
         // An unrecognized kind still draws something rather than vanishing.
         #expect(vm.glyph(forKind: "mystery") == .circle)
+    }
+
+    @Test("service is a first-class kind: distinct color, its own legend row")
+    internal func serviceIsFirstClassKind() {
+        let vm = CronGraphViewModel()
+        // A service has a hue of its own, not the gray unknown-kind fallback.
+        #expect(vm.color(forKind: "service") != vm.color(forKind: "mystery"))
+        #expect(vm.color(forKind: "service") != vm.color(forKind: "cron"))
+        // The legend key teaches the service kind alongside the others.
+        #expect(CronGraphViewModel.legend.contains { $0.kind == "service" && $0.label == "Service" })
+    }
+
+    @Test("a service node carries its markdown description through the graph projection")
+    internal func serviceDescriptionSurvivesOnNode() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                CronGraphNode(id: "docker:abc123", kind: "service", type: "service",
+                              label: "Dashboard", description: "# Dash\nReads analytics.",
+                              schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: []
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+        vm.selectNode(withID: "docker:abc123")
+        #expect(vm.selectedNode?.kind == "service")
+        #expect(vm.selectedNode?.description == "# Dash\nReads analytics.")
     }
 
     // MARK: - effectiveGraph / collapse
@@ -60,11 +89,11 @@ internal struct CronGraphViewModelTests {
         let vm = CronGraphViewModel()
         vm.setGraphForTesting(CronGraph(
             nodes: [
-                CronGraphNode(id: "job", kind: "cron", type: "cron", label: "job",
+                CronGraphNode(id: "job", kind: "cron", type: "cron", label: "job", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
-                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a",
+                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
-                CronGraphNode(id: "wiki:b", kind: "artifact", type: "wiki", label: "b",
+                CronGraphNode(id: "wiki:b", kind: "artifact", type: "wiki", label: "b", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
             ],
             edges: [
@@ -104,7 +133,7 @@ internal struct CronGraphViewModelTests {
     // MARK: - categoryHulls
 
     private func cron(_ id: String, _ label: String) -> CronGraphNode {
-        CronGraphNode(id: id, kind: "cron", type: "cron", label: label,
+        CronGraphNode(id: id, kind: "cron", type: "cron", label: label, description: "",
                       schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil)
     }
 
@@ -116,7 +145,7 @@ internal struct CronGraphViewModelTests {
                 cron("a", "life/training/run"),
                 cron("b", "life/reading"),
                 cron("c", "work/standup"),
-                CronGraphNode(id: "wiki:x", kind: "artifact", type: "wiki", label: "x",
+                CronGraphNode(id: "wiki:x", kind: "artifact", type: "wiki", label: "x", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
             ],
             edges: []
@@ -137,11 +166,11 @@ internal struct CronGraphViewModelTests {
         vm.setGraphForTesting(CronGraph(
             nodes: [
                 cron("job", "job"),
-                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a",
+                CronGraphNode(id: "wiki:a", kind: "artifact", type: "wiki", label: "a", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
-                CronGraphNode(id: "telegram:x", kind: "sink", type: "telegram", label: "x",
+                CronGraphNode(id: "telegram:x", kind: "sink", type: "telegram", label: "x", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
-                CronGraphNode(id: "src:y", kind: "source", type: "src", label: "y",
+                CronGraphNode(id: "src:y", kind: "source", type: "src", label: "y", description: "",
                               schedule: nil, enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
             ],
             edges: [
