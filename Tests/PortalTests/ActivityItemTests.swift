@@ -87,6 +87,30 @@ struct ActivityItemTests {
         #expect(item?.isDismissed == true)
     }
 
+    @Test("artifact type labels recognize MIME types and filename fallbacks")
+    internal func artifactTypeLabels() {
+        let cases: [(name: String, mimeType: String, expected: String)] = [
+            ("notes", "text/markdown", "MD"),
+            ("report.PDF", "application/octet-stream", "PDF"),
+            ("photo", "image/png", "IMG"),
+            ("server.LOG", "application/octet-stream", "LOG"),
+            ("readme", "text/plain", "TXT"),
+            ("archive.zip", "application/octet-stream", "ZIP"),
+            ("README", "application/octet-stream", "README"),
+        ]
+
+        for testCase in cases {
+            let artifact = ActivityArtifact(
+                id: testCase.name,
+                name: testCase.name,
+                mimeType: testCase.mimeType,
+                size: 0,
+                preview: nil
+            )
+            #expect(artifact.typeLabel == testCase.expected)
+        }
+    }
+
     @Test("activity events parse direct payloads as well as nested activity payloads")
     func parseDirectActivityPayloadGatewayEvent() {
         let direct = GatewayEvent.from(type: "activity.created", payload: .dictionary([
