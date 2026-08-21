@@ -699,23 +699,39 @@ internal final class CronGraphViewModel: ObservableObject {
     internal func edgeColor(forType type: String) -> Color {
         switch type {
         case "reads", "writes", "feeds": return Color(hex: "8a8aff") ?? .accentColor
+        // `hosts` is containment, not dataflow: the service on the source end
+        // RUNS the resource on the target end (a Postgres container hosting the
+        // tables crons read and write). It gets the muted service hue rather
+        // than the dataflow violet so it reads as infrastructure behind the
+        // flow instead of another hop in it. Without this case it would fall
+        // through to the warm sink tint and be mistaken for a delivery.
+        case "hosts": return color(forKind: "service")
         default: return color(forKind: "sink")
         }
     }
 
+    /// True when an edge type is containment rather than dataflow, and should be
+    /// drawn as a dashed line without an arrowhead — nothing *moves* along a
+    /// `hosts` edge, so a directional arrow would misdescribe it.
+    internal func edgeIsContainment(_ type: String) -> Bool { type == "hosts" }
+
     /// The edge types present in the current graph, each with a display label and
-    /// its tint, in dataflow order (reads → writes → feeds → delivers). Drives the
-    /// edge key so the arrow colors on the canvas read without per-edge text. Any
-    /// non-structural type (a side-effect scheme like telegram/pr) folds into a
-    /// single "Delivers" entry, since they all share the warm sink hue.
+    /// its tint, in dataflow order (reads → writes → feeds → hosts → delivers).
+    /// Drives the edge key so the arrow colors on the canvas read without
+    /// per-edge text. Any non-structural type (a side-effect scheme like
+    /// telegram/pr) folds into a single "Delivers" entry, since they all share
+    /// the warm sink hue. `hosts` is listed explicitly after the dataflow types:
+    /// it is structural but is containment rather than flow, so it must not fold
+    /// into "Delivers".
     internal var edgeLegend: [(type: String, label: String, color: Color)] {
         let present = Set(simLinkTypes)
         var out: [(type: String, label: String, color: Color)] = []
-        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds")]
+        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds"),
+                              ("hosts", "Hosts")]
         where present.contains(type) {
             out.append((type: type, label: label, color: edgeColor(forType: type)))
         }
-        let structural: Set<String> = ["reads", "writes", "feeds"]
+        let structural: Set<String> = ["reads", "writes", "feeds", "hosts"]
         if present.contains(where: { !structural.contains($0) }) {
             out.append((type: "deliver", label: "Delivers", color: edgeColor(forType: "deliver")))
         }

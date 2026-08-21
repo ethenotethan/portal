@@ -1,61 +1,67 @@
 {
+  "schema_version": "1.0.0",
   "components": [
     {
-      "evidence": [
-        "Sources/Portal/Models/CronCategory.swift"
-      ],
-      "flows": [
-        "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names"
-      ],
       "id": "domain-models",
-      "model": "hermes-agent/glm-5.2",
-      "open_questions": [],
+      "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface — displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible.",
       "responsibilities": [
         "Derive cron category paths from job names as a pure naming convention",
         "Normalize and validate user-typed job names so renaming is also refiling",
         "Own value-oriented wire and domain types shared across experiences and service adapters",
         "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart"
       ],
-      "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
-      "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface \u2014 displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible."
+      "flows": [
+        "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names"
+      ],
+      "open_questions": [],
+      "evidence": [
+        "Sources/Portal/Models/CronCategory.swift"
+      ],
+      "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
+      "model": "hermes-agent/glm-5.2"
     },
     {
-      "evidence": [
-        "Sources/Portal/ViewModels/CronGraphViewModel.swift"
-      ],
-      "flows": [
-        "graph didSet refreshes hulledCategoryFolders from categoryHulls; the canvas asks displayLabel(forKind:label:) per node when drawing labels"
-      ],
       "id": "operations-state",
-      "model": "hermes-agent/glm-5.2",
-      "open_questions": [],
+      "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name. Edge semantics also live here: a hosts edge is containment rather than dataflow (the service runs the resource), so edgeIsContainment(_:) marks it, edgeColor(forType:) gives it the muted service hue instead of the dataflow violet, and edgeLegend lists it after reads/writes/feeds and before the folded Delivers entry.",
       "responsibilities": [
         "Cache hulled category folders on graph change so per-frame label drawing avoids walking every node",
+        "Classify hosts edges as containment — dashed, arrowless — distinct from reads/writes/feeds dataflow",
         "Expose category hulls for cron folders with two or more jobs as a visual grouping with stable tints",
         "Own observable state machines for operations surfaces: sessions, cron, activity, feed, skills, settings, gateway lifecycle, learning, and the file browser",
         "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise"
       ],
-      "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
-      "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node \u2014 a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name."
+      "flows": [
+        "graph didSet refreshes hulledCategoryFolders from categoryHulls; the canvas asks displayLabel(forKind:label:) per node when drawing labels",
+        "The canvas asks edgeIsContainment(_:) per edge before stroking, and edgeLegend drives the edge color key"
+      ],
+      "open_questions": [],
+      "evidence": [
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift"
+      ],
+      "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
+      "model": "hermes-agent/glm-5.2"
     },
     {
-      "evidence": [
-        "Sources/Portal/Views/CronInterflowGraphView.swift"
-      ],
-      "flows": [
-        "CronGraphCanvas.drawHullLabels draws each category folder above its hull; drawLabels asks the view model for each node's display label"
-      ],
       "id": "operations-ui",
-      "model": "hermes-agent/glm-5.2",
-      "open_questions": [],
+      "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster; node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names. Labels are placed with collision avoidance: candidates are ranked (selected anchor, then its neighbors, then the rest), anchor and neighbor labels always draw, and lower-priority labels whose boxes overlap an already-placed one are dropped rather than smeared together; each drawn label sits on a dark rounded plate for legibility over edges. Per-kind node silhouettes live in CronNodeGlyphShape (one Shape shared by canvas node bodies, selection rings, and legend swatches), and hosts containment edges draw dashed with no arrowhead.",
       "responsibilities": [
         "Draw category hulls and their uppercased folder labels above clustered cron nodes in the interflow canvas",
+        "Draw labels with rank-based collision avoidance so overlapping names are dropped instead of painted over each other",
         "Present the operations surfaces: sessions, cron, activity, skills, learning, mission control, and the Hermes file browser",
+        "Render per-kind node glyphs from one shared CronNodeGlyphShape so the legend key matches the canvas outline",
         "Resolve node label text through the view model rather than duplicating the strip rule in the canvas"
       ],
-      "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
-      "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster, and node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names."
+      "flows": [
+        "CronGraphCanvas.drawHullLabels draws each category folder above its hull; drawLabels asks the view model for each node's display label",
+        "CronGraphCanvas consumes CronNodeGlyphShape for node bodies, selection rings, and legend/detail swatches"
+      ],
+      "open_questions": [],
+      "evidence": [
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
+        "Sources/Portal/Views/CronNodeGlyphShape.swift"
+      ],
+      "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
+      "model": "hermes-agent/glm-5.2"
     }
-  ],
-  "schema_version": "1.0.0"
+  ]
 }

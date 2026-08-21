@@ -140,7 +140,7 @@
       "line_count": 6940
     },
     {
-      "declaration_count": 143,
+      "declaration_count": 144,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -213,6 +213,7 @@
         "Horizon",
         "HubResultRow",
         "Kind",
+        "LabelCandidate",
         "LearningComponents_Previews",
         "LearningDashboardView",
         "LearningDashboardView_Previews",
@@ -288,7 +289,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 51,
+      "file_count": 52,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -303,6 +304,7 @@
         "Sources/Portal/Views/CronJobRow.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
+        "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -345,13 +347,15 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17400,
+      "line_count": 17463,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
-          "Sources/Portal/Views/CronInterflowGraphView.swift"
+          "Sources/Portal/Views/CronInterflowGraphView.swift",
+          "Sources/Portal/Views/CronNodeGlyphShape.swift"
         ],
         "flows": [
+          "CronGraphCanvas consumes CronNodeGlyphShape for node bodies, selection rings, and legend/detail swatches",
           "CronGraphCanvas.drawHullLabels draws each category folder above its hull; drawLabels asks the view model for each node's display label"
         ],
         "id": "operations-ui",
@@ -359,11 +363,13 @@
         "open_questions": [],
         "responsibilities": [
           "Draw category hulls and their uppercased folder labels above clustered cron nodes in the interflow canvas",
+          "Draw labels with rank-based collision avoidance so overlapping names are dropped instead of painted over each other",
           "Present the operations surfaces: sessions, cron, activity, skills, learning, mission control, and the Hermes file browser",
+          "Render per-kind node glyphs from one shared CronNodeGlyphShape so the legend key matches the canvas outline",
           "Resolve node label text through the view model rather than duplicating the strip rule in the canvas"
         ],
-        "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
-        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster, and node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names."
+        "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
+        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster; node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names. Labels are placed with collision avoidance: candidates are ranked (selected anchor, then its neighbors, then the rest), anchor and neighbor labels always draw, and lower-priority labels whose boxes overlap an already-placed one are dropped rather than smeared together; each drawn label sits on a dark rounded plate for legibility over edges. Per-kind node silhouettes live in CronNodeGlyphShape (one Shape shared by canvas node bodies, selection rings, and legend swatches), and hosts containment edges draw dashed with no arrowhead."
       }
     },
     {
@@ -759,13 +765,14 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4015,
+      "line_count": 4031,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
           "Sources/Portal/ViewModels/CronGraphViewModel.swift"
         ],
         "flows": [
+          "The canvas asks edgeIsContainment(_:) per edge before stroking, and edgeLegend drives the edge color key",
           "graph didSet refreshes hulledCategoryFolders from categoryHulls; the canvas asks displayLabel(forKind:label:) per node when drawing labels"
         ],
         "id": "operations-state",
@@ -773,12 +780,13 @@
         "open_questions": [],
         "responsibilities": [
           "Cache hulled category folders on graph change so per-frame label drawing avoids walking every node",
+          "Classify hosts edges as containment — dashed, arrowless — distinct from reads/writes/feeds dataflow",
           "Expose category hulls for cron folders with two or more jobs as a visual grouping with stable tints",
           "Own observable state machines for operations surfaces: sessions, cron, activity, feed, skills, settings, gateway lifecycle, learning, and the file browser",
           "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise"
         ],
-        "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
-        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name."
+        "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
+        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name. Edge semantics also live here: a hosts edge is containment rather than dataflow (the service runs the resource), so edgeIsContainment(_:) marks it, edgeColor(forType:) gives it the muted service hue instead of the dataflow violet, and edgeLegend lists it after reads/writes/feeds and before the folded Delivers entry."
       }
     },
     {
@@ -1433,7 +1441,7 @@
           "Own value-oriented wire and domain types shared across experiences and service adapters",
           "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart"
         ],
-        "source_revision": "fd69c00f9c5a32f0adf28bf2da42384f22eb12a8",
+        "source_revision": "0d841387c27943260a4482b9643273c1eb69bd8b",
         "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface — displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible."
       }
     },
@@ -4043,11 +4051,11 @@
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
+        "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/FeedView.swift",
-        "Sources/Portal/Views/Files/FilesBrowserView.swift",
-        "Sources/Portal/Views/Learning/CurriculumPlayerView.swift"
+        "Sources/Portal/Views/Files/FilesBrowserView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -4066,7 +4074,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 46
+      "weight": 47
     },
     {
       "authority": "observed",
@@ -5026,10 +5034,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 334,
-    "declarations": 993,
-    "swift_files": 334,
-    "swift_lines": 97811,
+    "assigned_files": 335,
+    "declarations": 994,
+    "swift_files": 335,
+    "swift_lines": 97890,
     "unassigned_files": []
   },
   "layers": [
@@ -5061,6 +5069,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "d28a2b56c5b232e2273fc438427103b4f6bfcb3f86f22a7aa3870d83d8a9bd0d",
+  "source_tree_sha256": "1e5404ef95b94f15700d58330223d1f134d4994279dc6fe3895e8bb6630402d7",
   "title": "Portal Architecture"
 }
