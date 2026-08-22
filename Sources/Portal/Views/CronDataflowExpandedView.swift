@@ -20,6 +20,9 @@ internal struct CronDataflowExpandedView: View {
     internal var onDismiss: () -> Void
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     @ObservedObject private var store = CronRunHistoryStore.shared
     /// Real per-run ledgers fetched on selection, keyed by job id — the same
     /// lazy load the Jobs pane does on card expand.
@@ -36,26 +39,102 @@ internal struct CronDataflowExpandedView: View {
     }
 
     internal var body: some View {
-        ZStack(alignment: .topLeading) {
-            Theme.background.ignoresSafeArea()
+        expandedSurface
+            .task(id: graphVM.selectedNode?.id) { await loadSelected() }
+    }
 
-            HStack(spacing: 0) {
-                CronInterflowGraphView(viewModel: graphVM, showsInlineDetailCard: false)
-                    .environmentObject(gatewayClientWrapper)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    @ViewBuilder
+    private var expandedSurface: some View {
+        #if os(iOS)
+        if Self.layoutMode(isCompactWidth: horizontalSizeClass == .compact) == .compactSheet {
+            compactSurface
+        } else {
+            regularSurface
+        }
+        #else
+        regularSurface
+            .overlay(alignment: .topLeading) { collapseButton }
+        #endif
+    }
 
+    /// iPhone keeps the graph at the full viewport width. Selecting a node opens
+    /// its inspector as a native bottom sheet instead of squeezing a 360-point
+    /// sidebar beside the canvas (which left effectively no graph on iPhone).
+    #if os(iOS)
+    private var compactSurface: some View {
+        graphSurface
+            .safeAreaInset(edge: .top, spacing: 0) { compactHeader }
+            .sheet(isPresented: selectedNodeSheetBinding) {
                 if let node = graphVM.selectedNode {
-                    Divider().overlay(Theme.border)
                     detailSidebar(node)
-                        .frame(width: 360)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                 }
             }
-            .animation(.easeInOut(duration: 0.18), value: graphVM.selectedNodeIndex)
+    }
 
-            collapseButton
+    private var compactHeader: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Data flow")
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                Text("Tap a node to inspect it")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+            Spacer()
+            Button("Done", action: onDismiss)
+                .font(.body.weight(.medium))
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityIdentifier("cron.dataflow.done")
         }
-        .task(id: graphVM.selectedNode?.id) { await loadSelected() }
+        .padding(.horizontal, 16)
+        .background(Theme.surface)
+        .overlay(alignment: .bottom) { Divider().overlay(Theme.border) }
+    }
+
+    private var selectedNodeSheetBinding: Binding<Bool> {
+        Binding(
+            get: { graphVM.selectedNode != nil },
+            set: { isPresented in
+                if !isPresented { graphVM.selectedNodeIndex = nil }
+            }
+        )
+    }
+    #endif
+
+    private var regularSurface: some View {
+        HStack(spacing: 0) {
+            graphSurface
+
+            if let node = graphVM.selectedNode {
+                Divider().overlay(Theme.border)
+                detailSidebar(node)
+                    .frame(width: 360)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: graphVM.selectedNodeIndex)
+        #if os(iOS)
+        .safeAreaInset(edge: .top, spacing: 0) { compactHeader }
+        #endif
+    }
+
+    private var graphSurface: some View {
+        CronInterflowGraphView(viewModel: graphVM, showsInlineDetailCard: false)
+            .environmentObject(gatewayClientWrapper)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.background)
+    }
+
+    internal enum LayoutMode: Equatable {
+        case compactSheet
+        case regularSidebar
+    }
+
+    internal static func layoutMode(isCompactWidth: Bool) -> LayoutMode {
+        isCompactWidth ? .compactSheet : .regularSidebar
     }
 
     // MARK: - Chrome

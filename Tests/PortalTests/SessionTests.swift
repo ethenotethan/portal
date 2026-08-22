@@ -46,6 +46,52 @@ struct SessionTests {
     }
 }
 
+// MARK: - Session Timeline Tests
+
+@Suite("Session Timeline")
+internal struct SessionTimelineTests {
+    @Test("event types expose stable presentation metadata")
+    internal func eventTypePresentationMetadata() {
+        let expected: [(type: EventType, icon: String, color: String)] = [
+            (.userMessage, "person.fill", "#888888"),
+            (.assistantMessage, "sparkles", "#7c7cff"),
+            (.toolStart, "gearshape.fill", "#f0a040"),
+            (.toolEnd, "checkmark.circle.fill", "#40c040"),
+            (.reasoningBlock, "brain.head.profile", "#ff8c00"),
+            (.turnBoundary, "line.diagonal", "#444444")
+        ]
+
+        for item in expected {
+            #expect(item.type.iconName == item.icon)
+            #expect(item.type.colorHex == item.color)
+        }
+    }
+
+    @Test("token totals require both gateway counts")
+    internal func tokenAccounting() {
+        let complete = timeline(inputTokens: 800, outputTokens: 200)
+        let missingInput = timeline(inputTokens: nil, outputTokens: 200)
+        let missingOutput = timeline(inputTokens: 800, outputTokens: nil)
+
+        #expect(complete.totalTokens == 1_000)
+        #expect(complete.toolCallsCount == 3)
+        #expect(missingInput.totalTokens == nil)
+        #expect(missingOutput.totalTokens == nil)
+    }
+
+    private func timeline(inputTokens: Int?, outputTokens: Int?) -> SessionTimeline {
+        SessionTimeline(
+            sessionID: "session-1",
+            events: [],
+            totalDurationSeconds: 1,
+            toolCalls: 3,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            costUSD: nil
+        )
+    }
+}
+
 // MARK: - Sessions Filter State Tests
 
 @Suite("Sessions Filter State")

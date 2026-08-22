@@ -342,3 +342,17 @@ internal struct CronGraphViewModelTests {
         #expect(vm.zoom == 1.4)
     }
 }
+
+@MainActor
+@Suite("Cron expanded dataflow layout")
+internal struct CronDataflowExpandedLayoutTests {
+    @Test("compact widths keep the graph full-width and inspect nodes in a sheet")
+    internal func compactWidthUsesSheet() {
+        #expect(CronDataflowExpandedView.layoutMode(isCompactWidth: true) == .compactSheet)
+    }
+
+    @Test("regular widths retain the graph sidebar")
+    internal func regularWidthUsesSidebar() {
+        #expect(CronDataflowExpandedView.layoutMode(isCompactWidth: false) == .regularSidebar)
+    }
+}
