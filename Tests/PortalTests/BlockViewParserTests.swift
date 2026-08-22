@@ -720,3 +720,52 @@ struct ModelMarkdownViewTests {
         #expect(Set(spec.views.map(\.id)).count == 2)
     }
 }
+
+@Suite("Mermaid Graph Parser")
+internal struct MermaidGraphParserTests {
+
+    @Test("Recognizes supported fenced diagrams and rejects unsupported or trivial input")
+    internal func explorationEligibility() {
+        #expect(MermaidGraphParser.canExplore("```mermaid\nflowchart LR\nA --> B\n```"))
+        #expect(MermaidGraphParser.canExplore("  MINDMAP;\n  root\n    child"))
+        #expect(!MermaidGraphParser.canExplore("sequenceDiagram\nA->>B: hello"))
+        #expect(MermaidGraphParser.parse("graph TD\nA") == nil)
+    }
+
+    @Test("Parses labeled, grouped flowchart nodes without duplicating edges")
+    internal func flowchart() throws {
+        let graph = try #require(MermaidGraphParser.parse("""
+        ```mermaid
+        flowchart LR
+          subgraph API [API Layer]
+            A[Start] & B -->|ready| C((Finish))
+            A --> C
+          end
+        ```
+        """))
+
+        #expect(graph.pages.map(\.id) == ["A", "B", "C"])
+        #expect(graph.pages.map(\.title) == ["Start", "B", "Finish"])
+        #expect(graph.pages.map(\.type) == ["API Layer", "API Layer", "API Layer"])
+        #expect(graph.links.map { "\($0.source)->\($0.target)" } == ["A->C", "B->C"])
+    }
+
+    @Test("Builds mindmap hierarchy and gives repeated labels stable unique ids")
+    internal func mindmap() throws {
+        let graph = try #require(MermaidGraphParser.parse("""
+        mindmap
+          root((Road Map))
+            First Child
+              Leaf
+            First Child
+        """))
+
+        #expect(graph.pages.map(\.id) == ["road-map", "first-child", "leaf", "first-child-2"])
+        #expect(graph.pages.map(\.type) == ["root", "branch", "leaf", "leaf"])
+        #expect(graph.links.map { "\($0.source)->\($0.target)" } == [
+            "road-map->first-child",
+            "first-child->leaf",
+            "road-map->first-child-2",
+        ])
+    }
+}
