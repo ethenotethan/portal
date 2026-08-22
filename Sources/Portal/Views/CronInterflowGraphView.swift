@@ -34,6 +34,12 @@ internal struct CronInterflowGraphView: View {
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
+    /// Whether the bottom-left legend is expanded. Persisted so the choice sticks
+    /// across launches and stays in step between the inline panel and the
+    /// full-screen surface. The legend stacks kinds, cron categories, and group
+    /// toggles, so on a busy graph folding it away reclaims real estate.
+    @AppStorage("cronGraphLegendExpanded") private var isLegendExpanded = true
+
     internal var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -185,18 +191,22 @@ internal struct CronInterflowGraphView: View {
             Spacer()
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
-                        HStack(spacing: 7) {
-                            CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
-                                .fill(viewModel.color(forKind: entry.kind))
-                                .frame(width: 11, height: 11)
-                            Text(entry.label)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(Theme.secondary)
+                    legendHeader
+                    if isLegendExpanded {
+                        ForEach(CronGraphViewModel.legend, id: \.kind) { entry in
+                            HStack(spacing: 7) {
+                                CronNodeGlyphShape(glyph: viewModel.glyph(forKind: entry.kind))
+                                    .fill(viewModel.color(forKind: entry.kind))
+                                    .frame(width: 11, height: 11)
+                                Text(entry.label)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Theme.secondary)
+                            }
                         }
+                        edgeLegendRows
+                        categoryLegendRows
+                        groupToggleRows
                     }
-                    categoryLegendRows
-                    groupToggleRows
                 }
                 .padding(10)
                 .background(Theme.background.opacity(0.72), in: RoundedRectangle(cornerRadius: 9))
@@ -208,6 +218,54 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .padding(14)
+    }
+
+    /// The legend's toggle: the whole row is the hit target, so a single click
+    /// folds the key away to just this chip or unfolds it again.
+    private var legendHeader: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { isLegendExpanded.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 9, weight: .semibold))
+                Text("Legend")
+                    .font(.system(size: 10, weight: .semibold))
+                Image(systemName: isLegendExpanded ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(Theme.secondary.opacity(0.9))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isLegendExpanded ? "Hide the legend" : "Show the legend")
+    }
+
+    /// One row per edge type present, each a colored arrow, so the canvas
+    /// arrowheads read back as reads / writes / feeds / delivers. Omitted before
+    /// the graph has any edges.
+    @ViewBuilder
+    private var edgeLegendRows: some View {
+        let edges = viewModel.edgeLegend
+        if !edges.isEmpty {
+            Divider()
+                .overlay(Theme.secondary.opacity(0.2))
+                .padding(.vertical, 1)
+            Text("Edges")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Theme.secondary.opacity(0.7))
+            ForEach(edges, id: \.type) { entry in
+                HStack(spacing: 7) {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(entry.color)
+                        .frame(width: 11)
+                    Text(entry.label)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.secondary)
+                }
+            }
+        }
     }
 
     /// Under the kind legend, one swatch per cron category folder so a tinted
@@ -307,7 +365,7 @@ internal struct CronInterflowGraphView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text(node.kind == "cron" ? "cron job" : node.type)
+                    Text(kindCaption(for: node))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Theme.secondary.opacity(0.8))
                     if let schedule = node.schedule, !schedule.isEmpty {
@@ -321,6 +379,12 @@ internal struct CronInterflowGraphView: View {
                         if let status = node.lastStatus, !status.isEmpty {
                             detailRow(icon: "circle.fill", value: status)
                         }
+                    }
+                    // A service self-declares a markdown blurb of what it is / does;
+                    // render it so expanding the node answers "wtf is this".
+                    if node.kind == "service", !node.description.isEmpty {
+                        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+                        MarkdownContentView(text: node.description)
                     }
                     connectionsList
                 }
@@ -373,6 +437,16 @@ internal struct CronInterflowGraphView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    /// The small caption under a node's title: its kind for the actor nodes
+    /// (cron / service), else the fine-grained ref scheme for a resource/sink.
+    private func kindCaption(for node: CronGraphNode) -> String {
+        switch node.kind {
+        case "cron": return "cron job"
+        case "service": return "service"
+        default: return node.type
         }
     }
 
@@ -591,21 +665,35 @@ private struct CronGraphCanvas: View {
     /// active elsewhere, so the highlighted subgraph stays the focus.
     private func drawHulls(context: GraphicsContext, hasSelection: Bool) {
         let byID = Dictionary(viewModel.simNodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        // Expanded scheme clusters (a collapsed one is already a single super-node).
         for group in viewModel.groups where !viewModel.isGroupCollapsed(group.key) {
-            let members = group.memberIDs.compactMap { byID[$0] }
-            guard members.count >= 2 else { continue }
-            let points = members.map(\.position)
-            let padding = (members.map { viewModel.radius(forKind: $0.kind) }.max() ?? 8) + 16
-            let path = CronGroupHull.path(around: points, padding: padding)
-            let anyConnected = !hasSelection || members.contains { member in
-                viewModel.simNodes.firstIndex { $0.id == member.id }.map { viewModel.isNodeConnectedToSelection($0) } ?? false
-            }
-            let tint = viewModel.groupColor(forKey: group.key)
-            let dim: CGFloat = anyConnected ? 1 : 0.3
-            context.fill(path, with: .color(tint.opacity(0.08 * dim)))
-            context.stroke(path, with: .color(tint.opacity(0.4 * dim)),
-                           style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+            drawHull(context: context, byID: byID, hasSelection: hasSelection,
+                     memberIDs: group.memberIDs, tint: viewModel.groupColor(forKey: group.key))
         }
+        // Cron category folders — a visual grouping only, drawn the same way.
+        for hull in viewModel.categoryHulls {
+            drawHull(context: context, byID: byID, hasSelection: hasSelection,
+                     memberIDs: hull.memberIDs, tint: hull.color)
+        }
+    }
+
+    /// Draw one soft boundary around a member set. The cohesion force keeps the
+    /// members tight, so the convex-hull-plus-padding stays compact rather than
+    /// sweeping unrelated nodes inside.
+    private func drawHull(context: GraphicsContext, byID: [String: CronGraphViewModel.SimNode],
+                          hasSelection: Bool, memberIDs: [String], tint: Color) {
+        let members = memberIDs.compactMap { byID[$0] }
+        guard members.count >= 2 else { return }
+        let points = members.map(\.position)
+        let padding = (members.map { viewModel.radius(forKind: $0.kind) }.max() ?? 8) + 20
+        let path = CronGroupHull.path(around: points, padding: padding)
+        let anyConnected = !hasSelection || members.contains { member in
+            viewModel.simNodes.firstIndex { $0.id == member.id }.map { viewModel.isNodeConnectedToSelection($0) } ?? false
+        }
+        let dim: CGFloat = anyConnected ? 1 : 0.3
+        context.fill(path, with: .color(tint.opacity(0.08 * dim)))
+        context.stroke(path, with: .color(tint.opacity(0.4 * dim)),
+                       style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
     }
 
     /// Group names above each hull, drawn in screen space so the label stays a
@@ -613,24 +701,35 @@ private struct CronGraphCanvas: View {
     private func drawHullLabels(context: inout GraphicsContext, size: CGSize) {
         let byID = Dictionary(viewModel.simNodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for group in viewModel.groups where !viewModel.isGroupCollapsed(group.key) {
-            let members = group.memberIDs.compactMap { byID[$0] }
-            guard members.count >= 2 else { continue }
-            let minX = members.map { $0.position.x }.min() ?? 0
-            let maxX = members.map { $0.position.x }.max() ?? 0
-            let minY = members.map { $0.position.y }.min() ?? 0
-            let anchorGraph = CGPoint(x: (minX + maxX) / 2, y: minY)
-            let screen = CGPoint(
-                x: anchorGraph.x * viewModel.zoom + viewModel.panOffset.width,
-                y: anchorGraph.y * viewModel.zoom + viewModel.panOffset.height - 22
-            )
-            guard screen.x > -80, screen.x < size.width + 80, screen.y > -20, screen.y < size.height + 20 else { continue }
-            context.draw(
-                Text(group.key.uppercased())
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(viewModel.groupColor(forKey: group.key).opacity(0.9)),
-                at: screen, anchor: .center
-            )
+            drawHullLabel(context: &context, size: size, byID: byID, memberIDs: group.memberIDs,
+                          title: group.key, tint: viewModel.groupColor(forKey: group.key))
         }
+        for hull in viewModel.categoryHulls {
+            drawHullLabel(context: &context, size: size, byID: byID, memberIDs: hull.memberIDs,
+                          title: hull.key, tint: hull.color)
+        }
+    }
+
+    private func drawHullLabel(context: inout GraphicsContext, size: CGSize,
+                               byID: [String: CronGraphViewModel.SimNode],
+                               memberIDs: [String], title: String, tint: Color) {
+        let members = memberIDs.compactMap { byID[$0] }
+        guard members.count >= 2 else { return }
+        let minX = members.map { $0.position.x }.min() ?? 0
+        let maxX = members.map { $0.position.x }.max() ?? 0
+        let minY = members.map { $0.position.y }.min() ?? 0
+        let anchorGraph = CGPoint(x: (minX + maxX) / 2, y: minY)
+        let screen = CGPoint(
+            x: anchorGraph.x * viewModel.zoom + viewModel.panOffset.width,
+            y: anchorGraph.y * viewModel.zoom + viewModel.panOffset.height - 22
+        )
+        guard screen.x > -80, screen.x < size.width + 80, screen.y > -20, screen.y < size.height + 20 else { return }
+        context.draw(
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(tint.opacity(0.9)),
+            at: screen, anchor: .center
+        )
     }
 
     private func drawEdges(context: GraphicsContext, hasSelection: Bool) {
@@ -649,13 +748,34 @@ private struct CronGraphCanvas: View {
 
             let type = linkIndex < viewModel.simLinkTypes.count ? viewModel.simLinkTypes[linkIndex] : "reads"
             let baseColor = viewModel.edgeColor(forType: type)
+            let isContainment = viewModel.edgeIsContainment(type)
 
             var path = Path()
             path.move(to: sp)
             path.addQuadCurve(to: tp, control: ctrl)
-            context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            if isContainment {
+                // Dashed: a `hosts` edge is containment, not flow. Nothing
+                // travels along it, so it must not look like the solid dataflow
+                // arrows next to it.
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.45 : 0.06)),
+                               style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+            } else {
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            }
 
-            if isConnected {
+            // Arrowhead at the target end points along the flow (reads: into the
+            // cron; writes/delivers: into the resource/sink), so direction is
+            // legible without reading the edge label. Containment edges get no
+            // arrowhead — there is no direction of travel to indicate.
+            let targetR = viewModel.radius(forKind: viewModel.simNodes[ti].kind)
+            if !isContainment, len > targetR + 6 {
+                drawArrowhead(context: context, tip: tp, control: ctrl,
+                              backoff: targetR + 2, color: baseColor.opacity(isConnected ? 0.7 : 0.07))
+            }
+
+            // The type text is redundant with color + arrow + legend in the
+            // resting view; show it only for the focused subgraph on selection.
+            if hasSelection && isConnected {
                 context.draw(
                     Text(type)
                         .font(.system(size: 9, weight: .medium))
@@ -664,6 +784,26 @@ private struct CronGraphCanvas: View {
                 )
             }
         }
+    }
+
+    /// A small filled triangle pointing along the quad curve's tangent at the
+    /// target (`2·(tip − control)`), backed off the node body so it sits just
+    /// outside the glyph.
+    private func drawArrowhead(context: GraphicsContext, tip: CGPoint, control: CGPoint,
+                               backoff: CGFloat, color: Color) {
+        let tangent = CGPoint(x: tip.x - control.x, y: tip.y - control.y)
+        let tlen = max(hypot(tangent.x, tangent.y), 0.001)
+        let ux = tangent.x / tlen, uy = tangent.y / tlen
+        let apex = CGPoint(x: tip.x - ux * backoff, y: tip.y - uy * backoff)
+        let size: CGFloat = 6.5
+        let base = CGPoint(x: apex.x - ux * size, y: apex.y - uy * size)
+        let half = size * 0.6
+        var arrow = Path()
+        arrow.move(to: apex)
+        arrow.addLine(to: CGPoint(x: base.x - uy * half, y: base.y + ux * half))
+        arrow.addLine(to: CGPoint(x: base.x + uy * half, y: base.y - ux * half))
+        arrow.closeSubpath()
+        context.fill(arrow, with: .color(color))
     }
 
     private func drawNodes(context: GraphicsContext, hasSelection: Bool) {
@@ -718,8 +858,25 @@ private struct CronGraphCanvas: View {
         }
     }
 
+    /// One placed label: everything needed to draw it, plus the priority that
+    /// decides who wins the space when two would overlap.
+    private struct LabelCandidate {
+        let text: String
+        let screenPos: CGPoint
+        let isAnchor: Bool
+        /// 0 = anchor, 1 = neighbor of the anchor, 2 = everything else. Lower
+        /// wins, and 0/1 always draw (never dropped for a collision).
+        let rank: Int
+        /// Draw-order tiebreak so the sort is stable within a rank.
+        let order: Int
+    }
+
     private func drawLabels(context: inout GraphicsContext, size: CGSize, hasSelection: Bool) {
         let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
+
+        // Gather every visible label as a candidate first, so we can rank them
+        // and drop collisions rather than painting names on top of each other.
+        var candidates: [LabelCandidate] = []
         for (index, node) in viewModel.simNodes.enumerated() {
             let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
             guard isConnected else { continue }
@@ -733,85 +890,49 @@ private struct CronGraphCanvas: View {
             )
             guard screenPos.x > -80, screenPos.x < size.width + 80,
                   screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
-            context.draw(
-                Text(node.label)
-                    .font(.system(size: isAnchor ? 12 : 11, weight: isAnchor ? .semibold : .medium))
-                    .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
-                at: screenPos, anchor: .leading
+            candidates.append(LabelCandidate(
+                // The hull above the node already names its category, so the
+                // label carries only the part the hull doesn't.
+                text: viewModel.displayLabel(forKind: node.kind, label: node.label),
+                screenPos: screenPos,
+                isAnchor: isAnchor,
+                rank: isAnchor ? 0 : (isNeighbor ? 1 : 2),
+                order: index
+            ))
+        }
+        // Anchor first, then its neighbors, then the rest — so the labels you're
+        // actually looking at claim their space before the ambient ones.
+        candidates.sort { $0.rank != $1.rank ? $0.rank < $1.rank : $0.order < $1.order }
+
+        // Screen rects already taken. A lower-priority label whose box would
+        // overlap one of these is skipped: in a tight cluster of similarly named
+        // tables you get a legible subset, not a smear. Zoom in or hover a node
+        // to surface the ones that dropped.
+        var placed: [CGRect] = []
+        for candidate in candidates {
+            let label = Text(candidate.text)
+                .font(.system(size: candidate.isAnchor ? 12 : 11, weight: candidate.isAnchor ? .semibold : .medium))
+                .foregroundColor(.white.opacity(candidate.isAnchor ? 1.0 : 0.82))
+            let resolved = context.resolve(label)
+            let measured = resolved.measure(in: CGSize(width: 1000, height: 1000))
+            // `.leading` anchor: the box grows right from screenPos, centered on it.
+            let box = CGRect(
+                x: candidate.screenPos.x,
+                y: candidate.screenPos.y - measured.height / 2,
+                width: measured.width,
+                height: measured.height
             )
+            let collisionBox = box.insetBy(dx: -3, dy: -1)
+            let mustShow = candidate.rank <= 1
+            if !mustShow, placed.contains(where: { $0.intersects(collisionBox) }) { continue }
+            placed.append(collisionBox)
+            // A dark rounded plate under the text keeps it readable over edges,
+            // node glows, and any higher-priority label it still sits beside.
+            context.fill(
+                Path(roundedRect: box.insetBy(dx: -4, dy: -2), cornerRadius: 4),
+                with: .color(Theme.background.opacity(0.72))
+            )
+            context.draw(resolved, at: candidate.screenPos, anchor: .leading)
         }
-    }
-}
-
-// MARK: - CronNodeGlyphShape
-
-/// The per-kind node silhouette, inscribed in its bounding rect. One source of
-/// truth for the shape a kind draws as, shared by the `Canvas` node bodies and
-/// selection rings and by the legend/detail swatches — so the key on the graph
-/// shows exactly the outline it labels. Kind → glyph mapping lives on the view
-/// model (`CronGraphViewModel.glyph(forKind:)`); this only renders it.
-internal struct CronNodeGlyphShape: Shape {
-    internal let glyph: CronGraphViewModel.NodeGlyph
-
-    internal func path(in rect: CGRect) -> Path {
-        switch glyph {
-        case .circle:
-            return Path(ellipseIn: rect)
-        case .triangle:
-            // Apex up, base along the bottom — an input pointing into the graph.
-            var path = Path()
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-            path.closeSubpath()
-            return path
-        case .diamond:
-            var path = Path()
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
-            path.closeSubpath()
-            return path
-        case .cylinder:
-            return Self.cylinderPath(in: rect)
-        case .cluster:
-            return Self.hexagonPath(in: rect)
-        }
-    }
-
-    /// A flat-topped hexagon — the collapsed cluster super-node. Reads as a
-    /// container distinct from all four leaf silhouettes.
-    private static func hexagonPath(in rect: CGRect) -> Path {
-        let insetX = rect.width * 0.25
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + insetX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + insetX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.closeSubpath()
-        return path
-    }
-
-    /// A database can: an elliptical lid, straight sides, and a front-bulging
-    /// bottom. The body subpath and the full top ellipse are unioned in one
-    /// `Path` (non-zero winding) so it fills as a solid store glyph.
-    private static func cylinderPath(in rect: CGRect) -> Path {
-        let capRy = rect.height * 0.22
-        let topY = rect.minY + capRy
-        let botY = rect.maxY - capRy
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: topY))
-        path.addLine(to: CGPoint(x: rect.minX, y: botY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: botY),
-                          control: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: topY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: topY),
-                          control: CGPoint(x: rect.midX, y: topY + capRy))
-        path.closeSubpath()
-        path.addEllipse(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: capRy * 2))
-        return path
     }
 }

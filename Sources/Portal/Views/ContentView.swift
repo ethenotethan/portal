@@ -1775,24 +1775,24 @@ spawnTreeStore.subscribe(to: client)
         ArtifactStore.shared.focusedGatewayID = focusedID
     }
 
+    /// Keep the sidebar's live dots in step with every session that has a turn
+    /// in flight — not just the one on screen. This observed
+    /// `chatViewModel.$isStreaming`, which describes the VISIBLE chat only, and
+    /// wrote the run state for `currentSessionID`: a second session streaming in
+    /// the background never lit up (and never went dark when it finished) until
+    /// the user clicked into it, which republished the flag.
     private func observeChatRunState() {
         guard chatRunStateCancellable == nil else { return }
-        chatRunStateCancellable = chatViewModel.$isStreaming
+        chatRunStateCancellable = chatViewModel.$streamingSessionIDs
             .receive(on: RunLoop.main)
-            .sink { isStreaming in
+            .sink { streamingIDs in
                 #if os(iOS)
-                // Turn finished while we were holding the background grace
-                // period — release the assertion early.
-                if !isStreaming {
+                // No turn running anywhere — release the background assertion.
+                if streamingIDs.isEmpty {
                     gatewayClientWrapper.endBackgroundGracePeriod()
                 }
                 #endif
-                guard let sid = chatViewModel.currentSessionID else { return }
-                if isStreaming {
-                    sessionList.setRunState(.streaming, for: sid)
-                } else if let existing = sessionList.runState(for: sid), existing != .failed && existing != .canceled {
-                    sessionList.setRunState(.idle, for: sid)
-                }
+                sessionList.applyStreamingSessions(streamingIDs)
             }
     }
 

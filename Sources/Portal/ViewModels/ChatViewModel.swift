@@ -112,13 +112,45 @@ final class ChatViewModel: ObservableObject {
         {"label": "GA", "at": "2026-08-20", "lane": "Launch", "note": "public release"}]}
       ```
       Items with start+end are bars; items with "at" are milestones. "lane" groups rows, "group" colors them.
-    - **Living artifacts**: add an "id" field to any map/chart/graph/stats/dataset/timeline block to make it a
-      PERSISTENT model the user keeps across sessions. When the user adds or changes items, re-emit the
-      block with the SAME id — maps merge markers by label and datasets merge rows by key (emit only
-      new/changed entries or the full set; both work), other kinds replace wholesale so emit the
-      complete block. Example: a ```map block with "id": "bkk-apartments" updated as the user
-      evaluates listings.
-      Dataset and map artifacts may also declare per-entry USER ACTIONS — controls the user taps to
+    - **Kanban boards** in ```kanban blocks for work that moves through STAGES — sprint boards, triage
+      lanes, pipeline stages (native columns; as an artifact the user DRAGS CARDS between lanes and the
+      move writes back, so prefer this over a dataset with a status column when the board is the point):
+      ```kanban
+      {"id": "sprint-12", "title": "Sprint 12", "columns": ["Todo", "Doing", "Done"],
+       "cards": [{"id": "PORT-1", "title": "Kanban artifact", "column": "Doing", "tag": "feat",
+                  "note": "one-line hint", "detail": "longer body, shown when the card is expanded",
+                  "assignee": "ethen", "points": 3}]}
+      ```
+      The column move needs no "actions" declaration — it is built in. Any extra scalar field
+      (assignee, due, points) shows on the expanded card, so a board carries arbitrary ticket metadata
+      without a schema change. "columns" is optional: they default to the order the cards first mention
+      them. NOTE: ```kanban is also a mermaid diagram type — a JSON object gets the native board,
+      line-oriented text gets mermaid, so always emit the object form for a real board.
+    - **Checklists** in ```checklist blocks for task lists, acceptance criteria, launch runbooks (the
+      user ticks items off and you see the state on your next read — built in, no "actions" needed):
+      ```checklist
+      {"id": "launch", "title": "Launch checklist", "items": [
+        {"id": "dns", "label": "Cut over DNS", "done": true},
+        {"id": "smoke", "label": "Run smoke tests", "note": "staging + prod"}]}
+      ```
+    - **Calendars** in ```calendar blocks for discrete DATED events on a month grid — content calendars,
+      release schedules, itineraries (dates are "yyyy-MM-dd" or full ISO-8601; use ```timeline instead
+      when the items have durations rather than single dates):
+      ```calendar
+      {"id": "august", "title": "August", "events": [
+        {"id": "ga", "date": "2026-08-20", "title": "GA release", "tag": "launch"},
+        {"id": "review", "date": "2026-08-12", "title": "Design review", "time": "14:00"}]}
+      ```
+    - **Living artifacts**: add an "id" field to any block above — map, chart, graph, stats, dataset,
+      timeline, kanban, checklist, calendar, model — to make it a PERSISTENT model the user keeps across
+      sessions. When the user adds or changes items, re-emit the block with the SAME id — maps merge
+      markers by label and datasets merge rows by key (emit only new/changed entries or the full set;
+      both work); kanban, checklist and calendar merge their entries by "id" and PRESERVE THE USER'S OWN
+      EDITS (a ticked box, a card you didn't know had moved) even when your re-emit omits that field, so
+      you can safely re-send a board from your own notes; chart/stats/graph/timeline replace wholesale,
+      so emit the complete block. Example: a ```map block with "id": "bkk-apartments" updated as the
+      user evaluates listings.
+      Artifacts may also declare per-entry USER ACTIONS — controls the user taps to
       triage entries, writing back into the artifact where you'll see them on your next read:
       "actions": [{"field": "status", "type": "choice", "options": ["going", "not going"]},
       {"field": "reached_out", "type": "toggle"}, {"type": "delete"}]
@@ -221,6 +253,12 @@ final class ChatViewModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var inputText: String = ""
     @Published var isStreaming: Bool = false
+    /// Display IDs of EVERY session with a turn in flight, background ones
+    /// included. `isStreaming` above describes only the visible chat, so a
+    /// sidebar driven off it showed a background session as idle until the user
+    /// clicked into it (which republished the flag) — the live dot went dark on
+    /// sessions that were very much alive.
+    @Published private(set) var streamingSessionIDs: Set<String> = []
     @Published var isSessionReady: Bool = false
     @Published var currentModel: String = ""
     /// Live model inventory from the gateway's model.options RPC. nil until
@@ -230,6 +268,13 @@ final class ChatViewModel: ObservableObject {
     /// Expensive-model confirmation gate from config.set: the switch did not
     /// apply; the picker shows this and resends with confirm on approval.
     @Published var pendingModelConfirmation: ModelSwitchConfirmation?
+    /// Runtime session the cached `modelCatalog` (and its `currentModel`) was
+    /// fetched for. `model.options` answers per session, so the cache is only
+    /// authoritative for the session that asked.
+    private var modelCatalogSessionID: String?
+    /// One in-flight `model.options` call at a time — session switches and the
+    /// picker's own task can both ask within a runloop turn.
+    private var isFetchingModelCatalog = false
     /// Every approval this session is blocked on, oldest first. Multiple agent
     /// threads (parallel subagents, concurrent execute_code) can block at once,
     /// and the gateway queues them — see `ApprovalQueue`.
@@ -623,7 +668,9 @@ client.eventStream
         isSessionReady = false
         currentModel = ""
         modelCatalog = nil
+        modelCatalogSessionID = nil
         pendingModelConfirmation = nil
+        streamingSessionIDs = []
         setApprovalQueue(ApprovalQueue())
         pendingClarify = nil
         activeToolCalls = [:]
@@ -748,6 +795,25 @@ client.eventStream
             pendingLoadedSkills: loadedSkills
         )
         evictColdSessionMessages(keeping: displayID)
+        publishStreamingSessions()
+    }
+
+    /// Republish the set of sessions with a live turn. Cheap (a handful of
+    /// string keys) and only called on lifecycle transitions, never per token.
+    private func publishStreamingSessions() {
+        var live = Set(sessionStates.lazy.filter { $0.value.isStreaming }.map(\.key))
+        // Union in the visible session when its published flag is already live:
+        // submit sets the flag before the snapshot catches up. Never subtract on
+        // the flag — the reverse lag (state live, flag not yet published at
+        // message.start) would drop the session for one runloop turn and blink
+        // the sidebar dot off mid-turn. Every path that ends a turn snapshots,
+        // so the cached state alone is authoritative for going idle.
+        if isStreaming, let sessionID {
+            live.insert(displaySessionID(for: sessionID))
+        }
+        if streamingSessionIDs != live {
+            streamingSessionIDs = live
+        }
     }
 
     /// Cap in-memory session state: each cached session holds its full
@@ -826,6 +892,7 @@ client.eventStream
                 }
             }
         }
+        publishStreamingSessions()
         return true
     }
 
@@ -836,6 +903,8 @@ client.eventStream
         sessionStates[displayID] = state
         if sessionID == eventSessionID || displaySessionID(for: sessionID ?? "") == displayID {
             _ = restoreSessionState(displayID: displayID, runtimeID: eventSessionID)
+        } else {
+            publishStreamingSessions()
         }
     }
 
@@ -917,6 +986,7 @@ client.eventStream
         let generation = sessionSwitchGeneration
 
 if restoreSessionState(displayID: key) {
+            fillModelBadgeIfEmpty()
             return generation
         }
 
@@ -938,7 +1008,12 @@ if restoreSessionState(displayID: key) {
         self.error = nil
         self.activeSkills = []
         self.loadedSkills = []
+        // An uncached session's model is unknown — keeping the previous
+        // session's badge would name a model this session isn't on. Clear it
+        // and let the model.options fill below say what it actually resolves to.
+        self.currentModel = ""
         snapshotCurrentSessionState()
+        fillModelBadgeIfEmpty()
 
         if ChatHistoryStore.shared.hasLocalMessages(forSession: key) {
             let gen = generation
@@ -1033,11 +1108,20 @@ if restoreSessionState(displayID: key) {
                     liveState.isSessionReady = true
                     sessionStates[key] = liveState
                 } else {
+                    // Carry the session's OWN settings across the resume. This
+                    // rebuilt the state from scratch, which wiped the model
+                    // badge to "No model" (and silently dropped the session's
+                    // attached skills and response style) on every switch —
+                    // the transcript is what `session.resume` refreshes, not
+                    // the session's identity.
                     sessionStates[key] = SessionRuntimeState(
                         messages: parsedMessages,
                         isStreaming: false,
                         isSessionReady: true,
-                        sessionTitle: cachedBeforeResume?.sessionTitle ?? sessionTitle
+                        sessionTitle: cachedBeforeResume?.sessionTitle ?? sessionTitle,
+                        responseStyle: cachedBeforeResume?.responseStyle ?? .storedDefault,
+                        currentModel: cachedBeforeResume?.currentModel ?? "",
+                        activeSkills: cachedBeforeResume?.activeSkills ?? []
                     )
                 }
             } else if cachedBeforeResume == nil, ChatHistoryStore.shared.hasLocalMessages(forSession: key) {
@@ -1065,6 +1149,9 @@ if restoreSessionState(displayID: key) {
                 snapshotCurrentSessionState()
             }
 
+            // The resume bound the session's real runtime ID — ask what model it
+            // is on now that model.options can be scoped to it.
+            fillModelBadgeIfEmpty()
             await applyEphemeralPrompt(for: result.sessionID, using: client)
             needsGatewayResume = false
             return true
@@ -2047,22 +2134,61 @@ if restoreSessionState(displayID: key) {
 
     /// Fetch the live model inventory for the picker. Errors degrade to the
     /// static catalog silently — the menu must never break over inventory.
+    ///
+    /// The fetch is per SESSION, not per launch: `model.options` reports the
+    /// model *this* session resolves to, and that is the only source for a
+    /// session whose model is routed per-turn (its `session.info` reports "" —
+    /// see the sessionInfo handler). Caching one catalog for the whole app and
+    /// returning early on the next session left every session after the first
+    /// showing "No model" forever.
     func refreshModelCatalog(force: Bool = false) async {
         guard backendCapabilities.supportsModelSwitching,
               let client = gatewayClient else { return }
-        if modelCatalog != nil && !force { return }
+        let isStaleForSession = modelCatalogSessionID != sessionID
+        if let catalog = modelCatalog, !force, !isStaleForSession {
+            adoptCatalogModelIfBadgeEmpty(catalog)
+            return
+        }
+        guard !isFetchingModelCatalog else { return }
+        isFetchingModelCatalog = true
+        defer { isFetchingModelCatalog = false }
+        let fetchedFor = sessionID
         do {
             if let catalog = try await client.modelOptions(sessionID: sessionID, refresh: force) {
+                // A switch mid-flight makes this answer describe the wrong
+                // session — keep the catalog (the inventory is session-agnostic)
+                // but don't let its `model` fill another session's badge.
+                let stillCurrent = fetchedFor == sessionID
                 modelCatalog = catalog
-                // model.options names the actual current model (session's or
-                // gateway default). Fill the badge when session.info hasn't.
-                if currentModel.isEmpty, !catalog.currentModel.isEmpty {
-                    currentModel = catalog.currentModel
+                modelCatalogSessionID = stillCurrent ? fetchedFor : nil
+                if stillCurrent {
+                    adoptCatalogModelIfBadgeEmpty(catalog)
                 }
             }
         } catch {
             log.info("model.options fetch failed (static catalog fallback): \(error.localizedDescription)")
         }
+    }
+
+    /// `model.options` names the actual current model (the session's pinned
+    /// override or the gateway default). Fill the badge when `session.info`
+    /// hasn't — and snapshot it, or the fill is lost on the next switch away.
+    private func adoptCatalogModelIfBadgeEmpty(_ catalog: ModelCatalog) {
+        guard currentModel.isEmpty, !catalog.currentModel.isEmpty else { return }
+        currentModel = catalog.currentModel
+        snapshotCurrentSessionState()
+    }
+
+    /// Ask the gateway what model the just-selected session is on whenever the
+    /// switch left the badge empty. Session switching is the path that empties
+    /// it: a routed session reports no model over `session.info`, so without
+    /// this the badge only ever filled for the session that happened to be open
+    /// when the picker first appeared.
+    private func fillModelBadgeIfEmpty() {
+        guard currentModel.isEmpty,
+              backendCapabilities.supportsModelSwitching,
+              gatewayClient != nil else { return }
+        Task { await refreshModelCatalog() }
     }
 
     // MARK: - Local Persistence
@@ -2156,10 +2282,15 @@ if restoreSessionState(displayID: key) {
             liveState.isSessionReady = true
             sessionStates[displayID] = liveState
         } else {
+            let cached = sessionStates[displayID]
             sessionStates[displayID] = SessionRuntimeState(
                 messages: history,
                 isStreaming: false,
-                isSessionReady: true
+                isSessionReady: true,
+                sessionTitle: cached?.sessionTitle ?? "New Chat",
+                responseStyle: cached?.responseStyle ?? .storedDefault,
+                currentModel: cached?.currentModel ?? "",
+                activeSkills: cached?.activeSkills ?? []
             )
         }
         _ = restoreSessionState(displayID: displayID, runtimeID: runtimeID)
@@ -2956,6 +3087,10 @@ if restoreSessionState(displayID: key) {
                 slimState.pendingLoadedSkills = state.pendingLoadedSkills
                 sessionStates[displayID] = slimState
             }
+            // Lifecycle events only (the delta cases broke out above), so this
+            // runs at turn boundaries — a BACKGROUND session's start/finish
+            // reaches the sidebar's live dot without the user clicking in.
+            publishStreamingSessions()
         }
         let isVisibleCoalescedDelta: Bool
         switch event {

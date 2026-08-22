@@ -137,10 +137,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6929
+      "line_count": 6940
     },
     {
-      "declaration_count": 143,
+      "declaration_count": 144,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -213,6 +213,7 @@
         "Horizon",
         "HubResultRow",
         "Kind",
+        "LabelCandidate",
         "LearningComponents_Previews",
         "LearningDashboardView",
         "LearningDashboardView_Previews",
@@ -288,7 +289,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 51,
+      "file_count": 52,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -303,6 +304,7 @@
         "Sources/Portal/Views/CronJobRow.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
+        "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -345,7 +347,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17254
+      "line_count": 17463
     },
     {
       "declaration_count": 37,
@@ -688,7 +690,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4095
+      "line_count": 4230
     },
     {
       "declaration_count": 25,
@@ -740,7 +742,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 3875
+      "line_count": 4031
     },
     {
       "declaration_count": 5,
@@ -861,7 +863,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4747
+      "line_count": 4748
     },
     {
       "declaration_count": 13,
@@ -1376,7 +1378,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 12017
+      "line_count": 12044
     },
     {
       "declaration_count": 75,
@@ -3665,6 +3667,22 @@
     },
     {
       "authority": "observed",
+      "description": "References 2 declaration(s) owned by chat-state.",
+      "evidence": [
+        "Sources/Portal/ViewModels/GatewayRestartController.swift",
+        "Sources/Portal/ViewModels/SessionListViewModel.swift"
+      ],
+      "source": "operations-state",
+      "symbols": [
+        "ChatViewModel",
+        "GatewayCapabilitiesStore"
+      ],
+      "target": "chat-state",
+      "type": "references",
+      "weight": 4
+    },
+    {
+      "authority": "observed",
       "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
@@ -3837,6 +3855,7 @@
       "description": "References 4 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
+        "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronSessionView.swift",
         "Sources/Portal/Views/FeedView.swift",
@@ -3857,7 +3876,7 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 15
+      "weight": 16
     },
     {
       "authority": "observed",
@@ -3967,11 +3986,11 @@
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobsView.swift",
         "Sources/Portal/Views/CronListView.swift",
+        "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/FeedView.swift",
-        "Sources/Portal/Views/Files/FilesBrowserView.swift",
-        "Sources/Portal/Views/Learning/CurriculumPlayerView.swift"
+        "Sources/Portal/Views/Files/FilesBrowserView.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3990,7 +4009,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 46
+      "weight": 47
     },
     {
       "authority": "observed",
@@ -4950,10 +4969,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 334,
-    "declarations": 993,
-    "swift_files": 334,
-    "swift_lines": 97351,
+    "assigned_files": 335,
+    "declarations": 994,
+    "swift_files": 335,
+    "swift_lines": 97890,
     "unassigned_files": []
   },
   "layers": [
@@ -4985,6 +5004,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "026a1125acd8af7c0ed47f82952c22e2dbd77168b49b3e1a19be67a101140171",
+  "source_tree_sha256": "1e5404ef95b94f15700d58330223d1f134d4994279dc6fe3895e8bb6630402d7",
   "title": "Portal Architecture"
 }
