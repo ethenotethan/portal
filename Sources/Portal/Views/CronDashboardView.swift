@@ -31,17 +31,7 @@ struct CronDashboardView: View {
                     // follow once the user scrolls.
                     CronJobsView(vm: cronListVM)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    // The dataflow graph rides here on the cron surface itself,
-                    // between the jobs list and the activity metrics — a fixed
-                    // height so it reads as a section inside the scroll rather
-                    // than fighting the outer scroll for drag gestures.
-                    CronInterflowGraphView(
-                        viewModel: cronGraphVM,
-                        onExpand: { isGraphExpanded = true }
-                    )
-                    .environmentObject(gatewayClientWrapper)
-                    .frame(height: 360)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    dataflowSection
                     CronSummaryView(records: filteredRecords)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
                     CronVolumeView(records: filteredRecords, horizon: timeHorizon)
@@ -71,6 +61,46 @@ struct CronDashboardView: View {
         await cronListVM.refreshJobs()
         store.seedFromJobs(cronListVM.jobs)
         store.detectNewRuns(from: cronListVM.jobs)
+    }
+
+    /// A labeled preview makes the graph discoverable on a compact screen. The
+    /// previous icon-only control lived inside the canvas alongside zoom/reset,
+    /// so it read as another graph tool rather than navigation. Keep expansion
+    /// in the section chrome with a clear labeled, 44-point tap target on iOS.
+    private var dataflowSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Data flow")
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                Text("Explore how jobs read, write, and deliver data")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+
+            Button {
+                isGraphExpanded = true
+            } label: {
+                Label("Expand data flow", systemImage: "arrow.up.left.and.arrow.down.right")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.accent)
+            .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 9))
+            .padding(.horizontal, 8)
+            .accessibilityIdentifier("cron.dataflow.expand")
+
+            CronInterflowGraphView(viewModel: cronGraphVM)
+                .environmentObject(gatewayClientWrapper)
+                .frame(height: 320)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding([.horizontal, .bottom], 8)
+        }
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var headerBar: some View {

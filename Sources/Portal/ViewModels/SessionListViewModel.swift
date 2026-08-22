@@ -631,7 +631,7 @@ final class SessionListViewModel: ObservableObject {
     /// session read as idle until the user clicked into it. Terminal states
     /// (`.failed`, `.canceled`) are left alone — only a row currently showing
     /// `.streaming` is downgraded.
-    func applyStreamingSessions(_ streamingIDs: Set<String>) {
+    internal func applyStreamingSessions(_ streamingIDs: Set<String>) {
         for id in streamingIDs where runState(for: id) != .streaming {
             setRunState(.streaming, for: id)
         }
