@@ -258,7 +258,7 @@ final class ChatViewModel: ObservableObject {
     /// sidebar driven off it showed a background session as idle until the user
     /// clicked into it (which republished the flag) — the live dot went dark on
     /// sessions that were very much alive.
-    @Published private(set) var streamingSessionIDs: Set<String> = []
+    @Published internal private(set) var streamingSessionIDs: Set<String> = []
     @Published var isSessionReady: Bool = false
     @Published var currentModel: String = ""
     /// Live model inventory from the gateway's model.options RPC. nil until
