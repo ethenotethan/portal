@@ -34,7 +34,9 @@ internal final class CronGraphViewModel: ObservableObject {
         case circle, triangle, cylinder, diamond, cluster, roundedSquare
     }
 
-    @Published internal private(set) var graph = CronGraph.empty
+    @Published internal private(set) var graph = CronGraph.empty {
+        didSet { hulledCategoryFolders = Set(categoryHulls.map(\.key)) }
+    }
     @Published internal var simNodes: [SimNode] = []
     @Published internal private(set) var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     /// Edge type per link, aligned 1:1 with `simLinks` — drawn on the edge.
@@ -637,6 +639,31 @@ internal final class CronGraphViewModel: ObservableObject {
             .sorted { $0.memberIDs.count != $1.memberIDs.count ? $0.memberIDs.count > $1.memberIDs.count : $0.key < $1.key }
     }
 
+    /// Category folders the canvas draws a hull label for, cached off `categoryHulls`
+    /// whenever the graph changes. `drawLabels` asks per node per frame, and
+    /// `categoryHulls` walks every node to build its answer.
+    internal private(set) var hulledCategoryFolders: Set<String> = []
+
+    /// The text drawn beside a node on the canvas.
+    ///
+    /// A cron inside a category hull is already sitting under that folder's name
+    /// in 9pt caps, so repeating it in the node label says `projection` twice and
+    /// pushes the part that actually identifies the job off the edge of the
+    /// screen: `projection / x402 wiki projection` under a `PROJECTION` hull reads
+    /// as `x402 wiki projection`. Deeper levels survive (`indexing/wiki/x402` →
+    /// `wiki/x402`) because the hull only names the top folder.
+    ///
+    /// A cron whose folder has no hull — an ungrouped job, or the only job in its
+    /// folder — keeps its full name: there the label is the one place the
+    /// category appears at all. Same rule the category tree uses for its rows,
+    /// which is why it lives in `CronCategory` rather than here.
+    internal func displayLabel(forKind kind: String, label: String) -> String {
+        guard kind == "cron",
+              let folder = categoryFolder(forLabel: label),
+              hulledCategoryFolders.contains(folder) else { return label }
+        return CronCategory.name(label, strippingLeadingFolder: folder)
+    }
+
     internal func radius(forKind kind: String) -> CGFloat {
         switch kind {
         case "group": return 14
@@ -672,23 +699,39 @@ internal final class CronGraphViewModel: ObservableObject {
     internal func edgeColor(forType type: String) -> Color {
         switch type {
         case "reads", "writes", "feeds": return Color(hex: "8a8aff") ?? .accentColor
+        // `hosts` is containment, not dataflow: the service on the source end
+        // RUNS the resource on the target end (a Postgres container hosting the
+        // tables crons read and write). It gets the muted service hue rather
+        // than the dataflow violet so it reads as infrastructure behind the
+        // flow instead of another hop in it. Without this case it would fall
+        // through to the warm sink tint and be mistaken for a delivery.
+        case "hosts": return color(forKind: "service")
         default: return color(forKind: "sink")
         }
     }
 
+    /// True when an edge type is containment rather than dataflow, and should be
+    /// drawn as a dashed line without an arrowhead — nothing *moves* along a
+    /// `hosts` edge, so a directional arrow would misdescribe it.
+    internal func edgeIsContainment(_ type: String) -> Bool { type == "hosts" }
+
     /// The edge types present in the current graph, each with a display label and
-    /// its tint, in dataflow order (reads → writes → feeds → delivers). Drives the
-    /// edge key so the arrow colors on the canvas read without per-edge text. Any
-    /// non-structural type (a side-effect scheme like telegram/pr) folds into a
-    /// single "Delivers" entry, since they all share the warm sink hue.
+    /// its tint, in dataflow order (reads → writes → feeds → hosts → delivers).
+    /// Drives the edge key so the arrow colors on the canvas read without
+    /// per-edge text. Any non-structural type (a side-effect scheme like
+    /// telegram/pr) folds into a single "Delivers" entry, since they all share
+    /// the warm sink hue. `hosts` is listed explicitly after the dataflow types:
+    /// it is structural but is containment rather than flow, so it must not fold
+    /// into "Delivers".
     internal var edgeLegend: [(type: String, label: String, color: Color)] {
         let present = Set(simLinkTypes)
         var out: [(type: String, label: String, color: Color)] = []
-        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds")]
+        for (type, label) in [("reads", "Reads"), ("writes", "Writes"), ("feeds", "Feeds"),
+                              ("hosts", "Hosts")]
         where present.contains(type) {
             out.append((type: type, label: label, color: edgeColor(forType: type)))
         }
-        let structural: Set<String> = ["reads", "writes", "feeds"]
+        let structural: Set<String> = ["reads", "writes", "feeds", "hosts"]
         if present.contains(where: { !structural.contains($0) }) {
             out.append((type: "deliver", label: "Delivers", color: edgeColor(forType: "deliver")))
         }

@@ -748,17 +748,27 @@ private struct CronGraphCanvas: View {
 
             let type = linkIndex < viewModel.simLinkTypes.count ? viewModel.simLinkTypes[linkIndex] : "reads"
             let baseColor = viewModel.edgeColor(forType: type)
+            let isContainment = viewModel.edgeIsContainment(type)
 
             var path = Path()
             path.move(to: sp)
             path.addQuadCurve(to: tp, control: ctrl)
-            context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            if isContainment {
+                // Dashed: a `hosts` edge is containment, not flow. Nothing
+                // travels along it, so it must not look like the solid dataflow
+                // arrows next to it.
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.45 : 0.06)),
+                               style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+            } else {
+                context.stroke(path, with: .color(baseColor.opacity(isConnected ? 0.5 : 0.07)), lineWidth: 1.5)
+            }
 
             // Arrowhead at the target end points along the flow (reads: into the
             // cron; writes/delivers: into the resource/sink), so direction is
-            // legible without reading the edge label.
+            // legible without reading the edge label. Containment edges get no
+            // arrowhead — there is no direction of travel to indicate.
             let targetR = viewModel.radius(forKind: viewModel.simNodes[ti].kind)
-            if len > targetR + 6 {
+            if !isContainment, len > targetR + 6 {
                 drawArrowhead(context: context, tip: tp, control: ctrl,
                               backoff: targetR + 2, color: baseColor.opacity(isConnected ? 0.7 : 0.07))
             }
@@ -848,8 +858,25 @@ private struct CronGraphCanvas: View {
         }
     }
 
+    /// One placed label: everything needed to draw it, plus the priority that
+    /// decides who wins the space when two would overlap.
+    private struct LabelCandidate {
+        let text: String
+        let screenPos: CGPoint
+        let isAnchor: Bool
+        /// 0 = anchor, 1 = neighbor of the anchor, 2 = everything else. Lower
+        /// wins, and 0/1 always draw (never dropped for a collision).
+        let rank: Int
+        /// Draw-order tiebreak so the sort is stable within a rank.
+        let order: Int
+    }
+
     private func drawLabels(context: inout GraphicsContext, size: CGSize, hasSelection: Bool) {
         let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
+
+        // Gather every visible label as a candidate first, so we can rank them
+        // and drop collisions rather than painting names on top of each other.
+        var candidates: [LabelCandidate] = []
         for (index, node) in viewModel.simNodes.enumerated() {
             let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
             guard isConnected else { continue }
@@ -863,89 +890,49 @@ private struct CronGraphCanvas: View {
             )
             guard screenPos.x > -80, screenPos.x < size.width + 80,
                   screenPos.y > -20, screenPos.y < size.height + 20 else { continue }
-            context.draw(
-                Text(node.label)
-                    .font(.system(size: isAnchor ? 12 : 11, weight: isAnchor ? .semibold : .medium))
-                    .foregroundColor(.white.opacity(isAnchor ? 1.0 : 0.82)),
-                at: screenPos, anchor: .leading
+            candidates.append(LabelCandidate(
+                // The hull above the node already names its category, so the
+                // label carries only the part the hull doesn't.
+                text: viewModel.displayLabel(forKind: node.kind, label: node.label),
+                screenPos: screenPos,
+                isAnchor: isAnchor,
+                rank: isAnchor ? 0 : (isNeighbor ? 1 : 2),
+                order: index
+            ))
+        }
+        // Anchor first, then its neighbors, then the rest — so the labels you're
+        // actually looking at claim their space before the ambient ones.
+        candidates.sort { $0.rank != $1.rank ? $0.rank < $1.rank : $0.order < $1.order }
+
+        // Screen rects already taken. A lower-priority label whose box would
+        // overlap one of these is skipped: in a tight cluster of similarly named
+        // tables you get a legible subset, not a smear. Zoom in or hover a node
+        // to surface the ones that dropped.
+        var placed: [CGRect] = []
+        for candidate in candidates {
+            let label = Text(candidate.text)
+                .font(.system(size: candidate.isAnchor ? 12 : 11, weight: candidate.isAnchor ? .semibold : .medium))
+                .foregroundColor(.white.opacity(candidate.isAnchor ? 1.0 : 0.82))
+            let resolved = context.resolve(label)
+            let measured = resolved.measure(in: CGSize(width: 1000, height: 1000))
+            // `.leading` anchor: the box grows right from screenPos, centered on it.
+            let box = CGRect(
+                x: candidate.screenPos.x,
+                y: candidate.screenPos.y - measured.height / 2,
+                width: measured.width,
+                height: measured.height
             )
+            let collisionBox = box.insetBy(dx: -3, dy: -1)
+            let mustShow = candidate.rank <= 1
+            if !mustShow, placed.contains(where: { $0.intersects(collisionBox) }) { continue }
+            placed.append(collisionBox)
+            // A dark rounded plate under the text keeps it readable over edges,
+            // node glows, and any higher-priority label it still sits beside.
+            context.fill(
+                Path(roundedRect: box.insetBy(dx: -4, dy: -2), cornerRadius: 4),
+                with: .color(Theme.background.opacity(0.72))
+            )
+            context.draw(resolved, at: candidate.screenPos, anchor: .leading)
         }
-    }
-}
-
-// MARK: - CronNodeGlyphShape
-
-/// The per-kind node silhouette, inscribed in its bounding rect. One source of
-/// truth for the shape a kind draws as, shared by the `Canvas` node bodies and
-/// selection rings and by the legend/detail swatches — so the key on the graph
-/// shows exactly the outline it labels. Kind → glyph mapping lives on the view
-/// model (`CronGraphViewModel.glyph(forKind:)`); this only renders it.
-internal struct CronNodeGlyphShape: Shape {
-    internal let glyph: CronGraphViewModel.NodeGlyph
-
-    internal func path(in rect: CGRect) -> Path {
-        switch glyph {
-        case .circle:
-            return Path(ellipseIn: rect)
-        case .triangle:
-            // Apex up, base along the bottom — an input pointing into the graph.
-            var path = Path()
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-            path.closeSubpath()
-            return path
-        case .diamond:
-            var path = Path()
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
-            path.closeSubpath()
-            return path
-        case .cylinder:
-            return Self.cylinderPath(in: rect)
-        case .cluster:
-            return Self.hexagonPath(in: rect)
-        case .roundedSquare:
-            // A running box — a long-lived process/container. Distinct from the
-            // circle (a cron fires and exits) and the leaf resource shapes.
-            return Path(roundedRect: rect, cornerRadius: rect.width * 0.28)
-        }
-    }
-
-    /// A flat-topped hexagon — the collapsed cluster super-node. Reads as a
-    /// container distinct from all four leaf silhouettes.
-    private static func hexagonPath(in rect: CGRect) -> Path {
-        let insetX = rect.width * 0.25
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + insetX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX - insetX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + insetX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.closeSubpath()
-        return path
-    }
-
-    /// A database can: an elliptical lid, straight sides, and a front-bulging
-    /// bottom. The body subpath and the full top ellipse are unioned in one
-    /// `Path` (non-zero winding) so it fills as a solid store glyph.
-    private static func cylinderPath(in rect: CGRect) -> Path {
-        let capRy = rect.height * 0.22
-        let topY = rect.minY + capRy
-        let botY = rect.maxY - capRy
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: topY))
-        path.addLine(to: CGPoint(x: rect.minX, y: botY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: botY),
-                          control: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: topY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: topY),
-                          control: CGPoint(x: rect.midX, y: topY + capRy))
-        path.closeSubpath()
-        path.addEllipse(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: capRy * 2))
-        return path
     }
 }

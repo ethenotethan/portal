@@ -158,6 +158,84 @@ internal struct CronGraphViewModelTests {
         #expect(!hulls.contains { $0.key == "wiki" || $0.key == "work" })
     }
 
+    // MARK: - displayLabel
+
+    /// Four jobs filed under `projection` plus one lone `work` job — the shape of
+    /// the real graph, where one folder earns a hull and another doesn't.
+    private func projectionVM() -> CronGraphViewModel {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("a", "projection / x402 wiki projection"),
+                cron("b", "projection / refresh dashboard matviews"),
+                cron("c", "projection/mpp/wiki projection"),
+                cron("d", "work/standup"),
+                CronGraphNode(id: "wiki:x", kind: "artifact", type: "wiki", label: "projection/x",
+                              description: "", schedule: nil, enabled: true, usesLLM: false,
+                              lastStatus: nil, deliver: nil),
+            ],
+            edges: []
+        ))
+        return vm
+    }
+
+    @Test("a hulled cron drops the folder the hull already spells out")
+    internal func labelDropsHulledFolder() {
+        // The canvas draws `PROJECTION` above the hull, so the node label saying
+        // it again pushes the identifying half of the name off screen.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / x402 wiki projection")
+                == "x402 wiki projection")
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / refresh dashboard matviews")
+                == "refresh dashboard matviews")
+    }
+
+    @Test("levels below the hull's folder survive")
+    internal func labelKeepsDeeperLevels() {
+        // Only the top folder is on screen, so `mpp` has nowhere else to appear.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "projection/mpp/wiki projection")
+                == "mpp/wiki projection")
+    }
+
+    @Test("a cron with no hull keeps its full name")
+    internal func labelKeepsUnhulledName() {
+        // `work` has a single job, so `categoryHulls` draws nothing over it and the
+        // label is the only place its category appears — stripping would lose it.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "cron", label: "work/standup") == "work/standup")
+    }
+
+    @Test("only cron labels are shortened")
+    internal func labelLeavesResourcesAlone() {
+        // A ref's label is a path in the *store*, not a cron category, and it
+        // collides with a folder name by coincidence. Kind decides, not the text.
+        let vm = projectionVM()
+        #expect(vm.displayLabel(forKind: "artifact", label: "projection/x") == "projection/x")
+    }
+
+    @Test("the shortened labels agree with the hulls actually drawn")
+    internal func labelAgreesWithHulls() {
+        // The guard against drift: whatever folder the hull label prints is exactly
+        // what the node labels beneath it stop printing.
+        let vm = projectionVM()
+        #expect(vm.hulledCategoryFolders == Set(vm.categoryHulls.map(\.key)))
+        #expect(vm.hulledCategoryFolders == ["projection"])
+    }
+
+    @Test("reloading a graph without a folder stops shortening its jobs")
+    internal func labelFollowsGraphReload() {
+        // `hulledCategoryFolders` is cached off the graph, so a reload that leaves
+        // one job in a folder must give its full name back rather than keep
+        // stripping from a stale set.
+        let vm = projectionVM()
+        vm.setGraphForTesting(CronGraph(nodes: [cron("a", "projection / x402 wiki projection")],
+                                        edges: []))
+        #expect(vm.hulledCategoryFolders.isEmpty)
+        #expect(vm.displayLabel(forKind: "cron", label: "projection / x402 wiki projection")
+                == "projection / x402 wiki projection")
+    }
+
     // MARK: - edgeLegend
 
     @Test("edge legend lists present types in dataflow order and folds side-effects into Delivers")
@@ -185,6 +263,44 @@ internal struct CronGraphViewModelTests {
         // reads → writes → (feeds absent) → the non-structural `notify` folds into one Delivers row.
         #expect(legend.map(\.type) == ["reads", "writes", "deliver"])
         #expect(legend.map(\.label) == ["Reads", "Writes", "Delivers"])
+    }
+
+    @Test("hosts is a structural containment edge, not a delivery")
+    internal func hostsEdgeIsStructuralAndDistinct() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                cron("job", "job"),
+                CronGraphNode(id: "postgres:app.events", kind: "artifact", type: "postgres",
+                              label: "events", description: "", schedule: nil, enabled: true,
+                              usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "docker:abc123", kind: "service", type: "service",
+                              label: "Postgres", description: "the store", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "job", target: "postgres:app.events", type: "writes"),
+                // The container RUNS the table the cron writes — containment.
+                CronGraphEdge(source: "docker:abc123", target: "postgres:app.events", type: "hosts"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        // `hosts` must appear as its own legend row, NOT folded into "Delivers".
+        let legend = vm.edgeLegend
+        #expect(legend.map(\.type) == ["writes", "hosts"])
+        #expect(legend.map(\.label) == ["Writes", "Hosts"])
+
+        // It must be tinted as infrastructure, distinct from both dataflow and sink.
+        #expect(vm.edgeColor(forType: "hosts") != vm.edgeColor(forType: "writes"))
+        #expect(vm.edgeColor(forType: "hosts") != vm.edgeColor(forType: "notify"))
+
+        // And it must be drawn as containment (dashed, no arrowhead).
+        #expect(vm.edgeIsContainment("hosts"))
+        for flow in ["reads", "writes", "feeds", "notify"] {
+            #expect(!vm.edgeIsContainment(flow))
+        }
     }
 
     // MARK: - zoomAtPoint / zoomAtCenter

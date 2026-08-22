@@ -72,6 +72,24 @@ internal enum CronCategory {
         showingPath ? job.name : title(for: job)
     }
 
+    /// A job's name with one leading path component removed, for a surface that
+    /// already shows *that* component but not the deeper ones.
+    ///
+    /// `("indexing/solana sweep", "indexing")` → `"solana sweep"`
+    /// `("indexing/wiki/x402", "indexing")` → `"wiki/x402"`
+    ///
+    /// This is the partial-strip counterpart to `displayName(for:showingPath:)`:
+    /// the tree shows every level as a header and can drop the whole path, while
+    /// the interflow graph draws only the top folder as a hull label, so a nested
+    /// job must keep the levels the hull doesn't name. A name that doesn't start
+    /// with `folder` comes back untouched — a caller can't shorten a job filed
+    /// somewhere else.
+    internal static func name(_ name: String, strippingLeadingFolder folder: String) -> String {
+        let parts = split(name: name)
+        guard parts.path.first == folder else { return name }
+        return (parts.path.dropFirst() + [parts.title]).joined(separator: String(separator))
+    }
+
     // MARK: - Renaming == recategorizing
 
     /// Clean up a user-typed job name into the canonical path form, or nil when
