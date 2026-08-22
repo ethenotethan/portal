@@ -194,12 +194,6 @@ custom_rules:
     excluded:
       # Legit presentation service: renders SwiftUI views to PDF via ImageRenderer.
       - ".*/Services/SessionPDFExporter\\.swift"
-      # TODO: these import SwiftUI only for ObservableObject/@Published —
-      # switch them to `import Combine` (or Observation) and drop the exclusion.
-      - ".*/Services/GatewayClientWrapper\\.swift"
-      - ".*/Services/SkillCache\\.swift"
-      - ".*/Services/SkillStore\\.swift"
-      - ".*/Services/TTSService\\.swift"
     regex: "^import SwiftUI$"
     message: >-
       Services are the platform-agnostic layer — no SwiftUI. Use Foundation/Combine;
