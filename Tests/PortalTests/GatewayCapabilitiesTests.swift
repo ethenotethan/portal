@@ -43,6 +43,41 @@ struct GatewayCapabilitiesTests {
         #expect(capabilities.capabilityNames.contains("acp.image.prompts"))
     }
 
+    @Test("scalar version responses preserve their reporting source")
+    internal func parsesScalarVersions() {
+        let gateway = GatewayCapabilities.from(
+            value: .string("1.2.3"),
+            method: "gateway.version"
+        )
+        let agent = GatewayCapabilities.from(
+            value: .int(42),
+            method: "hermes.version"
+        )
+
+        #expect(gateway.gatewayVersion == "1.2.3")
+        #expect(gateway.agentVersion == nil)
+        #expect(gateway.source == .gateway(method: "gateway.version"))
+        #expect(agent.gatewayVersion == nil)
+        #expect(agent.agentVersion == "42")
+        #expect(agent.source == .gateway(method: "hermes.version"))
+    }
+
+    @Test("a nil reported result stays distinct from a transport fallback")
+    internal func nilResultUsesGatewaySource() {
+        let capabilities = GatewayCapabilities.from(
+            result: nil,
+            method: "gateway.capabilities"
+        )
+
+        #expect(capabilities.gatewayVersion == nil)
+        #expect(capabilities.agentVersion == nil)
+        #expect(capabilities.capabilityNames.isEmpty)
+        #expect(!capabilities.hasImageInput)
+        #expect(!capabilities.hasACPImagePrompts)
+        #expect(capabilities.source == .gateway(method: "gateway.capabilities"))
+        #expect(capabilities.statusDisplay == "Detected")
+    }
+
     @Test("fallback is conservative for image features")
     func fallbackIsConservative() {
         let capabilities = GatewayCapabilities.fallback(reason: "unsupported")
