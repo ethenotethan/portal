@@ -344,6 +344,39 @@ internal struct CronGraphViewModelTests {
 }
 
 @MainActor
+@Suite("Cron session navigation")
+internal struct CronSessionNavigatorTests {
+    @Test("the nearest cron session inside the correlation window wins")
+    internal func nearestEligibleSessionWins() {
+        let firedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let record = CronRunRecord(
+            id: UUID(),
+            jobID: "daily-digest",
+            jobName: "Daily digest",
+            firedAt: firedAt,
+            status: "ok"
+        )
+        let navigator = CronSessionNavigator(sessions: [
+            Session(id: "wrong-source", source: "cli", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(1)),
+            Session(id: "missing-start", source: "cron", messageCount: 0),
+            Session(id: "earlier", source: "cron", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(-119)),
+            Session(id: "nearest", source: "CRON", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(30)),
+        ])
+
+        #expect(navigator.session(for: record)?.id == "nearest")
+
+        let boundary = CronSessionNavigator(sessions: [
+            Session(id: "boundary", source: "cron", messageCount: 0,
+                    startedAt: firedAt.addingTimeInterval(120)),
+        ])
+        #expect(boundary.session(for: record) == nil)
+    }
+}
+
+@MainActor
 @Suite("Cron expanded dataflow layout")
 internal struct CronDataflowExpandedLayoutTests {
     @Test("compact widths keep the graph full-width and inspect nodes in a sheet")
