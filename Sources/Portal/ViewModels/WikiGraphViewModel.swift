@@ -292,13 +292,31 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var selectedWikiPath: String?
     @Published var availableWikis: [String] = []
 
+    /// Keep picker state and graph-load ordering in lockstep. Picker actions
+    /// run synchronously, while scans run in unstructured tasks; assigning the
+    /// generation here makes click order, not task-start order, authoritative.
+    @discardableResult
+    internal func selectWiki(_ wiki: String?) -> Int {
+        selectedWikiPath = wiki
+        return beginLoad(wiki: wiki)
+    }
+
+    /// Establish load ordering before an asynchronous scan is scheduled.
+    internal func beginLoad(wiki: String?) -> Int {
+        prepareForLoad(wiki: wiki)
+        loadGeneration += 1
+        isLoading = true
+        error = nil
+        return loadGeneration
+    }
+
     /// Currently selected taxonomy path for hierarchical filtering.
     /// When set, only nodes whose tag_path starts with this prefix are shown.
     @Published var selectedTaxonomyPath: String? {
         didSet { updateFilteredNodes() }
     }
 
-    private var loadGeneration = 0
+    internal var loadGeneration = 0
     /// Read-only view of the load counter for extensions that run async work
     /// against a load and must drop out when a newer one supersedes it.
     internal var currentLoadGeneration: Int { loadGeneration }
@@ -324,19 +342,20 @@ final class WikiGraphViewModel: ObservableObject {
     /// 404s every Centaur page). No cycle: sources hold no view-model refs.
     private var loadedSource: (any WikiSource)?
 
-    func load(client: GatewayClient, wiki: String? = nil) async {
-        await load(source: client, wiki: wiki)
+    func load(client: GatewayClient, wiki: String? = nil, generation: Int? = nil) async {
+        await load(source: client, wiki: wiki, generation: generation)
     }
 
     /// Source-generic load: Hermes (GatewayClient) and Centaur
     /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
     /// Hermes-only (multi-wiki gateways); other sources ignore it.
-    func load(source: any WikiSource, wiki: String? = nil) async {
-        prepareForLoad(wiki: wiki)
+    func load(source: any WikiSource, wiki: String? = nil, generation: Int? = nil) async {
+        let generation = generation ?? beginLoad(wiki: wiki)
+        // A named selection establishes its generation synchronously in the
+        // button action. If this task was scheduled after a newer click, drop
+        // it before it can mutate source, graph, or loading state.
+        guard generation == loadGeneration else { return }
         loadedSource = source
-        loadGeneration += 1
-        let generation = loadGeneration
-        isLoading = true; error = nil
         defer { if generation == loadGeneration { isLoading = false } }
 
         // Cold-open fast path: paint the last-known graph immediately so the
