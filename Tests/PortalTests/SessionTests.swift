@@ -92,6 +92,45 @@ internal struct SessionTimelineTests {
     }
 }
 
+@Suite("Session Run Event")
+internal struct SessionRunEventTests {
+    @Test("new runs start with stable accounting defaults")
+    internal func initialState() {
+        let startedAt = Date(timeIntervalSince1970: 1_000)
+        let event = SessionRunEvent(sessionID: "session-1", startedAt: startedAt)
+
+        #expect(event.sessionID == "session-1")
+        #expect(event.startedAt == startedAt)
+        #expect(event.endedAt == nil)
+        #expect(event.inputTokens == nil)
+        #expect(event.outputTokens == nil)
+        #expect(event.totalTokens == nil)
+        #expect(event.apiCalls == 1)
+        #expect(event.costUSD == nil)
+        #expect(event.status == .running)
+        #expect(event.duration == nil)
+        #expect(event.durationLabel == "—")
+    }
+
+    @Test("completed run durations scale from seconds to minutes and hours")
+    internal func durationLabels() {
+        let startedAt = Date(timeIntervalSince1970: 1_000)
+        let cases: [(duration: TimeInterval, label: String)] = [
+            (30, "30.0s"),
+            (90, "1.5m"),
+            (7_200, "2.0h")
+        ]
+
+        for item in cases {
+            var event = SessionRunEvent(sessionID: "session-1", startedAt: startedAt)
+            event.endedAt = startedAt.addingTimeInterval(item.duration)
+
+            #expect(event.duration == item.duration)
+            #expect(event.durationLabel == item.label)
+        }
+    }
+}
+
 // MARK: - Sessions Filter State Tests
 
 @Suite("Sessions Filter State")
