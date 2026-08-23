@@ -602,6 +602,13 @@ struct EnsembleModelTests {
         #expect(ModelSpec.EntityRef("noslash") == nil)
     }
 
+    @Test("Relation identity composes normalized endpoints and type")
+    internal func relationIdentity() throws {
+        let spec = try #require(ModelSpec.parse(Self.fixture))
+        let relation = try #require(spec.relations.first)
+        #expect(relation.id == "apartments/seed mingle→gyms/felixmuaythai:walkable")
+    }
+
     @Test("Map projection: coordinates become markers grouped by set")
     func mapProjection() {
         let spec = ModelSpec.parse(Self.fixture)!
