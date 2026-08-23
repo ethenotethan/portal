@@ -324,14 +324,14 @@ final class WikiGraphViewModel: ObservableObject {
     /// 404s every Centaur page). No cycle: sources hold no view-model refs.
     private var loadedSource: (any WikiSource)?
 
-    func load(client: GatewayClient, wiki: String? = nil, generation: Int? = nil) async {
+    internal func load(client: GatewayClient, wiki: String? = nil, generation: Int? = nil) async {
         await load(source: client, wiki: wiki, generation: generation)
     }
 
     /// Source-generic load: Hermes (GatewayClient) and Centaur
     /// (CentaurWikiClient) both conform to WikiSource. `wiki` selection is
     /// Hermes-only (multi-wiki gateways); other sources ignore it.
-    func load(source: any WikiSource, wiki: String? = nil, generation: Int? = nil) async {
+    internal func load(source: any WikiSource, wiki: String? = nil, generation: Int? = nil) async {
         let generation = generation ?? beginLoad(wiki: wiki)
         // A named selection establishes its generation synchronously in the
         // button action. If this task was scheduled after a newer click, drop
