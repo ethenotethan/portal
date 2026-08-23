@@ -140,7 +140,7 @@
       "line_count": 6940
     },
     {
-      "declaration_count": 144,
+      "declaration_count": 145,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -214,6 +214,7 @@
         "HubResultRow",
         "Kind",
         "LabelCandidate",
+        "LayoutMode",
         "LearningComponents_Previews",
         "LearningDashboardView",
         "LearningDashboardView_Previews",
@@ -347,7 +348,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17463
+      "line_count": 17572
     },
     {
       "declaration_count": 37,
@@ -4970,9 +4971,9 @@
   ],
   "inventory": {
     "assigned_files": 335,
-    "declarations": 994,
+    "declarations": 995,
     "swift_files": 335,
-    "swift_lines": 97890,
+    "swift_lines": 97999,
     "unassigned_files": []
   },
   "layers": [
@@ -5004,6 +5005,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e03c7ef8bcdc5ae5fc9a10c1fda3b0629b5e0c07ac4e032b8fd5495f8b419b9f",
+  "source_tree_sha256": "624d5fa8c1be5a802f08de39ca2374c7d3aa7a140bd1829440401394e0e6e20b",
   "title": "Portal Architecture"
 }
