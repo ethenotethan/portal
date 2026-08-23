@@ -37,6 +37,21 @@ internal struct CronGraphNode: Identifiable, Hashable {
     internal let usesLLM: Bool
     internal let lastStatus: String?
     internal let deliver: String?
+    internal var health: CronServiceHealth? = nil
+}
+
+/// Runtime evidence attached only to service nodes. A status is application
+/// health when an explicit probe exists, otherwise supervisor liveness.
+internal struct CronServiceHealth: Hashable {
+    internal let status: String
+    internal let probe: String
+    internal let target: String
+    internal let checkedAt: String
+    internal let latencyMilliseconds: Double
+    internal let message: String
+
+    internal var isHealthy: Bool { status == "healthy" }
+    internal var isUnhealthy: Bool { status == "unhealthy" }
 }
 
 /// A typed directed edge. Types: `reads` (source/artifact → cron), `writes`
@@ -56,6 +71,59 @@ internal struct CronGraph {
     internal static let empty = CronGraph(nodes: [], edges: [])
 
     internal var isEmpty: Bool { nodes.isEmpty }
+
+    internal static func decodeGatewayValue(_ value: AnyCodable) throws -> CronGraph {
+        guard let dict = value.dictionaryValue,
+              let nodesArray = dict["nodes"]?.arrayValue,
+              let edgesArray = dict["edges"]?.arrayValue else {
+            throw GatewayError.invalidResponse("cron.graph missing nodes/edges arrays")
+        }
+
+        let nodes: [CronGraphNode] = nodesArray.compactMap { item in
+            guard let d = item.dictionaryValue,
+                  let id = d["id"]?.stringValue, !id.isEmpty,
+                  let kind = d["kind"]?.stringValue else { return nil }
+            let health: CronServiceHealth?
+            if let h = d["health"]?.dictionaryValue,
+               let status = h["status"]?.stringValue {
+                health = CronServiceHealth(
+                    status: status,
+                    probe: h["probe"]?.stringValue ?? "unknown",
+                    target: h["target"]?.stringValue ?? "",
+                    checkedAt: h["checked_at"]?.stringValue ?? "",
+                    latencyMilliseconds: h["latency_ms"]?.doubleValue ?? 0,
+                    message: h["message"]?.stringValue ?? ""
+                )
+            } else {
+                health = nil
+            }
+            return CronGraphNode(
+                id: id,
+                kind: kind,
+                type: d["type"]?.stringValue ?? kind,
+                label: d["label"]?.stringValue ?? id,
+                description: d["description"]?.stringValue ?? "",
+                schedule: d["schedule"]?.stringValue,
+                enabled: d["enabled"]?.boolValue ?? true,
+                usesLLM: d["uses_llm"]?.boolValue ?? false,
+                lastStatus: d["last_status"]?.stringValue,
+                deliver: d["deliver"]?.stringValue,
+                health: health
+            )
+        }
+
+        let edges: [CronGraphEdge] = edgesArray.compactMap { item in
+            guard let d = item.dictionaryValue,
+                  let source = d["source"]?.stringValue,
+                  let target = d["target"]?.stringValue else { return nil }
+            return CronGraphEdge(
+                source: source,
+                target: target,
+                type: d["type"]?.stringValue ?? "reads"
+            )
+        }
+        return CronGraph(nodes: nodes, edges: edges)
+    }
 }
 
 // MARK: - Per-job dataflow projection

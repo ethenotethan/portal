@@ -33,6 +33,7 @@ internal struct CronInterflowGraphView: View {
     }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+    private let healthTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     /// Whether the bottom-left legend is expanded. Persisted so the choice sticks
     /// across launches and stays in step between the inline panel and the
@@ -58,6 +59,10 @@ internal struct CronInterflowGraphView: View {
         .onReceive(timer) { _ in
             guard viewModel.simAlpha > 0.003 || viewModel.simNodes.contains(where: { $0.isDragging }) else { return }
             viewModel.tick()
+        }
+        .onReceive(healthTimer) { _ in
+            guard viewModel.graph.nodes.contains(where: { $0.kind == "service" }) else { return }
+            Task { await viewModel.refreshRuntimeState(client: gatewayClientWrapper.client) }
         }
         .onAppear {
             guard viewModel.graph.isEmpty else { return }
@@ -350,6 +355,9 @@ internal struct CronInterflowGraphView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
+                if let health = node.health {
+                    serviceHealthBadge(health)
+                }
                 Spacer(minLength: 6)
                 Button { viewModel.selectedNodeIndex = nil } label: {
                     Image(systemName: "xmark")
@@ -386,6 +394,9 @@ internal struct CronInterflowGraphView: View {
                         Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
                         MarkdownContentView(text: node.description)
                     }
+                    if let health = node.health {
+                        serviceHealthDetails(health)
+                    }
                     connectionsList
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -407,6 +418,37 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .background(Theme.surface.opacity(0.5))
+    }
+
+    private func serviceHealthBadge(_ health: CronServiceHealth) -> some View {
+        let color: Color = health.isHealthy ? .green : (health.isUnhealthy ? .red : .orange)
+        return HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(health.status.capitalized)
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.12), in: Capsule())
+    }
+
+    @ViewBuilder
+    private func serviceHealthDetails(_ health: CronServiceHealth) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Text("HEALTH")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(Theme.secondary.opacity(0.65))
+        detailRow(icon: "stethoscope", value: "\(health.probe) probe · \(health.message)")
+        if !health.target.isEmpty {
+            detailRow(icon: "scope", value: health.target)
+        }
+        if health.latencyMilliseconds > 0 {
+            detailRow(icon: "timer", value: String(format: "%.1f ms", health.latencyMilliseconds))
+        }
+        if !health.checkedAt.isEmpty {
+            detailRow(icon: "clock.arrow.circlepath", value: health.checkedAt)
+        }
     }
 
     /// The selected node's neighbors, each a button that re-selects it — the
@@ -855,6 +897,21 @@ private struct CronGraphCanvas: View {
                 with: .color(.white.opacity(isConnected ? 0.45 : 0.15)),
                 lineWidth: 0.8
             )
+            if node.kind == "service", let health = viewModel.serviceHealth(forNodeID: node.id) {
+                let statusColor: Color = health.isHealthy
+                    ? .green
+                    : (health.isUnhealthy ? .red : .orange)
+                let dotRadius: CGFloat = 3.5
+                let dotCenter = CGPoint(x: pos.x + r * 0.72, y: pos.y - r * 0.72)
+                let dotRect = CGRect(
+                    x: dotCenter.x - dotRadius,
+                    y: dotCenter.y - dotRadius,
+                    width: dotRadius * 2,
+                    height: dotRadius * 2
+                )
+                context.fill(Path(ellipseIn: dotRect), with: .color(statusColor.opacity(baseOpacity)))
+                context.stroke(Path(ellipseIn: dotRect), with: .color(Theme.background), lineWidth: 1)
+            }
         }
     }
 

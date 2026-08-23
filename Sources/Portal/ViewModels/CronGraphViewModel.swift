@@ -51,6 +51,7 @@ internal final class CronGraphViewModel: ObservableObject {
     @Published internal var panOffset: CGSize = .zero
     @Published internal private(set) var isLoading = false
     @Published internal private(set) var error: String?
+    private var isRefreshing = false
 
     internal var canvasSize: CGSize = .zero
     internal private(set) var adjacency: [Set<Int>] = []
@@ -93,6 +94,31 @@ internal final class CronGraphViewModel: ObservableObject {
         }
         isLoading = false
     }
+
+    /// Refresh runtime health without scrambling a settled graph. A topology
+    /// change still rebuilds the simulation, while health-only updates preserve
+    /// positions, zoom, and the selected service inspector.
+    internal func refreshRuntimeState(client: GatewayClient) async {
+        guard !isRefreshing, !graph.isEmpty else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            let updated = try await client.cronGraph()
+            let topologyChanged = Self.topologySignature(graph) != Self.topologySignature(updated)
+            graph = updated
+            if topologyChanged { setupSimulation() }
+        } catch {
+            // Keep the last known graph visible. The manual Retry path remains
+            // responsible for surfacing transport failures.
+        }
+    }
+
+    private static func topologySignature(_ graph: CronGraph) -> [String] {
+        let nodes = graph.nodes.map { "n:\($0.id):\($0.kind):\($0.type):\($0.label)" }
+        let edges = graph.edges.map { "e:\($0.source):\($0.target):\($0.type)" }
+        return (nodes + edges).sorted()
+    }
+
 
     #if DEBUG
     /// Seed the raw graph directly, bypassing the gateway — tests exercise
@@ -536,6 +562,10 @@ internal final class CronGraphViewModel: ObservableObject {
         guard let sel = selectedNodeIndex, simNodes.indices.contains(sel) else { return nil }
         let id = simNodes[sel].id
         return graph.nodes.first { $0.id == id }
+    }
+
+    internal func serviceHealth(forNodeID id: String) -> CronServiceHealth? {
+        graph.nodes.first { $0.id == id }?.health
     }
 
     // MARK: - Appearance

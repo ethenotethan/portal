@@ -203,10 +203,47 @@ internal struct CronDataflowExpandedView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
+                if let health = node.health {
+                    Text(health.status.capitalized)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(
+                            health.isHealthy ? Color.green : (health.isUnhealthy ? Color.red : Color.orange)
+                        )
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(
+                            (health.isHealthy ? Color.green : (health.isUnhealthy ? Color.red : Color.orange)).opacity(0.12),
+                            in: Capsule()
+                        )
+                }
             }
             infoRow(icon: "square.stack.3d.up", label: "Kind", value: node.kind)
             if !node.type.isEmpty, node.type != node.kind {
                 infoRow(icon: "tag", label: "Type", value: node.type)
+            }
+            if node.kind == "service", !node.description.isEmpty {
+                MarkdownContentView(text: node.description)
+            }
+            if let health = node.health {
+                Divider().background(Theme.border)
+                Text("Health")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primary)
+                infoRow(icon: "stethoscope", label: "Probe", value: health.probe)
+                if !health.target.isEmpty {
+                    infoRow(icon: "scope", label: "Target", value: health.target)
+                }
+                infoRow(icon: "waveform.path.ecg", label: "Result", value: health.message)
+                if health.latencyMilliseconds > 0 {
+                    infoRow(
+                        icon: "timer",
+                        label: "Latency",
+                        value: String(format: "%.1f ms", health.latencyMilliseconds)
+                    )
+                }
+                if !health.checkedAt.isEmpty {
+                    infoRow(icon: "clock.arrow.circlepath", label: "Checked", value: health.checkedAt)
+                }
             }
             neighborsList
         }
