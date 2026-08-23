@@ -178,6 +178,14 @@ struct StatTileSpecTests {
         #expect(StatTileSpec.TileValue.number(7).display == "7")
     }
 
+    @Test("Tile identity follows its visible label")
+    internal func tileIdentity() throws {
+        let spec = try #require(StatTileSpec.parse(#"{"tiles":[{"label":"Requests","value":128400}]}"#))
+        let tile = try #require(spec.tiles.first)
+
+        #expect(tile.id == "Requests")
+    }
+
     @Test("Empty or malformed specs return nil")
     func malformed() {
         #expect(StatTileSpec.parse("{\"tiles\": []}") == nil)
