@@ -192,6 +192,55 @@ struct GatewayEventDecodingTests {
     }
 }
 
+// MARK: - JSON-RPC value coding
+
+@Suite("JSON-RPC value coding")
+internal struct JSONRPCValueCodingTests {
+
+    @Test("heterogeneous JSON values round-trip through Codable")
+    internal func heterogeneousValuesRoundTrip() throws {
+        let values: [AnyCodable] = [
+            .string("portal"),
+            .int(42),
+            .double(3.5),
+            .bool(true),
+            .null,
+            .array([.string("nested"), .int(7)]),
+            .dictionary(["enabled": .bool(false), "count": .int(2)]),
+        ]
+
+        for value in values {
+            let data = try JSONEncoder().encode(value)
+            let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
+            #expect(decoded == value)
+        }
+    }
+
+    @Test("untyped JSON-shaped values bridge recursively and unsupported leaves become null")
+    internal func untypedValueBridge() {
+        let existing = AnyCodable.string("preserved")
+        let bridged = AnyCodable(any: [
+            "name": "portal",
+            "active": true,
+            "retries": 3,
+            "ratio": 0.5,
+            "items": ["one", 2, false] as [Any],
+            "existing": existing,
+            "unsupported": Date(timeIntervalSince1970: 0),
+        ] as [String: Any])
+
+        #expect(bridged == .dictionary([
+            "name": .string("portal"),
+            "active": .bool(true),
+            "retries": .int(3),
+            "ratio": .double(0.5),
+            "items": .array([.string("one"), .int(2), .bool(false)]),
+            "existing": existing,
+            "unsupported": .null,
+        ]))
+    }
+}
+
 // MARK: - ToolCallRecord risk update
 
 @Suite("ToolCallRecord risk update")
