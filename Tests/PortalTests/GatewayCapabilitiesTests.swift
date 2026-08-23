@@ -87,4 +87,21 @@ struct GatewayCapabilitiesTests {
         #expect(capabilities.versionDisplay == "Unknown")
         #expect(capabilities.statusDisplay == "Not reported")
     }
+
+    @MainActor
+    @Test("capability store reset returns to a conservative disconnected state")
+    internal func storeResetIsConservative() {
+        let store = GatewayCapabilitiesStore()
+
+        #expect(!store.isRefreshing)
+        #expect(store.lastRefreshError == nil)
+
+        store.reset(reason: "Gateway disconnected")
+
+        #expect(store.capabilities.source == .fallback(reason: "Gateway disconnected"))
+        #expect(!store.hasImageInput)
+        #expect(!store.hasACPImagePrompts)
+        #expect(store.lastRefreshError == nil)
+        #expect(!store.isRefreshing)
+    }
 }
