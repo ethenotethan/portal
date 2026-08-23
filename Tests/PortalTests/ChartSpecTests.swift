@@ -223,6 +223,19 @@ struct TimelineTests {
         #expect(range.upperBound == TimelineSpec.parseDate("2026-07-20"))
     }
 
+    @Test("Items expose stable lane-scoped identity and elapsed duration")
+    internal func itemIdentityAndDuration() throws {
+        let spec = try #require(TimelineSpec.parse("""
+        {"items": [
+          {"label": "Build", "start": "2026-07-10T12:00:00Z", "end": "2026-07-10T14:30:00Z", "lane": "Eng"}
+        ]}
+        """))
+        let item = try #require(spec.items.first)
+
+        #expect(item.id == "Eng|Build")
+        #expect(item.duration == 2.5 * 60 * 60)
+    }
+
     @Test("Single milestone pads the axis instead of collapsing")
     func singleInstant() {
         let spec = TimelineSpec.parse("""
