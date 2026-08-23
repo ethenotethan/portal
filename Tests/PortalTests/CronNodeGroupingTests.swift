@@ -85,4 +85,16 @@ internal struct CronNodeGroupingTests {
         let tri = [CGPoint.zero, CGPoint(x: 10, y: 0), CGPoint(x: 5, y: 10)]
         #expect(!CronGroupHull.path(around: tri, padding: 10).isEmpty)
     }
+
+    @Test("one- and two-node groups draw exact padded circle and capsule regions")
+    internal func smallGroupHullPaths() {
+        let single = CronGroupHull.path(around: [CGPoint(x: 20, y: 30)], padding: 10)
+        #expect(!single.isEmpty)
+        #expect(single.boundingRect == CGRect(x: 10, y: 20, width: 20, height: 20))
+
+        let pair = [CGPoint(x: 10, y: 20), CGPoint(x: 30, y: 20)]
+        let capsule = CronGroupHull.path(around: pair, padding: 5)
+        #expect(!capsule.isEmpty)
+        #expect(capsule.boundingRect == CGRect(x: 10, y: 15, width: 20, height: 10))
+    }
 }
