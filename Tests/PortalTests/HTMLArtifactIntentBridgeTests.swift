@@ -71,6 +71,23 @@ internal struct HTMLArtifactIntentBridgeTests {
 
     // MARK: - StatusMark
 
+    @Test("every invocation state maps to its fixed reflection token")
+    @MainActor
+    internal func invocationStatesMapToStatusTokens() {
+        let cases: [(ArtifactStore.IntentInvocationState, HTMLArtifactIntentBridge.StatusToken)] = [
+            (.pending, .pending),
+            (.needsConfirmation(challenge: "challenge", prompt: "Confirm?"), .needsConfirmation),
+            (.succeeded(message: "Done", sessionID: "session-1"), .succeeded),
+            (.failed(reason: "Unavailable"), .failed),
+            (.conflict, .conflict),
+            (.unsupported, .unsupported),
+        ]
+
+        for (state, expectedToken) in cases {
+            #expect(HTMLArtifactIntentBridge.StatusToken(state) == expectedToken)
+        }
+    }
+
     @Test("StatusMark stores its slot and token and is Equatable on all fields")
     internal func statusMarkConstruction() {
         let a = HTMLArtifactIntentBridge.StatusMark(
