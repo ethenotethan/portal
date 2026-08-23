@@ -439,7 +439,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5227
+      "line_count": 5237
     },
     {
       "declaration_count": 113,
@@ -813,7 +813,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1481
+      "line_count": 1500
     },
     {
       "declaration_count": 20,
@@ -5038,7 +5038,7 @@
     "assigned_files": 335,
     "declarations": 995,
     "swift_files": 335,
-    "swift_lines": 97999,
+    "swift_lines": 98028,
     "unassigned_files": []
   },
   "layers": [
@@ -5070,6 +5070,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "624d5fa8c1be5a802f08de39ca2374c7d3aa7a140bd1829440401394e0e6e20b",
+  "source_tree_sha256": "06220f1172f3539a4c832586f55d63d26354ecb0f69eed8f359df09fb93d140d",
   "title": "Portal Architecture"
 }
