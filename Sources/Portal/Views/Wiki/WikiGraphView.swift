@@ -72,12 +72,24 @@ struct WikiGraphView: View {
 
     /// Load through the override source when present, else the home gateway.
     /// `wiki` (multi-wiki selection) is Hermes-only and ignored on overrides.
-    private func loadGraph(wiki: String?) async {
+    private func loadGraph(wiki: String?, generation: Int? = nil) async {
         if let overrideSource {
-            await viewModel.load(source: overrideSource)
+            await viewModel.load(source: overrideSource, generation: generation)
         } else {
-            await viewModel.load(client: gatewayClientWrapper.client, wiki: wiki)
+            await viewModel.load(
+                client: gatewayClientWrapper.client,
+                wiki: wiki,
+                generation: generation
+            )
         }
+    }
+
+    /// Commit selection state before starting the asynchronous scan. The
+    /// custom-path sheet previously loaded a wiki without updating the picker,
+    /// leaving subsequent named-menu switches anchored to stale state.
+    private func selectAndLoadWiki(_ wiki: String?) {
+        let generation = viewModel.selectWiki(wiki)
+        Task { await loadGraph(wiki: wiki, generation: generation) }
     }
 
     // MARK: - Body
@@ -98,7 +110,7 @@ struct WikiGraphView: View {
                 WikiPathPickerSheet(
                     selectedPath: $viewModel.selectedWikiPath,
                     onSelect: { path in
-                        Task { await loadGraph(wiki: path) }
+                        selectAndLoadWiki(path)
                     }
                 )
             }
@@ -482,14 +494,12 @@ struct WikiGraphView: View {
     private var wikiPickerMenu: some View {
         Menu {
             Button("Default wiki") {
-                viewModel.selectedWikiPath = nil
-                Task { await loadGraph(wiki: nil) }
+                selectAndLoadWiki(nil)
             }
             Divider()
             ForEach(viewModel.availableWikis, id: \.self) { wiki in
                 Button(wiki) {
-                    viewModel.selectedWikiPath = wiki
-                    Task { await loadGraph(wiki: wiki) }
+                    selectAndLoadWiki(wiki)
                 }
             }
             if viewModel.availableWikis.isEmpty {
