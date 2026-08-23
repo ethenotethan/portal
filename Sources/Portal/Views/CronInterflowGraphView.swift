@@ -356,7 +356,7 @@ internal struct CronInterflowGraphView: View {
                     .foregroundStyle(Theme.primary)
                     .lineLimit(2)
                 if let health = node.health {
-                    serviceHealthBadge(health)
+                    CronServiceHealthBadge(health: health)
                 }
                 Spacer(minLength: 6)
                 Button { viewModel.selectedNodeIndex = nil } label: {
@@ -395,7 +395,7 @@ internal struct CronInterflowGraphView: View {
                         MarkdownContentView(text: node.description)
                     }
                     if let health = node.health {
-                        serviceHealthDetails(health)
+                        CronServiceHealthDetails(health: health)
                     }
                     connectionsList
                 }
@@ -420,36 +420,6 @@ internal struct CronInterflowGraphView: View {
         .background(Theme.surface.opacity(0.5))
     }
 
-    private func serviceHealthBadge(_ health: CronServiceHealth) -> some View {
-        let color: Color = health.isHealthy ? .green : (health.isUnhealthy ? .red : .orange)
-        return HStack(spacing: 4) {
-            Circle().fill(color).frame(width: 6, height: 6)
-            Text(health.status.capitalized)
-                .font(.system(size: 9, weight: .semibold))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(color.opacity(0.12), in: Capsule())
-    }
-
-    @ViewBuilder
-    private func serviceHealthDetails(_ health: CronServiceHealth) -> some View {
-        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
-        Text("HEALTH")
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(Theme.secondary.opacity(0.65))
-        detailRow(icon: "stethoscope", value: "\(health.probe) probe · \(health.message)")
-        if !health.target.isEmpty {
-            detailRow(icon: "scope", value: health.target)
-        }
-        if health.latencyMilliseconds > 0 {
-            detailRow(icon: "timer", value: String(format: "%.1f ms", health.latencyMilliseconds))
-        }
-        if !health.checkedAt.isEmpty {
-            detailRow(icon: "clock.arrow.circlepath", value: health.checkedAt)
-        }
-    }
 
     /// The selected node's neighbors, each a button that re-selects it — the
     /// click-around navigation that lets the dock stand in for the graph.

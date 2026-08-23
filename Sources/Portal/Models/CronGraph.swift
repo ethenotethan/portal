@@ -37,7 +37,7 @@ internal struct CronGraphNode: Identifiable, Hashable {
     internal let usesLLM: Bool
     internal let lastStatus: String?
     internal let deliver: String?
-    internal var health: CronServiceHealth? = nil
+    internal var health: CronServiceHealth? = nil // swiftlint:disable:this implicit_optional_initialization
 }
 
 /// Runtime evidence attached only to service nodes. A status is application
