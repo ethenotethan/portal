@@ -292,24 +292,6 @@ final class WikiGraphViewModel: ObservableObject {
     @Published var selectedWikiPath: String?
     @Published var availableWikis: [String] = []
 
-    /// Keep picker state and graph-load ordering in lockstep. Picker actions
-    /// run synchronously, while scans run in unstructured tasks; assigning the
-    /// generation here makes click order, not task-start order, authoritative.
-    @discardableResult
-    internal func selectWiki(_ wiki: String?) -> Int {
-        selectedWikiPath = wiki
-        return beginLoad(wiki: wiki)
-    }
-
-    /// Establish load ordering before an asynchronous scan is scheduled.
-    internal func beginLoad(wiki: String?) -> Int {
-        prepareForLoad(wiki: wiki)
-        loadGeneration += 1
-        isLoading = true
-        error = nil
-        return loadGeneration
-    }
-
     /// Currently selected taxonomy path for hierarchical filtering.
     /// When set, only nodes whose tag_path starts with this prefix are shown.
     @Published var selectedTaxonomyPath: String? {

@@ -10,6 +10,24 @@ import SwiftUI
 
 extension WikiGraphViewModel {
 
+    /// Keep picker state and graph-load ordering in lockstep. Picker actions
+    /// run synchronously, while scans run in unstructured tasks; assigning the
+    /// generation here makes click order, not task-start order, authoritative.
+    @discardableResult
+    internal func selectWiki(_ wiki: String?) -> Int {
+        selectedWikiPath = wiki
+        return beginLoad(wiki: wiki)
+    }
+
+    /// Establish load ordering before an asynchronous scan is scheduled.
+    internal func beginLoad(wiki: String?) -> Int {
+        prepareForLoad(wiki: wiki)
+        loadGeneration += 1
+        isLoading = true
+        error = nil
+        return loadGeneration
+    }
+
     /// The topmost node under a canvas point in model space, or nil for empty
     /// canvas. Walks back-to-front so the visually-on-top node wins a tie.
     internal func hitTest(point: CGPoint) -> Int? {
