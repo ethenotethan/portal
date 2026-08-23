@@ -129,4 +129,18 @@ internal struct ConceptLinkerTests {
         // Longer non-compound words still pass the length gate
         #expect(tokens.contains("refactoring"))
     }
+
+    @Test("salientTokens returns no concepts when context and summary are absent")
+    internal func salientTokensOnEmptyNode() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: nil,
+            summary: nil,
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        #expect(ConceptLinker.salientTokens(in: node).isEmpty)
+    }
 }
