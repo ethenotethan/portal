@@ -140,7 +140,7 @@
       "line_count": 6940
     },
     {
-      "declaration_count": 145,
+      "declaration_count": 147,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -174,6 +174,8 @@
         "CronRunListPopover",
         "CronRunMetrics",
         "CronSearchBar",
+        "CronServiceHealthBadge",
+        "CronServiceHealthDetails",
         "CronSessionNavigator",
         "CronSessionNavigatorKey",
         "CronSessionView",
@@ -290,7 +292,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 52,
+      "file_count": 53,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -307,6 +309,7 @@
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
+        "Sources/Portal/Views/CronServiceHealthView.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/CronSessionView.swift",
         "Sources/Portal/Views/FeedView.swift",
@@ -348,14 +351,17 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17572,
+      "line_count": 17691,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
+          "Sources/Portal/Views/CronDataflowExpandedView.swift",
           "Sources/Portal/Views/CronInterflowGraphView.swift",
-          "Sources/Portal/Views/CronNodeGlyphShape.swift"
+          "Sources/Portal/Views/CronNodeGlyphShape.swift",
+          "Sources/Portal/Views/CronServiceHealthView.swift"
         ],
         "flows": [
+          "CronGraphCanvas asks the view model for serviceHealth(forNodeID:) to paint each service node's status dot; inspector headers render CronServiceHealthBadge and CronServiceHealthDetails, and CronDataflowExpandedView renders the same health rows in the expanded sheet",
           "CronGraphCanvas consumes CronNodeGlyphShape for node bodies, selection rings, and legend/detail swatches",
           "CronGraphCanvas.drawHullLabels draws each category folder above its hull; drawLabels asks the view model for each node's display label"
         ],
@@ -367,10 +373,11 @@
           "Draw labels with rank-based collision avoidance so overlapping names are dropped instead of painted over each other",
           "Present the operations surfaces: sessions, cron, activity, skills, learning, mission control, and the Hermes file browser",
           "Render per-kind node glyphs from one shared CronNodeGlyphShape so the legend key matches the canvas outline",
-          "Resolve node label text through the view model rather than duplicating the strip rule in the canvas"
+          "Resolve node label text through the view model rather than duplicating the strip rule in the canvas",
+          "Surface service health at every altitude: canvas status dot, inline badge + details, and the expanded dataflow sheet"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster; node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names. Labels are placed with collision avoidance: candidates are ranked (selected anchor, then its neighbors, then the rest), anchor and neighbor labels always draw, and lower-priority labels whose boxes overlap an already-placed one are dropped rather than smeared together; each drawn label sits on a dark rounded plate for legibility over edges. Per-kind node silhouettes live in CronNodeGlyphShape (one Shape shared by canvas node bodies, selection rings, and legend swatches), and hosts containment edges draw dashed with no arrowhead."
+        "source_revision": "3e0af486b8f715ae8e085e82a73eaf00bf66945b",
+        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster; node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names. Labels are placed with collision avoidance: candidates are ranked (selected anchor, then its neighbors, then the rest), anchor and neighbor labels always draw, and lower-priority labels whose boxes overlap an already-placed one are dropped rather than smeared together; each drawn label sits on a dark rounded plate for legibility over edges. Per-kind node silhouettes live in CronNodeGlyphShape (one Shape shared by canvas node bodies, selection rings, and legend swatches), and hosts containment edges draw dashed with no arrowhead. Service health is visible at every altitude: the canvas paints a small status dot (green/red/orange by healthy/unhealthy/other) on each service node, the inline inspector header shows a CronServiceHealthBadge capsule and appends CronServiceHealthDetails (probe, target, result message, latency, checked-at), the expanded dataflow sheet mirrors both, and a 10-second timer refreshes runtime state only when service nodes are present."
       }
     },
     {
@@ -766,13 +773,14 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4031,
+      "line_count": 4061,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
           "Sources/Portal/ViewModels/CronGraphViewModel.swift"
         ],
         "flows": [
+          "A 10-second timer in CronInterflowGraphView (only when service nodes exist) calls refreshRuntimeState(client:); the canvas reads serviceHealth(forNodeID:) to paint each service's status dot",
           "The canvas asks edgeIsContainment(_:) per edge before stroking, and edgeLegend drives the edge color key",
           "graph didSet refreshes hulledCategoryFolders from categoryHulls; the canvas asks displayLabel(forKind:label:) per node when drawing labels"
         ],
@@ -784,10 +792,12 @@
           "Classify hosts edges as containment — dashed, arrowless — distinct from reads/writes/feeds dataflow",
           "Expose category hulls for cron folders with two or more jobs as a visual grouping with stable tints",
           "Own observable state machines for operations surfaces: sessions, cron, activity, feed, skills, settings, gateway lifecycle, learning, and the file browser",
-          "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise"
+          "Refresh runtime health on a timer without disturbing a settled layout, rebuilding only on topology change",
+          "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise",
+          "Serve per-node runtime health (serviceHealth(forNodeID:)) for canvas status dots"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name. Edge semantics also live here: a hosts edge is containment rather than dataflow (the service runs the resource), so edgeIsContainment(_:) marks it, edgeColor(forType:) gives it the muted service hue instead of the dataflow violet, and edgeLegend lists it after reads/writes/feeds and before the folded Delivers entry."
+        "source_revision": "3e0af486b8f715ae8e085e82a73eaf00bf66945b",
+        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name. Edge semantics also live here: a hosts edge is containment rather than dataflow (the service runs the resource), so edgeIsContainment(_:) marks it, edgeColor(forType:) gives it the muted service hue instead of the dataflow violet, and edgeLegend lists it after reads/writes/feeds and before the folded Delivers entry. Runtime state refreshes without scrambling a settled graph: refreshRuntimeState(client:) re-fetches the graph behind an isRefreshing reentrancy guard, compares topology signatures (node id/kind/type/label plus edge source/target/type), and rebuilds the simulation only when topology changed — health-only updates keep positions, zoom, and the selected service inspector, and a failed refresh keeps the last known graph with retry left to the manual path."
       }
     },
     {
@@ -909,7 +919,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4748
+      "line_count": 4716
     },
     {
       "declaration_count": 13,
@@ -1111,7 +1121,7 @@
       "line_count": 6551
     },
     {
-      "declaration_count": 232,
+      "declaration_count": 233,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1171,6 +1181,7 @@
         "CronNodeGrouping",
         "CronRunHistoryStore",
         "CronRunRecord",
+        "CronServiceHealth",
         "Curriculum",
         "CurriculumModule",
         "CurriculumResponse",
@@ -1424,26 +1435,30 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 12044,
+      "line_count": 12112,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
-          "Sources/Portal/Models/CronCategory.swift"
+          "Sources/Portal/Models/CronCategory.swift",
+          "Sources/Portal/Models/CronGraph.swift"
         ],
         "flows": [
-          "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names"
+          "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names",
+          "GatewayClient.cronGraph() delegates decoding to CronGraph.decodeGatewayValue(_:); a node's optional health dictionary becomes a CronServiceHealth carried on the node"
         ],
         "id": "domain-models",
         "model": "hermes-agent/glm-5.2",
         "open_questions": [],
         "responsibilities": [
+          "Decode cron.graph gateway payloads into CronGraph values in one place shared by initial load and runtime refresh",
           "Derive cron category paths from job names as a pure naming convention",
+          "Model per-service runtime health (status, probe, target, latency, message, checked-at) with healthy/unhealthy predicates",
           "Normalize and validate user-typed job names so renaming is also refiling",
           "Own value-oriented wire and domain types shared across experiences and service adapters",
           "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface — displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible."
+        "source_revision": "3e0af486b8f715ae8e085e82a73eaf00bf66945b",
+        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface — displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible. The cron graph also decodes itself: CronGraph.decodeGatewayValue(_:) turns a cron.graph RPC result into nodes and edges (so the initial load and every health refresh share one decoder), and CronServiceHealth is the runtime evidence attached only to service nodes — a status counts as application health when an explicit probe exists, otherwise supervisor liveness."
       }
     },
     {
@@ -3168,6 +3183,7 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/GatewayRestartOutcome.swift",
         "Sources/Portal/Models/Learning/LearningWire.swift",
@@ -3187,7 +3203,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -3369,7 +3385,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 60 declaration(s) owned by domain-models.",
+      "description": "References 58 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
@@ -3392,16 +3408,16 @@
         "ArtifactRevision",
         "ChatMessage",
         "CronGraph",
-        "CronGraphEdge",
-        "CronGraphNode",
         "CronJob",
         "CronRunHistoryStore",
         "CronRunRecord",
-        "Curriculum"
+        "Curriculum",
+        "Direction",
+        "DroppedEventReason"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 72
+      "weight": 70
     },
     {
       "authority": "observed",
@@ -3749,7 +3765,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 43 declaration(s) owned by domain-models.",
+      "description": "References 44 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -3781,7 +3797,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 56
+      "weight": 57
     },
     {
       "authority": "observed",
@@ -3881,7 +3897,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 51
+      "weight": 52
     },
     {
       "authority": "observed",
@@ -3921,6 +3937,7 @@
       "description": "References 4 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -3930,8 +3947,7 @@
         "Sources/Portal/Views/Learning/LearningDashboardView.swift",
         "Sources/Portal/Views/SessionExportMenu.swift",
         "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
-        "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
-        "Sources/Portal/Views/SkillsView.swift"
+        "Sources/Portal/Views/Skills/SkillsEditorPanel.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3942,11 +3958,11 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
-      "description": "References 48 declaration(s) owned by domain-models.",
+      "description": "References 49 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -3978,7 +3994,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 99
+      "weight": 101
     },
     {
       "authority": "observed",
@@ -5035,10 +5051,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 335,
-    "declarations": 995,
-    "swift_files": 335,
-    "swift_lines": 98028,
+    "assigned_files": 336,
+    "declarations": 998,
+    "swift_files": 336,
+    "swift_lines": 98213,
     "unassigned_files": []
   },
   "layers": [
@@ -5070,6 +5086,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "06220f1172f3539a4c832586f55d63d26354ecb0f69eed8f359df09fb93d140d",
+  "source_tree_sha256": "80dc8f9b6153ed4012643d110def073c6cb2ee20afbff58bbe8b04ef3c229cea",
   "title": "Portal Architecture"
 }
