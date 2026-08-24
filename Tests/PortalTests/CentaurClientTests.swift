@@ -426,6 +426,7 @@ struct CentaurWorkflowModelTests {
 struct CentaurWorkflowActivityChartTests {
 
     @Test("Duration axis labels scale s → m → h")
+    @MainActor
     func durationLabels() {
         #expect(CentaurWorkflowActivityChart.durationLabel(45) == "45s")
         #expect(CentaurWorkflowActivityChart.durationLabel(90) == "1m")
