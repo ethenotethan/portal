@@ -368,6 +368,7 @@ struct CentaurWorkflowModelTests {
         """
         let run = try JSONDecoder().decode(CentaurWorkflowRun.self, from: Data(json.utf8))
         #expect(run.runID == "wr_1")
+        #expect(run.id == "wr_1")
         #expect(run.workflowName == "daily-digest")
         #expect(!run.isActive)          // completed = terminal
         #expect(run.failureSummary == nil)
@@ -396,6 +397,7 @@ struct CentaurWorkflowModelTests {
          "kind": {"cron": {"expr": "0 9 * * *"}}, "timezone": "America/New_York",
          "enabled": true}
         """.utf8))
+        #expect(cron.id == "s1")
         #expect(cron.kindLabel == "cron 0 9 * * *")
         #expect(cron.cronExpression == "0 9 * * *")
         #expect(cron.enabled)
