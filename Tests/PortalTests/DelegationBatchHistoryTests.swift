@@ -58,6 +58,26 @@ private struct DelegationBatchHistoryTests {
         #expect(decoded.totalTokens == record.totalTokens)
     }
 
+    @Test("record duration labels use seconds, minutes, and hours")
+    private func durationLabels() {
+        func record(endedAfter duration: TimeInterval?) -> DelegationBatchRecord {
+            let start = Date(timeIntervalSince1970: 1_000)
+            return DelegationBatchRecord(
+                id: "batch", sessionID: "s1", parentGoal: nil,
+                startedAt: start,
+                endedAt: duration.map { start.addingTimeInterval($0) },
+                status: "completed", taskCount: 0, totalCost: 0,
+                totalTokens: 0, subagents: []
+            )
+        }
+
+        #expect(record(endedAfter: nil).duration == 0)
+        #expect(record(endedAfter: nil).durationLabel == "0.0s")
+        #expect(record(endedAfter: 59).durationLabel == "59.0s")
+        #expect(record(endedAfter: 60).durationLabel == "1.0m")
+        #expect(record(endedAfter: 3_600).durationLabel == "1.0h")
+    }
+
     @Test("store dedupes by batch id")
     private func dedupe() throws {
         let store = DelegationBatchHistoryStore(testing: true)
