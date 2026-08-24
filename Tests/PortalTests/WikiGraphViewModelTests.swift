@@ -33,6 +33,15 @@ struct WikiGraphViewModelTests {
         return vm
     }
 
+    @Test("Integration link identity includes both provider and identifier")
+    internal func integrationLinkIdentity() {
+        let issue = IntegrationLink(prefix: "github", identifier: "ethenotethan/portal#364")
+        let project = IntegrationLink(prefix: "linear", identifier: "PORTAL-364")
+
+        #expect(issue.id == "github:ethenotethan/portal#364")
+        #expect(project.id == "linear:PORTAL-364")
+    }
+
     @Test("Selecting named wikis keeps the active wiki state in sync")
     internal func namedWikiSelectionUpdatesActiveState() {
         let vm = WikiGraphViewModel()
