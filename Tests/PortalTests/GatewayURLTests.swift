@@ -105,6 +105,15 @@ internal struct GatewayURLTests {
         #expect(GatewayURL.isPrivateHost("::1"))
     }
 
+    @Test("link-local IPv4 and bracketed IPv6 addresses infer plaintext WebSockets")
+    internal func normalizesLinkLocalAddresses() throws {
+        let ipv4 = try #require(GatewayURL.normalize("169.254.10.20:8642"))
+        #expect(ipv4.absoluteString == "ws://169.254.10.20:8642/v1/ws")
+
+        let ipv6 = try #require(GatewayURL.normalize("[fe80::1234]:8642"))
+        #expect(ipv6.absoluteString == "ws://[fe80::1234]:8642/v1/ws")
+    }
+
     @Test("public hosts are not mistaken for private ones")
     internal func classifiesPublicHosts() {
         #expect(!GatewayURL.isPrivateHost("gateway.example.com"))
