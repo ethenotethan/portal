@@ -53,9 +53,10 @@ internal struct CronNodeGroupingTests {
         #expect(groups.map(\.key) == ["pr", "wiki"])
     }
 
-    @Test("superNodeID namespaces the scheme so it can't collide with a real id")
-    internal func superNodeIDIsNamespaced() {
+    @Test("group identities use the scheme and namespace the synthetic node")
+    internal func groupIdentitiesAreStable() {
         let group = CronNodeGroup(key: "wiki", memberIDs: ["wiki:a", "wiki:b"], kind: "artifact")
+        #expect(group.id == "wiki")
         #expect(group.superNodeID == "group:wiki")
     }
 
