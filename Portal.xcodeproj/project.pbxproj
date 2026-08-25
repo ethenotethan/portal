@@ -130,6 +130,7 @@
 		2BACC066A803BCB1C5853077 /* YouTubeContentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25BDC691446972663C00A9C4 /* YouTubeContentService.swift */; };
 		2BB8DD27F9ABE4316A3F3585 /* WikiEventsInputOutputChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A0487C2D32733744753416 /* WikiEventsInputOutputChart.swift */; };
 		2BF18EBC00656C75205B95BB /* thinking.json in Resources */ = {isa = PBXBuildFile; fileRef = F6FE739D59AB7086E81821AC /* thinking.json */; };
+		2C2F8C87D113E2A47144CBA9 /* CronServiceHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30D6B75E3CA9B374393B81AE /* CronServiceHealthTests.swift */; };
 		2C557B34198D722830BA8501 /* SessionLivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1AEFA39DB587494AE94487 /* SessionLivenessTests.swift */; };
 		2C6858833A84E1883E12B32F /* WikiPageEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBCCC84F84DE40B2C30DD8A /* WikiPageEditorView.swift */; };
 		2C7751A135FC2DD748ADB15C /* GatewayEditReconnectGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359BBBB83E96E7F9647653B2 /* GatewayEditReconnectGuardTests.swift */; };
@@ -375,6 +376,7 @@
 		722D1A26F3ADA6E9C5C83299 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */; };
 		725A4E4076088C64AF972396 /* JSONRPCRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8AEF67B7B79CCE89754178 /* JSONRPCRequest.swift */; };
 		7277CE440732D90B27D740F2 /* CronNodeGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47E1382A27E3B914312D505 /* CronNodeGroupingTests.swift */; };
+		72A23178168EDD0F94D7498E /* CronGraphDataflowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CAC77EA6A5CB776FC4A9F89 /* CronGraphDataflowTests.swift */; };
 		72BD254076423F025CB5AC94 /* SessionsListPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408D0E6553A2BFD0735CCAA6 /* SessionsListPanel.swift */; };
 		72E5474716EB64D2EF3BE02F /* WikiEventTimelineCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56AC0774BC0C2A020ED2319E /* WikiEventTimelineCharts.swift */; };
 		734E1CF85208937154D28C4B /* DelegationBatchNoticeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1966743B5AFD177D2CE8856A /* DelegationBatchNoticeTests.swift */; };
@@ -530,6 +532,7 @@
 		A6CA4CFCE0D63799099E69EC /* SRSEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34F454AF5F229C910AB4021 /* SRSEngine.swift */; };
 		A6E978633D0402EF169D750D /* GatewayClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7170E4B05EE7B7542652519E /* GatewayClient+Push.swift */; };
 		A7BA7D7B037F7DB6AEA0ADEE /* MainThreadHangGateUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF4E9A8218A97D62F42FD6CD /* MainThreadHangGateUITests.swift */; };
+		A7C96283DDA1A2E0D835F1B7 /* CronServiceHealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C516FFDABC63659DE2F1E9D /* CronServiceHealthView.swift */; };
 		A898A567AC998ECE2CC74983 /* CronSearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8066B33986DB7AF91A50C611 /* CronSearchBar.swift */; };
 		A8C6BBEA22A937E02F67B97B /* FlashcardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C1991A3E699A437ADB4554 /* FlashcardView.swift */; };
 		A951E0DB1980774FE2A9929F /* ReasoningGraphIntegrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79DA5B81AD8A414D281027 /* ReasoningGraphIntegrator.swift */; };
@@ -639,6 +642,7 @@
 		C6C3DFBC1E5BBF1A7449CB09 /* ArtifactIntentSessionLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */; };
 		C746900A4405F215C939A22C /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */; };
 		C74EE440F6D49E423A368FDB /* WikiGraphViewModel+Interaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */; };
+		C7A5BB7E91B4CA22BB61EC86 /* CronServiceHealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C516FFDABC63659DE2F1E9D /* CronServiceHealthView.swift */; };
 		C8989F32625522C1AC706047 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF69936DE366B4A1663E549D /* KeychainStore.swift */; };
 		C89FA41B28A75D256F53DD51 /* MediaAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */; };
 		C8AB5B8B0D3B2A3863963EA4 /* WikiEventTypeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD08D23C3A494DECC1E5BED0 /* WikiEventTypeRegistry.swift */; };
@@ -880,6 +884,7 @@
 		0AB95E2A48E4310FFC535114 /* FileBrowseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowseModels.swift; sourceTree = "<group>"; };
 		0B4FA75BA89BB21D0867535C /* StuckStreamRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StuckStreamRecoveryTests.swift; sourceTree = "<group>"; };
 		0BBDCEE4C7FC08F8C0062DC7 /* CelebrationPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationPreferences.swift; sourceTree = "<group>"; };
+		0C516FFDABC63659DE2F1E9D /* CronServiceHealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronServiceHealthView.swift; sourceTree = "<group>"; };
 		0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		0D55468F628900177771F916 /* MathView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathView.swift; sourceTree = "<group>"; };
 		0EEF4FE45ED2AF8CF940B9D2 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
@@ -941,6 +946,7 @@
 		2E6B51D703A3C1CB7D49A22E /* LearningComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningComponents.swift; sourceTree = "<group>"; };
 		2F97A07E7D49A9EBBE2C83CB /* confused.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = confused.json; sourceTree = "<group>"; };
 		2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLPointerLockBridge.swift; sourceTree = "<group>"; };
+		30D6B75E3CA9B374393B81AE /* CronServiceHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronServiceHealthTests.swift; sourceTree = "<group>"; };
 		31AA97E9F0544A37C426EB22 /* MacInputTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacInputTextField.swift; sourceTree = "<group>"; };
 		31EC16740169C56A2046B084 /* XOAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XOAuthTests.swift; sourceTree = "<group>"; };
 		32BA1CA8CCACEEBB1C97B7EF /* PushRegistrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRegistrationService.swift; sourceTree = "<group>"; };
@@ -993,6 +999,7 @@
 		4A85E0F1911D146301A8B05D /* WikiGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraph3DView.swift; sourceTree = "<group>"; };
 		4B9223A5205A066F8CB68337 /* DarkMangaSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DarkMangaSkin.swift; sourceTree = "<group>"; };
 		4BABB326214CE2BF5CE19CDF /* ApprovalQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalQueueTests.swift; sourceTree = "<group>"; };
+		4CAC77EA6A5CB776FC4A9F89 /* CronGraphDataflowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphDataflowTests.swift; sourceTree = "<group>"; };
 		4DE9B99AA5EEF98910A7787E /* LearningDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningDashboardView.swift; sourceTree = "<group>"; };
 		4E145722FFFF6CBCE740C147 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		4FB27BF126B31441AE3F23DE /* ReasoningSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningSummarizer.swift; sourceTree = "<group>"; };
@@ -1648,6 +1655,7 @@
 				F1C6BA2AFC097BB28CF709EE /* CronListView.swift */,
 				8A43102C4D17F0BFCBEEED36 /* CronNodeGlyphShape.swift */,
 				8066B33986DB7AF91A50C611 /* CronSearchBar.swift */,
+				0C516FFDABC63659DE2F1E9D /* CronServiceHealthView.swift */,
 				7792D9E2DC57229B4906B037 /* CronSessionNavigation.swift */,
 				39E1698942CA3B8E647FC444 /* CronSessionView.swift */,
 				25238C5D9EAAF58C9298DC8F /* DelegationBatchNoticeView.swift */,
@@ -1968,8 +1976,10 @@
 				A06E9202DE8361A6F71A9F7E /* ClarifyRequestTests.swift */,
 				F8CEC99894FAA26FFB8883AC /* ConceptLinkerTests.swift */,
 				D9559C6BB8CC4D5A23041773 /* CronCategoryTests.swift */,
+				4CAC77EA6A5CB776FC4A9F89 /* CronGraphDataflowTests.swift */,
 				0EF4138FD7EC8F074A6A796A /* CronGraphViewModelTests.swift */,
 				D47E1382A27E3B914312D505 /* CronNodeGroupingTests.swift */,
+				30D6B75E3CA9B374393B81AE /* CronServiceHealthTests.swift */,
 				EA8745028601F01F7FAA8466 /* CurriculumTests.swift */,
 				C4263D9C6D27546DDA5A6CDF /* DashboardLayoutTests.swift */,
 				9BAA25E9F3D61566B5174696 /* DelegationBatchHistoryTests.swift */,
@@ -2403,6 +2413,7 @@
 				8DBB6BDD9BEEDC6A09565998 /* CronPoller.swift in Sources */,
 				CD0F703A804CCFFEFE8B3547 /* CronRunHistory.swift in Sources */,
 				480DBE935E93B8DD8851E825 /* CronSearchBar.swift in Sources */,
+				A7C96283DDA1A2E0D835F1B7 /* CronServiceHealthView.swift in Sources */,
 				99A77E7A1D12434EDBA7F4C8 /* CronSessionNavigation.swift in Sources */,
 				D568F8729B187D0ED90C4186 /* CronSessionView.swift in Sources */,
 				C365C4298ABA06F2020B7998 /* Curriculum.swift in Sources */,
@@ -2712,8 +2723,10 @@
 				EF5BA1B008BD8BA64D51BEFB /* ClarifyRequestTests.swift in Sources */,
 				52E93A780F636B349B08E8A4 /* ConceptLinkerTests.swift in Sources */,
 				7158726390721AE377318FE7 /* CronCategoryTests.swift in Sources */,
+				72A23178168EDD0F94D7498E /* CronGraphDataflowTests.swift in Sources */,
 				AEA084DD2ADD8B7AF95D1D63 /* CronGraphViewModelTests.swift in Sources */,
 				7277CE440732D90B27D740F2 /* CronNodeGroupingTests.swift in Sources */,
+				2C2F8C87D113E2A47144CBA9 /* CronServiceHealthTests.swift in Sources */,
 				1521D48E2FD4351FACF50F9F /* CurriculumTests.swift in Sources */,
 				908DF7D671ACEBBFFD967A2C /* DashboardLayoutTests.swift in Sources */,
 				B402CC5A0113FF97EDAAD723 /* DelegationBatchHistoryTests.swift in Sources */,
@@ -2886,6 +2899,7 @@
 				BFB8C9100FE2BCAA69D1D7C0 /* CronPoller.swift in Sources */,
 				AB80DB23E1386B000AC357CE /* CronRunHistory.swift in Sources */,
 				A898A567AC998ECE2CC74983 /* CronSearchBar.swift in Sources */,
+				C7A5BB7E91B4CA22BB61EC86 /* CronServiceHealthView.swift in Sources */,
 				8490ECF04A0CD4ACB6C1699A /* CronSessionNavigation.swift in Sources */,
 				86EDDA7427DF6A8F37E935B8 /* CronSessionView.swift in Sources */,
 				95762E0637CA430929A146FE /* Curriculum.swift in Sources */,
