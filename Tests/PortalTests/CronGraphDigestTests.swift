@@ -171,6 +171,98 @@ internal struct CronGraphDigestTests {
         #expect(CronGraphDigest.over(left) != CronGraphDigest.over(right))
     }
 
+    // MARK: - Cross-implementation parity
+
+    /// The exact JSON the gateway's own parity test hashes, character for
+    /// character (`tests/cron/test_cron_changesets.py`, `PARITY_FIXTURE`) — not a
+    /// hand-built `CronGraph`, because half of what the two sides have to agree
+    /// on is how a wire payload *decodes*: which keys are required, what
+    /// `type`/`label`/`description` fall back to, and that an untyped edge reads.
+    ///
+    /// It exercises every branch of the canonical form: a fully-populated cron
+    /// node carrying runtime fields that must not count, a node with only the
+    /// required keys so every decode default applies, a service node with a
+    /// description and no schedule, a schedule that is `""` rather than absent,
+    /// multi-byte labels, and an edge with no type.
+    private static let gatewayParityFixture = #"""
+    {
+      "nodes": [
+        {
+          "id": "indexing/sweep",
+          "kind": "cron",
+          "type": "cron",
+          "label": "indexing/sweep",
+          "schedule": "every 6h",
+          "enabled": true,
+          "uses_llm": true,
+          "last_status": "ok",
+          "deliver": "telegram",
+          "state": "scheduled"
+        },
+        {"id": "wiki:x402", "kind": "artifact", "type": "wiki", "label": "x402"},
+        {
+          "id": "svc/dash",
+          "kind": "service",
+          "type": "service",
+          "label": "dashboard ✻",
+          "description": "graphs"
+        },
+        {
+          "id": "https://exämple.com/feed",
+          "kind": "source",
+          "type": "https",
+          "label": "//exämple.com/feed",
+          "schedule": ""
+        }
+      ],
+      "edges": [
+        {"source": "indexing/sweep", "target": "wiki:x402", "type": "writes"},
+        {"source": "https://exämple.com/feed", "target": "indexing/sweep"},
+        {"source": "indexing/sweep", "target": "telegram:me", "type": "telegram"}
+      ]
+    }
+    """#
+
+    /// The commitment both implementations must produce, asserted as a literal in
+    /// Swift and in Python (`PARITY_DIGEST`).
+    private static let gatewayParityDigest =
+        "b020f2041953355870b525d6ca3d8ab834feaa41869d1b629d75b0abf1b06111"
+
+    @Test("the gateway computes the same commitment over the same graph")
+    internal func gatewayFixtureDigestMatchesTheHarness() throws {
+        // The gateway stamps a `digest` on every changeset it records, and this
+        // app computes its own over the graph it fetched; the drawer compares the
+        // two to tell you whether what's on screen is the revision you're reading
+        // about. If the implementations diverge, each still looks authoritative on
+        // its own screen — a wrong answer that never announces itself — so the
+        // number is pinned as a literal on both sides. Neither literal may be
+        // edited alone: if a change to the canonical form is right, it is right in
+        // both languages, and this pair of tests is the only thing that says so.
+        let value = try JSONDecoder().decode(
+            AnyCodable.self, from: Data(Self.gatewayParityFixture.utf8)
+        )
+        let graph = try CronGraph.decodeGatewayValue(value)
+        #expect(graph.nodes.count == 4)
+        #expect(graph.edges.count == 3)
+        #expect(CronGraphDigest.over(graph).hex == Self.gatewayParityDigest)
+    }
+
+    @Test("row order is the same in both languages for non-ASCII labels")
+    internal func canonicalOrderIsByteOrder() throws {
+        // Swift's `<` on String compares canonically-equivalent graphemes; Python's
+        // compares scalars. The fixture's `✻` and `ä` are where those two
+        // orderings can part company, so the digest above only stays portable
+        // because the canonical form sorts on UTF-8 bytes. A regression to a plain
+        // `sorted()` would be invisible on ASCII-only graphs, which is every graph
+        // until someone names a service with an emoji.
+        let value = try JSONDecoder().decode(
+            AnyCodable.self, from: Data(Self.gatewayParityFixture.utf8)
+        )
+        let rows = CronGraphDigest.configurationForm(try CronGraph.decodeGatewayValue(value))
+        let byBytes = rows.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        #expect(rows == byBytes)
+    }
+
     // MARK: - Commitment vs layout
 
     @Test("a schedule edit is a new revision but does not move a node")

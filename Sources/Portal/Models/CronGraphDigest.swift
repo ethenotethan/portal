@@ -73,7 +73,7 @@ extension CronGraphDigest {
                 field(node.usesLLM), field(node.deliver),
             ])
         }
-        return (nodes + edgeRows(graph)).sorted()
+        return canonicallySorted(nodes + edgeRows(graph))
     }
 
     /// The form that decides whether a refresh has to re-run the force layout:
@@ -88,7 +88,7 @@ extension CronGraphDigest {
         let nodes = graph.nodes.map { node in
             row("n", [field(node.id), field(node.kind), field(node.type), field(node.label)])
         }
-        return (nodes + edgeRows(graph)).sorted()
+        return canonicallySorted(nodes + edgeRows(graph))
     }
 
     /// The graph with every runtime field cleared — the configuration the digest
@@ -112,6 +112,21 @@ extension CronGraphDigest {
             },
             edges: graph.edges
         )
+    }
+
+    /// Order the rows by their UTF-8 bytes, not by Swift's `<`.
+    ///
+    /// The gateway records the same commitment over the same graph in Python
+    /// (`cron/changesets.py`), so "sorted" has to mean the same thing in both
+    /// languages or the two implementations quietly disagree on non-ASCII
+    /// content. They would: Swift's `String: Comparable` compares
+    /// canonically-equivalent grapheme clusters, while Python's `sorted` on
+    /// `str` compares scalar values — those orderings differ for exactly the
+    /// labels a user is most likely to paste in (an emoji in a service name, an
+    /// umlaut in a feed URL). Byte order is the one ordering both sides can
+    /// state without ambiguity, so the canonical form names it explicitly.
+    private static func canonicallySorted(_ rows: [String]) -> [String] {
+        rows.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
     }
 
     private static func edgeRows(_ graph: CronGraph) -> [String] {
