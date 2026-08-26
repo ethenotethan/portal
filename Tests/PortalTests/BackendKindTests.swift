@@ -123,12 +123,28 @@ internal struct BackendKindTests {
         settings.removeGateway(centaur)
     }
 
-    @Test("kind presentation lives on the model, not in views")
+    @Test("every kind exposes its complete navigation and presentation contract")
     internal func kindPresentation() {
         #expect(BackendKind.hermes.isSessionScoped == false)
-        #expect(BackendKind.centaur.isSessionScoped == true)
-        #expect(BackendKind.centaur.sessionScopedFootnote != nil)
+        #expect(BackendKind.hermes.isFocusScoped == false)
+        #expect(BackendKind.hermes.navigationCapabilities == BackendNavigationCapability.allCases)
+        #expect(BackendKind.hermes.iconName == "server.rack")
+        #expect(BackendKind.hermes.urlFieldLabel == "Hermes Gateway URL")
+        #expect(BackendKind.hermes.keyFieldLabel == "API Key")
         #expect(BackendKind.hermes.sessionScopedFootnote == nil)
+
+        #expect(BackendKind.hermesStandard.isSessionScoped == false)
+        #expect(BackendKind.hermesStandard.isFocusScoped)
+        #expect(BackendKind.hermesStandard.iconName == "server.rack")
+        #expect(BackendKind.hermesStandard.sessionScopedFootnote?.contains("management-only") == true)
+
+        #expect(BackendKind.centaur.isSessionScoped)
+        #expect(BackendKind.centaur.isFocusScoped)
+        #expect(BackendKind.centaur.navigationCapabilities == [.chat, .sessions])
+        #expect(BackendKind.centaur.iconName == "shippingbox")
+        #expect(BackendKind.centaur.urlFieldLabel == "Centaur URL (https://…)")
+        #expect(BackendKind.centaur.keyFieldLabel == "API key / console JWT")
+        #expect(BackendKind.centaur.sessionScopedFootnote?.contains("host individual sessions") == true)
     }
 
     @Test("session backend registry binds and persists lookups")
