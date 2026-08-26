@@ -364,6 +364,37 @@ internal struct CronChangesetFeedTests {
         }
     }
 
+    @Test("with no capability, the drawer shows the observed log and says which it is")
+    internal func absentCapabilityFallsBackAndSaysSo() async {
+        let source = StubSource()
+        source.pageError = notFound(code: -32601, message: "Method not found")
+        let feed = CronChangesetFeed()
+        await feed.load(from: source)
+
+        let observed = [CronGraphRevision(digest: .emptyGraph, parentDigest: nil,
+                                          observedAt: Date(timeIntervalSince1970: 0), graph: .empty)]
+        // Both halves of the issue's requirement, asserted together: falls back,
+        // *and* says so. A silent fallback is the failure mode — the two logs
+        // answer different questions and the rows don't look different.
+        #expect(CronRevisionTimelineDrawer.rows(recorded: feed.changesets, observed: observed)
+                == .observed(observed))
+        #expect(feed.fallbackNote != nil)
+    }
+
+    @Test("recorded history is what the drawer shows when there is any")
+    internal func recordedHistoryWinsOverObservations() {
+        let recorded = [changeset("cs-1")]
+        let observed = [CronGraphRevision(digest: .emptyGraph, parentDigest: nil,
+                                          observedAt: Date(timeIntervalSince1970: 0), graph: .empty)]
+        // Strictly more answerable: real time, an actor, a cause.
+        #expect(CronRevisionTimelineDrawer.rows(recorded: recorded, observed: observed)
+                == .recorded(recorded))
+        // Neither log has anything: the observed empty state is the honest one to
+        // show, since "nothing observed yet" is true and "no changes recorded"
+        // would be a claim about the gateway.
+        #expect(CronRevisionTimelineDrawer.rows(recorded: [], observed: []) == .observed([]))
+    }
+
     @Test("a gateway that won't say what came before doesn't get a diff invented for it")
     internal func aMissingBeforeWithAParentHasNoStatements() async throws {
         let source = StubSource()
@@ -378,5 +409,93 @@ internal struct CronChangesetFeedTests {
             return
         }
         #expect(recorded.statements == nil)
+    }
+}
+
+// MARK: - Reviewing a recorded change
+
+/// The canvas highlight has one input, whichever log the row came from. These
+/// cover the seam that makes that true: a string row id, and a diff handed in
+/// from outside the local store.
+@MainActor
+@Suite("Cron recorded change review")
+internal struct CronRecordedReviewTests {
+
+    private func job(_ id: String, _ label: String, schedule: String = "every 60m") -> CronGraphNode {
+        CronGraphNode(id: id, kind: "cron", type: "cron", label: label, description: "",
+                      schedule: schedule, enabled: true, usesLLM: false, lastStatus: nil,
+                      deliver: nil)
+    }
+
+    @Test("a recorded change lights the graph up exactly like an observed revision")
+    internal func recordedRowsDriveTheSameHighlight() throws {
+        let before = CronGraph(nodes: [job("abc123", "indexing/sweep")], edges: [])
+        let after = CronGraph(nodes: [job("abc123", "indexing/sweep", schedule: "every 6h")], edges: [])
+        let vm = CronGraphViewModel(revisionStore: CronGraphRevisionStore(testing: true))
+        vm.setGraphForTesting(after)
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        let diff = try #require(CronChangesetDiff(before: before, after: after)
+            .structural(parentDigest: "bb0011"))
+        vm.toggleReview(rowID: "cs-1", diff: diff)
+
+        #expect(vm.isReviewing(rowID: "cs-1"))
+        // Same guard as the observed path: the lit set is the diff's affected set
+        // narrowed to what's drawn, and the colors are its key set — one
+        // derivation, so the drawer's list and the canvas can't drift.
+        let lit = Set(vm.reviewedNodeIndices.map { vm.simNodes[$0].id })
+        #expect(lit == diff.affectedNodeIDs)
+        #expect(vm.reviewedNodeIndices == Set(vm.reviewedNodePolarities.keys))
+
+        vm.toggleReview(rowID: "cs-1", diff: diff)
+        #expect(vm.reviewedRowID == nil)
+        #expect(vm.reviewedNodeIndices.isEmpty)
+    }
+
+    @Test("a diff that arrives after its row was closed is dropped")
+    internal func lateDiffsForOtherRowsAreIgnored() throws {
+        let before = CronGraph(nodes: [job("abc123", "indexing/sweep")], edges: [])
+        let after = CronGraph(nodes: [job("abc123", "indexing/sweep", schedule: "every 6h")], edges: [])
+        let vm = CronGraphViewModel(revisionStore: CronGraphRevisionStore(testing: true))
+        vm.setGraphForTesting(after)
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+        let diff = try #require(CronChangesetDiff(before: before, after: after)
+            .structural(parentDigest: "bb0011"))
+
+        // Clicking down a list outruns the network: the fetch for the first row
+        // lands while the second one is open. Tinting the graph against a
+        // revision nothing on screen names is the bug this guards.
+        vm.toggleReview(rowID: "cs-1", diff: nil)
+        vm.toggleReview(rowID: "cs-2", diff: nil)
+        vm.updateReviewedDiff(diff, forRow: "cs-1")
+        #expect(vm.reviewedDiff == nil)
+
+        vm.updateReviewedDiff(diff, forRow: "cs-2")
+        #expect(vm.reviewedDiff == diff)
+    }
+
+    @Test("both logs phrase the same change identically")
+    internal func oneDialectOfWhatChanged() throws {
+        let before = CronGraph(nodes: [job("abc123", "indexing/sweep")], edges: [])
+        let after = CronGraph(
+            nodes: [job("abc123", "indexing/sweep", schedule: "every 6h"),
+                    job("def456", "indexing/backfill")],
+            edges: [CronGraphEdge(source: "abc123", target: "def456", type: "feeds")]
+        )
+
+        let store = CronGraphRevisionStore(testing: true)
+        store.observe(before, at: Date(timeIntervalSince1970: 0))
+        let observedRevision = try #require(store.observe(after, at: Date(timeIntervalSince1970: 60)))
+        let observed = try #require(store.diff(for: observedRevision))
+
+        // The gateway supplies graphs, not sentences, precisely so this holds: one
+        // derivation of "what changed", and a recorded row and an observed row
+        // read the same in the drawer.
+        let recorded = try #require(CronChangesetDiff(before: before, after: after)
+            .structural(parentDigest: observedRevision.parentDigest))
+        #expect(recorded.changes.map(\.summary) == observed.changes.map(\.summary))
+        #expect(recorded.affectedNodeIDs == observed.affectedNodeIDs)
     }
 }

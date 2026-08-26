@@ -125,8 +125,14 @@ internal final class CronGraphViewModel: ObservableObject {
         }
     }
 
-    /// Which revision's diff is open, or nil when the graph is just the graph.
-    @Published internal private(set) var reviewedRevisionID: UUID?
+    /// Which history row's diff is open, or nil when the graph is just the graph.
+    ///
+    /// A string rather than a `UUID`, because two logs feed this drawer and the
+    /// canvas doesn't care which: an observed revision keys on its uuid, a
+    /// gateway-recorded changeset on the id the gateway assigned it. The
+    /// alternative — one selection per source — makes it representable to have
+    /// both open at once and tint the graph against two different revisions.
+    @Published internal private(set) var reviewedRowID: String?
 
     /// The diff being reviewed — nil when nothing is open, and also nil for a
     /// revision whose predecessor has been trimmed away (see
@@ -141,13 +147,39 @@ internal final class CronGraphViewModel: ObservableObject {
     /// Open a revision's diff, or close it if it's already open. Clicking the same
     /// row twice is how you get back to the plain graph.
     internal func toggleReview(of revision: CronGraphRevision) {
-        guard reviewedRevisionID != revision.id else { return clearReview() }
-        reviewedRevisionID = revision.id
-        reviewedDiff = revisionStore.diff(for: revision)
+        toggleReview(rowID: revision.id.uuidString, diff: revisionStore.diff(for: revision))
+    }
+
+    /// The same toggle for a row whose diff comes from somewhere other than the
+    /// local store — a gateway-recorded changeset, whose statements are derived
+    /// from the graphs `cron.changeset_diff` returns.
+    ///
+    /// `diff` may be nil for two unrelated reasons, and neither is an error: it
+    /// hasn't been fetched yet, or it can't be derived honestly. Which one it is
+    /// belongs to whoever owns the fetch (`CronChangesetFeed.DiffState`), not
+    /// here — this type's job is only what the canvas tints.
+    internal func toggleReview(rowID: String, diff: CronGraphDiff?) {
+        guard reviewedRowID != rowID else { return clearReview() }
+        reviewedRowID = rowID
+        reviewedDiff = diff
+    }
+
+    /// Attach a diff that arrived after its row was opened.
+    ///
+    /// Guarded on the row id because the fetch is async and a person clicking
+    /// down a list outruns it: a late response for a row that's no longer open
+    /// would tint the graph against a revision nothing on screen names.
+    internal func updateReviewedDiff(_ diff: CronGraphDiff?, forRow rowID: String) {
+        guard reviewedRowID == rowID else { return }
+        reviewedDiff = diff
+    }
+
+    internal func isReviewing(rowID: String) -> Bool {
+        reviewedRowID == rowID
     }
 
     internal func clearReview() {
-        reviewedRevisionID = nil
+        reviewedRowID = nil
         reviewedDiff = nil
     }
 

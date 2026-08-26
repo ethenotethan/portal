@@ -84,6 +84,7 @@ internal struct CronInterflowGraphView: View {
             if viewModel.showRevisions {
                 CronRevisionTimelineDrawer(
                     viewModel: viewModel,
+                    source: gatewayClientWrapper.client,
                     onClose: { viewModel.showRevisions = false }
                 )
                 .frame(width: 300)

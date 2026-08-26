@@ -87,7 +87,7 @@ internal struct CronGraphReviewTests {
     internal func nothingIsHighlightedUntilARevisionIsOpened() throws {
         let graph = CronGraph(nodes: [job("abc123", "indexing/sweep")], edges: [])
         let (vm, _) = try reviewing([graph], onScreen: graph)
-        #expect(vm.reviewedRevisionID == nil)
+        #expect(vm.reviewedRowID == nil)
         #expect(vm.reviewedDiff == nil)
         #expect(vm.reviewedNodeIndices.isEmpty)
         #expect(vm.reviewedAddedLinkIndices.isEmpty)
@@ -105,15 +105,15 @@ internal struct CronGraphReviewTests {
         let (vm, log) = try reviewing([first, second, third], onScreen: third)
 
         vm.toggleReview(of: log[1])
-        #expect(vm.reviewedRevisionID == log[1].id)
+        #expect(vm.isReviewing(rowID: log[1].id.uuidString))
         #expect(vm.reviewedDiff?.changes.map(\.summary) == ["indexing/sweep runs every 6h (was every 60m)"])
 
         vm.toggleReview(of: log[2])
-        #expect(vm.reviewedRevisionID == log[2].id)
+        #expect(vm.isReviewing(rowID: log[2].id.uuidString))
         #expect(vm.reviewedDiff?.changes.map(\.summary) == ["indexing/sweep runs every 12h (was every 6h)"])
 
         vm.toggleReview(of: log[2])
-        #expect(vm.reviewedRevisionID == nil)
+        #expect(vm.reviewedRowID == nil)
         #expect(vm.reviewedDiff == nil)
     }
 
@@ -130,12 +130,12 @@ internal struct CronGraphReviewTests {
         // Otherwise the graph stays tinted with nothing on screen to say against
         // which revision, and no way to dismiss it.
         vm.showRevisions = false
-        #expect(vm.reviewedRevisionID == nil)
+        #expect(vm.reviewedRowID == nil)
         #expect(vm.reviewedDiff == nil)
         #expect(vm.reviewedNodeIndices.isEmpty)
 
         vm.showRevisions = true
-        #expect(vm.reviewedRevisionID == nil)
+        #expect(vm.reviewedRowID == nil)
     }
 
     @Test("a revision whose predecessor was trimmed opens with no diff rather than a wrong one")
@@ -152,7 +152,7 @@ internal struct CronGraphReviewTests {
         vm.toggleReview(of: oldest)
         // Open — the drawer needs to know which row to expand so it can say the
         // predecessor is gone — but with nothing to highlight.
-        #expect(vm.reviewedRevisionID == oldest.id)
+        #expect(vm.isReviewing(rowID: oldest.id.uuidString))
         #expect(vm.reviewedDiff == nil)
         #expect(vm.reviewedNodeIndices.isEmpty)
     }
