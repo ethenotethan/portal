@@ -19,11 +19,16 @@ internal struct CronGraphDigest: Equatable, Hashable {
     /// Lowercase hex SHA-256 over the canonical form — 64 characters.
     internal let hex: String
 
-    /// The display form: the first 12 hex characters, where a git short hash
+    /// How many hex characters the display form keeps: where a git short hash
     /// settles on a large repo. A graph's revisions number in the hundreds, so
     /// 48 bits is far past the point where two of them collide, and it fits in
-    /// a chip.
-    internal var short: String { String(hex.prefix(12)) }
+    /// a chip. Named because a digest that arrives from the gateway
+    /// (`CronChangeset.shortDigest`) has to shorten to the same width, or the
+    /// same commitment reads as two different ones depending on who reported it.
+    internal static let shortLength = 12
+
+    /// The display form: the first `shortLength` hex characters.
+    internal var short: String { String(hex.prefix(Self.shortLength)) }
 
     /// The commitment for the empty graph. A real value rather than a nil-ish
     /// sentinel, so "no graph loaded" and "graph loaded and empty" agree — both
@@ -68,7 +73,7 @@ extension CronGraphDigest {
                 field(node.usesLLM), field(node.deliver),
             ])
         }
-        return (nodes + edgeRows(graph)).sorted()
+        return canonicallySorted(nodes + edgeRows(graph))
     }
 
     /// The form that decides whether a refresh has to re-run the force layout:
@@ -83,7 +88,7 @@ extension CronGraphDigest {
         let nodes = graph.nodes.map { node in
             row("n", [field(node.id), field(node.kind), field(node.type), field(node.label)])
         }
-        return (nodes + edgeRows(graph)).sorted()
+        return canonicallySorted(nodes + edgeRows(graph))
     }
 
     /// The graph with every runtime field cleared — the configuration the digest
@@ -107,6 +112,21 @@ extension CronGraphDigest {
             },
             edges: graph.edges
         )
+    }
+
+    /// Order the rows by their UTF-8 bytes, not by Swift's `<`.
+    ///
+    /// The gateway records the same commitment over the same graph in Python
+    /// (`cron/changesets.py`), so "sorted" has to mean the same thing in both
+    /// languages or the two implementations quietly disagree on non-ASCII
+    /// content. They would: Swift's `String: Comparable` compares
+    /// canonically-equivalent grapheme clusters, while Python's `sorted` on
+    /// `str` compares scalar values — those orderings differ for exactly the
+    /// labels a user is most likely to paste in (an emoji in a service name, an
+    /// umlaut in a feed URL). Byte order is the one ordering both sides can
+    /// state without ambiguity, so the canonical form names it explicitly.
+    private static func canonicallySorted(_ rows: [String]) -> [String] {
+        rows.sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
     }
 
     private static func edgeRows(_ graph: CronGraph) -> [String] {

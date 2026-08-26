@@ -115,6 +115,24 @@ internal final class CronGraphRevisionStore: ObservableObject {
         return revisions[index - 1]
     }
 
+    /// What changed to produce `revision`, or nil when the log can't say.
+    ///
+    /// The two parentless cases are different stories and only one of them is nil.
+    /// A revision with no `parentDigest` at all is the first thing this app ever
+    /// saw, and diffing it against the empty graph is the truth: everything in it
+    /// *was* news to the log. A revision whose `parentDigest` names an entry that
+    /// has since been trimmed away is not — diffing that against empty would
+    /// report a whole steady-state graph as freshly built, a change list nobody
+    /// made. It gets nil so the surface can say the predecessor is gone instead of
+    /// inventing one.
+    internal func diff(for revision: CronGraphRevision) -> CronGraphDiff? {
+        if let parent = parent(of: revision) {
+            return CronGraphDiff.between(parent.graph, revision.graph)
+        }
+        guard revision.parentDigest == nil else { return nil }
+        return CronGraphDiff.between(.empty, revision.graph)
+    }
+
     // MARK: - Recording
 
     /// Record an observation of `graph`, appending a revision only if the
