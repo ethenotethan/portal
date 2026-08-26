@@ -18,6 +18,16 @@ internal struct CronGraphDataflowTests {
         )
     }
 
+    @Test("edge identity includes both endpoints and the relationship type")
+    internal func edgeIdentityIsRelationshipSpecific() {
+        let edge = CronGraphEdge(source: "job", target: "wiki:output", type: "writes")
+
+        #expect(edge.id == "job->wiki:output:writes")
+        #expect(edge.id != CronGraphEdge(source: "job", target: "wiki:output", type: "feeds").id)
+        #expect(edge.id != CronGraphEdge(source: "other", target: "wiki:output", type: "writes").id)
+        #expect(edge.id != CronGraphEdge(source: "job", target: "other", type: "writes").id)
+    }
+
     @Test("projection classifies every relationship and preserves endpoint metadata")
     internal func classifiesRelationships() {
         let graph = CronGraph(
