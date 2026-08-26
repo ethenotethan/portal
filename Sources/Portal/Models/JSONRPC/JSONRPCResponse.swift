@@ -6,8 +6,6 @@ struct JSONRPCResponse: Decodable {
     let id: Int?
     let result: AnyCodable?
     let error: JSONRPCError?
-
-    var isSuccess: Bool { error == nil }
 }
 
 /// JSON-RPC error object.
