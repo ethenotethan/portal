@@ -50,12 +50,14 @@ extension CronGraphDigest {
     /// be able to see later. Every edge is in for the same reason: an edge
     /// appearing is a job reading something new.
     ///
-    /// `lastStatus` is deliberately **out**, along with anything else that moves
-    /// on its own. The graph is re-fetched every 10 seconds for service health
-    /// (`CronGraphViewModel.refreshRuntimeState`), and a commitment that
-    /// included liveness would mint a fresh revision on that timer forever —
-    /// a history of the poll loop rather than of anyone's changes. A container
-    /// restarting is not a change to the dataflow.
+    /// `lastStatus` and `health` are deliberately **out**, along with anything
+    /// else that moves on its own. The graph is re-fetched every 10 seconds for
+    /// service health (`CronGraphViewModel.refreshRuntimeState`), and a
+    /// commitment that included liveness would mint a fresh revision on that
+    /// timer forever — a history of the poll loop rather than of anyone's
+    /// changes. A container restarting is not a change to the dataflow, and
+    /// `health.latencyMilliseconds` alone would guarantee a new digest per poll.
+    /// `configuration(of:)` is the same exclusion expressed as a value.
     ///
     /// Rows are sorted, so the gateway's ordering can't shift the digest.
     internal static func configurationForm(_ graph: CronGraph) -> [String] {
@@ -82,6 +84,29 @@ extension CronGraphDigest {
             row("n", [field(node.id), field(node.kind), field(node.type), field(node.label)])
         }
         return (nodes + edgeRows(graph)).sorted()
+    }
+
+    /// The graph with every runtime field cleared — the configuration the digest
+    /// actually commits to, as a value you can store.
+    ///
+    /// A revision snapshot has to satisfy `over(revision.graph) == revision.digest`
+    /// forever, and a stored graph that still carried `lastStatus` / `health`
+    /// would break that the moment those fields drift, leaving the log holding
+    /// content its own commitment disowns. Stripping at write time also keeps
+    /// liveness out of a diff between two revisions, where "latency 41ms → 43ms"
+    /// is noise dressed as a change.
+    internal static func configuration(of graph: CronGraph) -> CronGraph {
+        CronGraph(
+            nodes: graph.nodes.map { node in
+                CronGraphNode(
+                    id: node.id, kind: node.kind, type: node.type, label: node.label,
+                    description: node.description, schedule: node.schedule,
+                    enabled: node.enabled, usesLLM: node.usesLLM,
+                    lastStatus: nil, deliver: node.deliver, health: nil
+                )
+            },
+            edges: graph.edges
+        )
     }
 
     private static func edgeRows(_ graph: CronGraph) -> [String] {

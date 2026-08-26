@@ -209,7 +209,8 @@ internal struct CronInterflowGraphView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
-        .help("Dataflow commitment \(viewModel.digest.short) — click to copy the full hash")
+        .help("Dataflow commitment \(viewModel.digest.short) — click to copy the full hash. "
+              + viewModel.revisionLogSummary)
     }
 
     private func copy(_ text: String) {

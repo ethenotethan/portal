@@ -89,13 +89,31 @@ internal final class CronGraphViewModel: ObservableObject {
     internal var simAlpha: CGFloat { alpha }
     internal var highlightAnchor: Int? { selectedNodeIndex ?? hoveredNodeIndex }
 
+    /// The observed revision log every fetched graph is appended to.
+    ///
+    /// Injected so a test can hand over an in-memory store instead of writing to
+    /// this machine's history, and defaulted to the shared one because the inline
+    /// graph card and the full-screen graph are two view models watching a single
+    /// dataflow — two logs would each hold half the story.
+    private let revisionStore: CronGraphRevisionStore
+
+    internal init(revisionStore: CronGraphRevisionStore = .shared) {
+        self.revisionStore = revisionStore
+    }
+
+    /// What the revision log can honestly claim — how much of it there is, and
+    /// that it is a record of observations. Surfaced next to the commitment
+    /// because a hash with a history behind it invites exactly the question this
+    /// answers.
+    internal var revisionLogSummary: String { revisionStore.observationSummary() }
+
     // MARK: - Load
 
     internal func load(client: GatewayClient) async {
         isLoading = true
         error = nil
         do {
-            graph = try await client.cronGraph()
+            adopt(try await client.cronGraph())
             setupSimulation()
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? "\(error)"
@@ -116,12 +134,27 @@ internal final class CronGraphViewModel: ObservableObject {
             // moves no node, so rebuilding for it would scramble a settled graph
             // for nothing. `CronGraphDigest` holds both field sets side by side.
             let topologyChanged = CronGraphDigest.layoutForm(graph) != CronGraphDigest.layoutForm(updated)
-            graph = updated
+            adopt(updated)
             if topologyChanged { setupSimulation() }
         } catch {
             // Keep the last known graph visible. The manual Retry path remains
             // responsible for surfacing transport failures.
         }
+    }
+
+    /// Take a freshly fetched graph as current, and record having observed it.
+    ///
+    /// Both fetch paths funnel through here so the log can't grow a hole: a
+    /// rewiring might first be seen by a manual reload or by the 10s poll, and
+    /// whichever notices it has to be the one that writes it down. The store
+    /// itself drops the observation when the commitment is unchanged, so the
+    /// common case — a poll that only moved liveness — appends nothing.
+    ///
+    /// `setGraphForTesting` deliberately does not route through here: a test
+    /// seeding a graph is not this app observing one.
+    private func adopt(_ updated: CronGraph) {
+        graph = updated
+        revisionStore.observe(updated)
     }
 
     #if DEBUG
