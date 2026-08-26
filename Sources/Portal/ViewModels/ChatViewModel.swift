@@ -920,6 +920,13 @@ client.eventStream
             return
         }
         isCreatingSession = true
+        // MUST be a defer: the best-effort RPCs below (`session.set_prompt`,
+        // skills, model) can outlive a wedged socket, and a `= false` at the
+        // bottom of the body never runs when one of them parks. A latched
+        // `isCreatingSession` makes every later New Session press a silent
+        // no-op that only re-displays the previous error — "unable to start
+        // new sessions".
+        defer { isCreatingSession = false }
         do {
             let sid = try await client.createSession(cols: 120)
             log.info("ChatViewModel createSession succeeded sid=\(sid)")
@@ -936,6 +943,18 @@ client.eventStream
             self.isStreaming = false
             self.avatarState = .idle
             self.error = nil
+            // A session created on the live socket is already registered with
+            // the gateway — there is nothing to resume. Leaving the flag set
+            // (any earlier `.reconnecting` turns it on, and the gateway resets
+            // connections periodically) sent the session's FIRST prompt through
+            // the auto-resume gate in `submitPrompt`, which resumes by
+            // `displaySessionID` — for a fresh session that is still the short
+            // runtime hex, not the database-format ID `session.resume` wants.
+            // The resume was rejected, the prompt was dropped, and the create
+            // status bar reported "Session connection lost. Please try again."
+            // A new session could therefore never take its first turn, while
+            // sessions from `session.list` (already DB-keyed) worked fine.
+            self.needsGatewayResume = false
             cancelPendingFlush()
             snapshotCurrentSessionState()
 
@@ -945,7 +964,6 @@ client.eventStream
         } catch {
             self.error = "Session create failed: \(error.localizedDescription)"
         }
-        isCreatingSession = false
     }
 
     /// Starts a user-visible switch immediately from local cache and returns a
@@ -1733,6 +1751,16 @@ if restoreSessionState(displayID: key) {
             log.info("Auto-resume before submit: key=\(key)")
             if await resumeSession(key: key) {
                 needsGatewayResume = false
+            } else if case .connected = client.connectionState {
+                // The resume failed on a LIVE socket, so "connection lost" is a
+                // guess — and a wrong one for a session the gateway can't
+                // resume by this key (a fresh session is keyed by its short
+                // runtime hex until a `session.title` event resolves the
+                // database ID `session.resume` expects). Refusing to send here
+                // dropped the prompt and blamed the transport. Send it and let
+                // `prompt.submit` report the real failure if there is one.
+                log.info("Resume failed but socket is connected — submitting anyway")
+                self.error = nil
             } else {
                 self.error = "Session connection lost. Please try again."
                 return
@@ -1811,6 +1839,9 @@ if restoreSessionState(displayID: key) {
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
             let promptWithSkills = inlineFormattingPreamble(for: sid) + skillPreamble() + promptText
             try await client.submitPrompt(sessionID: sid, text: promptWithSkills)
+            // The gateway accepted a prompt for this session, so it is live and
+            // registered — don't re-run the resume gate on the next turn.
+            needsGatewayResume = false
         } catch {
             log.error("Submit failed: \(error.localizedDescription)")
             self.error = error.localizedDescription
