@@ -19,7 +19,6 @@ final class TTSService: ObservableObject {
     private init() {
         isEnabled = UserDefaults.standard.bool(forKey: defaultsKey)
         synthesizer.delegate = TTSDelegate.shared
-        TTSDelegate.shared.service = self
 
         // Pick a high-quality voice
         let voices = AVSpeechSynthesisVoice.speechVoices()
@@ -79,19 +78,24 @@ final class TTSService: ObservableObject {
 
 // MARK: - Delegate
 
+/// Holds no state of its own: `TTSService` has a `private init` and is reached
+/// only through `.shared`, so a back-pointer could never name a different
+/// instance than `TTSService.shared` does. Dropping it leaves the delegate
+/// immutable, which is what `AVSpeechSynthesizerDelegate`'s Sendable
+/// requirement wants — a mutable stored property here is a data race the
+/// compiler is right to flag.
 private final class TTSDelegate: NSObject, AVSpeechSynthesizerDelegate {
     static let shared = TTSDelegate()
-    weak var service: TTSService?
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
-            self.service?.isSpeaking = false
+            TTSService.shared.isSpeaking = false
         }
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         Task { @MainActor in
-            self.service?.isSpeaking = false
+            TTSService.shared.isSpeaking = false
         }
     }
 }

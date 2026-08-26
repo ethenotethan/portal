@@ -118,8 +118,10 @@ struct MapBlockView: View {
     /// stacked views); nil = the card keeps private selection state.
     var externalSelection: Binding<String?>?
 
-    /// Shared categorical palette (chart/graph parity).
-    private static let palette: [Color] = [
+    /// Shared categorical palette (chart/graph parity). `nonisolated` so the
+    /// nonisolated `color(forGroupIndex:)` below can read it — an immutable
+    /// array of Colors carries no main-actor state.
+    nonisolated private static let palette: [Color] = [
         "#3987e5", "#008300", "#d55181", "#c98500",
         "#199e70", "#d95926", "#9085e9", "#e66767",
     ].compactMap { Color(hex: $0) }
@@ -150,7 +152,9 @@ struct MapBlockView: View {
         }
     }
 
-    static func color(forGroupIndex index: Int) -> Color {
+    /// `nonisolated` — a pure palette lookup with no view state, called from
+    /// MapExportRenderer's nonisolated snapshot drawing.
+    nonisolated internal static func color(forGroupIndex index: Int) -> Color {
         palette[index % palette.count]
     }
 }

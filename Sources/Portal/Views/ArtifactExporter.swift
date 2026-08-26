@@ -281,7 +281,6 @@ internal enum ArtifactExporter {
     /// Build the export-safe SwiftUI view for an artifact's kind. Returns nil
     /// for html (WKWebView — not rasterizable without a live view) and for
     /// maps (rasterized via MapExportRenderer, not SwiftUI).
-    @ViewBuilder
     private static func exportContent(
         for artifact: LivingArtifact,
         diagramImages: [String: PlatformImage]? = nil

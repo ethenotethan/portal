@@ -72,33 +72,43 @@ struct MacWindowConfigurator: NSViewRepresentable {
 
     private func logWindowDiagnostics(_ window: NSWindow) {
         #if DEBUG
+        // assumeIsolated, not `Task { @MainActor }`: main.async already
+        // guarantees the main thread, so this only tells the compiler what is
+        // already true — the whole dump (NSApp, view frames, subviews) is
+        // main-actor state — without changing when the hop happens.
         DispatchQueue.main.async {
-            guard let w = NSApp.windows.first else { return }
-            log.debug("=== HERMES WINDOW ===")
-            log.debug("frame: \(String(describing: w.frame)) styleMask: \(w.styleMask.rawValue)")
-            log.debug("titlebarTransparent: \(w.titlebarAppearsTransparent)")
-            log.debug("titleVisibility: \(w.titleVisibility.rawValue)")
-            for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-                let b = w.standardWindowButton(kind)
-                log.debug("""
-                \(kind.rawValue): \
-                \(String(describing: b)) \
-                hidden: \(String(describing: b?.isHidden)) \
-                alpha: \(String(describing: b?.alphaValue)) \
-                frame: \(String(describing: b?.frame ?? .zero)) \
-                superview: \(String(describing: b?.superview.map { type(of: $0) })) \
-                superFrame: \(String(describing: b?.superview?.frame ?? .zero))
-                """)
+            MainActor.assumeIsolated {
+                guard let w = NSApp.windows.first else { return }
+                log.debug("=== HERMES WINDOW ===")
+                log.debug("frame: \(String(describing: w.frame)) styleMask: \(w.styleMask.rawValue)")
+                log.debug("titlebarTransparent: \(w.titlebarAppearsTransparent)")
+                log.debug("titleVisibility: \(w.titleVisibility.rawValue)")
+                for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                    let b = w.standardWindowButton(kind)
+                    log.debug("""
+                    \(kind.rawValue): \
+                    \(String(describing: b)) \
+                    hidden: \(String(describing: b?.isHidden)) \
+                    alpha: \(String(describing: b?.alphaValue)) \
+                    frame: \(String(describing: b?.frame ?? .zero)) \
+                    superview: \(String(describing: b?.superview.map { type(of: $0) })) \
+                    superFrame: \(String(describing: b?.superview?.frame ?? .zero))
+                    """)
+                }
+                log.debug("=== HERMES CONTENT VIEW HIERARCHY ===")
+                // A nested func does NOT inherit the enclosing closure's actor
+                // isolation, so this needs its own annotation even inside
+                // assumeIsolated — every line of it reads main-actor view state.
+                @MainActor
+                func dump(_ v: NSView, _ depth: Int = 0) {
+                    let pad = String(repeating: "  ", count: depth)
+                    let frameStr = String(describing: v.frame)
+                    let boundsStr = String(describing: v.bounds)
+                    log.debug("\(pad)\(type(of: v)) frame=\(frameStr) bounds=\(boundsStr) hidden=\(v.isHidden) alpha=\(v.alphaValue) subviews=\(v.subviews.count)")
+                    v.subviews.forEach { dump($0, depth + 1) }
+                }
+                if let cv = w.contentView { dump(cv) }
             }
-            log.debug("=== HERMES CONTENT VIEW HIERARCHY ===")
-            func dump(_ v: NSView, _ depth: Int = 0) {
-                let pad = String(repeating: "  ", count: depth)
-                let frameStr = String(describing: v.frame)
-                let boundsStr = String(describing: v.bounds)
-                log.debug("\(pad)\(type(of: v)) frame=\(frameStr) bounds=\(boundsStr) hidden=\(v.isHidden) alpha=\(v.alphaValue) subviews=\(v.subviews.count)")
-                v.subviews.forEach { dump($0, depth + 1) }
-            }
-            if let cv = w.contentView { dump(cv) }
         }
         #endif
     }

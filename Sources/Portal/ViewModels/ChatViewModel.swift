@@ -948,10 +948,6 @@ client.eventStream
         isCreatingSession = false
     }
 
-    /// Starts a user-visible switch immediately from local cache and returns a
-    /// generation token. Call `resumeSession(key:generation:)` to revalidate the
-    /// same selection from the gateway; stale generations are ignored.
-    @discardableResult
     /// The turn-scoped graph integrators (subagent lanes, reasoning beats,
     /// compaction folds) belong to the VISIBLE session's live turn, but they
     /// are only reset when a turn STARTS while its session is visible. A
@@ -972,6 +968,9 @@ client.eventStream
         currentTurnCompactions = []
     }
 
+    /// Starts a user-visible switch immediately from local cache and returns a
+    /// generation token. Call `resumeSession(key:generation:)` to revalidate the
+    /// same selection from the gateway; stale generations are ignored.
     func beginSwitchToSession(key: String) -> Int {
         flushPendingVisibleEventDeltas()
         snapshotCurrentSessionState()
@@ -985,7 +984,7 @@ client.eventStream
         sessionSwitchGeneration += 1
         let generation = sessionSwitchGeneration
 
-if restoreSessionState(displayID: key) {
+        if restoreSessionState(displayID: key) {
             fillModelBadgeIfEmpty()
             return generation
         }

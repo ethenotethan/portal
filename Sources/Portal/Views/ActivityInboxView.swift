@@ -369,6 +369,10 @@ private final class HTMLArtifactCoordinator {
     var lastLoadedHTML: String?
 }
 
+/// MainActor by construction — WKWebView and its configuration are main-actor
+/// types, and the only callers are `makeNSView`/`makeUIView`, which SwiftUI
+/// already runs on the main actor.
+@MainActor
 private func makeWebView() -> WKWebView {
     let config = WKWebViewConfiguration()
     config.websiteDataStore = .nonPersistent()
