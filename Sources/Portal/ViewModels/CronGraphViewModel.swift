@@ -35,8 +35,16 @@ internal final class CronGraphViewModel: ObservableObject {
     }
 
     @Published internal private(set) var graph = CronGraph.empty {
-        didSet { hulledCategoryFolders = Set(categoryHulls.map(\.key)) }
+        didSet {
+            hulledCategoryFolders = Set(categoryHulls.map(\.key))
+            digest = CronGraphDigest.over(graph)
+        }
     }
+    /// The commitment for the graph on screen — a content address for the
+    /// dataflow as configured, so "did anything get rewired since I last looked"
+    /// has an answer you can read off the surface. Health-only refreshes leave it
+    /// alone by construction; see `CronGraphDigest`.
+    @Published internal private(set) var digest = CronGraphDigest.emptyGraph
     @Published internal var simNodes: [SimNode] = []
     @Published internal private(set) var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     /// Edge type per link, aligned 1:1 with `simLinks` — drawn on the edge.
@@ -104,7 +112,10 @@ internal final class CronGraphViewModel: ObservableObject {
         defer { isRefreshing = false }
         do {
             let updated = try await client.cronGraph()
-            let topologyChanged = Self.topologySignature(graph) != Self.topologySignature(updated)
+            // Layout form, not the digest: a schedule edit is a new revision but
+            // moves no node, so rebuilding for it would scramble a settled graph
+            // for nothing. `CronGraphDigest` holds both field sets side by side.
+            let topologyChanged = CronGraphDigest.layoutForm(graph) != CronGraphDigest.layoutForm(updated)
             graph = updated
             if topologyChanged { setupSimulation() }
         } catch {
@@ -112,13 +123,6 @@ internal final class CronGraphViewModel: ObservableObject {
             // responsible for surfacing transport failures.
         }
     }
-
-    private static func topologySignature(_ graph: CronGraph) -> [String] {
-        let nodes = graph.nodes.map { "n:\($0.id):\($0.kind):\($0.type):\($0.label)" }
-        let edges = graph.edges.map { "e:\($0.source):\($0.target):\($0.type)" }
-        return (nodes + edges).sorted()
-    }
-
 
     #if DEBUG
     /// Seed the raw graph directly, bypassing the gateway — tests exercise

@@ -147,6 +147,7 @@ internal struct CronInterflowGraphView: View {
     private var controlsOverlay: some View {
         VStack {
             HStack(spacing: 10) {
+                commitmentChip
                 Spacer()
                 controlButton(system: "arrow.counterclockwise") {
                     Task { await viewModel.load(client: gatewayClientWrapper.client) }
@@ -174,6 +175,50 @@ internal struct CronInterflowGraphView: View {
             Spacer()
         }
         .padding(14)
+    }
+
+    /// The graph's commitment — a content address for the dataflow as
+    /// configured. `cron.graph` returns only the present, so without this there
+    /// is nothing to compare against what you saw yesterday and nothing to quote
+    /// when reporting that the wiring changed. Clicking copies the full hash,
+    /// which is the whole point of having one.
+    ///
+    /// Monospaced and prefixed like a short git hash because that is exactly what
+    /// it is for, and a wiki changeset row already reads that way.
+    private var commitmentChip: some View {
+        Button {
+            copy(viewModel.digest.hex)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "number")
+                    .font(.system(size: 9, weight: .bold))
+                // `.monospaced()` re-asserts against the app typeface's root
+                // `.fontDesign`: a proportional hash reads as a word, not an address.
+                Text(viewModel.digest.short)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .monospaced()
+            }
+            .foregroundStyle(Theme.secondary.opacity(0.85))
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(Theme.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(Theme.secondary.opacity(0.2), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help("Dataflow commitment \(viewModel.digest.short) — click to copy the full hash")
+    }
+
+    private func copy(_ text: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #else
+        UIPasteboard.general.string = text
+        #endif
     }
 
     private func controlButton(system: String, action: @escaping () -> Void) -> some View {
