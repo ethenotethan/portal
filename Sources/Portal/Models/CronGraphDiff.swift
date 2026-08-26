@@ -243,6 +243,24 @@ internal struct CronGraphDiff: Equatable {
         }
     }
 
+    /// How a single node changed, for tinting it on the canvas — nil when no
+    /// statement names it.
+    ///
+    /// A node can be named by several statements at once (renamed *and*
+    /// rescheduled, or newly added *and* wired up), so one has to win, and the
+    /// strongest claim does: something here is new, then something here is gone,
+    /// then something here was edited. A single color can't carry three facts, so
+    /// it carries the loudest one and the drawer lists all of them — the list is
+    /// what's authoritative, the tint only says where to look.
+    internal func polarity(forNodeID id: String) -> CronGraphChange.Polarity? {
+        let polarities = changes.filter { $0.nodeIDs.contains(id) }.map(\.polarity)
+        for candidate in [CronGraphChange.Polarity.added, .removed, .modified]
+        where polarities.contains(candidate) {
+            return candidate
+        }
+        return nil
+    }
+
     internal static let empty = CronGraphDiff(changes: [])
 
     // MARK: - Computing

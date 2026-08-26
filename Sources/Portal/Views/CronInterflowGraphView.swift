@@ -81,6 +81,15 @@ internal struct CronInterflowGraphView: View {
     @ViewBuilder
     private var graphWithDock: some View {
         HStack(spacing: 0) {
+            if viewModel.showRevisions {
+                CronRevisionTimelineDrawer(
+                    viewModel: viewModel,
+                    onClose: { viewModel.showRevisions = false }
+                )
+                .frame(width: 300)
+                .transition(.move(edge: .leading).combined(with: .opacity))
+                Divider().overlay(Theme.border)
+            }
             ZStack {
                 CronGraphCanvas(viewModel: viewModel)
                 legendOverlay
@@ -94,6 +103,7 @@ internal struct CronInterflowGraphView: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: viewModel.selectedNodeIndex)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.showRevisions)
     }
 
     // MARK: - States
@@ -149,6 +159,13 @@ internal struct CronInterflowGraphView: View {
             HStack(spacing: 10) {
                 commitmentChip
                 Spacer()
+                controlButton(system: "clock.arrow.circlepath",
+                              isActive: viewModel.showRevisions) {
+                    viewModel.showRevisions.toggle()
+                }
+                .help(viewModel.showRevisions
+                      ? "Hide the revision history"
+                      : "Revision history — what changed in this dataflow, and when this app noticed")
                 controlButton(system: "arrow.counterclockwise") {
                     Task { await viewModel.load(client: gatewayClientWrapper.client) }
                 }
@@ -222,16 +239,26 @@ internal struct CronInterflowGraphView: View {
         #endif
     }
 
-    private func controlButton(system: String, action: @escaping () -> Void) -> some View {
+    /// `isActive` marks a button that toggles a surface rather than performing an
+    /// action, so the drawer's control reads as pressed while the drawer is open.
+    private func controlButton(
+        system: String,
+        isActive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: system)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Theme.secondary)
+                .foregroundStyle(isActive ? Theme.accent : Theme.secondary)
                 .frame(width: 30, height: 30)
-                .background(Theme.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 7))
+                .background(
+                    isActive ? Theme.accent.opacity(0.14) : Theme.background.opacity(0.7),
+                    in: RoundedRectangle(cornerRadius: 7)
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 7)
-                        .stroke(Theme.secondary.opacity(0.2), lineWidth: 1)
+                        .stroke(isActive ? Theme.accent.opacity(0.5) : Theme.secondary.opacity(0.2),
+                                lineWidth: 1)
                 )
         }
         .buttonStyle(.borderless)
@@ -675,24 +702,97 @@ private struct CronGraphCanvas: View {
 
     // MARK: - Drawing
 
+    /// The reviewed diff, resolved to things this canvas can draw.
+    ///
+    /// Held as one value passed down the draw calls so every layer dims against
+    /// the same answer. It reuses the selection's dimming machinery rather than
+    /// adding a second one: a review is a focus like a selection is, just derived
+    /// from a diff instead of a click, and when both are active they light their
+    /// own parts and everything else recedes.
+    ///
+    /// The node set comes straight from the view model, which derives it from the
+    /// diff's own statements — the drawer's list and this highlight are the same
+    /// fact rendered twice, and they can't disagree.
+    private struct ReviewFocus {
+        let polarities: [Int: CronGraphChange.Polarity]
+        let addedLinks: Set<Int>
+        let removedLinks: [(sourceIndex: Int, targetIndex: Int, type: String)]
+
+        var isActive: Bool { !polarities.isEmpty || !addedLinks.isEmpty || !removedLinks.isEmpty }
+
+        /// Edges lit by the review: the ones it added, plus whatever a changed
+        /// node is wired to. The second half is context — a rescheduled job with
+        /// its dataflow dimmed to nothing tells you where to look but not what it
+        /// does.
+        func lights(link index: Int, from si: Int, to ti: Int) -> Bool {
+            addedLinks.contains(index) || polarities[si] != nil || polarities[ti] != nil
+        }
+
+        func tint(_ polarity: CronGraphChange.Polarity) -> Color {
+            switch polarity {
+            case .added:    return Theme.success
+            case .removed:  return Theme.warning
+            case .modified: return Theme.accent
+            }
+        }
+    }
+
+    /// Whether a node draws lit rather than dimmed. Unfocused, everything is lit;
+    /// focused, the selection and the review each light their own.
+    private func isLit(node index: Int, hasSelection: Bool, review: ReviewFocus) -> Bool {
+        guard review.isActive else {
+            return !hasSelection || viewModel.isNodeConnectedToSelection(index)
+        }
+        return review.polarities[index] != nil
+            || (hasSelection && viewModel.isNodeConnectedToSelection(index))
+    }
+
+    private func isLit(link index: Int, from si: Int, to ti: Int,
+                       hasSelection: Bool, review: ReviewFocus) -> Bool {
+        guard review.isActive else {
+            return !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
+        }
+        return review.lights(link: index, from: si, to: ti)
+            || (hasSelection && viewModel.linkIsConnectedToSelection(si, ti))
+    }
+
+    /// The bowed curve an edge is drawn along, and its control point — shared so a
+    /// ghosted removed edge follows exactly the path it would have had.
+    private func curve(from sp: CGPoint, to tp: CGPoint) -> (path: Path, control: CGPoint) {
+        let mid = CGPoint(x: (sp.x + tp.x) / 2, y: (sp.y + tp.y) / 2)
+        let dx = tp.x - sp.x, dy = tp.y - sp.y
+        let len = max(hypot(dx, dy), 1)
+        let bow = min(len * 0.12, 26)
+        let control = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
+        var path = Path()
+        path.move(to: sp)
+        path.addQuadCurve(to: tp, control: control)
+        return (path, control)
+    }
+
     private var canvas: some View {
         GeometryReader { geo in
             Canvas { context, size in
                 let hasSelection = viewModel.highlightAnchor != nil
+                let review = ReviewFocus(
+                    polarities: viewModel.reviewedNodePolarities,
+                    addedLinks: viewModel.reviewedAddedLinkIndices,
+                    removedLinks: viewModel.reviewedRemovedLinks
+                )
                 let zoom = viewModel.zoom
                 let pan = viewModel.panOffset
 
                 context.translateBy(x: pan.width, y: pan.height)
                 context.scaleBy(x: zoom, y: zoom)
 
-                drawHulls(context: context, hasSelection: hasSelection)
-                drawEdges(context: context, hasSelection: hasSelection)
-                drawNodes(context: context, hasSelection: hasSelection)
+                drawHulls(context: context, hasSelection: hasSelection, review: review)
+                drawEdges(context: context, hasSelection: hasSelection, review: review)
+                drawNodes(context: context, hasSelection: hasSelection, review: review)
 
                 guard mouseState != .panning && mouseState != .draggingNode else { return }
                 context.transform = .identity
                 drawHullLabels(context: &context, size: size)
-                drawLabels(context: &context, size: size, hasSelection: hasSelection)
+                drawLabels(context: &context, size: size, hasSelection: hasSelection, review: review)
             }
             .onAppear {
                 let wasZero = viewModel.canvasSize == .zero
@@ -721,16 +821,16 @@ private struct CronGraphCanvas: View {
     /// circles". Only expanded groups draw a hull; a collapsed one is already a
     /// single super-node. Dimmed along with its members when a selection is
     /// active elsewhere, so the highlighted subgraph stays the focus.
-    private func drawHulls(context: GraphicsContext, hasSelection: Bool) {
+    private func drawHulls(context: GraphicsContext, hasSelection: Bool, review: ReviewFocus) {
         let byID = Dictionary(viewModel.simNodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         // Expanded scheme clusters (a collapsed one is already a single super-node).
         for group in viewModel.groups where !viewModel.isGroupCollapsed(group.key) {
-            drawHull(context: context, byID: byID, hasSelection: hasSelection,
+            drawHull(context: context, byID: byID, hasSelection: hasSelection, review: review,
                      memberIDs: group.memberIDs, tint: viewModel.groupColor(forKey: group.key))
         }
         // Cron category folders — a visual grouping only, drawn the same way.
         for hull in viewModel.categoryHulls {
-            drawHull(context: context, byID: byID, hasSelection: hasSelection,
+            drawHull(context: context, byID: byID, hasSelection: hasSelection, review: review,
                      memberIDs: hull.memberIDs, tint: hull.color)
         }
     }
@@ -739,14 +839,16 @@ private struct CronGraphCanvas: View {
     /// members tight, so the convex-hull-plus-padding stays compact rather than
     /// sweeping unrelated nodes inside.
     private func drawHull(context: GraphicsContext, byID: [String: CronGraphViewModel.SimNode],
-                          hasSelection: Bool, memberIDs: [String], tint: Color) {
+                          hasSelection: Bool, review: ReviewFocus,
+                          memberIDs: [String], tint: Color) {
         let members = memberIDs.compactMap { byID[$0] }
         guard members.count >= 2 else { return }
         let points = members.map(\.position)
         let padding = (members.map { viewModel.radius(forKind: $0.kind) }.max() ?? 8) + 20
         let path = CronGroupHull.path(around: points, padding: padding)
-        let anyConnected = !hasSelection || members.contains { member in
-            viewModel.simNodes.firstIndex { $0.id == member.id }.map { viewModel.isNodeConnectedToSelection($0) } ?? false
+        let anyConnected = (!hasSelection && !review.isActive) || members.contains { member in
+            viewModel.simNodes.firstIndex { $0.id == member.id }
+                .map { isLit(node: $0, hasSelection: hasSelection, review: review) } ?? false
         }
         let dim: CGFloat = anyConnected ? 1 : 0.3
         context.fill(path, with: .color(tint.opacity(0.08 * dim)))
@@ -790,27 +892,29 @@ private struct CronGraphCanvas: View {
         )
     }
 
-    private func drawEdges(context: GraphicsContext, hasSelection: Bool) {
+    private func drawEdges(context: GraphicsContext, hasSelection: Bool, review: ReviewFocus) {
         for (linkIndex, (si, ti)) in viewModel.simLinks.enumerated() {
             guard viewModel.simNodes.indices.contains(si),
                   viewModel.simNodes.indices.contains(ti) else { continue }
             let sp = viewModel.simNodes[si].position
             let tp = viewModel.simNodes[ti].position
-            let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
+            let isConnected = isLit(link: linkIndex, from: si, to: ti,
+                                    hasSelection: hasSelection, review: review)
 
-            let mid = CGPoint(x: (sp.x + tp.x) / 2, y: (sp.y + tp.y) / 2)
+            let (path, ctrl) = curve(from: sp, to: tp)
             let dx = tp.x - sp.x, dy = tp.y - sp.y
             let len = max(hypot(dx, dy), 1)
-            let bow = min(len * 0.12, 26)
-            let ctrl = CGPoint(x: mid.x - dy / len * bow, y: mid.y + dx / len * bow)
 
             let type = linkIndex < viewModel.simLinkTypes.count ? viewModel.simLinkTypes[linkIndex] : "reads"
             let baseColor = viewModel.edgeColor(forType: type)
             let isContainment = viewModel.edgeIsContainment(type)
 
-            var path = Path()
-            path.move(to: sp)
-            path.addQuadCurve(to: tp, control: ctrl)
+            // An edge the reviewed diff added is the change itself, so it's drawn
+            // at full strength with a halo behind it rather than merely undimmed.
+            if review.addedLinks.contains(linkIndex) {
+                context.stroke(path, with: .color(Theme.success.opacity(0.35)), lineWidth: 5)
+            }
+
             if isContainment {
                 // Dashed: a `hosts` edge is containment, not flow. Nothing
                 // travels along it, so it must not look like the solid dataflow
@@ -842,6 +946,34 @@ private struct CronGraphCanvas: View {
                 )
             }
         }
+        drawGhostedEdges(context: context, review: review)
+    }
+
+    /// Edges the reviewed revision removed, drawn back in dashed over the current
+    /// graph.
+    ///
+    /// Ghosts, and they have to look like ghosts: a removed edge is not part of the
+    /// dataflow any more, so it's dashed in the warning tint rather than in its own
+    /// type color, and it carries no arrowhead — nothing travels along it. Only
+    /// edges whose endpoints both still exist can appear at all; the drawer counts
+    /// the rest out loud (`reviewedChangesNotOnScreen`) instead of leaving the
+    /// canvas to imply it drew everything.
+    private func drawGhostedEdges(context: GraphicsContext, review: ReviewFocus) {
+        for ghost in review.removedLinks {
+            guard viewModel.simNodes.indices.contains(ghost.sourceIndex),
+                  viewModel.simNodes.indices.contains(ghost.targetIndex) else { continue }
+            let (path, ctrl) = curve(from: viewModel.simNodes[ghost.sourceIndex].position,
+                                     to: viewModel.simNodes[ghost.targetIndex].position)
+            context.stroke(path, with: .color(Theme.warning.opacity(0.55)),
+                           style: StrokeStyle(lineWidth: 1.6, dash: [5, 4]))
+            context.draw(
+                Text(ghost.type)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(Theme.warning.opacity(0.8))
+                    .strikethrough(),
+                at: ctrl, anchor: .center
+            )
+        }
     }
 
     /// A small filled triangle pointing along the quad curve's tangent at the
@@ -864,14 +996,14 @@ private struct CronGraphCanvas: View {
         context.fill(arrow, with: .color(color))
     }
 
-    private func drawNodes(context: GraphicsContext, hasSelection: Bool) {
+    private func drawNodes(context: GraphicsContext, hasSelection: Bool, review: ReviewFocus) {
         for index in viewModel.drawOrder {
             guard viewModel.simNodes.indices.contains(index) else { continue }
             let node = viewModel.simNodes[index]
             let pos = node.position
             let isSelected = viewModel.selectedNodeIndex == index
             let isHovered = viewModel.hoveredNodeIndex == index
-            let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
+            let isConnected = isLit(node: index, hasSelection: hasSelection, review: review)
             let baseOpacity: CGFloat = isConnected ? 1.0 : 0.18
             let r = viewModel.radius(forKind: node.kind)
             let base = viewModel.nodeColor(kind: node.kind, type: node.type, label: node.label)
@@ -888,6 +1020,20 @@ private struct CronGraphCanvas: View {
                     center: pos, startRadius: 0, endRadius: glowR
                 )
                 context.fill(Path(ellipseIn: glowRect), with: glow)
+            }
+
+            // The review's ring sits outside the selection's so a node can be both
+            // selected and changed without one claim overwriting the other. Tinted
+            // by polarity — added, gone, or edited — while the drawer holds the
+            // sentence that says which.
+            if let polarity = review.polarities[index] {
+                let ringR = r + 8
+                let ringRect = CGRect(x: pos.x - ringR, y: pos.y - ringR, width: ringR * 2, height: ringR * 2)
+                context.stroke(
+                    CronNodeGlyphShape(glyph: glyph).path(in: ringRect),
+                    with: .color(review.tint(polarity).opacity(0.9)),
+                    style: StrokeStyle(lineWidth: 2, dash: polarity == .removed ? [4, 3] : [])
+                )
             }
 
             if isSelected || isHovered {
@@ -944,18 +1090,23 @@ private struct CronGraphCanvas: View {
         let order: Int
     }
 
-    private func drawLabels(context: inout GraphicsContext, size: CGSize, hasSelection: Bool) {
+    private func drawLabels(context: inout GraphicsContext, size: CGSize,
+                            hasSelection: Bool, review: ReviewFocus) {
         let neighborSet: Set<Int> = hasSelection ? Set(viewModel.selectedNodeNeighbors()) : []
 
         // Gather every visible label as a candidate first, so we can rank them
         // and drop collisions rather than painting names on top of each other.
         var candidates: [LabelCandidate] = []
         for (index, node) in viewModel.simNodes.enumerated() {
-            let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
+            let isConnected = isLit(node: index, hasSelection: hasSelection, review: review)
             guard isConnected else { continue }
             let isAnchor = viewModel.selectedNodeIndex == index || viewModel.hoveredNodeIndex == index
+            // A changed node keeps its name at any zoom and never loses a
+            // collision: a tinted ring you can't put a name to is a highlight that
+            // makes you hunt for what it means.
+            let isReviewed = review.polarities[index] != nil
             let isNeighbor = neighborSet.contains(index)
-            if viewModel.zoom < 0.7 && !isAnchor && !isNeighbor { continue }
+            if viewModel.zoom < 0.7 && !isAnchor && !isNeighbor && !isReviewed { continue }
             let r = viewModel.radius(forKind: node.kind)
             let screenPos = CGPoint(
                 x: node.position.x * viewModel.zoom + viewModel.panOffset.width + r * viewModel.zoom + 4,
@@ -969,7 +1120,7 @@ private struct CronGraphCanvas: View {
                 text: viewModel.displayLabel(forKind: node.kind, label: node.label),
                 screenPos: screenPos,
                 isAnchor: isAnchor,
-                rank: isAnchor ? 0 : (isNeighbor ? 1 : 2),
+                rank: isAnchor ? 0 : (isNeighbor || isReviewed ? 1 : 2),
                 order: index
             ))
         }
