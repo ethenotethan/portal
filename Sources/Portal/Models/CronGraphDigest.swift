@@ -19,11 +19,16 @@ internal struct CronGraphDigest: Equatable, Hashable {
     /// Lowercase hex SHA-256 over the canonical form — 64 characters.
     internal let hex: String
 
-    /// The display form: the first 12 hex characters, where a git short hash
+    /// How many hex characters the display form keeps: where a git short hash
     /// settles on a large repo. A graph's revisions number in the hundreds, so
     /// 48 bits is far past the point where two of them collide, and it fits in
-    /// a chip.
-    internal var short: String { String(hex.prefix(12)) }
+    /// a chip. Named because a digest that arrives from the gateway
+    /// (`CronChangeset.shortDigest`) has to shorten to the same width, or the
+    /// same commitment reads as two different ones depending on who reported it.
+    internal static let shortLength = 12
+
+    /// The display form: the first `shortLength` hex characters.
+    internal var short: String { String(hex.prefix(Self.shortLength)) }
 
     /// The commitment for the empty graph. A real value rather than a nil-ish
     /// sentinel, so "no graph loaded" and "graph loaded and empty" agree — both
