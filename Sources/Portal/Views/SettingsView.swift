@@ -1124,7 +1124,7 @@ internal struct SystemPromptSection: View {
 
     private func firstActiveSessionID(client: GatewayClient) async -> String? {
         do {
-            return try await client.listSessions().first?.id
+            return promptCandidateSessionIDs(try await client.listSessions()).first
         } catch {
             log.warning("Unable to list sessions for system prompt settings: \(error.localizedDescription)")
             return nil
