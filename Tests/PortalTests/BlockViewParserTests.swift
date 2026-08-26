@@ -140,6 +140,8 @@ struct InlineMathTests {
     internal func operatorsAndBraces() {
         // '*' inside a span becomes the times sign.
         #expect(InlineMath.render("$a * b$") == "𝑎 × 𝑏")
+        // Bare grouping braces flatten away without changing their contents.
+        #expect(InlineMath.render("${a+b}$") == "𝑎+𝑏")
         // A brace group on a script converts each member (digits map cleanly).
         #expect(InlineMath.render("$x^{12}$") == "𝑥¹²")
         // Subscript brace group likewise.
