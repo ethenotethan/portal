@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4375
+      "line_count": 4385
     },
     {
       "declaration_count": 76,
@@ -137,7 +137,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6940
+      "line_count": 6946
     },
     {
       "declaration_count": 147,
@@ -351,7 +351,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17691,
+      "line_count": 17697,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -442,7 +442,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5237
+      "line_count": 5242
     },
     {
       "declaration_count": 113,
@@ -602,7 +602,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11247
+      "line_count": 11250
     },
     {
       "declaration_count": 57,
@@ -717,7 +717,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4261
+      "line_count": 4260
     },
     {
       "declaration_count": 25,
@@ -1111,7 +1111,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6551
+      "line_count": 6555
     },
     {
       "declaration_count": 233,
@@ -1627,7 +1627,7 @@
       "id": "utilities",
       "label": "Utilities",
       "layer": "foundation",
-      "line_count": 2378
+      "line_count": 2381
     },
     {
       "declaration_count": 0,
@@ -5044,7 +5044,7 @@
     "assigned_files": 337,
     "declarations": 998,
     "swift_files": 337,
-    "swift_lines": 98302,
+    "swift_lines": 98338,
     "unassigned_files": []
   },
   "layers": [
@@ -5076,6 +5076,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "fe8284187cc0384e1473168820ec3e2e33f287059cb98195df8d711b8de444e1",
+  "source_tree_sha256": "7b8961151de8d4ff041c88a4725d182cc7b288e6d98cceff35fc0ad56b43c974",
   "title": "Portal Architecture"
 }
