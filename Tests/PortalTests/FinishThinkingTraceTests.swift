@@ -8,12 +8,12 @@ import Testing
 /// and no ThinkingTrace was built from raw streamed deltas, so the
 /// collapsible trace section vanished at message.complete.
 @MainActor
-struct FinishThinkingTraceTests {
+internal struct FinishThinkingTraceTests {
 
     private func makeVM() -> ChatViewModel { ChatViewModel() }
 
     @Test("empty finalReasoning keeps streamed reasoning and promotes it to a trace")
-    func emptyFinalReasoningPreservesStreamedReasoning() async throws {
+    internal func emptyFinalReasoningPreservesStreamedReasoning() async throws {
         let vm = makeVM()
         var message = ChatMessage(role: .assistant, content: "answer", status: "complete")
         message.isStreaming = true
@@ -30,7 +30,7 @@ struct FinishThinkingTraceTests {
     }
 
     @Test("nil finalReasoning with streamed text also promotes to a trace")
-    func nilFinalReasoningPromotesStreamedText() async throws {
+    internal func nilFinalReasoningPromotesStreamedText() async throws {
         let vm = makeVM()
         var message = ChatMessage(role: .assistant, content: "answer", status: "complete")
         message.reasoning = "streamed thought"
@@ -44,7 +44,7 @@ struct FinishThinkingTraceTests {
     }
 
     @Test("non-empty finalReasoning still lands in the trace (unchanged behavior)")
-    func nonEmptyFinalReasoningBuildsTrace() async throws {
+    internal func nonEmptyFinalReasoningBuildsTrace() async throws {
         let vm = makeVM()
         var message = ChatMessage(role: .assistant, content: "answer", status: "complete")
         message.reasoning = "partial stream"
@@ -58,7 +58,7 @@ struct FinishThinkingTraceTests {
     }
 
     @Test("existing mid-stream trace (MoA blocks) keeps final reasoning appended")
-    func existingTraceGetsFinalReasoningAppended() async throws {
+    internal func existingTraceGetsFinalReasoningAppended() async throws {
         let vm = makeVM()
         var message = ChatMessage(role: .assistant, content: "answer", status: "complete")
         var trace = ThinkingTrace(isStreaming: true)
@@ -74,7 +74,7 @@ struct FinishThinkingTraceTests {
     }
 
     @Test("nothing streamed and nothing finalized leaves the message untouched")
-    func nothingStreamedNothingFinalized() {
+    internal func nothingStreamedNothingFinalized() {
         let vm = makeVM()
         var message = ChatMessage(role: .assistant, content: "answer", status: "complete")
 
