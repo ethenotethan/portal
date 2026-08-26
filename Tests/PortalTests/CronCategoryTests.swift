@@ -811,6 +811,21 @@ internal struct CronFilterStateTests {
         #expect(state.expandedCategories == ["life", "life/training", "work"])
     }
 
+    @Test("time windows keep only jobs that ran within the selected window")
+    internal func timeWindowsFilterLastRuns() {
+        let jobs = [
+            job("recent", lastRunAt: .distantFuture),
+            job("old", lastRunAt: .distantPast),
+            job("never"),
+        ]
+        let state = CronFilterState()
+
+        for window in CronFilterState.TimeWindow.presets.dropFirst() {
+            state.timeWindow = window
+            #expect(state.apply(to: jobs).map(\.name) == ["recent"])
+        }
+    }
+
     @Test("time-window presets retain their UI order and labels")
     internal func timeWindowPresetsAndLabels() {
         #expect(CronFilterState.TimeWindow.presets == [.all, .hour, .day, .week, .month])
