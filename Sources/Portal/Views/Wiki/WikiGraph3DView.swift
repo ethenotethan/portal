@@ -50,6 +50,11 @@ private struct _WikiGraph3DRepresentable: UIViewRepresentable {
 
 // MARK: - Scene Setup
 
+/// MainActor by construction — SCNView is an AppKit/UIKit view and the only
+/// callers are `makeNSView`/`makeUIView`, which SwiftUI already runs on the
+/// main actor. Annotating it keeps the whole setup out of a nonisolated
+/// context instead of touching main-actor view state from one.
+@MainActor
 private func makeSceneView(context: Any) -> SCNView {
     let scnView = SCNView()
     scnView.scene = SCNScene()
