@@ -1,8 +1,7 @@
 import SwiftUI
-import Lottie
 
 /// Dark Manga skin — near-black background, dark gray bubbles, inline thinking/tool calls.
-/// Avatar is rendered as a singleton floating overlay by ChatView, not by the skin.
+/// Persona identity is presented by shared chat chrome rather than by the skin.
 struct DarkMangaSkin: ChatSkinProviding {
     let skin: ChatSkin = .darkManga
 
@@ -91,7 +90,7 @@ private struct DarkMangaMessageBubble: View {
         message.contentWithoutAttachments
     }
 
-    // ── Assistant: left-aligned, no avatar (handled by ChatView overlay) ──
+    // ── Assistant: left-aligned; persona identity lives in shared chat chrome ──
     private var assistantBubble: some View {
         VStack(alignment: .leading, spacing: 3) {
             VStack(alignment: .leading, spacing: 8) {
@@ -184,7 +183,6 @@ private struct DarkMangaThinkingBlock: View {
 }
 
 // MARK: - Streaming Indicator
-// No avatar — rendered by ChatView as singleton floating overlay.
 
 private struct DarkMangaStreamingIndicator: View {
     let avatarState: AvatarState

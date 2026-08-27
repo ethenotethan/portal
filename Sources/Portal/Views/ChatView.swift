@@ -26,7 +26,6 @@ struct ChatView: View {
     #if os(iOS)
     @State private var showSettings = false
     #endif
-    @State private var avatarY: CGFloat = 0
     @State private var pendingScrollTask: Task<Void, Never>?
 
     /// How far the transcript's bottom edge sits below the visible viewport,
@@ -82,17 +81,6 @@ struct ChatView: View {
     /// Current skin provider (recomputed when skin changes)
     private var skinProvider: ChatSkinProviding {
         activeSkin.makeProvider()
-    }
-
-    /// Reserve the avatar rail only for skins that render the floating avatar.
-    /// TUI uses the full transcript width.
-    private var messageLeadingPadding: CGFloat {
-        activeSkin == .darkManga ? 72 : 16
-    }
-
-    /// Whether any bot content exists (for floating avatar visibility)
-    private var hasBotContent: Bool {
-        chatViewModel.messages.contains { $0.role == .assistant } || chatViewModel.isStreaming
     }
 
     /// The identity all chat chrome presents. An adopted gateway persona wins;
@@ -188,21 +176,6 @@ struct ChatView: View {
         #else
         8
         #endif
-    }
-
-    /// Current avatar expression based on streaming state
-    private var currentAvatarExpression: CharacterExpression {
-        if chatViewModel.isStreaming {
-            switch chatViewModel.avatarState {
-            case .thinking: .thinking
-            case .speaking: .happy
-            case .toolUse:  .thinking
-            case .error:    .confused
-            default:        .idle
-            }
-        } else {
-            .idle
-        }
     }
 
     var body: some View {
@@ -452,26 +425,6 @@ struct ChatView: View {
         .navigationTitle(chatViewModel.sessionTitle)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-    }
-
-    @ViewBuilder
-    private var latestAssistantTurnProbe: some View {
-        // Only the darkManga floating avatar consumes this Y — don't run a
-        // per-layout-pass GeometryReader (and its preference traffic) for
-        // skins that never read it. The value is rounded to whole points so
-        // sub-pixel layout jitter cannot mint a "new" preference value every
-        // pass; see ChatLayoutMath for why that loops.
-        if activeSkin == .darkManga && hasBotContent {
-            GeometryReader { geo in
-                Color.clear.preference(
-                    key: LatestBotTurnYKey.self,
-                    value: ChatLayoutMath.avatarY(
-                        fromProbeMaxY: geo.frame(in: .named("chatContent")).maxY
-                    )
-                )
-            }
-            .frame(height: 0)
-        }
     }
 
     /// Zero-height marker pinned to the bottom of the transcript content. It
@@ -892,9 +845,8 @@ struct ChatView: View {
                     // guides are pinned to constants below for the same reason
                     // DashboardCanvasView's two `.topLeading` stacks are: a
                     // constant is read directly, so the descent never begins.
-                    // Zero is what `.topLeading` resolved to anyway — the
-                    // overlays are the zero-height probe and an offset avatar,
-                    // neither of which needs the stack to consult the transcript.
+                    // Zero is what `.topLeading` resolved to anyway, and no child
+                    // needs the stack to consult the transcript for that value.
                     ZStack(alignment: .topLeading) {
                         LazyVStack(alignment: .leading, spacing: 2) {
                             let msgs = chatViewModel.messages
@@ -986,22 +938,11 @@ struct ChatView: View {
 
                             bottomFoldSentinel
                         }
-                        .padding(.leading, messageLeadingPadding)
+                        .padding(.leading, 16)
                         .padding(.trailing, 16)
                         .padding(.top, 8)
                         .padding(.bottom, chatBottomContentPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
-                        latestAssistantTurnProbe
-
-                        if activeSkin == .darkManga && hasBotContent {
-                            FloatingAvatarView(
-                                expression: currentAvatarExpression,
-                                persona: displayPersona
-                            )
-                            .offset(y: avatarY)
-                            .padding(.leading, 16)
-                        }
                     }
                     .alignmentGuide(.leading) { _ in 0 }
                     .alignmentGuide(.top) { _ in 0 }
@@ -1088,34 +1029,9 @@ struct ChatView: View {
                     }
                 }
             }
-            .onPreferenceChange(LatestBotTurnYKey.self) { y in
-                if let y = y {
-                    Task { @MainActor in
-                        // Hysteresis: adopting Y writes @State → body → new
-                        // layout pass → probe re-measures. Without a dead
-                        // band the measure/adopt pair can ping-pong forever
-                        // (the beachball); a sub-4pt move is invisible.
-                        guard ChatLayoutMath.shouldMoveAvatar(from: avatarY, to: y) else { return }
-                        avatarY = y
-                    }
-                }
-            }
             .onPreferenceChange(ChatViewportHeightKey.self) { height in
                 if abs(height - chatViewportHeight) > 1 {
                     chatViewportHeight = height
-                }
-                if !hasBotContent {
-                    Task { @MainActor in
-                        await Task.yield()
-                        // Same dead band as the sibling handler above, for the
-                        // same reason: this writes @State from a measurement of
-                        // the view it lays out, so an unguarded write re-measures
-                        // and can ping-pong forever. The empty-transcript path is
-                        // no less prone to it than the populated one.
-                        let target = max(0, height - 72)
-                        guard ChatLayoutMath.shouldMoveAvatar(from: avatarY, to: target) else { return }
-                        avatarY = target
-                    }
                 }
             }
             .onChange(of: chatViewModel.messages.count) { _, _ in
@@ -1307,56 +1223,6 @@ struct ChatView: View {
         } else {
             withAnimation(.easeOut(duration: 0.15), action)
         }
-    }
-}
-
-// MARK: - Floating Avatar (Singleton)
-// Exactly one instance. Y position driven by LatestBotTurnYKey preference.
-// Animated with easeInOut 400ms.
-
-private struct FloatingAvatarView: View {
-    let expression: CharacterExpression
-    let persona: Persona
-
-    var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Theme.surface.opacity(0.96))
-                    .shadow(color: .black.opacity(0.22), radius: 8, x: 0, y: 4)
-
-                LottieCharacterView(
-                    expression: expression,
-                    size: CGSize(width: 48, height: 48)
-                )
-                .frame(width: 48, height: 48)
-            }
-            .frame(width: 52, height: 52)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(persona.accentColor.opacity(0.55), lineWidth: 1)
-            )
-
-            Text(persona.name)
-                .font(.system(size: 9, weight: .medium))
-                .lineLimit(1)
-                .frame(width: 58)
-                .foregroundStyle(persona.accentColor.opacity(0.75))
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-// MARK: - Preference Key
-// Tracks Y position of the latest bot turn within the scroll content coordinate space.
-// Multiple assistant messages and the streaming panel report their Y;
-// reduce takes the last non-nil value (bottom-most in view tree = latest turn).
-
-private struct LatestBotTurnYKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat?
-    static func reduce(value: inout CGFloat?, nextValue: () -> CGFloat?) {
-        if let next = nextValue() { value = next }
     }
 }
 
