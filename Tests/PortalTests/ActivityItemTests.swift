@@ -111,6 +111,30 @@ struct ActivityItemTests {
         }
     }
 
+    @Test("artifact content payloads parse fields and apply gateway defaults")
+    internal func parseArtifactContent() {
+        let content = ActivityArtifactContent.from([
+            "id": AnyCodable("art_123"),
+            "name": AnyCodable("report.html"),
+            "mime_type": AnyCodable("text/html"),
+            "encoding": AnyCodable("base64"),
+            "content": AnyCodable("<h1>Report</h1>"),
+            "content_base64": AnyCodable("PGgxPlJlcG9ydDwvaDE+"),
+        ])
+        let defaults = ActivityArtifactContent.from(["id": AnyCodable("art_default")])
+
+        #expect(content?.id == "art_123")
+        #expect(content?.name == "report.html")
+        #expect(content?.mimeType == "text/html")
+        #expect(content?.encoding == "base64")
+        #expect(content?.content == "<h1>Report</h1>")
+        #expect(content?.contentBase64 == "PGgxPlJlcG9ydDwvaDE+")
+        #expect(defaults?.name == "artifact")
+        #expect(defaults?.mimeType == "application/octet-stream")
+        #expect(defaults?.encoding == "utf-8")
+        #expect(ActivityArtifactContent.from([:]) == nil)
+    }
+
     @Test("activity events parse direct payloads as well as nested activity payloads")
     func parseDirectActivityPayloadGatewayEvent() {
         let direct = GatewayEvent.from(type: "activity.created", payload: .dictionary([
