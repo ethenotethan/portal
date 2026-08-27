@@ -2466,7 +2466,7 @@ client.eventStream
         message.thinkingTrace?.append(text, kind: kind)
     }
 
-    private func finishThinkingTrace(on message: inout ChatMessage, finalReasoning: String?) {
+    internal func finishThinkingTrace(on message: inout ChatMessage, finalReasoning: String?) {
         if let finalReasoning, !finalReasoning.isEmpty {
             if message.thinkingTrace == nil {
                 message.thinkingTrace = ThinkingTrace(
@@ -2478,15 +2478,30 @@ client.eventStream
                 // the final reasoning must still land or it's lost.
                 message.thinkingTrace?.append(finalReasoning, kind: .reasoning)
             }
+        } else if message.thinkingTrace == nil,
+                  let streamed = message.reasoning, !streamed.isEmpty {
+            // No structured trace was built (the gateway sent raw thinking/
+            // reasoning deltas) and the completion payload carried no final
+            // reasoning. Promote the streamed text into a trace so the
+            // collapsible ThinkingTraceSection survives the turn — this is
+            // what keeps "expand thinking after the turn" possible. An empty
+            // finalReasoning used to fall through to `finalReasoning ?? …`
+            // below and WIPE the streamed reasoning to "" (#audit).
+            message.thinkingTrace = ThinkingTrace(
+                blocks: [ThinkingBlock(kind: .reasoning, text: streamed)],
+                isStreaming: false
+            )
         }
         message.thinkingTrace?.finish()
         // Keep the legacy reasoning field populated for persistence/search and
         // backward-compatible views, but the UI prefers the structured trace.
+        // Guard: an EMPTY finalReasoning must never overwrite streamed text.
         if let traceText = message.thinkingTrace?.fullText, !traceText.isEmpty {
             message.reasoning = traceText
-        } else {
-            message.reasoning = finalReasoning ?? message.reasoning
+        } else if let finalReasoning, !finalReasoning.isEmpty {
+            message.reasoning = finalReasoning
         }
+        // else: keep whatever reasoning was streamed (may be nil/empty — fine).
     }
 
     // MARK: - Event Handling

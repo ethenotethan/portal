@@ -58,9 +58,10 @@ struct ToolTrailView: View {
             }
         }
         .font(.caption)
-        .onAppear {
-            if isStreaming { reasoningExpanded = true }
-        }
+        // NOTE: no onAppear auto-expand/reset — the canvas panel recycles this
+        // view while streaming; a reset would stomp the user's expansion.
+        // Reasoning starts collapsed via @State default; the streaming caller
+        // that wants it open sets reasoningExpanded explicitly.
     }
 }
 

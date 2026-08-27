@@ -254,9 +254,10 @@ private struct ThinkingTraceSection: View {
                 }
             }
         }
-        .onAppear {
-            if trace.isStreaming { isExpanded = false }
-        }
+        // NOTE: no onAppear force-collapse. The transcript LazyVStack recycles
+        // cells on every auto-scroll tick while streaming, so an onAppear
+        // reset stomped the user's expansion mid-turn. Default (collapsed)
+        // comes from @State's initial value; the user's toggle survives.
     }
 }
 
@@ -330,9 +331,9 @@ private struct ReasoningSection: View {
                     .textSelection(.enabled)
             }
         }
-        .onAppear {
-            if isStreaming { isExpanded = false }
-        }
+        // NOTE: no onAppear force-collapse — same rationale as
+        // ThinkingTraceSection: cell recycling during streaming would stomp
+        // the user's expansion on every scroll tick.
     }
 }
 
