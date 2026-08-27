@@ -147,15 +147,32 @@ internal struct BackendKindTests {
         #expect(BackendKind.centaur.sessionScopedFootnote?.contains("host individual sessions") == true)
     }
 
-    @Test("session backend registry binds and persists lookups")
+    @Test("session backend registry binds, filters, and forgets lookups")
     @MainActor
-    internal func registryBindsAndForgets() {
+    internal func registryBindsFiltersAndForgets() {
         let registry = SessionBackendRegistry.shared
         let backendID = UUID()
-        registry.bind(sessionID: "test-thread-1", backendID: backendID)
-        #expect(registry.backendID(for: "test-thread-1") == backendID)
+        let otherBackendID = UUID()
+        let sessionIDs = ["test-thread-\(UUID())", "test-thread-\(UUID())"]
+        let otherSessionID = "test-thread-\(UUID())"
+        defer {
+            for sessionID in sessionIDs + [otherSessionID] {
+                registry.forget(sessionID: sessionID)
+            }
+        }
+
+        for sessionID in sessionIDs {
+            registry.bind(sessionID: sessionID, backendID: backendID)
+        }
+        registry.bind(sessionID: otherSessionID, backendID: otherBackendID)
+
+        #expect(registry.backendID(for: sessionIDs[0]) == backendID)
         #expect(registry.backendID(for: "unknown-session") == nil)
-        registry.forget(sessionID: "test-thread-1")
-        #expect(registry.backendID(for: "test-thread-1") == nil)
+        #expect(Set(registry.sessionIDs(on: backendID)) == Set(sessionIDs))
+        #expect(registry.sessionIDs(on: UUID()).isEmpty)
+
+        registry.forget(sessionID: sessionIDs[0])
+        #expect(registry.backendID(for: sessionIDs[0]) == nil)
+        #expect(registry.sessionIDs(on: backendID) == [sessionIDs[1]])
     }
 }
