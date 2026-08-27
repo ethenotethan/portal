@@ -137,7 +137,12 @@ site-serve: architecture site-check
 #   warnings — compiler warning sites (floor: no category grows; patch: no
 #              warning on a line this PR added). A CLEAN build is mandatory —
 #              incremental builds skip unchanged modules and under-count, so we
-#              wipe .build first.
+#              wipe .build first. `--build-tests` is likewise mandatory: plain
+#              `swift build` never compiles Tests/, so for as long as this read
+#              `swift build` the test targets were an unmeasured warning pool
+#              the ratchet could not see. When that was first measured it held
+#              21 of the repo's 23 sites — most of them inside `#expect` macro
+#              expansions, which report no source file and so never surfaced.
 #   coverage — testable-layer line coverage (floor: aggregate can't erode;
 #              patch: >=80% of executable lines this PR added must be covered).
 #   skipped  — disabled / known-issue test count (floor: can't rise; baseline 0).
@@ -151,7 +156,7 @@ site-serve: architecture site-check
 # build here — the compile is the slow part and running it twice buys nothing.
 metrics-ratchet:
 	rm -rf .build
-	swift build 2>&1 | tee /tmp/portal-metrics-build.log
+	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)
@@ -177,7 +182,7 @@ endef
 # build for an honest warning count. Rewrites ALL metric keys.
 metrics-baseline:
 	rm -rf .build
-	swift build 2>&1 | tee /tmp/portal-metrics-build.log
+	swift build --build-tests 2>&1 | tee /tmp/portal-metrics-build.log
 	python3 scripts/collect-warnings.py /tmp/portal-metrics-build.log --root "$(PWD)" --json /tmp/portal-warnings.json
 	swift test --enable-code-coverage 2>&1 | tail -3
 	$(call export-coverage)

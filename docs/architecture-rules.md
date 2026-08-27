@@ -148,10 +148,19 @@ Four metrics are wired today. Warnings and coverage run both ratchet shapes — 
 touches meets the bar). Skipped tests and dead code are deterministic counts,
 so they use a floor only.
 
-**Compiler warnings** (`warnings` key). A clean `swift build` is parsed into
-unique warning *sites* (`file:line:col:category`) by
+**Compiler warnings** (`warnings` key). A clean `swift build --build-tests` is
+parsed into unique warning *sites* (`file:line:col:category`) by
 `scripts/collect-warnings.py` — SwiftPM re-emits each warning per recompiled
 module, so a raw line count over-counts (685 lines → 52 real sites here).
+
+Both flags are load-bearing. *Clean*, because SwiftPM skips unchanged modules
+incrementally and silently under-counts. `--build-tests`, because plain
+`swift build` never compiles `Tests/` — so until this was fixed the test targets
+were a warning pool the ratchet could not see, and when first measured they held
+21 of the repo's 23 sites. Most were invisible for a second reason worth knowing
+when reading a count: warnings raised inside a macro expansion (`#expect`,
+`#require`) report no source file, so ~128 raw diagnostics collapsed to 10
+attributable sites. A site count is a floor on the real diagnostic volume.
 
 - **Floor:** no warning category's site count may exceed the base branch's.
   Per-category, not just total — fixing one category while adding another nets

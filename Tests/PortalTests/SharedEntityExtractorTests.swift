@@ -12,17 +12,17 @@ internal struct SharedEntityExtractorTests {
     }
 
     @Test("three calls to the same pod become one shared entity with all node ids")
-    internal func groupsPodTouches() {
+    internal func groupsPodTouches() throws {
         let entities = SharedEntityExtractor.extract(from: [
             node("t1", "kubectl get pod/api-server"),
             node("t2", "kubectl describe pod api-server"),
             node("t3", "kubectl delete pod/api-server"),
         ])
         #expect(entities.count == 1)
-        let pod = try? #require(entities.first)
-        #expect(pod?.kind == .k8sPod)
-        #expect(pod?.label == "api-server")
-        #expect(Set(pod?.nodeIDs ?? []) == ["t1", "t2", "t3"])
+        let pod = try #require(entities.first)
+        #expect(pod.kind == .k8sPod)
+        #expect(pod.label == "api-server")
+        #expect(Set(pod.nodeIDs) == ["t1", "t2", "t3"])
     }
 
     @Test("an entity touched by only one bar is not surfaced (nothing to connect)")

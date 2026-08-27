@@ -295,7 +295,7 @@ internal struct ArtifactStatusReflectionTests {
 
     @MainActor
     @Test("intentSlots decodes binding + entity back out of the composite slot key")
-    internal func intentSlotsDecode() {
+    internal func intentSlotsDecode() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("status-reflect-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -311,9 +311,9 @@ internal struct ArtifactStatusReflectionTests {
             state: .succeeded(message: "done", sessionID: nil))
 
         let slots = store.intentSlots(artifactID: "issues")
-        let match = try? #require(slots.first)
-        #expect(match?.bindingID == "archive")
-        #expect(match?.entryKey == "issues/ARC-42")
+        let match = try #require(slots.first)
+        #expect(match.bindingID == "archive")
+        #expect(match.entryKey == "issues/ARC-42")
         // A slot for a different artifact never leaks in.
         #expect(store.intentSlots(artifactID: "other").isEmpty)
     }
@@ -327,29 +327,38 @@ internal struct ArtifactStatusReflectionTests {
         #expect(n.userInfo["session_id"] == "sess-abc")   // trimmed
     }
 
+    // Both of these use `confirmation` rather than a captured `var` the observer
+    // block increments. `addObserver`'s block is `@Sendable`, so mutating a local
+    // from inside it is a data race the compiler is right to flag — it happens to
+    // be safe here only because `queue: nil` delivers synchronously on the
+    // posting thread, which is not something the signature promises.
+    // `Confirmation` is Sendable and exists for exactly this assertion shape:
+    // "this callback must fire (this many times)".
+
     @Test("A blank session id yields no notification and posts nothing")
-    internal func sessionLinkBlankIsNoop() {
+    internal func sessionLinkBlankIsNoop() async {
         #expect(ArtifactIntentSessionLink.switchNotification(sessionID: "   ") == nil)
 
         let center = NotificationCenter()
-        var posted = 0
-        let token = center.addObserver(
-            forName: .hermesSwitchToSession, object: nil, queue: nil) { _ in posted += 1 }
-        defer { center.removeObserver(token) }
-        ArtifactIntentSessionLink.open(sessionID: "", center: center)
-        #expect(posted == 0)
+        await confirmation("switch posted", expectedCount: 0) { posted in
+            let token = center.addObserver(
+                forName: .hermesSwitchToSession, object: nil, queue: nil) { _ in posted() }
+            defer { center.removeObserver(token) }
+            ArtifactIntentSessionLink.open(sessionID: "", center: center)
+        }
     }
 
     @Test("open posts a switch carrying the session id")
-    internal func sessionLinkOpenPosts() {
+    internal func sessionLinkOpenPosts() async {
         let center = NotificationCenter()
-        var received: String?
-        let token = center.addObserver(
-            forName: .hermesSwitchToSession, object: nil, queue: nil) { note in
-            received = note.userInfo?["session_id"] as? String
+        await confirmation("switch posted") { posted in
+            let token = center.addObserver(
+                forName: .hermesSwitchToSession, object: nil, queue: nil) { note in
+                #expect(note.userInfo?["session_id"] as? String == "sess-xyz")
+                posted()
+            }
+            defer { center.removeObserver(token) }
+            ArtifactIntentSessionLink.open(sessionID: "sess-xyz", center: center)
         }
-        defer { center.removeObserver(token) }
-        ArtifactIntentSessionLink.open(sessionID: "sess-xyz", center: center)
-        #expect(received == "sess-xyz")
     }
 }

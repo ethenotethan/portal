@@ -308,7 +308,7 @@ internal struct HeuristicReasoningSummarizerTests {
     @MainActor
     internal func feedAndSummarize() async {
         let summarizer = HeuristicReasoningSummarizer()
-        await summarizer.feed(delta: "I should use the streaming approach because it's more responsive.")
+        summarizer.feed(delta: "I should use the streaming approach because it's more responsive.")
         let result = await summarizer.summarize()
         #expect(result != nil)
         #expect(result?.decisions.isEmpty == false)
@@ -318,7 +318,7 @@ internal struct HeuristicReasoningSummarizerTests {
     @MainActor
     internal func feedEmptySummarize() async {
         let summarizer = HeuristicReasoningSummarizer()
-        await summarizer.feed(delta: "")
+        summarizer.feed(delta: "")
         let result = await summarizer.summarize()
         #expect(result == nil)
     }
@@ -327,7 +327,7 @@ internal struct HeuristicReasoningSummarizerTests {
     @MainActor
     internal func resetClearsBuffer() async {
         let summarizer = HeuristicReasoningSummarizer()
-        await summarizer.feed(delta: "I should check something.")
+        summarizer.feed(delta: "I should check something.")
         summarizer.reset()
         let result = await summarizer.summarize()
         #expect(result == nil)
