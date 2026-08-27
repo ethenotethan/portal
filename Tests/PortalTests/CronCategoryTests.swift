@@ -97,6 +97,17 @@ internal struct CronCategoryTests {
         #expect(!subject.isPromptTruncated)
     }
 
+    @Test("job hashing follows its id-only equality")
+    internal func jobHashingMatchesEquality() {
+        let original = job("digest")
+        var refreshed = original
+        refreshed.schedule = "every 15m"
+        refreshed.lastStatus = "error"
+
+        #expect(original == refreshed)
+        #expect(Set([original, refreshed]).count == 1)
+    }
+
     // MARK: - Normalizing a typed name (rename == recategorize)
 
     /// The rename field is a path editor, so what the user types is normalized
