@@ -325,9 +325,12 @@ internal struct PanelResizeMathTests {
             others: [rightNeighbour], bounds: bounds
         )
         #expect(result.frame.maxX == 400)                 // panel shrank as dragged
-        let grown = try? #require(result.neighbours[0])
-        #expect(grown?.minX == 400)                       // neighbour's near edge followed
-        #expect(grown?.maxX == 900)                       // far edge pinned — it grew
+        guard let grown = result.neighbours[0] else {
+            Issue.record("expected the flush neighbour to grow")
+            return
+        }
+        #expect(grown.minX == 400)                        // neighbour's near edge followed
+        #expect(grown.maxX == 900)                        // far edge pinned — it grew
     }
 
     @Test("Growing the trailing edge shrinks the flush neighbour, not past its min")
@@ -340,9 +343,12 @@ internal struct PanelResizeMathTests {
         )
         // Neighbour can't shrink below min width; its near edge stops there and
         // the panel is capped at that same line — never overlapping.
-        let squeezed = try? #require(result.neighbours[0])
-        #expect(squeezed?.width == PanelResizeMath.minSize.width)
-        #expect(squeezed?.maxX == 900)                    // far edge still pinned
+        guard let squeezed = result.neighbours[0] else {
+            Issue.record("expected the flush neighbour to shrink")
+            return
+        }
+        #expect(squeezed.width == PanelResizeMath.minSize.width)
+        #expect(squeezed.maxX == 900)                     // far edge still pinned
         #expect(result.frame.maxX == 900 - PanelResizeMath.minSize.width)
     }
 
@@ -383,9 +389,12 @@ internal struct PanelResizeMathTests {
             others: [left], bounds: bounds
         )
         #expect(result.frame.minX == 200)
-        let grown = try? #require(result.neighbours[0])
-        #expect(grown?.minX == 0)                         // far edge pinned
-        #expect(grown?.maxX == 200)                       // near edge followed the gap
+        guard let grown = result.neighbours[0] else {
+            Issue.record("expected the left neighbour to grow")
+            return
+        }
+        #expect(grown.minX == 0)                          // far edge pinned
+        #expect(grown.maxX == 200)                        // near edge followed the gap
     }
 
     @Test("A corner resize auto-fills flush neighbours on both moved edges")
