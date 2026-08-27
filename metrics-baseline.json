@@ -2,32 +2,19 @@
   "_comment": "Metric ratchet baseline. See scripts/check-metrics-ratchet.py. Each metric is compared per-key against the base branch (floor: never regress) and against PR-added lines (patch: new code stays clean). Regenerate only to record improvement (make metrics-baseline).",
   "warnings": {
     "counts": {
-      "SendableClosureCaptures": 2,
-      "msg:passing-closure-as-a-x-parameter": 2
+      "SendableClosureCaptures": 2
     },
-    "total": 4,
+    "total": 2,
     "sites": [
       {
-        "file": "Sources/Portal/Services/ReasoningSummarizer.swift",
-        "line": 637,
-        "col": 43,
-        "category": "msg:passing-closure-as-a-x-parameter"
-      },
-      {
-        "file": "Sources/Portal/Services/SkillSummaryService.swift",
-        "line": 223,
-        "col": 43,
-        "category": "msg:passing-closure-as-a-x-parameter"
-      },
-      {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1897,
+        "line": 1763,
         "col": 31,
         "category": "SendableClosureCaptures"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1959,
+        "line": 1825,
         "col": 24,
         "category": "SendableClosureCaptures"
       }
