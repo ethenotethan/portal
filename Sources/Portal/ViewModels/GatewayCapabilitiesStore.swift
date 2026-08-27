@@ -30,11 +30,7 @@ final class GatewayCapabilitiesStore: ObservableObject {
         // offered (artifact intents among them), and until now it went nowhere a
         // human could read — no view surfaces `capabilityNames`. When a feature
         // silently isn't there, this is the first thing worth checking.
-        log.notice("""
-        gateway capabilities resolved (\(resolved.capabilityNames.count, privacy: .public) advertised, \
-        artifact actions \(resolved.supportsArtifactActions ? "supported" : "ABSENT", privacy: .public)): \
-        \(resolved.capabilityNames.sorted().joined(separator: ", "), privacy: .public)
-        """)
+        log.notice("gateway capabilities resolved: \(resolved.diagnosticSummary, privacy: .public)")
 
         if case .fallback(let reason) = resolved.source {
             lastRefreshError = reason

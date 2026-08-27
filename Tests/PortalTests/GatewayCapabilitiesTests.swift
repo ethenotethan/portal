@@ -78,6 +78,25 @@ struct GatewayCapabilitiesTests {
         #expect(capabilities.statusDisplay == "Detected")
     }
 
+    @Test("the diagnostic summary names the count, the intent verdict, and the set")
+    internal func diagnosticSummaryReportsTheNegotiatedSet() {
+        let supported = GatewayCapabilities(
+            gatewayVersion: "1.2.3", agentVersion: nil,
+            capabilityNames: ["artifact.action.invoke", "learning.courses"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        // Sorted, so two gateways advertising the same set produce the same
+        // line — a Set's iteration order would make these undiffable.
+        #expect(supported.diagnosticSummary
+                == "2 advertised, artifact actions supported: artifact.action.invoke, learning.courses")
+
+        // The case that matters when intents are silently missing: the verdict
+        // has to be loud, and an empty set must not render as a bare colon.
+        let absent = GatewayCapabilities.fallback(reason: "no connection")
+        #expect(absent.diagnosticSummary == "0 advertised, artifact actions ABSENT: none listed")
+    }
+
     @Test("fallback is conservative for image features")
     func fallbackIsConservative() {
         let capabilities = GatewayCapabilities.fallback(reason: "unsupported")
