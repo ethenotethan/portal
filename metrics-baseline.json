@@ -14228,48 +14228,6 @@
         "hint": "unused"
       },
       {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 12,
-        "kind": "var.instance",
-        "name": "fileName",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 15,
-        "kind": "var.instance",
-        "name": "speed",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 25,
-        "kind": "var.instance",
-        "name": "loopMode",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 32,
-        "kind": "struct",
-        "name": "LottieCharacterView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 53,
-        "kind": "function.free",
-        "name": "loadLottieAnimation(fileName:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/LottieCharacterView.swift",
-        "line": 102,
-        "kind": "struct",
-        "name": "LottieRepresentableWrapper",
-        "hint": "unused"
-      },
-      {
         "file": "Sources/Portal/Views/MarkdownContentView.swift",
         "line": 162,
         "kind": "function.method.instance",

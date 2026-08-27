@@ -1,9 +1,6 @@
 import SwiftUI
-import Lottie
 
-/// Two-column agent panel shown during streaming.
-/// Left column: Lottie animated character reacting to tool cascade.
-/// Right column: stacked tool call pills.
+/// Agent panel shown during streaming with status and stacked tool-call pills.
 /// Matches the design spec's "Running tools" panel layout.
 struct AgentPanel: View {
     let avatarState: AvatarState
@@ -21,49 +18,26 @@ struct AgentPanel: View {
         return running + completed
     }
 
-    private var characterExpression: CharacterExpression {
-        switch avatarState {
-        case .idle:     return .idle
-        case .thinking: return .thinking
-        case .speaking: return .happy
-        case .toolUse:  return .thinking
-        case .error:    return .confused
-        }
-    }
-
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Left: Lottie animated character (compact, matches bubble avatar)
-            LottieCharacterView(
-                expression: characterExpression,
-                size: CGSize(width: 44, height: 44)
-            )
-            .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Right: Tool pills + status
-            VStack(alignment: .leading, spacing: Theme.pillSpacing) {
-                // State label
-                HStack(spacing: 6) {
-                    StateSpinner(state: avatarState)
-                    Text(stateLabel)
-                        .font(.system(.caption, weight: .medium))
-                        .foregroundStyle(Theme.secondary)
-                    Text("·")
-                        .foregroundStyle(Theme.tertiary)
-                    Text(personaName)
-                        .font(.system(.caption, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                }
-                .padding(.bottom, 4)
-
-                // Tool pills
-                ForEach(orderedTools) { tool in
-                    ToolPillView(tool: tool, isRunning: !tool.isComplete)
-                }
+        VStack(alignment: .leading, spacing: Theme.pillSpacing) {
+            HStack(spacing: 6) {
+                StateSpinner(state: avatarState)
+                Text(stateLabel)
+                    .font(.system(.caption, weight: .medium))
+                    .foregroundStyle(Theme.secondary)
+                Text("·")
+                    .foregroundStyle(Theme.tertiary)
+                Text(personaName)
+                    .font(.system(.caption, weight: .medium))
+                    .foregroundStyle(Theme.accent)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 4)
+
+            ForEach(orderedTools) { tool in
+                ToolPillView(tool: tool, isRunning: !tool.isComplete)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }

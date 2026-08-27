@@ -10,10 +10,8 @@ import SwiftUI
 /// a shape sliding sideways rather than a limb coming toward you.
 ///
 /// The scene is built in code (`MonkeyScene`) rather than loaded from a
-/// `.scn`/`.usdz`. `LottieCharacterView` shows what asset-backed characters cost
-/// in this app — it walks five candidate bundle paths hunting for its JSON — and
-/// a celebration that fails to appear because a file didn't resolve is worse than
-/// one that draws plainly. Geometry in code always resolves.
+/// `.scn`/`.usdz`, so the celebration cannot disappear because a bundled asset
+/// failed to resolve. Geometry in code always resolves.
 ///
 /// Every pose comes from the `beat` the stage hands down, so this view holds no
 /// timing of its own. The choreography is therefore a property of
