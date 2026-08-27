@@ -15,11 +15,8 @@ internal typealias SceneScalar = Float
 /// The monkey as actual 3D geometry: spheres, capsules and boxes with materials
 /// and lights, posed by `CelebrationBeat`.
 ///
-/// Built in code rather than loaded from a `.scn`/`.usdz` asset for the same
-/// reason the first pass used shapes: `LottieCharacterView` already shows what
-/// asset-backed characters cost here — it walks five candidate bundle paths to
-/// find its JSON, and a celebration that can fail to appear because a file
-/// didn't resolve is worse than one that draws slightly plainer. Geometry in
+/// Built in code rather than loaded from a `.scn`/`.usdz` asset so a celebration
+/// cannot fail to appear because a bundled file did not resolve. Geometry in
 /// code always resolves.
 ///
 /// The rig is a node hierarchy so a pose is a handful of rotations rather than

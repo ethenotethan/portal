@@ -11,7 +11,6 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/airbnb/lottie-spm", from: "4.6.0"),
         .package(url: "https://github.com/raspu/Highlightr", from: "2.3.0"),
         .package(url: "https://github.com/lukilabs/beautiful-mermaid-swift", from: "1.0.0"),
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "3.31.3"),
@@ -23,7 +22,6 @@ let package = Package(
         .target(
             name: "Portal",
             dependencies: [
-                .product(name: "Lottie", package: "lottie-spm"),
                 .product(name: "Highlightr", package: "Highlightr"),
                 .product(name: "BeautifulMermaid", package: "beautiful-mermaid-swift"),
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
@@ -31,9 +29,6 @@ let package = Package(
                 .product(name: "HuggingFace", package: "swift-huggingface"),
                 .product(name: "Tokenizers", package: "swift-transformers"),
                 .product(name: "SwiftMath", package: "SwiftMath"),
-            ],
-            resources: [
-                .process("Resources/Lottie"),
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6),

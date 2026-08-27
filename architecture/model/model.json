@@ -39,7 +39,7 @@
       "line_count": 4385
     },
     {
-      "declaration_count": 76,
+      "declaration_count": 74,
       "declarations": [
         "AttachmentChipView",
         "AudioPreview",
@@ -66,7 +66,6 @@
         "FileWebView",
         "FileWebViewNSView",
         "FileWebViewUIView",
-        "FloatingAvatarView",
         "FlowLayoutCompat",
         "HTMLBlockView",
         "HTMLNavigationDelegate",
@@ -78,7 +77,6 @@
         "InlineHTMLUIView",
         "InlineHTMLView",
         "InputCapturingWebView",
-        "LatestBotTurnYKey",
         "ListItemView",
         "LongResponseDocument",
         "LongResponseDocumentCache",
@@ -137,7 +135,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6946
+      "line_count": 6814
     },
     {
       "declaration_count": 147,
@@ -692,7 +690,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7268
+      "line_count": 7242
     },
     {
       "declaration_count": 7,
@@ -717,7 +715,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4260
+      "line_count": 4275
     },
     {
       "declaration_count": 25,
@@ -1429,7 +1427,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 12159,
+      "line_count": 12155,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -1452,7 +1450,7 @@
       }
     },
     {
-      "declaration_count": 75,
+      "declaration_count": 73,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
@@ -1465,7 +1463,6 @@
         "CelebrationOverlay",
         "CelebrationSettingsSection",
         "CelebrationStage",
-        "CharacterExpression",
         "ChatSkin",
         "ChatSkinProviding",
         "CommentsLoad",
@@ -1476,6 +1473,7 @@
         "DarkMangaThinkingBlock",
         "DottedCanvasBackdrop",
         "EmptyTranscriptStateView",
+        "ExpandableToolRow",
         "ExportCodeText",
         "ExportTableView",
         "FloatingBrowserCanvas",
@@ -1502,8 +1500,6 @@
         "LaunchPaneState",
         "Layout",
         "LinkifiedText",
-        "LottieCharacterView",
-        "LottieRepresentableWrapper",
         "MilestoneCardView",
         "Mode",
         "MonkeyCelebrationView",
@@ -1532,7 +1528,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 33,
+      "file_count": 32,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -1551,7 +1547,6 @@
         "Sources/Portal/Views/GitHubReleaseCard.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift",
         "Sources/Portal/Views/InAppBrowserView.swift",
-        "Sources/Portal/Views/LottieCharacterView.swift",
         "Sources/Portal/Views/MilestoneCardView.swift",
         "Sources/Portal/Views/MonkeyCelebrationView.swift",
         "Sources/Portal/Views/MonkeyScene.swift",
@@ -1571,7 +1566,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6179
+      "line_count": 6057
     },
     {
       "declaration_count": 27,
@@ -1627,7 +1622,7 @@
       "id": "utilities",
       "label": "Utilities",
       "layer": "foundation",
-      "line_count": 2381
+      "line_count": 2366
     },
     {
       "declaration_count": 0,
@@ -2666,6 +2661,21 @@
     },
     {
       "authority": "observed",
+      "description": "References 2 declaration(s) owned by chat-ui.",
+      "evidence": [
+        "Sources/Portal/ViewModels/ChatViewModel.swift"
+      ],
+      "source": "chat-state",
+      "symbols": [
+        "ChatView",
+        "ThinkingTraceSection"
+      ],
+      "target": "chat-ui",
+      "type": "references",
+      "weight": 3
+    },
+    {
+      "authority": "observed",
       "description": "References 41 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
@@ -2959,7 +2969,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by shared-ui.",
+      "description": "References 11 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -2974,20 +2984,19 @@
       "symbols": [
         "ApprovalBanner",
         "ButtonThemeSettingsSection",
-        "CharacterExpression",
         "ChatSkin",
         "ChatSkinProviding",
         "EmptyTranscriptStateView",
         "GatewayDebugPanelView",
         "GitHubLinkCard",
         "Layout",
-        "LottieCharacterView",
         "PortalButtonStyle",
-        "PortalProgressView"
+        "PortalProgressView",
+        "ThumbnailImageView"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 21
+      "weight": 19
     },
     {
       "authority": "observed",
@@ -3011,14 +3020,13 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by utilities.",
+      "description": "References 5 declaration(s) owned by utilities.",
       "evidence": [
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/MarkdownContentView.swift"
       ],
       "source": "chat-ui",
       "symbols": [
-        "ChatLayoutMath",
         "ChatPaneClickMonitor",
         "FocusableTextView",
         "InlineMath",
@@ -3027,7 +3035,7 @@
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 8
+      "weight": 7
     },
     {
       "authority": "observed",
@@ -4268,7 +4276,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 32 declaration(s) owned by domain-models.",
+      "description": "References 31 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -4300,7 +4308,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 64
+      "weight": 62
     },
     {
       "authority": "observed",
@@ -4611,9 +4619,8 @@
     },
     {
       "authority": "observed",
-      "description": "References 8 declaration(s) owned by shared-ui.",
+      "description": "References 6 declaration(s) owned by shared-ui.",
       "evidence": [
-        "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift",
         "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
         "Sources/Portal/Views/ThoughtGraph/ThoughtGraphLayoutEngine.swift",
@@ -4622,17 +4629,15 @@
       "source": "thought-graph-ui",
       "symbols": [
         "ApprovalBanner",
-        "CharacterExpression",
         "ChatSkinProviding",
         "EmptyTranscriptStateView",
         "Layout",
-        "LottieCharacterView",
         "PortalProgressView",
         "ThemedSegmentedControl"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 13
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -5041,10 +5046,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 337,
-    "declarations": 998,
-    "swift_files": 337,
-    "swift_lines": 98338,
+    "assigned_files": 336,
+    "declarations": 994,
+    "swift_files": 336,
+    "swift_lines": 98054,
     "unassigned_files": []
   },
   "layers": [
@@ -5076,6 +5081,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "7b8961151de8d4ff041c88a4725d182cc7b288e6d98cceff35fc0ad56b43c974",
+  "source_tree_sha256": "69152a9401ffb72fae9a9ae0710976f1925a54389d22ebc7d60bcb76dfb31a31",
   "title": "Portal Architecture"
 }

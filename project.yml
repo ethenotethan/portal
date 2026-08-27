@@ -8,9 +8,6 @@ options:
   generateEmptyDirectories: true
 
 packages:
-  Lottie:
-    url: https://github.com/airbnb/lottie-spm
-    from: "4.6.0"
   Highlightr:
     url: https://github.com/raspu/Highlightr
     from: "2.3.0"
@@ -38,7 +35,6 @@ targets:
       - path: Sources/Portal
       - path: App/MacApp.swift
     dependencies:
-      - package: Lottie
       - package: Highlightr
       - package: BeautifulMermaid
       - package: mlx-swift-lm
@@ -74,7 +70,6 @@ targets:
       - path: Sources/Portal
       - path: App/IOSApp.swift
     dependencies:
-      - package: Lottie
       - package: Highlightr
       - package: BeautifulMermaid
       - package: mlx-swift-lm

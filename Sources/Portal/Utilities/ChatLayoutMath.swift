@@ -11,21 +11,6 @@ import CoreGraphics
 /// gate adoption behind a tolerance so jitter below a visible delta is
 /// absorbed instead of re-entering layout.
 enum ChatLayoutMath {
-    /// Floating-avatar Y derived from the turn probe's measured maxY in the
-    /// chat-content coordinate space. Rounded to whole points so sub-pixel
-    /// layout jitter cannot mint a distinct preference value every pass.
-    static func avatarY(fromProbeMaxY maxY: CGFloat, bottomInset: CGFloat = 60) -> CGFloat {
-        max(0, maxY - bottomInset).rounded()
-    }
-
-    /// Whether the avatar should adopt a newly published Y. Hysteresis, not
-    /// equality: even a rounded value can ping-pong across a rounding
-    /// boundary under jitter, and adopting it writes @State → re-layout →
-    /// re-measure. Below-threshold moves are invisible for a 52pt avatar.
-    static func shouldMoveAvatar(from current: CGFloat, to proposed: CGFloat, threshold: CGFloat = 4) -> Bool {
-        abs(current - proposed) >= threshold
-    }
-
     /// Whether a freshly measured input-field content height should replace
     /// the current one. Sub-point deltas are relayout noise of the same text,
     /// not a content change (a real line change is ~18pt).
