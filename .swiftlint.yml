@@ -240,6 +240,15 @@ custom_rules:
       # window controller that must outlive the SwiftUI view that opened it and
       # own the NSWindow (delegate refs are weak). App-lifetime by nature.
       - ".*/Views/ArtifactFullscreenWindow\\.swift"
+      # The observed dataflow-revision log, same category as the excluded
+      # CronRunHistory beside it. The rule's stated harm doesn't apply: the store
+      # is already injectable (`CronGraphViewModel.init(revisionStore:)`) and
+      # tests use `CronGraphRevisionStore(testing: true)`, so `.shared` is only
+      # the default for the two `@StateObject` graph views — which construct
+      # their view model before any environment is available. One process-wide
+      # log is also the correctness requirement: two stores would race
+      # half-histories onto the same file, last writer winning.
+      - ".*/Models/CronGraphRevisionStore\\.swift"
     regex: "static let shared\\b"
     message: >-
       No new singletons — `.shared` is invisible coupling that can't be swapped in

@@ -19,7 +19,7 @@ import Foundation
 /// Resource and sink ids are `scheme:value` (always contain a colon); cron ids
 /// are bare 12-hex, and service ids are `docker:<id>` or a process handle — the
 /// id spaces never collide, so shared refs dedupe a service onto a cron's store.
-internal struct CronGraphNode: Identifiable, Hashable {
+internal struct CronGraphNode: Identifiable, Hashable, Codable {
     internal let id: String
     /// `cron` | `source` | `artifact` | `sink` | `service` — drives node color.
     internal let kind: String
@@ -42,7 +42,7 @@ internal struct CronGraphNode: Identifiable, Hashable {
 
 /// Runtime evidence attached only to service nodes. A status is application
 /// health when an explicit probe exists, otherwise supervisor liveness.
-internal struct CronServiceHealth: Hashable {
+internal struct CronServiceHealth: Hashable, Codable {
     internal let status: String
     internal let probe: String
     internal let target: String
@@ -57,14 +57,22 @@ internal struct CronServiceHealth: Hashable {
 /// A typed directed edge. Types: `reads` (source/artifact → cron), `writes`
 /// (cron → artifact), `feeds` (cron → cron, via a `cron-output:<id>` input),
 /// or a side-effect scheme (`telegram`, `pr`, …) for a cron → sink edge.
-internal struct CronGraphEdge: Identifiable, Hashable {
+internal struct CronGraphEdge: Identifiable, Hashable, Codable {
     internal var id: String { "\(source)->\(target):\(type)" }
     internal let source: String
     internal let target: String
     internal let type: String
 }
 
-internal struct CronGraph {
+/// `Codable` here is for **local persistence only** — the revision log stores a
+/// snapshot per observed commitment (`CronGraphRevision`). The gateway response
+/// is not decoded through it: that path is `decodeGatewayValue(_:)`, which reads
+/// the wire's own key names and tolerates its omissions.
+///
+/// `Equatable` is what lets `CronGraphRevision` synthesize its own — comparing
+/// two revisions is comparing the graphs they hold. Synthesized: both member
+/// types are already `Hashable`.
+internal struct CronGraph: Codable, Equatable {
     internal let nodes: [CronGraphNode]
     internal let edges: [CronGraphEdge]
 
