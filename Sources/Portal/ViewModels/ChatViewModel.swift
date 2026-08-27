@@ -485,6 +485,46 @@ final class ChatViewModel: ObservableObject {
     /// while session A was visible must never be applied after a switch to B.
     /// Set on the first append of a batch, cleared on flush/cancel.
     private var pendingVisibleDeltaOwner: String?
+
+    /// An append-only text accumulator with a bounded head.
+    private struct CappedText {
+        private(set) var text = ""
+        /// Tracked as an Int because `String.count` is O(n): recomputing the
+        /// length per token would make a whole background turn quadratic.
+        private(set) var length = 0
+        /// True once the head was trimmed, so the splice can mark the gap.
+        private(set) var didElide = false
+
+        mutating func append(_ chunk: String, cap: Int, lowWater: Int) {
+            guard !chunk.isEmpty else { return }
+            text += chunk
+            length += chunk.count
+            guard length > cap else { return }
+            let drop = length - lowWater
+            text.removeFirst(drop)
+            length -= drop
+            didElide = true
+        }
+    }
+
+    /// What a session streamed while it was NOT on screen. Background delta
+    /// events never touch the transcript (see `applySessionEvent`) because
+    /// appending to `state.messages[idx]` copy-on-write clones the whole array
+    /// per token; the text lands here instead — a String append, no array touch
+    /// — so switching back mid-turn can splice in what was said rather than
+    /// showing an empty bubble for an agent that has been talking the whole time.
+    private struct BackgroundTurnBuffer {
+        var content = CappedText()
+        var thoughts = CappedText()
+    }
+
+    private var backgroundTurnBuffers: [String: BackgroundTurnBuffer] = [:]
+    /// Both fields are superseded at `message.complete` (by `payload.text` and
+    /// the finished thinking trace), so the cap only bounds what a mid-turn
+    /// switch-back displays — nothing is permanently lost by trimming.
+    private static let backgroundTurnTextCap = 64_000
+    private static let backgroundTurnTextLowWater = 48_000
+
     private var perfEventCounts: [String: Int] = [:]
     private var perfLastLog = Date()
     private var perfFlushCount = 0
@@ -715,6 +755,19 @@ client.eventStream
 
     internal func activeToolCallsForTesting(sessionID: String) -> [String: ToolCallRecord]? {
         sessionStates[displaySessionID(for: sessionID)]?.activeToolCalls
+    }
+
+    internal func cachedMessagesForTesting(sessionID: String) -> [ChatMessage]? {
+        sessionStates[displaySessionID(for: sessionID)]?.messages
+    }
+
+    /// Text retained for a session that streamed while it was off screen, before
+    /// a switch-back splices it into the transcript.
+    internal func retainedBackgroundTextForTesting(
+        sessionID: String
+    ) -> (content: String, thoughts: String)? {
+        guard let buffer = backgroundTurnBuffers[displaySessionID(for: sessionID)] else { return nil }
+        return (buffer.content.text, buffer.thoughts.text)
     }
 
     internal var streamingSessionIDsForTesting: Set<String> {
@@ -1002,6 +1055,10 @@ client.eventStream
         sessionSwitchGeneration += 1
         let generation = sessionSwitchGeneration
 
+        // Fold in whatever this session streamed while it was off screen BEFORE
+        // publishing its state, so the switch renders the live turn as it stands
+        // instead of the empty shell `message.start` left behind.
+        adoptBackgroundTurnBuffer(for: key)
         if restoreSessionState(displayID: key) {
             fillModelBadgeIfEmpty()
             return generation
@@ -1103,6 +1160,10 @@ client.eventStream
                 }
                 return parsed
             }.value
+            // The resume RPC is async, so more background tokens can have
+            // arrived since `beginSwitchToSession` adopted: fold them in before
+            // reading the cache, or they are judged stale and thrown away below.
+            adoptBackgroundTurnBuffer(for: key)
             if !parsedMessages.isEmpty {
                 if var liveState = sessionStates[key], liveState.isStreaming {
                     // The gateway history returned by session.resume is a persisted
@@ -1115,12 +1176,23 @@ client.eventStream
                     // (see applySessionEvent), so the cached state may only contain
                     // the empty assistant placeholder from messageStart.  When the
                     // cache is stale (no assistant message with content), fall back
-                    // to the gateway's persisted history.
+                    // to the gateway's persisted history — but CARRY THE LIVE TURN
+                    // ACROSS IT. A straight `liveState.messages = parsedMessages`
+                    // deletes the shell that `streamingMessageID` names, and every
+                    // later delta and the terminal `message.complete` find their
+                    // message by that id: the turn's remaining thinking, its tool
+                    // stamps and its final answer were all then dropped on the
+                    // floor, so a session clicked back into mid-turn stayed frozen
+                    // on the thought it was on when the user left.
                     let cachedHasContent = liveState.messages.contains(where: {
                         $0.role == .assistant && (!$0.isStreaming || !$0.content.isEmpty)
                     })
                     if !cachedHasContent {
-                        liveState.messages = parsedMessages
+                        let tail = Self.liveTurnTail(
+                            of: liveState.messages,
+                            streamingID: liveState.streamingMessageID
+                        )
+                        liveState.messages = Self.appendLiveTurnTail(tail, to: parsedMessages)
                     }
                     liveState.isSessionReady = true
                     sessionStates[key] = liveState
@@ -1535,6 +1607,52 @@ client.eventStream
             }
         }
         return merged
+    }
+
+    /// The uncommitted tail of a live turn: the streaming assistant shell plus
+    /// the prompt that opened it (and anything in between).
+    ///
+    /// `session.resume` returns a PERSISTED snapshot, which by definition cannot
+    /// contain the turn still running. Adopting that snapshot wholesale destroys
+    /// the shell, and the shell's identity is what `streamingMessageID` — and so
+    /// every remaining delta and the terminal `message.complete` — looks up.
+    /// Splicing this tail back on keeps that identity alive across the resume.
+    nonisolated internal static func liveTurnTail(
+        of messages: [ChatMessage],
+        streamingID: UUID?
+    ) -> [ChatMessage] {
+        guard let streamingID,
+              let shellIndex = messages.firstIndex(where: { $0.id == streamingID }) else { return [] }
+        // Walk back to the prompt that opened the turn so the spliced tail reads
+        // as a question and its answer, not an answer with nothing above it.
+        var start = shellIndex
+        var index = shellIndex - 1
+        while index >= 0 {
+            if messages[index].role == .user {
+                start = index
+                break
+            }
+            index -= 1
+        }
+        return Array(messages[start...])
+    }
+
+    /// Append a live-turn tail to freshly resumed history, dropping a duplicated
+    /// leading user bubble — the gateway usually persists the prompt as soon as
+    /// the turn starts, so the tail's first message is often already `history`'s
+    /// last entry, and appending blindly shows the prompt twice.
+    nonisolated internal static func appendLiveTurnTail(
+        _ tail: [ChatMessage],
+        to history: [ChatMessage]
+    ) -> [ChatMessage] {
+        guard !tail.isEmpty else { return history }
+        var pending = tail
+        if let first = pending.first, first.role == .user,
+           let last = history.last, last.role == .user,
+           last.content == first.content {
+            pending.removeFirst()
+        }
+        return history + pending
     }
 
     nonisolated internal static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
@@ -2697,6 +2815,63 @@ client.eventStream
         sessionStates[displayID] = state
     }
 
+    /// Retain a background session's streamed text instead of dropping it.
+    ///
+    /// Written through the dictionary's `_modify` subscript accessor: routing it
+    /// via a local `var` copy would leave the buffer at refcount 2 and re-copy
+    /// every retained character on each token, which is exactly the cost the
+    /// background-delta skip exists to avoid.
+    private func retainBackgroundDelta(displayID: String, content: String, thoughts: String) {
+        if !content.isEmpty {
+            backgroundTurnBuffers[displayID, default: BackgroundTurnBuffer()].content.append(
+                content,
+                cap: Self.backgroundTurnTextCap,
+                lowWater: Self.backgroundTurnTextLowWater
+            )
+        }
+        if !thoughts.isEmpty {
+            backgroundTurnBuffers[displayID, default: BackgroundTurnBuffer()].thoughts.append(
+                thoughts,
+                cap: Self.backgroundTurnTextCap,
+                lowWater: Self.backgroundTurnTextLowWater
+            )
+        }
+    }
+
+    /// Splice what a session streamed off screen into its cached transcript, so
+    /// a switch-back mid-turn shows the live answer and thinking as they stand.
+    ///
+    /// APPENDS, never replaces: the user may have watched the turn start, left
+    /// mid-answer and come back, in which case the shell already holds the text
+    /// that streamed while it was visible and only the gap belongs to the buffer.
+    ///
+    /// Idempotent, and only consumes the buffer when it can actually apply it —
+    /// both switch-back paths call it (`beginSwitchToSession` publishes from
+    /// cache, `resumeSession` lands later with the gateway's history), and a
+    /// session whose shell isn't in state yet must keep its text for the retry.
+    @discardableResult
+    private func adoptBackgroundTurnBuffer(for displayID: String) -> Bool {
+        guard let buffer = backgroundTurnBuffers[displayID] else { return false }
+        guard var state = sessionStates[displayID],
+              let msgID = state.streamingMessageID,
+              let idx = state.messages.firstIndex(where: { $0.id == msgID }) else { return false }
+        backgroundTurnBuffers.removeValue(forKey: displayID)
+        if !buffer.content.text.isEmpty {
+            state.messages[idx].content += elisionMark(buffer.content.didElide) + buffer.content.text
+        }
+        if !buffer.thoughts.text.isEmpty {
+            let existing = state.messages[idx].reasoning ?? ""
+            state.messages[idx].reasoning = existing + elisionMark(buffer.thoughts.didElide) + buffer.thoughts.text
+        }
+        sessionStates[displayID] = state
+        return true
+    }
+
+    /// Marks a trimmed head so the spliced text doesn't read as continuous.
+    private func elisionMark(_ didElide: Bool) -> String {
+        didElide ? "…\n" : ""
+    }
+
     private func applySessionEvent(_ event: GatewayEvent, to eventSessionID: String) {
         let displayID = displaySessionID(for: eventSessionID)
         /// Whether we have ANY local record of this session. Absence is not
@@ -2740,11 +2915,26 @@ client.eventStream
         // Skip high-frequency delta events for background (non-visible)
         // sessions.  Every delta triggers a copy-on-write clone of the full
         // messages array — for long sessions this saturates the main thread
-        // and causes the spinning wheel.  Background session state is
-        // re-synced via the session.resume RPC when the user switches back.
+        // and causes the spinning wheel.
+        //
+        // The text is RETAINED in a side buffer first, though. `session.resume`
+        // returns the gateway's PERSISTED history, which by definition excludes
+        // the turn still running, so "re-synced on switch-back" only ever
+        // recovered whatever had already been committed: clicking back into a
+        // live session showed an empty bubble with no thinking, and the running
+        // turn's answer arrived only at `message.complete`. Thinking text was
+        // worse than stale — the gateway accumulates assistant message deltas
+        // for its in-flight snapshot but not reasoning, so a dropped thinking
+        // token was gone for good.
         switch event {
-        case .messageDelta, .reasoningDelta, .thinkingDelta:
+        case .messageDelta(let text, _):
             if displaySessionID(for: sessionID ?? "") != displayID {
+                retainBackgroundDelta(displayID: displayID, content: text, thoughts: "")
+                return
+            }
+        case .reasoningDelta(let text), .thinkingDelta(let text):
+            if displaySessionID(for: sessionID ?? "") != displayID {
+                retainBackgroundDelta(displayID: displayID, content: "", thoughts: text)
                 return
             }
         case .subagentSpawnRequested, .subagentStart, .subagentComplete,
@@ -2813,6 +3003,11 @@ client.eventStream
                 let assistantMessage = ChatMessage(role: .assistant, content: "", isStreaming: true)
                 state.streamingMessageID = assistantMessage.id
                 state.messages.append(assistantMessage)
+                // A fresh shell owns no retained text. Anything left over
+                // belongs to a turn that ended without being adopted (an error,
+                // a stop), and splicing it here would graft the previous
+                // answer's tail onto this one.
+                backgroundTurnBuffers.removeValue(forKey: displayID)
             }
             if displaySessionID(for: sessionID ?? "") == displayID {
                 streamingMessageID = state.streamingMessageID
@@ -2840,6 +3035,10 @@ client.eventStream
             }
 
         case .messageComplete(payload: let payload):
+            // `payload.text` and the finished thinking trace below are the
+            // authoritative full turn, so any retained background text is now
+            // redundant — and must not survive into the next turn.
+            backgroundTurnBuffers.removeValue(forKey: displayID)
             if displaySessionID(for: sessionID ?? "") == displayID {
                 flushPendingVisibleEventDeltas()
                 // Reload state to pick up flushed reasoning from snapshot
