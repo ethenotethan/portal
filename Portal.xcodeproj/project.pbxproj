@@ -115,6 +115,7 @@
 		25C70F948856D64D79FA131E /* DelegationBatchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6062185BCD6D124A73739C /* DelegationBatchHistoryStore.swift */; };
 		25E61B074235054D3C43E7A2 /* GatewayEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EDA2632CA57A266F027D530 /* GatewayEventDecodingTests.swift */; };
 		25EA2D7669C859A84BCE3556 /* SessionsSourceBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2851D3AA550338E15B4CB929 /* SessionsSourceBreakdown.swift */; };
+		263AA86BB0B7D2B5013E45FA /* LiveSessionSwitchBackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC744F9CF2F7B47FCB995A3B /* LiveSessionSwitchBackTests.swift */; };
 		265F8D8522974266662023B8 /* CronJobCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A38058167062C45FD8CE7BE /* CronJobCard.swift */; };
 		26856039977AF60349764DEC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4EE5AEE3206BD4B2D20FCFC /* SettingsView.swift */; };
 		26F028853933AE3ED7107901 /* NativeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95450F797EE4865E40CA114A /* NativeChartView.swift */; };
@@ -1258,6 +1259,7 @@
 		CC461817C688A90A049AFB81 /* GatewayRestartController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayRestartController.swift; sourceTree = "<group>"; };
 		CC635A4BD8C52946B1E85901 /* VideoCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoCache.swift; sourceTree = "<group>"; };
 		CC6D25F2C20792268A0BA62B /* CronDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDashboardView.swift; sourceTree = "<group>"; };
+		CC744F9CF2F7B47FCB995A3B /* LiveSessionSwitchBackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionSwitchBackTests.swift; sourceTree = "<group>"; };
 		CCC7E280843A5A93FBA01693 /* KanbanSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanSpec.swift; sourceTree = "<group>"; };
 		CD56120B53196F463494F45C /* SessionsSearchPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsSearchPanel.swift; sourceTree = "<group>"; };
 		CE5329CD364ABAAC6FBF2710 /* MermaidGraphParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidGraphParser.swift; sourceTree = "<group>"; };
@@ -2069,6 +2071,7 @@
 				D76A158D6294E4F7FD2887C7 /* LearningRPCSurfaceTests.swift */,
 				6D3658D4E71EE4626435266F /* LearningStoreTests.swift */,
 				97CBE86516EE26D36108BAC0 /* LearningWireTests.swift */,
+				CC744F9CF2F7B47FCB995A3B /* LiveSessionSwitchBackTests.swift */,
 				34893CE30A6CB39845D37812 /* MaintainerRefTests.swift */,
 				6A34BA75D42DF544F74D1A66 /* MainThreadWatchdogTests.swift */,
 				7075E9BEFB14C521EF418245 /* MarkdownBlockIdentityTests.swift */,
@@ -2805,6 +2808,7 @@
 				EE41FC46017E2C220F2259F3 /* LearningRPCSurfaceTests.swift in Sources */,
 				64DB8DBA20AA4022DD8603D3 /* LearningStoreTests.swift in Sources */,
 				8BF68F4BAAB9BF45348E4AD3 /* LearningWireTests.swift in Sources */,
+				263AA86BB0B7D2B5013E45FA /* LiveSessionSwitchBackTests.swift in Sources */,
 				DCDE49CE0EB63E01E5F142DA /* MainThreadWatchdogTests.swift in Sources */,
 				D8FF212EF1A4F34B1396BB8B /* MaintainerRefTests.swift in Sources */,
 				437474716A26E3F2141FF328 /* MarkdownBlockIdentityTests.swift in Sources */,
