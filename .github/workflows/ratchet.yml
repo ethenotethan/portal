@@ -103,10 +103,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `--build-tests` so Tests/ is counted. Plain `swift build` never compiles
+      # the test targets, which left them an unmeasured warning pool — when it
+      # was first measured it held 21 of the repo's 23 sites. This stays a
+      # separate step from the coverage run below (rather than harvesting that
+      # run's log, which would compile once instead of twice) on purpose: the
+      # Warnings posture must stay measurable even when tests FAIL, and
+      # `set -o pipefail` would otherwise lose the snapshot with them.
       - name: Build and capture warnings
         run: |
           set -o pipefail
-          swift build 2>&1 | tee build.log
+          swift build --build-tests 2>&1 | tee build.log
           python3 scripts/collect-warnings.py build.log --root "$PWD" --json warnings.json
 
       - name: Test with coverage and capture snapshot

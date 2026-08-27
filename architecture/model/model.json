@@ -1158,7 +1158,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6648,
+      "line_count": 6685,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -1511,7 +1511,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13309,
+      "line_count": 13316,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -5235,7 +5235,7 @@
     "assigned_files": 347,
     "declarations": 1015,
     "swift_files": 347,
-    "swift_lines": 100571,
+    "swift_lines": 100615,
     "unassigned_files": []
   },
   "layers": [
@@ -5267,6 +5267,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "e8c4188c66c26a144215423bf2aa447f9bdf2273b41fe0ba87a8b5d6529e264d",
+  "source_tree_sha256": "3f21c57f4503cc9d8c438015ec4facb57923e53e4392c69a191a51c925ad4d94",
   "title": "Portal Architecture"
 }
