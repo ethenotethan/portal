@@ -60,7 +60,7 @@ internal struct ArtifactStatusReflectionTests {
             .succeeded(message: "m", sessionID: "s")) == .succeeded)
         #expect(HTMLArtifactIntentBridge.StatusToken(.failed(reason: "r")) == .failed)
         #expect(HTMLArtifactIntentBridge.StatusToken(.conflict) == .conflict)
-        #expect(HTMLArtifactIntentBridge.StatusToken(.unsupported) == .unsupported)
+        #expect(HTMLArtifactIntentBridge.StatusToken(.unsupported(reason: nil)) == .unsupported)
     }
 
     @Test("needs-confirmation token uses a CSS-friendly hyphenated raw value")

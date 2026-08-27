@@ -34,7 +34,13 @@ final class ArtifactStore: ObservableObject {
         case succeeded(message: String?, sessionID: String?)
         case failed(reason: String)
         case conflict
-        case unsupported
+        /// No handler ran. `reason` distinguishes the four very different ways
+        /// that happens — a local bookkeeping miss, no gateway connection, a
+        /// gateway with no artifact.action surface at all, or a successful round
+        /// trip the harness answered `unsupported`. They used to collapse into
+        /// one sentence about "the connected harness", which pointed at the
+        /// server even when nothing had been sent to it.
+        case unsupported(reason: String?)
 
         /// Map a ledger outcome string to a displayable state.
         /// Returns nil for non-terminal outcomes (needs_confirmation, running)
@@ -44,7 +50,7 @@ final class ArtifactStore: ObservableObject {
             case "succeeded": return .succeeded(message: nil, sessionID: nil)
             case "failed":    return .failed(reason: reason ?? "Unknown error")
             case "conflict":  return .conflict
-            case "unsupported": return .unsupported
+            case "unsupported": return .unsupported(reason: reason)
             default:          return nil
             }
         }
@@ -188,7 +194,19 @@ final class ArtifactStore: ObservableObject {
     ) async {
         guard let artifact = artifacts[artifactID],
               let client else {
-            intentStates[slotKey(artifactID, bindingID, entryKey)] = .unsupported
+            // Both of these are LOCAL failures — an artifact the store never
+            // adopted, or no gateway connection at all — yet they surface the
+            // same "not available on the connected harness" copy as a genuine
+            // harness verdict. Say which it was, or the user is left auditing a
+            // server that was never asked.
+            let why = artifacts[artifactID] == nil
+                ? "This artifact isn't in the local store, so nothing was sent."
+                : "Not connected to a gateway — nothing was sent."
+            log.notice("""
+            artifact intent \(bindingID, privacy: .public) not dispatched: \
+            \(self.artifacts[artifactID] == nil ? "artifact \(artifactID) is not in the store" : "no gateway client", privacy: .public)
+            """)
+            intentStates[slotKey(artifactID, bindingID, entryKey)] = .unsupported(reason: why)
             return
         }
         let slot = slotKey(artifactID, bindingID, entryKey)
@@ -209,10 +227,19 @@ final class ArtifactStore: ObservableObject {
                 entityRef: entryKey,
                 idempotencyKey: ikey
             ) else {
-                intentStates[slot] = .unsupported
+                // nil means JSON-RPC -32601: this gateway has no
+                // artifact.action.invoke method at all — every intent on every
+                // artifact is dead, not just this binding.
+                log.notice("""
+                artifact intent \(bindingID, privacy: .public) not dispatched: gateway does not implement \
+                artifact.action.invoke (method not found)
+                """)
+                intentStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.action.invoke method — it's too old for intents."
+                )
                 return
             }
-            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+            applyInvokeResult(result, slot: slot, artifactID: artifactID, bindingID: bindingID)
         } catch {
             intentStates[slot] = .failed(reason: error.localizedDescription)
         }
@@ -237,10 +264,12 @@ final class ArtifactStore: ObservableObject {
                 artifactID: artifactID,
                 challenge: challenge
             ) else {
-                intentStates[slot] = .unsupported
+                intentStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.action.confirm method."
+                )
                 return
             }
-            applyInvokeResult(result, slot: slot, artifactID: artifactID)
+            applyInvokeResult(result, slot: slot, artifactID: artifactID, bindingID: bindingID)
         } catch {
             intentStates[slot] = .failed(reason: error.localizedDescription)
         }
@@ -301,7 +330,7 @@ final class ArtifactStore: ObservableObject {
     }
 
     private func applyInvokeResult(
-        _ result: ArtifactActionInvokeResult, slot: String, artifactID: String
+        _ result: ArtifactActionInvokeResult, slot: String, artifactID: String, bindingID: String = ""
     ) {
         switch result.outcome {
         case .needsConfirmation(let challenge, let prompt):
@@ -320,7 +349,18 @@ final class ArtifactStore: ObservableObject {
             // with the updated revision.
             refreshArtifact(id: artifactID)
         case .unsupported:
-            intentStates[slot] = .unsupported
+            // The round trip SUCCEEDED and the gateway resolved the binding
+            // against the pinned revision — it just has no handler registered
+            // for the intent this artifact declares. Nothing client-side can
+            // fix that, so name it as the gateway's verdict rather than letting
+            // it read like the same local failure as the guards above.
+            log.notice("""
+            artifact intent \(bindingID, privacy: .public) on \(artifactID, privacy: .public) dispatched \
+            successfully; gateway reported outcome=unsupported (no registered handler for this binding)
+            """)
+            intentStates[slot] = .unsupported(
+                reason: "The gateway received this and has no handler registered for “\(bindingID)”."
+            )
         }
     }
 
