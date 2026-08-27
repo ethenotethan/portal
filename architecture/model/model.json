@@ -135,7 +135,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6815
+      "line_count": 6814
     },
     {
       "declaration_count": 147,
@@ -5049,7 +5049,7 @@
     "assigned_files": 336,
     "declarations": 994,
     "swift_files": 336,
-    "swift_lines": 98055,
+    "swift_lines": 98054,
     "unassigned_files": []
   },
   "layers": [
@@ -5081,6 +5081,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "3614c12ad0d709184d7ab964f2ac3687a997fe18f2042b6c9eb61dd52da59542",
+  "source_tree_sha256": "69152a9401ffb72fae9a9ae0710976f1925a54389d22ebc7d60bcb76dfb31a31",
   "title": "Portal Architecture"
 }

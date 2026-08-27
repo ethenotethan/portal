@@ -943,7 +943,6 @@ struct ChatView: View {
                         .padding(.top, 8)
                         .padding(.bottom, chatBottomContentPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
                     }
                     .alignmentGuide(.leading) { _ in 0 }
                     .alignmentGuide(.top) { _ in 0 }
