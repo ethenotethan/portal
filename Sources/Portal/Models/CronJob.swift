@@ -32,4 +32,11 @@ struct CronJob: Identifiable, Equatable, Hashable {
     static func == (lhs: CronJob, rhs: CronJob) -> Bool {
         lhs.id == rhs.id
     }
+
+    internal func hash(into hasher: inout Hasher) {
+        // Equality is identity-based so refreshed wire fields still represent
+        // the same job. Hashing must use that exact identity too: Set and
+        // Dictionary require equal values to produce equal hashes.
+        hasher.combine(id)
+    }
 }
