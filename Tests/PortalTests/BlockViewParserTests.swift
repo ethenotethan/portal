@@ -196,6 +196,11 @@ struct StatTileSpecTests {
     }
 }
 
+// `NetworkGraphView.looksLikeMermaid` is a static on a SwiftUI `View`, whose
+// members inherit main-actor isolation from the protocol, so a nonisolated test
+// body warns on every call. Everything here is a pure function over a string, so
+// running the suite on the main actor costs nothing.
+@MainActor
 @Suite("Network Graph Spec")
 struct NetworkGraphSpecTests {
 

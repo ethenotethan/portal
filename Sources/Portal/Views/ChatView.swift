@@ -1737,54 +1737,7 @@ struct ChatInputBar: View {
     #if os(macOS)
     private func handlePaste(providers: [NSItemProvider]) {
         for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let data = item as? Data {
-                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let nsImage = item as? NSImage,
-                              let tiffData = nsImage.tiffRepresentation,
-                              let bitmapRep = NSBitmapImageRep(data: tiffData),
-                              let pngData = bitmapRep.representation(using: .png, properties: [:]) {
-                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                            if let url = item as? URL {
-                                let cachedPath = Self.copyToCache(url: url)
-                                guard !cachedPath.isEmpty else { return }
-                                Task { @MainActor in
-                                    chatViewModel.addAttachment(path: cachedPath)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        // Accept any file type — documents are extracted/uploaded
-                        // by ChatViewModel.ingestAttachment, not just images.
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                }
-            }
+            _ = ingest(provider: provider)
         }
     }
     #endif
@@ -1792,64 +1745,99 @@ struct ChatInputBar: View {
     // MARK: - Drop Handler
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        var handled = false
-        for provider in providers {
-            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                handled = true
-                provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    } else if let data = item as? Data {
-                        let cachedPath = Self.saveImageDataToCache(data: data, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                    #if os(macOS)
-                    if let nsImage = item as? NSImage,
-                       let tiffData = nsImage.tiffRepresentation,
-                       let bitmapRep = NSBitmapImageRep(data: tiffData),
-                       let pngData = bitmapRep.representation(using: .png, properties: [:]) {
-                        let cachedPath = Self.saveImageDataToCache(data: pngData, ext: "png")
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                    #endif
-                    if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                            if let url = item as? URL {
-                                let cachedPath = Self.copyToCache(url: url)
-                                guard !cachedPath.isEmpty else { return }
-                                Task { @MainActor in
-                                    chatViewModel.addAttachment(path: cachedPath)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                handled = true
-                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    if let url = item as? URL {
-                        // Accept any dropped file type — documents are handled
-                        // downstream, not just images.
-                        let cachedPath = Self.copyToCache(url: url)
-                        guard !cachedPath.isEmpty else { return }
-                        Task { @MainActor in
-                            chatViewModel.addAttachment(path: cachedPath)
-                        }
-                    }
-                }
+        // `map` every provider first, then fold. `ingest` has the side effect
+        // that IS the drop, so this must not short-circuit — `contains(where:)`
+        // or `handled || ingest(...)` would stop at the first accepted provider
+        // and silently discard the rest of a multi-file drop.
+        providers.map { ingest(provider: $0) }.contains(true)
+    }
+
+    // MARK: - Attachment Ingest
+    //
+    // Named for the attachment rather than for `NSItemProvider`, and worth
+    // keeping that way: scripts/build_architecture.py scans raw file text for
+    // bare capitalized type names, comments included, so spelling the second
+    // half of `NSItemProvider` as a word of its own anywhere in this file
+    // fabricates a chat-ui → domain-models reference edge against the
+    // like-named type in Models/ModelCatalog.swift.
+
+    /// Take one dragged or pasted provider into the attachment cache, reporting
+    /// whether it offered anything we know how to accept — which is what
+    /// `.onDrop` hands back to SwiftUI.
+    ///
+    /// Both type identifiers are resolved here, synchronously on the main actor,
+    /// and exactly one load is issued. Two properties of that shape matter:
+    ///
+    /// * **Nothing is nested.** Paste and drop each used to run the
+    ///   `public.file-url` check *inside* the `public.image` completion handler.
+    ///   That handler is `@Sendable` and arrives on an arbitrary queue, so
+    ///   reaching back for the non-Sendable `provider` from inside it was a
+    ///   cross-domain transfer the compiler was right to flag — the repo's last
+    ///   two `SendableClosureCaptures` warnings. Passing only the resolved
+    ///   identifier, a `String`, removes the capture by construction instead of
+    ///   suppressing it.
+    /// * **The branches are mutually exclusive.** The drop path's nested check
+    ///   was a plain `if`, not the `else if` the paste path used, so dropping an
+    ///   image *file* loaded it twice and added two attachments.
+    ///
+    /// `public.file-url` is checked first. A provider advertising it has a real
+    /// file on disk, and copying that file is what both old branches ultimately
+    /// did anyway — a `public.image` load returns a `URL` for a dropped file.
+    /// Going straight to it keeps the original bytes and extension rather than
+    /// possibly re-encoding to PNG through `NSImage`. Browser drags are
+    /// unaffected: they carry `public.url`, which does not conform to
+    /// `public.file-url`, so they still take the image path.
+    private func ingest(provider: NSItemProvider) -> Bool {
+        let typeIdentifier: String
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            typeIdentifier = UTType.fileURL.identifier
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            typeIdentifier = UTType.image.identifier
+        } else {
+            return false
+        }
+        provider.loadItem(forTypeIdentifier: typeIdentifier, options: nil) { item, _ in
+            guard let cachedPath = Self.cachedPath(forLoadedItem: item) else { return }
+            Task { @MainActor in
+                chatViewModel.addAttachment(path: cachedPath)
             }
         }
-        return handled
+        return true
+    }
+
+    /// Reduce an item handed back by `loadItem` to a path in the images cache,
+    /// or nil if it carried nothing usable.
+    ///
+    /// `nonisolated` for the same reason as the cache helpers below: this runs
+    /// on whatever queue the provider calls back on.
+    nonisolated private static func cachedPath(forLoadedItem item: (any NSSecureCoding)?) -> String? {
+        let cachedPath: String
+        if let url = item as? URL {
+            // Any file type is accepted — documents are extracted and uploaded
+            // by ChatViewModel.ingestAttachment, not just images.
+            cachedPath = copyToCache(url: url)
+        } else if let data = item as? Data {
+            cachedPath = saveImageDataToCache(data: data, ext: "png")
+        } else if let pngData = pngData(forLoadedItem: item) {
+            cachedPath = saveImageDataToCache(data: pngData, ext: "png")
+        } else {
+            return nil
+        }
+        return cachedPath.isEmpty ? nil : cachedPath
+    }
+
+    /// PNG bytes for an in-memory image item — a pasted screenshot, say, which
+    /// arrives as an `NSImage` with no file behind it. Always nil off macOS,
+    /// where `NSImage` does not exist.
+    nonisolated private static func pngData(forLoadedItem item: (any NSSecureCoding)?) -> Data? {
+        #if os(macOS)
+        guard let nsImage = item as? NSImage,
+              let tiffData = nsImage.tiffRepresentation,
+              let bitmapRep = NSBitmapImageRep(data: tiffData) else { return nil }
+        return bitmapRep.representation(using: .png, properties: [:])
+        #else
+        return nil
+        #endif
     }
 
     // MARK: - Cache Helpers
