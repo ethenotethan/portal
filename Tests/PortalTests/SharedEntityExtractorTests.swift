@@ -45,6 +45,21 @@ internal struct SharedEntityExtractorTests {
         #expect(host?.nodeIDs.count == 2)
     }
 
+    @Test("entity identity and presentation reflect its kind and label")
+    internal func identityAndPresentation() {
+        let entity = SharedEntity(kind: .k8sPod, label: "API-Server", nodeIDs: ["t1", "t2"])
+
+        #expect(entity.id == "K8s pod:api-server")
+        #expect(entity.displayLabel == "K8s pod · API-Server")
+        #expect(SharedEntity.Kind.k8sPod.icon == "shippingbox")
+        #expect(SharedEntity.Kind.k8sDeployment.icon == "shippingbox")
+        #expect(SharedEntity.Kind.container.icon == "shippingbox")
+        #expect(SharedEntity.Kind.k8sService.icon == "network")
+        #expect(SharedEntity.Kind.url.icon == "globe")
+        #expect(SharedEntity.Kind.host.icon == "globe")
+        #expect(SharedEntity.Kind.dbTable.icon == "cylinder")
+    }
+
     @Test("distinct resources are distinct entities")
     internal func distinctResources() {
         let entities = SharedEntityExtractor.extract(from: [

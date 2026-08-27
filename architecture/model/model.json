@@ -36,7 +36,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4369
+      "line_count": 4385
     },
     {
       "declaration_count": 76,
@@ -137,10 +137,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6940
+      "line_count": 6946
     },
     {
-      "declaration_count": 145,
+      "declaration_count": 147,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -174,6 +174,8 @@
         "CronRunListPopover",
         "CronRunMetrics",
         "CronSearchBar",
+        "CronServiceHealthBadge",
+        "CronServiceHealthDetails",
         "CronSessionNavigator",
         "CronSessionNavigatorKey",
         "CronSessionView",
@@ -290,7 +292,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 52,
+      "file_count": 53,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -307,6 +309,7 @@
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronNodeGlyphShape.swift",
         "Sources/Portal/Views/CronSearchBar.swift",
+        "Sources/Portal/Views/CronServiceHealthView.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/CronSessionView.swift",
         "Sources/Portal/Views/FeedView.swift",
@@ -348,7 +351,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 17572,
+      "line_count": 17697,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -439,7 +442,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5237
+      "line_count": 5242
     },
     {
       "declaration_count": 113,
@@ -599,7 +602,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11247
+      "line_count": 11250
     },
     {
       "declaration_count": 57,
@@ -714,7 +717,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4230
+      "line_count": 4260
     },
     {
       "declaration_count": 25,
@@ -766,7 +769,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4031,
+      "line_count": 4061,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -909,7 +912,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4748
+      "line_count": 4721
     },
     {
       "declaration_count": 13,
@@ -1108,10 +1111,10 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6551
+      "line_count": 6555
     },
     {
-      "declaration_count": 232,
+      "declaration_count": 233,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1171,6 +1174,7 @@
         "CronNodeGrouping",
         "CronRunHistoryStore",
         "CronRunRecord",
+        "CronServiceHealth",
         "Curriculum",
         "CurriculumModule",
         "CurriculumResponse",
@@ -1348,7 +1352,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 70,
+      "file_count": 71,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1395,6 +1399,7 @@
         "Sources/Portal/Models/Persona.swift",
         "Sources/Portal/Models/PersonaImage.swift",
         "Sources/Portal/Models/PromptBreakdown.swift",
+        "Sources/Portal/Models/PromptCandidateSessions.swift",
         "Sources/Portal/Models/Quiz/FlashcardModels.swift",
         "Sources/Portal/Models/Quiz/QuizModels.swift",
         "Sources/Portal/Models/ResponseStyle.swift",
@@ -1424,7 +1429,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 12044,
+      "line_count": 12159,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -1622,7 +1627,7 @@
       "id": "utilities",
       "label": "Utilities",
       "layer": "foundation",
-      "line_count": 2378
+      "line_count": 2381
     },
     {
       "declaration_count": 0,
@@ -3168,6 +3173,7 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/GatewayRestartOutcome.swift",
         "Sources/Portal/Models/Learning/LearningWire.swift",
@@ -3187,7 +3193,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -3369,7 +3375,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 60 declaration(s) owned by domain-models.",
+      "description": "References 58 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
@@ -3392,16 +3398,16 @@
         "ArtifactRevision",
         "ChatMessage",
         "CronGraph",
-        "CronGraphEdge",
-        "CronGraphNode",
         "CronJob",
         "CronRunHistoryStore",
         "CronRunRecord",
-        "Curriculum"
+        "Curriculum",
+        "Direction",
+        "DroppedEventReason"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 72
+      "weight": 70
     },
     {
       "authority": "observed",
@@ -3749,7 +3755,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 43 declaration(s) owned by domain-models.",
+      "description": "References 44 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -3781,7 +3787,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 56
+      "weight": 57
     },
     {
       "authority": "observed",
@@ -3881,7 +3887,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 51
+      "weight": 52
     },
     {
       "authority": "observed",
@@ -3921,6 +3927,7 @@
       "description": "References 4 declaration(s) owned by chat-ui.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronSessionView.swift",
@@ -3930,8 +3937,7 @@
         "Sources/Portal/Views/Learning/LearningDashboardView.swift",
         "Sources/Portal/Views/SessionExportMenu.swift",
         "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
-        "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
-        "Sources/Portal/Views/SkillsView.swift"
+        "Sources/Portal/Views/Skills/SkillsEditorPanel.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -3942,11 +3948,11 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
-      "description": "References 48 declaration(s) owned by domain-models.",
+      "description": "References 49 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -3978,7 +3984,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 99
+      "weight": 101
     },
     {
       "authority": "observed",
@@ -5035,10 +5041,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 335,
-    "declarations": 995,
-    "swift_files": 335,
-    "swift_lines": 98028,
+    "assigned_files": 337,
+    "declarations": 998,
+    "swift_files": 337,
+    "swift_lines": 98338,
     "unassigned_files": []
   },
   "layers": [
@@ -5070,6 +5076,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "06220f1172f3539a4c832586f55d63d26354ecb0f69eed8f359df09fb93d140d",
+  "source_tree_sha256": "7b8961151de8d4ff041c88a4725d182cc7b288e6d98cceff35fc0ad56b43c974",
   "title": "Portal Architecture"
 }

@@ -1115,10 +1115,13 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// The prompt is appended to the agent's system prompt on every API call
     /// but is NOT persisted to trajectories. Setting empty string clears it.
     func setEphemeralPrompt(sessionID: String, prompt: String) async throws {
+        // Bounded: this runs inline in session creation, so an unanswered
+        // handler parks the create itself — spinner up forever, the
+        // "__creating__" sentinel never released (#178).
         let response = try await call("session.set_prompt", params: [
             "session_id": AnyCodable(sessionID),
             "prompt": AnyCodable(prompt),
-        ])
+        ], timeout: GatewayClient.hotPathTimeout)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1963,7 +1966,9 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         if let sid = sessionID {
             params["session_id"] = AnyCodable(sid)
         }
-        let response = try await call("config.set", params: params)
+        // Bounded for the same reason as `session.set_prompt`: new-session
+        // creation awaits this to route the session to the default model.
+        let response = try await call("config.set", params: params, timeout: GatewayClient.hotPathTimeout)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }

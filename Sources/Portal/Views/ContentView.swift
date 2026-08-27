@@ -1600,6 +1600,12 @@ internal struct ContentView: View {
         guard !isCreatingSession else { return }
         isCreatingSession = true
         sessionCreationError = nil
+        // The status bar falls back to `chatViewModel.error`, so a failure left
+        // over from the PREVIOUS session (a dropped submit, a stale reconnect)
+        // kept reading as this create's failure — a successful create still
+        // ended on "Session connection lost. Please try again." with a Retry
+        // button that made yet another session.
+        chatViewModel.error = nil
         defer { isCreatingSession = false }
 
         if let entry = backendEntry, entry.kind.isSessionScoped {

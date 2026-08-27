@@ -77,6 +77,26 @@ internal struct CronCategoryTests {
         #expect(!CronCategory.isUngrouped(job("infra/db-backup")))
     }
 
+    @Test("prompt truncation reflects the preview until a full prompt is fetched")
+    internal func promptTruncationLifecycle() {
+        var subject = job("digest")
+        #expect(!subject.isPromptTruncated)
+
+        subject.promptPreview = "A complete preview"
+        #expect(!subject.isPromptTruncated)
+
+        subject.promptPreview = "Server-truncated..."
+        subject.prompt = subject.promptPreview
+        #expect(subject.isPromptTruncated)
+
+        subject.promptPreview = "Server-truncated…"
+        subject.prompt = subject.promptPreview
+        #expect(subject.isPromptTruncated)
+
+        subject.prompt = "Server-truncated preview with the full prompt restored"
+        #expect(!subject.isPromptTruncated)
+    }
+
     // MARK: - Normalizing a typed name (rename == recategorize)
 
     /// The rename field is a path editor, so what the user types is normalized
@@ -789,6 +809,21 @@ internal struct CronFilterStateTests {
 
         state.expandAll(in: grouping)
         #expect(state.expandedCategories == ["life", "life/training", "work"])
+    }
+
+    @Test("time windows keep only jobs that ran within the selected window")
+    internal func timeWindowsFilterLastRuns() {
+        let jobs = [
+            job("recent", lastRunAt: .distantFuture),
+            job("old", lastRunAt: .distantPast),
+            job("never"),
+        ]
+        let state = CronFilterState()
+
+        for window in CronFilterState.TimeWindow.presets.dropFirst() {
+            state.timeWindow = window
+            #expect(state.apply(to: jobs).map(\.name) == ["recent"])
+        }
     }
 
     @Test("time-window presets retain their UI order and labels")

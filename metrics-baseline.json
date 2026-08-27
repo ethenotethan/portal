@@ -2,268 +2,34 @@
   "_comment": "Metric ratchet baseline. See scripts/check-metrics-ratchet.py. Each metric is compared per-key against the base branch (floor: never regress) and against PR-added lines (patch: new code stays clean). Regenerate only to record improvement (make metrics-baseline).",
   "warnings": {
     "counts": {
-      "ActorIsolatedCall": 18,
       "SendableClosureCaptures": 2,
-      "SendingClosureRisksDataRace": 2,
-      "msg:application-of-result-builder-x-disabled": 1,
-      "msg:converting-non-sendable-function-value-to": 1,
-      "msg:main-actor-isolated-property-x-can": 16,
-      "msg:stored-property-x-of-x-conforming": 1,
-      "msg:x-on-conformance-to-x-has": 1
+      "msg:passing-closure-as-a-x-parameter": 2
     },
-    "total": 42,
+    "total": 4,
     "sites": [
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 96,
-        "col": 53,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 97,
-        "col": 54,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 98,
-        "col": 98,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 98,
-        "col": 118,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 98,
-        "col": 143,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/HermesNativeApp.swift",
-        "line": 99,
-        "col": 19,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
       {
         "file": "Sources/Portal/Services/ReasoningSummarizer.swift",
         "line": 637,
         "col": 43,
-        "category": "SendingClosureRisksDataRace"
+        "category": "msg:passing-closure-as-a-x-parameter"
       },
       {
         "file": "Sources/Portal/Services/SkillSummaryService.swift",
         "line": 223,
         "col": 43,
-        "category": "SendingClosureRisksDataRace"
-      },
-      {
-        "file": "Sources/Portal/Services/TTSService.swift",
-        "line": 84,
-        "col": 14,
-        "category": "msg:stored-property-x-of-x-conforming"
-      },
-      {
-        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
-        "line": 168,
-        "col": 43,
-        "category": "msg:converting-non-sendable-function-value-to"
-      },
-      {
-        "file": "Sources/Portal/Utilities/MacInputTextField.swift",
-        "line": 179,
-        "col": 17,
-        "category": "msg:x-on-conformance-to-x-has"
-      },
-      {
-        "file": "Sources/Portal/Views/ActivityInboxView.swift",
-        "line": 373,
-        "col": 18,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ActivityInboxView.swift",
-        "line": 374,
-        "col": 12,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/ActivityInboxView.swift",
-        "line": 374,
-        "col": 32,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ActivityInboxView.swift",
-        "line": 375,
-        "col": 19,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ArtifactExporter.swift",
-        "line": 292,
-        "col": 13,
-        "category": "msg:application-of-result-builder-x-disabled"
-      },
-      {
-        "file": "Sources/Portal/Views/Blocks/MapExportRenderer.swift",
-        "line": 56,
-        "col": 47,
-        "category": "ActorIsolatedCall"
+        "category": "msg:passing-closure-as-a-x-parameter"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1839,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1845,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1854,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1859,
+        "line": 1897,
         "col": 31,
         "category": "SendableClosureCaptures"
       },
       {
         "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1862,
-        "col": 55,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1876,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1897,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1903,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1914,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1921,
+        "line": 1959,
         "col": 24,
         "category": "SendableClosureCaptures"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1924,
-        "col": 55,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/ChatView.swift",
-        "line": 1939,
-        "col": 47,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/FeedView.swift",
-        "line": 740,
-        "col": 22,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 54,
-        "col": 19,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 55,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 57,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 61,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 62,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 63,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 71,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 81,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 92,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 96,
-        "col": 13,
-        "category": "msg:main-actor-isolated-property-x-can"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 99,
-        "col": 17,
-        "category": "ActorIsolatedCall"
-      },
-      {
-        "file": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
-        "line": 100,
-        "col": 13,
-        "category": "ActorIsolatedCall"
       }
     ]
   },

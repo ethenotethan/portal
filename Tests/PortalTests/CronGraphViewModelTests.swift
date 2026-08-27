@@ -344,6 +344,40 @@ internal struct CronGraphViewModelTests {
 }
 
 @MainActor
+@Suite("Cron run history")
+internal struct CronRunHistoryTests {
+    @Test("average interval requires two runs")
+    internal func averageIntervalRequiresTwoRuns() {
+        let store = CronRunHistoryStore(testing: true)
+        let firstRun = Date(timeIntervalSince1970: 1_700_000_000)
+
+        #expect(store.averageInterval(for: "daily-digest") == nil)
+        store.seedFromJobs([job(lastRunAt: firstRun)])
+        #expect(store.averageInterval(for: "daily-digest") == nil)
+
+        store.seedFromJobs([job(lastRunAt: firstRun.addingTimeInterval(90))])
+        #expect(store.averageInterval(for: "daily-digest") == 90)
+    }
+
+    private func job(lastRunAt: Date) -> CronJob {
+        CronJob(
+            id: "daily-digest",
+            name: "Daily digest",
+            schedule: "every 1m",
+            nextRunAt: nil,
+            lastRunAt: lastRunAt,
+            lastStatus: "ok",
+            enabled: true,
+            state: "scheduled",
+            deliver: "local",
+            promptPreview: nil,
+            prompt: nil,
+            lastError: nil
+        )
+    }
+}
+
+@MainActor
 @Suite("Cron session navigation")
 internal struct CronSessionNavigatorTests {
     @Test("the nearest cron session inside the correlation window wins")

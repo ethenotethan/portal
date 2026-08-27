@@ -1988,8 +1988,14 @@ struct ChatInputBar: View {
 
     // MARK: - Cache Helpers
 
+    // These three are pure file I/O — no main-actor state is touched, and they
+    // run inside NSItemProvider load callbacks, which arrive on an arbitrary
+    // queue. `nonisolated` states that plainly; without it they inherit
+    // ChatInputBar's main-actor isolation and every call from those callbacks
+    // is a main-actor-call-from-nonisolated-context warning.
+
     /// Directory for cached user-sent images.
-    private static var gatewayImagesDir: String {
+    nonisolated private static var gatewayImagesDir: String {
         let home = NSHomeDirectory()
         let dir = "\(home)/.hermes/images"
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -1997,7 +2003,7 @@ struct ChatInputBar: View {
     }
 
     /// Copy a file URL into the hermes images cache, returning the cached path.
-    private static func copyToCache(url: URL) -> String {
+    nonisolated private static func copyToCache(url: URL) -> String {
         let dir = gatewayImagesDir
         let ext = url.pathExtension.isEmpty ? "png" : url.pathExtension
         let fileName = "\(UUID().uuidString).\(ext)"
@@ -2012,7 +2018,7 @@ struct ChatInputBar: View {
         }
     }
 
-    private static func saveImageDataToCache(data: Data, ext: String) -> String {
+    nonisolated private static func saveImageDataToCache(data: Data, ext: String) -> String {
         let dir = gatewayImagesDir
         let fileName = "\(UUID().uuidString).\(ext)"
         let dest = "\(dir)/\(fileName)"

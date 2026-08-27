@@ -160,7 +160,9 @@ final class CronRunHistoryStore: ObservableObject {
 
     func averageInterval(for jobID: String) -> TimeInterval? {
         let jobRecords = records(for: jobID)
-        guard let first = jobRecords.first, let last = jobRecords.last else { return nil }
+        guard jobRecords.count >= 2,
+              let first = jobRecords.first,
+              let last = jobRecords.last else { return nil }
         let totalSpan = last.firedAt.timeIntervalSince(first.firedAt)
         return totalSpan / Double(jobRecords.count - 1)
     }
