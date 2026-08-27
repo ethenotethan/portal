@@ -257,6 +257,22 @@ struct NetworkGraphSpecTests {
         #expect((xs.max()! - xs.min()!) > 50)
     }
 
+    @Test("Single-node layout centers the node in intrinsic and fitted canvases")
+    internal func singleNodeLayout() throws {
+        let spec = try #require(NetworkGraphSpec.parse(#"{"nodes": [{"id": "only"}]}"#))
+
+        let intrinsic = NetworkGraphLayout.layout(spec, width: 600)
+        #expect(intrinsic.size == CGSize(width: 600, height: 180))
+        #expect(intrinsic.placed.map(\.id) == ["only"])
+        #expect(intrinsic.placed.first?.position == CGPoint(x: 300, y: 90))
+        #expect(intrinsic.positions["only"] == CGPoint(x: 300, y: 90))
+
+        let fitted = NetworkGraphLayout.layout(spec, width: 400, fitHeight: 240)
+        #expect(fitted.size == CGSize(width: 400, height: 240))
+        #expect(fitted.placed.first?.position == CGPoint(x: 200, y: 120))
+        #expect(fitted.positions["only"] == CGPoint(x: 200, y: 120))
+    }
+
     @Test("Mermaid syntax in a graph fence is detected for rerouting")
     func mermaidSniff() {
         #expect(NetworkGraphView.looksLikeMermaid("graph TD\n  A --> B"))
