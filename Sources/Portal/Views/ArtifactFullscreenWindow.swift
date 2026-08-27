@@ -601,8 +601,8 @@ internal final class ArtifactFullscreenWindowController: NSObject, NSWindowDeleg
             text = reason
         case .conflict:
             text = "Artifact changed. Refreshed — try again."
-        case .unsupported:
-            text = "This intent is not available on the connected harness."
+        case .unsupported(let reason):
+            text = reason ?? "This intent is not available on the connected harness."
         }
 
         let label = NSTextField(labelWithString: text)

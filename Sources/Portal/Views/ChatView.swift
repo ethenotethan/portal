@@ -234,9 +234,18 @@ struct ChatView: View {
                 .equatable()
         case .living(let kind, let artifactID):
             // Live content when the store has it; actions enabled — the
-            // sheet hosts the live model, not a transcript snapshot.
-            let content = ArtifactStore.shared.artifacts[artifactID]?.content ?? artifact.content
-            ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
+            // sheet hosts the live model, not a transcript snapshot. The action
+            // manifest travels with the id: an html artifact declares its
+            // intents on the record rather than in its content, so an id
+            // without them injects the bridge and then resolves every click
+            // against nothing.
+            let live = ArtifactStore.shared.artifacts[artifactID]
+            ArtifactKindRenderer(
+                kind: kind,
+                content: live?.content ?? artifact.content,
+                actionableArtifactID: artifactID,
+                topLevelActions: live?.topLevelActions ?? []
+            )
         }
     }
     #endif

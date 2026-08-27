@@ -80,7 +80,7 @@ internal struct HTMLArtifactIntentBridgeTests {
             (.succeeded(message: "Done", sessionID: "session-1"), .succeeded),
             (.failed(reason: "Unavailable"), .failed),
             (.conflict, .conflict),
-            (.unsupported, .unsupported),
+            (.unsupported(reason: nil), .unsupported),
         ]
 
         for (state, expectedToken) in cases {

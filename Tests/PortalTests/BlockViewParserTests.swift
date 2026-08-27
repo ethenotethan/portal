@@ -350,9 +350,21 @@ struct LivingArtifactTests {
     @Test("Store upsert merges by id and preserves titles")
     @MainActor
     func storeUpsert() {
-        let store = ArtifactStore.shared
+        // Isolated store, NOT `.shared`. This test used to drive the production
+        // singleton, and `persistToDisk()` has no test-process guard (unlike
+        // `schedulePush` and `remove`'s delete) — so every run wrote "Test Map"
+        // into ~/Library/Application Support/portal/artifacts.json under a fresh
+        // random id. The deferred `remove` was meant to clean up, but each
+        // persist is a detached background task holding its own snapshot, so the
+        // upsert's write could land after the remove's and strand the artifact
+        // permanently. Six had accumulated in a real store and were showing up
+        // in the app's artifact list.
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artifact-upsert-tests-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = ArtifactStore(fileURL: dir.appendingPathComponent("artifacts.json"))
         let testID = "test-artifact-\(UUID().uuidString.prefix(8))"
-        defer { store.remove(id: testID) }
+        defer { try? FileManager.default.removeItem(at: dir) }
 
         store.upsert(id: testID, kind: "map", title: "Test Map",
                      content: "{\"markers\": [{\"lat\": 1, \"lon\": 2, \"label\": \"a\"}]}")

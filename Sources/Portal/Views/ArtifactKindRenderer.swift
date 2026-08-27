@@ -1,4 +1,7 @@
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "ArtifactIntents")
 
 // The one place that decides how an artifact of any kind is drawn, and — for
 // interactive HTML worlds — whether the host captures the mouse for it. Lifted
@@ -216,8 +219,25 @@ private struct ArtifactHTMLIntentView: View {
     }
 
     private func handleRequest(_ request: HTMLArtifactIntentRequest) {
-        guard capabilitiesStore.capabilities.supportsArtifactActions,
-              HTMLArtifactIntentBridge.resolve(request, actions: actions) != nil else {
+        // Both refusals below are correct, and both used to be invisible: the
+        // page has already swallowed the click by then, so a world with a dead
+        // control looked identical to a world whose author forgot the markup.
+        // Say which gate closed — it's the difference between "your gateway is
+        // too old", "the artifact declares no such intent", and a host bug.
+        guard capabilitiesStore.capabilities.supportsArtifactActions else {
+            log.notice("""
+            artifact intent dropped: gateway advertises no artifact.action surface \
+            (binding \(request.bindingID, privacy: .public), artifact \(artifactID, privacy: .public))
+            """)
+            return
+        }
+        guard HTMLArtifactIntentBridge.resolve(request, actions: actions) != nil else {
+            log.notice("""
+            artifact intent dropped: binding \(request.bindingID, privacy: .public) matches no declared \
+            intent on artifact \(artifactID, privacy: .public) \
+            (\(actions.count, privacy: .public) action(s) declared, \
+            \(actions.filter { $0.kind == .intent }.count, privacy: .public) of them intents)
+            """)
             return
         }
         if case .pending = activeState { return }
@@ -280,9 +300,13 @@ private struct ArtifactHTMLIntentView: View {
             case .conflict:
                 Image(systemName: "arrow.clockwise.circle.fill").foregroundStyle(Theme.warning)
                 Text("Artifact changed. Refreshed — try again.")
-            case .unsupported:
+            case .unsupported(let reason):
                 Image(systemName: "slash.circle").foregroundStyle(Theme.tertiary)
-                Text("This intent is not available on the connected harness.")
+                // Name the actual gate. "Not available on the connected harness"
+                // was the same sentence whether the request reached the gateway
+                // or was never sent, which sent people auditing a server that
+                // had never been asked.
+                Text(reason ?? "This intent is not available on the connected harness.")
             }
             Spacer()
             Button(action: clearActiveState) {

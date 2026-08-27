@@ -159,8 +159,20 @@ struct ArtifactPanelView: View {
     private func livingContent(kind: String, artifactID: String) -> some View {
         // Same dispatch as the Artifacts pane (all kinds, incl. dataset/
         // timeline/sankey the old inline switch predated), actions enabled.
-        let content = store.artifacts[artifactID]?.content ?? artifact.content
-        ArtifactKindRenderer(kind: kind, content: content, actionableArtifactID: artifactID)
+        //
+        // `topLevelActions` has to travel WITH the id. An html artifact's action
+        // manifest lives on the record, not in its content, so passing the id
+        // alone injects the intent bridge, captures the click, and then resolves
+        // it against an empty manifest — a world whose every control is dead,
+        // with nothing logged. The panel is the primary way an artifact is
+        // opened from the transcript, so that was most of the surface.
+        let live = store.artifacts[artifactID]
+        ArtifactKindRenderer(
+            kind: kind,
+            content: live?.content ?? artifact.content,
+            actionableArtifactID: artifactID,
+            topLevelActions: live?.topLevelActions ?? []
+        )
     }
 
     private var header: some View {

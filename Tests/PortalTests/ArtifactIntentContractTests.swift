@@ -129,7 +129,7 @@ internal struct ArtifactIntentContractTests {
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "conflict", reason: nil)
                 == .conflict)
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "unsupported", reason: nil)
-                == .unsupported)
+                == .unsupported(reason: nil))
         // Non-terminal / unknown outcomes are not re-displayed.
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "needs_confirmation", reason: nil) == nil)
         #expect(ArtifactStore.IntentInvocationState.from(ledgerOutcome: "running", reason: nil) == nil)

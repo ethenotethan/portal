@@ -138,7 +138,29 @@ private struct ArtifactIntentStoreTests {
         let (store, fake) = makeStore()
         fake.invokeResult = nil
         await store.invokeIntent(artifactID: "issues", bindingID: "archive", entryKey: "ARC-42")
-        #expect(store.intentStates[slot(store)] == .unsupported)
+        // The reason must name the MISSING METHOD, not the binding — -32601 means
+        // no gateway intent surface at all, so pointing at this one handler would
+        // send the reader looking in the wrong place.
+        guard case .unsupported(let reason) = store.intentStates[slot(store)] else {
+            Issue.record("expected unsupported"); return
+        }
+        #expect(reason?.contains("artifact.action.invoke") == true)
+    }
+
+    @Test("A gateway `unsupported` verdict is attributed to the gateway and names the binding")
+    func invokeUnsupportedByGateway() async {
+        let (store, fake) = makeStore()
+        fake.invokeResult = .init(outcome: .unsupported)
+        await store.invokeIntent(artifactID: "issues", bindingID: "archive", entryKey: "ARC-42")
+        // This is the case that reads identically to the three others unless the
+        // copy says so: the round trip SUCCEEDED, so the fix is registering a
+        // handler server-side — not anything in the client or the artifact.
+        guard case .unsupported(let reason) = store.intentStates[slot(store)] else {
+            Issue.record("expected unsupported"); return
+        }
+        #expect(reason?.contains("archive") == true)
+        #expect(reason?.contains("gateway") == true)
+        #expect(fake.invokeCalls.count == 1)  // it really was dispatched
     }
 
     @Test("A thrown error maps to failed with the error's description")
@@ -194,6 +216,12 @@ private struct ArtifactIntentStoreTests {
             id: "issues", kind: "html", title: "Issues", content: "{}",
             updatedAt: Date(timeIntervalSince1970: 0), updatedBy: "test", rev: 1))
         await store.invokeIntent(artifactID: "issues", bindingID: "archive", entryKey: "ARC-42")
-        #expect(store.intentStates[slot(store)] == .unsupported)
+        // Nothing was sent, so the copy must NOT blame the harness — that
+        // conflation is exactly what made this state undebuggable.
+        guard case .unsupported(let reason) = store.intentStates[slot(store)] else {
+            Issue.record("expected unsupported"); return
+        }
+        #expect(reason?.contains("Not connected") == true)
+        #expect(reason?.contains("harness") != true)
     }
 }

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "GatewayCapabilities")
 
 @MainActor
 final class GatewayCapabilitiesStore: ObservableObject {
@@ -22,6 +25,12 @@ final class GatewayCapabilitiesStore: ObservableObject {
 
         let resolved = await client.capabilities()
         capabilities = resolved
+
+        // The negotiated capability set drives whether whole features are even
+        // offered (artifact intents among them), and until now it went nowhere a
+        // human could read — no view surfaces `capabilityNames`. When a feature
+        // silently isn't there, this is the first thing worth checking.
+        log.notice("gateway capabilities resolved: \(resolved.diagnosticSummary, privacy: .public)")
 
         if case .fallback(let reason) = resolved.source {
             lastRefreshError = reason

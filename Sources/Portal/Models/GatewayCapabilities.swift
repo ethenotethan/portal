@@ -47,6 +47,20 @@ struct GatewayCapabilities: Equatable, Sendable {
         })
     }
 
+    /// One-line rendering of the negotiated set for diagnostics.
+    ///
+    /// The capability list gates whole features (artifact intents among them)
+    /// and is displayed by no view, so when a feature silently isn't there this
+    /// is the only way to see why. Kept here, as a pure function of the value,
+    /// rather than interpolated at the log site — the summary is the part worth
+    /// asserting, and a log statement isn't reachable from `swift test`.
+    internal var diagnosticSummary: String {
+        let names = capabilityNames.sorted().joined(separator: ", ")
+        let actions = supportsArtifactActions ? "supported" : "ABSENT"
+        let detail = names.isEmpty ? "none listed" : names
+        return "\(capabilityNames.count) advertised, artifact actions \(actions): \(detail)"
+    }
+
     /// Whether the gateway supports artifact.action.log (ledger query).
     /// Present in gateways shipping §2 of the intents V2 spec; older
     /// gateways return method-not-found so the call is skipped entirely.
