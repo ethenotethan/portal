@@ -125,8 +125,9 @@ internal struct CronChangesetDecodingTests {
         #expect(CronChangesetProvenance.decode(["", "   "]) == .unknown)
         #expect(CronChangesetProvenance.decode(["session/abc/turn-1"]).isRecorded)
         #expect(CronTurnRef(key: "session/abc/turn-1").shortLabel == "turn-1")
-        // A long opaque key is truncated for the chip, not parsed.
-        #expect(CronTurnRef(key: "3F2A9C1B-7D4E-4A0F-9B8C-1D2E3F4A5B6C").shortLabel.count == 13)
+        // A long opaque key is truncated for the chip, not parsed: 12 characters
+        // plus the ellipsis, however unstructured the key it came from.
+        #expect(CronTurnRef(key: "turn-with-a-very-long-opaque-name").shortLabel.count == 13)
     }
 
     @Test("the diff payload decodes both graphs, and tolerates either being absent")

@@ -181,9 +181,15 @@ internal final class CronGraphRevisionStore: ObservableObject {
     private func deferSave() {
         guard !isEphemeral, saveTask == nil else { return }
         saveTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            guard !Task.isCancelled else { return }
-            performSave()
+            do {
+                try await Task.sleep(nanoseconds: 5_000_000_000)
+                performSave()
+            } catch {
+                // The only throw here is cancellation, which means the debounce
+                // was torn down rather than that a write failed.
+            }
+            // Cleared on every path: a lingering non-nil task is exactly what the
+            // `guard` above tests, so leaking one silently stops every later save.
             saveTask = nil
         }
     }

@@ -208,7 +208,7 @@ internal struct CronGraphReviewTests {
         // Every statement in the diff names something that's gone, and the drawer
         // says so rather than showing an untouched graph beside a change list.
         #expect(vm.reviewedChangesNotOnScreen == diff.count)
-        #expect(diff.count > 0)
+        #expect(!diff.isEmpty)
     }
 
     @Test("reviewing an old revision admits the parts of it that no longer exist")
