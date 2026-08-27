@@ -358,12 +358,15 @@
       "semantic": {
         "authority": "synthesized",
         "evidence": [
+          "Sources/Portal/Views/CronGraphCanvas.swift",
           "Sources/Portal/Views/CronInterflowGraphView.swift",
-          "Sources/Portal/Views/CronNodeGlyphShape.swift"
+          "Sources/Portal/Views/CronNodeGlyphShape.swift",
+          "Sources/Portal/Views/CronRevisionTimelineDrawer.swift"
         ],
         "flows": [
-          "CronGraphCanvas consumes CronNodeGlyphShape for node bodies, selection rings, and legend/detail swatches",
-          "CronGraphCanvas.drawHullLabels draws each category folder above its hull; drawLabels asks the view model for each node's display label"
+          "CronGraphCanvas builds ReviewFocus from the view model's reviewed derivations and dims everything that is not part of the review",
+          "CronGraphCanvas consumes CronNodeGlyphShape for node bodies, selection rings, review rings, and legend/detail swatches",
+          "CronInterflowGraphView presents CronRevisionTimelineDrawer when showRevisions, passing the gateway client as the changeset source"
         ],
         "id": "operations-ui",
         "model": "hermes-agent/glm-5.2",
@@ -371,12 +374,16 @@
         "responsibilities": [
           "Draw category hulls and their uppercased folder labels above clustered cron nodes in the interflow canvas",
           "Draw labels with rank-based collision avoidance so overlapping names are dropped instead of painted over each other",
+          "Ghost removed edges back onto the canvas — dashed, struck through, arrowless — along the curve the edge would have had",
           "Present the operations surfaces: sessions, cron, activity, skills, learning, mission control, and the Hermes file browser",
+          "Present the revision drawer beside the canvas, rendering whichever log can answer with its caveat in the header",
+          "Render a reviewed diff on the canvas as a focus: polarity-tinted rings, haloed added edges, ghosted removed edges",
           "Render per-kind node glyphs from one shared CronNodeGlyphShape so the legend key matches the canvas outline",
-          "Resolve node label text through the view model rather than duplicating the strip rule in the canvas"
+          "Resolve node label text through the view model rather than duplicating the strip rule in the canvas",
+          "Show the graph's commitment as a copyable short-hash chip beside the history toggle"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. In the cron interflow canvas (CronGraphCanvas), each category hull draws its folder name uppercased in 9pt bold above the cluster; node labels are resolved through the view model's displayLabel(forKind:label:) instead of restating the strip rule in the view, so a cron inside a hull never repeats the folder the hull already names. Labels are placed with collision avoidance: candidates are ranked (selected anchor, then its neighbors, then the rest), anchor and neighbor labels always draw, and lower-priority labels whose boxes overlap an already-placed one are dropped rather than smeared together; each drawn label sits on a dark rounded plate for legibility over edges. Per-kind node silhouettes live in CronNodeGlyphShape (one Shape shared by canvas node bodies, selection rings, and legend swatches), and hosts containment edges draw dashed with no arrowhead."
+        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
+        "summary": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser. The force-directed cron canvas now lives in CronGraphCanvas, extracted from CronInterflowGraphView with the wiki canvas's interaction model kept whole (NSView mouse interception on macOS, DragGesture on iOS, pinch zoom re-seeded per gesture). A review is drawn as a focus like a selection, reusing the existing dimming: changed nodes get a polarity-tinted ring outside the selection ring (dashed for removed), added edges draw at full strength with a halo, and removed edges are ghosted back along the shared curve — dashed, struck through, arrowless, in the warning tint. CronInterflowGraphView shows the graph's commitment as a copyable short-hash chip beside a history toggle that presents CronRevisionTimelineDrawer, which reads whichever log can answer: gateway-recorded changesets with real times, an actor chip, and the gateway's summary beside — never instead of — the derived statements, or Portal's own observations with the caveat in the header where it changes what every row below means. Which log is showing is one rows(recorded:observed:) decision so the title, caveat, and rows cannot disagree, and footnotes admit what the highlight couldn't reach on the current wiring."
       }
     },
     {
@@ -782,11 +789,15 @@
       "semantic": {
         "authority": "synthesized",
         "evidence": [
+          "Sources/Portal/ViewModels/CronChangesetFeed.swift",
+          "Sources/Portal/ViewModels/CronGraphViewModel+ReviewHighlight.swift",
           "Sources/Portal/ViewModels/CronGraphViewModel.swift"
         ],
         "flows": [
+          "CronRevisionTimelineDrawer asks CronChangesetFeed to load when it opens; feed.fallbackNote drives the header caveat",
           "The canvas asks edgeIsContainment(_:) per edge before stroking, and edgeLegend drives the edge color key",
-          "graph didSet refreshes hulledCategoryFolders from categoryHulls; the canvas asks displayLabel(forKind:label:) per node when drawing labels"
+          "The drawer's rows call toggleReview; the canvas reads reviewedNodePolarities, reviewedAddedLinkIndices, and reviewedRemovedLinks each frame",
+          "graph didSet refreshes hulledCategoryFolders and the digest; the canvas asks displayLabel(forKind:label:) per node when drawing labels"
         ],
         "id": "operations-state",
         "model": "hermes-agent/glm-5.2",
@@ -794,12 +805,16 @@
         "responsibilities": [
           "Cache hulled category folders on graph change so per-frame label drawing avoids walking every node",
           "Classify hosts edges as containment — dashed, arrowless — distinct from reads/writes/feeds dataflow",
+          "Derive the canvas review highlight from the diff's own statements intersected with the on-screen graph, counting what it couldn't reach",
           "Expose category hulls for cron folders with two or more jobs as a visual grouping with stable tints",
+          "Funnel both graph fetch paths through adopt(_:) so the shared revision log cannot grow a hole",
+          "Hold the reviewed diff rather than recomputing it per frame, and key review selection by a row id that serves both logs",
           "Own observable state machines for operations surfaces: sessions, cron, activity, feed, skills, settings, gateway lifecycle, learning, and the file browser",
-          "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise"
+          "Resolve per-node canvas labels: strip the hull's folder when the hull already names it, keep the full name otherwise",
+          "State the gateway's answer honestly: recorded, unsupported, or failed — with stale rows kept on failure"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), the hulled folders are cached in hulledCategoryFolders whenever the published graph changes, and displayLabel(forKind:label:) resolves the canvas text for a node — a cron inside a hull gets its leading folder stripped because the hull already names it, while ungrouped or single-job-folder crons keep their full name. Edge semantics also live here: a hosts edge is containment rather than dataflow (the service runs the resource), so edgeIsContainment(_:) marks it, edgeColor(forType:) gives it the muted service hue instead of the dataflow violet, and edgeLegend lists it after reads/writes/feeds and before the folded Delivers entry."
+        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
+        "summary": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines. CronGraphViewModel drives the interflow graph simulation: categoryHulls groups cron nodes by top-level folder (folders with two or more jobs), hulled folders are cached in hulledCategoryFolders whenever the published graph changes, displayLabel(forKind:label:) resolves canvas text per node, and a hosts edge is classified as containment — edgeIsContainment(_:), the muted service hue in edgeColor(forType:), and its edgeLegend placement. The commitment surface also lives here: digest is recomputed on graph didSet, both fetch paths funnel through a private adopt(_:) so whichever first notices a rewiring records it in the shared CronGraphRevisionStore, and CronGraphDigest.layoutForm replaces topologySignature for the rebuild-or-not decision so a schedule edit cannot scramble a settled layout. Reviewing a revision is a focus like a selection: reviewedRowID is a String so one selection serves both the observed log and gateway-recorded changesets, closing the drawer clears the review with it, and the diff is held rather than recomputed because the canvas redraws at 30 Hz. CronChangesetFeed keeps the honest account of asking the gateway — unsupported (method-not-found) never collapses into failed, and a failed refresh keeps already-fetched rows rather than silently demoting the drawer to observations."
       }
     },
     {
@@ -922,7 +937,26 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4829
+      "line_count": 4829,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Services/GatewayClient+CronChangesets.swift"
+        ],
+        "flows": [
+          "CronChangesetFeed loads a page from the gateway when the revision drawer opens; cron.changeset_diff is fetched lazily per expanded row"
+        ],
+        "id": "hermes-services",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Decode changeset rows tolerantly: optional fields, dropped rows, nil-normalized parent digests, malformed graphs throwing",
+          "Implement the CronChangesetSource capability protocol unconditionally; per-gateway support is answered at runtime by CronChangesetFeed",
+          "Speak cron.changesets and cron.changeset_diff over the gateway JSON-RPC channel"
+        ],
+        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
+        "summary": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs. GatewayClient now also speaks the gateway's recorded cron configuration history: cron.changesets (paged, filterable by since/until/job) and cron.changeset_diff (the graphs on either side of one recorded change). Conformance to CronChangesetSource is unconditional and deliberately says nothing about whether a given gateway implements the methods — that is CronChangesetFeed's runtime question, answered from the error the gateway returns. Decoding follows the wiki changesets' tolerant discipline over AnyCodable: every field is optional except id so a gateway need not have shipped the newest field for its history to be readable, a row missing its id is dropped rather than defaulted into existence, an empty parent_digest string is normalized to nil so it cannot chain a change to a revision that does not exist, and a graph that is present but malformed throws rather than decoding to nothing — the two failure shapes lead to different words on screen."
+      }
     },
     {
       "declaration_count": 13,
@@ -1124,7 +1158,25 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6685
+      "line_count": 6685,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Services/CronChangesetSource.swift"
+        ],
+        "flows": [
+          "CronRevisionTimelineDrawer receives the gateway client as a CronChangesetSource; CronChangesetFeed derives statements with CronGraphDiff.between, exactly as the observed log does"
+        ],
+        "id": "local-services",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Carry the cron.changeset_diff payload — before/after graphs plus an optional unified text diff — with the honest nil rule for a missing parent graph",
+          "Declare the cron changeset capability protocol that GatewayClient implements and tests can fake"
+        ],
+        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
+        "summary": "Persistence, export, media, notifications, caching, reasoning, and device-local support services. CronChangesetSource is the capability seam for cron configuration history: a protocol rather than a version sniff, with two halves that are both needed — the protocol says the client speaks the RPC and lets a test hand over a source that does record history, while CronChangesetFeed.Availability says whether this gateway answers at runtime. cronChangesetDiff deliberately returns graphs rather than statements, so Portal derives the same CronGraphDiff sentences it derives for its own observed log instead of maintaining two dialects of \"what changed\", and CronChangesetDiff.structural(parentDigest:) applies the revision store's verbatim nil rule: a missing before graph is the empty graph only when the change had no parent at all, otherwise the comparison is honestly unavailable."
+      }
     },
     {
       "declaration_count": 245,
@@ -1459,26 +1511,38 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13309,
+      "line_count": 13316,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
-          "Sources/Portal/Models/CronCategory.swift"
+          "Sources/Portal/Models/CronCategory.swift",
+          "Sources/Portal/Models/CronChangeset.swift",
+          "Sources/Portal/Models/CronGraph.swift",
+          "Sources/Portal/Models/CronGraphDiff.swift",
+          "Sources/Portal/Models/CronGraphDigest.swift",
+          "Sources/Portal/Models/CronGraphRevision.swift",
+          "Sources/Portal/Models/CronGraphRevisionStore.swift"
         ],
         "flows": [
-          "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names"
+          "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names",
+          "GatewayClient decodes cron.changesets rows into CronChangeset values, tolerating missing fields except id",
+          "The revision drawer and the canvas render the same CronGraphDiff statements; the canvas highlight sets are derived from them, never recomputed"
         ],
         "id": "domain-models",
         "model": "hermes-agent/glm-5.2",
         "open_questions": [],
         "responsibilities": [
+          "Canonicalize the dataflow graph into sorted, length-prefixed forms so the commitment is ordering-independent and collision-free",
           "Derive cron category paths from job names as a pure naming convention",
+          "Diff two graph revisions into typed, human-phrased statements whose derived node and edge sets feed the canvas highlight",
+          "Keep the observed revision log: append on digest change only, strip runtime state, cap at 200 entries, persist atomically",
+          "Model gateway-recorded changesets with open-vocabulary action, actor, and provenance, sharing the observed log's digest linkage",
           "Normalize and validate user-typed job names so renaming is also refiling",
           "Own value-oriented wire and domain types shared across experiences and service adapters",
           "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart"
         ],
-        "source_revision": "28c993106c72b3ab666a0d5e6c4d45bd56f6acb7",
-        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled here: CronCategory derives arbitrary-depth category paths from a job's own name (life/training/morning-run) with no schema change, and owns the display-name rules shared by every surface — displayName(for:showingPath:) drops the whole path for tree rows whose headers are the path, while name(_:strippingLeadingFolder:) drops only the leading folder for the interflow graph's hull labels so deeper levels stay visible."
+        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
+        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled by CronCategory, which derives arbitrary-depth category paths from a job's own name and owns the display-name rules every surface shares. The dataflow graph now has an identity you can quote: CronGraphDigest is a SHA-256 content address over a canonical, byte-sorted, length-prefixed form of the graph as configured — schedule, enabled, usesLLM, deliver, description, and every edge are in, while lastStatus and health are out so the 10-second health poll cannot mint revisions — and layoutForm, a strict subset kept in the same file because the difference is the point, answers only whether a refresh must re-run the force layout. CronGraphRevisionStore keeps the append-on-change observation log: per-observation UUID identity so a revert A → B → A is three entries, runtime state stripped before storing so over(revision.graph) == revision.digest holds forever, capped at 200 revisions for disk. CronGraphDiff reports typed, human-phrased statements — rename versus refile told apart by leaf and path, edges as dataflow — with affectedNodeIDs, addedEdgeIDs, and removedEdges derived from the statements so the drawer and the canvas cannot drift. CronChangeset is the gateway-recorded counterpart carrying what the observed log structurally cannot: real time, an actor (human/agent/scheduler/other/unknown), and provenance turns. CronGraph itself is Codable for local snapshots only; gateway decoding stays on decodeGatewayValue."
       }
     },
     {
@@ -5171,7 +5235,7 @@
     "assigned_files": 347,
     "declarations": 1015,
     "swift_files": 347,
-    "swift_lines": 100608,
+    "swift_lines": 100615,
     "unassigned_files": []
   },
   "layers": [
@@ -5203,6 +5267,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "bfe68176a000fc75b761fa6659fc872ecd28d75d4daf34c74e9f571b400d956a",
+  "source_tree_sha256": "3f21c57f4503cc9d8c438015ec4facb57923e53e4392c69a191a51c925ad4d94",
   "title": "Portal Architecture"
 }
