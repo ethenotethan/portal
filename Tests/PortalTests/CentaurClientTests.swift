@@ -422,6 +422,11 @@ struct CentaurWorkflowModelTests {
     }
 }
 
+// `durationLabel` is a static on a SwiftUI `View`, whose members inherit
+// main-actor isolation from the protocol, so a nonisolated test body warns on
+// every call. It is a pure function over an integer, so running the suite on the
+// main actor costs nothing and matches where the chart actually calls it.
+@MainActor
 @Suite("Centaur Workflow Activity Chart")
 struct CentaurWorkflowActivityChartTests {
 
