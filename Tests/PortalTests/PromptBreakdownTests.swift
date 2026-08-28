@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 @testable import Portal
 
@@ -46,6 +47,12 @@ internal struct PromptBreakdownTests {
         #expect(!makeSection(id: "boundary", contentLength: 500).isExpandableByDefault)
     }
 
+    @Test("Section color uses valid hex and falls back to the accent color")
+    internal func sectionColor() {
+        #expect(makeSection(id: "valid", contentLength: 0, colorHex: "#4ecdc4").color == Color(hex: "#4ecdc4"))
+        #expect(makeSection(id: "invalid", contentLength: 0, colorHex: "not-a-color").color == .accentColor)
+    }
+
     private func makeBreakdown(
         contextLimit: Int = 1_000,
         systemTokens: Int = 0,
@@ -69,7 +76,8 @@ internal struct PromptBreakdownTests {
     private func makeSection(
         id: String,
         contentLength: Int,
-        tokenCount: Int = 0
+        tokenCount: Int = 0,
+        colorHex: String = "#000000"
     ) -> PromptSection {
         PromptSection(
             id: id,
@@ -79,7 +87,7 @@ internal struct PromptBreakdownTests {
             fullContent: String(repeating: "x", count: contentLength),
             tokenCount: tokenCount,
             charCount: contentLength,
-            colorHex: "#000000"
+            colorHex: colorHex
         )
     }
 }
