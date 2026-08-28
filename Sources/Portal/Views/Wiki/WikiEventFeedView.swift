@@ -7,17 +7,17 @@ import SwiftUI
 /// `selectedEventID`. Selecting a dot scrolls the feed to the row and
 /// highlights it; tapping a row lights up the dot. Hosted as the right pane
 /// on macOS; iOS embeds `WikiEventFeedList` in the page scroll instead.
-struct WikiEventFeedView: View {
-    let events: [WikiTimelineEvent]
-    @Binding var selectedEventID: String?
+internal struct WikiEventFeedView: View {
+    internal let events: [WikiTimelineEvent]
+    @Binding internal var selectedEventID: String?
     /// Directive target-page chips → shared selection plane.
-    var onOpenPage: ((String) -> Void)?
+    internal var onOpenPage: ((String) -> Void)?
     /// How to color/label kinds — the wiki's taxonomy when it has one.
     internal var presentation: WikiEventPresentation = .empty
     /// Opens the changeset drawer filtered to one page (event → changeset).
     internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "list.bullet.rectangle")
@@ -65,10 +65,10 @@ struct WikiEventFeedView: View {
 /// The feed rows themselves (no scroll container) so macOS wraps them in the
 /// pane's ScrollView and iOS lays them into the page's single scroll. Rows
 /// are `.id(event.id)` for ScrollViewReader targeting from either host.
-struct WikiEventFeedList: View {
-    let events: [WikiTimelineEvent]
-    @Binding var selectedEventID: String?
-    var onOpenPage: ((String) -> Void)?
+internal struct WikiEventFeedList: View {
+    internal let events: [WikiTimelineEvent]
+    @Binding internal var selectedEventID: String?
+    internal var onOpenPage: ((String) -> Void)?
     internal var presentation: WikiEventPresentation = .empty
     internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
@@ -78,7 +78,7 @@ struct WikiEventFeedList: View {
         events.sorted { ($0.eventDate ?? .distantPast) > ($1.eventDate ?? .distantPast) }
     }
 
-    var body: some View {
+    internal var body: some View {
         LazyVStack(alignment: .leading, spacing: 4) {
             if events.isEmpty {
                 Text("No events in this window.")
@@ -108,11 +108,11 @@ struct WikiEventFeedList: View {
 /// One feed entry: kind dot + chip, label (directive rows show the actor +
 /// verbatim quote), relative timestamp, an open-source affordance when the
 /// event has a URL, and directive target-page chips that jump into the wiki.
-struct WikiEventFeedRow: View {
-    let event: WikiTimelineEvent
-    let isSelected: Bool
-    let onSelect: () -> Void
-    var onOpenPage: ((String) -> Void)?
+internal struct WikiEventFeedRow: View {
+    internal let event: WikiTimelineEvent
+    internal let isSelected: Bool
+    internal let onSelect: () -> Void
+    internal var onOpenPage: ((String) -> Void)?
     internal var presentation: WikiEventPresentation = .empty
     internal var onOpenChangeset: ((WikiEventChangesetRef) -> Void)?
 
@@ -128,7 +128,7 @@ struct WikiEventFeedRow: View {
         event.url.isEmpty ? nil : URL(string: event.url)
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Circle()
@@ -351,7 +351,7 @@ struct WikiEventFeedRow: View {
     }
 
     /// "wiki:topic:glossary-mcp" → "glossary-mcp" for chip labels.
-    static func shortPageName(_ docID: String) -> String {
+    internal static func shortPageName(_ docID: String) -> String {
         docID.split(separator: ":").last.map(String.init) ?? docID
     }
 }
