@@ -185,6 +185,23 @@ internal struct ArtifactIntentContractTests {
         #expect(minimal.topLevelActions.isEmpty)
     }
 
+    @Test("Artifact revision decodes gateway metadata and uses its revision as identity")
+    internal func artifactRevisionFromRecord() throws {
+        let revision = try #require(ArtifactRevision.from([
+            "rev": AnyCodable(7),
+            "updated_at": AnyCodable("2026-08-28T08:20:06.125Z"),
+            "updated_by": AnyCodable("cron-worker"),
+            "content": AnyCodable("updated content"),
+        ]))
+
+        #expect(revision.id == 7)
+        #expect(revision.updatedAt == LivingArtifact.parseISO("2026-08-28T08:20:06.125Z"))
+        #expect(revision.updatedBy == "cron-worker")
+        #expect(revision.content == "updated content")
+        #expect(ArtifactRevision.from(["updated_by": AnyCodable("cron-worker")]) == nil)
+        #expect(ArtifactRevision.from(nil) == nil)
+    }
+
     // MARK: - HTMLArtifactIntentRequest — entity_ref caps
 
     @Test("entity_ref over 512 bytes is rejected")
