@@ -49,6 +49,8 @@ internal final class CronGraphViewModel: ObservableObject {
     @Published internal private(set) var simLinks: [(sourceIndex: Int, targetIndex: Int)] = []
     /// Edge type per link, aligned 1:1 with `simLinks` — drawn on the edge.
     @Published internal private(set) var simLinkTypes: [String] = []
+    /// Predicates carried by explicit SPO relationship edges in the effective graph.
+    internal private(set) var relationshipEdgeTypes: Set<String> = []
     @Published internal var selectedNodeIndex: Int?
     @Published internal var hoveredNodeIndex: Int?
     /// Group scheme keys currently collapsed into a single super-node. Persists
@@ -287,6 +289,9 @@ internal final class CronGraphViewModel: ObservableObject {
         }
         simLinks = links
         simLinkTypes = types
+        relationshipEdgeTypes = Set(effective.edges.compactMap {
+            $0.edgeClass == "relationship" ? $0.type : nil
+        })
         adjacency = Array(repeating: Set<Int>(), count: simNodes.count)
         for (si, ti) in links {
             adjacency[si].insert(ti)
@@ -600,7 +605,8 @@ internal final class CronGraphViewModel: ObservableObject {
             let target = remap[edge.target] ?? edge.target
             guard source != target else { continue }
             guard seen.insert("\(source)->\(target):\(edge.type)").inserted else { continue }
-            edges.append(CronGraphEdge(source: source, target: target, type: edge.type))
+            edges.append(CronGraphEdge(source: source, target: target, type: edge.type,
+                                       edgeClass: edge.edgeClass))
         }
         return CronGraph(nodes: keptNodes + superNodes, edges: edges)
     }
@@ -695,6 +701,7 @@ internal final class CronGraphViewModel: ObservableObject {
         case "artifact": return Color(hex: "e8a838") ?? .orange
         case "sink": return Color(hex: "ff6b9d") ?? .pink
         case "service": return Color(hex: "2fc4b6") ?? .teal
+        case "object": return Color(hex: "8fd3c7") ?? .mint
         case "group": return Color(hex: "b18cff") ?? .purple
         default: return Color(hex: "aaaaaa") ?? .gray
         }
@@ -836,6 +843,7 @@ internal final class CronGraphViewModel: ObservableObject {
         case "artifact": return .cylinder
         case "sink": return .diamond
         case "service": return .roundedSquare
+        case "object": return .circle
         case "group": return .cluster
         default: return .circle
         }
@@ -845,6 +853,9 @@ internal final class CronGraphViewModel: ObservableObject {
     /// side-effect edges (telegram/pr/…) pick up their sink's warm hue so a
     /// terminal action is visually distinct from a data hop.
     internal func edgeColor(forType type: String) -> Color {
+        if relationshipEdgeTypes.contains(type) {
+            return Color(hex: "4fc3b5") ?? .teal
+        }
         switch type {
         case "reads", "writes", "feeds": return Color(hex: "8a8aff") ?? .accentColor
         // `hosts` is containment, not dataflow: the service on the source end
@@ -879,7 +890,13 @@ internal final class CronGraphViewModel: ObservableObject {
         where present.contains(type) {
             out.append((type: type, label: label, color: edgeColor(forType: type)))
         }
-        let structural: Set<String> = ["reads", "writes", "feeds", "hosts"]
+        for type in relationshipEdgeTypes.sorted() where present.contains(type) {
+            let words = type.replacingOccurrences(of: "_", with: " ")
+            let label = words.prefix(1).uppercased() + words.dropFirst()
+            out.append((type: type, label: label, color: edgeColor(forType: type)))
+        }
+        let structural = Set(["reads", "writes", "feeds", "hosts"])
+            .union(relationshipEdgeTypes)
         if present.contains(where: { !structural.contains($0) }) {
             out.append((type: "deliver", label: "Delivers", color: edgeColor(forType: "deliver")))
         }
@@ -893,5 +910,6 @@ internal final class CronGraphViewModel: ObservableObject {
         ("artifact", "Artifact"),
         ("sink", "Sink"),
         ("service", "Service"),
+        ("object", "Object"),
     ]
 }

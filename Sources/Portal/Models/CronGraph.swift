@@ -4,7 +4,7 @@ import Foundation
 
 /// One node in the cron interflow dataflow graph (from the `cron.graph` RPC).
 ///
-/// Five kinds:
+/// Six kinds:
 /// - `cron` — a scheduled job (id = the bare hex job id; carries schedule and
 ///   run metadata).
 /// - `source` — an external input read by ≥1 cron and written by none.
@@ -15,13 +15,15 @@ import Foundation
 ///   dashboard, a Postgres, a Redis) that reads/writes the same refs a cron
 ///   does. Liveness is the tracked process / `docker ps` presence, and it
 ///   carries a required markdown `description` shown in the node detail card.
+/// - `object` — the typed object of an explicit service relationship, such as a
+///   runtime, workflow, scheduler, or other topology/control concept.
 ///
 /// Resource and sink ids are `scheme:value` (always contain a colon); cron ids
 /// are bare 12-hex, and service ids are `docker:<id>` or a process handle — the
 /// id spaces never collide, so shared refs dedupe a service onto a cron's store.
 internal struct CronGraphNode: Identifiable, Hashable, Codable {
     internal let id: String
-    /// `cron` | `source` | `artifact` | `sink` | `service` — drives node color.
+    /// `cron` | `source` | `artifact` | `sink` | `service` | `object` — drives node color.
     internal let kind: String
     /// Fine-grained type: `cron` for jobs, `service` for services, else the ref
     /// scheme (`https`, `wiki`, `telegram`, …).
@@ -56,12 +58,26 @@ internal struct CronServiceHealth: Hashable, Codable {
 
 /// A typed directed edge. Types: `reads` (source/artifact → cron), `writes`
 /// (cron → artifact), `feeds` (cron → cron, via a `cron-output:<id>` input),
-/// or a side-effect scheme (`telegram`, `pr`, …) for a cron → sink edge.
+/// a side-effect scheme (`telegram`, `pr`, …) for a cron → sink edge, or an
+/// explicit subject-predicate-object edge whose wire class is `relationship`.
 internal struct CronGraphEdge: Identifiable, Hashable, Codable {
     internal var id: String { "\(source)->\(target):\(type)" }
     internal let source: String
     internal let target: String
     internal let type: String
+    internal let edgeClass: String?
+
+    internal init(source: String, target: String, type: String, edgeClass: String? = nil) {
+        self.source = source
+        self.target = target
+        self.type = type
+        self.edgeClass = edgeClass
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case source, target, type
+        case edgeClass = "class"
+    }
 }
 
 /// `Codable` here is for **local persistence only** — the revision log stores a
@@ -127,7 +143,8 @@ internal struct CronGraph: Codable, Equatable {
             return CronGraphEdge(
                 source: source,
                 target: target,
-                type: d["type"]?.stringValue ?? "reads"
+                type: d["type"]?.stringValue ?? "reads",
+                edgeClass: d["class"]?.stringValue
             )
         }
         return CronGraph(nodes: nodes, edges: edges)
@@ -186,6 +203,7 @@ extension CronGraph {
         }
 
         for edge in edges {
+            if edge.edgeClass == "relationship" { continue }
             switch edge.type {
             case "reads":
                 guard edge.target == cronID, let node = nodeByID[edge.source] else { continue }

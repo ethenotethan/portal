@@ -303,6 +303,36 @@ internal struct CronGraphViewModelTests {
         }
     }
 
+    @Test("SPO relationships render as relationships rather than deliveries")
+    internal func relationshipEdgesAreDistinctFromDeliveries() {
+        let vm = CronGraphViewModel()
+        vm.setGraphForTesting(CronGraph(
+            nodes: [
+                CronGraphNode(id: "nomad:gateway", kind: "service", type: "service",
+                              label: "Gateway", description: "dispatches reviews", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "runtime:docker", kind: "object", type: "runtime",
+                              label: "docker", description: "", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+                CronGraphNode(id: "github:review", kind: "sink", type: "github",
+                              label: "review", description: "", schedule: nil,
+                              enabled: true, usesLLM: false, lastStatus: nil, deliver: nil),
+            ],
+            edges: [
+                CronGraphEdge(source: "nomad:gateway", target: "runtime:docker",
+                              type: "runs_in", edgeClass: "relationship"),
+                CronGraphEdge(source: "nomad:gateway", target: "github:review", type: "github"),
+            ]
+        ))
+        vm.canvasSize = CGSize(width: 600, height: 400)
+        vm.setupSimulation()
+
+        #expect(vm.edgeLegend.map(\.type) == ["runs_in", "deliver"])
+        #expect(vm.edgeLegend.map(\.label) == ["Runs in", "Delivers"])
+        #expect(vm.edgeColor(forType: "runs_in") != vm.edgeColor(forType: "github"))
+        #expect(CronGraphViewModel.legend.map(\.kind).contains("object"))
+    }
+
     // MARK: - zoomAtPoint / zoomAtCenter
 
     @Test("zoomAtPoint scales zoom and keeps the anchor point fixed")

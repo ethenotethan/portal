@@ -185,6 +185,10 @@ extension CronGraphChange.EdgeStatement {
     /// points away from it.
     internal func sentence(isAddition: Bool) -> String {
         let now = isAddition ? "now" : "no longer"
+        if edge.edgeClass == "relationship" {
+            let predicate = edge.type.replacingOccurrences(of: "_", with: " ")
+            return "\(sourceLabel) \(now) \(predicate) \(targetLabel)"
+        }
         switch edge.type {
         case "reads":
             return "\(targetLabel) \(now) reads \(sourceLabel)"
