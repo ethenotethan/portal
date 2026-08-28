@@ -1,12 +1,12 @@
 import SwiftUI
 import Combine
 
-struct SessionsDashboard: View {
-    @EnvironmentObject var sessionList: SessionListViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+internal struct SessionsDashboard: View {
+    @EnvironmentObject internal var sessionList: SessionListViewModel
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
 
-    var onOpenSession: ((String) -> Void)?
+    internal var onOpenSession: ((String) -> Void)?
 
     @State private var refreshTimer: Timer?
     @State private var searchText = ""
@@ -14,12 +14,12 @@ struct SessionsDashboard: View {
     @State private var filterStatus: StatusFilter = .all
     @State private var displayMode: DisplayMode = .status
 
-    enum DisplayMode: String, CaseIterable {
+    internal enum DisplayMode: String, CaseIterable {
         case status = "By Status"
         case source = "By Source"
     }
 
-    enum StatusFilter: String, CaseIterable {
+    internal enum StatusFilter: String, CaseIterable {
         case all = "All"
         case live = "Live"
         case ended = "Ended"
@@ -81,7 +81,7 @@ struct SessionsDashboard: View {
     private var liveCount: Int { filteredSessions.filter { $0.isLive }.count }
     private var unfilteredTotal: Int { allSessions.count }
 
-    var body: some View {
+    internal var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 filterBar
@@ -572,7 +572,7 @@ struct SessionsDashboard: View {
 // MARK: - Session Extensions
 
 extension Session {
-    var isLive: Bool {
+    internal var isLive: Bool {
         guard endedAt == nil else { return false }
         // Explicit run state is the strongest signal.
         if let runState { return runState.isActive }

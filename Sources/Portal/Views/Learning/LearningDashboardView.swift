@@ -5,7 +5,7 @@ import SwiftUI
 /// iOS: a tab with NavigationStack — tapping a card pushes the player.
 /// macOS: a full-bleed overlay pane (ContentView provides the Back chrome);
 /// the player opens in a single sheet, matching ChatView's quiz presentation.
-struct LearningDashboardView: View {
+internal struct LearningDashboardView: View {
     @State private var quizzes: [PersistedQuizSession] = []
     @State private var decks: [FlashcardDeck] = []
     @State private var curricula: [Curriculum] = []
@@ -22,10 +22,10 @@ struct LearningDashboardView: View {
 
     /// Kept for entry-point compatibility; macOS overlay chrome and the iOS
     /// tab bar own dismissal, so no internal close button is rendered.
-    let onClose: () -> Void
+    internal let onClose: () -> Void
     /// Optional hook to continue review in a chat session ("Review with
     /// Agent"). When nil, that affordance is hidden.
-    var onReviewWithAgent: ((String) -> Void)?
+    internal var onReviewWithAgent: ((String) -> Void)?
     /// When set, that course opens straight away instead of the dashboard —
     /// used when the agent has just generated one, so the user lands in the
     /// course rather than hunting for it in a list.
@@ -36,7 +36,7 @@ struct LearningDashboardView: View {
     /// dashboard live via learning.changed, without a manual refresh.
     @ObservedObject private var learningStore = LearningStore.shared
 
-    enum LearningSection: String, CaseIterable {
+    internal enum LearningSection: String, CaseIterable {
         case courses = "Courses"
         case quizzes = "Quizzes"
         case flashcards = "Flashcards"
@@ -57,7 +57,7 @@ struct LearningDashboardView: View {
         let title: String
     }
 
-    var body: some View {
+    internal var body: some View {
         #if os(iOS)
         NavigationStack {
             root
@@ -408,8 +408,8 @@ struct LearningDashboardView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct LearningDashboardView_Previews: PreviewProvider {
-    static var previews: some View {
+internal struct LearningDashboardView_Previews: PreviewProvider {
+    internal static var previews: some View {
         LearningDashboardView(onClose: {})
             .background(Theme.background)
     }

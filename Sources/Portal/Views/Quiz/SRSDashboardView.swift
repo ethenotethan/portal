@@ -3,14 +3,14 @@ import SwiftUI
 /// Flashcard deck library presented as a sheet from the chat toolbar.
 /// Shares card rows, stat tiles, and the due banner with the Learning
 /// dashboard so the two surfaces stay visually identical.
-struct SRSDashboardView: View {
+internal struct SRSDashboardView: View {
     @State private var decks: [FlashcardDeck] = []
     @State private var pendingDeleteDeck: FlashcardDeck?
 
-    let onClose: () -> Void
-    let onStudyDeck: (FlashcardDeck) -> Void
+    internal let onClose: () -> Void
+    internal let onStudyDeck: (FlashcardDeck) -> Void
 
-    var body: some View {
+    internal var body: some View {
         NavigationStack {
             ZStack {
                 Theme.background.ignoresSafeArea()
@@ -156,8 +156,8 @@ struct SRSDashboardView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct SRSDashboardView_Previews: PreviewProvider {
-    static var previews: some View {
+internal struct SRSDashboardView_Previews: PreviewProvider {
+    internal static var previews: some View {
         SRSDashboardView(
             onClose: {},
             onStudyDeck: { _ in }

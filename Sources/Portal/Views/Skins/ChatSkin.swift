@@ -3,20 +3,20 @@ import SwiftUI
 /// Selectable chat interface skins. Each skin provides a complete visual
 /// personality for the chat view — message bubbles, streaming indicators,
 /// tool call rendering, background colors, and layout.
-enum ChatSkin: String, CaseIterable, Identifiable, Sendable {
+internal enum ChatSkin: String, CaseIterable, Identifiable, Sendable {
     case tui = "tui"
     case darkManga = "dark_manga"
 
-    var id: String { rawValue }
+    internal var id: String { rawValue }
 
-    var displayName: String {
+    internal var displayName: String {
         switch self {
         case .tui: return "TUI"
         case .darkManga: return "Dark Manga"
         }
     }
 
-    var icon: String {
+    internal var icon: String {
         switch self {
         case .tui: return "terminal"
         case .darkManga: return "paintbrush"
@@ -24,7 +24,7 @@ enum ChatSkin: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// Background color for the chat area
-    var background: Color {
+    internal var background: Color {
         switch self {
         case .tui:
             #if os(macOS)
@@ -43,7 +43,7 @@ enum ChatSkin: String, CaseIterable, Identifiable, Sendable {
 /// Marked @preconcurrency to allow non-Sendable AnyView returns from
 /// MainActor-isolated skins.
 @preconcurrency
-protocol ChatSkinProviding: Sendable {
+internal protocol ChatSkinProviding: Sendable {
     var skin: ChatSkin { get }
 
     /// Render a chat message bubble
@@ -62,7 +62,7 @@ protocol ChatSkinProviding: Sendable {
 
 extension ChatSkin {
     /// Create the skin provider for this skin type
-    func makeProvider() -> ChatSkinProviding {
+    internal func makeProvider() -> ChatSkinProviding {
         switch self {
         case .tui: return TUISkin()
         case .darkManga: return DarkMangaSkin()
@@ -73,5 +73,5 @@ extension ChatSkin {
 // MARK: - Type eraser helper
 
 extension View {
-    @MainActor func eraseToAnyView() -> AnyView { AnyView(self) }
+    @MainActor internal func eraseToAnyView() -> AnyView { AnyView(self) }
 }

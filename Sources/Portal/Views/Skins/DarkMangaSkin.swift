@@ -2,15 +2,15 @@ import SwiftUI
 
 /// Dark Manga skin — near-black background, dark gray bubbles, inline thinking/tool calls.
 /// Persona identity is presented by shared chat chrome rather than by the skin.
-struct DarkMangaSkin: ChatSkinProviding {
-    let skin: ChatSkin = .darkManga
+internal struct DarkMangaSkin: ChatSkinProviding {
+    internal let skin: ChatSkin = .darkManga
 
-    func messageBubble(message: ChatMessage, persona: Persona) -> AnyView {
+    internal func messageBubble(message: ChatMessage, persona: Persona) -> AnyView {
         DarkMangaMessageBubble(message: message, persona: persona)
             .eraseToAnyView()
     }
 
-    func streamingPanel(
+    internal func streamingPanel(
         state: AvatarState,
         activeToolCalls: [String: ToolCallRecord],
         personaName: String,
