@@ -61,6 +61,21 @@ struct ChartSpecTests {
         #expect(error.message.contains("heatmap"))
     }
 
+    @Test("Numeric heatmap rows use compact category labels")
+    internal func heatmapNumericRowLabels() throws {
+        let result = parse("""
+        {"type": "heatmap", "series": [
+          {"name": "A", "points": [
+            {"x": "Mon", "y": 2, "v": 4},
+            {"x": "Tue", "y": 2.5, "v": 7}
+          ]}
+        ]}
+        """)
+        let spec = try result.get()
+
+        #expect(spec.series[0].points.map(\.row) == ["2", "2.5"])
+    }
+
     @Test("Histogram takes raw values; points degrade to their y values")
     func histogramParses() {
         let fromValues = parse("""
