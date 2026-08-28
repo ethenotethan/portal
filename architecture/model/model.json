@@ -138,7 +138,7 @@
       "line_count": 6811
     },
     {
-      "declaration_count": 150,
+      "declaration_count": 144,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -150,7 +150,6 @@
         "BucketSelection",
         "CentaurWorkflowActivityChart",
         "CentaurWorkflowsView",
-        "Coordinator",
         "CronBreakdownView",
         "CronCategoryEditor",
         "CronCategoryHeaderRow",
@@ -206,7 +205,6 @@
         "FlashcardView_Previews",
         "FreqPoint",
         "FullScreenVideoView",
-        "GraphPayload",
         "HTMLArtifactCoordinator",
         "HTMLArtifactNSView",
         "HTMLArtifactUIView",
@@ -227,11 +225,9 @@
         "LearningQuizCard",
         "LearningSection",
         "LearningStatTile",
-        "Link",
         "Mode",
         "MouseState",
         "NativeVideoPlayer",
-        "Node",
         "PulseEffect",
         "PulsingDot",
         "QuizSheet",
@@ -260,8 +256,6 @@
         "SessionsTimelinePlot",
         "SkeletonCard",
         "SkillCard",
-        "SkillGraph3DView",
-        "SkillGraphWebView",
         "SkillMarkdownEditor",
         "SkillMarkdownSheet",
         "SkillsCanvasView",
@@ -293,7 +287,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 55,
+      "file_count": 54,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -339,7 +333,6 @@
         "Sources/Portal/Views/SessionListView.swift",
         "Sources/Portal/Views/SessionUsageBadge.swift",
         "Sources/Portal/Views/SkillMarkdownEditor.swift",
-        "Sources/Portal/Views/Skills/SkillGraph3DView.swift",
         "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
         "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
         "Sources/Portal/Views/Skills/SkillsEditorPanel.swift",
@@ -354,7 +347,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18484,
+      "line_count": 18300,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -814,7 +807,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4436,
+      "line_count": 4454,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -1238,7 +1231,7 @@
       }
     },
     {
-      "declaration_count": 245,
+      "declaration_count": 238,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -1427,15 +1420,8 @@
         "SkillCategoryGrouping",
         "SkillCategoryNode",
         "SkillCategoryRow",
-        "SkillDocument",
-        "SkillFileNode",
-        "SkillGraph",
-        "SkillGraphEdge",
-        "SkillGraphNode",
         "SkillInfo",
-        "SkillNodeKind",
         "SkillSearchResult",
-        "SkillSummary",
         "SkillsReloadResult",
         "Source",
         "SpawnNode",
@@ -1488,7 +1474,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 76,
+      "file_count": 75,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -1553,7 +1539,6 @@
         "Sources/Portal/Models/SharedEntity.swift",
         "Sources/Portal/Models/Skill.swift",
         "Sources/Portal/Models/SkillCategory.swift",
-        "Sources/Portal/Models/SkillModels.swift",
         "Sources/Portal/Models/SpawnNode.swift",
         "Sources/Portal/Models/SpawnTreeModels.swift",
         "Sources/Portal/Models/StatTileSpec.swift",
@@ -1570,7 +1555,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13330,
+      "line_count": 13211,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -2145,7 +2130,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 16 declaration(s) owned by domain-models.",
+      "description": "References 17 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ContentView.swift",
         "Sources/Portal/Views/MenuBar/PortalMenuBarExtra.swift",
@@ -2160,17 +2145,17 @@
         "ButtonTheme",
         "CronRunHistoryStore",
         "Curriculum",
+        "Link",
         "Persona",
         "PromptBreakdown",
         "PromptSection",
         "SavedGateway",
         "Session",
-        "ToolbarIconAppearance",
-        "ToolbarIconOverrides"
+        "ToolbarIconAppearance"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 21
+      "weight": 22
     },
     {
       "authority": "observed",
@@ -2464,7 +2449,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 37 declaration(s) owned by domain-models.",
+      "description": "References 38 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -2496,7 +2481,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 68
+      "weight": 69
     },
     {
       "authority": "observed",
@@ -2736,7 +2721,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by domain-models.",
+      "description": "References 14 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/CentaurWorkflow.swift",
         "Sources/Portal/Services/CentaurClient.swift",
@@ -2749,18 +2734,18 @@
         "Event",
         "Item",
         "JSONRPCError",
+        "Node",
         "Session",
         "WikiChangesSummary",
         "WikiEventTimeline",
         "WikiGraph",
         "WikiLink",
         "WikiPage",
-        "WikiPageContent",
-        "WikiRevisionsTimeline"
+        "WikiPageContent"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 17
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -2851,7 +2836,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 41 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
         "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
@@ -2875,7 +2860,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 45
+      "weight": 47
     },
     {
       "authority": "observed",
@@ -3787,7 +3772,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 34 declaration(s) owned by domain-models.",
+      "description": "References 35 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
@@ -3819,7 +3804,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 57
+      "weight": 58
     },
     {
       "authority": "observed",
@@ -3958,7 +3943,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 51 declaration(s) owned by domain-models.",
+      "description": "References 53 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -3990,7 +3975,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 66
+      "weight": 68
     },
     {
       "authority": "observed",
@@ -4124,7 +4109,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 54
+      "weight": 53
     },
     {
       "authority": "observed",
@@ -4221,7 +4206,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 109
+      "weight": 108
     },
     {
       "authority": "observed",
@@ -4508,7 +4493,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 31 declaration(s) owned by domain-models.",
+      "description": "References 32 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -4540,7 +4525,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 62
+      "weight": 63
     },
     {
       "authority": "observed",
@@ -4766,7 +4751,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 32 declaration(s) owned by domain-models.",
+      "description": "References 33 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/DelegationBatchNoticeView.swift",
@@ -4798,7 +4783,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 51
+      "weight": 52
     },
     {
       "authority": "observed",
@@ -5012,7 +4997,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 7 declaration(s) owned by domain-models.",
+      "description": "References 8 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+Provenance.swift",
@@ -5021,6 +5006,7 @@
       "source": "wiki-state",
       "symbols": [
         "Event",
+        "Node",
         "Source",
         "TaxonomyNode",
         "WikiEventTypeRegistry",
@@ -5030,7 +5016,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 10
+      "weight": 11
     },
     {
       "authority": "observed",
@@ -5141,7 +5127,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 16 declaration(s) owned by domain-models.",
+      "description": "References 17 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiChangesetInlineDiff.swift",
         "Sources/Portal/Views/Wiki/WikiDockedReader.swift",
@@ -5160,6 +5146,7 @@
       "symbols": [
         "Event",
         "EventType",
+        "Node",
         "PageChange",
         "Source",
         "Trigger",
@@ -5168,12 +5155,11 @@
         "WikiEventChangesetRef",
         "WikiEventKind",
         "WikiEventRef",
-        "WikiEventTimeline",
-        "WikiEventTypeRegistry"
+        "WikiEventTimeline"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 33
+      "weight": 34
     },
     {
       "authority": "observed",
@@ -5295,10 +5281,10 @@
     }
   ],
   "inventory": {
-    "assigned_files": 347,
-    "declarations": 1017,
-    "swift_files": 347,
-    "swift_lines": 100910,
+    "assigned_files": 345,
+    "declarations": 1005,
+    "swift_files": 345,
+    "swift_lines": 100625,
     "unassigned_files": []
   },
   "layers": [
@@ -5330,6 +5316,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "9d2a971528e22d648956f3527ca32b220b752a29b774e72c1f884e51d0df6d68",
+  "source_tree_sha256": "5f467d43fb33ba3af09838fb0f483ba9e23ae2e940b6f0d03f10ab784457326b",
   "title": "Portal Architecture"
 }

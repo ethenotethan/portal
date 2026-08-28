@@ -11223,13 +11223,13 @@
   },
   "deadcode": {
     "counts": {
-      "assignOnlyProperty": 156,
+      "assignOnlyProperty": 147,
       "redundantConformance": 6,
       "redundantProtocol": 2,
       "redundantPublicAccessibility": 4,
-      "unused": 335
+      "unused": 324
     },
-    "total": 503,
+    "total": 483,
     "sites": [
       {
         "file": "Sources/Portal/HermesNativeApp.swift",
@@ -12070,125 +12070,6 @@
         "kind": "var.instance",
         "name": "total",
         "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 11,
-        "kind": "var.instance",
-        "name": "name",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 12,
-        "kind": "var.instance",
-        "name": "category",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 13,
-        "kind": "var.instance",
-        "name": "description",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 14,
-        "kind": "var.instance",
-        "name": "path",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 15,
-        "kind": "var.instance",
-        "name": "tags",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 16,
-        "kind": "var.instance",
-        "name": "relatedSkills",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 18,
-        "kind": "var.instance",
-        "name": "source",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 20,
-        "kind": "function.method.static",
-        "name": "from(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 37,
-        "kind": "struct",
-        "name": "SkillFileNode",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 65,
-        "kind": "struct",
-        "name": "SkillDocument",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 87,
-        "kind": "var.instance",
-        "name": "tags",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 88,
-        "kind": "var.instance",
-        "name": "description",
-        "hint": "assignOnlyProperty"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 90,
-        "kind": "function.method.static",
-        "name": "from(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 109,
-        "kind": "function.method.static",
-        "name": "from(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 124,
-        "kind": "var.static",
-        "name": "empty",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 126,
-        "kind": "function.method.static",
-        "name": "from(_:)",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Models/SkillModels.swift",
-        "line": 141,
-        "kind": "var.instance",
-        "name": "nilIfEmpty",
-        "hint": "unused"
       },
       {
         "file": "Sources/Portal/Models/SpawnNode.swift",
@@ -14386,27 +14267,6 @@
         "line": 3,
         "kind": "struct",
         "name": "SkillMarkdownEditor",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/Skills/SkillGraph3DView.swift",
-        "line": 4,
-        "kind": "struct",
-        "name": "SkillGraph3DView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/Skills/SkillGraph3DView.swift",
-        "line": 28,
-        "kind": "struct",
-        "name": "SkillGraphWebView",
-        "hint": "unused"
-      },
-      {
-        "file": "Sources/Portal/Views/Skills/SkillGraph3DView.swift",
-        "line": 59,
-        "kind": "extension.struct",
-        "name": "SkillGraphWebView",
         "hint": "unused"
       },
       {
