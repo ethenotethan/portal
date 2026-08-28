@@ -6,11 +6,11 @@ import Charts
 /// the current period accented. Follows the dataviz stat-tile contract —
 /// values in proportional figures (never tabular at display size), labels in
 /// text tokens, the sparkline in the de-emphasis hue.
-struct StatTilesView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct StatTilesView: View {
+    internal let json: String
+    internal let isStreaming: Bool
 
-    var body: some View {
+    internal var body: some View {
         if let spec = StatTileSpec.parse(json) {
             TileFlow(tiles: spec.tiles)
         } else if isStreaming {

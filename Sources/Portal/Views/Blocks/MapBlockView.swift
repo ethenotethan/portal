@@ -15,21 +15,21 @@ import MapKit
 /// Groups color pins from the shared categorical palette; select a pin (on
 /// the map or in the entry list) for its note. `id` makes it a living
 /// artifact: re-emitted blocks with the same id merge markers by label.
-struct MapSpec: Decodable {
-    struct Marker: Decodable, Identifiable {
-        let lat: Double
-        let lon: Double
-        let label: String
-        let group: String?
-        let note: String?
+internal struct MapSpec: Decodable {
+    internal struct Marker: Decodable, Identifiable {
+        internal let lat: Double
+        internal let lon: Double
+        internal let label: String
+        internal let group: String?
+        internal let note: String?
         /// Tombstone (set by the delete action) — merged, never rendered.
-        let _deleted: Bool?
+        internal let _deleted: Bool?
         /// Arbitrary action-fields (e.g. "reached_out") live outside the
         /// typed keys; carried for control state.
-        var extra: [String: String] = [:]
+        internal var extra: [String: String] = [:]
 
-        var id: String { label }
-        var coordinate: CLLocationCoordinate2D {
+        internal var id: String { label }
+        internal var coordinate: CLLocationCoordinate2D {
             CLLocationCoordinate2D(latitude: lat, longitude: lon)
         }
 
@@ -38,13 +38,13 @@ struct MapSpec: Decodable {
         }
     }
 
-    let id: String?
-    let title: String?
-    let markers: [Marker]
-    let actions: [ArtifactAction]
+    internal let id: String?
+    internal let title: String?
+    internal let markers: [Marker]
+    internal let actions: [ArtifactAction]
 
     /// Distinct groups in first-appearance order.
-    var groups: [String] {
+    internal var groups: [String] {
         var seen = Set<String>()
         return markers.compactMap(\.group).filter { seen.insert($0).inserted }
     }
@@ -53,7 +53,7 @@ struct MapSpec: Decodable {
         case id, title, markers
     }
 
-    init(from decoder: Decoder) throws {
+    internal init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(String.self, forKey: .id)
         title = try container.decodeIfPresent(String.self, forKey: .title)
@@ -61,7 +61,7 @@ struct MapSpec: Decodable {
         actions = []
     }
 
-    init(id: String?, title: String?, markers: [Marker], actions: [ArtifactAction]) {
+    internal init(id: String?, title: String?, markers: [Marker], actions: [ArtifactAction]) {
         self.id = id
         self.title = title
         self.markers = markers
@@ -73,7 +73,7 @@ struct MapSpec: Decodable {
     /// keyed on the source string.
     private static let parseMemo = RenderMemo<MapSpec?>(limit: 16)
 
-    static func parse(_ json: String) -> MapSpec? {
+    internal static func parse(_ json: String) -> MapSpec? {
         parseMemo.value(for: json) { parseUncached(json) }
     }
 
@@ -105,18 +105,18 @@ struct MapSpec: Decodable {
 }
 
 /// Renders a ```map block. Region auto-fits the markers with padding.
-struct MapBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct MapBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
     /// Fullscreen host mode: the map fills the container and the entry list
     /// becomes a sidebar column instead of a stacked footer.
-    var isExpanded: Bool = false
+    internal var isExpanded: Bool = false
     /// Set by artifact hosts: enables declared per-marker actions (choice/
     /// toggle/delete) on entry rows. Chat transcript blocks leave this nil.
-    var actionableArtifactID: String?
+    internal var actionableArtifactID: String?
     /// Host-owned selection (ensemble models share one selection bus across
     /// stacked views); nil = the card keeps private selection state.
-    var externalSelection: Binding<String?>?
+    internal var externalSelection: Binding<String?>?
 
     /// Shared categorical palette (chart/graph parity). `nonisolated` so the
     /// nonisolated `color(forGroupIndex:)` below can read it — an immutable
@@ -126,7 +126,7 @@ struct MapBlockView: View {
         "#199e70", "#d95926", "#9085e9", "#e66767",
     ].compactMap { Color(hex: $0) }
 
-    var body: some View {
+    internal var body: some View {
         if let spec = MapSpec.parse(json) {
             MapCard(
                 spec: spec, isExpanded: isExpanded,
