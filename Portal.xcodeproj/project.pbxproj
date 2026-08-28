@@ -256,7 +256,6 @@
 		51314C1252529CC9DF344448 /* SRSStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D03E0CA1FFD6072E3A68B7E /* SRSStore.swift */; };
 		516AE3F8B5215F58B80E775A /* SessionsSearchPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD56120B53196F463494F45C /* SessionsSearchPanel.swift */; };
 		51772265F425B8FCAB352474 /* WikiEventsInputOutputChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A0487C2D32733744753416 /* WikiEventsInputOutputChart.swift */; };
-		51E0F580C8616D99FAC74AA9 /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346A28CBBF871D9A0AAF2E76 /* SkillModels.swift */; };
 		5242B99D508CDC7699222E51 /* NetworkGraphSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */; };
 		525839E4A60214A40B537A8F /* CelebrationManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73BDAD983F086DF3C33CC0E /* CelebrationManagerTests.swift */; };
 		52A60F9D308643FE9094975B /* DelegationBatchRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8485FAE36D7BCE60C7B49956 /* DelegationBatchRecord.swift */; };
@@ -298,7 +297,6 @@
 		5B007BEC8BBCBFA8D8DE4523 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 5769643C390A56E71CD0FC8B /* MLXLLM */; };
 		5B21B370401D8F8C9C4E317A /* MapExportRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19775F8FF34D0C811D1A5218 /* MapExportRenderer.swift */; };
 		5B361E01720314FE1798BAEB /* FilesBrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72EC243EDCBFCF6FAFA350B9 /* FilesBrowserViewModel.swift */; };
-		5B4CF55F252F5EDDEDFC3DEA /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */; };
 		5C397A8DB6BA38D588EFA02C /* StuckStreamRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4FA75BA89BB21D0867535C /* StuckStreamRecoveryTests.swift */; };
 		5C434929EA1714D588922051 /* PanelResizeMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55F053C2D0C8CADA44499693 /* PanelResizeMathTests.swift */; };
 		5C74289EDEBFA77C921A9C2E /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
@@ -327,7 +325,6 @@
 		6396EC96C4067E9A041D3B32 /* SharedEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6CCAC39C4D15CE885C9BA8 /* SharedEntity.swift */; };
 		63A85C39A7B88BBF722BEAE0 /* CronNodeGlyphShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A43102C4D17F0BFCBEEED36 /* CronNodeGlyphShape.swift */; };
 		63EB8EF9EEBAA2B4A9946BB5 /* PortalButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849C1154A3B7777673AF9B3C /* PortalButtonStyle.swift */; };
-		640A7C390D2CD7B846211AB6 /* SkillModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346A28CBBF871D9A0AAF2E76 /* SkillModels.swift */; };
 		64A06707EF3F26A3D57D8C16 /* SessionChatCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A24C651485F2F746BBBF88 /* SessionChatCanvas.swift */; };
 		64DB8DBA20AA4022DD8603D3 /* LearningStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D3658D4E71EE4626435266F /* LearningStoreTests.swift */; };
 		653CD1A2D9F6AB093546A2EA /* SharedEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6CCAC39C4D15CE885C9BA8 /* SharedEntity.swift */; };
@@ -758,7 +755,6 @@
 		E66777571CD1892C77BFD07B /* HTMLPointerLockBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FA0B52227457AD5063803B8 /* HTMLPointerLockBridge.swift */; };
 		E6811769E0A281947EFBD9CA /* CronGraphDiffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B196E603E6376186426A33E4 /* CronGraphDiffTests.swift */; };
 		E6F2E3A4C1903D95562271ED /* HarnessPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62C3C6AD6F18D1A7BA71169E /* HarnessPresentationTests.swift */; };
-		E7E64D3ECAB0417DE3C93933 /* SkillGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */; };
 		E80704E610AC22E3BB829807 /* ArtifactExportMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53C79AD615D5B3D90F5E1D6 /* ArtifactExportMenu.swift */; };
 		E88575FD715654F9EECC9887 /* PromptBreakdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D1ACB8B55E7A158426281C /* PromptBreakdownTests.swift */; };
 		E8B38648CAB94E7A68D7B9EA /* CronGraphDigest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73D0764BF7C3394277776671 /* CronGraphDigest.swift */; };
@@ -975,7 +971,6 @@
 		331F03820AA7EF768E091175 /* GatewayPersonaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayPersonaTests.swift; sourceTree = "<group>"; };
 		336891A0EF982E2238882C80 /* ResponseStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseStyleTests.swift; sourceTree = "<group>"; };
 		34409CA8CD17A6CC11C0ED47 /* EmptyTranscriptStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyTranscriptStateTests.swift; sourceTree = "<group>"; };
-		346A28CBBF871D9A0AAF2E76 /* SkillModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModels.swift; sourceTree = "<group>"; };
 		34893CE30A6CB39845D37812 /* MaintainerRefTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintainerRefTests.swift; sourceTree = "<group>"; };
 		34A2EF35794E0D22009946F6 /* InlineMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineMath.swift; sourceTree = "<group>"; };
 		3579CBF05F6DD22B54ECE626 /* CentaurWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CentaurWorkflow.swift; sourceTree = "<group>"; };
@@ -1111,7 +1106,6 @@
 		73D0764BF7C3394277776671 /* CronGraphDigest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphDigest.swift; sourceTree = "<group>"; };
 		753E282310FD326FD063B49D /* LivingArtifactCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingArtifactCapture.swift; sourceTree = "<group>"; };
 		75F2A58854DF639A75D16B15 /* CronNodeGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronNodeGroup.swift; sourceTree = "<group>"; };
-		7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillGraph3DView.swift; sourceTree = "<group>"; };
 		771C3D05CAE5E48B5A6AD239 /* BlockViewParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockViewParserTests.swift; sourceTree = "<group>"; };
 		7792D9E2DC57229B4906B037 /* CronSessionNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionNavigation.swift; sourceTree = "<group>"; };
 		779E85EE39689E3891CC1F43 /* SkillStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillStore.swift; sourceTree = "<group>"; };
@@ -1125,7 +1119,6 @@
 		7D21AC5FA6D05BF02CDEC209 /* CronGraphRevisionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphRevisionStoreTests.swift; sourceTree = "<group>"; };
 		7D3ED8C066694223E2E3F108 /* SessionTurnBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTurnBuilderTests.swift; sourceTree = "<group>"; };
 		7FBBFB8D9F119489F4676515 /* PortalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PortalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		805B9AAC488A39E32D243A52 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		8066B33986DB7AF91A50C611 /* CronSearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSearchBar.swift; sourceTree = "<group>"; };
 		80852FC85D6A1FEA78FD5A99 /* WikiGraphViewModel+Interaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WikiGraphViewModel+Interaction.swift"; sourceTree = "<group>"; };
 		8146991749E60E5DB327570E /* MapEntryTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapEntryTableView.swift; sourceTree = "<group>"; };
@@ -1151,6 +1144,7 @@
 		8B53EAA642267D9CC16376E6 /* ChecklistSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistSpec.swift; sourceTree = "<group>"; };
 		8B5AE1DB0A3F2D38511AB9FD /* SessionThoughtGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionThoughtGraphView.swift; sourceTree = "<group>"; };
 		8BF321CD02DCFB24525632CE /* GatewayRestartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayRestartTests.swift; sourceTree = "<group>"; };
+		8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		8CEA112C173DC783B4B36F40 /* Identicon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identicon.swift; sourceTree = "<group>"; };
 		8D7FB945E773A940CC79BB9A /* SavedGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedGateway.swift; sourceTree = "<group>"; };
 		8DC8A5590D3552402FA4965F /* ToolPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolPillView.swift; sourceTree = "<group>"; };
@@ -1425,7 +1419,6 @@
 		2BB0639BBBB436E536B2D332 /* Skills */ = {
 			isa = PBXGroup;
 			children = (
-				7679BE7B95A9A522FE3A8716 /* SkillGraph3DView.swift */,
 				2104F49DFA84085297BE08C9 /* SkillsCanvasView.swift */,
 				8587B717EB1399D398BE6438 /* SkillsDetailPanel.swift */,
 				1E2B9130DF8A478BB3C86326 /* SkillsEditorPanel.swift */,
@@ -1450,9 +1443,9 @@
 		2EA2C136383BFFD98AA9D8BC = {
 			isa = PBXGroup;
 			children = (
+				C9946E5426C0168A08340047 /* 20260828-102018 */,
 				9F79BDEC8F95449BD40FE345 /* App */,
 				61851216B4FFCF80111C87E3 /* Portal */,
-				3A0383BF2C1273CC31E3F3B8 /* portal-cron-diff */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -1468,15 +1461,6 @@
 				0A3591C0AF41F327701D87C1 /* TUISkin.swift */,
 			);
 			path = Skins;
-			sourceTree = "<group>";
-		};
-		3A0383BF2C1273CC31E3F3B8 /* portal-cron-diff */ = {
-			isa = PBXGroup;
-			children = (
-				805B9AAC488A39E32D243A52 /* Local.xcconfig */,
-			);
-			name = "portal-cron-diff";
-			path = .;
 			sourceTree = "<group>";
 		};
 		478C43A556D1BB4322590DA6 /* MissionControl */ = {
@@ -1599,7 +1583,6 @@
 				4A6CCAC39C4D15CE885C9BA8 /* SharedEntity.swift */,
 				8A4500C837BEE83EE7D26533 /* Skill.swift */,
 				663216E0150AB296373CDD72 /* SkillCategory.swift */,
-				346A28CBBF871D9A0AAF2E76 /* SkillModels.swift */,
 				C529F7B030E6CFA562F33BE5 /* SpawnNode.swift */,
 				55828662B29FE20DC8687AE8 /* SpawnTreeModels.swift */,
 				15A88948F5D06F0A1D967759 /* StatTileSpec.swift */,
@@ -1977,6 +1960,15 @@
 				B400AF748A0246E44CCDF6FB /* ViewSnapshot.swift */,
 			);
 			path = Support;
+			sourceTree = "<group>";
+		};
+		C9946E5426C0168A08340047 /* 20260828-102018 */ = {
+			isa = PBXGroup;
+			children = (
+				8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */,
+			);
+			name = "20260828-102018";
+			path = .;
 			sourceTree = "<group>";
 		};
 		DB1CA07754B6D16CE4A2F373 /* MenuBar */ = {
@@ -2628,9 +2620,7 @@
 				D0B222482A69D9720278AFAC /* Skill.swift in Sources */,
 				07C2B5F376376743AD12372A /* SkillCache.swift in Sources */,
 				941EA10F8E75CF7B0D732F6C /* SkillCategory.swift in Sources */,
-				E7E64D3ECAB0417DE3C93933 /* SkillGraph3DView.swift in Sources */,
 				ECB13E95243A4F2B9E0312E8 /* SkillMarkdownEditor.swift in Sources */,
-				51E0F580C8616D99FAC74AA9 /* SkillModels.swift in Sources */,
 				DA0F64BD568B03D7ED003B82 /* SkillStore.swift in Sources */,
 				A2D46B9282FB8D2E86305220 /* SkillSummaryService.swift in Sources */,
 				05998D0E843A0321C0DFA686 /* SkillsCanvasView.swift in Sources */,
@@ -3135,9 +3125,7 @@
 				67B01755F51E5A8C386FA820 /* Skill.swift in Sources */,
 				3D10397D2674A2C43471452A /* SkillCache.swift in Sources */,
 				82403863D12C6B791AC96E6D /* SkillCategory.swift in Sources */,
-				5B4CF55F252F5EDDEDFC3DEA /* SkillGraph3DView.swift in Sources */,
 				5DABDDBD4FB0C1869D588D9E /* SkillMarkdownEditor.swift in Sources */,
-				640A7C390D2CD7B846211AB6 /* SkillModels.swift in Sources */,
 				8116FB36DCFC6BDA3F43CE56 /* SkillStore.swift in Sources */,
 				A3B1756BAFC8FF94724C2B3E /* SkillSummaryService.swift in Sources */,
 				4EAA716F053E6308ABABDA3F /* SkillsCanvasView.swift in Sources */,
@@ -3259,7 +3247,7 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 805B9AAC488A39E32D243A52 /* Local.xcconfig */;
+			baseConfigurationReference = 8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -3282,7 +3270,7 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 805B9AAC488A39E32D243A52 /* Local.xcconfig */;
+			baseConfigurationReference = 8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -3368,7 +3356,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 805B9AAC488A39E32D243A52 /* Local.xcconfig */;
+			baseConfigurationReference = 8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -3431,7 +3419,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 805B9AAC488A39E32D243A52 /* Local.xcconfig */;
+			baseConfigurationReference = 8CBA4AAB7EE65B6726E41C3F /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
