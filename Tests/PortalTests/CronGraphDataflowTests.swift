@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Portal
 
@@ -16,6 +17,26 @@ internal struct CronGraphDataflowTests {
             lastStatus: nil,
             deliver: nil
         )
+    }
+
+    @Test("relationship-class edges never become cron side effects")
+    internal func relationshipEdgesAreNotSideEffects() {
+        let graph = CronGraph(
+            nodes: [node("job", kind: "cron"), node("runtime:docker", kind: "object", type: "runtime")],
+            edges: [CronGraphEdge(source: "job", target: "runtime:docker",
+                                  type: "runs_in", edgeClass: "relationship")]
+        )
+
+        #expect(graph.dataflow(forCronID: "job").isEmpty)
+    }
+
+    @Test("gateway relationship class survives wire decoding")
+    internal func relationshipClassDecodesFromGateway() throws {
+        let json = #"{"nodes":[],"edges":[{"source":"nomad:gateway","target":"runtime:docker","type":"runs_in","class":"relationship"}]}"#
+        let value = try JSONDecoder().decode(AnyCodable.self, from: Data(json.utf8))
+        let edge = try #require(CronGraph.decodeGatewayValue(value).edges.first)
+
+        #expect(edge.edgeClass == "relationship")
     }
 
     @Test("edge identity includes both endpoints and the relationship type")

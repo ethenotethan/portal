@@ -130,7 +130,11 @@ extension CronGraphDigest {
     }
 
     private static func edgeRows(_ graph: CronGraph) -> [String] {
-        graph.edges.map { row("e", [field($0.source), field($0.target), field($0.type)]) }
+        graph.edges.map { edge in
+            var fields = [field(edge.source), field(edge.target), field(edge.type)]
+            if let edgeClass = edge.edgeClass { fields.append(field(edgeClass)) }
+            return row("e", fields)
+        }
     }
 
     // MARK: - Encoding
