@@ -343,6 +343,12 @@ struct RawSessionEventTests {
             payload: #"{"ts": 1784000000.5}"#
         )
         #expect(epoch.timestamp == Date(timeIntervalSince1970: 1_784_000_000.5))
+
+        let malformedPreferredKey = RawSessionEvent(
+            id: 6, name: "session.execution_started",
+            payload: #"{"timestamp":"not-a-date","created_at":"2026-07-19T09:00:00Z"}"#
+        )
+        #expect(malformedPreferredKey.timestamp == iso.timestamp)
     }
 }
 
