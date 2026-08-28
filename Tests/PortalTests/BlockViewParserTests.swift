@@ -632,6 +632,9 @@ struct EnsembleModelTests {
         #expect(apartments.items.count == 2)                 // ghost filtered
         #expect(spec.relations.count == 2)                   // broken-set ref dropped
         #expect(spec.views.count == 4)
+        // View identity includes declaration position, so two projections of
+        // the same kind remain distinct when SwiftUI renders them in ForEach.
+        #expect(spec.views.map(\.id) == ["0:map", "1:table", "2:graph", "3:chart"])
         #expect(spec.actions["apartments"]?.count == 2)
         #expect(ModelSpec.parse("{\"entities\": {}}") == nil)
     }
