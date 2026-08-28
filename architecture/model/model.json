@@ -135,7 +135,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6802
+      "line_count": 6811
     },
     {
       "declaration_count": 150,
@@ -612,7 +612,34 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11250
+      "line_count": 11286,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+          "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+          "Sources/Portal/Views/ArtifactKindRenderer.swift",
+          "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
+          "Sources/Portal/Views/ChatView.swift"
+        ],
+        "flows": [
+          "ArtifactExpandedOverlay builds the fullscreen window's intent context from the live manifest and the negotiated capability set",
+          "ArtifactPanel and the ChatView iOS sheet read the live artifact from the store and pass content plus topLevelActions to the renderer"
+        ],
+        "id": "artifact-ui",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Fall back to trusted native action chrome when an HTML artifact declares actions but places no inline markers",
+          "Forward the live artifact's action manifest with its id from every surface that opens it — panel, iOS sheet, expanded overlay, fullscreen window",
+          "Gate inline intent clicks on the negotiated capability set and manifest resolution, logging which gate closed at notice",
+          "Prefer the unsupported reason over the generic harness sentence at every status display site",
+          "Reflect every live intent slot onto its control's data-hermes-status attribute",
+          "Render any artifact kind through one ArtifactKindRenderer, which also decides host mouse capture from the document itself"
+        ],
+        "source_revision": "4c9a9aa61b9eed6731aa44c3789468faa4f28d7c",
+        "summary": "Living artifact presentation. ArtifactKindRenderer is the one place that decides how an artifact of any kind is drawn and — for interactive HTML — whether the host captures the mouse for it. The renderer's contract for live artifacts is that the action manifest travels with the artifact id: an html artifact declares its intents on the record rather than in its content, so passing actionableArtifactID without topLevelActions injects the intent bridge, captures the click, and resolves it against an empty manifest — the exact shape of a regression that left every control dead in the macOS side panel (the primary way an artifact is opened) and the iOS sheet while the expanded overlay worked. The surfaces that open a live artifact forward both: the transcript panel, the iOS artifact sheet, the expanded overlay, and the fullscreen window's intent context. Inline intent clicks are gated twice in the host — the negotiated capability set must advertise an artifact.action surface, and the binding must resolve against the declared manifest — and both refusals are logged at notice, because the page has already swallowed the click and a dead control otherwise looks identical to missing markup. Status display prefers the unsupported reason over the generic harness sentence at every site: the renderer's inline status row and the fullscreen window's status line both show IntentInvocationState's reason first, so copy names the gate that actually closed — a local miss, no connection, a gateway too old for the method, or a gateway verdict — instead of pointing at a server that was never asked. Status is also reflected back onto the page: every live intent slot for the artifact becomes a data-hermes-status mark, so each inert control reflects its own outcome independently of the one last clicked. HTML artifacts that declare actions but place no inline markers fall back to ArtifactTopLevelActionBar — trusted SwiftUI chrome above the document, no JS bridge involved."
+      }
     },
     {
       "declaration_count": 57,
@@ -705,8 +732,10 @@
       "line_count": 7242
     },
     {
-      "declaration_count": 7,
+      "declaration_count": 9,
       "declarations": [
+        "BackgroundTurnBuffer",
+        "CappedText",
         "ChatViewModel",
         "DelegationStatus",
         "GatewayCapabilitiesStore",
@@ -727,7 +756,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4275
+      "line_count": 4483
     },
     {
       "declaration_count": 29,
@@ -1022,7 +1051,37 @@
       "id": "artifact-intents",
       "label": "Artifact intents",
       "layer": "integration",
-      "line_count": 1435
+      "line_count": 1475,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Models/ArtifactActions.swift",
+          "Sources/Portal/Models/ArtifactIntentSessionLink.swift",
+          "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
+          "Sources/Portal/Models/HTMLPointerLockBridge.swift",
+          "Sources/Portal/Models/MaintainerRef.swift",
+          "Sources/Portal/Services/ArtifactStore.swift"
+        ],
+        "flows": [
+          "Each refusal on the dispatch path is logged at notice — local guards, the missing-method case, and the gateway's unsupported verdict each say which gate closed",
+          "The artifact id and the action manifest must travel together; an html artifact declares intents on the record rather than in its content, so an id without its manifest resolves every click against nothing"
+        ],
+        "id": "artifact-intents",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Declare artifact verbs as data: local kinds mutate content through the shared upsert path, intent kinds resolve to gateway handlers by binding ID",
+          "Dispatch artifact.action.invoke and artifact.action.confirm against the pinned revision with per-slot state and reused idempotency keys so retries are no-ops",
+          "Distinguish the four unsupported paths — local store miss, no connection, gateway without the method, gateway verdict — with per-path reasons surfaced to every display site",
+          "Gate the bridge out of untrusted HTML behind a per-view nonce in an isolated content world; only a trusted click on data-hermes-binding markup can carry the capability",
+          "Mirror invocation status onto data-hermes-status with a closed token vocabulary the page can style but not observe or override",
+          "Parse maintainer references so an artifact a cron actively tends is distinguishable from one-off authorship",
+          "Post session click-through from native code only, reusing the shared session-switch notification",
+          "Rehydrate terminal outcomes from the gateway's invocation ledger without overwriting live in-session state"
+        ],
+        "source_revision": "4c9a9aa61b9eed6731aa44c3789468faa4f28d7c",
+        "summary": "The declared-intent contract for living artifacts: artifacts declare verbs as data, and clicks on inert markup dispatch real backend work. ArtifactAction is the declaration — local kinds (choice/toggle/delete) mutate content through the same upsert→push path agent writes use, while intent kinds carry a stable binding ID the gateway resolves against the pinned revision; the intent name travelling with the artifact is display and debugging material, never the thing to run. HTMLArtifactIntentBridge is the only way out of untrusted content: a trusted click on data-hermes-binding markup becomes a nonce-gated private-scheme navigation in an isolated content world — synthetic clicks rejected, no message handler, fetch, or credential exposed — and native mirrors status back onto data-hermes-status attributes in the same world with a closed token vocabulary the page can style but not forge. ArtifactStore owns dispatch: slots keyed artifact/binding/entity so sibling rows report independently, idempotency keys reused per slot so a retry cannot execute twice, confirmation challenges bound server-side to actor, revision, binding, and expiry, and ledger rehydration seeding only terminal outcomes without overwriting live in-session state. IntentInvocationState.unsupported carries a reason distinguishing the four ways no handler ran — the artifact isn't in the local store, no gateway connection, a gateway with no artifact.action.invoke method at all, and a successful round trip whose binding has no registered handler — and each refusal is logged at notice, because the page has already swallowed the click and a silent refusal is indistinguishable from a dead control. MaintainerRef separates an artifact a cron actively tends from one that is merely mutable, and ArtifactIntentSessionLink lets native chrome post the session switch for an intent that ran as a contained session — reusing the same in-process notification the sidebar and inbox use, never handing the untrusted page a session ID or any navigation capability. HTMLPointerLockBridge hosts mouse capture for immersive worlds: trusted gestures only, offered at every stage of the gesture because WebKit treats pointerdown and click differently, gated by canvas dominance so a report's chart cannot eat the cursor, with a drag-look shim that translates locked movement into the drag a pre-contract page was written for."
+      }
     },
     {
       "declaration_count": 2,
@@ -1511,7 +1570,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13316,
+      "line_count": 13330,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -1521,10 +1580,12 @@
           "Sources/Portal/Models/CronGraphDiff.swift",
           "Sources/Portal/Models/CronGraphDigest.swift",
           "Sources/Portal/Models/CronGraphRevision.swift",
-          "Sources/Portal/Models/CronGraphRevisionStore.swift"
+          "Sources/Portal/Models/CronGraphRevisionStore.swift",
+          "Sources/Portal/Models/GatewayCapabilities.swift"
         ],
         "flows": [
           "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names",
+          "GatewayCapabilitiesStore logs diagnosticSummary at notice when capabilities resolve, because no view displays capabilityNames",
           "GatewayClient decodes cron.changesets rows into CronChangeset values, tolerating missing fields except id",
           "The revision drawer and the canvas render the same CronGraphDiff statements; the canvas highlight sets are derived from them, never recomputed"
         ],
@@ -1535,14 +1596,16 @@
           "Canonicalize the dataflow graph into sorted, length-prefixed forms so the commitment is ordering-independent and collision-free",
           "Derive cron category paths from job names as a pure naming convention",
           "Diff two graph revisions into typed, human-phrased statements whose derived node and edge sets feed the canvas highlight",
+          "Gate features on negotiated capability names, with the restart control inverted so an unknown gateway can still be asked",
           "Keep the observed revision log: append on digest change only, strip runtime state, cap at 200 entries, persist atomically",
           "Model gateway-recorded changesets with open-vocabulary action, actor, and provenance, sharing the observed log's digest linkage",
           "Normalize and validate user-typed job names so renaming is also refiling",
           "Own value-oriented wire and domain types shared across experiences and service adapters",
-          "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart"
+          "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart",
+          "Render the negotiated capability set for diagnostics as a pure function: count, loud artifact-actions verdict, sorted names, honest empty case"
         ],
-        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
-        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled by CronCategory, which derives arbitrary-depth category paths from a job's own name and owns the display-name rules every surface shares. The dataflow graph now has an identity you can quote: CronGraphDigest is a SHA-256 content address over a canonical, byte-sorted, length-prefixed form of the graph as configured — schedule, enabled, usesLLM, deliver, description, and every edge are in, while lastStatus and health are out so the 10-second health poll cannot mint revisions — and layoutForm, a strict subset kept in the same file because the difference is the point, answers only whether a refresh must re-run the force layout. CronGraphRevisionStore keeps the append-on-change observation log: per-observation UUID identity so a revert A → B → A is three entries, runtime state stripped before storing so over(revision.graph) == revision.digest holds forever, capped at 200 revisions for disk. CronGraphDiff reports typed, human-phrased statements — rename versus refile told apart by leaf and path, edges as dataflow — with affectedNodeIDs, addedEdgeIDs, and removedEdges derived from the statements so the drawer and the canvas cannot drift. CronChangeset is the gateway-recorded counterpart carrying what the observed log structurally cannot: real time, an actor (human/agent/scheduler/other/unknown), and provenance turns. CronGraph itself is Codable for local snapshots only; gateway decoding stays on decodeGatewayValue."
+        "source_revision": "4c9a9aa61b9eed6731aa44c3789468faa4f28d7c",
+        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled by CronCategory, which derives arbitrary-depth category paths from a job's own name and owns the display-name rules every surface shares. The dataflow graph now has an identity you can quote: CronGraphDigest is a SHA-256 content address over a canonical, byte-sorted, length-prefixed form of the graph as configured — schedule, enabled, usesLLM, deliver, description, and every edge are in, while lastStatus and health are out so the 10-second health poll cannot mint revisions — and layoutForm, a strict subset kept in the same file because the difference is the point, answers only whether a refresh must re-run the force layout. CronGraphRevisionStore keeps the append-on-change observation log: per-observation UUID identity so a revert A → B → A is three entries, runtime state stripped before storing so over(revision.graph) == revision.digest holds forever, capped at 200 revisions for disk. CronGraphDiff reports typed, human-phrased statements — rename versus refile told apart by leaf and path, edges as dataflow — with affectedNodeIDs, addedEdgeIDs, and removedEdges derived from the statements so the drawer and the canvas cannot drift. CronChangeset is the gateway-recorded counterpart carrying what the observed log structurally cannot: real time, an actor (human/agent/scheduler/other/unknown), and provenance turns. CronGraph itself is Codable for local snapshots only; gateway decoding stays on decodeGatewayValue. GatewayCapabilities is the negotiated-capability value the feature gates read: supportsArtifactActions, supportsActionLog, and supportsLearning hide their features when the set is silent, while supportsGatewayRestart is deliberately inverted — a gateway that reported nothing still gets the restart button, because restart is the recovery control and hiding it is how you end up needing shell access on the host; a gateway that did report and didn't list restart is taken at its word. The negotiated set is displayed by no view, so diagnosticSummary renders it as a pure, testable one-line verdict — the count, a loud supported/ABSENT artifact-actions flag, sorted names (or \"none listed\" so an empty set doesn't render as a bare colon) — which GatewayCapabilitiesStore logs at notice when capabilities resolve, the first place to look when a feature silently isn't there."
       }
     },
     {
@@ -5233,9 +5296,9 @@
   ],
   "inventory": {
     "assigned_files": 347,
-    "declarations": 1015,
+    "declarations": 1017,
     "swift_files": 347,
-    "swift_lines": 100603,
+    "swift_lines": 100910,
     "unassigned_files": []
   },
   "layers": [
@@ -5267,6 +5330,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "aca27ca06910a135e0f2501315585737a932c8f5a3a715f4adf7c6f71cdb1767",
+  "source_tree_sha256": "9d2a971528e22d648956f3527ca32b220b752a29b774e72c1f884e51d0df6d68",
   "title": "Portal Architecture"
 }
