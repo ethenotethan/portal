@@ -111,6 +111,40 @@ internal struct FeedTweetModelTests {
     }
 }
 
+@Suite("Feed article summary presentation")
+internal struct FeedArticleSummaryTests {
+
+    private func article(summary: String) -> FeedArticle {
+        FeedArticle(
+            id: "article-1", title: "Launch", url: "https://example.com/launch",
+            summary: summary, source: "blog", tags: [], imageUrl: "", ts: ""
+        )
+    }
+
+    @Test("Display summary removes duplicate markup while preserving document structure")
+    internal func displaySummarySanitizesMarkup() {
+        let summary = [
+            "![hero](https://example.com/hero.png)",
+            "<h2>Launch &amp; Learn</h2>   ",
+            "- first\\n  - nested",
+            "",
+            "",
+            "Use &lt;tags&gt; &quot;carefully&quot; &#39;now&#39;",
+        ].joined(separator: "\n")
+
+        #expect(
+            article(summary: summary).displaySummary
+                == "Launch & Learn\n- first\n  - nested\n\nUse <tags> \"carefully\" 'now'"
+        )
+    }
+
+    @Test("Preview summary removes heading markers without flattening paragraphs")
+    internal func previewSummaryRemovesHeadingMarkers() {
+        let summary = "# Headline\n\n## Details\nBody"
+        #expect(article(summary: summary).previewSummary == "Headline\n\nDetails\nBody")
+    }
+}
+
 // The oEmbed fallback: extracting tweet text + author from the public
 // embed HTML, and the status-URL gate that decides when to fetch.
 @Suite("Tweet embed")
