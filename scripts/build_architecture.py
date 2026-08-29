@@ -26,6 +26,43 @@ DECLARATION_RE = re.compile(
 )
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]{3,}\b")
 
+BEHAVIOR_RULES = {
+    "swift.execution.main_actor": "@MainActor applied to a declaration or extension",
+    "swift.execution.actor": "Swift actor declaration",
+    "swift.execution.dispatch_queue": "Stored property initialized with DispatchQueue(label:)",
+    "swift.task.structured": "Task initializer with closure",
+    "swift.task.detached": "Task.detached closure",
+    "swift.task.stored_handle": "Stored property whose declared type is Task",
+    "swift.task.cancel": "cancel() invoked on a named stored Task handle",
+    "swift.resource.websocket.stored": "Stored property declared as URLSessionWebSocketTask",
+    "swift.resource.url_session.stored": "Stored property declared as URLSession",
+    "swift.resource.sse.bytes": "URLSession bytes(for:) call in a source file containing a text/event-stream marker",
+    "swift.resource.combine_subject.stored": "Stored property initialized as a PassthroughSubject or CurrentValueSubject",
+    "swift.resource.continuation.stored": "Stored property declared as an AsyncStream continuation",
+    "swift.resource.lock.stored": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
+    "swift.resource.timer.stored": "Stored property declared as Timer",
+    "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
+    "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
+    "swift.lifecycle.release": "unlock() invoked on a named stored lock",
+    "swift.lifecycle.invalidate": "invalidate() invoked on a named stored timer",
+    "swift.lifecycle.continuation_publish": "yield() invoked on a named stored continuation",
+    "swift.lifecycle.continuation_close": "finish() invoked on a named stored continuation",
+    "swift.lifecycle.publish": "send() invoked on a named stored stream subject",
+    "swift.lifecycle.batch": "Combine collect() batching operator in a subject pipeline",
+    "swift.lifecycle.hop": "Combine receive(on:) scheduler boundary in a subject pipeline",
+    "swift.lifecycle.sse_subscribe": "bytes(for:) invoked on a named stored URLSession",
+    "swift.lifecycle.sse_replay_cursor": "setValue uses a Last-Event-ID header marker",
+    "swift.lifecycle.start": "resume() invoked on a named stored resource",
+    "swift.lifecycle.receive": "receive() invoked on a named stored resource",
+    "swift.lifecycle.send": "send() invoked on a named stored resource",
+    "swift.lifecycle.close": "cancel(with:reason:) invoked on a named stored WebSocket resource",
+}
+
+STATIC_SOURCE_LIMITATIONS = [
+    "Static source evidence does not prove runtime overlap, scheduling order, OS thread use, or live resource counts.",
+    "Regex and lexical rules identify mechanically visible declarations and operations; dynamic aliases and interprocedural flows remain unresolved.",
+]
+
 
 class ArchitectureError(RuntimeError):
     """Raised when source-backed architecture data is invalid."""
@@ -43,6 +80,424 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
+
+
+def stable_behavior_id(category: str, path: str, line: int, label: str) -> str:
+    seed = f"{category}\0{path}\0{line}\0{label}".encode("utf-8")
+    return f"{category}-{hashlib.sha256(seed).hexdigest()[:12]}"
+
+
+def strip_swift_noncode(text: str) -> str:
+    """Replace comments and string contents with spaces while preserving line positions."""
+    output = list(text)
+    index = 0
+    state = "code"
+    block_depth = 0
+    while index < len(text):
+        pair = text[index:index + 2]
+        if state == "code":
+            if pair == "//":
+                output[index:index + 2] = "  "
+                state = "line_comment"
+                index += 2
+                continue
+            if pair == "/*":
+                output[index:index + 2] = "  "
+                state = "block_comment"
+                block_depth = 1
+                index += 2
+                continue
+            if text.startswith('"""', index):
+                output[index:index + 3] = "   "
+                state = "multiline_string"
+                index += 3
+                continue
+            if text[index] == '"':
+                output[index] = " "
+                state = "string"
+        elif state == "line_comment":
+            if text[index] == "\n":
+                state = "code"
+            else:
+                output[index] = " "
+        elif state == "block_comment":
+            if pair == "/*":
+                output[index:index + 2] = "  "
+                block_depth += 1
+                index += 2
+                continue
+            if pair == "*/":
+                output[index:index + 2] = "  "
+                block_depth -= 1
+                index += 2
+                if block_depth == 0:
+                    state = "code"
+                continue
+            if text[index] != "\n":
+                output[index] = " "
+        elif state == "string":
+            if text[index] == "\\":
+                output[index] = " "
+                if index + 1 < len(text):
+                    if text[index + 1] != "\n":
+                        output[index + 1] = " "
+                    index += 2
+                    continue
+            if text[index] == '"':
+                output[index] = " "
+                state = "code"
+            elif text[index] != "\n":
+                output[index] = " "
+        elif state == "multiline_string":
+            if text.startswith('"""', index):
+                output[index:index + 3] = "   "
+                state = "code"
+                index += 3
+                continue
+            if text[index] != "\n":
+                output[index] = " "
+        index += 1
+    return "".join(output)
+
+
+def source_evidence(path: str, text: str, offset: int) -> dict[str, Any]:
+    line = text.count("\n", 0, offset) + 1
+    lines = text.splitlines()
+    return {"path": path, "line": line, "excerpt": lines[line - 1].strip() if lines else ""}
+
+
+def observed_item(category: str, kind: str, label: str, owner: str | None,
+                  rule_id: str, path: str, text: str, offset: int, **extra: Any) -> dict[str, Any]:
+    evidence = source_evidence(path, text, offset)
+    return {
+        "id": stable_behavior_id(category, path, evidence["line"], label),
+        "kind": kind,
+        "label": label,
+        "component": owner,
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "rule_id": rule_id,
+        "evidence": evidence,
+        **extra,
+    }
+
+
+def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:
+    """Return cheaply-derived enclosing type/function using balanced source braces."""
+    candidates: list[tuple[int, int, str, str]] = []
+    declaration_re = re.compile(
+        r"\b(class|struct|enum|actor|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)[^\n{]*\{"
+    )
+    for match in declaration_re.finditer(code, 0, offset + 1):
+        depth = 1
+        cursor = match.end()
+        while cursor < len(code) and depth:
+            if code[cursor] == "{":
+                depth += 1
+            elif code[cursor] == "}":
+                depth -= 1
+            cursor += 1
+        end = cursor if depth == 0 else len(code)
+        if match.start() <= offset < end:
+            candidates.append((match.start(), end, match.group(1), match.group(2)))
+    enclosing_type = None
+    enclosing_function = None
+    for _, _, declaration_kind, name in sorted(candidates):
+        if declaration_kind == "func":
+            enclosing_function = name
+        else:
+            enclosing_type = name
+    return enclosing_type, enclosing_function
+
+
+def extract_behavioral_source(path: str, text: str, component: str | None) -> dict[str, list[dict[str, Any]]]:
+    code = strip_swift_noncode(text)
+    domains: list[dict[str, Any]] = []
+    main_actor_re = re.compile(
+        r"@MainActor\s+(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
+        r"(?:class|struct|enum|protocol|actor|extension)\s+([A-Z][A-Za-z0-9_]*)"
+    )
+    for match in main_actor_re.finditer(code):
+        domains.append(observed_item(
+            "execution-domain", "main_actor", match.group(1), component,
+            "swift.execution.main_actor", path, text, match.start()
+        ))
+    main_actor_names = {item["label"] for item in domains}
+    actor_re = re.compile(
+        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
+        r"actor\s+([A-Z][A-Za-z0-9_]*)\b"
+    )
+    for match in actor_re.finditer(code):
+        if match.group(1) not in main_actor_names:
+            domains.append(observed_item(
+                "execution-domain", "actor", match.group(1), component,
+                "swift.execution.actor", path, text, match.start()
+            ))
+    queue_re = re.compile(
+        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*DispatchQueue\s*\(\s*label\s*:"
+    )
+    source_lines = text.splitlines()
+    for match in queue_re.finditer(code):
+        evidence = source_evidence(path, text, match.start())
+        original_line = source_lines[evidence["line"] - 1]
+        label_match = re.search(r"label\s*:\s*\"([^\"]+)\"", original_line)
+        runtime_label = label_match.group(1) if label_match else "unresolved"
+        owner_type, _ = enclosing_context(code, match.start())
+        domains.append(observed_item(
+            "execution-domain", "dispatch_queue", match.group(1), component,
+            "swift.execution.dispatch_queue", path, text, match.start(),
+            owner_type=owner_type, runtime_label=runtime_label,
+        ))
+    domains.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+
+    task_sites: list[dict[str, Any]] = []
+    task_patterns = [
+        ("stored_task_handle", "swift.task.stored_handle", re.compile(
+            r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Task\s*<"
+        )),
+        ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
+        ("task", "swift.task.structured", re.compile(r"\bTask\s*(?:\([^)]*\)\s*)?\{")),
+        ("task_cancellation", "swift.task.cancel", re.compile(
+            r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*\.\s*cancel\s*\("
+        )),
+    ]
+    detached_ranges: list[tuple[int, int]] = []
+    for kind, rule_id, pattern in task_patterns:
+        for match in pattern.finditer(code):
+            if kind == "task" and any(start <= match.start() < end for start, end in detached_ranges):
+                continue
+            if kind == "task_cancellation" and match.group(1) not in {
+                item["label"] for item in task_sites if item["kind"] == "stored_task_handle"
+            }:
+                continue
+            if kind == "task_detached":
+                detached_ranges.append(match.span())
+            label = match.group(1) if match.lastindex else ("Task.detached" if kind == "task_detached" else "Task")
+            enclosing_type, enclosing_function = enclosing_context(code, match.start())
+            task_sites.append(observed_item(
+                "task-site", kind, label, component, rule_id, path, text, match.start(),
+                enclosing_type=enclosing_type, enclosing_function=enclosing_function,
+            ))
+    task_sites.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+
+    resources: list[dict[str, Any]] = []
+    stored_resource_specs = [
+        ("websocket", "URLSessionWebSocketTask", "swift.resource.websocket.stored"),
+        ("url_session", "URLSession", "swift.resource.url_session.stored"),
+    ]
+    for resource_kind, type_name, rule_id in stored_resource_specs:
+        resource_re = re.compile(
+            rf"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            rf"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*{type_name}\s*(\?)?(?![A-Za-z0-9_])"
+        )
+        for match in resource_re.finditer(code):
+            owner_type, _ = enclosing_context(code, match.start())
+            cardinality = (
+                "one stored optional field per owner instance" if match.group(2)
+                else "one stored field per owner instance"
+            ) if owner_type else "unresolved"
+            resources.append(observed_item(
+                "resource", resource_kind, match.group(1), component,
+                rule_id, path, text, match.start(), owner_type=owner_type,
+                cardinality=cardinality,
+            ))
+
+    additional_resource_specs = [
+        (
+            "continuation",
+            "swift.resource.continuation.stored",
+            re.compile(
+                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*"
+                r"Async(?:Throwing)?Stream\s*<[^\n>]+>\s*\.\s*Continuation\s*(\?)?"
+            ),
+        ),
+        (
+            "lock",
+            "swift.resource.lock.stored",
+            re.compile(
+                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
+                r"(?::\s*(?:NSLock|OSAllocatedUnfairLock)(?:\s*<[^\n>]+>)?\s*)?"
+                r"=\s*(?:NSLock|OSAllocatedUnfairLock)\s*(?:<[^\n>]+>)?\s*\("
+            ),
+        ),
+        (
+            "timer",
+            "swift.resource.timer.stored",
+            re.compile(
+                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Timer\s*(\?)?"
+            ),
+        ),
+    ]
+    for resource_kind, rule_id, resource_re in additional_resource_specs:
+        for match in resource_re.finditer(code):
+            owner_type, _ = enclosing_context(code, match.start())
+            is_optional = bool(match.lastindex and match.group(match.lastindex) == "?")
+            cardinality = (
+                "one stored optional field per owner instance" if is_optional
+                else "one stored field per owner instance"
+            ) if owner_type else "unresolved"
+            resources.append(observed_item(
+                "resource", resource_kind, match.group(1), component,
+                rule_id, path, text, match.start(), owner_type=owner_type,
+                cardinality=cardinality,
+            ))
+
+    combine_re = re.compile(
+        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*"
+        r"(?:PassthroughSubject|CurrentValueSubject)\s*<"
+    )
+    for match in combine_re.finditer(code):
+        owner_type, _ = enclosing_context(code, match.start())
+        resources.append(observed_item(
+            "resource", "combine_subject", match.group(1), component,
+            "swift.resource.combine_subject.stored", path, text, match.start(),
+            owner_type=owner_type,
+            cardinality="one stored field per owner instance" if owner_type else "unresolved",
+        ))
+
+    bytes_matches = list(re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*bytes\s*\(\s*for\s*:", code))
+    if bytes_matches and "text/event-stream" in text:
+        for match in bytes_matches:
+            owner_type, _ = enclosing_context(code, match.start())
+            resources.append(observed_item(
+                "resource", "sse_stream", f"{match.group(1)}.bytes", component,
+                "swift.resource.sse.bytes", path, text, match.start(), owner_type=owner_type,
+                cardinality="unresolved",
+            ))
+
+    operations: list[dict[str, Any]] = []
+    operation_specs = [
+        ("start", "swift.lifecycle.start", "resume"),
+        ("receive", "swift.lifecycle.receive", "receive"),
+        ("send", "swift.lifecycle.send", "send"),
+        ("close", "swift.lifecycle.close", "cancel"),
+    ]
+    for resource in resources:
+        if resource["kind"] != "websocket":
+            continue
+        name = re.escape(resource["label"])
+        for kind, rule_id, method in operation_specs:
+            suffix = r"\s*\(\s*with\s*:" if kind == "close" else r"\s*\("
+            pattern = re.compile(rf"\b{name}\s*\??\s*\.\s*{method}{suffix}")
+            for match in pattern.finditer(code):
+                owner_type, enclosing_function = enclosing_context(code, match.start())
+                operations.append(observed_item(
+                    "lifecycle-operation", kind, f"{resource['label']}.{method}", component,
+                    rule_id, path, text, match.start(), resource_id=resource["id"],
+                    resource_label=resource["label"], owner_type=owner_type,
+                    enclosing_function=enclosing_function,
+                ))
+
+    resources_by_label = {item["label"]: item for item in resources}
+    resource_operation_specs = {
+        "lock": [
+            ("acquire", "swift.lifecycle.acquire", "lock"),
+            ("release", "swift.lifecycle.release", "unlock"),
+        ],
+        "continuation": [
+            ("publish", "swift.lifecycle.continuation_publish", "yield"),
+            ("close", "swift.lifecycle.continuation_close", "finish"),
+        ],
+        "timer": [("invalidate", "swift.lifecycle.invalidate", "invalidate")],
+    }
+    for resource in resources:
+        for kind, rule_id, method in resource_operation_specs.get(resource["kind"], []):
+            pattern = re.compile(
+                rf"\b{re.escape(resource['label'])}\s*\??\s*\.\s*{method}\s*\("
+            )
+            for match in pattern.finditer(code):
+                owner_type, enclosing_function = enclosing_context(code, match.start())
+                operations.append(observed_item(
+                    "lifecycle-operation", kind, f"{resource['label']}.{method}", component,
+                    rule_id, path, text, match.start(), resource_id=resource["id"],
+                    resource_label=resource["label"], owner_type=owner_type,
+                    enclosing_function=enclosing_function,
+                ))
+
+    for resource in (item for item in resources if item["kind"] == "websocket"):
+        factory_re = re.compile(
+            rf"\b{re.escape(resource['label'])}\s*=\s*"
+            r"([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*webSocketTask\s*\("
+        )
+        for match in factory_re.finditer(code):
+            session = resources_by_label.get(match.group(1))
+            if session is None or session["kind"] != "url_session":
+                continue
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "create",
+                f"{resource['label']} = {session['label']}.webSocketTask", component,
+                "swift.lifecycle.create", path, text, match.start(),
+                resource_id=resource["id"], resource_label=resource["label"],
+                factory_resource_id=session["id"], owner_type=owner_type,
+                enclosing_function=enclosing_function,
+            ))
+    for match in bytes_matches:
+        session_resource = resources_by_label.get(match.group(1))
+        if session_resource is not None:
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "subscribe", f"{match.group(1)}.bytes", component,
+                "swift.lifecycle.sse_subscribe", path, text, match.start(),
+                resource_id=session_resource["id"], resource_label=session_resource["label"],
+                owner_type=owner_type, enclosing_function=enclosing_function,
+            ))
+    sse_resources = [item for item in resources if item["kind"] == "sse_stream"]
+    set_value_re = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*setValue\s*\(")
+    for match in set_value_re.finditer(code):
+        evidence = source_evidence(path, text, match.start())
+        source_line = text.splitlines()[evidence["line"] - 1]
+        if "Last-Event-ID" not in source_line or not sse_resources:
+            continue
+        owner_type, enclosing_function = enclosing_context(code, match.start())
+        resource = sse_resources[0]
+        operations.append(observed_item(
+            "lifecycle-operation", "replay_cursor", "Last-Event-ID", component,
+            "swift.lifecycle.sse_replay_cursor", path, text, match.start(),
+            resource_id=resource["id"], resource_label=resource["label"],
+            owner_type=owner_type, enclosing_function=enclosing_function,
+        ))
+
+    combine_resources = [item for item in resources if item["kind"] == "combine_subject"]
+    for resource in combine_resources:
+        publish_re = re.compile(rf"\b{re.escape(resource['label'])}\s*\.\s*send\s*\(")
+        for match in publish_re.finditer(code):
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "publish", f"{resource['label']}.send", component,
+                "swift.lifecycle.publish", path, text, match.start(),
+                resource_id=resource["id"], resource_label=resource["label"],
+                owner_type=owner_type, enclosing_function=enclosing_function,
+            ))
+    for kind, rule_id, operator in [
+        ("batch", "swift.lifecycle.batch", "collect"),
+        ("hop", "swift.lifecycle.hop", "receive"),
+    ]:
+        for match in re.finditer(rf"\.\s*{operator}\s*\(", code):
+            preceding = code[max(0, match.start() - 400):match.start()]
+            candidates = [item for item in combine_resources if re.search(
+                rf"\b{re.escape(item['label'])}\b", preceding
+            )]
+            if not candidates:
+                continue
+            resource = candidates[-1]
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", kind, f"{resource['label']}.{operator}", component,
+                rule_id, path, text, match.start(), resource_id=resource["id"],
+                resource_label=resource["label"], owner_type=owner_type,
+                enclosing_function=enclosing_function,
+            ))
+    resources.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+    operations.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+    return {"execution_domains": domains, "task_sites": task_sites,
+            "resources": resources, "operations": operations}
 
 
 def validate_config(config: dict[str, Any]) -> None:
@@ -122,6 +577,7 @@ def read_sources(config: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
                 "declarations": declarations,
                 "line_count": len(text.splitlines()),
                 "identifiers": sorted(set(IDENTIFIER_RE.findall(text))),
+                "_text": text,
             }
         )
     return files, digest.hexdigest()
@@ -237,6 +693,95 @@ def load_specifications(config: dict[str, Any]) -> list[dict[str, str]]:
     return specs
 
 
+def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
+    collections: dict[str, list[dict[str, Any]]] = {
+        "execution_domains": [], "task_sites": [], "resources": [], "operations": []
+    }
+    for source in files:
+        extracted = extract_behavioral_source(
+            source["path"], source["_text"], source["component"]
+        )
+        for name in collections:
+            collections[name].extend(extracted[name])
+    for items in collections.values():
+        items.sort(key=lambda item: (
+            item["evidence"]["path"], item["evidence"]["line"], item["id"]
+        ))
+
+    resource_by_id = {item["id"]: item for item in collections["resources"]}
+    clusters: dict[tuple[str, str], dict[str, Any]] = {}
+
+    def cluster_for(component: str | None, owner_type: str | None) -> dict[str, Any] | None:
+        if component is None and owner_type is None:
+            return None
+        key = (component or "unassigned", owner_type or component or "unresolved")
+        if key not in clusters:
+            digest = hashlib.sha256("\0".join(key).encode("utf-8")).hexdigest()[:12]
+            clusters[key] = {
+                "id": f"connectivity-pocket-{digest}",
+                "component": component,
+                "owner_type": owner_type,
+                "resource_ids": [],
+                "task_handle_ids": [],
+                "operation_ids": [],
+                "authority": "observed",
+                "evidence_class": "static_source",
+                "confidence": "mechanically_grouped",
+                "derivation": (
+                    "This is a static ownership/lifecycle cluster grouped by a source owner type "
+                    "and component; it does not assert runtime overlap, threads, or live connection counts."
+                ),
+            }
+        return clusters[key]
+
+    for resource in collections["resources"]:
+        cluster = cluster_for(resource["component"], resource.get("owner_type"))
+        if cluster is not None:
+            cluster["resource_ids"].append(resource["id"])
+    for task in collections["task_sites"]:
+        if task["kind"] != "stored_task_handle":
+            continue
+        cluster = cluster_for(task["component"], task.get("enclosing_type"))
+        if cluster is not None:
+            cluster["task_handle_ids"].append(task["id"])
+    for operation in collections["operations"]:
+        resource = resource_by_id.get(operation.get("resource_id"))
+        owner_type = operation.get("owner_type") or (resource or {}).get("owner_type")
+        cluster = cluster_for(operation["component"], owner_type)
+        if cluster is not None:
+            cluster["operation_ids"].append(operation["id"])
+
+    pockets = []
+    for key in sorted(clusters):
+        pocket = clusters[key]
+        for field in ("resource_ids", "task_handle_ids", "operation_ids"):
+            pocket[field] = sorted(set(pocket[field]))
+        if pocket["resource_ids"] or pocket["task_handle_ids"]:
+            pockets.append(pocket)
+
+    operation_by_id = {item["id"]: item for item in collections["operations"]}
+    scenarios = []
+    for pocket in pockets:
+        operations = sorted(
+            (operation_by_id[item_id] for item_id in pocket["operation_ids"]),
+            key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]),
+        )
+        if not operations:
+            continue
+        scenarios.append({
+            "id": pocket["id"].replace("connectivity-pocket", "scenario"),
+            "pocket_id": pocket["id"],
+            "component": pocket["component"],
+            "owner_type": pocket["owner_type"],
+            "operation_ids": [item["id"] for item in operations],
+            "authority": "observed",
+            "derivation": (
+                "Evidence-backed source order within one static pocket; not a claim of runtime order."
+            ),
+        })
+    return {**collections, "pockets": pockets, "scenarios": scenarios}
+
+
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
@@ -285,6 +830,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         )
 
     reference_edges = build_reference_edges(files)
+    behavior = build_behavior_model(files)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -292,6 +838,12 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         "title": config["title"],
         "description": config["description"],
         "source_tree_sha256": source_hash,
+        "evidence_metadata": {
+            "class": "static_source",
+            "rules": dict(sorted(BEHAVIOR_RULES.items())),
+            "limitations": STATIC_SOURCE_LIMITATIONS,
+        },
+        "behavior": behavior,
         "layers": sorted(config["layers"], key=lambda item: item["order"]),
         "components": components,
         "edges": specified_edges + reference_edges,

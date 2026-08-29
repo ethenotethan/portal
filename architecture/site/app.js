@@ -8,6 +8,13 @@
   }
 
   const model = payload.model;
+  const behavior = model.behavior || {};
+  const executionDomains = behavior.execution_domains || [];
+  const taskSites = behavior.task_sites || [];
+  const resources = behavior.resources || [];
+  const operations = behavior.operations || [];
+  const pockets = behavior.pockets || [];
+  const scenarios = behavior.scenarios || [];
   const specifications = payload.specifications || [];
   const componentById = new Map(model.components.map((component) => [component.id, component]));
   const layerById = new Map(model.layers.map((layer) => [layer.id, layer]));
@@ -26,6 +33,9 @@
   renderStats();
   renderLegend();
   renderGraph();
+  renderExecution();
+  renderConnections();
+  renderScenarios();
   renderSpecifications();
   renderInventory();
   wireNavigation();
@@ -270,6 +280,161 @@
     values.forEach((value) => list.append(element("span", "chip", value)));
     section.append(list);
     return section;
+  }
+
+  function sourceSort(left, right) {
+    const leftEvidence = left.evidence || {};
+    const rightEvidence = right.evidence || {};
+    return String(leftEvidence.path || "").localeCompare(String(rightEvidence.path || "")) ||
+      Number(leftEvidence.line || 0) - Number(rightEvidence.line || 0) ||
+      String(left.id || "").localeCompare(String(right.id || ""));
+  }
+
+  function componentLabel(componentId) {
+    return componentById.get(componentId)?.label || componentId || "Unassigned";
+  }
+
+  function sourceLink(evidence) {
+    const link = document.createElement("a");
+    link.className = "source-link";
+    link.href = `${repositoryBase}${evidence.path}#L${evidence.line}`;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = `${evidence.path}:${evidence.line}`;
+    return link;
+  }
+
+  function emptyState(message) {
+    return element("p", "empty-state", message);
+  }
+
+  function recordRow(record, details = []) {
+    const row = element("article", "behavior-row");
+    const heading = element("h4", "", record.label || record.kind || "Observed item");
+    const metadata = element("p", "behavior-meta");
+    const values = [record.kind, ...details, record.rule_id].filter(Boolean);
+    metadata.textContent = values.join(" · ");
+    row.append(heading, metadata);
+    if (record.evidence) {
+      const provenance = element("p", "provenance");
+      provenance.append(element("span", "", "Static source · "), sourceLink(record.evidence));
+      row.append(provenance);
+    }
+    return row;
+  }
+
+  function behaviorGroup(title, subtitle = "") {
+    const section = element("section", "behavior-group");
+    section.append(element("h3", "", title));
+    if (subtitle) section.append(element("p", "group-note", subtitle));
+    return section;
+  }
+
+  function renderExecution() {
+    const container = document.getElementById("execution-content");
+    const records = [
+      ...executionDomains.map((item) => ({ ...item, displayClass: "Execution domain" })),
+      ...taskSites.map((item) => ({ ...item, displayClass: "Task evidence" }))
+    ].sort((left, right) =>
+      String(left.component || "").localeCompare(String(right.component || "")) || sourceSort(left, right)
+    );
+    if (!records.length) {
+      container.replaceChildren(emptyState("No execution domains or task sites matched the deterministic rules."));
+      return;
+    }
+    const grouped = new Map();
+    records.forEach((record) => {
+      const key = record.component || "unassigned";
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(record);
+    });
+    const sections = [...grouped.entries()].map(([componentId, items]) => {
+      const section = behaviorGroup(componentLabel(componentId));
+      const list = element("div", "behavior-list");
+      items.forEach((item) => {
+        const context = [
+          item.displayClass,
+          item.enclosing_type && `type ${item.enclosing_type}`,
+          item.enclosing_function && `function ${item.enclosing_function}`,
+          item.kind === "task_cancellation" && "cancellation evidence"
+        ].filter(Boolean);
+        list.append(recordRow(item, context));
+      });
+      section.append(list);
+      return section;
+    });
+    container.replaceChildren(...sections);
+  }
+
+  function renderConnections() {
+    const container = document.getElementById("connections-content");
+    const resourceById = new Map(resources.map((item) => [item.id, item]));
+    const taskById = new Map(taskSites.map((item) => [item.id, item]));
+    const operationById = new Map(operations.map((item) => [item.id, item]));
+    const orderedPockets = [...pockets].sort((left, right) =>
+      String(left.component || "").localeCompare(String(right.component || "")) ||
+      String(left.owner_type || "").localeCompare(String(right.owner_type || "")) ||
+      String(left.id || "").localeCompare(String(right.id || ""))
+    );
+    if (!orderedPockets.length) {
+      container.replaceChildren(emptyState("No static connection or stream pockets matched the deterministic rules."));
+      return;
+    }
+    const cards = orderedPockets.map((pocket) => {
+      const card = behaviorGroup(
+        pocket.owner_type || componentLabel(pocket.component),
+        `${componentLabel(pocket.component)} · ${pocket.confidence || "mechanically grouped"}`
+      );
+      card.append(element("p", "derivation", pocket.derivation || "Static source grouping."));
+      const ownedResources = (pocket.resource_ids || []).map((id) => resourceById.get(id)).filter(Boolean).sort(sourceSort);
+      const handles = (pocket.task_handle_ids || []).map((id) => taskById.get(id)).filter(Boolean).sort(sourceSort);
+      const lifecycle = (pocket.operation_ids || []).map((id) => operationById.get(id)).filter(Boolean).sort(sourceSort);
+      const collections = [
+        ["Owned resources", ownedResources, (item) => [item.cardinality]],
+        ["Stored task handles", handles, (item) => [item.enclosing_type && `type ${item.enclosing_type}`]],
+        ["Lifecycle operations", lifecycle, (item) => [item.resource_label && `resource ${item.resource_label}`]]
+      ];
+      collections.forEach(([title, items, details]) => {
+        const block = element("section", "pocket-section");
+        block.append(element("h4", "", `${title} (${items.length})`));
+        if (items.length) items.forEach((item) => block.append(recordRow(item, details(item))));
+        else block.append(emptyState("None observed."));
+        card.append(block);
+      });
+      return card;
+    });
+    container.replaceChildren(...cards);
+  }
+
+  function renderScenarios() {
+    const container = document.getElementById("scenarios-content");
+    const operationById = new Map(operations.map((item) => [item.id, item]));
+    const orderedScenarios = [...scenarios].sort((left, right) =>
+      String(left.component || "").localeCompare(String(right.component || "")) ||
+      String(left.owner_type || "").localeCompare(String(right.owner_type || "")) ||
+      String(left.id || "").localeCompare(String(right.id || ""))
+    );
+    if (!orderedScenarios.length) {
+      container.replaceChildren(emptyState("No source-ordered lifecycle scenarios were derived."));
+      return;
+    }
+    const cards = orderedScenarios.map((scenario) => {
+      const card = behaviorGroup(
+        scenario.owner_type || componentLabel(scenario.component),
+        componentLabel(scenario.component)
+      );
+      card.append(element("p", "derivation", scenario.derivation || "Source-ordered static evidence."));
+      const sequence = element("ol", "scenario-sequence");
+      (scenario.operation_ids || []).map((id) => operationById.get(id)).filter(Boolean).forEach((operation) => {
+        const item = document.createElement("li");
+        item.append(recordRow(operation, [operation.resource_label && `resource ${operation.resource_label}`]));
+        sequence.append(item);
+      });
+      if (sequence.children.length) card.append(sequence);
+      else card.append(emptyState("No linked operations remain in this scenario."));
+      return card;
+    });
+    container.replaceChildren(...cards);
   }
 
   function renderSpecifications() {
