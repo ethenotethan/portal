@@ -62,6 +62,12 @@ internal struct AnyCodableAccessorTests {
         let value = AnyCodable.dictionary(["items": .array([.int(1), .int(2)])])
         #expect(value.displayString == "items: 1, 2")
     }
+
+    @Test("JSON null decodes as the null case")
+    internal func decodesJSONNull() throws {
+        let decoded = try JSONDecoder().decode(AnyCodable.self, from: Data("null".utf8))
+        #expect(decoded == .null)
+    }
 }
 
 @Suite("String.truncated")
