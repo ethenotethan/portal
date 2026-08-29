@@ -2,16 +2,16 @@ import SwiftUI
 
 /// TUI skin — braille spinners, tree rails, chevron accordions.
 /// The original Portal visual language, aligned with the Ink TUI.
-struct TUISkin: ChatSkinProviding {
-    let skin: ChatSkin = .tui
+internal struct TUISkin: ChatSkinProviding {
+    internal let skin: ChatSkin = .tui
 
-    func messageBubble(message: ChatMessage, persona: Persona) -> AnyView {
+    internal func messageBubble(message: ChatMessage, persona: Persona) -> AnyView {
         // Reuse the existing TUI-aligned MessageBubbleView
         MessageBubbleView(message: message)
             .eraseToAnyView()
     }
 
-    func streamingPanel(
+    internal func streamingPanel(
         state: AvatarState,
         activeToolCalls: [String: ToolCallRecord],
         personaName: String,

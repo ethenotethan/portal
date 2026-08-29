@@ -6,10 +6,10 @@ import SwiftUI
 /// artifact hosts so the spatial view and the status table are one surface
 /// over one content body: click a row → the pin highlights; tap a pin → the
 /// row highlights (selection binding is shared with the map).
-struct MapEntryTableView: View {
-    let spec: MapSpec
-    let artifactID: String
-    @Binding var selectedMarkerID: String?
+internal struct MapEntryTableView: View {
+    internal let spec: MapSpec
+    internal let artifactID: String
+    @Binding internal var selectedMarkerID: String?
 
     @State private var sortField: String?
     @State private var sortAscending = true
@@ -56,7 +56,7 @@ struct MapEntryTableView: View {
         }
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             headerRow
             Divider().overlay(Theme.border)

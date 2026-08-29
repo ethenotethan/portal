@@ -27,12 +27,12 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiEv
 /// conforms to `WikiEventTimelineProviding` — present for Centaur, absent for
 /// Hermes. Two capabilities rather than one is what lets the shared parts stay
 /// shared instead of being forked per backend.
-struct WikiEventsPageView: View {
+internal struct WikiEventsPageView: View {
     /// The event log — every backend that reaches this surface has one.
     internal let source: any WikiEventLogSource
     /// Shared wiki selection plane: page chips/rows navigate through it and
     /// return the surface to the graph/reader (openPageLeavingEvents).
-    @ObservedObject var viewModel: WikiGraphViewModel
+    @ObservedObject internal var viewModel: WikiGraphViewModel
 
     @State private var windowDays: Int = 30
     @State private var eventTimeline: WikiEventTimeline?
@@ -82,7 +82,7 @@ struct WikiEventsPageView: View {
         return min(since, until)...max(since, until.addingTimeInterval(1))
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
@@ -483,16 +483,16 @@ struct WikiEventsPageView: View {
 // MARK: - Section label
 
 /// Shared "title + why it matters" section header for the events page panes.
-struct WikiEventsSectionLabel: View {
-    let title: String
-    let detail: String
+internal struct WikiEventsSectionLabel: View {
+    internal let title: String
+    internal let detail: String
 
-    init(_ title: String, detail: String) {
+    internal init(_ title: String, detail: String) {
         self.title = title
         self.detail = detail
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(title)
                 .font(.subheadline.weight(.semibold))

@@ -8,10 +8,10 @@ import Charts
 /// unit) over output page revisions per bucket — two x-aligned charts
 /// sharing one time domain, NEVER a dual-axis chart (different measures get
 /// different plots; the shared x carries the correlation).
-struct WikiEventsInputOutputChart: View {
-    let events: [WikiTimelineEvent]
-    let revisions: WikiRevisionsTimeline
-    let window: ClosedRange<Date>
+internal struct WikiEventsInputOutputChart: View {
+    internal let events: [WikiTimelineEvent]
+    internal let revisions: WikiRevisionsTimeline
+    internal let window: ClosedRange<Date>
 
     /// (bucket date, kind) → event count, in the fixed kind slot order.
     private struct InputBucket: Identifiable {
@@ -61,7 +61,7 @@ struct WikiEventsInputOutputChart: View {
         }
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             WikiEventsSectionLabel(
                 "Input → output",

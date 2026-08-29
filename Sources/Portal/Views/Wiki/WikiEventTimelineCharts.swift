@@ -13,8 +13,8 @@ import Charts
 /// and resolve through `WikiEventTypeRegistry` instead — see
 /// `WikiEventPresentation`, which picks between the two and is what views
 /// should call.
-enum WikiEventKindStyle {
-    static func color(for kind: WikiEventKind) -> Color {
+internal enum WikiEventKindStyle {
+    internal static func color(for kind: WikiEventKind) -> Color {
         switch kind {
         case .githubPR: return Color(hex: "3987e5") ?? .blue
         case .linear: return Color(hex: "d95926") ?? .orange
@@ -27,7 +27,7 @@ enum WikiEventKindStyle {
     }
 
     /// Fixed lane order, top-to-bottom on the events chart.
-    static let laneOrder: [WikiEventKind] = [
+    internal static let laneOrder: [WikiEventKind] = [
         .githubPR, .linear, .slack, .drive, .directive, .openrouterStats, .other,
     ]
 }
@@ -122,10 +122,10 @@ internal struct WikiEventPresentation {
 /// Selection is by event id, shared with the Event Feed: tapping a dot
 /// highlights (and scrolls to) the feed row, and selecting a feed row lights
 /// up the dot — the feed row is the detail surface.
-struct WikiEventDotChart: View {
-    let events: [WikiTimelineEvent]
-    let window: ClosedRange<Date>
-    @Binding var selectedEventID: String?
+internal struct WikiEventDotChart: View {
+    internal let events: [WikiTimelineEvent]
+    internal let window: ClosedRange<Date>
+    @Binding internal var selectedEventID: String?
     /// How to color and order kinds — the wiki's taxonomy when it has one.
     internal var presentation: WikiEventPresentation = .empty
 
@@ -135,7 +135,7 @@ struct WikiEventDotChart: View {
         presentation.lanes(present: events.map(\.kindRaw))
     }
 
-    var body: some View {
+    internal var body: some View {
         let lanes = self.lanes
         Chart {
             ForEach(events) { event in
@@ -229,14 +229,14 @@ struct WikiEventDotChart: View {
 /// Page-edit volume (the OUTPUT side): per-bucket revision bars, or the
 /// cumulative "knowledge accrued" curve seeded from the pre-window baseline.
 /// One measure per view — the toggle swaps them instead of dual-axing.
-struct WikiRevisionsChart: View {
-    let timeline: WikiRevisionsTimeline
-    let window: ClosedRange<Date>
-    let showCumulative: Bool
+internal struct WikiRevisionsChart: View {
+    internal let timeline: WikiRevisionsTimeline
+    internal let window: ClosedRange<Date>
+    internal let showCumulative: Bool
 
     private static let accrued = Color(hex: "3987e5") ?? .blue
 
-    var body: some View {
+    internal var body: some View {
         Group {
             if showCumulative {
                 cumulativeChart
@@ -341,9 +341,9 @@ struct WikiRevisionsChart: View {
 /// the built-in palette into a single "Other N" row, which on a Hermes wiki
 /// would have merged every wiki-declared kind into one — the legend has to name
 /// what the wiki named, and a declared kind's definition page is clickable.
-struct WikiEventKindLegend: View {
+internal struct WikiEventKindLegend: View {
     /// Wire-kind string → count, from the event log response.
-    let eventsByKind: [String: Int]
+    internal let eventsByKind: [String: Int]
     internal var presentation: WikiEventPresentation = .empty
     /// Opens a kind's definition page. nil (or a kind with no page) renders the
     /// row as plain text.
@@ -358,7 +358,7 @@ struct WikiEventKindLegend: View {
             }
     }
 
-    var body: some View {
+    internal var body: some View {
         FlowLayout(spacing: 10) {
             ForEach(entries, id: \.kind) { entry in
                 legendRow(kind: entry.kind, count: entry.count)

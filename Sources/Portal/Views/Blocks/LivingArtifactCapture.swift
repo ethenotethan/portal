@@ -7,10 +7,10 @@ import SwiftUI
 /// when the block finishes streaming; re-renders of the same content are
 /// deduped by the (id, content-hash) pair so scrolling a transcript doesn't
 /// re-upsert (and re-push to the gateway) on every appearance.
-struct LivingArtifactCapture: ViewModifier {
-    let kind: String
-    let json: String
-    let isStreaming: Bool
+internal struct LivingArtifactCapture: ViewModifier {
+    internal let kind: String
+    internal let json: String
+    internal let isStreaming: Bool
 
     @State private var capturedHash: Int?
 
@@ -23,7 +23,7 @@ struct LivingArtifactCapture: ViewModifier {
         return (id, obj["title"] as? String)
     }
 
-    func body(content: Content) -> some View {
+    internal func body(content: Content) -> some View {
         if let identity {
             content
                 .overlay(alignment: .topTrailing) {
@@ -63,7 +63,7 @@ struct LivingArtifactCapture: ViewModifier {
 }
 
 extension View {
-    func captureLivingArtifact(kind: String, json: String, isStreaming: Bool) -> some View {
+    internal func captureLivingArtifact(kind: String, json: String, isStreaming: Bool) -> some View {
         modifier(LivingArtifactCapture(kind: kind, json: json, isStreaming: isStreaming))
     }
 }

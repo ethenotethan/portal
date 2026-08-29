@@ -8,32 +8,32 @@ import AppKit
 /// A transparent NSView that captures mouseDown / mouseDragged / mouseUp
 /// and forwards them as callbacks.  This bypasses the broken SwiftUI
 /// DragGesture-on-Canvas path on macOS.
-final class GraphMouseView: NSView {
-    var onMouseDown: ((CGPoint) -> Void)?
-    var onMouseDragged: ((CGPoint) -> Void)?
-    var onMouseUp: ((CGPoint) -> Void)?
-    var onScrollWheel: ((CGSize) -> Void)?
-    var onMouseMoved: ((CGPoint) -> Void)?
-    var onMouseExited: (() -> Void)?
+internal final class GraphMouseView: NSView {
+    internal var onMouseDown: ((CGPoint) -> Void)?
+    internal var onMouseDragged: ((CGPoint) -> Void)?
+    internal var onMouseUp: ((CGPoint) -> Void)?
+    internal var onScrollWheel: ((CGSize) -> Void)?
+    internal var onMouseMoved: ((CGPoint) -> Void)?
+    internal var onMouseExited: (() -> Void)?
 
     private var trackingAreaRef: NSTrackingArea?
 
-    override init(frame: NSRect) {
+    override internal init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
     }
 
-    required init?(coder: NSCoder) {
+    internal required init?(coder: NSCoder) {
         super.init(coder: coder)
         wantsLayer = true
     }
 
-    override var isFlipped: Bool { true }
-    override func hitTest(_ point: NSPoint) -> NSView? { self }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override var acceptsFirstResponder: Bool { true }
+    override internal var isFlipped: Bool { true }
+    override internal func hitTest(_ point: NSPoint) -> NSView? { self }
+    override internal func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override internal var acceptsFirstResponder: Bool { true }
 
-    override func updateTrackingAreas() {
+    override internal func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let existing = trackingAreaRef {
             removeTrackingArea(existing)
@@ -48,46 +48,46 @@ final class GraphMouseView: NSView {
         trackingAreaRef = area
     }
 
-    override func mouseDown(with event: NSEvent) {
+    override internal func mouseDown(with event: NSEvent) {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseDown?(pt)
     }
 
-    override func mouseDragged(with event: NSEvent) {
+    override internal func mouseDragged(with event: NSEvent) {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseDragged?(pt)
     }
 
-    override func mouseUp(with event: NSEvent) {
+    override internal func mouseUp(with event: NSEvent) {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseUp?(pt)
     }
 
-    override func mouseMoved(with event: NSEvent) {
+    override internal func mouseMoved(with event: NSEvent) {
         let pt = convert(event.locationInWindow, from: nil)
         onMouseMoved?(pt)
     }
 
-    override func mouseExited(with event: NSEvent) {
+    override internal func mouseExited(with event: NSEvent) {
         onMouseExited?()
     }
 
-    override func scrollWheel(with event: NSEvent) {
+    override internal func scrollWheel(with event: NSEvent) {
         let delta = CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)
         onScrollWheel?(delta)
     }
 }
 
 /// SwiftUI wrapper for GraphMouseView.
-struct GraphMouseInterceptor: NSViewRepresentable {
-    var onMouseDown: ((CGPoint) -> Void)?
-    var onMouseDragged: ((CGPoint) -> Void)?
-    var onMouseUp: ((CGPoint) -> Void)?
-    var onScrollWheel: ((CGSize) -> Void)?
-    var onMouseMoved: ((CGPoint) -> Void)?
-    var onMouseExited: (() -> Void)?
+internal struct GraphMouseInterceptor: NSViewRepresentable {
+    internal var onMouseDown: ((CGPoint) -> Void)?
+    internal var onMouseDragged: ((CGPoint) -> Void)?
+    internal var onMouseUp: ((CGPoint) -> Void)?
+    internal var onScrollWheel: ((CGSize) -> Void)?
+    internal var onMouseMoved: ((CGPoint) -> Void)?
+    internal var onMouseExited: (() -> Void)?
 
-    func makeNSView(context: Context) -> GraphMouseView {
+    internal func makeNSView(context: Context) -> GraphMouseView {
         let v = GraphMouseView()
         v.onMouseDown = onMouseDown
         v.onMouseDragged = onMouseDragged
@@ -98,7 +98,7 @@ struct GraphMouseInterceptor: NSViewRepresentable {
         return v
     }
 
-    func updateNSView(_ nsView: GraphMouseView, context: Context) {
+    internal func updateNSView(_ nsView: GraphMouseView, context: Context) {
         nsView.onMouseDown = onMouseDown
         nsView.onMouseDragged = onMouseDragged
         nsView.onMouseUp = onMouseUp
@@ -115,8 +115,8 @@ struct GraphMouseInterceptor: NSViewRepresentable {
 /// screen-space labels, and the platform input layer (NSView mouse
 /// interception on macOS, DragGesture on iOS). Extracted from WikiGraphView
 /// so the adaptive host stays a thin composition layer.
-struct WikiGraph2DCanvas: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
+internal struct WikiGraph2DCanvas: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
 
     @State private var mouseState = MouseState.idle
     @State private var dragStartPan: CGSize = .zero
@@ -127,7 +127,7 @@ struct WikiGraph2DCanvas: View {
         case idle, deciding, panning, draggingNode
     }
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             canvas
 

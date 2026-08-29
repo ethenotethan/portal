@@ -7,10 +7,10 @@ import AppKit
 import UIKit
 #endif
 
-struct WikiGraph3DView: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
+internal struct WikiGraph3DView: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
 
-    var body: some View {
+    internal var body: some View {
         _WikiGraph3DRepresentable(viewModel: viewModel)
             .background(Theme.background)
     }

@@ -9,9 +9,9 @@ import SwiftUI
 ///     PromptBreakdownView(breakdown: .mock, isLoading: false)
 /// }
 /// ```
-struct PromptBreakdownView: View {
-    let breakdown: PromptBreakdown
-    let isLoading: Bool
+internal struct PromptBreakdownView: View {
+    internal let breakdown: PromptBreakdown
+    internal let isLoading: Bool
 
     @State private var expandedSections: Set<String> = []
     @State private var searchText: String = ""
@@ -19,14 +19,14 @@ struct PromptBreakdownView: View {
 
     // MARK: - Init
 
-    init(breakdown: PromptBreakdown, isLoading: Bool = false) {
+    internal init(breakdown: PromptBreakdown, isLoading: Bool = false) {
         self.breakdown = breakdown
         self.isLoading = isLoading
     }
 
     // MARK: - Body
 
-    var body: some View {
+    internal var body: some View {
         NavigationStack {
             if isLoading {
                 loadingBody
@@ -564,16 +564,16 @@ private struct SectionRowView: View {
 
 /// Wrapper that loads the prompt breakdown from the gateway before presenting
 /// the ``PromptBreakdownView``. Handles loading and error states.
-struct PromptBreakdownSheet: View {
-    let sessionID: String
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+internal struct PromptBreakdownSheet: View {
+    internal let sessionID: String
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @Environment(\.dismiss) private var dismiss
 
     @State private var breakdown: PromptBreakdown?
     @State private var isLoading = true
     @State private var error: String?
 
-    var body: some View {
+    internal var body: some View {
         Group {
             if isLoading {
                 PortalProgressView(label: "Loading prompt breakdown…")

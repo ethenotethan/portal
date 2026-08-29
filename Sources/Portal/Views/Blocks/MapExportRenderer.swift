@@ -6,12 +6,12 @@ import SwiftUI
 /// an NSViewRepresentable — ImageRenderer rasterizes it as an empty box (the
 /// same trap as webviews and scroll views) — so exports go through
 /// MKMapSnapshotter and draw the pins onto the snapshot by hand.
-enum MapExportRenderer {
+internal enum MapExportRenderer {
 
     /// Snapshot a parsed map spec: auto-fitted region, pin dots colored by
     /// group (matching the live palette), labels beside the pins. Returns
     /// nil when markers are empty or the snapshotter fails (offline).
-    static func renderImage(spec: MapSpec, size: CGSize = CGSize(width: 1040, height: 600)) async -> PlatformImage? {
+    internal static func renderImage(spec: MapSpec, size: CGSize = CGSize(width: 1040, height: 600)) async -> PlatformImage? {
         guard !spec.markers.isEmpty else { return nil }
 
         let options = MKMapSnapshotter.Options()

@@ -19,14 +19,14 @@ import SwiftUI
 ///   navigating back — never a sheet/overlay.
 /// Selection stays synced across every surface via the view model's shared
 /// selection plane.
-struct WikiGraphView: View {
+internal struct WikiGraphView: View {
     /// Knowledge-base source override. nil = the Hermes home gateway
     /// (existing behavior); a Centaur session passes its wiki-api client so
     /// the same graph/reader/sidebar UI renders the Darkbloom KB.
-    var overrideSource: (any WikiSource)?
+    internal var overrideSource: (any WikiSource)?
 
     @ObservedObject internal var viewModel: WikiGraphViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
     @MainActor
     internal init(viewModel: WikiGraphViewModel? = nil, overrideSource: (any WikiSource)? = nil) {
@@ -94,7 +94,7 @@ struct WikiGraphView: View {
 
     // MARK: - Body
 
-    var body: some View {
+    internal var body: some View {
         adaptiveLayout
             .background(Theme.background)
             .frame(maxWidth: .infinity, maxHeight: .infinity)

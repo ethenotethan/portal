@@ -12,19 +12,19 @@ import SwiftUI
 ///
 /// Used both inside the Canvas (via `ImageRenderer` snapshot) and as a
 /// stand-alone header card in the detail popover.
-struct ThoughtGraphNodeView: View {
-    let node: ThoughtGraphNode
-    let layout: ThoughtGraphLayout
-    let isSelected: Bool
-    let isHovered: Bool
+internal struct ThoughtGraphNodeView: View {
+    internal let node: ThoughtGraphNode
+    internal let layout: ThoughtGraphLayout
+    internal let isSelected: Bool
+    internal let isHovered: Bool
     /// Non-nil when this agent node's loop is collapsed: the hidden step count.
-    var collapsedStepCount: Int?
+    internal var collapsedStepCount: Int?
 
     private var isReasoning: Bool { node.category == .reasoning }
 
     // MARK: - Body
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 2) {
             // ── Line 1: status icon + name ──
             HStack(spacing: 6) {
@@ -252,9 +252,9 @@ struct ThoughtGraphNodeView: View {
 
 // MARK: - Duration Formatter
 
-enum DurationFormatter {
+internal enum DurationFormatter {
     /// Format seconds as a compact human-readable string, e.g. "0.8s", "1.2s".
-    static func short(_ seconds: Double) -> String {
+    internal static func short(_ seconds: Double) -> String {
         let rounded = (seconds * 10).rounded() / 10
         return String(format: "%.1fs", rounded)
     }
@@ -263,8 +263,8 @@ enum DurationFormatter {
 // MARK: - Previews
 
 #if DEBUG
-struct ThoughtGraphNodeViewPreviews: PreviewProvider {
-    static var previews: some View {
+internal struct ThoughtGraphNodeViewPreviews: PreviewProvider {
+    internal static var previews: some View {
         let layout = ThoughtGraphLayout(
             nodeID: "preview", x: 0, y: 0,
             width: ThoughtGraphLayoutEngine.nodeSize.width,

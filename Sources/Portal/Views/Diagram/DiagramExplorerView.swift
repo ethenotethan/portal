@@ -3,24 +3,24 @@ import SwiftUI
 /// Interactive force-directed explorer for diagram-derived graphs
 /// (e.g. mermaid flowcharts / mindmaps converted via MermaidGraphParser).
 /// Designed to be presented in a sheet.
-struct DiagramExplorerView: View {
-    let graph: WikiGraph
-    let title: String
+internal struct DiagramExplorerView: View {
+    internal let graph: WikiGraph
+    internal let title: String
 
     @Environment(\.dismiss) private var dismiss
 
-    init(graph: WikiGraph, title: String) {
+    internal init(graph: WikiGraph, title: String) {
         self.graph = graph
         self.title = title
     }
 
-    init?(mermaidSource: String, title: String) {
+    internal init?(mermaidSource: String, title: String) {
         guard let parsed = MermaidGraphParser.parse(mermaidSource) else { return nil }
         self.graph = parsed
         self.title = title
     }
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
@@ -544,7 +544,7 @@ internal struct InteractiveGraphView: View {
 
     /// Fixed colors for mindmap depth types; stable hashed hue for arbitrary
     /// flowchart subgraph types.
-    static func typeColor(_ type: String) -> Color {
+    internal static func typeColor(_ type: String) -> Color {
         switch type.lowercased() {
         case "root":
             return Color(hue: 0.08, saturation: 0.70, brightness: 0.95)

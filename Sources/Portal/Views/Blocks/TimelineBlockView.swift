@@ -5,11 +5,11 @@ import SwiftUI
 /// bars between start/end, diamond milestones, colored by group (or lane
 /// when no groups are declared). Swift Charts only — PDF-safe.
 /// Scrub horizontally to read out what was active on a date.
-struct TimelineBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct TimelineBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
 
-    var body: some View {
+    internal var body: some View {
         if let spec = TimelineSpec.parse(json) {
             TimelineCard(spec: spec)
         } else if isStreaming {

@@ -5,19 +5,19 @@ import SwiftUI
 /// bus. Click an apartment in the table → its pin highlights on the map and
 /// its relations light up in the graph. Views are projections (see
 /// ModelProjections) onto the existing block renderers.
-struct ModelBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct ModelBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
     /// Set by artifact hosts: enables declared per-entity actions and the
     /// relations panel. Chat transcript blocks render read-only.
-    var actionableArtifactID: String?
+    internal var actionableArtifactID: String?
 
     /// Parse + projections are pure in the source JSON but run inside body,
     /// which SwiftUI re-evaluates on every selection click — memoized so a
     /// click costs a lookup, not a full model re-parse + re-projection.
     private static let parseMemo = RenderMemo<ModelSpec?>(limit: 12)
 
-    var body: some View {
+    internal var body: some View {
         if let spec = Self.parseMemo.value(for: json, compute: { ModelSpec.parse(json) }) {
             ModelCard(spec: spec, sourceJSON: json, actionableArtifactID: actionableArtifactID)
         } else if isStreaming {
