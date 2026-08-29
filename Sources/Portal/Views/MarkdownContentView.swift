@@ -40,7 +40,10 @@ struct MarkdownContentView: View, Equatable {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .codeBlock(let language, let code):
-                    if MarkdownParser.isChartLanguage(language) {
+                    if MarkdownParser.isBlueprintLanguage(language) {
+                        BlueprintBlockView(json: code, isStreaming: isStreaming)
+                            .captureLivingArtifact(kind: "blueprint", json: code, isStreaming: isStreaming)
+                    } else if MarkdownParser.isChartLanguage(language) {
                         NativeChartView(json: code, isStreaming: isStreaming)
                             .captureLivingArtifact(kind: "chart", json: code, isStreaming: isStreaming)
                     } else if MarkdownParser.isTimelineBlock(language: language, code: code) {
@@ -404,6 +407,13 @@ struct MarkdownParser {
 
     static func isChartLanguage(_ language: String) -> Bool {
         language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "chart"
+    }
+
+    /// Native explicitly-positioned technical drawings. This deliberately
+    /// stays separate from Mermaid's `architecture` text dialect: blueprint
+    /// blocks are JSON and preserve authored coordinates exactly.
+    internal static func isBlueprintLanguage(_ language: String) -> Bool {
+        language.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "blueprint"
     }
 
     static func isDiffLanguage(_ language: String) -> Bool {

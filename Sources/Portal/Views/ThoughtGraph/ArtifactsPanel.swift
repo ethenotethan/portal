@@ -134,6 +134,7 @@ internal struct ArtifactsPanel: View {
 
     private func icon(for kind: String) -> String {
         switch kind {
+        case "blueprint": return "ruler"
         case "map": return "map"
         case "chart": return "chart.xyaxis.line"
         case "graph": return "point.3.connected.trianglepath.dotted"

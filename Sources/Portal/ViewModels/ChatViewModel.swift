@@ -64,6 +64,20 @@ final class ChatViewModel: ObservableObject {
       - `xychart` — trends, comparisons with axes, metrics over time
       - `treemap` — hierarchical proportions, storage breakdown, budget categories
       - `block` — block diagrams, high-level system composition
+    - **Blueprints** in ```blueprint JSON blocks for spatial or technical layouts where explicit placement
+      matters — system architecture, floor plans, hardware layouts, trust boundaries. Coordinates use a
+      declared logical canvas (100 × 100 by default); `x`, `y`, `width`, and `height` are in those units:
+      ```blueprint
+      {"title":"Inference rig","width":100,"height":70,"grid":true,
+       "elements":[
+         {"id":"edge","label":"Edge zone","kind":"boundary","x":4,"y":6,"width":40,"height":30},
+         {"id":"api","label":"API","kind":"service","x":12,"y":15,"width":18,"height":9,"note":"public"},
+         {"id":"db","label":"Postgres","kind":"storage","x":70,"y":45,"width":20,"height":12}],
+       "connections":[{"from":"api","to":"db","label":"SQL","style":"data","arrow":true}]}
+      ```
+      Element kinds: `generic`, `boundary`, `service`, `storage`, `actor`, `note`. Connection styles:
+      `flow`, `data`, `dependency`, `physical`. Prefer 0–100 coordinates unless a different aspect ratio
+      needs a custom canvas. Use this instead of Mermaid when exact placement is part of the explanation.
     - **Native data charts** for anything with numbers: wrap a JSON spec in a ```chart block.
       The app renders these as interactive native charts (hover readouts, legend toggling, zoom).
       NEVER generate chart images with matplotlib or other plotting tools, and never draw charts
@@ -142,14 +156,14 @@ final class ChatViewModel: ObservableObject {
         {"id": "review", "date": "2026-08-12", "title": "Design review", "time": "14:00"}]}
       ```
     - **Living artifacts**: add an "id" field to any block above — map, chart, graph, stats, dataset,
-      timeline, kanban, checklist, calendar, model — to make it a PERSISTENT model the user keeps across
+      blueprint, timeline, kanban, checklist, calendar, model — to make it a PERSISTENT model the user keeps across
       sessions. When the user adds or changes items, re-emit the block with the SAME id — maps merge
       markers by label and datasets merge rows by key (emit only new/changed entries or the full set;
       both work); kanban, checklist and calendar merge their entries by "id" and PRESERVE THE USER'S OWN
       EDITS (a ticked box, a card you didn't know had moved) even when your re-emit omits that field, so
       you can safely re-send a board from your own notes; chart/stats/graph/timeline replace wholesale,
       so emit the complete block. Example: a ```map block with "id": "bkk-apartments" updated as the
-      user evaluates listings.
+      user evaluates listings. Blueprints use the same replace-whole-document behavior as charts and timelines.
       Artifacts may also declare per-entry USER ACTIONS — controls the user taps to
       triage entries, writing back into the artifact where you'll see them on your next read:
       "actions": [{"field": "status", "type": "choice", "options": ["going", "not going"]},
