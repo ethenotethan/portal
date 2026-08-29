@@ -389,6 +389,42 @@ internal struct CronRunHistoryTests {
         #expect(store.averageInterval(for: "daily-digest") == 90)
     }
 
+    @Test("run duration labels scale from pending through hours")
+    internal func runDurationLabels() {
+        let cases: [(duration: TimeInterval?, label: String)] = [
+            (nil, "—"),
+            (59, "59.0s"),
+            (60, "1.0m"),
+            (3_599, "60.0m"),
+            (3_600, "1.0h"),
+        ]
+
+        for item in cases {
+            #expect(record(duration: item.duration).durationLabel == item.label)
+        }
+    }
+
+    @Test("only an exact ok status is successful")
+    internal func runSuccessStatus() {
+        #expect(record(status: "ok").isOk)
+        #expect(!record(status: "error").isOk)
+        #expect(!record(status: "OK").isOk)
+    }
+
+    private func record(
+        status: String = "ok",
+        duration: TimeInterval? = nil
+    ) -> CronRunRecord {
+        CronRunRecord(
+            id: UUID(),
+            jobID: "daily-digest",
+            jobName: "Daily digest",
+            firedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            status: status,
+            duration: duration
+        )
+    }
+
     private func job(lastRunAt: Date) -> CronJob {
         CronJob(
             id: "daily-digest",
