@@ -35,13 +35,6 @@ struct NetworkGraphSpec: Decodable {
             let raw = try c.decodeIfPresent(Double.self, forKey: .size) ?? 1
             size = min(3, max(0.5, raw))
         }
-
-        init(id: String, label: String, group: String? = nil, size: Double = 1) {
-            self.id = id
-            self.label = label
-            self.group = group
-            self.size = size
-        }
     }
 
     struct Edge: Decodable {
