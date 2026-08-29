@@ -78,6 +78,27 @@ struct GatewayCapabilitiesTests {
         #expect(capabilities.statusDisplay == "Detected")
     }
 
+    @Test("action-log support recognizes both advertised wire spellings")
+    internal func actionLogCapabilityVariants() {
+        for name in ["artifact.action.log", "artifact_action_log"] {
+            let capabilities = GatewayCapabilities(
+                gatewayVersion: nil, agentVersion: nil,
+                capabilityNames: [name],
+                hasImageInput: false, hasACPImagePrompts: false,
+                source: .gateway(method: "gateway.capabilities")
+            )
+            #expect(capabilities.supportsActionLog, "\(name) should enable the action ledger")
+        }
+
+        let invokeOnly = GatewayCapabilities(
+            gatewayVersion: nil, agentVersion: nil,
+            capabilityNames: ["artifact.action.invoke"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        #expect(!invokeOnly.supportsActionLog)
+    }
+
     @Test("the diagnostic summary names the count, the intent verdict, and the set")
     internal func diagnosticSummaryReportsTheNegotiatedSet() {
         let supported = GatewayCapabilities(
