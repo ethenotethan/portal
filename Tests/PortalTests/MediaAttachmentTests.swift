@@ -63,6 +63,15 @@ struct MediaAttachmentTests {
         #expect(decoded.category == .document)
     }
 
+    @Test("Thumbnail generation rejects a missing source file")
+    internal func missingThumbnailSource() {
+        let missingPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .path
+
+        #expect(MediaAttachment.generateThumbnail(for: missingPath) == nil)
+    }
+
     @Test("Mixed image and document types are distinct")
     func mixedTypes() {
         let image = MediaAttachment(path: "/tmp/photo.jpg")
