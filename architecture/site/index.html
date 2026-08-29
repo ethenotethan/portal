@@ -31,6 +31,9 @@
 
   <nav class="section-nav" aria-label="Architecture views">
     <button class="nav-item active" data-view="graph" type="button">System map</button>
+    <button class="nav-item" data-view="execution" type="button">Execution &amp; tasks</button>
+    <button class="nav-item" data-view="connections" type="button">Connections &amp; streams</button>
+    <button class="nav-item" data-view="scenarios" type="button">Scenarios</button>
     <button class="nav-item" data-view="specifications" type="button">Specifications</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
   </nav>
@@ -74,6 +77,42 @@
         </aside>
       </div>
       <div class="legend" id="legend" aria-label="Architecture layers"></div>
+    </section>
+
+    <section class="view" id="execution-view" aria-labelledby="execution-title">
+      <div class="intro-row compact">
+        <div>
+          <p class="eyebrow">DETERMINISTIC EXECUTION EVIDENCE</p>
+          <h2 id="execution-title">Execution &amp; tasks</h2>
+          <p class="lede">Lexically observed execution domains, task creation sites, stored handles, and cancellation calls grouped by source-owned component. Each item carries its extraction rule and exact source line.</p>
+        </div>
+      </div>
+      <div class="authority-banner" role="note">Observed by static source rules—not agent-authored and not proof of runtime scheduling or overlap.</div>
+      <div class="behavior-content" id="execution-content"></div>
+    </section>
+
+    <section class="view" id="connections-view" aria-labelledby="connections-title">
+      <div class="intro-row compact">
+        <div>
+          <p class="eyebrow">STATIC OWNERSHIP &amp; LIFECYCLE CLUSTERS</p>
+          <h2 id="connections-title">Connections &amp; streams</h2>
+          <p class="lede">Deterministic pockets group stored resources, task handles, and mechanically recognized lifecycle operations by component and enclosing owner type.</p>
+        </div>
+      </div>
+      <div class="authority-banner" role="note">These pockets are static clusters, not runtime topology. Cardinality describes source fields, never live connection counts.</div>
+      <div class="behavior-content" id="connections-content"></div>
+    </section>
+
+    <section class="view" id="scenarios-view" aria-labelledby="scenarios-title">
+      <div class="intro-row compact">
+        <div>
+          <p class="eyebrow">SOURCE-ORDERED OPERATIONS</p>
+          <h2 id="scenarios-title">Scenarios</h2>
+          <p class="lede">Operation sequences are assembled only from deterministic lifecycle evidence within one static pocket.</p>
+        </div>
+      </div>
+      <div class="authority-banner warning" role="alert"><strong>Source order is not runtime order.</strong> These sequences do not assert causality, timing, concurrency, or execution order.</div>
+      <div class="behavior-content" id="scenarios-content"></div>
     </section>
 
     <section class="view" id="specifications-view" aria-labelledby="specifications-title">
