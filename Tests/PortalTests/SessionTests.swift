@@ -27,6 +27,15 @@ struct SessionTests {
         #expect(session.id == "abc")
     }
 
+    @Test("RPC identity prefers the gateway ID and falls back to the stable session ID")
+    internal func rpcIdentity() {
+        let remote = Session(id: "20260829_120000_remote", messageCount: 0)
+        let owned = Session(id: "20260829_120000_owned", messageCount: 0, gatewayID: "abc123")
+
+        #expect(remote.rpcID == remote.id)
+        #expect(owned.rpcID == "abc123")
+    }
+
     @Test("Session with gateway title")
     func gatewayTitle() {
         let session = Session(id: "abc", title: "How to build an app", messageCount: 3)
