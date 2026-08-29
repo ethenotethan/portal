@@ -1112,11 +1112,11 @@
         "component": "chat-ui",
         "evidence": {
           "excerpt": "@MainActor",
-          "line": 1457,
+          "line": 1467,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-dfaaba0668fc",
+        "id": "execution-domain-d35399829d24",
         "kind": "main_actor",
         "label": "HTMLPreviewPresenter",
         "rule_id": "swift.execution.main_actor"
@@ -1126,11 +1126,11 @@
         "component": "chat-ui",
         "evidence": {
           "excerpt": "@MainActor",
-          "line": 1787,
+          "line": 1797,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-831c19da85c7",
+        "id": "execution-domain-5d7b985f64d6",
         "kind": "main_actor",
         "label": "HTMLNavigationDelegate",
         "rule_id": "swift.execution.main_actor"
@@ -2461,15 +2461,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 141,
+          "line": 144,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-75de1a320f21",
+        "id": "lifecycle-operation-f15e9a3ceb4b",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2479,33 +2479,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 144,
+          "line": 147,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-6b4f66d7b3bb",
+        "id": "lifecycle-operation-3b95b00e88d8",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
-        "resource_label": "lock",
-        "rule_id": "swift.lifecycle.release"
-      },
-      {
-        "authority": "observed",
-        "component": "chat-ui",
-        "enclosing_function": "blocks",
-        "evidence": {
-          "excerpt": "lock.unlock()",
-          "line": 151,
-          "path": "Sources/Portal/Views/MarkdownContentView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "lifecycle-operation-86578b245c69",
-        "kind": "release",
-        "label": "lock.unlock",
-        "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2523,7 +2505,25 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
+        "resource_label": "lock",
+        "rule_id": "swift.lifecycle.release"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-ui",
+        "enclosing_function": "blocks",
+        "evidence": {
+          "excerpt": "lock.unlock()",
+          "line": 157,
+          "path": "Sources/Portal/Views/MarkdownContentView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-dc9f27d30b32",
+        "kind": "release",
+        "label": "lock.unlock",
+        "owner_type": "MarkdownParseCache",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2533,15 +2533,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 158,
+          "line": 161,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a69441a03495",
+        "id": "lifecycle-operation-c9dbcd9c86f4",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2551,15 +2551,15 @@
         "enclosing_function": "blocks",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 171,
+          "line": 174,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-ac5134c548c0",
+        "id": "lifecycle-operation-67996a2fd06c",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2569,15 +2569,15 @@
         "enclosing_function": "resetForTesting",
         "evidence": {
           "excerpt": "lock.lock()",
-          "line": 177,
+          "line": 180,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-d12a1afdbff5",
+        "id": "lifecycle-operation-15d0daafc3d9",
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2587,15 +2587,15 @@
         "enclosing_function": "resetForTesting",
         "evidence": {
           "excerpt": "lock.unlock()",
-          "line": 183,
+          "line": 186,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-c34c708b4e79",
+        "id": "lifecycle-operation-84c5e83c2e4e",
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-6bb0e1ffe1fc",
+        "resource_id": "resource-ff10c57740ba",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2915,9 +2915,9 @@
         "owner_type": "ChatViewModel",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-9cb53b068289",
-          "task-site-a807db027c3a",
-          "task-site-fd3efe6fa768"
+          "task-site-4040f5d43a1f",
+          "task-site-4e7a6d3f66cc",
+          "task-site-82e04ccf9969"
         ]
       },
       {
@@ -2964,18 +2964,18 @@
         "evidence_class": "static_source",
         "id": "connectivity-pocket-0999f80f0c9e",
         "operation_ids": [
-          "lifecycle-operation-6b4f66d7b3bb",
-          "lifecycle-operation-75de1a320f21",
-          "lifecycle-operation-86578b245c69",
-          "lifecycle-operation-a69441a03495",
-          "lifecycle-operation-ac5134c548c0",
-          "lifecycle-operation-c34c708b4e79",
+          "lifecycle-operation-15d0daafc3d9",
+          "lifecycle-operation-3b95b00e88d8",
+          "lifecycle-operation-67996a2fd06c",
+          "lifecycle-operation-84c5e83c2e4e",
           "lifecycle-operation-c6ba24599473",
-          "lifecycle-operation-d12a1afdbff5"
+          "lifecycle-operation-c9dbcd9c86f4",
+          "lifecycle-operation-dc9f27d30b32",
+          "lifecycle-operation-f15e9a3ceb4b"
         ],
         "owner_type": "MarkdownParseCache",
         "resource_ids": [
-          "resource-6bb0e1ffe1fc"
+          "resource-ff10c57740ba"
         ],
         "task_handle_ids": []
       },
@@ -3774,11 +3774,11 @@
         "component": "chat-ui",
         "evidence": {
           "excerpt": "",
-          "line": 124,
+          "line": 127,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-6bb0e1ffe1fc",
+        "id": "resource-ff10c57740ba",
         "kind": "lock",
         "label": "lock",
         "owner_type": "MarkdownParseCache",
@@ -3853,14 +3853,14 @@
         "derivation": "Evidence-backed source order within one static pocket; not a claim of runtime order.",
         "id": "scenario-0999f80f0c9e",
         "operation_ids": [
-          "lifecycle-operation-75de1a320f21",
-          "lifecycle-operation-6b4f66d7b3bb",
-          "lifecycle-operation-86578b245c69",
+          "lifecycle-operation-f15e9a3ceb4b",
+          "lifecycle-operation-3b95b00e88d8",
           "lifecycle-operation-c6ba24599473",
-          "lifecycle-operation-a69441a03495",
-          "lifecycle-operation-ac5134c548c0",
-          "lifecycle-operation-d12a1afdbff5",
-          "lifecycle-operation-c34c708b4e79"
+          "lifecycle-operation-dc9f27d30b32",
+          "lifecycle-operation-c9dbcd9c86f4",
+          "lifecycle-operation-67996a2fd06c",
+          "lifecycle-operation-15d0daafc3d9",
+          "lifecycle-operation-84c5e83c2e4e"
         ],
         "owner_type": "MarkdownParseCache",
         "pocket_id": "connectivity-pocket-0999f80f0c9e"
@@ -5946,11 +5946,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var transientStatusClearTask: Task<Void, Never>?",
-          "line": 299,
+          "line": 313,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a807db027c3a",
+        "id": "task-site-82e04ccf9969",
         "kind": "stored_task_handle",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.stored_handle"
@@ -5962,11 +5962,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var pendingVisibleEventFlush: Task<Void, Never>?",
-          "line": 479,
+          "line": 493,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fd3efe6fa768",
+        "id": "task-site-4040f5d43a1f",
         "kind": "stored_task_handle",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.stored_handle"
@@ -5978,11 +5978,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 551,
+          "line": 565,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3655874630e9",
+        "id": "task-site-6251fd5b0161",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -5994,11 +5994,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 598,
+          "line": 612,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dd7cce6c1581",
+        "id": "task-site-a735fef3c6b9",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6010,11 +6010,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 673,
+          "line": 687,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1ba55fe5bf97",
+        "id": "task-site-9c03e6e0acf3",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6026,11 +6026,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 696,
+          "line": 710,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f66c848ae518",
+        "id": "task-site-3961138df3f4",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6042,11 +6042,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 928,
+          "line": 942,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fc21c52e0c64",
+        "id": "task-site-9b0a1d3fa77d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6058,11 +6058,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1094,
+          "line": 1108,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7a20b99b298d",
+        "id": "task-site-3f1366df4317",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6074,11 +6074,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let parsedMessages: [ChatMessage] = await Task.detached(priority: .userInitiated) {",
-          "line": 1156,
+          "line": 1170,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5aa125d2c266",
+        "id": "task-site-5bcd39576671",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6090,11 +6090,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1300,
+          "line": 1314,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c5e6d02e1f94",
+        "id": "task-site-7d7c1f898123",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6106,11 +6106,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1388,
+          "line": 1402,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a7c6de9244a4",
+        "id": "task-site-f405ca5bcff7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6122,11 +6122,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1404,
+          "line": 1418,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0a6b899b081e",
+        "id": "task-site-221b3c383df9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6138,11 +6138,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await autoGenerateQuiz(topic: topic, questionCount: 5) }",
-          "line": 1506,
+          "line": 1520,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0e9ad0f99966",
+        "id": "task-site-afc5c64d24d5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6154,11 +6154,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2020,
+          "line": 2034,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0b884957abd4",
+        "id": "task-site-f6756be2c3e4",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6170,11 +6170,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2047,
+          "line": 2061,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-034a7820ad0f",
+        "id": "task-site-52b010cc8465",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6186,11 +6186,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 2163,
+          "line": 2177,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ff718aa1a9cc",
+        "id": "task-site-98bbc26bde13",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6202,11 +6202,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 2339,
+          "line": 2353,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d601ad9c6323",
+        "id": "task-site-25dfd8ebb602",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6218,11 +6218,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "",
-          "line": 2341,
+          "line": 2355,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9cb53b068289",
+        "id": "task-site-4e7a6d3f66cc",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6234,11 +6234,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 2358,
+          "line": 2372,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8c93a04dab39",
+        "id": "task-site-53a111d9dca5",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6250,11 +6250,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 2359,
+          "line": 2373,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6f618a271f1b",
+        "id": "task-site-3ba3767cc37d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6266,11 +6266,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 2469,
+          "line": 2483,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b0ab26b32cd5",
+        "id": "task-site-2bf8f6f0343b",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6282,11 +6282,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 2470,
+          "line": 2484,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3521940491a0",
+        "id": "task-site-ccd004a98d48",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6298,11 +6298,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 2706,
+          "line": 2720,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5874f5436a73",
+        "id": "task-site-50e958065cbd",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6314,11 +6314,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 2716,
+          "line": 2730,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3cbefd2821a9",
+        "id": "task-site-f4a69bfaff7c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6330,11 +6330,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 2997,
+          "line": 3011,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-274c1f3afa4f",
+        "id": "task-site-2739b0ad8a9f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6346,11 +6346,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3046,
+          "line": 3060,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-28e69006bb1d",
+        "id": "task-site-47fe8adef0a6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6362,11 +6362,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 3266,
+          "line": 3280,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1846eaa501b6",
+        "id": "task-site-282da5390577",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6378,11 +6378,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3517,
+          "line": 3531,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-13a00a1b969a",
+        "id": "task-site-8975a7f16e57",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6394,11 +6394,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3575,
+          "line": 3589,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e231afe898b8",
+        "id": "task-site-4d4402a0cc5e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6922,11 +6922,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 205,
+          "line": 207,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6af3ec5e5540",
+        "id": "task-site-989b32181039",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6938,11 +6938,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 246,
+          "line": 248,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ccaa0fedebf9",
+        "id": "task-site-bd98077967ae",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6970,11 +6970,11 @@
         "enclosing_type": "ArtifactHistoryView",
         "evidence": {
           "excerpt": "Button(\"Retry\") { Task { await load() } }",
-          "line": 424,
+          "line": 425,
           "path": "Sources/Portal/Views/ArtifactsPane.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-075bd4346a71",
+        "id": "task-site-51974493f5bc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6986,11 +6986,11 @@
         "enclosing_type": "ArtifactHistoryView",
         "evidence": {
           "excerpt": "Task { await loadRevisionContent(revision) }",
-          "line": 502,
+          "line": 503,
           "path": "Sources/Portal/Views/ArtifactsPane.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aa5f4a7ae030",
+        "id": "task-site-26a1af966c4f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7002,11 +7002,11 @@
         "enclosing_type": "ArtifactHistoryView",
         "evidence": {
           "excerpt": "Task { await restore(revision) }",
-          "line": 529,
+          "line": 530,
           "path": "Sources/Portal/Views/ArtifactsPane.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-49e5c5150c89",
+        "id": "task-site-57f7f24f08e8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7194,11 +7194,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 810,
+          "line": 811,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b7ae9a9eae77",
+        "id": "task-site-13c9b4a84750",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7210,11 +7210,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1055,
+          "line": 1056,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bacd5d466462",
+        "id": "task-site-249f6bc378e9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7226,11 +7226,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "pendingScrollTask = Task { @MainActor in",
-          "line": 1209,
+          "line": 1210,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ff239ddcedde",
+        "id": "task-site-878ed731fcc6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7242,11 +7242,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "onSubmit: { Task { await chatViewModel.submitPrompt() } },",
-          "line": 1502,
+          "line": 1503,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e8246a070d18",
+        "id": "task-site-ad917dc437ba",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7258,11 +7258,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1530,
+          "line": 1531,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b03d337c257f",
+        "id": "task-site-f108c2856ff4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7274,11 +7274,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1609,
+          "line": 1610,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-718582bd2860",
+        "id": "task-site-b11eb151d40b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7290,11 +7290,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 1646,
+          "line": 1647,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0da0379212a7",
+        "id": "task-site-8588353a0cb4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7306,11 +7306,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1661,
+          "line": 1662,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6b10a76d31f2",
+        "id": "task-site-1fe72fd0b58c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7322,11 +7322,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1733,
+          "line": 1734,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d068732a20a6",
+        "id": "task-site-0a8c67fb8110",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7338,11 +7338,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1810,
+          "line": 1811,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-47bb6f859628",
+        "id": "task-site-d5c7dc491069",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7354,11 +7354,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: \"\") }",
-          "line": 2006,
+          "line": 2007,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2b3fa07cd8e3",
+        "id": "task-site-eb6c0b0a3219",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7370,11 +7370,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: choice) }",
-          "line": 2030,
+          "line": 2031,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8e307987c3f8",
+        "id": "task-site-036430a50493",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7386,11 +7386,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: answer) }",
-          "line": 2047,
+          "line": 2048,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-17a839adb719",
+        "id": "task-site-6a013e3d5916",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8442,11 +8442,11 @@
         "enclosing_type": "TableView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1120,
+          "line": 1130,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-af5dbf2b3d17",
+        "id": "task-site-0db2deb73754",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9645,7 +9645,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6811
+      "line_count": 6822
     },
     {
       "declaration_count": 144,
@@ -9958,7 +9958,7 @@
       "line_count": 5242
     },
     {
-      "declaration_count": 113,
+      "declaration_count": 120,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -9983,6 +9983,13 @@
         "ArtifactPreviewGist",
         "ArtifactTopLevelActionBar",
         "ArtifactsPane",
+        "BlueprintBlockView",
+        "BlueprintCanvasSizing",
+        "BlueprintCard",
+        "BlueprintDrawing",
+        "BlueprintElementView",
+        "BlueprintPalette",
+        "BlueprintParseError",
         "CalendarBlockView",
         "CalendarCard",
         "CellMode",
@@ -10076,7 +10083,7 @@
       ],
       "description": "Living artifact presentation, structured blocks, exports, and typed action surfaces.",
       "external": false,
-      "file_count": 33,
+      "file_count": 34,
       "files": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -10089,6 +10096,7 @@
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
+        "Sources/Portal/Views/Blocks/BlueprintBlockView.swift",
         "Sources/Portal/Views/Blocks/CalendarBlockView.swift",
         "Sources/Portal/Views/Blocks/ChecklistBlockView.swift",
         "Sources/Portal/Views/Blocks/DatasetBlockView.swift",
@@ -10115,19 +10123,24 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11286,
+      "line_count": 11630,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
+          "Sources/Portal/Views/ArtifactCanvasView.swift",
           "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
           "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
           "Sources/Portal/Views/ArtifactKindRenderer.swift",
           "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
-          "Sources/Portal/Views/ChatView.swift"
+          "Sources/Portal/Views/Blocks/BlueprintBlockView.swift",
+          "Sources/Portal/Views/Blocks/LivingArtifactCapture.swift",
+          "Sources/Portal/Views/ChatView.swift",
+          "Sources/Portal/Views/MarkdownContentView.swift"
         ],
         "flows": [
           "ArtifactExpandedOverlay builds the fullscreen window's intent context from the live manifest and the negotiated capability set",
-          "ArtifactPanel and the ChatView iOS sheet read the live artifact from the store and pass content plus topLevelActions to the renderer"
+          "ArtifactPanel and the ChatView iOS sheet read the live artifact from the store and pass content plus topLevelActions to the renderer",
+          "MarkdownContentView routes ```blueprint fences to BlueprintBlockView ahead of the chart branch and captures them as living artifacts of kind blueprint; re-renders dedupe by (id, content-hash) so scrolling a transcript does not re-upsert"
         ],
         "id": "artifact-ui",
         "model": "hermes-agent/glm-5.2",
@@ -10138,10 +10151,12 @@
           "Gate inline intent clicks on the negotiated capability set and manifest resolution, logging which gate closed at notice",
           "Prefer the unsupported reason over the generic harness sentence at every status display site",
           "Reflect every live intent slot onto its control's data-hermes-status attribute",
-          "Render any artifact kind through one ArtifactKindRenderer, which also decides host mouse capture from the document itself"
+          "Register the blueprint kind at every shared site — renderer dispatch, ruler glyphs, and the element-count preview gist — so a blueprint is never an unknown kind on any surface",
+          "Render any artifact kind through one ArtifactKindRenderer, which also decides host mouse capture from the document itself",
+          "Render blueprint artifacts and fences through BlueprintBlockView, preserving authored coordinates on the declared logical canvas rather than inferring layout"
         ],
-        "source_revision": "4c9a9aa61b9eed6731aa44c3789468faa4f28d7c",
-        "summary": "Living artifact presentation. ArtifactKindRenderer is the one place that decides how an artifact of any kind is drawn and — for interactive HTML — whether the host captures the mouse for it. The renderer's contract for live artifacts is that the action manifest travels with the artifact id: an html artifact declares its intents on the record rather than in its content, so passing actionableArtifactID without topLevelActions injects the intent bridge, captures the click, and resolves it against an empty manifest — the exact shape of a regression that left every control dead in the macOS side panel (the primary way an artifact is opened) and the iOS sheet while the expanded overlay worked. The surfaces that open a live artifact forward both: the transcript panel, the iOS artifact sheet, the expanded overlay, and the fullscreen window's intent context. Inline intent clicks are gated twice in the host — the negotiated capability set must advertise an artifact.action surface, and the binding must resolve against the declared manifest — and both refusals are logged at notice, because the page has already swallowed the click and a dead control otherwise looks identical to missing markup. Status display prefers the unsupported reason over the generic harness sentence at every site: the renderer's inline status row and the fullscreen window's status line both show IntentInvocationState's reason first, so copy names the gate that actually closed — a local miss, no connection, a gateway too old for the method, or a gateway verdict — instead of pointing at a server that was never asked. Status is also reflected back onto the page: every live intent slot for the artifact becomes a data-hermes-status mark, so each inert control reflects its own outcome independently of the one last clicked. HTML artifacts that declare actions but place no inline markers fall back to ArtifactTopLevelActionBar — trusted SwiftUI chrome above the document, no JS bridge involved."
+        "source_revision": "8ef9ba70f75357bed7de03babe90d8c3fae38563",
+        "summary": "Living artifact presentation. ArtifactKindRenderer is the one place that decides how an artifact of any kind is drawn and — for interactive HTML — whether the host captures the mouse for it. The renderer's contract for live artifacts is that the action manifest travels with the artifact id: an html artifact declares its intents on the record rather than in its content, so passing actionableArtifactID without topLevelActions injects the intent bridge, captures the click, and resolves it against an empty manifest — the exact shape of a regression that left every control dead in the macOS side panel (the primary way an artifact is opened) and the iOS sheet while the expanded overlay worked. The surfaces that open a live artifact forward both: the transcript panel, the iOS artifact sheet, the expanded overlay, and the fullscreen window's intent context. Inline intent clicks are gated twice in the host — the negotiated capability set must advertise an artifact.action surface, and the binding must resolve against the declared manifest — and both refusals are logged at notice, because the page has already swallowed the click and a dead control otherwise looks identical to missing markup. Status display prefers the unsupported reason over the generic harness sentence at every site: the renderer's inline status row and the fullscreen window's status line both show IntentInvocationState's reason first, so copy names the gate that actually closed — a local miss, no connection, a gateway too old for the method, or a gateway verdict — instead of pointing at a server that was never asked. Status is also reflected back onto the page: every live intent slot for the artifact becomes a data-hermes-status mark, so each inert control reflects its own outcome independently of the one last clicked. HTML artifacts that declare actions but place no inline markers fall back to ArtifactTopLevelActionBar — trusted SwiftUI chrome above the document, no JS bridge involved. Blueprints enter the renderer's kind table the way every native block kind does: a ```blueprint fence or a stored blueprint artifact renders through BlueprintBlockView, which preserves the coordinates and dimensions its author declared on a logical canvas instead of asking a layout to infer placement — the deliberate opposite of the graph and Mermaid renderers, where the renderer owns geometry. The kind is registered at every site the other kinds are: ArtifactKindRenderer's dispatch, the ruler glyph in the canvas, fullscreen, transcript, panel, and thought-graph icon tables, and the structural preview gist that counts surviving elements and reads the title."
       }
     },
     {
@@ -10232,7 +10247,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7242
+      "line_count": 7243
     },
     {
       "declaration_count": 9,
@@ -10259,7 +10274,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4483
+      "line_count": 4497
     },
     {
       "declaration_count": 29,
@@ -10720,28 +10735,31 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6685,
+      "line_count": 6688,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
-          "Sources/Portal/Services/CronChangesetSource.swift"
+          "Sources/Portal/Services/CronChangesetSource.swift",
+          "Sources/Portal/Services/SessionPDFExporter.swift"
         ],
         "flows": [
-          "CronRevisionTimelineDrawer receives the gateway client as a CronChangesetSource; CronChangesetFeed derives statements with CronGraphDiff.between, exactly as the observed log does"
+          "CronRevisionTimelineDrawer receives the gateway client as a CronChangesetSource; CronChangesetFeed derives statements with CronGraphDiff.between, exactly as the observed log does",
+          "ExportBlockView checks the blueprint language before the chart branch, so a blueprint fence in an exported session draws as a blueprint instead of falling through to code text"
         ],
         "id": "local-services",
         "model": "hermes-agent/glm-5.2",
         "open_questions": [],
         "responsibilities": [
           "Carry the cron.changeset_diff payload — before/after graphs plus an optional unified text diff — with the honest nil rule for a missing parent graph",
-          "Declare the cron changeset capability protocol that GatewayClient implements and tests can fake"
+          "Declare the cron changeset capability protocol that GatewayClient implements and tests can fake",
+          "Render blueprint fences in exported PDFs through the live BlueprintBlockView, synchronously rasterizable because it is pure SwiftUI + Canvas with an intrinsic aspect ratio"
         ],
-        "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
-        "summary": "Persistence, export, media, notifications, caching, reasoning, and device-local support services. CronChangesetSource is the capability seam for cron configuration history: a protocol rather than a version sniff, with two halves that are both needed — the protocol says the client speaks the RPC and lets a test hand over a source that does record history, while CronChangesetFeed.Availability says whether this gateway answers at runtime. cronChangesetDiff deliberately returns graphs rather than statements, so Portal derives the same CronGraphDiff sentences it derives for its own observed log instead of maintaining two dialects of \"what changed\", and CronChangesetDiff.structural(parentDigest:) applies the revision store's verbatim nil rule: a missing before graph is the empty graph only when the change had no parent at all, otherwise the comparison is honestly unavailable."
+        "source_revision": "8ef9ba70f75357bed7de03babe90d8c3fae38563",
+        "summary": "Persistence, export, media, notifications, caching, reasoning, and device-local support services. CronChangesetSource is the capability seam for cron configuration history: a protocol rather than a version sniff, with two halves that are both needed — the protocol says the client speaks the RPC and lets a test hand over a source that does record history, while CronChangesetFeed.Availability says whether this gateway answers at runtime. cronChangesetDiff deliberately returns graphs rather than statements, so Portal derives the same CronGraphDiff sentences it derives for its own observed log instead of maintaining two dialects of \"what changed\", and CronChangesetDiff.structural(parentDigest:) applies the revision store's verbatim nil rule: a missing before graph is the empty graph only when the change had no parent at all, otherwise the comparison is honestly unavailable. SessionPDFExporter's ExportBlockView mirrors MarkdownContentView's block dispatch with export-safe substitutions, and blueprint fences join the short list rendered by the live view itself: BlueprintBlockView is pure SwiftUI + Canvas with an intrinsic aspect ratio, so ImageRenderer can rasterize it synchronously — unlike the async mermaid layouts that must be pre-rendered to images before the pass, and unlike the interactive chart whose scroll-view plot rasterizes as an empty box and is re-emitted non-interactive for export."
       }
     },
     {
-      "declaration_count": 238,
+      "declaration_count": 244,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -10762,6 +10780,7 @@
         "BackendKind",
         "BackendNavigationCapability",
         "Bin",
+        "BlueprintSpec",
         "Bucket",
         "ButtonCornerStyle",
         "ButtonTheme",
@@ -10786,6 +10805,8 @@
         "CompactionMarker",
         "ConceptLink",
         "ConceptLinker",
+        "Connection",
+        "ConnectionStyle",
         "CronCategory",
         "CronCategoryGrouping",
         "CronCategoryNode",
@@ -10830,6 +10851,8 @@
         "DroppedEventReason",
         "Edge",
         "EdgeStatement",
+        "Element",
+        "ElementKind",
         "EntityRef",
         "EntitySet",
         "Event",
@@ -10898,6 +10921,7 @@
         "QuizResponse",
         "QuizState",
         "RawCurriculum",
+        "RawElement",
         "RawFlashcard",
         "RawModule",
         "RawSeries",
@@ -10984,13 +11008,14 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 75,
+      "file_count": 76,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
         "Sources/Portal/Models/AgentModel.swift",
         "Sources/Portal/Models/AppFontTheme.swift",
         "Sources/Portal/Models/ApprovalQueue.swift",
+        "Sources/Portal/Models/BlueprintSpec.swift",
         "Sources/Portal/Models/ButtonTheme.swift",
         "Sources/Portal/Models/CalendarSpec.swift",
         "Sources/Portal/Models/CelebrationBeat.swift",
@@ -11065,10 +11090,11 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13204,
+      "line_count": 13350,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
+          "Sources/Portal/Models/BlueprintSpec.swift",
           "Sources/Portal/Models/CronCategory.swift",
           "Sources/Portal/Models/CronChangeset.swift",
           "Sources/Portal/Models/CronGraph.swift",
@@ -11076,12 +11102,14 @@
           "Sources/Portal/Models/CronGraphDigest.swift",
           "Sources/Portal/Models/CronGraphRevision.swift",
           "Sources/Portal/Models/CronGraphRevisionStore.swift",
-          "Sources/Portal/Models/GatewayCapabilities.swift"
+          "Sources/Portal/Models/GatewayCapabilities.swift",
+          "Sources/Portal/Models/LivingArtifact.swift"
         ],
         "flows": [
           "Cron views and view models call CronCategory split/name helpers to derive categories, groupings, and labels from job names",
           "GatewayCapabilitiesStore logs diagnosticSummary at notice when capabilities resolve, because no view displays capabilityNames",
           "GatewayClient decodes cron.changesets rows into CronChangeset values, tolerating missing fields except id",
+          "MarkdownContentView and SessionPDFExporter both gate fences on the blueprint language check before the chart branch; ArtifactMerge gives blueprints the default replace semantics, so a re-emitted blueprint replaces the stored document wholesale",
           "The revision drawer and the canvas render the same CronGraphDiff statements; the canvas highlight sets are derived from them, never recomputed"
         ],
         "id": "domain-models",
@@ -11089,6 +11117,7 @@
         "open_questions": [],
         "responsibilities": [
           "Canonicalize the dataflow graph into sorted, length-prefixed forms so the commitment is ordering-independent and collision-free",
+          "Decode the blueprint fence contract on a declared logical canvas: case-insensitive kind and style with safe fallbacks, clamped geometry, first-wins id dedup, and endpoint-checked connections",
           "Derive cron category paths from job names as a pure naming convention",
           "Diff two graph revisions into typed, human-phrased statements whose derived node and edge sets feed the canvas highlight",
           "Gate features on negotiated capability names, with the restart control inverted so an unknown gateway can still be asked",
@@ -11096,11 +11125,12 @@
           "Model gateway-recorded changesets with open-vocabulary action, actor, and provenance, sharing the observed log's digest linkage",
           "Normalize and validate user-typed job names so renaming is also refiling",
           "Own value-oriented wire and domain types shared across experiences and service adapters",
+          "Parse to nil when no element survives sanitization, and memoize parses through the shared RenderMemo",
           "Provide shared display-name rules so list rows, cards, and graph labels cannot drift apart",
           "Render the negotiated capability set for diagnostics as a pure function: count, loud artifact-actions verdict, sorted names, honest empty case"
         ],
-        "source_revision": "4c9a9aa61b9eed6731aa44c3789468faa4f28d7c",
-        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled by CronCategory, which derives arbitrary-depth category paths from a job's own name and owns the display-name rules every surface shares. The dataflow graph now has an identity you can quote: CronGraphDigest is a SHA-256 content address over a canonical, byte-sorted, length-prefixed form of the graph as configured — schedule, enabled, usesLLM, deliver, description, and every edge are in, while lastStatus and health are out so the 10-second health poll cannot mint revisions — and layoutForm, a strict subset kept in the same file because the difference is the point, answers only whether a refresh must re-run the force layout. CronGraphRevisionStore keeps the append-on-change observation log: per-observation UUID identity so a revert A → B → A is three entries, runtime state stripped before storing so over(revision.graph) == revision.digest holds forever, capped at 200 revisions for disk. CronGraphDiff reports typed, human-phrased statements — rename versus refile told apart by leaf and path, edges as dataflow — with affectedNodeIDs, addedEdgeIDs, and removedEdges derived from the statements so the drawer and the canvas cannot drift. CronChangeset is the gateway-recorded counterpart carrying what the observed log structurally cannot: real time, an actor (human/agent/scheduler/other/unknown), and provenance turns. CronGraph itself is Codable for local snapshots only; gateway decoding stays on decodeGatewayValue. GatewayCapabilities is the negotiated-capability value the feature gates read: supportsArtifactActions, supportsActionLog, and supportsLearning hide their features when the set is silent, while supportsGatewayRestart is deliberately inverted — a gateway that reported nothing still gets the restart button, because restart is the recovery control and hiding it is how you end up needing shell access on the host; a gateway that did report and didn't list restart is taken at its word. The negotiated set is displayed by no view, so diagnosticSummary renders it as a pure, testable one-line verdict — the count, a loud supported/ABSENT artifact-actions flag, sorted names (or \"none listed\" so an empty set doesn't render as a bare colon) — which GatewayCapabilitiesStore logs at notice when capabilities resolve, the first place to look when a feature silently isn't there."
+        "source_revision": "8ef9ba70f75357bed7de03babe90d8c3fae38563",
+        "summary": "Value types and wire/domain models shared across user experiences and service adapters. Cron job organization is modeled by CronCategory, which derives arbitrary-depth category paths from a job's own name and owns the display-name rules every surface shares. The dataflow graph now has an identity you can quote: CronGraphDigest is a SHA-256 content address over a canonical, byte-sorted, length-prefixed form of the graph as configured — schedule, enabled, usesLLM, deliver, description, and every edge are in, while lastStatus and health are out so the 10-second health poll cannot mint revisions — and layoutForm, a strict subset kept in the same file because the difference is the point, answers only whether a refresh must re-run the force layout. CronGraphRevisionStore keeps the append-on-change observation log: per-observation UUID identity so a revert A → B → A is three entries, runtime state stripped before storing so over(revision.graph) == revision.digest holds forever, capped at 200 revisions for disk. CronGraphDiff reports typed, human-phrased statements — rename versus refile told apart by leaf and path, edges as dataflow — with affectedNodeIDs, addedEdgeIDs, and removedEdges derived from the statements so the drawer and the canvas cannot drift. CronChangeset is the gateway-recorded counterpart carrying what the observed log structurally cannot: real time, an actor (human/agent/scheduler/other/unknown), and provenance turns. CronGraph itself is Codable for local snapshots only; gateway decoding stays on decodeGatewayValue. GatewayCapabilities is the negotiated-capability value the feature gates read: supportsArtifactActions, supportsActionLog, and supportsLearning hide their features when the set is silent, while supportsGatewayRestart is deliberately inverted — a gateway that reported nothing still gets the restart button, because restart is the recovery control and hiding it is how you end up needing shell access on the host; a gateway that did report and didn't list restart is taken at its word. The negotiated set is displayed by no view, so diagnosticSummary renders it as a pure, testable one-line verdict — the count, a loud supported/ABSENT artifact-actions flag, sorted names (or \"none listed\" so an empty set doesn't render as a bare colon) — which GatewayCapabilitiesStore logs at notice when capabilities resolve, the first place to look when a feature silently isn't there. BlueprintSpec is the wire contract for the same family's newest kind: the JSON body of a ```blueprint fence, decoded against a declared logical canvas (100 × 100 by default, each axis clamped to 10–1000) where every x/y/width/height is author-placed. Decoding is total where it can be — kind and style strings match case-insensitively and fall back to generic and flow — and sanitizing where integrity matters: element ids are trimmed with empties dropped and duplicates resolved first-wins, geometry clamps into the canvas with non-finite values collapsing to the minimum, and a connection survives only when both endpoints exist and differ. A spec whose elements all vanish parses as nil so the view shows its parse-error card instead of an empty drawing, and parsing is memoized through the shared RenderMemo (32 entries) like every other block spec. As a living artifact, a blueprint re-emit takes ArtifactMerge's default replace path — the incoming document replaces the stored one wholesale, the same semantics charts and timelines have."
       }
     },
     {
@@ -11640,7 +11670,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 17 declaration(s) owned by domain-models.",
+      "description": "References 18 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ContentView.swift",
         "Sources/Portal/Views/MenuBar/PortalMenuBarExtra.swift",
@@ -11653,6 +11683,7 @@
         "AppFontTheme",
         "BackendKind",
         "ButtonTheme",
+        "Connection",
         "CronRunHistoryStore",
         "Curriculum",
         "Link",
@@ -11660,12 +11691,11 @@
         "PromptBreakdown",
         "PromptSection",
         "SavedGateway",
-        "Session",
-        "ToolbarIconAppearance"
+        "Session"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 22
+      "weight": 23
     },
     {
       "authority": "observed",
@@ -11814,9 +11844,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 8 declaration(s) owned by domain-models.",
+      "description": "References 9 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/ArtifactActions.swift",
+        "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
+        "Sources/Portal/Models/HTMLPointerLockBridge.swift",
         "Sources/Portal/Services/ArtifactStore.swift"
       ],
       "source": "artifact-intents",
@@ -11824,6 +11856,7 @@
         "AnyCodable",
         "ArtifactGateway",
         "ArtifactMerge",
+        "Element",
         "EntityRef",
         "LivingArtifact",
         "ModelSpec",
@@ -11832,7 +11865,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 10
+      "weight": 13
     },
     {
       "authority": "observed",
@@ -11867,7 +11900,7 @@
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/CalendarBlockView.swift"
+        "Sources/Portal/Views/Blocks/BlueprintBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
@@ -11876,7 +11909,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 32
+      "weight": 33
     },
     {
       "authority": "observed",
@@ -11959,7 +11992,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 38 declaration(s) owned by domain-models.",
+      "description": "References 41 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -11972,11 +12005,12 @@
         "Sources/Portal/Views/Blocks/ArtifactMaintenanceSection.swift",
         "Sources/Portal/Views/Blocks/ArtifactPanel.swift",
         "Sources/Portal/Views/Blocks/ArtifactParseError.swift",
-        "Sources/Portal/Views/Blocks/CalendarBlockView.swift"
+        "Sources/Portal/Views/Blocks/BlueprintBlockView.swift"
       ],
       "source": "artifact-ui",
       "symbols": [
         "ArtifactRevision",
+        "BlueprintSpec",
         "CalendarSpec",
         "Card",
         "Category",
@@ -11986,12 +12020,11 @@
         "ChartSpec",
         "ChartWaterfall",
         "ChecklistSpec",
-        "CronJob",
-        "DashboardLayout"
+        "ConnectionStyle"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 69
+      "weight": 73
     },
     {
       "authority": "observed",
@@ -12169,7 +12202,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by domain-models.",
+      "description": "References 14 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/GatewayEvent.swift",
         "Sources/Portal/Services/AgentBackend.swift"
@@ -12180,18 +12213,18 @@
         "AgentModel",
         "AnyCodable",
         "ApprovalQueue",
+        "Connection",
         "Event",
         "ModelCatalog",
         "ModelSwitchOutcome",
         "Persona",
         "Provider",
         "Session",
-        "Source",
-        "TokenAccountable"
+        "Source"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 15
+      "weight": 16
     },
     {
       "authority": "observed",
@@ -12346,7 +12379,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 43 declaration(s) owned by domain-models.",
+      "description": "References 46 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
         "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
@@ -12361,16 +12394,16 @@
         "AvatarState",
         "ChatMessage",
         "CompactionMarker",
+        "Connection",
         "Curriculum",
         "CurriculumResponse",
         "DelegationBatch",
         "DelegationBatchHistoryStore",
-        "Event",
-        "FileAttachment"
+        "Edge"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 47
+      "weight": 50
     },
     {
       "authority": "observed",
@@ -12506,7 +12539,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 25 declaration(s) owned by artifact-ui.",
+      "description": "References 26 declaration(s) owned by artifact-ui.",
       "evidence": [
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/LongResponseView.swift",
@@ -12519,17 +12552,17 @@
         "ArtifactKindRenderer",
         "ArtifactPanelView",
         "ArtifactPointerLockDelegate",
+        "BlueprintBlockView",
         "CalendarBlockView",
         "ChecklistBlockView",
         "DatasetBlockView",
         "DiagramExplorerView",
         "DiffBlockView",
-        "FileTreeView",
-        "InteractiveArtifactWeb"
+        "FileTreeView"
       ],
       "target": "artifact-ui",
       "type": "references",
-      "weight": 28
+      "weight": 29
     },
     {
       "authority": "observed",
@@ -12552,7 +12585,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 23 declaration(s) owned by domain-models.",
+      "description": "References 24 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -12571,6 +12604,7 @@
         "AgentModel",
         "Card",
         "ChatMessage",
+        "Connection",
         "DownloadState",
         "FileAttachment",
         "Flashcard",
@@ -12578,12 +12612,11 @@
         "MediaAttachment",
         "ModelCatalog",
         "PanelKind",
-        "Persona",
-        "ResponseStyle"
+        "Persona"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 34
+      "weight": 35
     },
     {
       "authority": "observed",
@@ -13003,6 +13036,7 @@
       "authority": "observed",
       "description": "References 5 declaration(s) owned by utilities.",
       "evidence": [
+        "Sources/Portal/Models/BlueprintSpec.swift",
         "Sources/Portal/Models/CalendarSpec.swift",
         "Sources/Portal/Models/ChartSpec.swift",
         "Sources/Portal/Models/ChecklistSpec.swift",
@@ -13024,7 +13058,7 @@
       ],
       "target": "utilities",
       "type": "references",
-      "weight": 15
+      "weight": 16
     },
     {
       "authority": "observed",
@@ -13063,7 +13097,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 62 declaration(s) owned by domain-models.",
+      "description": "References 63 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
@@ -13085,17 +13119,17 @@
         "AnyCodable",
         "ArtifactRevision",
         "ChatMessage",
+        "Connection",
         "CronChangeset",
         "CronChangesetActor",
         "CronChangesetProvenance",
         "CronChangesetsPage",
         "CronGraph",
-        "CronJob",
-        "CronRunHistoryStore"
+        "CronJob"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 75
+      "weight": 76
     },
     {
       "authority": "observed",
@@ -13188,13 +13222,14 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by artifact-ui.",
+      "description": "References 14 declaration(s) owned by artifact-ui.",
       "evidence": [
         "Sources/Portal/Services/SessionPDFExporter.swift"
       ],
       "source": "local-services",
       "symbols": [
         "ArtifactExporter",
+        "BlueprintBlockView",
         "DiffBlockView",
         "DiffLine",
         "MapExportRenderer",
@@ -13204,12 +13239,11 @@
         "MermaidExportRenderer",
         "NativeChartView",
         "NetworkGraphView",
-        "SankeyBlockView",
-        "StatTilesView"
+        "SankeyBlockView"
       ],
       "target": "artifact-ui",
       "type": "references",
-      "weight": 14
+      "weight": 15
     },
     {
       "authority": "observed",
@@ -13684,7 +13718,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 55 declaration(s) owned by domain-models.",
+      "description": "References 56 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -13709,14 +13743,14 @@
         "Card",
         "Category",
         "ChatMessage",
+        "Connection",
         "CronCategory",
         "CronCategoryGrouping",
-        "CronCategoryNode",
-        "CronChangeset"
+        "CronCategoryNode"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 108
+      "weight": 109
     },
     {
       "authority": "observed",
@@ -14003,7 +14037,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 32 declaration(s) owned by domain-models.",
+      "description": "References 33 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -14031,11 +14065,11 @@
         "CelebrationSound",
         "CelebrationStyle",
         "ChatMessage",
-        "Direction"
+        "Connection"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 63
+      "weight": 64
     },
     {
       "authority": "observed",
@@ -14829,10 +14863,10 @@
     }
   },
   "inventory": {
-    "assigned_files": 345,
-    "declarations": 1005,
-    "swift_files": 345,
-    "swift_lines": 100618,
+    "assigned_files": 347,
+    "declarations": 1019,
+    "swift_files": 347,
+    "swift_lines": 101137,
     "unassigned_files": []
   },
   "layers": [
@@ -14864,6 +14898,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "f90ff14682301fe55fee01f49ad5b4bdfad18ad8f2b631f216277d5b77e01779",
+  "source_tree_sha256": "ca389c1760592a5402ddd00cf002998a0deb02920ae3f2c6a3fc1d5cda7e634e",
   "title": "Portal Architecture"
 }
