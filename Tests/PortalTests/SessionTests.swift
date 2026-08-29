@@ -441,6 +441,13 @@ struct SessionRunStateTests {
         #expect(SessionRunState(gatewayValue: "cancelled") == .canceled)
     }
 
+    @Test("missing and unrecognized gateway states remain unspecified")
+    internal func rejectsMissingAndUnrecognizedGatewayValues() {
+        #expect(SessionRunState(gatewayValue: nil) == nil)
+        #expect(SessionRunState(gatewayValue: "") == nil)
+        #expect(SessionRunState(gatewayValue: "future_state") == nil)
+    }
+
     @Test("displayRunState prefers explicit run state")
     func explicitRunStateWins() {
         let session = Session(id: "s1", messageCount: 0, lastActive: Date(), runState: .failed)
