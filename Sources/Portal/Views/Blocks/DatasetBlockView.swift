@@ -16,13 +16,13 @@ import SwiftUI
 /// (key field first). Values may be strings, numbers, or bools. `actions`
 /// declares per-row user verbs (rendered only in artifact hosts). Rows
 /// carrying `_deleted: true` are tombstones — merged, never shown.
-struct DatasetSpec {
-    let key: String
-    let columns: [String]
-    let rows: [[String: String]]
-    let actions: [ArtifactAction]
+internal struct DatasetSpec {
+    internal let key: String
+    internal let columns: [String]
+    internal let rows: [[String: String]]
+    internal let actions: [ArtifactAction]
 
-    static func parse(_ json: String) -> DatasetSpec? {
+    internal static func parse(_ json: String) -> DatasetSpec? {
         guard let data = json.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let rawRows = obj["rows"] as? [[String: Any]], !rawRows.isEmpty else { return nil }
@@ -63,15 +63,15 @@ struct DatasetSpec {
 /// headers, numeric-aware, CSV copy — all inherited). When the dataset is a
 /// living artifact with declared actions, pass `actionableArtifactID` (the
 /// Artifacts pane does) to append per-row action controls.
-struct DatasetBlockView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct DatasetBlockView: View {
+    internal let json: String
+    internal let isStreaming: Bool
     /// Set by artifact hosts (Artifacts pane / sheets): enables the declared
     /// per-row actions, routed through ArtifactStore. Chat transcripts leave
     /// this nil — a transcript block is a snapshot, not the live model.
-    var actionableArtifactID: String?
+    internal var actionableArtifactID: String?
 
-    var body: some View {
+    internal var body: some View {
         if let spec = DatasetSpec.parse(json) {
             VStack(alignment: .leading, spacing: 0) {
                 TableView(
@@ -144,12 +144,12 @@ private struct DatasetActionRows: View {
 /// The declared actions of one entry, as controls: choice → menu, toggle →
 /// checkbox, delete → trash button (with a confirm). Shared by dataset rows
 /// and map entry rows.
-struct ArtifactActionControls: View {
-    let actions: [ArtifactAction]
-    let entryKey: String
+internal struct ArtifactActionControls: View {
+    internal let actions: [ArtifactAction]
+    internal let entryKey: String
     /// Current value of a field on this entry (for menu checkmark / toggle state).
-    let fieldValue: (String) -> String?
-    let artifactID: String
+    internal let fieldValue: (String) -> String?
+    internal let artifactID: String
 
     @ObservedObject private var store = ArtifactStore.shared
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore

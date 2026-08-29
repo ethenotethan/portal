@@ -2,17 +2,17 @@ import SwiftUI
 
 /// A single flashcard with front/back sides and a 3D flip animation.
 /// User taps to reveal the answer, then self-grades with quality buttons.
-struct FlashcardView: View {
-    let card: Flashcard
-    let cardIndex: Int
-    let totalCount: Int
-    let onGrade: (SRSQuality) -> Void
+internal struct FlashcardView: View {
+    internal let card: Flashcard
+    internal let cardIndex: Int
+    internal let totalCount: Int
+    internal let onGrade: (SRSQuality) -> Void
 
     @State private var isFlipped = false
     @State private var hasGraded = false
     @Namespace private var flipNamespace
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 16) {
             // Progress
             progressView
@@ -255,8 +255,8 @@ struct FlashcardView: View {
 // MARK: - Preview
 
 #if DEBUG
-struct FlashcardView_Previews: PreviewProvider {
-    static var previews: some View {
+internal struct FlashcardView_Previews: PreviewProvider {
+    internal static var previews: some View {
         FlashcardView(
             card: Flashcard(
                 front: "What is the primary research domain of the Hermes Wiki?",

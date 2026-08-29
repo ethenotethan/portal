@@ -9,18 +9,18 @@ import Charts
 /// (double-tap resets). Pass `interactive: false` for static contexts —
 /// SessionPDFExporter renders through ImageRenderer, which rasterizes the
 /// scrollable-axis plot (a scroll view) as an empty box.
-struct NativeChartView: View {
-    let json: String
-    let isStreaming: Bool
-    var interactive: Bool = true
+internal struct NativeChartView: View {
+    internal let json: String
+    internal let isStreaming: Bool
+    internal var interactive: Bool = true
 
-    init(json: String, isStreaming: Bool, interactive: Bool = true) {
+    internal init(json: String, isStreaming: Bool, interactive: Bool = true) {
         self.json = json
         self.isStreaming = isStreaming
         self.interactive = interactive
     }
 
-    var body: some View {
+    internal var body: some View {
         switch ChartSpec.parse(json) {
         case .success(let spec):
             ChartCard(spec: spec, interactive: interactive)

@@ -12,19 +12,19 @@ import Charts
 ///   two x-aligned charts (never dual-axed), plus
 /// - the pages touched in the window (from `/wiki/changes`), each row
 ///   jumping into the wiki through the shared selection plane.
-struct WikiEventsKnowledgePane: View {
-    let eventTimeline: WikiEventTimeline?
-    let revisionsTimeline: WikiRevisionsTimeline?
+internal struct WikiEventsKnowledgePane: View {
+    internal let eventTimeline: WikiEventTimeline?
+    internal let revisionsTimeline: WikiRevisionsTimeline?
     /// nil when the source doesn't serve /wiki/changes — the pages-touched
     /// tile and list simply hide.
-    let changesSummary: WikiChangesSummary?
-    let window: ClosedRange<Date>
-    var onOpenPage: ((String) -> Void)?
+    internal let changesSummary: WikiChangesSummary?
+    internal let window: ClosedRange<Date>
+    internal var onOpenPage: ((String) -> Void)?
 
     @State private var showCumulative = true
     @State private var showAllPages = false
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 WikiEventsSectionLabel(
@@ -160,12 +160,12 @@ struct WikiEventsKnowledgePane: View {
 
 /// Events-page stat tile: label in a text token, compact semibold value,
 /// muted detail line. Values never wear a series color (dataviz contract).
-struct WikiEventsStatTile: View {
-    let label: String
-    let value: String
-    var detail: String?
+internal struct WikiEventsStatTile: View {
+    internal let label: String
+    internal let value: String
+    internal var detail: String?
 
-    var body: some View {
+    internal var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
@@ -198,9 +198,9 @@ struct WikiEventsStatTile: View {
 /// One row of the pages-touched list: type-colored dot, title (a button into
 /// the wiki via the shared selection plane), type chip, relative timestamp,
 /// and an external-link affordance when the page has a canonical URL.
-struct WikiChangedPageRow: View {
-    let page: WikiChangesSummary.PageChange
-    var onOpenPage: ((String) -> Void)?
+internal struct WikiChangedPageRow: View {
+    internal let page: WikiChangesSummary.PageChange
+    internal var onOpenPage: ((String) -> Void)?
 
     @Environment(\.openURL) private var openURL
 
@@ -210,7 +210,7 @@ struct WikiChangedPageRow: View {
         return f
     }()
 
-    var body: some View {
+    internal var body: some View {
         HStack(spacing: 8) {
             Button {
                 onOpenPage?(page.id)

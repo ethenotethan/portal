@@ -4,11 +4,11 @@ import SwiftUI
 /// the adaptive graph surface (top-trailing). New affordances (e.g. a
 /// source-specific timeline) belong here — add a button to this bar rather
 /// than scattering conditionals through WikiGraphView.
-struct WikiGraphControlsBar: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
+internal struct WikiGraphControlsBar: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
     /// Changeset timeline is a per-source capability (WikiChangesetSource);
     /// the host computes conformance and the bar just hides the toggle.
-    let supportsTimeline: Bool
+    internal let supportsTimeline: Bool
     /// Whether an ingestion event log exists (WikiEventLogSource) — gates the
     /// Events door. A Bool rather than the source itself: the host resolves the
     /// capability against the *effective* source, which for the home gateway is
@@ -16,9 +16,9 @@ struct WikiGraphControlsBar: View {
     /// override that is nil in the normal case is what previously left the
     /// Events entry unrenderable on Hermes.
     internal let hasEventsSurface: Bool
-    let onRefresh: () -> Void
+    internal let onRefresh: () -> Void
 
-    var body: some View {
+    internal var body: some View {
         HStack(spacing: 6) {
             if !viewModel.is3D {
                 zoomCluster

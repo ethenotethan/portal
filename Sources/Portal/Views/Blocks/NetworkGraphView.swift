@@ -4,17 +4,17 @@ import SwiftUI
 /// computed once at parse time (static, deterministic) — a chat block should
 /// settle and hold still, unlike the live wiki graph. Edges draw in a Canvas;
 /// nodes are SwiftUI views so they get hover/tap for the detail readout.
-struct NetworkGraphView: View {
-    let json: String
-    let isStreaming: Bool
+internal struct NetworkGraphView: View {
+    internal let json: String
+    internal let isStreaming: Bool
     /// Host-owned node selection (ensemble models share one selection bus
     /// across stacked views); nil = the card keeps private state.
-    var externalSelection: Binding<String?>?
+    internal var externalSelection: Binding<String?>?
     /// Fixed-height hosts (model panes) pass their canvas height so the
     /// layout scales to fit inside it; nil = intrinsic height (chat blocks).
     internal var fitHeight: CGFloat?
 
-    var body: some View {
+    internal var body: some View {
         if let spec = NetworkGraphSpec.parse(json) {
             GraphCard(spec: spec, externalSelection: externalSelection, fitHeight: fitHeight)
         } else if Self.looksLikeMermaid(json) {
@@ -29,7 +29,7 @@ struct NetworkGraphView: View {
     }
 
     /// Mermaid flowchart smell: starts with a direction header instead of {.
-    static func looksLikeMermaid(_ s: String) -> Bool {
+    internal static func looksLikeMermaid(_ s: String) -> Bool {
         let head = s.trimmingCharacters(in: .whitespacesAndNewlines).prefix(24).lowercased()
         return head.hasPrefix("graph ") || head.hasPrefix("flowchart ")
             || head.hasPrefix("td") || head.hasPrefix("lr")

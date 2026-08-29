@@ -4,13 +4,13 @@ import SwiftUI
 
 /// Compact stat tile for the Learning header strip.
 /// Value wears a text token; a small colored icon carries any status meaning.
-struct LearningStatTile: View {
-    let value: String
-    let label: String
-    var icon: String?
-    var iconColor: Color = Theme.secondary
+internal struct LearningStatTile: View {
+    internal let value: String
+    internal let label: String
+    internal var icon: String?
+    internal var iconColor: Color = Theme.secondary
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 3) {
             HStack(spacing: 4) {
                 if let icon {
@@ -35,11 +35,11 @@ struct LearningStatTile: View {
 // MARK: - Due Review Banner
 
 /// Call-to-action shown when flashcards are due for review.
-struct LearningDueBanner: View {
-    let dueCount: Int
-    let onReview: () -> Void
+internal struct LearningDueBanner: View {
+    internal let dueCount: Int
+    internal let onReview: () -> Void
 
-    var body: some View {
+    internal var body: some View {
         Button(action: onReview) {
             HStack(spacing: 10) {
                 Image(systemName: "clock.badge.exclamationmark")
@@ -85,13 +85,13 @@ struct LearningDueBanner: View {
 // MARK: - Progress Ring
 
 /// Small determinate ring used on quiz and deck cards.
-struct LearningProgressRing: View {
-    let fraction: Double
-    let color: Color
-    var lineWidth: CGFloat = 3.5
-    var size: CGFloat = 34
+internal struct LearningProgressRing: View {
+    internal let fraction: Double
+    internal let color: Color
+    internal var lineWidth: CGFloat = 3.5
+    internal var size: CGFloat = 34
 
-    var body: some View {
+    internal var body: some View {
         ZStack {
             Circle()
                 .stroke(Theme.surfaceHover, lineWidth: lineWidth)
@@ -107,10 +107,10 @@ struct LearningProgressRing: View {
 // MARK: - Quiz Card
 
 /// Card row for a saved quiz session. The whole card opens the player.
-struct LearningQuizCard: View {
-    let quiz: PersistedQuizSession
-    let onOpen: () -> Void
-    let onDelete: () -> Void
+internal struct LearningQuizCard: View {
+    internal let quiz: PersistedQuizSession
+    internal let onOpen: () -> Void
+    internal let onDelete: () -> Void
 
     private var scoreColor: Color {
         if quiz.scorePercent >= 80 { return Theme.success }
@@ -118,7 +118,7 @@ struct LearningQuizCard: View {
         return .red
     }
 
-    var body: some View {
+    internal var body: some View {
         Button(action: onOpen) {
             HStack(spacing: 12) {
                 ZStack {
@@ -185,17 +185,17 @@ struct LearningQuizCard: View {
 // MARK: - Deck Card
 
 /// Card row for a flashcard deck. The whole card opens the study player.
-struct LearningDeckCard: View {
-    let deck: FlashcardDeck
-    let onOpen: () -> Void
-    let onDelete: () -> Void
+internal struct LearningDeckCard: View {
+    internal let deck: FlashcardDeck
+    internal let onOpen: () -> Void
+    internal let onDelete: () -> Void
 
     private var learnedFraction: Double {
         guard deck.totalCount > 0 else { return 0 }
         return Double(deck.learnedCount) / Double(deck.totalCount)
     }
 
-    var body: some View {
+    internal var body: some View {
         Button(action: onOpen) {
             HStack(spacing: 12) {
                 ZStack {
@@ -279,12 +279,12 @@ struct LearningDeckCard: View {
 // MARK: - Empty State
 
 /// Per-section empty state with a hint about how content is created.
-struct LearningEmptyState: View {
-    let icon: String
-    let title: String
-    let message: String
+internal struct LearningEmptyState: View {
+    internal let icon: String
+    internal let title: String
+    internal let message: String
 
-    var body: some View {
+    internal var body: some View {
         VStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 40))
@@ -306,8 +306,8 @@ struct LearningEmptyState: View {
 // MARK: - Preview
 
 #if DEBUG
-struct LearningComponents_Previews: PreviewProvider {
-    static var previews: some View {
+internal struct LearningComponents_Previews: PreviewProvider {
+    internal static var previews: some View {
         VStack(spacing: 12) {
             LearningDueBanner(dueCount: 12, onReview: {})
             LearningEmptyState(

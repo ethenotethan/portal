@@ -5,18 +5,18 @@ import SwiftUI
 /// driven by the shared selection plane on WikiGraphViewModel. Hosted by the
 /// file browser (inline), the graph modes (side panel / sheet), and the
 /// timeline.
-struct WikiReaderPane: View {
-    @ObservedObject var viewModel: WikiGraphViewModel
-    @EnvironmentObject var gatewayClientWrapper: GatewayClientWrapper
+internal struct WikiReaderPane: View {
+    @ObservedObject internal var viewModel: WikiGraphViewModel
+    @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
 
     /// Compact files-mode: shows a "Files" back button that closes the page.
-    var showsCompactBack = false
+    internal var showsCompactBack = false
     /// Sheet/panel hosting: shows a close affordance.
-    var onClose: (() -> Void)?
+    internal var onClose: (() -> Void)?
     /// Hidden when the reader already sits next to the 2D graph.
-    var showsShowInGraph = true
+    internal var showsShowInGraph = true
 
-    var body: some View {
+    internal var body: some View {
         Group {
             if let path = viewModel.selectedPath {
                 pageView(path: path)
