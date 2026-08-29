@@ -157,6 +157,7 @@ struct ChatView: View {
 
     private func iconForKind(_ kind: String) -> String {
         switch kind {
+        case "blueprint": return "ruler"
         case "map": return "map"
         case "chart": return "chart.bar"
         case "graph": return "point.3.connected.trianglepath.dotted"

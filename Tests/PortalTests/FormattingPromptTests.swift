@@ -110,4 +110,13 @@ internal struct FormattingPromptTests {
         // or `column` must not be read as clearing the user's edit.
         #expect(prompt.contains("PRESERVE THE USER'S OWN"))
     }
+
+    @Test("teaches the native blueprint fence and placement contract")
+    internal func teachesBlueprints() {
+        #expect(prompt.contains("```blueprint"))
+        #expect(prompt.contains("explicit placement"))
+        #expect(prompt.contains("\"elements\""))
+        #expect(prompt.contains("\"connections\""))
+        #expect(prompt.contains("0–100"))
+    }
 }

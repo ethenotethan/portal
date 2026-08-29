@@ -229,6 +229,7 @@ internal struct ArtifactPanelView: View {
         case .markdown: return "doc.richtext"
         case .living(let kind, _):
             switch kind {
+            case "blueprint": return "ruler"
             case "map": return "map"
             case "chart": return "chart.bar"
             case "graph": return "point.3.connected.trianglepath.dotted"

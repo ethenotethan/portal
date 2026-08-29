@@ -61,6 +61,8 @@ internal struct ArtifactKindRenderer: View {
 
     internal var body: some View {
         switch kind {
+        case "blueprint":
+            BlueprintBlockView(json: content, isStreaming: false)
         case "map":
             MapBlockView(json: content, isStreaming: false, actionableArtifactID: actionableArtifactID)
         case "chart":

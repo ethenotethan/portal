@@ -173,6 +173,7 @@
 		394FDF9AE701A0010F813F1F /* RawEventLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EC93F5303A2AC1DFFBB635 /* RawEventLog.swift */; };
 		399CFE2E13F380B0D8300D91 /* PersonaImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1313288B7FDE31F8554B3C /* PersonaImage.swift */; };
 		3A26F9C358774C5DD86477C3 /* SRSEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34F454AF5F229C910AB4021 /* SRSEngine.swift */; };
+		3A35D94E672064700B70CE48 /* BlueprintSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A83D02DA1C8B53F87ADF3E2 /* BlueprintSpec.swift */; };
 		3A9A4145E6638EDAB74D4EB0 /* DelegationBatchNoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25238C5D9EAAF58C9298DC8F /* DelegationBatchNoticeView.swift */; };
 		3B2A7358B61A03F5E12707D2 /* DelegationBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A204BF583ED8B0A03BBC2B2E /* DelegationBatch.swift */; };
 		3BB2D863BE6AFA0AC118F19B /* VideoCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC635A4BD8C52946B1E85901 /* VideoCache.swift */; };
@@ -314,6 +315,7 @@
 		5F81B1532F2379AB5EDE1B7D /* FeedPublishedDateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 904A995F61303A169764A4AD /* FeedPublishedDateTests.swift */; };
 		5F8E4B7007A4CD39C9BE70F1 /* WikiEventTypeRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B561CF4288A99A9681A89C94 /* WikiEventTypeRegistryTests.swift */; };
 		5FE5EDDD139B9A351ADFC7BC /* FilesBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD1DBFF7C35F08F7E93A037 /* FilesBrowserView.swift */; };
+		6042758ACD34CDE089B4DB59 /* BlueprintSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A83D02DA1C8B53F87ADF3E2 /* BlueprintSpec.swift */; };
 		6076A862290BEB15AAEE4E8A /* ReasoningSummarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FB27BF126B31441AE3F23DE /* ReasoningSummarizer.swift */; };
 		624CE4691968087585DACB63 /* SessionExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */; };
 		6273A2D134A6455595E4A832 /* SessionExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */; };
@@ -508,6 +510,7 @@
 		9DDBE634BC0BA5588BE10E5F /* ButtonThemeSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E9D4F678038DA2763DEF7A2 /* ButtonThemeSettingsSection.swift */; };
 		9E065D2CBCBF139DAF382799 /* TimelineBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */; };
 		9E93BD0FC3C9849A5A13AB63 /* FeedViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 834BA31940CE15D7D075854E /* FeedViewModel.swift */; };
+		9EB66B382614272FA12CFCBC /* BlueprintSpecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2BB8C2AAF03FBEEEFC48D52 /* BlueprintSpecTests.swift */; };
 		9F0ACAB05B17D8540ADA6A55 /* SessionsDetailPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380F9167FA9A8B879B1ECD29 /* SessionsDetailPanel.swift */; };
 		9F36F7A78FBB7279DCC4A550 /* AgentModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDA42D13DFC14138D642AEC /* AgentModelTests.swift */; };
 		9F74981E963CA515094A52E8 /* ThinkingBeatsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3B7C2CDA9BA958D0AEFE82 /* ThinkingBeatsPanel.swift */; };
@@ -711,6 +714,7 @@
 		D7E330124AF26C2F6E55AFE2 /* ArtifactsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE662B6E86264722C3A7CF6 /* ArtifactsPanel.swift */; };
 		D7EB2B6E9B8811AFE16FEB0B /* CronJobRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E5A8B266061DACABE48C7A0 /* CronJobRow.swift */; };
 		D807F5C2A489FEB3A21C0D3B /* SkillsFolderPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F8705B9EC5C5FE00BA5C47 /* SkillsFolderPanel.swift */; };
+		D8A9556BCF421767693C06D4 /* BlueprintBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD6BFCFB600C0007FFDAE4 /* BlueprintBlockView.swift */; };
 		D8FF212EF1A4F34B1396BB8B /* MaintainerRefTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34893CE30A6CB39845D37812 /* MaintainerRefTests.swift */; };
 		D9166EFFFC5C101E86EA5548 /* WikiReaderPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4416C8A5C2EA53A3D77AE83 /* WikiReaderPane.swift */; };
 		D9668DF7E33202409D20B10A /* ChatHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D45B7F0FB83263EA427790C6 /* ChatHistoryStore.swift */; };
@@ -817,6 +821,7 @@
 		F93C176C09D927A1DC95D42F /* DelegationBatchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F6062185BCD6D124A73739C /* DelegationBatchHistoryStore.swift */; };
 		F95BE1FF2DA38D5EB95F9873 /* ResponseStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F8CFECC3A15ADFE69AC40A6 /* ResponseStyle.swift */; };
 		F97E2E5E27CC42E880C48E4B /* SankeySpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC60ABE2B991E64FE767E37C /* SankeySpec.swift */; };
+		F99D606E0F48AEBA48183EE0 /* BlueprintBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DDD6BFCFB600C0007FFDAE4 /* BlueprintBlockView.swift */; };
 		F9FFE8F92B8C62B9D532BF2F /* ThoughtGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4A404C6D6E537EC4B83562 /* ThoughtGraphView.swift */; };
 		FA28F8833B28DA68BBF0519E /* YouTubeVideoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9062A84C9FDE51679DDC8771 /* YouTubeVideoCard.swift */; };
 		FA3119A7497853D37B574644 /* QuizViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ABF0D5E23B4E8A72FDBA63B /* QuizViewModelTests.swift */; };
@@ -1085,6 +1090,7 @@
 		695EB363FD91E9355CA8E88B /* MaintainerRef.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaintainerRef.swift; sourceTree = "<group>"; };
 		69D3B215ECEEFD5F8BB75EAB /* PerfOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfOverlayView.swift; sourceTree = "<group>"; };
 		6A34BA75D42DF544F74D1A66 /* MainThreadWatchdogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainThreadWatchdogTests.swift; sourceTree = "<group>"; };
+		6A83D02DA1C8B53F87ADF3E2 /* BlueprintSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlueprintSpec.swift; sourceTree = "<group>"; };
 		6B1962C446F7909E19DABF27 /* MermaidDiagramView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MermaidDiagramView.swift; sourceTree = "<group>"; };
 		6CA38AA4F0AD295D56799280 /* SessionBackendRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionBackendRegistry.swift; sourceTree = "<group>"; };
 		6CC149A8A95FD687281EB28C /* FeedArticle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedArticle.swift; sourceTree = "<group>"; };
@@ -1177,6 +1183,7 @@
 		9CC908AEFB233872DE208F67 /* GatewayClient+Restart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Restart.swift"; sourceTree = "<group>"; };
 		9D1242C7F8867F3BE4B8B615 /* GatewayDebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugSnapshot.swift; sourceTree = "<group>"; };
 		9D1313288B7FDE31F8554B3C /* PersonaImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaImage.swift; sourceTree = "<group>"; };
+		9DDD6BFCFB600C0007FFDAE4 /* BlueprintBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlueprintBlockView.swift; sourceTree = "<group>"; };
 		9E5A8B266061DACABE48C7A0 /* CronJobRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobRow.swift; sourceTree = "<group>"; };
 		9E9D4F678038DA2763DEF7A2 /* ButtonThemeSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonThemeSettingsSection.swift; sourceTree = "<group>"; };
 		9EF489663ABB9AEAB01A353A /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -1206,6 +1213,7 @@
 		B196E603E6376186426A33E4 /* CronGraphDiffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronGraphDiffTests.swift; sourceTree = "<group>"; };
 		B1AC1CAB2036BF2DECFF141C /* PlatformCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformCompat.swift; sourceTree = "<group>"; };
 		B29BCA94CD9B7033BFD5F40C /* YouTubeEmbedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeEmbedTests.swift; sourceTree = "<group>"; };
+		B2BB8C2AAF03FBEEEFC48D52 /* BlueprintSpecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlueprintSpecTests.swift; sourceTree = "<group>"; };
 		B400AF748A0246E44CCDF6FB /* ViewSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewSnapshot.swift; sourceTree = "<group>"; };
 		B421E74744B8AA43585A291F /* GatewayClient+CronChangesets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+CronChangesets.swift"; sourceTree = "<group>"; };
 		B428735D67704E5E7156A3CE /* GatewayClientWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClientWrapper.swift; sourceTree = "<group>"; };
@@ -1526,6 +1534,7 @@
 				5133EA312C90A97C24B605C8 /* ApprovalQueue.swift */,
 				DAC816DBAA5505324AD883A6 /* ArtifactActions.swift */,
 				1AE682BB6B66DE72DFB5CC7F /* ArtifactIntentSessionLink.swift */,
+				6A83D02DA1C8B53F87ADF3E2 /* BlueprintSpec.swift */,
 				E1C10254BE9B734DC4E31245 /* ButtonTheme.swift */,
 				966F0221DEACC5BE86FA501E /* CalendarSpec.swift */,
 				F44F51853EA8A4B702D64A94 /* CelebrationBeat.swift */,
@@ -1908,6 +1917,7 @@
 				87F93D68A445194E8D80FD23 /* ArtifactMaintenanceSection.swift */,
 				78FA2A665949614A12ECD37F /* ArtifactPanel.swift */,
 				AC40744C7D94DBBF78EEA6B8 /* ArtifactParseError.swift */,
+				9DDD6BFCFB600C0007FFDAE4 /* BlueprintBlockView.swift */,
 				D321F96E42DD4C5EECB9FC23 /* CalendarBlockView.swift */,
 				4532702E01A34652A0065CAF /* ChecklistBlockView.swift */,
 				000F61BAD56D4B9BFE92BF37 /* DatasetBlockView.swift */,
@@ -2004,6 +2014,7 @@
 				F38B54CB474D3BA2E1C1E831 /* ArtifactStatusReflectionTests.swift */,
 				CBD0AE7AF15289D52F5BF54C /* BackendKindTests.swift */,
 				771C3D05CAE5E48B5A6AD239 /* BlockViewParserTests.swift */,
+				B2BB8C2AAF03FBEEEFC48D52 /* BlueprintSpecTests.swift */,
 				6794320152EABF823C879746 /* ButtonThemeTests.swift */,
 				0173AF8064C7B04D8CF8801D /* CanvasRelayoutGuardTests.swift */,
 				D73BDAD983F086DF3C33CC0E /* CelebrationManagerTests.swift */,
@@ -2379,6 +2390,8 @@
 				167D1D5C418E74B768A4DA7E /* ArtifactsPane.swift in Sources */,
 				49B057AC0BCDB053A9D91D78 /* ArtifactsPanel.swift in Sources */,
 				1B662D52D49609AAB42516B2 /* AttachmentChipView.swift in Sources */,
+				F99D606E0F48AEBA48183EE0 /* BlueprintBlockView.swift in Sources */,
+				3A35D94E672064700B70CE48 /* BlueprintSpec.swift in Sources */,
 				184BBE9FBA8C11B26964D1A0 /* ButtonTheme.swift in Sources */,
 				9DDBE634BC0BA5588BE10E5F /* ButtonThemeSettingsSection.swift in Sources */,
 				AF9166CC9B77A0DFF1D6A3EA /* CFAuthView.swift in Sources */,
@@ -2739,6 +2752,7 @@
 				8D7D14ADFBBDA34404202076 /* ArtifactsPaneLayoutTests.swift in Sources */,
 				D59500DEC6B9F779FBACFFAD /* BackendKindTests.swift in Sources */,
 				3252DB4C26A15DCABB4FC46E /* BlockViewParserTests.swift in Sources */,
+				9EB66B382614272FA12CFCBC /* BlueprintSpecTests.swift in Sources */,
 				2B1155CAAF64B8DE5C144055 /* ButtonThemeTests.swift in Sources */,
 				FB8C3E4870F9E5138CED5A4F /* CanvasRelayoutGuardTests.swift in Sources */,
 				525839E4A60214A40B537A8F /* CelebrationManagerTests.swift in Sources */,
@@ -2884,6 +2898,8 @@
 				1AD9262BED2955F88A1F905C /* ArtifactsPane.swift in Sources */,
 				D7E330124AF26C2F6E55AFE2 /* ArtifactsPanel.swift in Sources */,
 				197532BC3B2E4D4122C576A2 /* AttachmentChipView.swift in Sources */,
+				D8A9556BCF421767693C06D4 /* BlueprintBlockView.swift in Sources */,
+				6042758ACD34CDE089B4DB59 /* BlueprintSpec.swift in Sources */,
 				DF4E8C6D2938AA1A8E2C06E9 /* ButtonTheme.swift in Sources */,
 				9258A7CE56106550516BE3AA /* ButtonThemeSettingsSection.swift in Sources */,
 				FDBFD6A07A1C18C1977737B9 /* CFAuthView.swift in Sources */,
