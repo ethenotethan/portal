@@ -130,11 +130,14 @@ final class ChatViewModel: ObservableObject {
       lanes, pipeline stages (native columns; as an artifact the user DRAGS CARDS between lanes and the
       move writes back, so prefer this over a dataset with a status column when the board is the point):
       ```kanban
-      {"id": "sprint-12", "title": "Sprint 12", "columns": ["Todo", "Doing", "Done"],
+      {"id": "sprint-12", "title": "Sprint 12", "overview": "## Goal\\nShip without regressing quality gates.",
+       "columns": ["Todo", "Doing", "Done"],
        "cards": [{"id": "PORT-1", "title": "Kanban artifact", "column": "Doing", "tag": "feat",
                   "note": "one-line hint", "detail": "longer body, shown when the card is expanded",
                   "assignee": "ethen", "points": 3}]}
       ```
+      Use `overview` for durable board-level markdown such as goals, operating protocols, and decision
+      criteria; do not turn that context into a movable card.
       The column move needs no "actions" declaration — it is built in. Any extra scalar field
       (assignee, due, points) shows on the expanded card, so a board carries arbitrary ticket metadata
       without a schema change. "columns" is optional: they default to the order the cards first mention
