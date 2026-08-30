@@ -42,6 +42,13 @@ internal struct HTMLArtifactIntentBridgeTests {
         #expect(HTMLArtifactIntentRequest(url: url, expectedNonce: "test-nonce") == nil)
     }
 
+    @Test("entity references reject control characters")
+    internal func rejectsControlCharactersInEntityReferences() throws {
+        let url = try #require(URL(string: "hermes-artifact-action://invoke?binding_id=start-issue&entity_ref=issues%2FARC-42%0Aforged&nonce=test-nonce"))
+
+        #expect(HTMLArtifactIntentRequest(url: url, expectedNonce: "test-nonce") == nil)
+    }
+
     @Test("resolves only declared intent actions")
     internal func resolvesDeclaredIntent() {
         let actions = ArtifactAction.parse([
