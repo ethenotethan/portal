@@ -231,6 +231,18 @@ jobs:
       - name: Verify Periphery version
         run: periphery version
 
+      # Regenerate the project, as build.yml / tests.yml / testflight.yml all
+      # do. The scan below builds the Xcode scheme, and the committed
+      # Portal.xcodeproj enumerates every source file by path — so any PR that
+      # ADDS a file fails this job with "cannot find type … in scope" long
+      # before Periphery gets to look for dead code. The generated project is
+      # the source of truth everywhere else in CI; it has to be here too.
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
       - name: Capture dead-code snapshot
         run: |
           set -o pipefail
