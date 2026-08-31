@@ -174,6 +174,7 @@ private struct BlueprintDrawing: View {
                 context.draw(
                     Text(label)
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .monospaced()
                         .foregroundStyle(BlueprintPalette.text),
                     at: CGPoint(x: midpointX + 4, y: (start.y + end.y) / 2 - 7),
                     anchor: .leading
@@ -236,6 +237,7 @@ private struct BlueprintElementView: View {
                 }
             Text(element.label.uppercased())
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(BlueprintPalette.text)
                 .padding(6)
         }
@@ -251,6 +253,7 @@ private struct BlueprintElementView: View {
                 .lineLimit(2)
         }
         .font(.system(size: 10, weight: .semibold, design: .monospaced))
+        .monospaced()
         .foregroundStyle(BlueprintPalette.text)
         .padding(5)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -264,6 +267,7 @@ private struct BlueprintElementView: View {
                 .font(.system(size: 13, weight: .medium))
             Text(element.label)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .monospaced()
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.65)
@@ -321,6 +325,7 @@ private struct BlueprintParseError: View {
                 .foregroundStyle(Theme.secondary)
             Text(source)
                 .font(.system(.caption2, design: .monospaced))
+                .monospaced()
                 .foregroundStyle(Theme.tertiary)
                 .lineLimit(4)
                 .textSelection(.enabled)
