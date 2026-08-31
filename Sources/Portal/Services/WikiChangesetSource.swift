@@ -10,7 +10,7 @@ import Foundation
 /// Lives in its own file (not CentaurWikiClient.swift, where WikiSource is
 /// declared) so capability growth doesn't churn the shared protocol file.
 @MainActor
-protocol WikiChangesetSource: WikiSource {}
+internal protocol WikiChangesetSource: WikiSource {}
 
 /// Hermes gateway: wiki.changesets / wiki.changeset_diff RPCs.
 extension GatewayClient: WikiChangesetSource {}
