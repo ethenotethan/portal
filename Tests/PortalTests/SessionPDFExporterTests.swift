@@ -5,11 +5,11 @@ import PDFKit
 @testable import Portal
 
 @Suite("Session PDF Exporter")
-struct SessionPDFExporterTests {
+internal struct SessionPDFExporterTests {
 
     @Test("Exports a session with markdown, chart, and table to valid PDF")
     @MainActor
-    func exportsValidPDF() async {
+    internal func exportsValidPDF() async throws {
         let chartJSON = """
         {"type": "bar", "title": "Revenue", "series": [
           {"name": "2025", "points": [
@@ -42,8 +42,8 @@ struct SessionPDFExporterTests {
             assistantName: "Hermes"
         )
 
-        let unwrapped = try! #require(data)
-        let document = try! #require(PDFDocument(data: unwrapped))
+        let unwrapped = try #require(data)
+        let document = try #require(PDFDocument(data: unwrapped))
         #expect(document.pageCount >= 1)
         // Body text should survive the render into the PDF text layer.
         let text = (0..<document.pageCount)
@@ -55,7 +55,7 @@ struct SessionPDFExporterTests {
 
     @Test("Multi-series numeric-x chart (interactive in chat) exports statically")
     @MainActor
-    func exportsInteractiveCapableChart() async {
+    internal func exportsInteractiveCapableChart() async throws {
         // Numeric x + several series is the configuration that gets the full
         // interactive treatment in chat (zoomable axis, legend chips,
         // crosshair). Export must render it through the static path — a
@@ -79,8 +79,8 @@ struct SessionPDFExporterTests {
             assistantName: "Hermes"
         )
 
-        let unwrapped = try! #require(data)
-        let document = try! #require(PDFDocument(data: unwrapped))
+        let unwrapped = try #require(data)
+        let document = try #require(PDFDocument(data: unwrapped))
         #expect(document.pageCount >= 1)
         let text = (0..<document.pageCount)
             .compactMap { document.page(at: $0)?.string }
@@ -94,7 +94,7 @@ struct SessionPDFExporterTests {
 
     @Test("Math blocks export as typeset images, not empty boxes")
     @MainActor
-    func mathExportsTypeset() async {
+    internal func mathExportsTypeset() async throws {
         let messages = [
             ChatMessage(role: .user, content: "derive it"),
             ChatMessage(role: .assistant, content: """
@@ -108,8 +108,8 @@ struct SessionPDFExporterTests {
         let data = await SessionPDFExporter.export(
             messages: messages, title: "Math", assistantName: "Hermes"
         )
-        let unwrapped = try! #require(data)
-        let document = try! #require(PDFDocument(data: unwrapped))
+        let unwrapped = try #require(data)
+        let document = try #require(PDFDocument(data: unwrapped))
         // The typeset equation is an embedded image: the PDF must contain an
         // XObject/image stream. A monospace-text fallback would not.
         // (PDF bytes aren't UTF-8; scan for the ASCII markers directly.)
@@ -127,7 +127,7 @@ struct SessionPDFExporterTests {
 
     @Test("Empty session returns nil instead of an empty PDF")
     @MainActor
-    func emptySessionReturnsNil() async {
+    internal func emptySessionReturnsNil() async {
         let data = await SessionPDFExporter.export(messages: [], title: "Empty", assistantName: "Hermes")
         #expect(data == nil)
     }
