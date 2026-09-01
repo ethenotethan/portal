@@ -3,10 +3,10 @@ import Foundation
 @testable import Portal
 
 @Suite("Clarify Request")
-struct ClarifyRequestTests {
+internal struct ClarifyRequestTests {
 
     @Test("clarify.request parses question, choices, and request_id")
-    func parsesFullPayload() {
+    internal func parsesFullPayload() {
         let payload = AnyCodable.dictionary([
             "question": .string("Which database should I target?"),
             "choices": .array([.string("staging"), .string("production")]),
@@ -23,7 +23,7 @@ struct ClarifyRequestTests {
     }
 
     @Test("clarify.request without choices parses as free-text prompt")
-    func parsesFreeTextPayload() {
+    internal func parsesFreeTextPayload() {
         let payload = AnyCodable.dictionary([
             "question": .string("What time zone are you in?"),
             "request_id": .string("ff00aa11"),
