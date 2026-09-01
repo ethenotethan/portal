@@ -32,6 +32,11 @@ internal struct ContentView: View {
     @State private var showSettingsOverlay = false
     @State private var showAddGateway = false
     @State private var isMacSidebarVisible = true
+    /// Hiding the sidebar takes the chat wide but leaves the 40pt chrome row —
+    /// identity chip, model picker, ten surface icons — parked over it. Reported
+    /// as chrome that "never seems to go away" (#261), so it collapses too, and
+    /// the choice persists like the other chrome preferences.
+    @AppStorage("macTopChromeCollapsed") private var isMacTopChromeCollapsed = false
     private let macSidebarWidth: CGFloat = 352
     @State private var showCronSheet = false
     @State private var showGatewayDebugSheet = false
@@ -616,10 +621,17 @@ internal struct ContentView: View {
     }
 
     private var macTopChromeRow: some View {
-        HStack(spacing: 0) {
-            if isOverlayActive {
+        let mode = MacTopChrome.mode(
+            isSurfaceOpen: isOverlayActive,
+            isCollapsed: isMacTopChromeCollapsed
+        )
+        return HStack(spacing: 0) {
+            switch mode {
+            case .surface:
                 overlayHeaderBar
-            } else {
+            case .collapsed:
+                collapsedChromeBar
+            case .chat:
                 HStack(spacing: 0) {
                     // Sidebar toggle flush left
                     Button {
@@ -645,15 +657,63 @@ internal struct ContentView: View {
 
                     #if os(macOS)
                     macOverlayIcons
-                        .padding(.trailing, 14)
+                        .padding(.trailing, 8)
+                    chromeCollapseToggle
+                        .padding(.trailing, 10)
                     #endif
                 }
-                .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40, alignment: .leading)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: MacTopChrome.expandedHeight,
+                    maxHeight: MacTopChrome.expandedHeight,
+                    alignment: .leading
+                )
                 .background(Theme.background)
             }
         }
-        .frame(height: 40)
+        .frame(height: MacTopChrome.height(for: mode))
         .background(Theme.background)
+    }
+
+    /// All that's left of the chrome once it's collapsed: a strip holding the
+    /// control that brings it back. Keeping a visible affordance (rather than
+    /// hiding the row outright and relying on ⌥⌘T) is what makes the dismissal
+    /// reversible without guesswork.
+    private var collapsedChromeBar: some View {
+        HStack(spacing: 0) {
+            chromeCollapseToggle
+                .padding(.leading, 12)
+            Spacer(minLength: 0)
+        }
+        .frame(
+            maxWidth: .infinity,
+            minHeight: MacTopChrome.collapsedHeight,
+            maxHeight: MacTopChrome.collapsedHeight,
+            alignment: .leading
+        )
+        .background(Theme.background)
+    }
+
+    /// Hides / reveals the chrome row. Same glyph vocabulary as the collapsed
+    /// bars on the dashboard canvases — chevron.up puts it away, chevron.down
+    /// brings it back — and it carries ⌥⌘T, the system's Hide Toolbar shortcut.
+    private var chromeCollapseToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isMacTopChromeCollapsed.toggle()
+            }
+        } label: {
+            Image(systemName: isMacTopChromeCollapsed ? "chevron.down" : "chevron.up")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.secondary)
+                .frame(width: 22, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("t", modifiers: [.command, .option])
+        .help(isMacTopChromeCollapsed ? "Show the toolbar (⌥⌘T)" : "Hide the toolbar (⌥⌘T)")
+        .accessibilityLabel(isMacTopChromeCollapsed ? "Show Toolbar" : "Hide Toolbar")
+        .accessibilityIdentifier("topChromeToggleButton")
     }
 
     /// Clear every top-level surface flag at once. The macOS surfaces are
