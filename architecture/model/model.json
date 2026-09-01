@@ -7210,11 +7210,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1056,
+          "line": 1063,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-249f6bc378e9",
+        "id": "task-site-e0218ec30bbf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7226,11 +7226,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "pendingScrollTask = Task { @MainActor in",
-          "line": 1210,
+          "line": 1217,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-878ed731fcc6",
+        "id": "task-site-44ad9ff892ed",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7242,11 +7242,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "onSubmit: { Task { await chatViewModel.submitPrompt() } },",
-          "line": 1503,
+          "line": 1510,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ad917dc437ba",
+        "id": "task-site-2017381bf0dd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7258,11 +7258,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1531,
+          "line": 1538,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f108c2856ff4",
+        "id": "task-site-9414d4e3effa",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7274,11 +7274,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1610,
+          "line": 1617,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b11eb151d40b",
+        "id": "task-site-5a82bf9b0e26",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7290,11 +7290,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 1647,
+          "line": 1654,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8588353a0cb4",
+        "id": "task-site-f43ede99e7c4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7306,11 +7306,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1662,
+          "line": 1669,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1fe72fd0b58c",
+        "id": "task-site-a10141e1a43f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7322,11 +7322,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1734,
+          "line": 1741,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0a8c67fb8110",
+        "id": "task-site-e4cedf36c435",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7338,11 +7338,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1811,
+          "line": 1818,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d5c7dc491069",
+        "id": "task-site-37c16bc5f4c6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7354,11 +7354,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: \"\") }",
-          "line": 2007,
+          "line": 2014,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-eb6c0b0a3219",
+        "id": "task-site-377d19c645e9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7370,11 +7370,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: choice) }",
-          "line": 2031,
+          "line": 2038,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-036430a50493",
+        "id": "task-site-c56518c5617b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7386,11 +7386,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: answer) }",
-          "line": 2048,
+          "line": 2055,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6a013e3d5916",
+        "id": "task-site-57db16b819fd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9645,7 +9645,7 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6822
+      "line_count": 6829
     },
     {
       "declaration_count": 144,
@@ -10759,7 +10759,7 @@
       }
     },
     {
-      "declaration_count": 244,
+      "declaration_count": 249,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -10843,6 +10843,7 @@
         "DashboardPanel",
         "DelegationBatch",
         "DelegationBatchHistoryStore",
+        "DelegationBatchMessage",
         "DelegationBatchRecord",
         "DelegationSubagentRecord",
         "Direction",
@@ -10939,6 +10940,7 @@
         "SankeySpec",
         "SavedGateway",
         "Segment",
+        "Segments",
         "Session",
         "SessionFolder",
         "SessionRunEvent",
@@ -10963,6 +10965,8 @@
         "SpawnTreeSnapshot",
         "StatTileSpec",
         "SubagentRecord",
+        "Task",
+        "TaskHeader",
         "TaxonomyNode",
         "ThinkingBlock",
         "ThinkingTrace",
@@ -10985,6 +10989,7 @@
         "ToolbarIconTreatment",
         "TouchedFileNode",
         "Trigger",
+        "Truncation",
         "TurnGraphSnapshot",
         "TurnSkillOrigin",
         "TurnSkillRecord",
@@ -11008,7 +11013,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 76,
+      "file_count": 77,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -11038,6 +11043,7 @@
         "Sources/Portal/Models/DashboardPanel.swift",
         "Sources/Portal/Models/DelegationBatch.swift",
         "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+        "Sources/Portal/Models/DelegationBatchMessage.swift",
         "Sources/Portal/Models/DelegationBatchRecord.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
         "Sources/Portal/Models/FeedArticle.swift",
@@ -11090,7 +11096,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13350,
+      "line_count": 13757,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11134,10 +11140,11 @@
       }
     },
     {
-      "declaration_count": 73,
+      "declaration_count": 76,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
+        "AsyncDelegationBatchView",
         "ButtonThemeSettingsSection",
         "CFAuthView",
         "CFAuthViewModel",
@@ -11155,6 +11162,8 @@
         "DarkMangaSkin",
         "DarkMangaStreamingIndicator",
         "DarkMangaThinkingBlock",
+        "DelegationDuration",
+        "DelegationTaskCardView",
         "DottedCanvasBackdrop",
         "EmptyTranscriptStateView",
         "ExpandableToolRow",
@@ -11212,10 +11221,11 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 32,
+      "file_count": 33,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
         "Sources/Portal/Views/CFAuthView.swift",
         "Sources/Portal/Views/CelebrationOverlay.swift",
@@ -11250,7 +11260,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6057
+      "line_count": 6284
     },
     {
       "declaration_count": 27,
@@ -11670,8 +11680,9 @@
     },
     {
       "authority": "observed",
-      "description": "References 18 declaration(s) owned by domain-models.",
+      "description": "References 19 declaration(s) owned by domain-models.",
       "evidence": [
+        "Sources/Portal/HermesNativeApp.swift",
         "Sources/Portal/Views/ContentView.swift",
         "Sources/Portal/Views/MenuBar/PortalMenuBarExtra.swift",
         "Sources/Portal/Views/OnboardingView.swift",
@@ -11695,7 +11706,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 23
+      "weight": 25
     },
     {
       "authority": "observed",
@@ -11844,7 +11855,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 9 declaration(s) owned by domain-models.",
+      "description": "References 10 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/ArtifactActions.swift",
         "Sources/Portal/Models/HTMLArtifactIntentBridge.swift",
@@ -11861,11 +11872,12 @@
         "LivingArtifact",
         "ModelSpec",
         "Result",
-        "Session"
+        "Session",
+        "Task"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -11992,7 +12004,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 41 declaration(s) owned by domain-models.",
+      "description": "References 42 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -12024,7 +12036,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 73
+      "weight": 74
     },
     {
       "authority": "observed",
@@ -12264,7 +12276,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 14 declaration(s) owned by domain-models.",
+      "description": "References 15 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Models/CentaurWorkflow.swift",
         "Sources/Portal/Services/CentaurClient.swift",
@@ -12279,16 +12291,16 @@
         "JSONRPCError",
         "Node",
         "Session",
+        "Task",
         "WikiChangesSummary",
         "WikiEventTimeline",
         "WikiGraph",
         "WikiLink",
-        "WikiPage",
-        "WikiPageContent"
+        "WikiPage"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 18
+      "weight": 19
     },
     {
       "authority": "observed",
@@ -12379,7 +12391,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 46 declaration(s) owned by domain-models.",
+      "description": "References 47 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
         "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
@@ -12403,7 +12415,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 50
+      "weight": 51
     },
     {
       "authority": "observed",
@@ -12585,7 +12597,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 24 declaration(s) owned by domain-models.",
+      "description": "References 25 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -12616,7 +12628,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 35
+      "weight": 36
     },
     {
       "authority": "observed",
@@ -12674,7 +12686,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 11 declaration(s) owned by shared-ui.",
+      "description": "References 12 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -12688,6 +12700,7 @@
       "source": "chat-ui",
       "symbols": [
         "ApprovalBanner",
+        "AsyncDelegationBatchView",
         "ButtonThemeSettingsSection",
         "ChatSkin",
         "ChatSkinProviding",
@@ -12701,7 +12714,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 19
+      "weight": 20
     },
     {
       "authority": "observed",
@@ -13097,7 +13110,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 63 declaration(s) owned by domain-models.",
+      "description": "References 64 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
@@ -13129,7 +13142,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 76
+      "weight": 78
     },
     {
       "authority": "observed",
@@ -13316,20 +13329,20 @@
     },
     {
       "authority": "observed",
-      "description": "References 35 declaration(s) owned by domain-models.",
+      "description": "References 36 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
         "Sources/Portal/Services/CurriculumStore.swift",
         "Sources/Portal/Services/FileDownloadManager.swift",
+        "Sources/Portal/Services/GitHubContentService.swift",
         "Sources/Portal/Services/KeychainStore.swift",
         "Sources/Portal/Services/LearningStore.swift",
         "Sources/Portal/Services/NotificationService.swift",
         "Sources/Portal/Services/QuizStore.swift",
         "Sources/Portal/Services/RawEventLog.swift",
         "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
-        "Sources/Portal/Services/ReasoningSummarizer.swift",
-        "Sources/Portal/Services/SRSEngine.swift"
+        "Sources/Portal/Services/ReasoningSummarizer.swift"
       ],
       "source": "local-services",
       "symbols": [
@@ -13348,7 +13361,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 58
+      "weight": 63
     },
     {
       "authority": "observed",
@@ -13487,7 +13500,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 53 declaration(s) owned by domain-models.",
+      "description": "References 54 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -13519,7 +13532,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 68
+      "weight": 69
     },
     {
       "authority": "observed",
@@ -13718,7 +13731,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 56 declaration(s) owned by domain-models.",
+      "description": "References 57 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -13750,7 +13763,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 109
+      "weight": 110
     },
     {
       "authority": "observed",
@@ -13953,6 +13966,7 @@
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
@@ -13961,8 +13975,7 @@
         "Sources/Portal/Views/GatewayDebugPanelView.swift",
         "Sources/Portal/Views/GatewayRestartSection.swift",
         "Sources/Portal/Views/GitHubLinkCard.swift",
-        "Sources/Portal/Views/GitHubReleaseCard.swift",
-        "Sources/Portal/Views/HarnessConnectionStatus.swift"
+        "Sources/Portal/Views/GitHubReleaseCard.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -13973,7 +13986,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 29
+      "weight": 30
     },
     {
       "authority": "observed",
@@ -14014,6 +14027,7 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by chat-ui.",
       "evidence": [
+        "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
@@ -14033,14 +14047,15 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
-      "description": "References 33 declaration(s) owned by domain-models.",
+      "description": "References 36 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
+        "Sources/Portal/Views/AsyncDelegationBatchView.swift",
         "Sources/Portal/Views/ButtonThemeSettingsSection.swift",
         "Sources/Portal/Views/CFAuthView.swift",
         "Sources/Portal/Views/CelebrationOverlay.swift",
@@ -14049,8 +14064,7 @@
         "Sources/Portal/Views/EmptyTranscriptStateView.swift",
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GatewayAvatarPicker.swift",
-        "Sources/Portal/Views/GatewayDebugPanelView.swift",
-        "Sources/Portal/Views/GatewayRestartSection.swift"
+        "Sources/Portal/Views/GatewayDebugPanelView.swift"
       ],
       "source": "shared-ui",
       "symbols": [
@@ -14069,7 +14083,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 64
+      "weight": 68
     },
     {
       "authority": "observed",
@@ -14295,7 +14309,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 33 declaration(s) owned by domain-models.",
+      "description": "References 34 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/AgentPanel.swift",
         "Sources/Portal/Views/DelegationBatchNoticeView.swift",
@@ -14327,7 +14341,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 52
+      "weight": 53
     },
     {
       "authority": "observed",
@@ -14442,22 +14456,25 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by domain-models.",
+      "description": "References 5 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Utilities/Extensions.swift",
+        "Sources/Portal/Utilities/MacInputTextField.swift",
         "Sources/Portal/Utilities/MainThreadWatchdog.swift",
-        "Sources/Portal/Utilities/PerfCounter.swift"
+        "Sources/Portal/Utilities/PerfCounter.swift",
+        "Sources/Portal/Utilities/PerfInstrumentation.swift"
       ],
       "source": "utilities",
       "symbols": [
         "AnyCodable",
         "Edge",
         "NetworkGraphLayout",
-        "SankeyLayout"
+        "SankeyLayout",
+        "Task"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 7
+      "weight": 10
     },
     {
       "authority": "observed",
@@ -14541,17 +14558,19 @@
     },
     {
       "authority": "observed",
-      "description": "References 8 declaration(s) owned by domain-models.",
+      "description": "References 9 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
         "Sources/Portal/ViewModels/WikiGraphViewModel+Provenance.swift",
-        "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
+        "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
+        "Sources/Portal/ViewModels/WikiTimelineViewModel.swift"
       ],
       "source": "wiki-state",
       "symbols": [
         "Event",
         "Node",
         "Source",
+        "Task",
         "TaxonomyNode",
         "WikiEventTypeRegistry",
         "WikiGraph",
@@ -14560,7 +14579,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 11
+      "weight": 13
     },
     {
       "authority": "observed",
@@ -14671,7 +14690,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 17 declaration(s) owned by domain-models.",
+      "description": "References 18 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/Wiki/WikiChangesetInlineDiff.swift",
         "Sources/Portal/Views/Wiki/WikiDockedReader.swift",
@@ -14693,17 +14712,17 @@
         "Node",
         "PageChange",
         "Source",
+        "Task",
         "Trigger",
         "View",
         "WikiChangesSummary",
         "WikiEventChangesetRef",
         "WikiEventKind",
-        "WikiEventRef",
-        "WikiEventTimeline"
+        "WikiEventRef"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 34
+      "weight": 35
     },
     {
       "authority": "observed",
@@ -14863,10 +14882,10 @@
     }
   },
   "inventory": {
-    "assigned_files": 347,
-    "declarations": 1019,
-    "swift_files": 347,
-    "swift_lines": 101142,
+    "assigned_files": 349,
+    "declarations": 1027,
+    "swift_files": 349,
+    "swift_lines": 101783,
     "unassigned_files": []
   },
   "layers": [
@@ -14898,6 +14917,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "4cd78b0fb70a200df2000a28c5346415ca05086fa9caaa8f0b20f228ad96dae7",
+  "source_tree_sha256": "eb279fa79b91275695362862f0571d361223645fe47002747522db1152fff8f5",
   "title": "Portal Architecture"
 }
