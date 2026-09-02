@@ -3,10 +3,10 @@ import Foundation
 @testable import Portal
 
 @Suite("MediaAttachment")
-struct MediaAttachmentTests {
+internal struct MediaAttachmentTests {
 
     @Test("Category detects image extensions")
-    func categoryImageExtensions() {
+    internal func categoryImageExtensions() {
         let imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "tiff", "heic", "heif"]
         for ext in imageExts {
             let cat = MediaAttachment.Category(ext: ext)
@@ -15,7 +15,7 @@ struct MediaAttachmentTests {
     }
 
     @Test("Category maps unknown extensions to document")
-    func categoryDocumentExtensions() {
+    internal func categoryDocumentExtensions() {
         let docExts = ["pdf", "txt", "doc", "zip", "mp4", "mp3", "json", ""]
         for ext in docExts {
             let cat = MediaAttachment.Category(ext: ext)
@@ -24,20 +24,20 @@ struct MediaAttachmentTests {
     }
 
     @Test("Category is case-insensitive")
-    func categoryCaseInsensitive() {
+    internal func categoryCaseInsensitive() {
         #expect(MediaAttachment.Category(ext: "PNG") == .image)
         #expect(MediaAttachment.Category(ext: "Jpg") == .image)
         #expect(MediaAttachment.Category(ext: "PDF") == .document)
     }
 
     @Test("Category icon is correct")
-    func categoryIcons() {
+    internal func categoryIcons() {
         #expect(MediaAttachment.Category.image.icon == "photo")
         #expect(MediaAttachment.Category.document.icon == "doc")
     }
 
     @Test("Init extracts filename and extension from path")
-    func initFromPath() {
+    internal func initFromPath() {
         let attachment = MediaAttachment(path: "/tmp/reports/Q2-summary.pdf")
         #expect(attachment.fileName == "Q2-summary.pdf")
         #expect(attachment.fileExtension == "pdf")
@@ -45,7 +45,7 @@ struct MediaAttachmentTests {
     }
 
     @Test("Equality is based on id")
-    func equalityById() {
+    internal func equalityById() {
         let a = MediaAttachment(path: "/tmp/test.png")
         let b = MediaAttachment(path: "/tmp/test.png")
         let c = a
@@ -54,7 +54,7 @@ struct MediaAttachmentTests {
     }
 
     @Test("Document attachments round-trip through Codable")
-    func documentCodableRoundTrip() throws {
+    internal func documentCodableRoundTrip() throws {
         let original = MediaAttachment(path: "/tmp/data.csv")
         let encoded = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(MediaAttachment.self, from: encoded)
@@ -73,7 +73,7 @@ struct MediaAttachmentTests {
     }
 
     @Test("Mixed image and document types are distinct")
-    func mixedTypes() {
+    internal func mixedTypes() {
         let image = MediaAttachment(path: "/tmp/photo.jpg")
         let doc = MediaAttachment(path: "/tmp/readme.txt")
         #expect(image.category == .image)
