@@ -7,7 +7,7 @@ import Foundation
 /// the gateway connection back.
 @Suite("Gateway Reconnect Budget")
 @MainActor
-struct GatewayReconnectBudgetTests {
+internal struct GatewayReconnectBudgetTests {
 
     private func makeClient() -> GatewayClient {
         // Port 9 (discard) — never dialed in these tests; every test tears the
@@ -16,7 +16,7 @@ struct GatewayReconnectBudgetTests {
     }
 
     @Test("exhausted retry cap is terminal until the budget is reset")
-    func exhaustedCapIsTerminalUntilReset() {
+    internal func exhaustedCapIsTerminalUntilReset() {
         let client = makeClient()
         client.setReconnectAttemptForTesting(GatewayClient.maxReconnectAttempts)
 
@@ -42,7 +42,7 @@ struct GatewayReconnectBudgetTests {
     }
 
     @Test("duplicate failure signals for one dead socket burn a single attempt")
-    func duplicateDisconnectSignalsAreDeduped() {
+    internal func duplicateDisconnectSignalsAreDeduped() {
         let client = makeClient()
 
         // One dead socket emits several failure signals (receiveLoop error,
@@ -62,14 +62,14 @@ struct GatewayReconnectBudgetTests {
     }
 
     @Test("resetting an already-zero budget is a no-op")
-    func resetIsIdempotent() {
+    internal func resetIsIdempotent() {
         let client = makeClient()
         client.resetReconnectBudget()
         #expect(client.snapshotForDebug.reconnectAttempt == 0)
     }
 
     @Test("wrapper forwards the budget reset to the current client")
-    func wrapperForwardsReset() {
+    internal func wrapperForwardsReset() {
         let wrapper = GatewayClientWrapper()
         wrapper.client.setReconnectAttemptForTesting(5)
         wrapper.resetReconnectBudget(force: true)
@@ -241,23 +241,23 @@ internal struct GatewayReconnectSuccessGateTests {
 }
 
 @Suite("Health probe URL")
-struct HealthProbeURLTests {
+internal struct HealthProbeURLTests {
 
     @Test("Probe keeps the gateway's port — dropping it dialed strangers on :80")
-    func keepsPort() {
+    internal func keepsPort() {
         let url = GatewayClient.healthProbeURL(for: URL(string: "ws://127.0.0.1:8642/v1/ws")!)
         #expect(url?.absoluteString == "http://127.0.0.1:8642/health")
     }
 
     @Test("ws→http and wss→https scheme mapping")
-    func schemes() {
+    internal func schemes() {
         #expect(GatewayClient.healthProbeURL(for: URL(string: "wss://gw.example.com/v1/ws")!)?.absoluteString
                 == "https://gw.example.com/health")
         #expect(GatewayClient.healthProbeURL(for: URL(string: "ws://192.168.1.7:9000/v1/ws")!)?.scheme == "http")
     }
 
     @Test("Query stripped, path replaced")
-    func pathAndQuery() {
+    internal func pathAndQuery() {
         let url = GatewayClient.healthProbeURL(for: URL(string: "wss://gw.example.com:4443/v1/ws?token=x")!)
         #expect(url?.absoluteString == "https://gw.example.com:4443/health")
     }
