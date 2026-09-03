@@ -256,6 +256,28 @@ internal struct ConversationPanel: View {
         return merged
     }
 
+    /// How many tool rows a STREAMING turn's card renders. A single observed turn
+    /// fired 59 tool calls, and each new record inserts rows into an already-deep
+    /// transcript tree (`CALayer::insert_sublayer` sat at frame 0 of most of the
+    /// watchdog's hang stacks), so the live card shows a bounded tail — the same
+    /// idea as the transcript's own `scrollWindowSize`. The turn's full trail is
+    /// there the moment it settles.
+    nonisolated internal static let liveToolRowLimit = 12
+
+    /// The rows to render for a turn's tools card, plus the turn's true tool
+    /// count so the card's header keeps reporting the total rather than the
+    /// window. Settled turns render whole; only the live turn is windowed.
+    nonisolated internal static func toolTrailWindow(
+        for message: ChatMessage,
+        limit: Int = liveToolRowLimit
+    ) -> (rows: [ToolCallRecord], total: Int) {
+        let all = message.toolCalls
+        guard message.isStreaming, limit > 0, all.count > limit else {
+            return (all, all.count)
+        }
+        return (Array(all.suffix(limit)), all.count)
+    }
+
     /// Start order (id as the tiebreak), because a dictionary's `values` order is
     /// arbitrary and rehashes as records are added — sorting is what stops the
     /// rows reshuffling under the user's cursor on every tool event.
@@ -521,12 +543,14 @@ private struct PeeledBlockCard: View {
         case .thinking:
             thinkingContent
         case .tools:
+            let trail = ConversationPanel.toolTrailWindow(for: message)
             ToolTrailView(
-                tools: message.toolCalls,
+                tools: trail.rows,
                 reasoning: nil,
                 reasoningTokens: nil,
                 toolTokens: nil,
-                isStreaming: message.isStreaming
+                isStreaming: message.isStreaming,
+                totalCount: trail.total
             )
         }
     }
