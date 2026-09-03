@@ -201,9 +201,15 @@ internal struct ConversationPanel: View {
                 skinProvider.messageBubble(message: prepared, persona: persona)
                 // Peel affordance + any blocks already peeled into the scroll
                 // for this turn — layered directly under the bubble so they
-                // travel with the turn as you scroll.
-                peelBar(for: message)
-                peeledCards(for: message)
+                // travel with the turn as you scroll. The live turn's tools come
+                // from `activeToolCalls`, not from the message, which the view
+                // model only stamps at message.complete.
+                let withTools = Self.mergingLiveToolCalls(
+                    into: message,
+                    activeToolCalls: chatViewModel.activeToolCalls
+                )
+                peelBar(for: withTools)
+                peeledCards(for: withTools)
                 // The live turn shows a streaming-status line under its reply;
                 // settled turns show nothing extra.
                 streamingStatusUnder(message)
@@ -225,6 +231,45 @@ internal struct ConversationPanel: View {
         m.reasoning = nil
         m.thinkingTrace = nil
         return m
+    }
+
+    // MARK: - Live tool calls
+
+    /// The turn's tool calls as the peel bar and the tools card should see them.
+    ///
+    /// `ChatMessage.toolCalls` is stamped once, at `message.complete` — during
+    /// the turn the records live in `ChatViewModel.activeToolCalls`. Reading only
+    /// the message meant a running turn had no `.tools` block at all: no Tools
+    /// chip, no card, just "Running tools…" from the status line, and then every
+    /// tool appearing at once when the turn ended. (The thought graph reads the
+    /// live records directly, which is why the same tools streamed there.)
+    ///
+    /// Streaming turns only, so a settled turn keeps its own stamped history
+    /// instead of borrowing the next turn's in-flight records.
+    nonisolated internal static func mergingLiveToolCalls(
+        into message: ChatMessage,
+        activeToolCalls: [String: ToolCallRecord]
+    ) -> ChatMessage {
+        guard message.isStreaming, !activeToolCalls.isEmpty else { return message }
+        var merged = message
+        merged.toolCalls = liveToolCallOrder(activeToolCalls)
+        return merged
+    }
+
+    /// Start order (id as the tiebreak), because a dictionary's `values` order is
+    /// arbitrary and rehashes as records are added — sorting is what stops the
+    /// rows reshuffling under the user's cursor on every tool event.
+    nonisolated internal static func liveToolCallOrder(
+        _ activeToolCalls: [String: ToolCallRecord]
+    ) -> [ToolCallRecord] {
+        activeToolCalls.values.sorted { lhs, rhs in
+            // `startedAt` is optional for history/older persisted records; those
+            // sort first and then fall through to the id tiebreak.
+            let left = lhs.startedAt ?? Date.distantPast
+            let right = rhs.startedAt ?? Date.distantPast
+            if left == right { return lhs.id < rhs.id }
+            return left < right
+        }
     }
 
     // MARK: - Peel into scroll
