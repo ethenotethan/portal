@@ -3,16 +3,16 @@ import SwiftUI
 /// Platform-agnostic thumbnail image view.
 /// Handles the #if os(macOS)/#else split at the view level rather than inside
 /// an `if let` condition, which Swift does not allow.
-struct ThumbnailImageView: View {
-    let data: Data?
-    let fallbackIcon: String
+internal struct ThumbnailImageView: View {
+    internal let data: Data?
+    internal let fallbackIcon: String
 
-    var body: some View {
+    internal var body: some View {
         #if os(macOS)
         if let data, let nsImage = NSImage(data: data) {
             Image(nsImage: nsImage)
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .scaledToFill()
         } else {
             Image(systemName: fallbackIcon)
                 .font(.system(size: 16))
@@ -23,7 +23,7 @@ struct ThumbnailImageView: View {
         if let data, let uiImage = UIImage(data: data) {
             Image(uiImage: uiImage)
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .scaledToFill()
         } else {
             Image(systemName: fallbackIcon)
                 .font(.system(size: 16))
