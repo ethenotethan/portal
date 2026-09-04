@@ -88,7 +88,11 @@ internal struct WikiGlossaryEditorStateTests {
                 version: 1,
                 mode: .strict,
                 properNouns: [
-                    .init(canonical: "Portal", aliases: ["Hermes Native"], description: "Desktop client"),
+                    .init(
+                        canonical: "Portal",
+                        aliases: ["Hermes Native", "Portal, desktop"],
+                        description: "Desktop client"
+                    ),
                 ],
                 revision: "rev-1"
             )
@@ -101,7 +105,7 @@ internal struct WikiGlossaryEditorStateTests {
         #expect(model.version == 1)
         #expect(model.mode == .strict)
         #expect(model.revision == "rev-1")
-        #expect(model.terms.first?.aliases == "Hermes Native")
+        #expect(model.terms.first?.aliases == "Hermes Native\nPortal, desktop")
         #expect(model.status == .idle)
     }
 
@@ -112,7 +116,7 @@ internal struct WikiGlossaryEditorStateTests {
         await model.load(using: source)
         model.mode = .strict
         model.terms = [
-            .init(canonical: " Ethen ", aliases: " Ethan, E ", description: " Owner "),
+            .init(canonical: " Ethen ", aliases: " Ethan\n E ", description: " Owner "),
         ]
 
         let saved = await model.save(using: source)

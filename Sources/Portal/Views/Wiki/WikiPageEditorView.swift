@@ -386,14 +386,14 @@ internal final class WikiGlossaryEditorModel: ObservableObject {
         terms = glossary.properNouns.map { term in
             Term(
                 canonical: term.canonical,
-                aliases: term.aliases.joined(separator: ", "),
+                aliases: term.aliases.joined(separator: "\n"),
                 description: term.description ?? ""
             )
         }
     }
 
     private static func parseAliases(_ value: String) -> [String] {
-        value.split(separator: ",", omittingEmptySubsequences: true)
+        value.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
@@ -474,7 +474,11 @@ internal struct WikiGlossaryEditorView: View {
                             .buttonStyle(.borderless)
                             .help("Remove term")
                         }
-                        TextField("Aliases, separated by commas", text: $term.aliases)
+                        Text("Aliases (one per line)")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                        TextEditor(text: $term.aliases)
+                            .frame(minHeight: 56)
                         TextField("Description (optional)", text: $term.description)
                     }
                     .padding(.vertical, 4)
