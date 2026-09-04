@@ -45,6 +45,17 @@ private struct ChecklistSpecTests {
 @Suite("Kanban Spec")
 private struct KanbanSpecTests {
 
+    @Test("Parses artifact-level overview markdown separately from cards")
+    private func parsesOverview() throws {
+        let spec = try #require(KanbanSpec.parse("""
+        {"title": "Engineering", "overview": "## Goal\\nPay down **lint debt**.",
+         "columns": ["Todo"], "cards": [{"id": "A", "title": "Fix lint", "column": "Todo"}]}
+        """))
+
+        #expect(spec.overview == "## Goal\nPay down **lint debt**.")
+        #expect(spec.cards.count == 1)
+    }
+
     @Test("Parses cards; undeclared columns append; id falls back to title")
     private func parses() {
         let spec = KanbanSpec.parse("""
@@ -182,6 +193,24 @@ private struct NewKindMergeTests {
         let merged = ArtifactMerge.merge(kind: "kanban", existing: existing, incoming: incoming)
         // Parse strips tombstones, so the resurrected-but-tombstoned card is gone.
         #expect(KanbanSpec.parse(merged) == nil)
+    }
+
+    @Test("Kanban overview is board context and follows top-level merge semantics")
+    private func kanbanOverviewMerge() throws {
+        let existing = """
+        {"overview": "Persistent goal", "cards": [{"id": "A", "title": "a", "column": "Todo"}]}
+        """
+        let omitting = """
+        {"cards": [{"id": "A", "title": "a", "column": "Done"}]}
+        """
+        let replacing = """
+        {"overview": "Updated goal", "cards": [{"id": "A", "title": "a", "column": "Done"}]}
+        """
+
+        let preserved = ArtifactMerge.merge(kind: "kanban", existing: existing, incoming: omitting)
+        #expect(KanbanSpec.parse(preserved)?.overview == "Persistent goal")
+        let updated = ArtifactMerge.merge(kind: "kanban", existing: existing, incoming: replacing)
+        #expect(KanbanSpec.parse(updated)?.overview == "Updated goal")
     }
 
     @Test("Calendar unions events by id across re-emits")

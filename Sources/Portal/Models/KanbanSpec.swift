@@ -5,6 +5,7 @@ import Foundation
 /// ```json
 /// {
 ///   "title": "Sprint 12",
+///   "overview": "## Goal\nShip the release without regressing quality gates.",
 ///   "columns": ["Todo", "Doing", "Done"],
 ///   "cards": [
 ///     {"id": "PORT-1", "title": "Kanban artifact", "column": "Doing", "tag": "feat"},
@@ -49,6 +50,10 @@ internal struct KanbanSpec {
     ]
 
     internal let title: String?
+    /// Board-level markdown for durable context such as the goal, operating
+    /// protocol, or decision criteria. It is intentionally outside `cards`:
+    /// context is not movable work and must not inherit card interactions.
+    internal let overview: String?
     internal let columns: [String]
     internal let cards: [Card]
 
@@ -113,8 +118,15 @@ internal struct KanbanSpec {
             columns.append(card.column)
         }
 
-        return KanbanSpec(title: (obj["title"] as? String)?.trimmingCharacters(in: .whitespaces),
-                          columns: columns, cards: cards)
+        let title = nonEmptyTrimmedString(obj["title"])
+        let overview = nonEmptyTrimmedString(obj["overview"])
+        return KanbanSpec(title: title, overview: overview, columns: columns, cards: cards)
+    }
+
+    private static func nonEmptyTrimmedString(_ value: Any?) -> String? {
+        guard let string = value as? String else { return nil }
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Renders a JSON scalar (string/number/bool) for display in an expanded

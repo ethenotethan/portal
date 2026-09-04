@@ -4,9 +4,11 @@ import SwiftUI
 /// its cards. In artifact hosts (`actionableArtifactID` set) each card carries
 /// a live column picker — choosing another column moves the card through
 /// `ArtifactStore`, the same `choice` path dataset actions use. In chat
-/// transcripts it renders read-only. A card carrying a `detail`/`desc` body or
-/// extra scalar fields (assignee, due, points…) shows a disclosure chevron and
-/// expands inline on tap. PDF-safe: a fixed HStack of columns, no
+/// transcripts it renders read-only. Optional board-level `overview` markdown
+/// renders above the lanes, keeping durable context outside movable work. A
+/// card carrying a `detail`/`desc` body or extra scalar fields (assignee, due,
+/// points…) shows a disclosure chevron and expands inline on tap. PDF-safe: a
+/// fixed HStack of columns, no
 /// ScrollView (a board with many columns clips rather than scrolls in export,
 /// acceptable for a snapshot).
 internal struct KanbanBlockView: View {
@@ -45,6 +47,20 @@ private struct KanbanCard: View {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(Theme.primary)
+            }
+            if let overview = spec.overview {
+                MarkdownContentView(text: overview, isStreaming: false)
+                    .equatable()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(
+                        Theme.background.opacity(0.5),
+                        in: RoundedRectangle(cornerRadius: 8)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Theme.border, lineWidth: 0.5)
+                    )
             }
             HStack(alignment: .top, spacing: 10) {
                 ForEach(spec.columns, id: \.self) { column in

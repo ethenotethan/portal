@@ -100,6 +100,9 @@ internal struct FormattingPromptTests {
         }
         // Columns and cards, not a status column on a table.
         #expect(prompt.contains("\"columns\": [\"Todo\", \"Doing\", \"Done\"]"))
+        // Durable board context belongs above the movable work, not in a card.
+        #expect(prompt.contains("\"overview\""))
+        #expect(prompt.contains("board-level markdown"))
         // The move/toggle round-trip needs no declared action, and saying so
         // stops the agent bolting a redundant "actions" array onto a board.
         #expect(prompt.contains("no \"actions\" declaration"))
