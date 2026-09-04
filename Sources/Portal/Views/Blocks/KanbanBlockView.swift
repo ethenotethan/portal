@@ -13,10 +13,13 @@ internal struct KanbanBlockView: View {
     internal let json: String
     internal let isStreaming: Bool
     internal var actionableArtifactID: String?
+    /// Field written when a card moves. Top-level boards use `column`; model
+    /// projections pass their configured entity lane field.
+    internal var movementField: String = "column"
 
     internal var body: some View {
         if let spec = KanbanSpec.parse(json) {
-            KanbanCard(spec: spec, artifactID: actionableArtifactID)
+            KanbanCard(spec: spec, artifactID: actionableArtifactID, movementField: movementField)
         } else if isStreaming {
             EmptyView()
         } else {
@@ -28,6 +31,7 @@ internal struct KanbanBlockView: View {
 private struct KanbanCard: View {
     let spec: KanbanSpec
     let artifactID: String?
+    let movementField: String
 
     /// Cards the user has expanded, by card id. Local view state — expansion is
     /// a display concern, never written back to the artifact.
@@ -231,7 +235,7 @@ private struct KanbanCard: View {
               let card = spec.cards.first(where: { $0.id == cardID }),
               card.column != column else { return }
         let action = ArtifactAction(
-            kind: .choice, field: "column", options: spec.columns,
+            kind: .choice, field: movementField, options: spec.columns,
             bindingID: "", label: "", intentName: "", presentationRole: .normal
         )
         ArtifactStore.shared.applyAction(
@@ -239,10 +243,10 @@ private struct KanbanCard: View {
         )
     }
 
-    /// Column picker → a `choice` action on the card's `column` field.
+    /// Column picker → a `choice` action on the configured movement field.
     private func moveMenu(for card: KanbanSpec.Card, artifactID: String) -> some View {
         let action = ArtifactAction(
-            kind: .choice, field: "column", options: spec.columns,
+            kind: .choice, field: movementField, options: spec.columns,
             bindingID: "", label: "", intentName: "", presentationRole: .normal
         )
         return Menu {

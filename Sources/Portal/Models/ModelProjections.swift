@@ -125,10 +125,52 @@ enum ModelProjections {
         return encode(["tiles": tiles])
     }
 
+    /// Kanban view: selected entity items become cards. Card ids remain model
+    /// refs (`set/key`) so a move can update the configured lane field on the
+    /// parent model rather than creating a second artifact.
+    internal static func kanbanJSON(spec: ModelSpec, view: ModelSpec.View) -> String? {
+        var cards: [[String: Any]] = []
+        for set in spec.sets(for: view) {
+            for item in set.rawItems where (item["_deleted"] as? Bool) != true {
+                let keyValue = stringify(item[set.key] ?? "")
+                guard !keyValue.isEmpty else { continue }
+                let itemTitle = (item["title"] as? String)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                var card: [String: Any] = [
+                    "id": "\(set.name)/\(keyValue)",
+                    "title": itemTitle.flatMap { $0.isEmpty ? nil : $0 } ?? keyValue,
+                ]
+                let lane = stringify(item[view.columnField] ?? "")
+                if !lane.isEmpty { card["column"] = lane }
+
+                let projectedKeys: Set<String> = [
+                    "_deleted", set.key, view.columnField, "id", "label", "title", "column",
+                ]
+                for (field, value) in item where !projectedKeys.contains(field) {
+                    if let scalar = scalarJSONValue(value) { card[field] = scalar }
+                }
+                cards.append(card)
+            }
+        }
+        guard !cards.isEmpty else { return nil }
+        var board: [String: Any] = ["cards": cards]
+        if !view.columns.isEmpty { board["columns"] = view.columns }
+        return encode(board)
+    }
+
     private static func stringify(_ value: Any) -> String {
         if let s = value as? String { return s }
         if let n = value as? NSNumber { return "\(n)" }
         return "\(value)"
+    }
+
+    private static func scalarJSONValue(_ value: Any) -> Any? {
+        switch value {
+        case let value as String: return value
+        case let value as Bool: return value
+        case let value as NSNumber: return value
+        default: return nil
+        }
     }
 
     private static func encode(_ obj: [String: Any]) -> String? {

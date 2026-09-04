@@ -70,7 +70,7 @@ private struct ModelCard: View {
         case .graph:    return 200
         case .chart:    return 120
         case .stats:    return 80
-        case .table, .markdown: return nil
+        case .table, .markdown, .kanban: return nil
         }
     }
 
@@ -80,7 +80,7 @@ private struct ModelCard: View {
         case .graph:    return 260
         case .chart:    return 200
         case .stats:    return 100
-        case .table, .markdown: return nil
+        case .table, .markdown, .kanban: return nil
         }
     }
 
@@ -226,6 +226,15 @@ private struct ModelCard: View {
             // lists, math, even nested fences.
             MarkdownContentView(text: view.text, isStreaming: false)
                 .equatable()
+        case .kanban:
+            if let json = projection(view, ModelProjections.kanbanJSON(spec: spec, view: view)) {
+                KanbanBlockView(
+                    json: json,
+                    isStreaming: false,
+                    actionableArtifactID: actionableArtifactID,
+                    movementField: view.columnField
+                )
+            }
         }
     }
 
