@@ -6,17 +6,17 @@ import Foundation
 // parallel execution races them against each other (same failure mode the
 // ResponseStyle suite hit).
 @Suite("Agent Model", .serialized)
-struct AgentModelTests {
+internal struct AgentModelTests {
 
     @Test("Catalog entries have distinct IDs and non-empty labels")
-    func catalogIsWellFormed() {
+    internal func catalogIsWellFormed() {
         let ids = AgentModel.catalog.map(\.id)
         #expect(Set(ids).count == ids.count)
         #expect(AgentModel.catalog.allSatisfy { !$0.label.isEmpty && !$0.id.isEmpty })
     }
 
     @Test("Matching ignores the openrouter prefix, case, and whitespace")
-    func normalizedMatching() {
+    internal func normalizedMatching() {
         let model = AgentModel(id: "deepseek/deepseek-v4-pro", label: "DeepSeek v4 Pro")
         #expect(model.matches(sessionModel: "deepseek/deepseek-v4-pro"))
         #expect(model.matches(sessionModel: "openrouter/deepseek/deepseek-v4-pro"))
@@ -26,20 +26,20 @@ struct AgentModelTests {
     }
 
     @Test("Display name uses the catalog label for known models")
-    func displayNameKnown() {
+    internal func displayNameKnown() {
         #expect(AgentModel.displayName(for: "deepseek/deepseek-v4-pro") == "DeepSeek v4 Pro")
         #expect(AgentModel.displayName(for: "openrouter/deepseek/deepseek-v4-pro") == "DeepSeek v4 Pro")
     }
 
     @Test("Display name compacts unknown models to their last path segment")
-    func displayNameUnknown() {
+    internal func displayNameUnknown() {
         #expect(AgentModel.displayName(for: "somevendor/mystery-model-9b") == "mystery-model-9b")
         #expect(AgentModel.displayName(for: "openrouter/somevendor/mystery-model-9b") == "mystery-model-9b")
         #expect(AgentModel.displayName(for: "bare-model") == "bare-model")
     }
 
     @Test("Stored default round-trips through UserDefaults")
-    func storedDefaultRoundTrip() {
+    internal func storedDefaultRoundTrip() {
         let original = UserDefaults.standard.string(forKey: AgentModel.userDefaultsKey)
         defer {
             if let original {
@@ -56,7 +56,7 @@ struct AgentModelTests {
     }
 
     @Test("Empty stored value reads back as nil (gateway default)")
-    func emptyStoredValueIsNil() {
+    internal func emptyStoredValueIsNil() {
         let original = UserDefaults.standard.string(forKey: AgentModel.userDefaultsKey)
         defer {
             if let original {
@@ -75,7 +75,7 @@ struct AgentModelTests {
 
 @Suite("ChatViewModel session model routing")
 @MainActor
-struct ChatViewModelModelRoutingTests {
+internal struct ChatViewModelModelRoutingTests {
 
     private func sessionInfoEvent(model: String) -> GatewayEvent {
         .sessionInfo(SessionInfo(
@@ -92,7 +92,7 @@ struct ChatViewModelModelRoutingTests {
     }
 
     @Test("session.info for a background session does not clobber the visible session's model")
-    func backgroundSessionInfoDoesNotClobber() {
+    internal func backgroundSessionInfoDoesNotClobber() {
         let vm = ChatViewModel()
         vm.receiveGatewayEventForTesting(sessionInfoEvent(model: "model-a"), sessionID: "session-a")
         // No active session, so the global badge is untouched by a
@@ -101,7 +101,7 @@ struct ChatViewModelModelRoutingTests {
     }
 
     @Test("session-less session.info announces the gateway default model")
-    func globalSessionInfoPopulatesModelBadge() {
+    internal func globalSessionInfoPopulatesModelBadge() {
         let vm = ChatViewModel()
         // The gateway sends session.info with no session_id on connect to
         // announce its default model. It must reach the badge — this is the
@@ -111,7 +111,7 @@ struct ChatViewModelModelRoutingTests {
     }
 
     @Test("session-less session.info does not mark a nonexistent session ready")
-    func globalSessionInfoDoesNotFakeReadiness() {
+    internal func globalSessionInfoDoesNotFakeReadiness() {
         let vm = ChatViewModel()
         vm.receiveGatewayEventForTesting(sessionInfoEvent(model: "minimax/minimax-m2.5"), sessionID: nil)
         #expect(!vm.isSessionReady)
