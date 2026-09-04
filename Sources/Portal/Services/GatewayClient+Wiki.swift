@@ -8,6 +8,40 @@ struct WikiInfo: Codable, Hashable {
     let path: String
 }
 
+/// Per-wiki proper-noun policy returned by `wiki.glossary`.
+internal struct WikiGlossary: Codable, Equatable, Sendable {
+    internal enum Mode: String, Codable, CaseIterable, Sendable {
+        case canonicalize
+        case strict
+
+        internal var title: String {
+            switch self {
+            case .canonicalize: "Canonicalize"
+            case .strict: "Strict"
+            }
+        }
+    }
+
+    internal struct ProperNoun: Codable, Equatable, Identifiable, Sendable {
+        internal var canonical: String
+        internal var aliases: [String]
+        internal var description: String?
+
+        internal var id: String { canonical }
+    }
+
+    internal var enabled: Bool
+    internal var version: Int
+    internal var mode: Mode
+    internal var properNouns: [ProperNoun]
+    internal var revision: String
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, version, mode, revision
+        case properNouns = "proper_nouns"
+    }
+}
+
 /// Taxonomy tree returned by wiki.taxonomy RPC.
 struct WikiTaxonomyResponse: Codable {
     let taxonomy: [String: AnyCodable]
@@ -116,8 +150,104 @@ internal struct WikiUpdateConflict: Error {
     internal let latest: WikiPageContent?
 }
 
+/// The glossary changed after the editor loaded it.
+internal struct WikiGlossaryConflict: Error {}
+
+/// Narrow source seam for the glossary editor. Keeping the view on this
+/// protocol makes its loading and conflict behavior testable without a socket.
 @MainActor
-extension GatewayClient {
+internal protocol WikiGlossarySource: AnyObject {
+    func wikiGlossary(wiki: String?) async throws -> WikiGlossary
+    func wikiGlossaryUpdate(
+        wiki: String?,
+        version: Int,
+        mode: WikiGlossary.Mode,
+        properNouns: [WikiGlossary.ProperNoun],
+        ifMatch: String?
+    ) async throws -> WikiGlossary
+}
+
+@MainActor
+extension GatewayClient: WikiGlossarySource {
+
+    /// Fetch the proper-noun policy for one configured wiki.
+    internal func wikiGlossary(wiki: String? = nil) async throws -> WikiGlossary {
+        var params: [String: AnyCodable] = [:]
+        if let wiki { params["wiki"] = AnyCodable(wiki) }
+        let response = try await call("wiki.glossary", params: params)
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message, data: error.data))
+        }
+        guard let result = response.result else {
+            throw GatewayError.invalidResponse("wiki.glossary missing result")
+        }
+        return try Self.decodeGlossary(result, method: "wiki.glossary")
+    }
+
+    /// Replace a wiki's proper-noun policy with optimistic concurrency.
+    internal func wikiGlossaryUpdate(
+        wiki: String? = nil,
+        version: Int,
+        mode: WikiGlossary.Mode,
+        properNouns: [WikiGlossary.ProperNoun],
+        ifMatch: String? = nil
+    ) async throws -> WikiGlossary {
+        let response = try await call(
+            "wiki.glossary.update",
+            params: Self.wikiGlossaryUpdateParams(
+                wiki: wiki,
+                version: version,
+                mode: mode,
+                properNouns: properNouns,
+                ifMatch: ifMatch
+            )
+        )
+        if let error = response.error {
+            if error.code == 409 { throw WikiGlossaryConflict() }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message, data: error.data))
+        }
+        guard let result = response.result else {
+            throw GatewayError.invalidResponse("wiki.glossary.update missing result")
+        }
+        return try Self.decodeGlossary(result, method: "wiki.glossary.update")
+    }
+
+    /// Kept pure so the exact mutation contract can be asserted without a socket.
+    internal static func wikiGlossaryUpdateParams(
+        wiki: String?,
+        version: Int,
+        mode: WikiGlossary.Mode,
+        properNouns: [WikiGlossary.ProperNoun],
+        ifMatch: String?
+    ) -> [String: AnyCodable] {
+        let terms: [AnyCodable] = properNouns.map { term in
+            var value: [String: AnyCodable] = [
+                "canonical": AnyCodable(term.canonical),
+                "aliases": .array(term.aliases.map(AnyCodable.init)),
+            ]
+            if let description = term.description, !description.isEmpty {
+                value["description"] = AnyCodable(description)
+            }
+            return .dictionary(value)
+        }
+        var params: [String: AnyCodable] = [
+            "version": AnyCodable(version),
+            "mode": AnyCodable(mode.rawValue),
+            "proper_nouns": .array(terms),
+        ]
+        if let wiki { params["wiki"] = AnyCodable(wiki) }
+        if let ifMatch { params["if_match"] = AnyCodable(ifMatch) }
+        return params
+    }
+
+    private static func decodeGlossary(_ value: AnyCodable, method: String) throws -> WikiGlossary {
+        do {
+            let data = try JSONEncoder().encode(value)
+            return try JSONDecoder().decode(WikiGlossary.self, from: data)
+        } catch {
+            throw GatewayError.invalidResponse("\(method) returned an invalid glossary: \(error.localizedDescription)")
+        }
+    }
 
     /// Scan the wiki directory and return the full graph structure.
     /// - Parameters:

@@ -78,6 +78,13 @@ struct GatewayCapabilities: Equatable, Sendable {
         capabilityNames.contains(where: { $0.contains("learning.") })
     }
 
+    /// Whether the gateway owns per-wiki proper-noun policy. Older gateways
+    /// neither advertise nor implement these RPCs, so the editor stays hidden.
+    internal var supportsWikiGlossary: Bool {
+        let names = Set(capabilityNames)
+        return names.contains("wiki.glossary") && names.contains("wiki.glossary.update")
+    }
+
     /// Whether to offer the "Restart gateway" control.
     ///
     /// Inverted relative to `supportsArtifactActions`: a gateway that reports

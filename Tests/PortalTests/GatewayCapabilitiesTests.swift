@@ -99,6 +99,34 @@ internal struct GatewayCapabilitiesTests {
         #expect(!invokeOnly.supportsActionLog)
     }
 
+    @Test("wiki glossary capability gates the editor")
+    internal func detectsWikiGlossaryCapability() {
+        let supported = GatewayCapabilities(
+            gatewayVersion: nil, agentVersion: nil,
+            capabilityNames: ["wiki.glossary", "wiki.glossary.update"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        #expect(supported.supportsWikiGlossary)
+
+        let readOnly = GatewayCapabilities(
+            gatewayVersion: nil, agentVersion: nil,
+            capabilityNames: ["wiki.glossary"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        #expect(!readOnly.supportsWikiGlossary)
+
+        let lookalike = GatewayCapabilities(
+            gatewayVersion: nil, agentVersion: nil,
+            capabilityNames: ["wiki.glossary.preview", "wiki.glossary.update.preview"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        #expect(!lookalike.supportsWikiGlossary)
+        #expect(!GatewayCapabilities.conservativeDefaults.supportsWikiGlossary)
+    }
+
     @Test("the diagnostic summary names the count, the intent verdict, and the set")
     internal func diagnosticSummaryReportsTheNegotiatedSet() {
         let supported = GatewayCapabilities(

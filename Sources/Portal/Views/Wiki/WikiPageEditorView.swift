@@ -251,3 +251,282 @@ internal struct WikiPageEditorView: View {
         conflict = nil
     }
 }
+
+/// Mutable, testable form state for the per-wiki glossary sheet.
+@MainActor
+internal final class WikiGlossaryEditorModel: ObservableObject {
+    internal enum Status: Equatable {
+        case idle
+        case loading
+        case saving
+        case conflict
+        case failed(String)
+    }
+
+    internal struct Term: Identifiable, Equatable {
+        internal let id: UUID
+        internal var canonical: String
+        internal var aliases: String
+        internal var description: String
+
+        internal init(
+            id: UUID = UUID(),
+            canonical: String = "",
+            aliases: String = "",
+            description: String = ""
+        ) {
+            self.id = id
+            self.canonical = canonical
+            self.aliases = aliases
+            self.description = description
+        }
+    }
+
+    internal let wiki: String?
+    @Published internal var version = 1
+    @Published internal var mode: WikiGlossary.Mode = .canonicalize
+    @Published internal var revision = ""
+    @Published internal var terms: [Term] = []
+    @Published internal var status: Status = .idle
+
+    internal init(wiki: String?) {
+        self.wiki = wiki
+    }
+
+    internal var validationMessage: String? {
+        var problems: [String] = []
+        let names = terms.map { $0.canonical.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if names.contains(where: \.isEmpty) {
+            problems.append("Every term needs a canonical name.")
+        }
+
+        var spellings = Set<String>()
+        var hasDuplicate = false
+        for term in terms {
+            let aliases = Self.parseAliases(term.aliases)
+            for spelling in [term.canonical.trimmingCharacters(in: .whitespacesAndNewlines)] + aliases
+            where !spelling.isEmpty {
+                if !spellings.insert(spelling.lowercased()).inserted {
+                    hasDuplicate = true
+                }
+            }
+        }
+        if hasDuplicate {
+            problems.append("Canonical names and aliases must be unique.")
+        }
+        return problems.isEmpty ? nil : problems.joined(separator: " ")
+    }
+
+    internal var isValid: Bool { validationMessage == nil }
+    internal var isBusy: Bool { status == .loading || status == .saving }
+    internal var canSave: Bool { status == .idle && isValid }
+
+    internal var errorMessage: String? {
+        if case .failed(let message) = status { return message }
+        return nil
+    }
+
+    internal func load(using source: any WikiGlossarySource) async {
+        status = .loading
+        do {
+            seed(from: try await source.wikiGlossary(wiki: wiki))
+            status = .idle
+        } catch {
+            status = .failed(error.localizedDescription)
+        }
+    }
+
+    @discardableResult
+    internal func save(using source: any WikiGlossarySource) async -> Bool {
+        guard isValid else { return false }
+        status = .saving
+        do {
+            let saved = try await source.wikiGlossaryUpdate(
+                wiki: wiki,
+                version: version,
+                mode: mode,
+                properNouns: normalizedTerms,
+                ifMatch: revision
+            )
+            seed(from: saved)
+            status = .idle
+            return true
+        } catch is WikiGlossaryConflict {
+            status = .conflict
+            return false
+        } catch {
+            status = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    internal func addTerm() {
+        terms.append(Term())
+    }
+
+    internal func removeTerm(id: UUID) {
+        terms.removeAll { $0.id == id }
+    }
+
+    private var normalizedTerms: [WikiGlossary.ProperNoun] {
+        terms.map { term in
+            let description = term.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            return WikiGlossary.ProperNoun(
+                canonical: term.canonical.trimmingCharacters(in: .whitespacesAndNewlines),
+                aliases: Self.parseAliases(term.aliases),
+                description: description.isEmpty ? nil : description
+            )
+        }
+    }
+
+    private func seed(from glossary: WikiGlossary) {
+        version = glossary.version
+        mode = glossary.mode
+        revision = glossary.revision
+        terms = glossary.properNouns.map { term in
+            Term(
+                canonical: term.canonical,
+                aliases: term.aliases.joined(separator: ", "),
+                description: term.description ?? ""
+            )
+        }
+    }
+
+    private static func parseAliases(_ value: String) -> [String] {
+        value.split(separator: ",", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+}
+
+/// Sheet for editing the glossary attached to the wiki that was selected when
+/// the sheet opened. Harness remains the only YAML parser and policy authority.
+internal struct WikiGlossaryEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var model: WikiGlossaryEditorModel
+    private let source: any WikiGlossarySource
+
+    internal init(wiki: String?, source: any WikiGlossarySource) {
+        _model = StateObject(wrappedValue: WikiGlossaryEditorModel(wiki: wiki))
+        self.source = source
+    }
+
+    internal var body: some View {
+        NavigationStack {
+            Group {
+                if model.status == .loading {
+                    ProgressView("Loading glossary…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    editor
+                }
+            }
+            .navigationTitle("\(model.wiki ?? "Default") glossary")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(model.status == .saving ? "Saving…" : "Save") {
+                        Task {
+                            if await model.save(using: source) { dismiss() }
+                        }
+                    }
+                    .disabled(!model.canSave)
+                }
+            }
+        }
+        .frame(minWidth: 520, minHeight: 520)
+        .task { await model.load(using: source) }
+    }
+
+    private var editor: some View {
+        Form {
+            Section("Policy") {
+                Picker("Mode", selection: $model.mode) {
+                    ForEach(WikiGlossary.Mode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(policyExplanation)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+
+            Section("Proper nouns") {
+                if model.terms.isEmpty {
+                    Text("No terms yet. Add names whose spelling this wiki should control.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                }
+
+                ForEach($model.terms) { $term in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            TextField("Canonical spelling", text: $term.canonical)
+                            Button(role: .destructive) {
+                                model.removeTerm(id: term.id)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove term")
+                        }
+                        TextField("Aliases, separated by commas", text: $term.aliases)
+                        TextField("Description (optional)", text: $term.description)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Button {
+                    model.addTerm()
+                } label: {
+                    Label("Add term", systemImage: "plus")
+                }
+            }
+
+            if let validation = model.validationMessage {
+                Section {
+                    Label(validation, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(Theme.warning)
+                }
+            }
+
+            if model.status == .conflict {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("The glossary changed elsewhere.", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.callout.weight(.semibold))
+                        Text("Reload before saving so newer vocabulary is not overwritten.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                        Button("Reload") { Task { await model.load(using: source) } }
+                    }
+                }
+            } else if let error = model.errorMessage {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Glossary unavailable", systemImage: "exclamationmark.triangle")
+                            .font(.callout.weight(.semibold))
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                        Button("Retry") { Task { await model.load(using: source) } }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var policyExplanation: String {
+        switch model.mode {
+        case .canonicalize:
+            return "Configured aliases are normalized to each canonical spelling. Unknown names continue unchanged."
+        case .strict:
+            return "Unlisted generated proper nouns are rejected. Add a term before generated wiki operations may use it."
+        }
+    }
+}

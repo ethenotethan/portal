@@ -27,6 +27,7 @@ internal struct WikiGraphView: View {
 
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
+    @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     @MainActor
     internal init(viewModel: WikiGraphViewModel? = nil, overrideSource: (any WikiSource)? = nil) {
@@ -60,7 +61,18 @@ internal struct WikiGraphView: View {
     /// hide it exactly when it's needed.
     private var hasEventsSurface: Bool { eventLogSource != nil }
 
+    /// Glossaries are a Harness-only selected-registry capability. Override
+    /// sources and arbitrary filesystem paths intentionally do not get an editor.
+    private var canEditGlossary: Bool {
+        guard overrideSource == nil,
+              capabilitiesStore.capabilities.supportsWikiGlossary else { return false }
+        guard let selected = viewModel.selectedWikiPath else { return true }
+        return viewModel.availableWikis.contains(selected)
+    }
+
     @State private var showWikiPicker = false
+    @State private var showGlossaryEditor = false
+    @State private var glossaryWikiAtOpen: String?
     @State private var lastPinchScale: CGFloat = 1.0
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
@@ -113,6 +125,9 @@ internal struct WikiGraphView: View {
                         selectAndLoadWiki(path)
                     }
                 )
+            }
+            .sheet(isPresented: $showGlossaryEditor) {
+                WikiGlossaryEditorView(wiki: glossaryWikiAtOpen, source: gatewayClientWrapper.client)
             }
             .onAppear {
                 // For override sources (Centaur), always load — the source
@@ -326,6 +341,10 @@ internal struct WikiGraphView: View {
             WikiGraphControlsBar(
                 viewModel: viewModel,
                 supportsTimeline: supportsTimeline,
+                onGlossary: canEditGlossary ? {
+                    glossaryWikiAtOpen = viewModel.selectedWikiPath
+                    showGlossaryEditor = true
+                } : nil,
                 hasEventsSurface: hasEventsSurface,
                 onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }
             )
