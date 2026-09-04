@@ -45,24 +45,66 @@ struct SessionListView: View {
         return session.id == currentSessionID || session.gatewayID == currentSessionID
     }
 
-    private var mySessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && !$0.isArchived && gatewayFilter($0) })
+    /// The sidebar's tiers, split in ONE pass over `sessions`.
+    ///
+    /// These used to be four computed properties, each re-filtering and
+    /// re-sorting the whole session list. Every one of them is read three times
+    /// per `body` — for the header count, for the emptiness check, and for the
+    /// `ForEach` — so a single sidebar render ran **twelve** filter+sort passes,
+    /// each doing a `SessionBackendRegistry` dictionary probe and a
+    /// `source?.lowercased()` allocation per session. The sidebar observes
+    /// `sessionList`, which republishes on every gateway event, so this was
+    /// per-event work proportional to the session count: the watchdog caught it
+    /// as a 99%-busy main-thread storm with `SessionListView.otherSessions` and
+    /// `SessionBackendRegistry.backendID(for:)` in the stack.
+    internal struct SidebarSections {
+        internal var mine: [Session] = []
+        internal var archived: [Session] = []
+        internal var cron: [Session] = []
+        internal var other: [Session] = []
     }
 
-    private var archivedSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.isOwned && $0.isArchived && gatewayFilter($0) })
+    /// Note the tiers are deliberately NOT mutually exclusive: an owned cron
+    /// session shows under both "My Sessions" and "Cron Sessions", which is what
+    /// the four separate predicates did.
+    nonisolated internal static func partition(
+        _ sessions: [Session],
+        includes: (Session) -> Bool,
+        sort: ([Session]) -> [Session]
+    ) -> SidebarSections {
+        var sections = SidebarSections()
+        for session in sessions where includes(session) {
+            let isCron = session.source?.caseInsensitiveCompare("cron") == .orderedSame
+            if session.isOwned {
+                if session.isArchived {
+                    sections.archived.append(session)
+                } else {
+                    sections.mine.append(session)
+                }
+            } else if !isCron {
+                sections.other.append(session)
+            }
+            if isCron { sections.cron.append(session) }
+        }
+        sections.mine = sort(sections.mine)
+        sections.archived = sort(sections.archived)
+        sections.cron = sort(sections.cron)
+        sections.other = sort(sections.other)
+        return sections
     }
 
-    private var cronSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { $0.source?.lowercased() == "cron" && gatewayFilter($0) })
-    }
-
-    private var otherSessions: [Session] {
-        sessionList.sortedForSidebar(sessionList.sessions.filter { !$0.isOwned && $0.source?.lowercased() != "cron" && gatewayFilter($0) })
+    private var sidebarSections: SidebarSections {
+        Self.partition(
+            sessionList.sessions,
+            includes: gatewayFilter,
+            sort: sessionList.sortedForSidebar
+        )
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        // Read once per render — see `SidebarSections`.
+        let sections = sidebarSections
+        return ZStack(alignment: .topLeading) {
             Theme.background
 
             VStack(spacing: 0) {
@@ -78,11 +120,11 @@ struct SessionListView: View {
                         sessionSection(
                             title: "My Sessions",
                             icon: "bubble.left.fill",
-                            count: mySessions.count,
+                            count: sections.mine.count,
                             isCollapsed: mySessionsCollapsed,
                             onToggle: { mySessionsCollapsed.toggle() },
                             content: {
-                                if mySessions.isEmpty {
+                                if sections.mine.isEmpty {
                                     VStack(spacing: 8) {
                                         Text("Ready when you are ✨")
                                             .font(.caption)
@@ -96,7 +138,7 @@ struct SessionListView: View {
                                     .frame(maxWidth: .infinity, alignment: .center)
                                     .padding(.vertical, 20)
                                 } else {
-                                    ForEach(mySessions) { session in
+                                    ForEach(sections.mine) { session in
                                         mySessionRow(session: session)
                                     }
                                 }
@@ -104,16 +146,16 @@ struct SessionListView: View {
                         )
 
                         // Archived
-                        if !archivedSessions.isEmpty {
+                        if !sections.archived.isEmpty {
                             sessionSection(
                                 title: "Archived",
                                 icon: "archivebox",
-                                count: archivedSessions.count,
+                                count: sections.archived.count,
                                 isCollapsed: !sessionList.showArchived,
                                 onToggle: { sessionList.showArchived.toggle() },
                                 content: {
                                     if sessionList.showArchived {
-                                        ForEach(archivedSessions) { session in
+                                        ForEach(sections.archived) { session in
                                             archivedSessionRow(session: session)
                                         }
                                     }
@@ -122,15 +164,15 @@ struct SessionListView: View {
                         }
 
                         // Cron Sessions
-                        if !cronSessions.isEmpty {
+                        if !sections.cron.isEmpty {
                             sessionSection(
                                 title: "Cron Sessions",
                                 icon: "clock.fill",
-                                count: cronSessions.count,
+                                count: sections.cron.count,
                                 isCollapsed: cronSessionsCollapsed,
                                 onToggle: { cronSessionsCollapsed.toggle() },
                                 content: {
-                                    ForEach(cronSessions) { session in
+                                    ForEach(sections.cron) { session in
                                         otherSessionRow(session: session)
                                     }
                                 }
@@ -141,18 +183,18 @@ struct SessionListView: View {
                         sessionSection(
                             title: "Other Sessions",
                             icon: "eye",
-                            count: otherSessions.count,
+                            count: sections.other.count,
                             isCollapsed: otherSessionsCollapsed,
                             onToggle: { otherSessionsCollapsed.toggle() },
                             content: {
-                                if otherSessions.isEmpty {
+                                if sections.other.isEmpty {
                                     Text("No other sessions")
                                         .font(.caption)
                                         .foregroundStyle(.tertiary)
                                         .frame(maxWidth: .infinity, alignment: .center)
                                         .padding(.vertical, 20)
                                 } else {
-                                    ForEach(otherSessions) { session in
+                                    ForEach(sections.other) { session in
                                         otherSessionRow(session: session)
                                     }
                                 }

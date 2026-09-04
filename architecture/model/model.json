@@ -2916,7 +2916,7 @@
         "resource_ids": [],
         "task_handle_ids": [
           "task-site-4040f5d43a1f",
-          "task-site-4e7a6d3f66cc",
+          "task-site-605da73612cc",
           "task-site-82e04ccf9969"
         ]
       },
@@ -4490,11 +4490,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 63,
+          "line": 75,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-686215e2adec",
+        "id": "task-site-f4c50e4cbda8",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4506,11 +4506,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "return await Task.detached(priority: .userInitiated) {",
-          "line": 92,
+          "line": 104,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-733e6b8221aa",
+        "id": "task-site-160e8120020d",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4522,11 +4522,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) { [file] in",
-          "line": 108,
+          "line": 121,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-134d5761e4bd",
+        "id": "task-site-74a821b34053",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4538,11 +4538,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "return await Task.detached(priority: .utility) {",
-          "line": 142,
+          "line": 165,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b6a237e87757",
+        "id": "task-site-32030da030d2",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6154,11 +6154,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2034,
+          "line": 2047,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f6756be2c3e4",
+        "id": "task-site-034a7820ad0f",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6170,11 +6170,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2061,
+          "line": 2074,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-52b010cc8465",
+        "id": "task-site-c1d0608aff4a",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6186,11 +6186,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 2177,
+          "line": 2190,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-98bbc26bde13",
+        "id": "task-site-4edb6d07aecf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6202,11 +6202,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 2353,
+          "line": 2366,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-25dfd8ebb602",
+        "id": "task-site-cfa446981c80",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6218,11 +6218,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "",
-          "line": 2355,
+          "line": 2368,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4e7a6d3f66cc",
+        "id": "task-site-605da73612cc",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6234,11 +6234,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 2372,
+          "line": 2385,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-53a111d9dca5",
+        "id": "task-site-3f0670487306",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6250,11 +6250,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 2373,
+          "line": 2386,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3ba3767cc37d",
+        "id": "task-site-92b556719c96",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6266,11 +6266,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 2483,
+          "line": 2496,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2bf8f6f0343b",
+        "id": "task-site-ffe18e8521d5",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6282,11 +6282,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 2484,
+          "line": 2497,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ccd004a98d48",
+        "id": "task-site-7ae1d6cc6235",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6298,11 +6298,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 2720,
+          "line": 2733,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-50e958065cbd",
+        "id": "task-site-fb3fc5019b15",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6314,11 +6314,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 2730,
+          "line": 2743,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f4a69bfaff7c",
+        "id": "task-site-9f7dfcc800dd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6330,11 +6330,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3011,
+          "line": 3024,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2739b0ad8a9f",
+        "id": "task-site-1365b9ad313d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6346,11 +6346,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3060,
+          "line": 3073,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-47fe8adef0a6",
+        "id": "task-site-99eeb6376a7e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6362,11 +6362,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 3280,
+          "line": 3293,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-282da5390577",
+        "id": "task-site-ddcbbaeeffd1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6378,11 +6378,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3531,
+          "line": 3544,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8975a7f16e57",
+        "id": "task-site-edfd9219595d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6394,11 +6394,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3589,
+          "line": 3602,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4d4402a0cc5e",
+        "id": "task-site-42492a6ba0c5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8698,11 +8698,11 @@
         "enclosing_type": "SessionListView",
         "evidence": {
           "excerpt": "Task { try? await sessionList.deleteArchivedSession(id: session.id) }",
-          "line": 270,
+          "line": 312,
           "path": "Sources/Portal/Views/SessionListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7c3841d4f476",
+        "id": "task-site-75ee30cf7cf7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9210,11 +9210,11 @@
         "enclosing_type": "ConversationPanel",
         "evidence": {
           "excerpt": "pendingTailFollow = Task { @MainActor in",
-          "line": 435,
+          "line": 457,
           "path": "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-afb892f5cfb9",
+        "id": "task-site-4a95a30227ab",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9645,10 +9645,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6822
+      "line_count": 6838
     },
     {
-      "declaration_count": 144,
+      "declaration_count": 145,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -9764,6 +9764,7 @@
         "SessionsSourceBreakdown",
         "SessionsStatsPanel",
         "SessionsTimelinePlot",
+        "SidebarSections",
         "SkeletonCard",
         "SkillCard",
         "SkillMarkdownEditor",
@@ -9857,7 +9858,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18300,
+      "line_count": 18342,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10247,7 +10248,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7288,
+      "line_count": 7312,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10305,7 +10306,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4497
+      "line_count": 4510
     },
     {
       "declaration_count": 29,
@@ -10455,7 +10456,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 971
+      "line_count": 979
     },
     {
       "declaration_count": 32,
@@ -10766,7 +10767,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6688,
+      "line_count": 6711,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12768,7 +12769,8 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by thought-graph-ui.",
       "evidence": [
-        "Sources/Portal/Views/ChatView.swift"
+        "Sources/Portal/Views/ChatView.swift",
+        "Sources/Portal/Views/ToolCallView.swift"
       ],
       "source": "chat-ui",
       "symbols": [
@@ -12782,7 +12784,7 @@
       ],
       "target": "thought-graph-ui",
       "type": "references",
-      "weight": 8
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -14925,9 +14927,9 @@
   },
   "inventory": {
     "assigned_files": 348,
-    "declarations": 1021,
+    "declarations": 1022,
     "swift_files": 348,
-    "swift_lines": 101285,
+    "swift_lines": 101411,
     "unassigned_files": []
   },
   "layers": [
@@ -14959,6 +14961,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "ac0e1bc07cf53d3521dfae6c2917a45ecc26d2ea730a1feae16fe7cb3cb520a9",
+  "source_tree_sha256": "972383db0efdb58953850b1d8cc06a1b36d9c34988d3c2101737bcc237258356",
   "title": "Portal Architecture"
 }

@@ -1672,6 +1672,18 @@ client.eventStream
     nonisolated internal static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
+        /// History entries carry no tool_call_id, so the id is synthesized — and
+        /// it must be UNIQUE, because it becomes SwiftUI's `ForEach` identity in
+        /// the tool trail. It used to be `hist_\(messages.count)`, which does not
+        /// change across a run of consecutive tool entries: every tool in a turn
+        /// got the same id and they all landed in ONE message's `toolCalls`. A
+        /// resumed session then logged hundreds of "the ID hist_3 occurs multiple
+        /// times within the collection, this will give undefined results!" and
+        /// SwiftUI rebuilt rows instead of diffing them — CALayer insert storms
+        /// that pinned the main thread (watchdog: 21 hangs, 275–647ms, one
+        /// 95%-busy storm) for as long as the transcript stayed on screen. A
+        /// monotonic counter is the whole fix.
+        var toolSequence = 0
 
         for raw in rawMessages {
             guard let roleStr = raw["role"]?.stringValue else { continue }
@@ -1703,7 +1715,8 @@ client.eventStream
             case "tool":
                 let name = raw["name"]?.stringValue ?? "tool"
                 let context = raw["context"]?.stringValue
-                let toolID = "hist_\(messages.count)"
+                let toolID = "hist_\(toolSequence)"
+                toolSequence += 1
                 currentToolCalls.append(ToolCallRecord(
                     id: toolID,
                     name: name,
