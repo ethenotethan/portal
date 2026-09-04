@@ -198,6 +198,62 @@
       ],
       "source_revision": "aa89c2b1a409c68d9b8b162ac556b047444aa146",
       "model": "hermes-agent/glm-5.2"
+    },
+    {
+      "id": "shared-ui",
+      "summary": "Reusable presentation primitives that no single product surface owns: chat skins, theme-aware controls, status surfaces, and presentation policy that stays testable without a running app. MacTopChrome is the pattern at its purest — a view-free enum whose one protected rule is that collapsing the chrome must never take the Back button away: mode(isSurfaceOpen:isCollapsed:) lets an open surface override the user's stored collapse preference because the surface header owns Back and its Escape shortcut, and height(for:) maps the mode to the 40pt expanded / 22pt collapsed row so callers never branch on the raw preference. ContentView holds the @AppStorage preference and applies mode and height to the row above the split view. The skin seam is ChatSkinProviding — messageBubble(message:persona:) renders every chat bubble on every surface, which is how a dashboard canvas panel draws bubbles identically to the full-screen transcript. PortalProgressView is the macOS-safe SwiftUI-native spinner (avoiding the flattened-AppKit-adaptor diagnostic), PortalButtonStyle draws every color from the active ButtonTheme palette, FlowLayout wraps tag chips, and StreamingStatusBar is the TUI-aligned braille spinner with state label and live tool calls.",
+      "responsibilities": [
+        "Hold the macOS top-chrome presentation policy view-free so its protection — an open surface overrides the stored collapse preference — is unit-testable without launching the app",
+        "Map top-chrome modes to fixed row heights (expanded 40pt, collapsed 22pt) so callers apply one height instead of branching on the raw preference",
+        "Provide cross-surface primitives: the theme-palette PortalButtonStyle, the macOS-safe PortalProgressView spinner, FlowLayout for tags, and the TUI StreamingStatusBar",
+        "Render chat bubbles for every surface through the ChatSkinProviding seam, so a canvas panel and the main transcript draw the same message identically"
+      ],
+      "flows": [
+        "ContentView stores the collapse preference (@AppStorage macTopChromeCollapsed), asks MacTopChrome.mode(isSurfaceOpen:isCollapsed:) which row is presenting, and applies MacTopChrome.height(for:) to the chrome row",
+        "A skin implementation of ChatSkinProviding.messageBubble(message:persona:) renders each bubble; ConversationPanel receives the host-resolved skin so canvas bubbles match the rest of chat"
+      ],
+      "open_questions": [],
+      "evidence": [
+        "Sources/Portal/Views/ContentView.swift",
+        "Sources/Portal/Views/FlowLayout.swift",
+        "Sources/Portal/Views/MacTopChrome.swift",
+        "Sources/Portal/Views/PortalButtonStyle.swift",
+        "Sources/Portal/Views/PortalProgressView.swift",
+        "Sources/Portal/Views/Skins/ChatSkin.swift",
+        "Sources/Portal/Views/StreamingStatusBar.swift"
+      ],
+      "source_revision": "b807809701e6f8a2796ead33dc2af7d821c851b6",
+      "model": "hermes-agent/glm-5.2"
+    },
+    {
+      "id": "thought-graph-ui",
+      "summary": "The agent-execution dashboard: the flamechart, the session canvas that rearranges a live chat into per-turn lenses, the free-form panel canvas, and the conversation panel that renders the live transcript as one more dashboard panel. ThoughtGraphView is the interactive flamechart of the react loop — horizontal position is when a step happened, bar width is how long, each actor owns a lane stacked by spawn order — and carries an explicit legacy-giant header: split tracked as debt, do not add to the file. SessionChatCanvas drives lenses by CanvasDisplayMode: scroll streams the live turn, turns pages one settled turn at a time, and only the per-turn lenses and the conversation focus change between modes. DashboardCanvasView is deliberately content-agnostic — z-order is layout-array order, frames live in the canvas's own coordinate space, and layout persists via onLayoutCommitted on drag-end so UserDefaults writes stay off the per-frame path — and PanelContext hands every panel builder the same material: the turn's composed nodes, compaction folds, skills, the shared cross-highlight selection, and the single flamechart engine. The conversation panel's live tool calls are the newest load-bearing rule: ChatMessage.toolCalls is stamped once at message.complete, so during a running turn the records live only in ChatViewModel.activeToolCalls — mergingLiveToolCalls(into:activeToolCalls:) merges them into the streaming message before the peel bar and tools card are built, which is what makes the Tools chip and card exist while tools run instead of every tool appearing at once when the turn ends; the merge guards on message.isStreaming so a settled turn keeps its own stamped history rather than borrowing the next turn's in-flight records, and liveToolCallOrder sorts by startedAt with an id tiebreak because dictionary values rehash on every insert — sorting is what stops the rows reshuffling under the cursor on each tool event. Each turn's thinking and tools are peelable cards (PeeledBlockKind) anchored under the bubble — the card is the block's only render site, so the bubble is stripped of reasoning and the streaming status line does not re-list tools; nothing renders twice. The transcript is an eager VStack over a bounded 60-message tail window (lazy layout was the engine of a sampled 100%-CPU relayout loop), the live-tail follow is coalesced to one unanimated scroll per 150ms, and re-rendering is driven by ChatViewModel publishes, never a timer.",
+      "responsibilities": [
+        "Compose per-turn lens panels through PanelContext so built-in and custom panels consume the same nodes, compactions, skills, selection, and flamechart engine",
+        "Host content-agnostic floating panels in DashboardCanvasView: z-order is layout order, frames live in the canvas's coordinate space, persistence happens on drag-end only",
+        "Merge the streaming turn's tool calls from ChatViewModel.activeToolCalls (mergingLiveToolCalls) so the peel bar and tools card exist while the turn runs, not only after message.complete stamps them",
+        "Order live tool calls by startedAt with an id tiebreak (liveToolCallOrder) so rows never reshuffle as the activeToolCalls dictionary rehashes on each tool event",
+        "Peel thinking and tools out of chat bubbles as anchored cards (PeeledBlockKind), shown by default with ephemeral per-session collapse state, so no block renders both inline and as a card",
+        "Rebuild a session as per-turn thought-graph data (SessionTurn from persisted assistant messages) so the flamechart replays across the whole conversation",
+        "Render the transcript eagerly over a bounded 60-message tail window with a coalesced 150ms unanimated live-tail follow, keeping streaming off timer-driven and lazy-layout paths"
+      ],
+      "flows": [
+        "messageRows asks mergingLiveToolCalls(into:activeToolCalls:) for each turn before building peelBar and peeledCards; the guard on message.isStreaming keeps settled turns on their own stamped toolCalls",
+        "SessionChatCanvas switches per-turn lenses by CanvasDisplayMode: scroll streams the live current turn, turns pages one settled turn at a time",
+        "InlineTurnTimelineLive observes the subagent and reasoning graph integrators directly, so the strip rebuilds as publishes land without routing through ChatView"
+      ],
+      "open_questions": [],
+      "evidence": [
+        "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift",
+        "Sources/Portal/Views/ThoughtGraph/DashboardCanvasView.swift",
+        "Sources/Portal/Views/ThoughtGraph/InlineTurnTimelineStrip.swift",
+        "Sources/Portal/Views/ThoughtGraph/PanelRegistry.swift",
+        "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+        "Sources/Portal/Views/ThoughtGraph/SessionThoughtGraphView.swift",
+        "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+      ],
+      "source_revision": "b807809701e6f8a2796ead33dc2af7d821c851b6",
+      "model": "hermes-agent/glm-5.2"
     }
   ]
 }

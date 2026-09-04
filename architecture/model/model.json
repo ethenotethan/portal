@@ -2916,7 +2916,7 @@
         "resource_ids": [],
         "task_handle_ids": [
           "task-site-4040f5d43a1f",
-          "task-site-4e7a6d3f66cc",
+          "task-site-605da73612cc",
           "task-site-82e04ccf9969"
         ]
       },
@@ -4490,11 +4490,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 63,
+          "line": 75,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-686215e2adec",
+        "id": "task-site-f4c50e4cbda8",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4506,11 +4506,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "return await Task.detached(priority: .userInitiated) {",
-          "line": 92,
+          "line": 104,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-733e6b8221aa",
+        "id": "task-site-160e8120020d",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4522,11 +4522,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) { [file] in",
-          "line": 108,
+          "line": 121,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-134d5761e4bd",
+        "id": "task-site-74a821b34053",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4538,11 +4538,11 @@
         "enclosing_type": "ChatHistoryStore",
         "evidence": {
           "excerpt": "return await Task.detached(priority: .utility) {",
-          "line": 142,
+          "line": 165,
           "path": "Sources/Portal/Services/ChatHistoryStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b6a237e87757",
+        "id": "task-site-32030da030d2",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6154,11 +6154,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2034,
+          "line": 2047,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f6756be2c3e4",
+        "id": "task-site-034a7820ad0f",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6170,11 +6170,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2061,
+          "line": 2074,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-52b010cc8465",
+        "id": "task-site-c1d0608aff4a",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6186,11 +6186,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 2177,
+          "line": 2190,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-98bbc26bde13",
+        "id": "task-site-4edb6d07aecf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6202,11 +6202,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 2353,
+          "line": 2366,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-25dfd8ebb602",
+        "id": "task-site-cfa446981c80",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6218,11 +6218,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "",
-          "line": 2355,
+          "line": 2368,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4e7a6d3f66cc",
+        "id": "task-site-605da73612cc",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6234,11 +6234,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 2372,
+          "line": 2385,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-53a111d9dca5",
+        "id": "task-site-3f0670487306",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6250,11 +6250,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 2373,
+          "line": 2386,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3ba3767cc37d",
+        "id": "task-site-92b556719c96",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6266,11 +6266,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 2483,
+          "line": 2496,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2bf8f6f0343b",
+        "id": "task-site-ffe18e8521d5",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6282,11 +6282,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 2484,
+          "line": 2497,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ccd004a98d48",
+        "id": "task-site-7ae1d6cc6235",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6298,11 +6298,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 2720,
+          "line": 2733,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-50e958065cbd",
+        "id": "task-site-fb3fc5019b15",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6314,11 +6314,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 2730,
+          "line": 2743,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f4a69bfaff7c",
+        "id": "task-site-9f7dfcc800dd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6330,11 +6330,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3011,
+          "line": 3024,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2739b0ad8a9f",
+        "id": "task-site-1365b9ad313d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6346,11 +6346,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3060,
+          "line": 3073,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-47fe8adef0a6",
+        "id": "task-site-99eeb6376a7e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6362,11 +6362,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 3280,
+          "line": 3293,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-282da5390577",
+        "id": "task-site-ddcbbaeeffd1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6378,11 +6378,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3531,
+          "line": 3544,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8975a7f16e57",
+        "id": "task-site-edfd9219595d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6394,11 +6394,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3589,
+          "line": 3602,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4d4402a0cc5e",
+        "id": "task-site-42492a6ba0c5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7402,11 +7402,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await sessionList.refreshSessions() }",
-          "line": 149,
+          "line": 154,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2a48e75d9e10",
+        "id": "task-site-dc8168198e0f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7418,11 +7418,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await capabilitiesStore.refresh(using: gatewayClientWrapper.client) }",
-          "line": 150,
+          "line": 155,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2852f8126696",
+        "id": "task-site-add7e51c5eae",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7434,11 +7434,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }",
-          "line": 158,
+          "line": 163,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e6c2bf23f3dd",
+        "id": "task-site-a08844784bc6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7450,11 +7450,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 171,
+          "line": 176,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cb169b2d254a",
+        "id": "task-site-cc9db3b7bb5b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7466,11 +7466,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 179,
+          "line": 184,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c020a6452d62",
+        "id": "task-site-b83e11671e35",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7482,11 +7482,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "settingsReconnectTask = Task {",
-          "line": 259,
+          "line": 264,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6ab9dda39bb9",
+        "id": "task-site-f790d7cef02a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7498,11 +7498,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 286,
+          "line": 291,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bd5a44545e4d",
+        "id": "task-site-f67faf26e67e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7514,11 +7514,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 380,
+          "line": 385,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-98a58362ffb1",
+        "id": "task-site-235c2efc1e71",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7530,11 +7530,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await sessionList.refreshSessions() }",
-          "line": 723,
+          "line": 783,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-884ebfe0bc9c",
+        "id": "task-site-539f98a31900",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7546,11 +7546,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession(on: gateway) }",
-          "line": 907,
+          "line": 967,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-326bcf54e05c",
+        "id": "task-site-38b573ad30a4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7562,11 +7562,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 936,
+          "line": 996,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ebf104de91f1",
+        "id": "task-site-0933e336463f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7578,11 +7578,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1153,
+          "line": 1213,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0e053e529dbb",
+        "id": "task-site-7f0894a74e26",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7594,11 +7594,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1400,
+          "line": 1460,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e17826fd61e2",
+        "id": "task-site-86494bbdac70",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7610,11 +7610,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1407,
+          "line": 1467,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b1bf3fbc834b",
+        "id": "task-site-2af8800a0d0c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7626,11 +7626,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1458,
+          "line": 1518,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-943f9ab91518",
+        "id": "task-site-56114a8b5ccf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7642,11 +7642,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1497,
+          "line": 1557,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cae4ad99120c",
+        "id": "task-site-76bf6d36ac4f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7658,11 +7658,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1517,
+          "line": 1577,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2d24d8765a50",
+        "id": "task-site-11ddfe898007",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7674,11 +7674,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1556,
+          "line": 1616,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7aaef3396775",
+        "id": "task-site-796d744f97d8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7690,11 +7690,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1729,
+          "line": 1789,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1816a29a8c49",
+        "id": "task-site-d88e549d68ac",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7706,11 +7706,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1820,
+          "line": 1880,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fc528ede56db",
+        "id": "task-site-d3a441925e26",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7722,11 +7722,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1851,
+          "line": 1911,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-324261e193b7",
+        "id": "task-site-b587516c47e0",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7738,11 +7738,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1856,
+          "line": 1916,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fd280ae6185a",
+        "id": "task-site-e951e058c4bb",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7754,11 +7754,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await xAuth.handleCallback(code: code, state: state) }",
-          "line": 1864,
+          "line": 1924,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-525a7154e158",
+        "id": "task-site-3512b402fcc5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7770,11 +7770,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1904,
+          "line": 1964,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-364d442ed4e2",
+        "id": "task-site-15d10e42d611",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8698,11 +8698,11 @@
         "enclosing_type": "SessionListView",
         "evidence": {
           "excerpt": "Task { try? await sessionList.deleteArchivedSession(id: session.id) }",
-          "line": 270,
+          "line": 312,
           "path": "Sources/Portal/Views/SessionListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7c3841d4f476",
+        "id": "task-site-75ee30cf7cf7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9210,11 +9210,11 @@
         "enclosing_type": "ConversationPanel",
         "evidence": {
           "excerpt": "pendingTailFollow = Task { @MainActor in",
-          "line": 390,
+          "line": 457,
           "path": "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-be9acc40f04e",
+        "id": "task-site-4a95a30227ab",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9546,7 +9546,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4385
+      "line_count": 4445
     },
     {
       "declaration_count": 74,
@@ -9645,10 +9645,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6822
+      "line_count": 6838
     },
     {
-      "declaration_count": 144,
+      "declaration_count": 145,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -9764,6 +9764,7 @@
         "SessionsSourceBreakdown",
         "SessionsStatsPanel",
         "SessionsTimelinePlot",
+        "SidebarSections",
         "SkeletonCard",
         "SkillCard",
         "SkillMarkdownEditor",
@@ -9857,7 +9858,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18300,
+      "line_count": 18342,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10247,7 +10248,38 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7243
+      "line_count": 7312,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift",
+          "Sources/Portal/Views/ThoughtGraph/DashboardCanvasView.swift",
+          "Sources/Portal/Views/ThoughtGraph/InlineTurnTimelineStrip.swift",
+          "Sources/Portal/Views/ThoughtGraph/PanelRegistry.swift",
+          "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+          "Sources/Portal/Views/ThoughtGraph/SessionThoughtGraphView.swift",
+          "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+        ],
+        "flows": [
+          "InlineTurnTimelineLive observes the subagent and reasoning graph integrators directly, so the strip rebuilds as publishes land without routing through ChatView",
+          "SessionChatCanvas switches per-turn lenses by CanvasDisplayMode: scroll streams the live current turn, turns pages one settled turn at a time",
+          "messageRows asks mergingLiveToolCalls(into:activeToolCalls:) for each turn before building peelBar and peeledCards; the guard on message.isStreaming keeps settled turns on their own stamped toolCalls"
+        ],
+        "id": "thought-graph-ui",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Compose per-turn lens panels through PanelContext so built-in and custom panels consume the same nodes, compactions, skills, selection, and flamechart engine",
+          "Host content-agnostic floating panels in DashboardCanvasView: z-order is layout order, frames live in the canvas's coordinate space, persistence happens on drag-end only",
+          "Merge the streaming turn's tool calls from ChatViewModel.activeToolCalls (mergingLiveToolCalls) so the peel bar and tools card exist while the turn runs, not only after message.complete stamps them",
+          "Order live tool calls by startedAt with an id tiebreak (liveToolCallOrder) so rows never reshuffle as the activeToolCalls dictionary rehashes on each tool event",
+          "Peel thinking and tools out of chat bubbles as anchored cards (PeeledBlockKind), shown by default with ephemeral per-session collapse state, so no block renders both inline and as a card",
+          "Rebuild a session as per-turn thought-graph data (SessionTurn from persisted assistant messages) so the flamechart replays across the whole conversation",
+          "Render the transcript eagerly over a bounded 60-message tail window with a coalesced 150ms unanimated live-tail follow, keeping streaming off timer-driven and lazy-layout paths"
+        ],
+        "source_revision": "b807809701e6f8a2796ead33dc2af7d821c851b6",
+        "summary": "The agent-execution dashboard: the flamechart, the session canvas that rearranges a live chat into per-turn lenses, the free-form panel canvas, and the conversation panel that renders the live transcript as one more dashboard panel. ThoughtGraphView is the interactive flamechart of the react loop — horizontal position is when a step happened, bar width is how long, each actor owns a lane stacked by spawn order — and carries an explicit legacy-giant header: split tracked as debt, do not add to the file. SessionChatCanvas drives lenses by CanvasDisplayMode: scroll streams the live turn, turns pages one settled turn at a time, and only the per-turn lenses and the conversation focus change between modes. DashboardCanvasView is deliberately content-agnostic — z-order is layout-array order, frames live in the canvas's own coordinate space, and layout persists via onLayoutCommitted on drag-end so UserDefaults writes stay off the per-frame path — and PanelContext hands every panel builder the same material: the turn's composed nodes, compaction folds, skills, the shared cross-highlight selection, and the single flamechart engine. The conversation panel's live tool calls are the newest load-bearing rule: ChatMessage.toolCalls is stamped once at message.complete, so during a running turn the records live only in ChatViewModel.activeToolCalls — mergingLiveToolCalls(into:activeToolCalls:) merges them into the streaming message before the peel bar and tools card are built, which is what makes the Tools chip and card exist while tools run instead of every tool appearing at once when the turn ends; the merge guards on message.isStreaming so a settled turn keeps its own stamped history rather than borrowing the next turn's in-flight records, and liveToolCallOrder sorts by startedAt with an id tiebreak because dictionary values rehash on every insert — sorting is what stops the rows reshuffling under the cursor on each tool event. Each turn's thinking and tools are peelable cards (PeeledBlockKind) anchored under the bubble — the card is the block's only render site, so the bubble is stripped of reasoning and the streaming status line does not re-list tools; nothing renders twice. The transcript is an eager VStack over a bounded 60-message tail window (lazy layout was the engine of a sampled 100%-CPU relayout loop), the live-tail follow is coalesced to one unanimated scroll per 150ms, and re-rendering is driven by ChatViewModel publishes, never a timer."
+      }
     },
     {
       "declaration_count": 9,
@@ -10274,7 +10306,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4497
+      "line_count": 4510
     },
     {
       "declaration_count": 29,
@@ -10424,7 +10456,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 971
+      "line_count": 979
     },
     {
       "declaration_count": 32,
@@ -10735,7 +10767,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6688,
+      "line_count": 6711,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11134,7 +11166,7 @@
       }
     },
     {
-      "declaration_count": 73,
+      "declaration_count": 75,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
@@ -11184,6 +11216,8 @@
         "LaunchPaneState",
         "Layout",
         "LinkifiedText",
+        "MacTopChrome",
+        "MacTopChromeMode",
         "MilestoneCardView",
         "Mode",
         "MonkeyCelebrationView",
@@ -11212,7 +11246,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 32,
+      "file_count": 33,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -11231,6 +11265,7 @@
         "Sources/Portal/Views/GitHubReleaseCard.swift",
         "Sources/Portal/Views/HarnessConnectionStatus.swift",
         "Sources/Portal/Views/InAppBrowserView.swift",
+        "Sources/Portal/Views/MacTopChrome.swift",
         "Sources/Portal/Views/MilestoneCardView.swift",
         "Sources/Portal/Views/MonkeyCelebrationView.swift",
         "Sources/Portal/Views/MonkeyScene.swift",
@@ -11250,7 +11285,34 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6057
+      "line_count": 6095,
+      "semantic": {
+        "authority": "synthesized",
+        "evidence": [
+          "Sources/Portal/Views/ContentView.swift",
+          "Sources/Portal/Views/FlowLayout.swift",
+          "Sources/Portal/Views/MacTopChrome.swift",
+          "Sources/Portal/Views/PortalButtonStyle.swift",
+          "Sources/Portal/Views/PortalProgressView.swift",
+          "Sources/Portal/Views/Skins/ChatSkin.swift",
+          "Sources/Portal/Views/StreamingStatusBar.swift"
+        ],
+        "flows": [
+          "A skin implementation of ChatSkinProviding.messageBubble(message:persona:) renders each bubble; ConversationPanel receives the host-resolved skin so canvas bubbles match the rest of chat",
+          "ContentView stores the collapse preference (@AppStorage macTopChromeCollapsed), asks MacTopChrome.mode(isSurfaceOpen:isCollapsed:) which row is presenting, and applies MacTopChrome.height(for:) to the chrome row"
+        ],
+        "id": "shared-ui",
+        "model": "hermes-agent/glm-5.2",
+        "open_questions": [],
+        "responsibilities": [
+          "Hold the macOS top-chrome presentation policy view-free so its protection — an open surface overrides the stored collapse preference — is unit-testable without launching the app",
+          "Map top-chrome modes to fixed row heights (expanded 40pt, collapsed 22pt) so callers apply one height instead of branching on the raw preference",
+          "Provide cross-surface primitives: the theme-palette PortalButtonStyle, the macOS-safe PortalProgressView spinner, FlowLayout for tags, and the TUI StreamingStatusBar",
+          "Render chat bubbles for every surface through the ChatSkinProviding seam, so a canvas panel and the main transcript draw the same message identically"
+        ],
+        "source_revision": "b807809701e6f8a2796ead33dc2af7d821c851b6",
+        "summary": "Reusable presentation primitives that no single product surface owns: chat skins, theme-aware controls, status surfaces, and presentation policy that stays testable without a running app. MacTopChrome is the pattern at its purest — a view-free enum whose one protected rule is that collapsing the chrome must never take the Back button away: mode(isSurfaceOpen:isCollapsed:) lets an open surface override the user's stored collapse preference because the surface header owns Back and its Escape shortcut, and height(for:) maps the mode to the 40pt expanded / 22pt collapsed row so callers never branch on the raw preference. ContentView holds the @AppStorage preference and applies mode and height to the row above the split view. The skin seam is ChatSkinProviding — messageBubble(message:persona:) renders every chat bubble on every surface, which is how a dashboard canvas panel draws bubbles identically to the full-screen transcript. PortalProgressView is the macOS-safe SwiftUI-native spinner (avoiding the flattened-AppKit-adaptor diagnostic), PortalButtonStyle draws every color from the active ButtonTheme palette, FlowLayout wraps tag chips, and StreamingStatusBar is the TUI-aligned braille spinner with state label and live tool calls."
+      }
     },
     {
       "declaration_count": 27,
@@ -11784,7 +11846,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by shared-ui.",
+      "description": "References 14 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/ContentView.swift",
         "Sources/Portal/Views/OnboardingView.swift",
@@ -11807,7 +11869,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -12707,7 +12769,8 @@
       "authority": "observed",
       "description": "References 7 declaration(s) owned by thought-graph-ui.",
       "evidence": [
-        "Sources/Portal/Views/ChatView.swift"
+        "Sources/Portal/Views/ChatView.swift",
+        "Sources/Portal/Views/ToolCallView.swift"
       ],
       "source": "chat-ui",
       "symbols": [
@@ -12721,7 +12784,7 @@
       ],
       "target": "thought-graph-ui",
       "type": "references",
-      "weight": 8
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -14863,10 +14926,10 @@
     }
   },
   "inventory": {
-    "assigned_files": 347,
-    "declarations": 1019,
-    "swift_files": 347,
-    "swift_lines": 101142,
+    "assigned_files": 348,
+    "declarations": 1022,
+    "swift_files": 348,
+    "swift_lines": 101411,
     "unassigned_files": []
   },
   "layers": [
@@ -14898,6 +14961,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "dda0fab8da4baa77807b7caa935ba0960f9b39c39cfcc249ce20f033a07b14f0",
+  "source_tree_sha256": "972383db0efdb58953850b1d8cc06a1b36d9c34988d3c2101737bcc237258356",
   "title": "Portal Architecture"
 }
