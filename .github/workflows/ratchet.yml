@@ -231,6 +231,18 @@ jobs:
       - name: Verify Periphery version
         run: periphery version
 
+      # The scan below reads Portal.xcodeproj, which is GENERATED output —
+      # commits add sources without regenerating it (every other job that
+      # consumes the project regenerates first). A checked-in pbxproj therefore
+      # lags behind the tree, and the missing file's callers fail to compile
+      # ("cannot find 'X' in scope"), which fails this job for reasons that have
+      # nothing to do with dead code. Generate it here too.
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
       - name: Capture dead-code snapshot
         run: |
           set -o pipefail

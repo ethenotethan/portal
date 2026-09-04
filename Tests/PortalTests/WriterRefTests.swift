@@ -55,4 +55,31 @@ internal struct WriterRefTests {
         let writer = WriterRef.session(id: "abcdefghijklmnop")
         #expect(writer.label(cronName: { _ in nil }) == "agent session abcdefgh")
     }
+
+    @Test("gateway stamps preserve their detail and use the gateway presentation")
+    internal func gatewayStampPresentation() {
+        let writer = WriterRef.parse("gateway:hermes")
+        #expect(writer == .gateway(detail: "hermes"))
+        #expect(writer?.icon == "server.rack")
+        #expect(writer?.label(cronName: { _ in nil }) == "gateway (hermes)")
+
+        let generic = WriterRef.parse("gateway:")
+        #expect(generic?.label(cronName: { _ in nil }) == "gateway")
+    }
+
+    @Test("every writer kind has a distinct presentation fallback")
+    internal func writerKindPresentationFallbacks() {
+        let cases: [(writer: WriterRef, icon: String, label: String)] = [
+            (.cron(jobID: "job-1"), "clock.arrow.circlepath", "cron job-1"),
+            (.session(id: "s1"), "sparkles", "agent session s1"),
+            (.user, "person.fill", "you"),
+            (.gateway(detail: ""), "server.rack", "gateway"),
+            (.other(raw: "future-writer"), "questionmark.circle", "future-writer"),
+        ]
+
+        for item in cases {
+            #expect(item.writer.icon == item.icon)
+            #expect(item.writer.label(cronName: { _ in nil }) == item.label)
+        }
+    }
 }

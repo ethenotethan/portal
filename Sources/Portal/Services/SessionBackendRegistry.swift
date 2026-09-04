@@ -28,8 +28,16 @@ final class SessionBackendRegistry {
     }
 
     /// The backend entry ID for a session; nil = Hermes home gateway.
+    ///
+    /// The empty check is not redundant: this is called per session while the
+    /// sidebar renders, and the keys come from `UserDefaults`, so they are
+    /// lazily-bridged NSStrings whose hashing takes Swift's slow "foreign"
+    /// path (`_normalizedHash` / `_foreignIndex(after:)` were on the hot
+    /// frames of a main-thread storm). Most installs have no recorded backend
+    /// at all — for them, skip the probe entirely.
     func backendID(for sessionID: String) -> UUID? {
-        backendBySession[sessionID]
+        guard !backendBySession.isEmpty else { return nil }
+        return backendBySession[sessionID]
     }
 
     /// All session IDs recorded on the given backend entry (unordered —

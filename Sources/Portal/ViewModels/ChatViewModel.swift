@@ -177,16 +177,20 @@ final class ChatViewModel: ObservableObject {
       ```model
       {"id": "bkk-life", "title": "Bangkok Base",
        "entities": {"apartments": {"key": "name", "items": [{"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000}]},
+                    "work": {"key": "id", "items": [{"id": "PORT-1", "title": "Build model Kanban", "status": "Doing"}]},
                     "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}},
        "relations": [{"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"}],
        "views": [{"type": "markdown", "text": "## Hunt status\\nDown to **3 candidates**."},
+                 {"type": "kanban", "entities": ["work"], "column": "status", "columns": ["Todo", "Doing", "Done"]},
                  {"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
                  {"type": "graph"}, {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}],
        "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed", "ruled out"]}, {"type": "delete"}]}}
       ```
       Entity refs are "set/keyValue". Views render in declaration order — markdown views carry the
       artifact-level narrative (summary, criteria, decision log) and can be interleaved anywhere in the
-      stack; update the prose alongside the data. Entity sets merge by key and relations by (from,to,type),
+      stack; update the prose alongside the data. A `kanban` view projects an entity set as an interactive Kanban;
+      `column` names the entity field changed by card moves and `columns` sets the lane order.
+      Entity sets merge by key and relations by (from,to,type),
       so emit only new/changed items when updating (views replace wholesale — re-emit the full views array).
       Prefer upgrading a map/dataset to a model over emitting parallel artifacts when the user wants
       relationships or multiple lenses on the same data.
@@ -1672,6 +1676,18 @@ client.eventStream
     nonisolated internal static func parseHistoryMessages(_ rawMessages: [[String: AnyCodable]]) -> [ChatMessage] {
         var messages: [ChatMessage] = []
         var currentToolCalls: [ToolCallRecord] = []
+        /// History entries carry no tool_call_id, so the id is synthesized — and
+        /// it must be UNIQUE, because it becomes SwiftUI's `ForEach` identity in
+        /// the tool trail. It used to be `hist_\(messages.count)`, which does not
+        /// change across a run of consecutive tool entries: every tool in a turn
+        /// got the same id and they all landed in ONE message's `toolCalls`. A
+        /// resumed session then logged hundreds of "the ID hist_3 occurs multiple
+        /// times within the collection, this will give undefined results!" and
+        /// SwiftUI rebuilt rows instead of diffing them — CALayer insert storms
+        /// that pinned the main thread (watchdog: 21 hangs, 275–647ms, one
+        /// 95%-busy storm) for as long as the transcript stayed on screen. A
+        /// monotonic counter is the whole fix.
+        var toolSequence = 0
 
         for raw in rawMessages {
             guard let roleStr = raw["role"]?.stringValue else { continue }
@@ -1703,7 +1719,8 @@ client.eventStream
             case "tool":
                 let name = raw["name"]?.stringValue ?? "tool"
                 let context = raw["context"]?.stringValue
-                let toolID = "hist_\(messages.count)"
+                let toolID = "hist_\(toolSequence)"
+                toolSequence += 1
                 currentToolCalls.append(ToolCallRecord(
                     id: toolID,
                     name: name,
