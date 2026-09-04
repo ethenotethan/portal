@@ -695,6 +695,38 @@ struct EnsembleModelTests {
         #expect(spec.views.map(\.kind) == [.map, .table, .graph])
     }
 
+    @Test("Kanban view projects model entities and routes moves into the configured field")
+    internal func kanbanProjectionAndMove() throws {
+        let content = """
+        {"entities": {"work": {"key": "id", "items": [
+           {"id": "PORT-1", "title": "Build board", "status": "Doing", "tag": "feat", "assignee": "ethen"},
+           {"id": "PORT-2", "title": "Ship board", "status": "Todo"}]}},
+         "views": [
+           {"type": "markdown", "text": "## Sprint goal"},
+           {"type": "kanban", "entities": ["work"], "column": "status",
+            "columns": ["Todo", "Doing", "Done"]},
+           {"type": "markdown", "text": "## Decision log"}
+         ]}
+        """
+
+        let spec = try #require(ModelSpec.parse(content))
+        #expect(spec.views.map(\.kind) == [.markdown, .kanban, .markdown])
+        let view = spec.views[1]
+        #expect(view.columnField == "status")
+        let json = try #require(ModelProjections.kanbanJSON(spec: spec, view: view))
+        let board = try #require(KanbanSpec.parse(json))
+        #expect(board.columns == ["Todo", "Doing", "Done"])
+        #expect(board.cards.map(\.id) == ["work/PORT-1", "work/PORT-2"])
+        #expect(board.cards.map(\.title) == ["Build board", "Ship board"])
+        #expect(board.cards[0].extra.contains { $0.key == "assignee" && $0.value == "ethen" })
+
+        let moved = try #require(ArtifactActionEngine.setField(
+            in: content, kind: "model", entryKey: board.cards[0].id,
+            field: view.columnField, value: "Done"
+        ))
+        #expect(ModelSpec.parse(moved)?.item(for: .init(set: "work", key: "PORT-1"))?["status"] == "Done")
+    }
+
     @Test("Model merge: per-set union by key, tombstone carry, relations by triple")
     func merge() {
         let existing = """

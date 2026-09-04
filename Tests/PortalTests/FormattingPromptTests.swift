@@ -100,6 +100,9 @@ internal struct FormattingPromptTests {
         }
         // Columns and cards, not a status column on a table.
         #expect(prompt.contains("\"columns\": [\"Todo\", \"Doing\", \"Done\"]"))
+        #expect(prompt.contains("\"type\": \"kanban\""))
+        #expect(prompt.contains("\"column\": \"status\""))
+        #expect(prompt.contains("interactive Kanban"))
         // The move/toggle round-trip needs no declared action, and saying so
         // stops the agent bolting a redundant "actions" array onto a board.
         #expect(prompt.contains("no \"actions\" declaration"))

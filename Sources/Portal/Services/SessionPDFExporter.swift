@@ -487,6 +487,10 @@ private struct ExportModelView: View {
             if let json = ModelProjections.statsJSON(spec: spec, view: view) {
                 StatTilesView(json: json, isStreaming: false)
             }
+        case .kanban:
+            if let json = ModelProjections.kanbanJSON(spec: spec, view: view) {
+                KanbanBlockView(json: json, isStreaming: false, actionableArtifactID: nil)
+            }
         }
     }
 

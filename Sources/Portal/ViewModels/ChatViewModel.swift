@@ -177,16 +177,20 @@ final class ChatViewModel: ObservableObject {
       ```model
       {"id": "bkk-life", "title": "Bangkok Base",
        "entities": {"apartments": {"key": "name", "items": [{"name": "Seed Mingle", "lat": 13.716, "lon": 100.54, "rent": 22000}]},
+                    "work": {"key": "id", "items": [{"id": "PORT-1", "title": "Build model Kanban", "status": "Doing"}]},
                     "gyms": {"key": "name", "items": [{"name": "FelixMuayThai", "lat": 13.729, "lon": 100.539}]}},
        "relations": [{"from": "apartments/Seed Mingle", "to": "gyms/FelixMuayThai", "type": "walkable", "note": "8 min"}],
        "views": [{"type": "markdown", "text": "## Hunt status\\nDown to **3 candidates**."},
+                 {"type": "kanban", "entities": ["work"], "column": "status", "columns": ["Todo", "Doing", "Done"]},
                  {"type": "map"}, {"type": "table", "entities": ["apartments"], "columns": ["name", "rent", "status"]},
                  {"type": "graph"}, {"type": "chart", "chart": "bar", "entities": ["apartments"], "x": "name", "y": "rent"}],
        "actions": {"apartments": [{"field": "status", "type": "choice", "options": ["interested", "viewed", "ruled out"]}, {"type": "delete"}]}}
       ```
       Entity refs are "set/keyValue". Views render in declaration order — markdown views carry the
       artifact-level narrative (summary, criteria, decision log) and can be interleaved anywhere in the
-      stack; update the prose alongside the data. Entity sets merge by key and relations by (from,to,type),
+      stack; update the prose alongside the data. A `kanban` view projects an entity set as an interactive Kanban;
+      `column` names the entity field changed by card moves and `columns` sets the lane order.
+      Entity sets merge by key and relations by (from,to,type),
       so emit only new/changed items when updating (views replace wholesale — re-emit the full views array).
       Prefer upgrading a map/dataset to a model over emitting parallel artifacts when the user wants
       relationships or multiple lenses on the same data.
