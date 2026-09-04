@@ -48,7 +48,9 @@ struct ActivityItemTests {
         #expect(item?.severity == .warning)
         #expect(item?.artifacts.first?.typeLabel == "HTML")
         #expect(item?.actions.first?.type == "open_session")
+        #expect(item?.actions.first?.id == "open_session-Open session-sid123")
         #expect(item?.externalRefs.first?.label == "Open Telegram")
+        #expect(item?.externalRefs.first?.id == "https://t.me/c/example")
     }
 
     @Test("parses activity.created gateway event")
