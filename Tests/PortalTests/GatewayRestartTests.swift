@@ -72,6 +72,42 @@ internal struct GatewayRestartOutcomeTests {
     }
 }
 
+@Suite("Gateway Debug Snapshot Identity")
+internal struct GatewayDebugSnapshotIdentityTests {
+
+    @Test("event records receive distinct identities for repeated wire events")
+    internal func eventRecordIdentityIsPerOccurrence() {
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let first = GatewayDebugSnapshot.EventRecord(
+            timestamp: timestamp,
+            direction: .inbound,
+            name: "session.updated",
+            sessionID: "session-1",
+            detail: "streaming"
+        )
+        let second = GatewayDebugSnapshot.EventRecord(
+            timestamp: timestamp,
+            direction: .inbound,
+            name: "session.updated",
+            sessionID: "session-1",
+            detail: "streaming"
+        )
+
+        #expect(first.id != second.id)
+    }
+
+    @Test("dropped-reason identity stays pinned to its category")
+    internal func droppedReasonIdentityUsesReason() {
+        let reason = GatewayDebugSnapshot.DroppedEventReason(
+            reason: "ended session",
+            count: 3,
+            lastAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        #expect(reason.id == "ended session")
+    }
+}
+
 @Suite("Gateway Restart Phase")
 internal struct GatewayRestartPhaseTests {
 
