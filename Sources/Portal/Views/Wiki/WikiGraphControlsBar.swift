@@ -9,6 +9,8 @@ internal struct WikiGraphControlsBar: View {
     /// Changeset timeline is a per-source capability (WikiChangesetSource);
     /// the host computes conformance and the bar just hides the toggle.
     internal let supportsTimeline: Bool
+    /// Present only when the home Harness advertises wiki.glossary.
+    internal let onGlossary: (() -> Void)?
     /// Whether an ingestion event log exists (WikiEventLogSource) — gates the
     /// Events door. A Bool rather than the source itself: the host resolves the
     /// capability against the *effective* source, which for the home gateway is
@@ -26,6 +28,17 @@ internal struct WikiGraphControlsBar: View {
             }
 
             surfaceToggles
+
+            if let onGlossary {
+                Button {
+                    onGlossary()
+                } label: {
+                    Image(systemName: "text.book.closed")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(.borderless)
+                .help("Edit this wiki's proper-noun glossary")
+            }
 
             Divider().frame(height: 14)
 
