@@ -188,6 +188,34 @@ struct StatTileSpecTests {
         #expect(tile.id == "Requests")
     }
 
+    @Test("Programmatic tiles preserve presentation metadata and defaults")
+    internal func programmaticTileInitialization() {
+        let tile = StatTileSpec.Tile(
+            label: "Latency",
+            value: .number(42.5),
+            unit: "ms",
+            delta: -3.2,
+            deltaLabel: "vs yesterday",
+            upIsGood: false,
+            trend: [48, 45, 42.5]
+        )
+
+        #expect(tile.id == "Latency")
+        #expect(tile.value.display == "42.5")
+        #expect(tile.unit == "ms")
+        #expect(tile.delta == -3.2)
+        #expect(tile.deltaLabel == "vs yesterday")
+        #expect(!tile.upIsGood)
+        #expect(tile.trend == [48, 45, 42.5])
+
+        let minimal = StatTileSpec.Tile(label: "Errors", value: .number(0))
+        #expect(minimal.upIsGood)
+        #expect(minimal.unit == nil)
+        #expect(minimal.delta == nil)
+        #expect(minimal.deltaLabel == nil)
+        #expect(minimal.trend == nil)
+    }
+
     @Test("Empty or malformed specs return nil")
     func malformed() {
         #expect(StatTileSpec.parse("{\"tiles\": []}") == nil)
