@@ -488,6 +488,7 @@ internal struct CurriculumParsingTests {
     internal func rejectsUnrelatedInput() {
         #expect(CurriculumResponse.extract(from: "Here's a thought about vectors.") == nil)
         #expect(CurriculumResponse.extract(from: "{}") == nil)
+        #expect(CurriculumResponse.extract(from: "[]") == nil)
         #expect(CurriculumResponse.extract(from: #"{"questions":[]}"#) == nil)
     }
 
