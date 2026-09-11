@@ -25,6 +25,18 @@ internal struct BackendKindTests {
         }
     }
 
+    @Test("saved gateway display name prefers a trimmed name, then host, then raw URL")
+    internal func savedGatewayDisplayNameFallbacks() {
+        let named = SavedGateway(name: "  Home  ", url: "wss://gateway.example.com", apiKey: "")
+        #expect(named.displayName == "Home")
+
+        let hostFallback = SavedGateway(name: " \n ", url: "wss://gateway.example.com:8642", apiKey: "")
+        #expect(hostFallback.displayName == "gateway.example.com")
+
+        let rawFallback = SavedGateway(name: "", url: "not a URL", apiKey: "")
+        #expect(rawFallback.displayName == "not a URL")
+    }
+
     @Test("Hermes product names distinguish Gateway from Standard")
     internal func hermesProductNames() {
         #expect(BackendKind.hermes.displayName == "Hermes Gateway")
