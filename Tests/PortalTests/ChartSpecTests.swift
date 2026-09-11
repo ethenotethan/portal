@@ -238,6 +238,15 @@ struct TimelineTests {
         #expect(range.upperBound == TimelineSpec.parseDate("2026-07-20"))
     }
 
+    @Test("An empty spec has no presentation domain")
+    internal func emptySpecPresentationDomain() {
+        let spec = TimelineSpec(title: nil, items: [])
+
+        #expect(spec.lanes.isEmpty)
+        #expect(spec.groups.isEmpty)
+        #expect(spec.dateRange == nil)
+    }
+
     @Test("Items expose stable lane-scoped identity and elapsed duration")
     internal func itemIdentityAndDuration() throws {
         let spec = try #require(TimelineSpec.parse("""
