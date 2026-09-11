@@ -36,6 +36,15 @@ struct SessionTests {
         #expect(owned.rpcID == "abc123")
     }
 
+    @Test("missing activity timestamps preserve live versus finished status")
+    internal func statusWithoutActivityTimestamps() {
+        let live = Session(id: "live", messageCount: 0, isRunning: true)
+        let finished = Session(id: "finished", messageCount: 0, isRunning: false)
+
+        #expect(live.status == .idle)
+        #expect(finished.status == .ended)
+    }
+
     @Test("Session with gateway title")
     func gatewayTitle() {
         let session = Session(id: "abc", title: "How to build an app", messageCount: 3)
