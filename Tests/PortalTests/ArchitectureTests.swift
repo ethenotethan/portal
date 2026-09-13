@@ -9,7 +9,7 @@ import Foundation
 /// (cross-file assertions like doc sync, or directory-structure invariants).
 /// The why behind each rule lives in `docs/architecture-rules.md`.
 @Suite("Architecture rules")
-struct ArchitectureTests {
+internal struct ArchitectureTests {
 
     // MARK: - Source tree location
 
@@ -47,7 +47,7 @@ struct ArchitectureTests {
     ]
 
     @Test("Services do not import SwiftUI (except the allowlist)")
-    func servicesDoNotImportSwiftUI() throws {
+    internal func servicesDoNotImportSwiftUI() throws {
         let servicesDir = Self.sourcesRoot.appendingPathComponent("Services")
         var offenders: [String] = []
         for file in Self.swiftFiles(under: servicesDir) {
@@ -80,7 +80,7 @@ struct ArchitectureTests {
     /// ViewModels, no constructions, so this checks the enforceable thing:
     /// no `SomethingView(` initializer call on a non-comment line.
     @Test("ViewModels do not construct View types")
-    func viewModelsDoNotConstructViews() throws {
+    internal func viewModelsDoNotConstructViews() throws {
         let viewModelsDir = Self.sourcesRoot.appendingPathComponent("ViewModels")
         let constructionPattern = try NSRegularExpression(
             pattern: #"\b[A-Z][A-Za-z]*View\("#
@@ -207,7 +207,7 @@ struct ArchitectureTests {
     // MARK: - No Utils/ directory
 
     @Test("Utils/ does not exist — Utilities/ is the one helpers directory")
-    func noUtilsDirectory() {
+    internal func noUtilsDirectory() {
         let utilsDir = Self.sourcesRoot.appendingPathComponent("Utils")
         var isDirectory: ObjCBool = false
         let exists = FileManager.default.fileExists(
@@ -228,7 +228,7 @@ struct ArchitectureTests {
     // MARK: - GatewayEvent wire types are documented
 
     @Test("Every GatewayEvent wire type appears in docs/rpc-reference.md")
-    func gatewayEventCasesAreDocumented() throws {
+    internal func gatewayEventCasesAreDocumented() throws {
         let eventFile = Self.sourcesRoot
             .appendingPathComponent("Models/GatewayEvent.swift")
         let source = try String(contentsOf: eventFile, encoding: .utf8)
