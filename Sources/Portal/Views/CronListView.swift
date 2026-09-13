@@ -45,7 +45,13 @@ struct CronListView: View {
                 // A move is fire-and-forget from the row context menu, so a
                 // rejected write has nowhere else to report itself.
                 if let error = cronViewModel.renameError {
-                    moveErrorBanner(error)
+                    moveErrorBanner(error) { cronViewModel.renameError = nil }
+                }
+                // A prompt save is refused in-band by the gateway (an older
+                // harness answers `unknown cron action: update`); the editor
+                // has already closed by then, so this is where it can say so.
+                if let error = cronViewModel.promptError {
+                    moveErrorBanner("Prompt not saved: \(error)") { cronViewModel.promptError = nil }
                 }
             }
         }
@@ -247,7 +253,7 @@ struct CronListView: View {
     /// SwiftUI-only construction, so a top-level banner view read as an unused
     /// declaration and tripped the dead-code ratchet. Members of an already-flagged
     /// view aren't reported separately.
-    private func moveErrorBanner(_ message: String) -> some View {
+    private func moveErrorBanner(_ message: String, onDismiss: @escaping () -> Void) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.caption2)
@@ -258,7 +264,7 @@ struct CronListView: View {
                 .lineLimit(3)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button { cronViewModel.renameError = nil } label: {
+            Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .semibold))
                     .opacity(0.8)

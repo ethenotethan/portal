@@ -29,6 +29,25 @@ struct CronJob: Identifiable, Equatable, Hashable {
         return looksTruncated
     }
 
+    /// Whether `preview` is the gateway's preview of `full`: identical, or
+    /// `full` begins with the preview minus its trailing ellipsis (the gateway
+    /// caps at 100 characters and appends `...`). No preview at all contradicts
+    /// nothing. This is the check that lets a fetched full prompt outlive a
+    /// `list` refresh without ever masking an edit made somewhere else.
+    internal static func previewMatches(full: String, preview: String?) -> Bool {
+        guard let preview else { return true }
+        if preview == full { return true }
+        var stem = preview
+        if stem.hasSuffix("...") {
+            stem.removeLast(3)
+        } else if stem.hasSuffix("…") {
+            stem.removeLast()
+        } else {
+            return false
+        }
+        return !stem.isEmpty && full.hasPrefix(stem)
+    }
+
     static func == (lhs: CronJob, rhs: CronJob) -> Bool {
         lhs.id == rhs.id
     }

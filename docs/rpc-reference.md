@@ -107,7 +107,12 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 
 | Method | Params | Description |
 |--------|--------|-------------|
-| `cron.manage` | `action:"list"` | Cron jobs: `job_id`, `name`, `schedule`, `next_run_at`, `last_run_at`, `last_status`, `enabled`, … |
+| `cron.manage` | `action:"list"` | Cron jobs: `job_id`, `name`, `schedule`, `next_run_at`, `last_run_at`, `last_status`, `enabled`, `prompt_preview` (100 chars + `...`), `source_files?`, … |
+| `cron.manage` | `action:"describe"`, `name` (job id) | One job with the **full** `prompt`, its `inputs`/`outputs`/`side_effects`/`source_files`/`context_from`, and `source_files_resolved` (same shape as the graph node's `source_files`). **4404** unknown job |
+| `cron.manage` | `action:"update"`, `name` (job id), any of `prompt`, `job_name` (new name), `schedule`, `deliver`, `inputs`, `outputs`, `side_effects`, `source_files`, `script`, `monitor_script`, `monitor_url`, `context_from`, `workdir`, `skills`, `enabled_toolsets`, `repeat` | Edit a job. `name` is already the identifier, so the new name travels as `job_name`. **4017** when the harness refuses the edit; **4016** on a harness too old to have `update` |
+| `cron.manage` | `action:"history"`, `name`, `limit?` | Execution ledger, newest first: `runs[]` (`status`, `claimed_at`, `started_at`, `finished_at`, `error`) + `job_name`, `count` |
+| `cron.manage` | `action:"pause"` / `"resume"` / `"remove"` / `"add"`, `name` | Lifecycle; `add` also takes `schedule`, `prompt` |
+| `cron.graph` | — | Dataflow graph: `nodes` (kind `cron` / `source` / `artifact` / `sink` / `service` / `object`) + typed `edges`. A `cron` node carries `source_files[]`: `{path, declared, role: script|monitor|declared, root?, rel?, exists}` — the job's code, each resolved onto a `files.read` root when it lives under one. Not part of the commitment digest (see `CronGraphDigest`) |
 
 ### wiki.*
 
