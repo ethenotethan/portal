@@ -1,8 +1,12 @@
 # Gateway RPC & Event Reference
 
-The complete catalog of WebSocket JSON-RPC methods the HermesNative app calls, the
-server events it handles, and the connection lifecycle. Generated from the
-`GatewayClient` sources — keep it in sync when adding methods.
+The complete catalog of WebSocket JSON-RPC methods Portal calls on a **Harness** gateway
+([`ethenotethan/harness`](https://github.com/ethenotethan/harness), the opinionated Hermes
+Agent fork Portal is the client for), the server events it handles, and the connection
+lifecycle. Generated from the `GatewayClient` sources — keep it in sync when adding
+methods. Almost everything here is Harness-only: stock hermes-agent has no `/v1/ws`. The
+server side of each surface is documented in Harness under `docs/api/`, and the full
+fork diff is at [ethenotethan.github.io/harness](https://ethenotethan.github.io/harness/).
 
 - **Outbound RPCs** are dispatched through `GatewayClient.call(_ method:params:)`.
 - **Inbound events** arrive as `method: "event"` notifications and are decoded into the

@@ -6,7 +6,7 @@ enforcement lives in two places:
 
 - **SwiftLint custom rules** (`.swiftlint.yml`, run with `--strict` in CI —
   warnings are promoted to errors, so every rule is blocking)
-- **Architecture tests** (`Tests/HermesNativeTests/ArchitectureTests.swift`,
+- **Architecture tests** (`Tests/PortalTests/ArchitectureTests.swift`,
   run by `swift test` — cross-file assertions regex linting can't express)
 
 ## The layers
@@ -362,7 +362,7 @@ stalled. The three root causes are all one symptom (the main run loop doesn't
 get back to idle in time): expensive pure work in a SwiftUI `body`, layout
 oscillation loops, and synchronous file I/O + JSON decode on the main actor.
 
-`MainThreadWatchdog` (`Sources/HermesNative/Utilities/MainThreadWatchdog.swift`,
+`MainThreadWatchdog` (`Sources/Portal/Utilities/MainThreadWatchdog.swift`,
 DEBUG-only) is the missing tripwire. It observes the main run loop and, when a
 turn stays busy past a threshold (250ms default), suspends the main thread,
 walks its stack, and reports the **exact call stack that stalled the UI** as an
