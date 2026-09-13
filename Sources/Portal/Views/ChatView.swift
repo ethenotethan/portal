@@ -874,6 +874,13 @@ struct ChatView: View {
                                     // broken response otherwise).
                                     DelegationBatchNoticeView(label: noticeLabel)
                                         .id(message.id)
+                                } else if let batch = message.asyncDelegationBatch {
+                                    // A full delegation-batch report — render each
+                                    // subagent as its own card instead of pushing
+                                    // the raw `--- TASK n/m ---` block through the
+                                    // markdown bubble as one wall of text.
+                                    AsyncDelegationBatchView(batch: batch)
+                                        .id(message.id)
                                 } else {
                                     // `index` is the message's position in the
                                     // unfiltered `msgs` (renderedMessages

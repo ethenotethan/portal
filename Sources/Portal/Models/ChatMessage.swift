@@ -136,6 +136,21 @@ struct ChatMessage: Identifiable, Codable {
         if label.hasPrefix("async ") { label = String(label.dropFirst("async ".count)) }
         return label.isEmpty ? "delegation batch complete" : label
     }
+
+    /// Non-nil when this assistant message is a *rich* async-delegation batch
+    /// completion report — the multi-task `[ASYNC DELEGATION BATCH COMPLETE —
+    /// deleg_…]` block the gateway re-injects when a fan-out of subagents
+    /// finishes. Unlike `delegationBatchNoticeLabel` (a bare marker with no
+    /// body), this one carries the full report — a preamble plus one `--- ✓ TASK
+    /// n/m … ---` section per subagent — which reads as an unformatted wall
+    /// through the plain markdown bubble. Parsing it lets the transcript render
+    /// each task as its own card; the two are mutually exclusive (a rich report
+    /// has content after the header, so `delegationBatchNoticeLabel` returns nil
+    /// for it, and vice versa).
+    internal var asyncDelegationBatch: DelegationBatchMessage? {
+        guard role == .assistant else { return nil }
+        return DelegationBatchMessage.parse(content)
+    }
 }
 
 /// Structured model/gateway-provided thinking/reasoning trace for a single assistant turn.
