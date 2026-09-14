@@ -1878,12 +1878,47 @@ spawnTreeStore.subscribe(to: client)
         // Resolve either form to the list row before selecting; if the list
         // hasn't loaded yet (cold launch from a tap), refresh and retry.
         Task { @MainActor in
+            // A switch is a request to SEE the session. The inbox and dashboard
+            // handlers close their own surface before selecting; this path is
+            // posted from surfaces that can't — an artifact intent's "Started
+            // session" chip lives inside the Artifacts overlay on macOS and a
+            // non-chat tab on iOS, and a system notification tap arrives with
+            // whatever was on screen. The session used to switch underneath a
+            // pane that stayed on top, so the tap read as dead.
+            revealChatSurface()
             if resolveAndSelectSession(sessionID) { return }
-            await sessionList.refreshSessions()
-            if !resolveAndSelectSession(sessionID) {
-                log.warning("notification tap: session \(sessionID) not found in list")
+            // A session spawned server-side (an artifact intent) gets its list
+            // row when the gateway seeds its first prompt, which on a slow host
+            // can land a beat after the response the chip was built from. Give
+            // the list a few refreshes before calling it missing.
+            for attempt in 1...3 {
+                await sessionList.refreshSessions()
+                if resolveAndSelectSession(sessionID) { return }
+                do {
+                    try await Task.sleep(for: .milliseconds(350 * attempt))
+                } catch {
+                    return
+                }
             }
+            log.warning("session switch: \(sessionID) not found in list after retries")
+            chatViewModel.showTransientStatus(
+                "That session isn't in the list yet — it should appear in the sidebar in a moment."
+            )
         }
+    }
+
+    /// Bring the chat to the front so a session switch is visible: on macOS
+    /// every top-level surface is an opaque overlay above the chat; on iOS the
+    /// chat is tab 0 and the artifact pane / sheets sit over it.
+    private func revealChatSurface() {
+        #if os(macOS)
+        closeAllOverlays()
+        #else
+        showActivitySheet = false
+        showLiveSessions = false
+        showArtifactsPane = false
+        selectedTab = 0
+        #endif
     }
 
     /// Select the sidebar row matching a stable DB id OR a runtime gateway id.
