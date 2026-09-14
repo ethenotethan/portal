@@ -14,6 +14,36 @@ internal enum AgentBackendError: LocalizedError {
     }
 }
 
+/// A resumed session's transcript plus, when the gateway reports the turn is
+/// still running, the in-flight turn — so the client can rebuild the live
+/// streaming shell instead of dropping every delta that arrives for it.
+///
+/// A session spawned by an artifact intent (or started on another device) runs
+/// its turn in the background; the resuming client never saw the `message.start`
+/// that opens the streaming shell, so without this it has no message for the
+/// running turn's deltas, thinking, tool and subagent events to attach to.
+internal struct ResumedSession {
+    internal var sessionID: String
+    internal var messages: [[String: AnyCodable]]
+    internal var inflight: InflightTurn?
+
+    internal init(sessionID: String, messages: [[String: AnyCodable]], inflight: InflightTurn? = nil) {
+        self.sessionID = sessionID
+        self.messages = messages
+        self.inflight = inflight
+    }
+}
+
+/// The turn a resumed session is running right now, as the gateway sees it.
+internal struct InflightTurn {
+    /// Assistant text streamed BEFORE this client resumed. Seeds the shell so
+    /// the visible answer doesn't restart from the next delta; the terminal
+    /// `message.complete` replaces it with the authoritative full text.
+    internal var assistantPartial: String
+    /// The gateway still has a live turn open on this session.
+    internal var isStreaming: Bool
+}
+
 /// The backend surface ChatViewModel actually consumes, extracted so a second
 /// agent platform (Centaur — REST + SSE) can sit behind the same chat UI as
 /// the Hermes gateway (WebSocket JSON-RPC).
@@ -60,6 +90,10 @@ protocol AgentBackend: AnyObject {
 
     func createSession(cols: Int) async throws -> String
     func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]])
+    /// Like `resumeSession`, but also surfaces the in-flight turn when the
+    /// gateway reports one still running. Backends with no live-turn resume
+    /// (Centaur) inherit the default below, which reports no in-flight turn.
+    func resumeSessionDetailed(key: String) async throws -> ResumedSession
     func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]]
     func interrupt(sessionID: String) async throws
 
@@ -185,6 +219,13 @@ struct BackendCapabilities: Sendable {
 // MARK: - Defaults for backends without a model catalog
 
 extension AgentBackend {
+    /// Default: resume with no in-flight turn. Backends that can resume INTO a
+    /// running turn (the Hermes gateway) override this to surface it.
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let result = try await resumeSession(key: key)
+        return ResumedSession(sessionID: result.sessionID, messages: result.messages, inflight: nil)
+    }
+
     /// Backends without an inventory RPC (Centaur) report no catalog; the
     /// picker falls back to the static list (or hides, per capabilities).
     func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
