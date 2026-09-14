@@ -2496,7 +2496,9 @@ client.eventStream
 
 
     /// Show a short-lived status line ("aggregating via …"); auto-clears.
-    private func showTransientStatus(_ text: String) {
+    /// Internal so the app shell can post a one-line status too (a session
+    /// switch that found nothing to switch to) instead of a modal error banner.
+    internal func showTransientStatus(_ text: String) {
         guard !text.isEmpty else { return }
         transientStatus = text
         transientStatusClearTask?.cancel()
