@@ -315,6 +315,48 @@ internal struct LiveSessionSwitchBackTests {
         #expect(vm.messages.last { $0.role == .assistant }?.content == "the whole answer")
         #expect(!vm.isStreaming)
     }
+
+    @Test("resuming into a turn this client never saw start streams the rest live")
+    internal func resumeIntoServerSpawnedRunningTurn() async {
+        let backend = LiveSwitchBackendSpy()
+        let vm = ChatViewModel()
+        vm.setGatewayClient(backend)
+        // An artifact intent spawned this session server-side: it has a stable DB
+        // id the row shows, and the live turn streams under a distinct runtime id.
+        // This client never observed the turn's message.start.
+        let stable = "20260915_101500_ab12cd"
+        let runtime = "3f9a1c22"
+        backend.runtimeIDBySession[stable] = runtime
+        backend.historyBySession[stable] = [
+            ["role": AnyCodable("user"), "text": AnyCodable("summarise the dataset")]
+        ]
+        // The gateway reports the turn still running, with the text streamed so far.
+        backend.inflightBySession[stable] = InflightTurn(assistantPartial: "Here is the ", isStreaming: true)
+
+        let generation = vm.beginSwitchToSession(key: stable)
+        let resumed = await vm.resumeSession(key: stable, generation: generation)
+        #expect(resumed)
+
+        // The shell was rebuilt from the in-flight snapshot: streaming, seeded
+        // with the partial, and current so live events for the runtime id attach.
+        #expect(vm.isStreaming)
+        let shell = vm.messages.last { $0.role == .assistant }
+        #expect(shell?.isStreaming == true)
+        #expect(shell?.content == "Here is the ")
+
+        // The rest of the turn — deltas and thinking keyed to the RUNTIME id —
+        // now lands instead of being dropped for want of a streaming shell.
+        vm.receiveGatewayEventForTesting(.thinkingDelta(text: "counting rows"), sessionID: runtime)
+        vm.receiveGatewayEventForTesting(.messageDelta(text: "summary.", rendered: nil), sessionID: runtime)
+        vm.flushDeltaBuffersForTesting()
+        let live = vm.messages.last { $0.role == .assistant }
+        #expect(live?.content == "Here is the summary.")
+        #expect(live?.reasoning?.contains("counting rows") == true)
+
+        vm.receiveGatewayEventForTesting(complete("Here is the summary."), sessionID: runtime)
+        #expect(vm.messages.last { $0.role == .assistant }?.content == "Here is the summary.")
+        #expect(!vm.isStreaming)
+    }
 }
 
 /// Minimal backend whose `session.resume` returns a persisted history that — like
@@ -331,12 +373,25 @@ private final class LiveSwitchBackendSpy: AgentBackend {
     internal let capabilities = BackendCapabilities.hermes
 
     internal var historyBySession: [String: [[String: AnyCodable]]] = [:]
+    /// A turn the gateway reports still running when this client resumes —
+    /// the artifact-intent-spawn case, where the turn was seeded server-side
+    /// and this client never saw its `message.start`.
+    internal var inflightBySession: [String: InflightTurn] = [:]
+    /// Maps a resumed stable key to the runtime id the gateway hands back and
+    /// streams live events under. Defaults to the key itself.
+    internal var runtimeIDBySession: [String: String] = [:]
 
     internal func modelOptions(sessionID: String?, refresh: Bool) async throws -> ModelCatalog? { nil }
     internal func createSession(cols: Int) async throws -> String { "spy-session" }
     internal func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {
-        activeSessionID = key
-        return (key, historyBySession[key] ?? [])
+        let runtime = runtimeIDBySession[key] ?? key
+        activeSessionID = runtime
+        return (runtime, historyBySession[key] ?? [])
+    }
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let runtime = runtimeIDBySession[key] ?? key
+        activeSessionID = runtime
+        return ResumedSession(sessionID: runtime, messages: historyBySession[key] ?? [], inflight: inflightBySession[key])
     }
     internal func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] { [] }
     internal func interrupt(sessionID: String) async throws {}
