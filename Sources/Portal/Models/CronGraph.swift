@@ -40,6 +40,158 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     internal let lastStatus: String?
     internal let deliver: String?
     internal var health: CronServiceHealth? = nil // swiftlint:disable:this implicit_optional_initialization
+    /// The code behind a `cron` node: its `script` / `monitor_script` plus every
+    /// path the job declared under `source_files`, each resolved by the gateway
+    /// onto a file-browser root so it can be opened with `files.read`. Empty for
+    /// every other kind, and for jobs that run no code of their own.
+    ///
+    /// Node metadata rather than nodes of its own: a script is what a job is
+    /// *made of*, not something it exchanges data with, so drawing it as a
+    /// resource would clutter the dataflow with edges that carry no data.
+    internal var sourceFiles: [CronSourceFile] = []
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, type, label, description, schedule, enabled, usesLLM, lastStatus, deliver, health
+        case sourceFiles
+    }
+
+    internal init(
+        id: String,
+        kind: String,
+        type: String,
+        label: String,
+        description: String,
+        schedule: String?,
+        enabled: Bool,
+        usesLLM: Bool,
+        lastStatus: String?,
+        deliver: String?,
+        health: CronServiceHealth? = nil,
+        sourceFiles: [CronSourceFile] = []
+    ) {
+        self.id = id
+        self.kind = kind
+        self.type = type
+        self.label = label
+        self.description = description
+        self.schedule = schedule
+        self.enabled = enabled
+        self.usesLLM = usesLLM
+        self.lastStatus = lastStatus
+        self.deliver = deliver
+        self.health = health
+        self.sourceFiles = sourceFiles
+    }
+
+    /// Tolerates a snapshot written before `sourceFiles` existed: the revision
+    /// log persists whole graphs (`CronGraphRevisionStore`), and a log that
+    /// fails to decode starts over — losing every observed revision for the
+    /// sake of one absent key would be the wrong trade.
+    internal init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        kind = try container.decode(String.self, forKey: .kind)
+        type = try container.decode(String.self, forKey: .type)
+        label = try container.decode(String.self, forKey: .label)
+        description = try container.decode(String.self, forKey: .description)
+        schedule = try container.decodeIfPresent(String.self, forKey: .schedule)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        usesLLM = try container.decode(Bool.self, forKey: .usesLLM)
+        lastStatus = try container.decodeIfPresent(String.self, forKey: .lastStatus)
+        deliver = try container.decodeIfPresent(String.self, forKey: .deliver)
+        health = try container.decodeIfPresent(CronServiceHealth.self, forKey: .health)
+        sourceFiles = try container.decodeIfPresent([CronSourceFile].self, forKey: .sourceFiles) ?? []
+    }
+}
+
+/// One file of the code behind a cron job, as the gateway resolved it.
+///
+/// `role` says how the job came to have it: `script` (the job's `script`
+/// field — for a no-agent job this *is* the job), `monitor` (its
+/// `monitor_script`), or `declared` (listed by the creating agent under
+/// `source_files`). `root` + `relativePath` address it for `files.read` when
+/// the file lives under a browsable root; both nil means it's listed but not
+/// openable from here. `exists` is the gateway host's view at graph-build time.
+internal struct CronSourceFile: Identifiable, Hashable, Codable {
+    /// Absolute path on the gateway host — the identity.
+    internal let path: String
+    /// The value as written on the job (`ingest.py`, `~/x.sh`, …).
+    internal let declared: String
+    internal let role: String
+    internal let root: String?
+    internal let relativePath: String?
+    internal let exists: Bool
+
+    internal var id: String { path }
+
+    /// Leaf name for display.
+    internal var fileName: String { (path as NSString).lastPathComponent }
+
+    /// The directory the file sits in, relative to its root — what a folder
+    /// disclosure lists. Empty for a file at the root's top level, nil when the
+    /// file isn't under any root.
+    internal var relativeDirectory: String? {
+        guard let relativePath else { return nil }
+        return (relativePath as NSString).deletingLastPathComponent
+    }
+
+    /// Whether the client can ask the gateway for its contents.
+    internal var isOpenable: Bool { root != nil && relativePath != nil }
+
+    /// Roles sort mechanical-first so what the scheduler actually executes
+    /// leads the list, then what the agent said it also touches.
+    internal var roleRank: Int {
+        switch role {
+        case "script": return 0
+        case "monitor": return 1
+        default: return 2
+        }
+    }
+
+    internal static func decodeGatewayValue(_ value: AnyCodable) -> CronSourceFile? {
+        guard let d = value.dictionaryValue,
+              let path = d["path"]?.stringValue, !path.isEmpty else { return nil }
+        return CronSourceFile(
+            path: path,
+            declared: d["declared"]?.stringValue ?? path,
+            role: d["role"]?.stringValue ?? "declared",
+            root: d["root"]?.stringValue,
+            relativePath: d["rel"]?.stringValue,
+            exists: d["exists"]?.boolValue ?? false
+        )
+    }
+}
+
+/// Source files bucketed by the browse root they open under — how the explorer
+/// lists them, one disclosure group per root with the unopenable leftovers
+/// last under a nil root.
+internal struct CronSourceFileGroup: Identifiable, Equatable {
+    internal let root: String?
+    internal let files: [CronSourceFile]
+
+    internal var id: String { root ?? "\u{1}outside" }
+
+    /// Group `files` by root, roots alphabetical, the rootless group last;
+    /// within a group mechanical roles lead and ties break on path.
+    internal static func grouping(_ files: [CronSourceFile]) -> [CronSourceFileGroup] {
+        var byRoot: [String?: [CronSourceFile]] = [:]
+        for file in files {
+            byRoot[file.root, default: []].append(file)
+        }
+        let sortedRoots = byRoot.keys.sorted { lhs, rhs in
+            switch (lhs, rhs) {
+            case let (l?, r?): return l < r
+            case (nil, _): return false
+            case (_, nil): return true
+            }
+        }
+        return sortedRoots.map { root in
+            let members = (byRoot[root] ?? []).sorted {
+                ($0.roleRank, $0.path) < ($1.roleRank, $1.path)
+            }
+            return CronSourceFileGroup(root: root, files: members)
+        }
+    }
 }
 
 /// Runtime evidence attached only to service nodes. A status is application
@@ -121,6 +273,7 @@ internal struct CronGraph: Codable, Equatable {
             } else {
                 health = nil
             }
+            let sourceFiles = (d["source_files"]?.arrayValue ?? []).compactMap(CronSourceFile.decodeGatewayValue)
             return CronGraphNode(
                 id: id,
                 kind: kind,
@@ -132,7 +285,8 @@ internal struct CronGraph: Codable, Equatable {
                 usesLLM: d["uses_llm"]?.boolValue ?? false,
                 lastStatus: d["last_status"]?.stringValue,
                 deliver: d["deliver"]?.stringValue,
-                health: health
+                health: health,
+                sourceFiles: sourceFiles
             )
         }
 

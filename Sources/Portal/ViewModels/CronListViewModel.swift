@@ -45,6 +45,12 @@ internal final class CronListViewModel {
     /// unused declaration and trips the dead-code ratchet.
     internal var renameError: String?
 
+    /// Why the last prompt save was refused, or nil when it went through. Same
+    /// reasoning as `renameError`: `cron.manage` answers a refusal in-band
+    /// (`response.error`) rather than by throwing, so a save the gateway
+    /// rejected used to be indistinguishable from one it accepted.
+    internal var promptError: String?
+
     private var gatewayClient: GatewayClient?
     /// When set, cron reads/actions route to the upstream Hermes dashboard over
     /// HTTP instead of the WebSocket Gateway. A Standard backend is HTTP-only,
@@ -87,7 +93,8 @@ internal final class CronListViewModel {
         guard let client = gatewayClient else { return }
         isLoading = true
         do {
-            jobs = try await client.listCronJobs()
+            let fetched = try await client.listCronJobs()
+            jobs = Self.preservingFetchedPrompts(in: fetched, from: jobs)
             CronRunHistoryStore.shared.detectNewRuns(from: jobs)
             CronRunHistoryStore.shared.seedFromJobs(jobs)
         } catch {
@@ -106,6 +113,27 @@ internal final class CronListViewModel {
             graph = try await client.cronGraph()
         } catch {
             log.error("Failed to fetch cron graph: \(error)")
+        }
+    }
+
+    /// Carry full prompts already fetched by `describe` across a `list` refresh.
+    ///
+    /// `list` only ever carries the 100-character `prompt_preview`, so replacing
+    /// the array wholesale threw away every full prompt the moment the poller
+    /// ticked or a save refreshed the list — the card snapped back to the preview
+    /// and its "may be truncated" badge, which read as the fetch never having
+    /// worked. A kept prompt must still *match* the fresh preview (same text up
+    /// to the ellipsis); otherwise an edit made elsewhere would be masked by the
+    /// stale text, and the next expand re-fetches instead.
+    nonisolated internal static func preservingFetchedPrompts(in fresh: [CronJob], from previous: [CronJob]) -> [CronJob] {
+        let previousByID = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return fresh.map { job in
+            guard job.prompt == nil,
+                  let full = previousByID[job.id]?.prompt,
+                  CronJob.previewMatches(full: full, preview: job.promptPreview) else { return job }
+            var kept = job
+            kept.prompt = full
+            return kept
         }
     }
 
@@ -215,14 +243,30 @@ internal final class CronListViewModel {
     func updatePrompt(id: String, newPrompt: String) async {
         guard let client = gatewayClient else { return }
         do {
-            let _ = try await client.call("cron.manage", params: [
+            let response = try await client.call("cron.manage", params: [
                 "action": AnyCodable("update"),
                 "name": AnyCodable(id),
                 "prompt": AnyCodable(newPrompt)
             ])
+            if let error = response.error {
+                // An RPC-level refusal doesn't throw, so without this the editor
+                // closed, the list refreshed unchanged, and a rejected save (or a
+                // harness without `update`, error 4016) looked like a success.
+                log.error("Gateway refused prompt update for job \(id): \(error.code) \(error.message)")
+                promptError = error.message
+                return
+            }
+            promptError = nil
+            // The refresh below only brings back the preview; hold the text just
+            // saved as the full prompt so the card doesn't snap to a truncated
+            // copy of what was typed a moment ago.
+            if let idx = jobs.firstIndex(where: { $0.id == id }) {
+                jobs[idx].prompt = newPrompt
+            }
             await refreshJobs()
         } catch {
             log.error("Failed to update prompt for job \(id): \(error)")
+            promptError = error.localizedDescription
         }
     }
 

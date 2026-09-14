@@ -1299,27 +1299,18 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         let nextRunAt: Date? = d["next_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
         let lastRunAt: Date? = d["last_run_at"]?.stringValue.flatMap { iso8601Formatter.date(from: $0) }
 
-        let promptValue: String? = {
-            let candidates = [
-                d["prompt"]?.stringValue,
-                d["full_prompt"]?.stringValue,
-                d["prompt_text"]?.stringValue,
-                d["cron_prompt"]?.stringValue,
-                d["command"]?.stringValue,
-                d["task"]?.stringValue,
-                d["script"]?.stringValue,
-                d["description"]?.stringValue,
-                d["body"]?.stringValue,
-                d["text"]?.stringValue,
-                d["message"]?.stringValue,
-                d["query"]?.stringValue,
-                d["content"]?.stringValue,
-                d["args"]?.stringValue,
-                d["input"]?.stringValue,
-                d["prompt_preview"]?.stringValue
-            ]
-            return candidates.compactMap { $0 }.first
-        }()
+        // Only keys that carry the WHOLE prompt. `list` answers with
+        // `prompt_preview` alone, and that must leave `prompt` nil: the model's
+        // "do we hold the full text" question (`CronJob.isPromptTruncated`) is
+        // answered by `prompt` being set, so folding the preview in here made a
+        // truncated job look complete. The old fallback chain also reached for
+        // `script` and `description`, which put a script *path* where a
+        // script-driven job's prompt belonged.
+        let promptValue: String? = [
+            d["prompt"]?.stringValue,
+            d["full_prompt"]?.stringValue,
+            d["prompt_text"]?.stringValue,
+        ].compactMap { $0 }.first
 
         let lastError: String? = [
             d["last_error"]?.stringValue,

@@ -55,6 +55,12 @@ extension CronGraphDigest {
     /// be able to see later. Every edge is in for the same reason: an edge
     /// appearing is a job reading something new.
     ///
+    /// `sourceFiles` is also out, for a different reason: the gateway takes the
+    /// same commitment in Python (`cron/changesets.py`, `_node_row`) and the two
+    /// must agree byte-for-byte, so the node row grows only as a coordinated
+    /// change on both sides. Until then, declaring code is metadata on a
+    /// revision, not a revision.
+    ///
     /// `lastStatus` and `health` are deliberately **out**, along with anything
     /// else that moves on its own. The graph is re-fetched every 10 seconds for
     /// service health (`CronGraphViewModel.refreshRuntimeState`), and a
@@ -107,7 +113,8 @@ extension CronGraphDigest {
                     id: node.id, kind: node.kind, type: node.type, label: node.label,
                     description: node.description, schedule: node.schedule,
                     enabled: node.enabled, usesLLM: node.usesLLM,
-                    lastStatus: nil, deliver: node.deliver, health: nil
+                    lastStatus: nil, deliver: node.deliver, health: nil,
+                    sourceFiles: node.sourceFiles
                 )
             },
             edges: graph.edges

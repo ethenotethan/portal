@@ -13,6 +13,12 @@ import SwiftUI
 /// Tapping a dataflow chip inside the job card highlights the matching node and
 /// swaps the sidebar to it — reads/writes become navigation. Escape (or the
 /// collapse button) closes the takeover.
+///
+/// A **cron** node's sidebar also lists the code behind the job (its scripts
+/// and declared source files, from the graph node itself); opening one adds a
+/// read-only reader as a third column beside the sidebar — on a phone, a sheet
+/// over the inspector — so the script a job runs is readable without leaving
+/// the graph.
 @MainActor
 internal struct CronDataflowExpandedView: View {
     @ObservedObject internal var graphVM: CronGraphViewModel
@@ -27,6 +33,8 @@ internal struct CronDataflowExpandedView: View {
     /// Real per-run ledgers fetched on selection, keyed by job id — the same
     /// lazy load the Jobs pane does on card expand.
     @State private var ledgers: [String: [CronRunRecord]] = [:]
+    /// The source-file explorer + reader state for the selected job.
+    @StateObject private var sourceVM = CronSourceFilesViewModel()
 
     internal init(
         graphVM: CronGraphViewModel,
@@ -40,7 +48,23 @@ internal struct CronDataflowExpandedView: View {
 
     internal var body: some View {
         expandedSurface
+            .task { sourceVM.setClient(gatewayClientWrapper.client) }
             .task(id: graphVM.selectedNode?.id) { await loadSelected() }
+            // A file asked for from the inline dock, before this surface existed:
+            // open it once we're here, then clear the request so re-selecting the
+            // node later doesn't replay it.
+            .task(id: graphVM.requestedSourceFile) {
+                guard let file = graphVM.requestedSourceFile else { return }
+                graphVM.requestedSourceFile = nil
+                await sourceVM.open(file)
+            }
+            // Selecting another node retires the reader: a file from job A open
+            // beside job B's card would read as B's code.
+            .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
+    }
+
+    private func openSourceFile(_ file: CronSourceFile) {
+        Task { await sourceVM.open(file) }
     }
 
     @ViewBuilder
@@ -69,8 +93,24 @@ internal struct CronDataflowExpandedView: View {
                     detailSidebar(node)
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
+                        // The reader stacks over the inspector sheet rather than
+                        // beside it — there's no width for a third column here.
+                        .sheet(isPresented: readerSheetBinding) {
+                            CronSourceFileReaderPane(viewModel: sourceVM, onClose: { sourceVM.close() })
+                                .presentationDetents([.large])
+                                .presentationDragIndicator(.visible)
+                        }
                 }
             }
+    }
+
+    private var readerSheetBinding: Binding<Bool> {
+        Binding(
+            get: { sourceVM.isPresentingReader },
+            set: { isPresented in
+                if !isPresented { sourceVM.close() }
+            }
+        )
     }
 
     private var compactHeader: some View {
@@ -113,9 +153,16 @@ internal struct CronDataflowExpandedView: View {
                 detailSidebar(node)
                     .frame(width: 360)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
+                if sourceVM.isPresentingReader {
+                    Divider().overlay(Theme.border)
+                    CronSourceFileReaderPane(viewModel: sourceVM, onClose: { sourceVM.close() })
+                        .frame(minWidth: 380, idealWidth: 540, maxWidth: 680)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
         }
         .animation(.easeInOut(duration: 0.18), value: graphVM.selectedNodeIndex)
+        .animation(.easeInOut(duration: 0.18), value: sourceVM.isPresentingReader)
         #if os(iOS)
         .safeAreaInset(edge: .top, spacing: 0) { compactHeader }
         #endif
@@ -162,11 +209,20 @@ internal struct CronDataflowExpandedView: View {
     @ViewBuilder
     private func detailSidebar(_ node: CronGraphNode) -> some View {
         ScrollView {
-            Group {
+            VStack(alignment: .leading, spacing: 12) {
                 if node.kind == "cron", let job = listVM.jobs.first(where: { $0.id == node.id }) {
                     cronCard(job)
                 } else {
                     resourceCard(node)
+                }
+                // The code behind the job, from the node itself — shown for any
+                // cron node, whether or not the job list has caught up with it.
+                if node.kind == "cron", !node.sourceFiles.isEmpty {
+                    CronSourceFilesSection(
+                        files: node.sourceFiles,
+                        viewModel: sourceVM,
+                        onOpen: openSourceFile
+                    )
                 }
             }
             .padding(12)

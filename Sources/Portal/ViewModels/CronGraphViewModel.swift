@@ -53,6 +53,11 @@ internal final class CronGraphViewModel: ObservableObject {
     internal private(set) var relationshipEdgeTypes: Set<String> = []
     @Published internal var selectedNodeIndex: Int?
     @Published internal var hoveredNodeIndex: Int?
+    /// A source file someone asked to read from a surface that has no reader of
+    /// its own — the inline detail dock — handed to the full-screen graph, which
+    /// opens it once it appears and then clears this. Lives on the shared view
+    /// model because the two surfaces are otherwise unaware of each other.
+    @Published internal var requestedSourceFile: CronSourceFile?
     /// Group scheme keys currently collapsed into a single super-node. Persists
     /// across reloads (stale keys are ignored) so a folded-away cluster stays
     /// folded when the graph refreshes.

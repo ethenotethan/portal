@@ -471,6 +471,9 @@ internal struct CronInterflowGraphView: View {
                     if let health = node.health {
                         CronServiceHealthDetails(health: health)
                     }
+                    if node.kind == "cron", !node.sourceFiles.isEmpty {
+                        sourceFilesList(node.sourceFiles)
+                    }
                     connectionsList
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -523,6 +526,49 @@ internal struct CronInterflowGraphView: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+
+    /// The code behind a job, as the graph node declares it. The dock has no
+    /// room for a reader, so a row hands the file to the full-screen surface
+    /// (via the shared view model) and expands into it — the same hop the
+    /// Expand button makes, landing on the file already open.
+    @ViewBuilder
+    private func sourceFilesList(_ files: [CronSourceFile]) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Text("Source files")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Theme.secondary.opacity(0.7))
+        ForEach(files.sorted { ($0.roleRank, $0.path) < ($1.roleRank, $1.path) }) { file in
+            Button {
+                viewModel.requestedSourceFile = file
+                onExpand?()
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: CronSourceFilesSection.icon(for: file.fileName))
+                        .font(.system(size: 9))
+                        .foregroundStyle(file.isOpenable ? Theme.secondary : Theme.tertiary)
+                        .frame(width: 12)
+                    Text(file.fileName)
+                        .font(.system(size: 11))
+                        .foregroundStyle(file.isOpenable ? Theme.secondary : Theme.tertiary)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(CronSourceFilesSection.roleTitle(file.role))
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiary)
+                    if !file.exists {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.warning)
+                            .help("Not present on the gateway host")
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(onExpand == nil || !file.isOpenable)
+            .help(file.isOpenable ? "Open \(file.fileName) in the full-screen graph" : "Outside the browsable roots")
         }
     }
 
