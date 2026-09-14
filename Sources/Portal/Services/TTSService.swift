@@ -101,13 +101,16 @@ final class TTSService: ObservableObject {
         static let voice = "portal.tts.voiceIdentifier"
     }
 
+    /// `playback` defaults to the system session; resolved inside the body
+    /// because a `@MainActor` type can't be built in a default-argument
+    /// expression (those are evaluated nonisolated).
     internal init(
         synthesizer: any SpeechSynthesizing = AVSpeechSynthesizer(),
-        playback: any SpeechPlaybackSessioning = SystemSpeechPlaybackSession(),
+        playback: (any SpeechPlaybackSessioning)? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.synthesizer = synthesizer
-        self.playback = playback
+        self.playback = playback ?? SystemSpeechPlaybackSession()
         self.defaults = defaults
         isEnabled = defaults.bool(forKey: Keys.enabled)
         speaksWhileStreaming = defaults.object(forKey: Keys.streaming) as? Bool ?? true
@@ -116,7 +119,7 @@ final class TTSService: ObservableObject {
         voiceIdentifier = defaults.string(forKey: Keys.voice)
         delegateBridge.service = self
         synthesizer.delegate = delegateBridge
-        playback.onRemoteCommand = { [weak self] command in self?.handleRemote(command) }
+        self.playback.onRemoteCommand = { [weak self] command in self?.handleRemote(command) }
         log.info("TTS voice: \(self.resolvedVoice?.name ?? "system default")")
     }
 
