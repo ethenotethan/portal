@@ -9,7 +9,7 @@ another device — do the following once:
 ## 1. Apple Developer portal
 
 - Enable **Push Notifications** on both app IDs
-  (`com.researchoors.HermesNative.macOS`, `com.researchoors.HermesNative.iOS`)
+  (`com.ethenotethan.Portal.macOS`, `com.ethenotethan.Portal.iOS`)
   under Certificates, Identifiers & Profiles → Identifiers.
 - Create an **APNs Auth Key** (.p8) under Keys. Note the Key ID and Team ID.
 - Regenerate/refresh provisioning profiles so they include the push capability
@@ -17,14 +17,14 @@ another device — do the following once:
 
 ## 2. App entitlements
 
-Add to `HermesNative-macOS.entitlements`:
+Add to `Portal.entitlements` (macOS):
 
 ```xml
 <key>com.apple.developer.aps-environment</key>
 <string>development</string>   <!-- "production" for notarized/TestFlight -->
 ```
 
-And to `HermesNative-iOS.entitlements`:
+And to `Portal-iOS.entitlements`:
 
 ```xml
 <key>aps-environment</key>
@@ -43,7 +43,7 @@ Configure the hermes-agent gateway (see its `docs/api/apns-push.md`):
 APNS_KEY_PATH=~/.hermes/AuthKey_ABC123.p8
 APNS_KEY_ID=ABC123DEFG
 APNS_TEAM_ID=TEAM456789
-APNS_BUNDLE_ID=com.researchoors.HermesNative.macOS
+APNS_BUNDLE_ID=com.ethenotethan.Portal.macOS
 APNS_ENV=sandbox   # for Xcode debug builds; unset for production
 ```
 
