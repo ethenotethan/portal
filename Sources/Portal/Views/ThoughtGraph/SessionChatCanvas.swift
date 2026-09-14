@@ -656,6 +656,9 @@ internal struct SessionChatCanvas: View {
 
     private var composer: some View {
         VStack(spacing: 8) {
+            // Read-aloud transport, only while something is being spoken.
+            SpeechNowPlayingBar()
+                .frame(maxWidth: 840, alignment: .center)
             if chatViewModel.pendingApproval != nil {
                 ApprovalBanner()
                     .environmentObject(chatViewModel)

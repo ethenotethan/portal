@@ -2100,6 +2100,8 @@ client.eventStream
     /// Interrupt the current agent turn.
     func interrupt() async {
         guard !isStopping else { return }
+        // Stop reading an answer the user just cut off.
+        TTSService.shared.stop()
         guard let client = gatewayClient, let sid = sessionID else {
             finishStreaming(status: "interrupted")
             await reasoningGraph.finalize()
@@ -2804,11 +2806,20 @@ client.eventStream
         // the user had clicked to by the time the block ran. The hop bought
         // nothing (same thread, same runloop turn's end) and cost correctness.
         if !messageDelta.isEmpty {
+            var spokenMessageID: UUID?
             if let msgID = streamingMessageID,
                let idx = messages.firstIndex(where: { $0.id == msgID }) {
                 messages[idx].content += messageDelta
+                spokenMessageID = msgID
             } else if isStreaming, let idx = messages.lastIndex(where: { $0.role == .assistant && $0.isStreaming }) {
                 messages[idx].content += messageDelta
+                spokenMessageID = messages[idx].id
+            }
+            // Speak sentences as they close, from the same coalesced buffer the
+            // transcript renders — one place, so the voice can't run ahead of or
+            // double up on what's on screen. A no-op unless speech is on.
+            if let spokenMessageID {
+                TTSService.shared.streamDelta(messageDelta, messageID: spokenMessageID)
             }
         }
         let thoughtDelta = reasoningDelta + thinkingDelta
