@@ -95,7 +95,7 @@ internal struct SpeechSettingsSection: View {
                 .textCase(.uppercase)
 
             Picker("Voice", selection: $speech.voiceIdentifier) {
-                Text("Best available (\(speech.resolvedVoice?.name ?? "system default"))")
+                Text("Best for your region (\(speech.resolvedVoice.map(Self.label(for:)) ?? "system default"))")
                     .tag(String?.none)
                 ForEach(voices, id: \.identifier) { voice in
                     Text(Self.label(for: voice)).tag(Optional(voice.identifier))
@@ -106,9 +106,19 @@ internal struct SpeechSettingsSection: View {
             Toggle("Show voices for all languages", isOn: $showsAllLanguages)
                 .font(.caption)
 
-            Text("Higher-quality voices are downloaded in System Settings → Accessibility → Spoken Content.")
+            if let voice = speech.resolvedVoice, voice.quality == .default {
+                Label(
+                    "\(voice.name) is a compact voice and will sound synthetic. Download an Enhanced or Premium voice "
+                    + "in System Settings → Accessibility → Spoken Content → System Voice → Manage Voices, then pick it here.",
+                    systemImage: "exclamationmark.triangle"
+                )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.warning)
+            } else {
+                Text("Higher-quality voices are downloaded in System Settings → Accessibility → Spoken Content.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

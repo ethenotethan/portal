@@ -66,6 +66,10 @@ internal struct TTSServiceTests {
         let service = TTSService(synthesizer: synth, playback: playback, defaults: defaults)
         service.isEnabled = enabled
         service.speaksWhileStreaming = streaming
+        // Per-sentence utterances make the queue observable one step at a time;
+        // batching has its own test below.
+        service.streamingBatchLength = 0
+        service.utteranceTargetLength = 0
         return Rig(synth: synth, playback: playback, service: service, defaults: defaults)
     }
 
@@ -96,7 +100,7 @@ internal struct TTSServiceTests {
         #expect(!reloaded.speaksWhileStreaming)
     }
 
-    @Test("fresh defaults: speech off, streaming and code announcements on, rate 1.1")
+    @Test("fresh defaults: speech off, streaming and code announcements on, rate 1.0")
     internal func freshDefaults() {
         let suite = "tts-fresh-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
@@ -104,7 +108,7 @@ internal struct TTSServiceTests {
         #expect(!service.isEnabled)
         #expect(service.speaksWhileStreaming)
         #expect(service.announcesCodeBlocks)
-        #expect(service.rateMultiplier == 1.1)
+        #expect(service.rateMultiplier == 1.0)
         #expect(service.voiceIdentifier == nil)
     }
 
@@ -129,6 +133,7 @@ internal struct TTSServiceTests {
         let texts = r.synth.spoken.map(\.speechString)
         #expect(texts == ["First bold sentence.", "See code here!", "Code block omitted."])
         #expect(r.synth.spoken.allSatisfy { $0.rate == Float(2.0) * AVSpeechUtteranceDefaultSpeechRate })
+        #expect(r.synth.spoken.allSatisfy { $0.preUtteranceDelay == 0 && $0.postUtteranceDelay == 0 })
         #expect(r.service.isSpeaking)
         #expect(r.playback.activations == 1)
     }
@@ -297,21 +302,47 @@ internal struct TTSServiceTests {
 
     // MARK: Voices
 
-    @Test("default voice prefers the best quality in the requested language, then anything")
+    @Test("default voice prefers the locale's region, then its language, then anything — best quality within each")
     internal func defaultVoicePreference() {
         let voices = AVSpeechSynthesisVoice.speechVoices()
         guard !voices.isEmpty else { return }
-        let english = voices.filter { $0.language.hasPrefix("en") }
-        let chosen = TTSService.defaultVoice(among: voices, languageCode: "en")
-        if english.isEmpty {
-            #expect(chosen != nil)
+        let us = Locale(identifier: "en_US")
+        let chosen = TTSService.defaultVoice(among: voices, locale: us)
+        let regional = voices.filter { $0.language.lowercased() == "en-us" }
+        if !regional.isEmpty {
+            #expect(chosen?.language.lowercased() == "en-us")
+            #expect(chosen?.quality.rawValue == regional.map(\.quality.rawValue).max())
         } else {
-            #expect(chosen?.language.hasPrefix("en") == true)
-            let best = english.map(\.quality.rawValue).max()
-            #expect(chosen?.quality.rawValue == best)
+            #expect(chosen != nil)
         }
-        #expect(TTSService.defaultVoice(among: voices, languageCode: "zz-none") != nil)
-        #expect(TTSService.defaultVoice(among: [], languageCode: "en") == nil)
+        // A region with no voices falls back to the language, not to nothing.
+        let fallback = TTSService.defaultVoice(among: voices, locale: Locale(identifier: "en_ZZ"))
+        #expect(fallback?.language.lowercased().hasPrefix("en") == true || voices.allSatisfy { !$0.language.hasPrefix("en") })
+        #expect(TTSService.defaultVoice(among: voices, locale: Locale(identifier: "zz_ZZ")) != nil)
+        #expect(TTSService.defaultVoice(among: [], locale: us) == nil)
+    }
+
+    @Test("streamed sentences are batched to the configured length, and the tail flushes at completion")
+    internal func streamingBatches() {
+        let r = rig()
+        r.service.streamingBatchLength = 25
+        let id = UUID()
+        r.service.streamDelta("One two. ", messageID: id)
+        #expect(r.synth.spoken.isEmpty, "8 chars: not enough for an utterance yet")
+        r.service.streamDelta("Three four five six. ", messageID: id)
+        #expect(r.synth.spoken.map(\.speechString) == ["One two. Three four five six."])
+        r.service.streamDelta("Tail", messageID: id)
+        r.service.finishStreaming(messageID: id)
+        #expect(r.synth.spoken.map(\.speechString) == ["One two. Three four five six.", "Tail"])
+    }
+
+    @Test("a whole message is cut at paragraphs, then merged toward the target length without splitting sentences")
+    internal func utteranceCutting() {
+        let text = "Alpha one. Beta two. Gamma three.\n\nDelta four.\n\n" + String(repeating: "x", count: 50) + "."
+        let pieces = TTSService.utterances(from: text, targetLength: 22)
+        #expect(pieces == ["Alpha one. Beta two.", "Gamma three.", "Delta four.", String(repeating: "x", count: 50) + "."])
+        #expect(TTSService.utterances(from: "A. B. C.", targetLength: 400) == ["A. B. C."])
+        #expect(TTSService.utterances(from: "\n\n  \n", targetLength: 10).isEmpty)
     }
 
     @Test("a voice identifier that isn't installed falls back rather than muting")
@@ -320,6 +351,6 @@ internal struct TTSServiceTests {
         r.service.voiceIdentifier = "com.nowhere.voice.missing"
         r.service.speak("Still audible.")
         #expect(r.synth.spoken.count == 1)
-        #expect(r.service.resolvedVoice == TTSService.defaultVoice(among: TTSService.availableVoices(), languageCode: Locale.current.language.languageCode?.identifier ?? "en"))
+        #expect(r.service.resolvedVoice == TTSService.defaultVoice(among: TTSService.availableVoices(), locale: Locale.current))
     }
 }

@@ -54,7 +54,7 @@ final class TTSService: ObservableObject {
         didSet { defaults.set(announcesCodeBlocks, forKey: Keys.announceCode) }
     }
     /// Speaking rate as a multiple of the system default (`0.5 ... 2.0`).
-    @Published internal var rateMultiplier: Double = 1.1 {
+    @Published internal var rateMultiplier: Double = 1.0 {
         didSet { defaults.set(rateMultiplier, forKey: Keys.rate) }
     }
     /// `AVSpeechSynthesisVoice.identifier`; nil picks the best voice for the
@@ -92,6 +92,17 @@ final class TTSService: ObservableObject {
     /// Utterances handed to the synthesizer and not yet finished, with what
     /// they say and for which message.
     private var inFlight: [ObjectIdentifier: (messageID: UUID?, sentence: String)] = [:]
+    /// Streamed sentences waiting to be spoken as one utterance. A synthesizer
+    /// shapes intonation per utterance, so one-sentence utterances with a gap
+    /// between each sound like a list being read; a few sentences at a time
+    /// sounds like a paragraph.
+    private var streamBatch: [String] = []
+    /// How much streamed text to gather before speaking it, in characters.
+    /// Lower starts sooner and sounds choppier. Tests set 0 for per-sentence.
+    internal var streamingBatchLength = 160
+    /// Longest utterance a whole message is cut into; a paragraph shorter than
+    /// this is spoken in one breath.
+    internal var utteranceTargetLength = 360
 
     private enum Keys {
         static let enabled = "portal.tts.enabled"
@@ -115,7 +126,7 @@ final class TTSService: ObservableObject {
         isEnabled = defaults.bool(forKey: Keys.enabled)
         speaksWhileStreaming = defaults.object(forKey: Keys.streaming) as? Bool ?? true
         announcesCodeBlocks = defaults.object(forKey: Keys.announceCode) as? Bool ?? true
-        rateMultiplier = defaults.object(forKey: Keys.rate) as? Double ?? 1.1
+        rateMultiplier = defaults.object(forKey: Keys.rate) as? Double ?? 1.0
         voiceIdentifier = defaults.string(forKey: Keys.voice)
         delegateBridge.service = self
         synthesizer.delegate = delegateBridge
@@ -135,20 +146,29 @@ final class TTSService: ObservableObject {
     }
 
     /// The voice utterances will use: the chosen one if it's still installed,
-    /// else the highest-quality voice for the current locale's language, else
-    /// the first voice on the device.
+    /// else the best voice for the current locale, else the first voice on
+    /// the device.
     internal var resolvedVoice: AVSpeechSynthesisVoice? {
         if let voiceIdentifier, let chosen = AVSpeechSynthesisVoice(identifier: voiceIdentifier) {
             return chosen
         }
-        return Self.defaultVoice(among: Self.availableVoices(), languageCode: Locale.current.language.languageCode?.identifier ?? "en")
+        return Self.defaultVoice(among: Self.availableVoices(), locale: Locale.current)
     }
 
-    /// Pure so the preference order is testable: premium beats enhanced beats
-    /// default, within the language; anything beats nothing.
-    internal static func defaultVoice(among voices: [AVSpeechSynthesisVoice], languageCode: String) -> AVSpeechSynthesisVoice? {
-        let sameLanguage = voices.filter { $0.language.hasPrefix(languageCode) }
-        return sameLanguage.max { $0.quality.rawValue < $1.quality.rawValue } ?? voices.first
+    /// Pure so the preference order is testable. Region first, then quality:
+    /// a US locale gets the best `en-US` voice before any `en-AU` one, however
+    /// good — an accent the person didn't choose reads as "wrong voice" even
+    /// when it's premium. Only with no regional match does the whole language
+    /// compete, and only with none of those does any voice at all.
+    internal static func defaultVoice(among voices: [AVSpeechSynthesisVoice], locale: Locale) -> AVSpeechSynthesisVoice? {
+        let tag = locale.identifier(.bcp47) // "en-US"
+        let language = locale.language.languageCode?.identifier ?? String(tag.prefix(2))
+        func best(_ pool: [AVSpeechSynthesisVoice]) -> AVSpeechSynthesisVoice? {
+            pool.max { $0.quality.rawValue < $1.quality.rawValue }
+        }
+        return best(voices.filter { $0.language.caseInsensitiveCompare(tag) == .orderedSame })
+            ?? best(voices.filter { $0.language.lowercased().hasPrefix(language.lowercased()) })
+            ?? voices.first
     }
 
     // MARK: - Toggling
@@ -217,8 +237,18 @@ final class TTSService: ObservableObject {
         }
         for sentence in chunker.push(text) {
             streamedMessageIDs.insert(messageID)
-            enqueue(text: sentence, messageID: messageID, chunk: false)
+            streamBatch.append(sentence)
+            if streamBatch.joined(separator: " ").count >= streamingBatchLength {
+                speakStreamBatch(messageID: messageID)
+            }
         }
+    }
+
+    private func speakStreamBatch(messageID: UUID) {
+        guard !streamBatch.isEmpty else { return }
+        let joined = streamBatch.joined(separator: " ")
+        streamBatch.removeAll()
+        enqueue(text: joined, messageID: messageID, chunk: false)
     }
 
     /// The stream for `messageID` ended: speak whatever sentence was still open.
@@ -227,8 +257,9 @@ final class TTSService: ObservableObject {
         streamingMessageID = nil
         if let tail = chunker.flush() {
             streamedMessageIDs.insert(messageID)
-            enqueue(text: tail, messageID: messageID, chunk: false)
+            streamBatch.append(tail)
         }
+        speakStreamBatch(messageID: messageID)
     }
 
     // MARK: - Transport
@@ -264,6 +295,7 @@ final class TTSService: ObservableObject {
             synthesizer.stopSpeaking(at: .immediate)
         }
         chunker.reset()
+        streamBatch.removeAll()
         streamingMessageID = nil
         inFlight.removeAll()
         settle()
@@ -271,19 +303,13 @@ final class TTSService: ObservableObject {
 
     // MARK: - Queueing
 
-    /// Turn `text` into utterances. `chunk` splits a whole response into
-    /// sentences so the indicator and pause points match the streaming path;
-    /// a stream hands in one sentence at a time and passes `false`.
+    /// Turn `text` into utterances. `chunk` cuts a whole response at sentence
+    /// boundaries into pieces of about `utteranceTargetLength`, never across a
+    /// paragraph break — long enough for the voice to phrase naturally, short
+    /// enough that pause and the sentence indicator still feel responsive.
+    /// A stream hands in pre-batched text and passes `false`.
     private func enqueue(text: String, messageID: UUID?, chunk: Bool = true) {
-        let pieces: [String]
-        if chunk {
-            var splitter = SentenceChunker()
-            var sentences = splitter.push(text)
-            if let tail = splitter.flush() { sentences.append(tail) }
-            pieces = sentences
-        } else {
-            pieces = [text]
-        }
+        let pieces = chunk ? Self.utterances(from: text, targetLength: utteranceTargetLength) : [text]
         let options: SpokenText.Options = announcesCodeBlocks ? .default : .skippingCode
         for piece in pieces {
             let spoken = SpokenText.prepare(piece, options: options)
@@ -293,6 +319,10 @@ final class TTSService: ObservableObject {
             utterance.rate = Float(rateMultiplier) * AVSpeechUtteranceDefaultSpeechRate
             utterance.pitchMultiplier = 1.0
             utterance.volume = 1.0
+            // Consecutive utterances are one continuous reading, not a list:
+            // no synthesizer-inserted silence between them.
+            utterance.preUtteranceDelay = 0
+            utterance.postUtteranceDelay = 0
             inFlight[ObjectIdentifier(utterance)] = (messageID, spoken)
             if !isSpeaking {
                 playback.activate()
@@ -302,6 +332,32 @@ final class TTSService: ObservableObject {
             }
             synthesizer.speak(utterance)
         }
+    }
+
+    /// Cut `text` into utterances: split at paragraph breaks, then merge each
+    /// paragraph's sentences greedily up to `targetLength`. A single sentence
+    /// longer than the target stays whole — cutting mid-sentence is worse.
+    internal static func utterances(from text: String, targetLength: Int) -> [String] {
+        var out: [String] = []
+        let paragraphs = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        for paragraph in paragraphs {
+            var splitter = SentenceChunker()
+            var sentences = splitter.push(paragraph)
+            if let tail = splitter.flush() { sentences.append(tail) }
+            var current = ""
+            for sentence in sentences {
+                if current.isEmpty {
+                    current = sentence
+                } else if current.count + 1 + sentence.count <= targetLength {
+                    current += " " + sentence
+                } else {
+                    out.append(current)
+                    current = sentence
+                }
+            }
+            if !current.isEmpty { out.append(current) }
+        }
+        return out
     }
 
     // MARK: - Delegate callbacks (main actor)
