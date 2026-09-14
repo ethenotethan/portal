@@ -967,6 +967,45 @@ client.eventStream
         return true
     }
 
+    /// Rebuild the live streaming shell for a session whose turn was already
+    /// running server-side when this client resumed it.
+    ///
+    /// The resuming client never observed the turn's `message.start`, which is
+    /// what normally appends the empty assistant bubble and sets
+    /// `streamingMessageID` + `isStreaming`. Without that shell, `applySessionEvent`
+    /// finds no message for the running turn's `message.delta` (it appends to the
+    /// message named by `streamingMessageID`), and its drop guard silently
+    /// discards every live-turn frame once the session is "known" and shows
+    /// `isStreaming == false`. The user clicks in and sees no tools, thinking,
+    /// thought graph or answer stream in. Seed the shell from the gateway's
+    /// in-flight snapshot so the running turn attaches and streams the rest live;
+    /// the terminal `message.complete` replaces `partial` with the full text.
+    ///
+    /// Idempotent: if a streaming shell already exists (we watched this turn
+    /// start, or a prior seed ran) it only re-asserts `isStreaming` rather than
+    /// stacking a second assistant bubble on the same turn.
+    private func seedResumedLiveTurn(displayID: String, partial: String) {
+        var state = sessionStates[displayID] ?? SessionRuntimeState()
+        if let msgID = state.streamingMessageID,
+           state.messages.contains(where: { $0.id == msgID }) {
+            state.isStreaming = true
+            state.isSessionReady = true
+            sessionStates[displayID] = state
+            return
+        }
+        let shell = ChatMessage(role: .assistant, content: partial, isStreaming: true)
+        state.messages.append(shell)
+        state.streamingMessageID = shell.id
+        state.isStreaming = true
+        state.isSessionReady = true
+        if state.avatarState == .idle { state.avatarState = .speaking }
+        sessionStates[displayID] = state
+        // Fold in any deltas retained between the resume RPC and the shell
+        // existing (they were bucketed under this display id with no shell to
+        // land in); now the shell owns them.
+        adoptBackgroundTurnBuffer(for: displayID)
+    }
+
     private func mutateSessionState(for eventSessionID: String, _ mutation: (inout SessionRuntimeState) -> Void) {
         let displayID = displaySessionID(for: eventSessionID)
         var state = sessionStates[displayID] ?? SessionRuntimeState()
@@ -1154,7 +1193,7 @@ client.eventStream
         let cachedBeforeResume = sessionStates[key]
 
         do {
-            let result = try await client.resumeSession(key: key)
+            let result = try await client.resumeSessionDetailed(key: key)
             guard generation == sessionSwitchGeneration else {
                 log.info("ignoring stale resume for \(key) generation=\(generation) current=\(self.sessionSwitchGeneration)")
                 return false
@@ -1239,6 +1278,16 @@ client.eventStream
                         isSessionReady: true
                     )
                 }
+            }
+
+            // The gateway resumed us INTO a turn that is still running (an
+            // artifact-intent spawn the user clicked into, or a turn started on
+            // another device). We never saw its `message.start`, so rebuild the
+            // streaming shell now — otherwise every delta/thinking/tool/subagent
+            // event for it is dropped for want of a message to attach to, and the
+            // opened session shows the row but nothing streaming in.
+            if let inflight = result.inflight, inflight.isStreaming {
+                seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
             }
 
             if !restoreSessionState(displayID: key, runtimeID: result.sessionID) {

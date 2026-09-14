@@ -1870,6 +1870,46 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return (sessionID: sessionID, messages: historyMessages)
     }
 
+    /// Resume a session, surfacing the in-flight turn the gateway reports still
+    /// running so the client can rebuild the live streaming shell.
+    ///
+    /// `session.resume` on a session whose turn is still live (an artifact-intent
+    /// spawn the user clicked into, a turn started on another device) returns
+    /// `running: true` plus an `inflight` snapshot carrying the assistant text
+    /// streamed so far. Without it the client resumes to a NON-streaming state,
+    /// every subsequent delta/thinking/tool/subagent event finds no shell to
+    /// attach to, and the opened session shows nothing streaming in.
+    func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+        let response = try await callWithRetry("session.resume", params: [
+            "session_id": AnyCodable(key),
+        ])
+        if let error = response.error {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        guard let result = response.result?.dictionaryValue,
+              let sessionID = result["session_id"]?.stringValue else {
+            throw GatewayError.invalidResponse("missing session_id in session.resume response")
+        }
+        activeSessionID = sessionID
+        refreshDebugSnapshot()
+
+        let historyMessages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
+
+        // `running` is the session-level flag; `inflight.streaming` is the turn's
+        // own. A retained FAILED turn carries `inflight` with `streaming: false`
+        // and must NOT reopen a streaming shell, so gate on the turn's flag.
+        var inflight: InflightTurn?
+        if let turn = result["inflight"]?.dictionaryValue {
+            let streaming = turn["streaming"]?.boolValue ?? false
+            let running = result["running"]?.boolValue ?? false
+            let partial = turn["assistant"]?.stringValue ?? ""
+            if streaming && running {
+                inflight = InflightTurn(assistantPartial: partial, isStreaming: true)
+            }
+        }
+        return ResumedSession(sessionID: sessionID, messages: historyMessages, inflight: inflight)
+    }
+
     /// Fetch conversation history for a session.
     func sessionHistory(sessionID: String) async throws -> [[String: AnyCodable]] {
         let response = try await call("session.history", params: [
