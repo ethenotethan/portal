@@ -6,6 +6,10 @@ import SwiftUI
 struct MessageBubbleView: View {
     let message: ChatMessage
     @EnvironmentObject var personaManager: PersonaManager
+    /// Per-message read-aloud. The shared service rather than an environment
+    /// object: this view is built in places (skins, site captures) that don't
+    /// install one, and speech is app-global state anyway.
+    @ObservedObject private var speech = TTSService.shared
 
     var body: some View {
         #if os(iOS)
@@ -178,14 +182,40 @@ struct MessageBubbleView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.bubbleRadius))
 
-            if message.showTimestamp {
-                Text(message.timestamp, style: .time)
-                    .font(.system(.caption2))
-                    .foregroundStyle(Theme.tertiary)
-                    .padding(.leading, 4)
+            HStack(spacing: 8) {
+                if message.showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(.caption2))
+                        .foregroundStyle(Theme.tertiary)
+                        .padding(.leading, 4)
+                }
+                Spacer(minLength: 0)
+                if !message.isStreaming, !message.contentWithoutAttachments.isEmpty {
+                    speakButton
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Read this one message aloud — or stop, if it's the one playing. Works
+    /// whether or not automatic speech is on, which is the point: hearing a
+    /// single long answer shouldn't require opting into hearing all of them.
+    private var speakButton: some View {
+        let isThisOne = speech.speakingMessageID == message.id && speech.isActive
+        return Button {
+            speech.speakMessage(message)
+        } label: {
+            Image(systemName: isThisOne ? "stop.circle.fill" : "speaker.wave.2")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isThisOne ? Theme.accent : Theme.tertiary)
+                .symbolEffect(.variableColor.iterative, isActive: isThisOne && !speech.isPaused)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(isThisOne ? "Stop reading this message" : "Read this message aloud")
+        .accessibilityLabel(isThisOne ? "Stop reading" : "Read aloud")
     }
 }
 

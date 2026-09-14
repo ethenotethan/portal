@@ -307,6 +307,9 @@ struct ChatView: View {
                     .environmentObject(chatViewModel)
             }
 
+            // Read-aloud transport, only while something is being spoken.
+            SpeechNowPlayingBar()
+
             // Input bar
             ChatInputBar()
                 .environmentObject(chatViewModel)
