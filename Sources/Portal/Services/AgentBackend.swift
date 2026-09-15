@@ -221,7 +221,7 @@ struct BackendCapabilities: Sendable {
 extension AgentBackend {
     /// Default: resume with no in-flight turn. Backends that can resume INTO a
     /// running turn (the Hermes gateway) override this to surface it.
-    func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
         let result = try await resumeSession(key: key)
         return ResumedSession(sessionID: result.sessionID, messages: result.messages, inflight: nil)
     }
