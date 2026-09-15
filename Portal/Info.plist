@@ -41,5 +41,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Portal uses the microphone for on-device voice input, so you can speak to the agent. Audio is transcribed locally and never leaves your device.</string>
 </dict>
 </plist>

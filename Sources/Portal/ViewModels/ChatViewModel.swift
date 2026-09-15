@@ -336,6 +336,10 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Voice recording state — true while the gateway is capturing audio via VAD.
     @Published internal private(set) var isVoiceRecording: Bool = false
+    /// On-device speech-to-text. When the user opts in (Settings → Speech) on a
+    /// supported build, the mic button transcribes locally instead of streaming
+    /// to the gateway. Injectable so tests can drive the branch with a fake.
+    internal var localVoiceService: any LocalVoiceControlling = LocalVoiceService.shared
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -2051,6 +2055,7 @@ client.eventStream
     /// Start VAD-bounded voice recording. The gateway captures audio, runs
     /// STT, and emits a `voice.transcript` event which is auto-submitted.
     internal func startVoiceRecording() async {
+        if await startLocalVoiceRecordingIfEnabled() { return }
         guard let client = gatewayClient else { return }
         guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
@@ -2065,8 +2070,38 @@ client.eventStream
         }
     }
 
+    /// Route the mic button to on-device transcription when the user enabled it
+    /// on a supported build. Returns true when it took over, so the gateway path
+    /// is skipped. The final transcript arrives via `onFinalTranscript` and is
+    /// submitted exactly like a gateway `voice.transcript`.
+    internal func startLocalVoiceRecordingIfEnabled() async -> Bool {
+        guard localVoiceService.isEnabledAndAvailable else { return false }
+        guard !isVoiceRecording else { return true }
+        localVoiceService.onFinalTranscript = { [weak self] text in
+            Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }
+        }
+        isVoiceRecording = true
+        await localVoiceService.start()
+        return true
+    }
+
+    /// Submit an on-device transcript as the user's prompt, mirroring the
+    /// gateway `voice.transcript` handler: stop recording, drop empty results.
+    internal func submitLocalVoiceTranscript(_ text: String) async {
+        isVoiceRecording = false
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        inputText = trimmed
+        await submitPrompt()
+    }
+
     /// Stop the current voice recording session.
     internal func stopVoiceRecording() async {
+        if localVoiceService.isRunning {
+            await localVoiceService.stop()
+            isVoiceRecording = false
+            return
+        }
         guard let client = gatewayClient else { return }
         guard isVoiceRecording else { return }
         do {

@@ -9,6 +9,7 @@ import SwiftUI
 /// persists it — there's no second copy of the state to drift.
 internal struct SpeechSettingsSection: View {
     @ObservedObject private var speech = TTSService.shared
+    @ObservedObject private var localVoice = LocalVoiceService.shared
 
     /// macOS renders a titled pane; iOS embeds the rows in a `Form` section that
     /// supplies its own header.
@@ -37,6 +38,16 @@ internal struct SpeechSettingsSection: View {
                  + "Any message can also be read on demand from the speaker button under it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if localVoice.isAvailable {
+                Divider()
+                Toggle("On-device voice input", isOn: $localVoice.isEnabled)
+                Text("Transcribe the mic button locally with a Parakeet speech model instead of "
+                     + "sending audio to the gateway. English, low-latency, and fully on-device — "
+                     + "the model downloads once on first use.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Divider()
             Toggle("Start while the reply is still streaming", isOn: $speech.speaksWhileStreaming)
