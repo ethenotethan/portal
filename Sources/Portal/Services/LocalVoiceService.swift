@@ -90,10 +90,24 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
 
     private var didLoadModels = false
 
+    /// Production initializer: wires the default on-device engine, or leaves the
+    /// service unavailable when none is linked. Runs on the main actor so it can
+    /// build the (main-actor) default engine — unlike a default argument, which
+    /// is evaluated in a nonisolated context.
+    internal convenience init() {
+        self.init(
+            transcriber: LocalVoiceService.defaultTranscriber(),
+            microphone: LocalVoiceService.defaultMicrophone(),
+            requestPermission: LocalVoiceService.defaultPermission
+        )
+    }
+
+    /// Designated initializer. Tests inject fakes here; no main-actor work is
+    /// evaluated in a default argument, so it's safe to call from any context.
     internal init(
-        transcriber: LocalSpeechTranscribing? = LocalVoiceService.defaultTranscriber(),
-        microphone: MicrophoneCapturing? = LocalVoiceService.defaultMicrophone(),
-        requestPermission: @escaping @Sendable () async -> Bool = LocalVoiceService.defaultPermission
+        transcriber: LocalSpeechTranscribing?,
+        microphone: MicrophoneCapturing?,
+        requestPermission: @escaping @Sendable () async -> Bool = { false }
     ) {
         self.transcriber = transcriber
         self.microphone = microphone
@@ -169,11 +183,13 @@ extension LocalVoiceService {
     #if canImport(FluidAudio)
     internal static func defaultTranscriber() -> LocalSpeechTranscribing? { FluidAudioTranscriber() }
     internal static func defaultMicrophone() -> MicrophoneCapturing? { AVAudioEngineMicrophone() }
-    internal static func defaultPermission() async -> Bool { await AVAudioEngineMicrophone.requestPermission() }
+    nonisolated internal static func defaultPermission() async -> Bool {
+        await AVAudioEngineMicrophone.requestPermission()
+    }
     #else
     /// No on-device engine linked in this build — local voice is unavailable.
     internal static func defaultTranscriber() -> LocalSpeechTranscribing? { nil }
     internal static func defaultMicrophone() -> MicrophoneCapturing? { nil }
-    internal static func defaultPermission() async -> Bool { false }
+    nonisolated internal static func defaultPermission() async -> Bool { false }
     #endif
 }
