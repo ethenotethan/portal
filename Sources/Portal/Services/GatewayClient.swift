@@ -1879,10 +1879,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
     /// streamed so far. Without it the client resumes to a NON-streaming state,
     /// every subsequent delta/thinking/tool/subagent event finds no shell to
     /// attach to, and the opened session shows nothing streaming in.
-    func resumeSessionDetailed(key: String) async throws -> ResumedSession {
+    internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
         let response = try await callWithRetry("session.resume", params: [
             "session_id": AnyCodable(key),
         ])
+        let resumed = try Self.parseResumeResponse(response)
+        activeSessionID = resumed.sessionID
+        refreshDebugSnapshot()
+        return resumed
+    }
+
+    /// Pure decode of a `session.resume` reply into a `ResumedSession`. Split out
+    /// from the RPC round-trip so the transcript + in-flight-turn parsing (the
+    /// part with real logic) is unit-testable without a live socket.
+    nonisolated internal static func parseResumeResponse(_ response: JSONRPCResponse) throws -> ResumedSession {
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }
@@ -1890,9 +1900,6 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
               let sessionID = result["session_id"]?.stringValue else {
             throw GatewayError.invalidResponse("missing session_id in session.resume response")
         }
-        activeSessionID = sessionID
-        refreshDebugSnapshot()
-
         let historyMessages = result["messages"]?.arrayValue?.compactMap { $0.dictionaryValue } ?? []
 
         // `running` is the session-level flag; `inflight.streaming` is the turn's
