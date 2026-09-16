@@ -32,11 +32,33 @@ internal protocol LocalSpeechTranscribing: AnyObject, Sendable {
     func reset() async
 }
 
+/// Which animated treatment the conversation pane shows while a hands-free
+/// voice turn is live. Two reverse-engineered looks — one modeled on Claude's
+/// warm organic orb, one on OpenAI's glowing gradient sphere — chosen in
+/// Settings. Persisted by raw value.
+internal enum ConversationVisual: String, CaseIterable, Identifiable, Sendable {
+    case claude
+    case openai
+
+    internal var id: String { rawValue }
+
+    /// Label for the Settings picker.
+    internal var label: String {
+        switch self {
+        case .claude: "Claude — organic orb"
+        case .openai: "OpenAI — gradient sphere"
+        }
+    }
+}
+
 /// The slice of the local-voice service `ChatViewModel` drives. A protocol so
 /// the view model can be tested with a fake, decoupled from the shared
 /// singleton and any real microphone.
 @MainActor
 internal protocol LocalVoiceControlling: AnyObject {
+    /// The animated voice-conversation look to render. Defaults to `.claude`
+    /// (see the extension below) so test fakes need not implement it.
+    var conversationVisual: ConversationVisual { get }
     /// True when the user opted in AND this build/device can transcribe locally.
     var isEnabledAndAvailable: Bool { get }
     /// True when the user wants hands-free back-and-forth: after each spoken
@@ -55,6 +77,11 @@ internal protocol LocalVoiceControlling: AnyObject {
     /// Tear down capture without emitting a transcript — used to abandon the
     /// current turn when the user ends a conversation.
     func cancel() async
+}
+
+extension LocalVoiceControlling {
+    /// Default look for conformers (test fakes) that don't set one.
+    internal var conversationVisual: ConversationVisual { .claude }
 }
 
 /// On-device speech-to-text for the walkie-talkie mic button, mirroring how
@@ -76,6 +103,7 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
 
     internal static let enabledKey = "portal.localVoiceEnabled"
     internal static let conversationKey = "portal.localVoiceConversation"
+    internal static let conversationVisualKey = "portal.localVoiceConversationVisual"
 
     /// User opt-in. Off by default. Persisted like `TTSService`'s settings so
     /// there's no second copy of the state to drift.
@@ -88,6 +116,12 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     /// after each spoken reply.
     @Published internal var conversationMode: Bool {
         didSet { UserDefaults.standard.set(conversationMode, forKey: Self.conversationKey) }
+    }
+
+    /// Which reverse-engineered look the conversation pane renders during a
+    /// hands-free turn (Claude orb vs. OpenAI sphere). Persisted like the rest.
+    @Published internal var conversationVisual: ConversationVisual {
+        didSet { UserDefaults.standard.set(conversationVisual.rawValue, forKey: Self.conversationVisualKey) }
     }
 
     /// Live partial transcript, for optional UI display while recording.
@@ -134,6 +168,8 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         self.requestPermission = requestPermission
         self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
         self.conversationMode = UserDefaults.standard.bool(forKey: Self.conversationKey)
+        self.conversationVisual = UserDefaults.standard.string(forKey: Self.conversationVisualKey)
+            .flatMap(ConversationVisual.init(rawValue:)) ?? .claude
     }
 
     /// Whether this build can transcribe on-device at all (engine linked +

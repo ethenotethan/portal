@@ -904,7 +904,15 @@ struct ChatView: View {
                                 }
                             }
 
-                            if chatViewModel.isStreaming {
+                            // A hands-free voice turn replaces the tool-trace
+                            // panel with the inline conversation card: it's a
+                            // tool-less chat, so there's no tool timeline to
+                            // show — just the orb, phase and live caption.
+                            if chatViewModel.isConversationActive {
+                                VoiceConversationCard(chatViewModel: chatViewModel)
+                                    .id("voice-conversation-card")
+                                    .transition(.opacity)
+                            } else if chatViewModel.isStreaming {
                                 // Same plane as the running-tools trace: the
                                 // status + live timeline occupy the main width;
                                 // the skills lens (the "what capability" view)

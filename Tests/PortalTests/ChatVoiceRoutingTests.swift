@@ -209,6 +209,50 @@ internal struct ChatVoiceRoutingTests {
         #expect(fake.startCount == 2)
     }
 
+    @Test("a completed reply reopens the mic when speech never starts")
+    internal func replyReopensMicViaFallbackWhenSpeechNeverStarts() async {
+        let vm = ChatViewModel()
+        let fake = FakeLocalVoice()
+        fake.isEnabledAndAvailable = true
+        fake.conversationMode = true
+        let speech = FakeSpeechStatus()
+        vm.localVoiceService = fake
+        vm.speechStatus = speech
+
+        _ = await vm.startLocalVoiceRecordingIfEnabled()
+        #expect(fake.startCount == 1)
+
+        // The reply completes but TTS never reports speaking (e.g. the
+        // `isSpeaking` flag never flips, the race that stranded turn two). The
+        // mic must still reopen on its own — via the quiet-speech observer or
+        // the no-speech fallback timer — with no explicit relisten call.
+        speech.isSpeaking = false
+        vm.handleConversationResponseComplete()
+        await settleSlowly { fake.startCount == 2 }
+        #expect(fake.startCount == 2)
+    }
+
+    @Test("conversation phase tracks speaking over thinking over listening")
+    internal func conversationPhaseDerivation() async {
+        let vm = ChatViewModel()
+        let speech = FakeSpeechStatus()
+        vm.speechStatus = speech
+
+        // Idle mic → listening.
+        vm.isStreaming = false
+        speech.isSpeaking = false
+        #expect(vm.conversationPhase == .listening)
+
+        // Reply streaming in → thinking.
+        vm.isStreaming = true
+        #expect(vm.conversationPhase == .thinking)
+
+        // Playback wins over streaming (isSpeaking is set only after the stream
+        // ends, but the guard order must not regress).
+        speech.isSpeaking = true
+        #expect(vm.conversationPhase == .speaking)
+    }
+
     @Test("tapping the mic ends a conversation without submitting")
     internal func tappingEndsConversationWithoutSubmitting() async {
         let vm = ChatViewModel()
@@ -246,5 +290,13 @@ internal struct ChatVoiceRoutingTests {
     /// detached `Task`, so the call count settles asynchronously.
     private func settle(_ predicate: @escaping () -> Bool) async {
         for _ in 0..<1_000 where !predicate() { await Task.yield() }
+    }
+
+    /// Poll with real delays — the relisten fallback fires on a ~1.2s timer, so
+    /// yielding alone never advances the wall clock enough to see it.
+    private func settleSlowly(_ predicate: @escaping () -> Bool) async {
+        for _ in 0..<40 where !predicate() {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
     }
 }

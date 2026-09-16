@@ -346,9 +346,48 @@ final class ChatViewModel: ObservableObject {
     /// True while a hands-free conversation is running: the mic reopens after
     /// each spoken reply until the user ends it by tapping the mic again.
     @Published internal private(set) var isConversationActive: Bool = false
+
+    /// The three states the inline voice-conversation card animates between.
+    internal enum ConversationPhase {
+        /// Mic open, waiting for / capturing the user's speech.
+        case listening
+        /// Reply is being generated (tool-less completion streaming in).
+        case thinking
+        /// The reply is being read aloud.
+        case speaking
+    }
+
+    /// Current phase, derived from the live flags the card observes. Ordering
+    /// matters: playback (`isSpeaking`) is set only after streaming ends, so
+    /// speaking wins over thinking, and both win over the idle mic-open state.
+    internal var conversationPhase: ConversationPhase {
+        if speechStatus.isSpeaking { return .speaking }
+        if isStreaming { return .thinking }
+        return .listening
+    }
+
+    /// Caption under the orb: the live partial transcript while listening,
+    /// otherwise the reply the agent is generating / speaking.
+    internal var conversationCaption: String {
+        switch conversationPhase {
+        case .listening:
+            return inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .thinking, .speaking:
+            return messages.last(where: { $0.role == .assistant })?.content
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+    }
+
+    /// The look the conversation card should render, chosen in Settings.
+    internal var conversationVisual: ConversationVisual { localVoiceService.conversationVisual }
     /// Set when a reply completes and cleared once the mic reopens — so a stray
     /// `isSpeaking` change (e.g. a settings voice preview) can't reopen the mic.
     private var awaitingRelisten = false
+    /// Reopens the conversation mic if a reply is never spoken (TTS disabled or
+    /// failed, empty reply) — the `isSpeaking` observer only fires on real
+    /// playback, so without this a silent turn would strand the loop. Cancelled
+    /// the moment playback actually starts.
+    private var relistenFallbackTask: Task<Void, Never>?
     /// Whether the `isSpeaking` observer that drives relistening is installed.
     private var conversationObserverInstalled = false
     /// Pending media attachments for the next user message.
@@ -2162,8 +2201,33 @@ client.eventStream
     /// just-completed conversational turn triggers it.
     internal func handleConversationResponseComplete() {
         guard isConversationActive else { return }
+        // Arm the relisten, but do NOT reopen the mic here. TTSService flips
+        // `isSpeaking` asynchronously (AVSpeechSynthesizer's didStart fires a
+        // beat after `speak`), so right now it is still false — reopening would
+        // put the mic up *during* the spoken reply and consume the arm before
+        // the reply is even heard, killing the loop after one turn. The
+        // `isSpeaking` observer reopens once playback actually finishes.
         awaitingRelisten = true
-        relistenIfQuiet()
+        scheduleRelistenFallback()
+    }
+
+    /// Guard against a turn that is never spoken aloud: if playback hasn't
+    /// started shortly after a reply completes, reopen the mic anyway so the
+    /// conversation doesn't stall. Cancelled by the observer once real playback
+    /// begins, so a slow TTS start never races the mic open.
+    private func scheduleRelistenFallback() {
+        relistenFallbackTask?.cancel()
+        relistenFallbackTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 1_200_000_000)
+            } catch {
+                // Cancelled — real playback started (or the conversation ended),
+                // so the reopen keys off the speech observer instead.
+                return
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.relistenIfQuiet()
+        }
     }
 
     /// Reopen the conversation mic if a turn is pending and nothing is being
@@ -2181,6 +2245,7 @@ client.eventStream
     internal func endConversation() async {
         isConversationActive = false
         awaitingRelisten = false
+        relistenFallbackTask?.cancel()
         isVoiceRecording = false
         TTSService.shared.stop()
         await localVoiceService.cancel()
@@ -2194,7 +2259,14 @@ client.eventStream
         TTSService.shared.$isSpeaking
             .receive(on: RunLoop.main)
             .sink { [weak self] speaking in
-                if !speaking { self?.relistenIfQuiet() }
+                guard let self else { return }
+                if speaking {
+                    // Real playback started — the no-speech fallback is no
+                    // longer needed; the reopen now keys off playback ending.
+                    self.relistenFallbackTask?.cancel()
+                } else {
+                    self.relistenIfQuiet()
+                }
             }
             .store(in: &cancellables)
     }

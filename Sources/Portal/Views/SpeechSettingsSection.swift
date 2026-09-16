@@ -55,6 +55,16 @@ internal struct SpeechSettingsSection: View {
                          + "to hear replies.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    Picker("Conversation look", selection: $localVoice.conversationVisual) {
+                        ForEach(ConversationVisual.allCases) { visual in
+                            Text(visual.label).tag(visual)
+                        }
+                    }
+                    Text("How the conversation looks while it's live: a warm organic orb or a "
+                         + "glowing gradient sphere.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
