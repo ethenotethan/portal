@@ -182,6 +182,18 @@ internal struct LocalVoiceServiceTests {
         #expect(!service.isRunning)
     }
 
+    @Test("partial transcripts are forwarded to the onPartialTranscript hook")
+    internal func partialTranscriptCallbackFires() async {
+        let (service, transcriber, _) = makeService()
+        var latest: String?
+        service.onPartialTranscript = { latest = $0 }
+        await service.start()
+
+        transcriber.emitPartial("live words")
+        await settle { latest == "live words" }
+        #expect(latest == "live words")
+    }
+
     @Test("stop when idle does nothing")
     internal func stopWhenIdleIsNoOp() async {
         let (service, _, mic) = makeService()
@@ -196,6 +208,40 @@ internal struct LocalVoiceServiceTests {
         transcriber.emitPartial("partial text")
         await settle { service.partialTranscript == "partial text" }
         #expect(service.partialTranscript == "partial text")
+    }
+
+    @Test("cancel tears down capture without emitting a transcript")
+    internal func cancelDropsTranscript() async {
+        let (service, transcriber, mic) = makeService()
+        var fired = false
+        service.onFinalTranscript = { _ in fired = true }
+        await service.start()
+
+        transcriber.finishText = "should not be sent"
+        await service.cancel()
+
+        #expect(!fired)
+        #expect(!service.isRunning)
+        #expect(mic.stopped)
+    }
+
+    @Test("cancel when idle does nothing")
+    internal func cancelWhenIdleIsNoOp() async {
+        let (service, _, mic) = makeService()
+        await service.cancel()
+        #expect(!mic.stopped)
+    }
+
+    @Test("conversation mode persists across instances")
+    internal func conversationModePersists() {
+        UserDefaults.standard.removeObject(forKey: LocalVoiceService.conversationKey)
+        let first = LocalVoiceService(transcriber: FakeTranscriber(), microphone: FakeMicrophone())
+        #expect(!first.conversationMode)
+        first.conversationMode = true
+
+        let second = LocalVoiceService(transcriber: FakeTranscriber(), microphone: FakeMicrophone())
+        #expect(second.conversationMode)
+        UserDefaults.standard.removeObject(forKey: LocalVoiceService.conversationKey)
     }
 
     @Test("the opt-in persists across instances")

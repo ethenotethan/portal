@@ -100,6 +100,10 @@ protocol AgentBackend: AnyObject {
     // MARK: Conversation
 
     func submitPrompt(sessionID: String, text: String) async throws
+    /// Submit a turn, optionally through the tool-less "chat" path. Has a
+    /// default (below) that ignores `chatMode`, so only the gateway needs to
+    /// implement it — other backends fall back to a normal turn.
+    func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws
     func respondApproval(sessionID: String, choice: String, all: Bool) async throws
     func respondClarify(requestID: String, answer: String) async throws
 
@@ -224,6 +228,13 @@ extension AgentBackend {
     internal func resumeSessionDetailed(key: String) async throws -> ResumedSession {
         let result = try await resumeSession(key: key)
         return ResumedSession(sessionID: result.sessionID, messages: result.messages, inflight: nil)
+    }
+
+    /// Backends without a tool-less chat path (Centaur, or a gateway that
+    /// doesn't advertise `prompt.chat_mode`) just run the normal turn — the
+    /// flag is a hint, never a hard requirement.
+    internal func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws {
+        try await submitPrompt(sessionID: sessionID, text: text)
     }
 
     /// Backends without an inventory RPC (Centaur) report no catalog; the

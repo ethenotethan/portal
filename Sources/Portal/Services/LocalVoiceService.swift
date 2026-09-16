@@ -39,13 +39,22 @@ internal protocol LocalSpeechTranscribing: AnyObject, Sendable {
 internal protocol LocalVoiceControlling: AnyObject {
     /// True when the user opted in AND this build/device can transcribe locally.
     var isEnabledAndAvailable: Bool { get }
+    /// True when the user wants hands-free back-and-forth: after each spoken
+    /// reply the mic reopens automatically until the conversation is ended.
+    var conversationMode: Bool { get }
     /// Whether a capture session is currently active.
     var isRunning: Bool { get }
     /// Set by the view model; fired on the main actor with the final transcript
     /// once an utterance ends (via end-of-utterance detection or `stop()`).
     var onFinalTranscript: ((String) -> Void)? { get set }
+    /// Set by the view model; fired on the main actor with the live partial
+    /// transcript as the user speaks, so it can be mirrored into the composer.
+    var onPartialTranscript: ((String) -> Void)? { get set }
     func start() async
     func stop() async
+    /// Tear down capture without emitting a transcript — used to abandon the
+    /// current turn when the user ends a conversation.
+    func cancel() async
 }
 
 /// On-device speech-to-text for the walkie-talkie mic button, mirroring how
@@ -66,11 +75,19 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     internal static let shared = LocalVoiceService()
 
     internal static let enabledKey = "portal.localVoiceEnabled"
+    internal static let conversationKey = "portal.localVoiceConversation"
 
     /// User opt-in. Off by default. Persisted like `TTSService`'s settings so
     /// there's no second copy of the state to drift.
     @Published internal var isEnabled: Bool {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
+    }
+
+    /// Hands-free conversation opt-in. Off by default. Only meaningful while
+    /// `isEnabled` — the view model reads it to decide whether to reopen the mic
+    /// after each spoken reply.
+    @Published internal var conversationMode: Bool {
+        didSet { UserDefaults.standard.set(conversationMode, forKey: Self.conversationKey) }
     }
 
     /// Live partial transcript, for optional UI display while recording.
@@ -80,6 +97,9 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
 
     /// Set by `ChatViewModel`; fired on the main actor when an utterance ends.
     internal var onFinalTranscript: ((String) -> Void)?
+
+    /// Set by `ChatViewModel`; fired on the main actor with each live partial.
+    internal var onPartialTranscript: ((String) -> Void)?
 
     /// nil when the build has no on-device engine (FluidAudio not linked, or an
     /// unsupported platform) — the mic button then uses the gateway instead.
@@ -113,6 +133,7 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         self.microphone = microphone
         self.requestPermission = requestPermission
         self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+        self.conversationMode = UserDefaults.standard.bool(forKey: Self.conversationKey)
     }
 
     /// Whether this build can transcribe on-device at all (engine linked +
@@ -135,7 +156,10 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
             await transcriber.reset()
             partialTranscript = ""
             await transcriber.onPartial { [weak self] text in
-                Task { @MainActor in self?.partialTranscript = text }
+                Task { @MainActor in
+                    self?.partialTranscript = text
+                    self?.onPartialTranscript?(text)
+                }
             }
             await transcriber.onEndOfUtterance { [weak self] in
                 Task { @MainActor in await self?.finishUtterance() }
@@ -151,6 +175,17 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     internal func stop() async {
         guard isRunning else { return }
         await finishUtterance()
+    }
+
+    /// Abandon the current capture without emitting a transcript. Used when the
+    /// user ends a conversation — whatever was half-said is discarded rather
+    /// than submitted as a stray prompt.
+    internal func cancel() async {
+        guard isRunning, let transcriber, let microphone else { return }
+        isRunning = false
+        microphone.stop()
+        await transcriber.reset()
+        partialTranscript = ""
     }
 
     /// Tear down capture, flush the transcript, and fire `onFinalTranscript`.

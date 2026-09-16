@@ -1648,14 +1648,29 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return artifact
     }
 
-    func submitPrompt(sessionID: String, text: String) async throws {
+    /// `AgentBackend` conformance — a normal, tool-enabled turn.
+    internal func submitPrompt(sessionID: String, text: String) async throws {
+        try await submitPrompt(sessionID: sessionID, text: text, chatMode: false)
+    }
+
+    /// - Parameter chatMode: when true, asks the gateway to run this turn
+    ///   through the tool-less "chat" path (`mode: "chat"`) — a plain
+    ///   completion with no tool loop or action side effects. Used by the voice
+    ///   conversation loop so spoken replies stay low-latency. The gateway
+    ///   ignores the flag when it doesn't advertise `prompt.chat_mode`, so it's
+    ///   safe to send unconditionally.
+    internal func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws {
         // Retry-once on timeout: after wake-from-idle the socket is often
         // half-open, so the first submit can wedge — reconnect and resend
         // rather than leave the composer spinning forever.
-        let response = try await callWithRetry("prompt.submit", params: [
+        var params: [String: AnyCodable] = [
             "session_id": AnyCodable(sessionID),
             "text": AnyCodable(text),
-        ])
+        ]
+        if chatMode {
+            params["mode"] = AnyCodable("chat")
+        }
+        let response = try await callWithRetry("prompt.submit", params: params)
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }

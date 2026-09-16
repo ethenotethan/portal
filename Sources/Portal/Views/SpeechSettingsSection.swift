@@ -47,6 +47,15 @@ internal struct SpeechSettingsSection: View {
                      + "the model downloads once on first use.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if localVoice.isEnabled {
+                    Toggle("Conversation mode", isOn: $localVoice.conversationMode)
+                    Text("Have a spoken back-and-forth: tap the mic once and the app keeps "
+                         + "listening after each reply, so you can ask follow-ups without "
+                         + "tapping again. Tap the mic to end. Needs \u{201C}Speak responses\u{201D} on "
+                         + "to hear replies.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Divider()
