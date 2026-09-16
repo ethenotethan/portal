@@ -26,6 +26,9 @@ packages:
   SwiftMath:
     url: https://github.com/mgriebling/SwiftMath
     from: "1.7.0"
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio
+    from: "0.12.4"
 
 targets:
   Portal:
@@ -46,6 +49,8 @@ targets:
       - package: swift-transformers
         product: Tokenizers
       - package: SwiftMath
+      - package: FluidAudio
+        product: FluidAudio
     entitlements:
       path: Portal.entitlements
     configFiles:
@@ -81,6 +86,8 @@ targets:
       - package: swift-transformers
         product: Tokenizers
       - package: SwiftMath
+      - package: FluidAudio
+        product: FluidAudio
     entitlements:
       path: Portal-iOS.entitlements
     configFiles:

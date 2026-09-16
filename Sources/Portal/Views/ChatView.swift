@@ -1607,42 +1607,59 @@ struct ChatInputBar: View {
 
     // MARK: - Voice Button
 
-    /// Walkie-talkie mic button. Taps toggle VAD recording on/off.
-    /// While recording, the gateway captures speech via faster-whisper and
-    /// emits `voice.transcript` events, which ChatViewModel auto-submits.
+    /// Walkie-talkie mic button. Taps toggle recording on/off.
+    /// With the gateway path, the backend captures speech via faster-whisper and
+    /// emits `voice.transcript` events, which ChatViewModel auto-submits. With
+    /// on-device voice enabled, the mic transcribes locally instead — so the
+    /// button is available whenever either path is, independent of the gateway.
     private var voiceButton: some View {
-        guard chatViewModel.backendCapabilities.supportsVoice else {
+        guard chatViewModel.backendCapabilities.supportsVoice
+                || chatViewModel.localVoiceService.isEnabledAndAvailable else {
             return AnyView(EmptyView())
         }
         let isRecording = chatViewModel.isVoiceRecording
-        let isIdle = !chatViewModel.isStreaming && !isRecording
-        return AnyView(Button {
-            Task {
-                if isRecording {
-                    await chatViewModel.stopVoiceRecording()
-                } else {
-                    await chatViewModel.startVoiceRecording()
+        let isConversation = chatViewModel.isConversationActive
+        let isIdle = !chatViewModel.isStreaming && !isRecording && !isConversation
+        // Conversation session takes visual priority (accent), then one-shot
+        // recording (red), then idle.
+        let symbol = isConversation ? "waveform" : (isRecording ? "mic.fill" : "mic")
+        let fill: Color = isConversation
+            ? Color.accentColor
+            : (isRecording ? Color.red : (isIdle ? Theme.surfaceHover : Color.clear))
+        let foreground: Color = (isConversation || isRecording) ? .white : Theme.secondary
+        let blockedByStreaming = chatViewModel.isStreaming && !isConversation
+        return AnyView(Image(systemName: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(foreground)
+            .frame(width: 30, height: 30)
+            .background(fill, in: Circle())
+            .contentShape(Circle())
+            // Double-tap drops into a hands-free conversation regardless of the
+            // Conversation-mode setting; single tap dictates / stops / ends.
+            // Declaring the 2-count gesture first lets SwiftUI disambiguate
+            // reliably on macOS (a plain Button swallowed the double-tap).
+            .onTapGesture(count: 2) {
+                Task { await chatViewModel.startVoiceConversation() }
+            }
+            .onTapGesture(count: 1) {
+                guard !blockedByStreaming else { return }
+                Task {
+                    if isConversation || isRecording {
+                        await chatViewModel.stopVoiceRecording()
+                    } else {
+                        await chatViewModel.startVoiceRecording()
+                    }
                 }
             }
-        } label: {
-            Image(systemName: isRecording ? "mic.fill" : "mic")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isRecording ? .white : Theme.secondary)
-                .frame(width: 30, height: 30)
-                .background(
-                    isRecording
-                        ? Color.red
-                        : (isIdle ? Theme.surfaceHover : Color.clear),
-                    in: Circle()
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isRecording ? "Stop recording" : "Voice input")
-        .accessibilityIdentifier("voiceButton")
-        .help(isRecording ? "Stop voice recording" : "Start voice recording (walkie-talkie)")
-        .opacity(chatViewModel.isStreaming ? 0.3 : 1)
-        .disabled(chatViewModel.isStreaming)
-        .animation(.easeInOut(duration: 0.18), value: isRecording))
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isConversation ? "End conversation" : (isRecording ? "Stop recording" : "Voice input"))
+            .accessibilityIdentifier("voiceButton")
+            .help(isConversation
+                  ? "In conversation — tap to end"
+                  : (isRecording ? "Stop voice recording" : "Tap to dictate · double-tap to start a conversation"))
+            .opacity(blockedByStreaming ? 0.3 : 1)
+            .animation(.easeInOut(duration: 0.18), value: isRecording))
     }
 
     // MARK: - Send / Stop Button

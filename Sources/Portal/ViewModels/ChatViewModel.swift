@@ -336,6 +336,21 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var createGeneration: Int = 0
     /// Voice recording state — true while the gateway is capturing audio via VAD.
     @Published internal private(set) var isVoiceRecording: Bool = false
+    /// On-device speech-to-text. When the user opts in (Settings → Speech) on a
+    /// supported build, the mic button transcribes locally instead of streaming
+    /// to the gateway. Injectable so tests can drive the branch with a fake.
+    internal var localVoiceService: any LocalVoiceControlling = LocalVoiceService.shared
+    /// Speech-playback status used to gate hands-free relistening; injectable so
+    /// the conversation loop can be tested without the real synthesizer.
+    internal var speechStatus: any ConversationSpeechStatus = TTSService.shared
+    /// True while a hands-free conversation is running: the mic reopens after
+    /// each spoken reply until the user ends it by tapping the mic again.
+    @Published internal private(set) var isConversationActive: Bool = false
+    /// Set when a reply completes and cleared once the mic reopens — so a stray
+    /// `isSpeaking` change (e.g. a settings voice preview) can't reopen the mic.
+    private var awaitingRelisten = false
+    /// Whether the `isSpeaking` observer that drives relistening is installed.
+    private var conversationObserverInstalled = false
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -2035,7 +2050,12 @@ client.eventStream
 
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
             let promptWithSkills = inlineFormattingPreamble(for: sid) + skillPreamble() + promptText
-            try await client.submitPrompt(sessionID: sid, text: promptWithSkills)
+            // A spoken back-and-forth is a conversation, not an action request:
+            // route conversation-mode turns through the tool-less chat path
+            // (plain completion, no tool loop) so replies come back fast. Typed
+            // prompts and one-shot dictation keep the full tool-enabled agent.
+            // Backends without a chat path fall back to a normal turn.
+            try await client.submitPrompt(sessionID: sid, text: promptWithSkills, chatMode: isConversationActive)
             // The gateway accepted a prompt for this session, so it is live and
             // registered — don't re-run the resume gate on the next turn.
             needsGatewayResume = false
@@ -2051,6 +2071,7 @@ client.eventStream
     /// Start VAD-bounded voice recording. The gateway captures audio, runs
     /// STT, and emits a `voice.transcript` event which is auto-submitted.
     internal func startVoiceRecording() async {
+        if await startLocalVoiceRecordingIfEnabled() { return }
         guard let client = gatewayClient else { return }
         guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
@@ -2065,8 +2086,130 @@ client.eventStream
         }
     }
 
+    /// Route the mic button to on-device transcription when the user enabled it
+    /// on a supported build. Returns true when it took over, so the gateway path
+    /// is skipped. The final transcript arrives via `onFinalTranscript` and is
+    /// submitted exactly like a gateway `voice.transcript`.
+    internal func startLocalVoiceRecordingIfEnabled() async -> Bool {
+        guard localVoiceService.isEnabledAndAvailable else { return false }
+        guard !isVoiceRecording else { return true }
+        // A single tap honors the Conversation-mode setting; a deliberate
+        // double-tap (see `startVoiceConversation`) forces it on for the session.
+        await beginLocalCapture(conversation: localVoiceService.conversationMode)
+        return true
+    }
+
+    /// Start a hands-free conversation on demand — the double-tap entry point —
+    /// regardless of the Conversation-mode setting. Lets the user drop into a
+    /// spoken back-and-forth about a response without visiting Settings first.
+    internal func startVoiceConversation() async {
+        guard localVoiceService.isEnabledAndAvailable else { return }
+        guard !isConversationActive else { return }
+        // Abandon any one-shot capture already in flight so the double-tap
+        // cleanly upgrades it into a conversation.
+        if isVoiceRecording {
+            await localVoiceService.cancel()
+            isVoiceRecording = false
+        }
+        await beginLocalCapture(conversation: true)
+    }
+
+    /// Wire the transcript callbacks and open the mic. Shared by the one-shot
+    /// and conversation entry points; `conversation` arms the relisten loop.
+    private func beginLocalCapture(conversation: Bool) async {
+        if conversation {
+            isConversationActive = true
+            observeSpeechForRelisten()
+            // A conversation is a *spoken* exchange — make sure replies are read
+            // back, otherwise there's nothing to converse with (and the mic
+            // reopen keys off speech finishing).
+            TTSService.shared.isEnabled = true
+        }
+        localVoiceService.onFinalTranscript = { [weak self] text in
+            Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }
+        }
+        localVoiceService.onPartialTranscript = { [weak self] text in
+            Task { @MainActor in self?.inputText = text }
+        }
+        inputText = ""
+        isVoiceRecording = true
+        await localVoiceService.start()
+    }
+
+    /// Submit an on-device transcript as the user's prompt, mirroring the
+    /// gateway `voice.transcript` handler: stop recording, drop empty results.
+    internal func submitLocalVoiceTranscript(_ text: String) async {
+        isVoiceRecording = false
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            // An empty turn (silence) shouldn't end a hands-free conversation —
+            // clear the mirrored partial and reopen the mic so the user can just
+            // keep talking.
+            inputText = ""
+            if isConversationActive {
+                awaitingRelisten = true
+                relistenIfQuiet()
+            }
+            return
+        }
+        inputText = trimmed
+        await submitPrompt()
+    }
+
+    /// After the agent finishes a reply, reopen the mic for the next turn once
+    /// speech playback is quiet. Called from `messageComplete` and whenever the
+    /// TTS `isSpeaking` flag changes. Guarded by `awaitingRelisten` so only a
+    /// just-completed conversational turn triggers it.
+    internal func handleConversationResponseComplete() {
+        guard isConversationActive else { return }
+        awaitingRelisten = true
+        relistenIfQuiet()
+    }
+
+    /// Reopen the conversation mic if a turn is pending and nothing is being
+    /// spoken. No-op otherwise, so it's safe to call repeatedly.
+    internal func relistenIfQuiet() {
+        guard isConversationActive, awaitingRelisten, !speechStatus.isSpeaking else { return }
+        awaitingRelisten = false
+        inputText = ""
+        isVoiceRecording = true
+        Task { await localVoiceService.start() }
+    }
+
+    /// End a hands-free conversation: silence any spoken reply, abandon the
+    /// current capture without submitting, and return the mic to idle.
+    internal func endConversation() async {
+        isConversationActive = false
+        awaitingRelisten = false
+        isVoiceRecording = false
+        TTSService.shared.stop()
+        await localVoiceService.cancel()
+    }
+
+    /// Install the one-shot observer that reopens the mic when a spoken reply
+    /// finishes. Idempotent — a conversation may be started more than once.
+    private func observeSpeechForRelisten() {
+        guard !conversationObserverInstalled else { return }
+        conversationObserverInstalled = true
+        TTSService.shared.$isSpeaking
+            .receive(on: RunLoop.main)
+            .sink { [weak self] speaking in
+                if !speaking { self?.relistenIfQuiet() }
+            }
+            .store(in: &cancellables)
+    }
+
     /// Stop the current voice recording session.
     internal func stopVoiceRecording() async {
+        if isConversationActive {
+            await endConversation()
+            return
+        }
+        if localVoiceService.isRunning {
+            await localVoiceService.stop()
+            isVoiceRecording = false
+            return
+        }
         guard let client = gatewayClient else { return }
         guard isVoiceRecording else { return }
         do {
@@ -3654,6 +3797,9 @@ client.eventStream
 
             // Text-to-speech summary
             TTSService.shared.speakLastAssistantMessage(messages)
+
+            // Hands-free conversation: reopen the mic once the spoken reply ends.
+            handleConversationResponseComplete()
 
             // Notify if app is backgrounded or this isn't the active session
             let preview = payload.text.truncated(to: 80)

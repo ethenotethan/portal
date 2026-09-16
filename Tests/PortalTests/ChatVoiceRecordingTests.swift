@@ -21,6 +21,7 @@ private final class VoiceBackendSpy: AgentBackend {
     private(set) var voiceActions: [String] = []
     private(set) var recordActions: [String] = []
     private(set) var submittedPrompts: [(sessionID: String, text: String)] = []
+    private(set) var submittedChatModes: [Bool] = []
     var failVoiceToggle = false
     var failVoiceRecord = false
 
@@ -32,7 +33,11 @@ private final class VoiceBackendSpy: AgentBackend {
     internal func interrupt(sessionID: String) async throws {}
 
     internal func submitPrompt(sessionID: String, text: String) async throws {
+        try await submitPrompt(sessionID: sessionID, text: text, chatMode: false)
+    }
+    internal func submitPrompt(sessionID: String, text: String, chatMode: Bool) async throws {
         submittedPrompts.append((sessionID, text))
+        submittedChatModes.append(chatMode)
     }
     internal func respondApproval(sessionID: String, choice: String, all: Bool) async throws {}
     internal func respondClarify(requestID: String, answer: String) async throws {}
@@ -61,9 +66,52 @@ private final class VoiceBackendSpy: AgentBackend {
     internal func recordDroppedEvent(_ event: GatewayEvent, sessionID: String?, reason: String) {}
 }
 
+/// Minimal on-device voice stand-in so a conversation can be activated without
+/// a microphone or model — just enough for the chat-mode routing tests.
+@MainActor
+private final class ConvLocalVoiceFake: LocalVoiceControlling {
+    var isEnabledAndAvailable = true
+    var conversationMode = true
+    var isRunning = false
+    var onFinalTranscript: ((String) -> Void)?
+    var onPartialTranscript: ((String) -> Void)?
+
+    func start() async { isRunning = true }
+    func stop() async { isRunning = false }
+    func cancel() async { isRunning = false }
+}
+
 @Suite("Chat voice recording")
 @MainActor
 internal struct ChatVoiceRecordingTests {
+
+    @Test("a conversation turn asks the gateway for the tool-less chat path")
+    internal func conversationTurnRequestsChatMode() async {
+        let backend = VoiceBackendSpy()
+        let viewModel = ChatViewModel()
+        viewModel.setGatewayClient(backend)
+        _ = viewModel.beginSwitchToSession(key: "voice-session")
+        let voice = ConvLocalVoiceFake()
+        viewModel.localVoiceService = voice
+
+        await viewModel.startVoiceConversation()
+        #expect(viewModel.isConversationActive)
+
+        await viewModel.submitLocalVoiceTranscript("what did you mean by that")
+        #expect(backend.submittedChatModes.last == true)
+    }
+
+    @Test("a one-shot dictation turn keeps the full tool-enabled agent")
+    internal func oneShotTurnKeepsTools() async {
+        let backend = VoiceBackendSpy()
+        let viewModel = ChatViewModel()
+        viewModel.setGatewayClient(backend)
+        _ = viewModel.beginSwitchToSession(key: "voice-session")
+
+        await viewModel.submitLocalVoiceTranscript("summarize the readme")
+        #expect(backend.submittedChatModes.last == false)
+    }
+
     @Test("start and stop issue the expected voice RPCs")
     internal func startAndStopVoiceRecording() async {
         let backend = VoiceBackendSpy()

@@ -19,6 +19,16 @@ internal protocol SpeechSynthesizing: AnyObject {
 
 extension AVSpeechSynthesizer: SpeechSynthesizing {}
 
+/// Read-only view of whether a spoken reply is currently playing. The chat view
+/// model uses it to hold off reopening the hands-free conversation mic until the
+/// agent has finished talking — the on-device recognizer has no echo
+/// cancellation, so an open mic would transcribe the TTS audio itself. A
+/// protocol so the view model can be tested without the real synthesizer.
+@MainActor
+internal protocol ConversationSpeechStatus: AnyObject {
+    var isSpeaking: Bool { get }
+}
+
 /// On-device text-to-speech using Apple's AVSpeechSynthesizer.
 /// Speaks assistant responses aloud — no network, no API key, no privacy concerns.
 ///
@@ -34,7 +44,7 @@ extension AVSpeechSynthesizer: SpeechSynthesizing {}
 /// automatically), `speaksWhileStreaming` (start before the turn ends), and
 /// the voice/rate/code-block preferences that shape every utterance.
 @MainActor
-final class TTSService: ObservableObject {
+internal final class TTSService: ObservableObject, ConversationSpeechStatus {
     static let shared = TTSService()
 
     // MARK: Settings
