@@ -176,6 +176,27 @@ internal struct CodeGraphTests {
         #expect(wiki.pages.first?.tagPath == ["kind/func"])
     }
 
+    @Test("an unresolved code node opens an explanatory page without an RPC")
+    internal func opensUnresolvedNodeWithoutReadingAFile() async throws {
+        let source = CodeGraphSource(client: GatewayClient(), service: "svc")
+
+        let page = try await source.fetchPage(path: "external-symbol")
+
+        #expect(page.path == "external-symbol")
+        #expect(page.body.contains("external to the service"))
+    }
+
+    @Test("code graph convenience identities and empty state remain stable")
+    internal func convenienceIdentitiesAndEmptyState() throws {
+        let edge = CodeGraphEdge(source: "a", target: "b", type: "calls", edgeClass: "flow")
+        #expect(edge.id == "a->b:calls")
+
+        let request = CodeGraphRequest(service: "svc", label: "Service")
+        #expect(request.id == "svc")
+        #expect(request.digest.isEmpty)
+        #expect(CodeGraph.empty.isEmpty)
+    }
+
     // MARK: - Color / radius regression guard
 
     @Test("code kinds get distinct colors; wiki types are unchanged")
@@ -187,8 +208,8 @@ internal struct CodeGraphTests {
         #expect(Set(colors).count == codeKinds.count)
         #expect(vm.color(for: "module") != vm.color(for: "unknown-type"))
         // Wiki types keep their existing colors (renderer regression guard).
-        #expect(vm.color(for: "entity") == Color(hex: "7c7cff")!)
-        #expect(vm.color(for: "glossary") == Color(hex: "5ad4e6")!)
+        #expect(vm.color(for: "entity") == Color(hex: "7c7cff"))
+        #expect(vm.color(for: "glossary") == Color(hex: "5ad4e6"))
         // Modules read as hubs; externals smaller than the default.
         #expect(vm.nodeRadius(for: "module") == 8)
         #expect(vm.nodeRadius(for: "external") == 4)

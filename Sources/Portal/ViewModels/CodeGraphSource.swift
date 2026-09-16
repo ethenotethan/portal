@@ -16,14 +16,14 @@ import Foundation
 /// `root`/`rel` captured on the node — so tapping a symbol opens the code it was
 /// extracted from.
 @MainActor
-final class CodeGraphSource: WikiSource, ObservableObject {
+internal final class CodeGraphSource: WikiSource, ObservableObject {
     private let client: GatewayClient
     private let service: String
 
     /// The last graph fetched, kept so `fetchPage` can resolve a WikiPage path
     /// back to the source file's `(root, rel)`. Also exposes `digest`/provenance
     /// for a host that wants to show the version anchor.
-    private(set) var lastGraph: CodeGraph?
+    internal private(set) var lastGraph: CodeGraph?
 
     /// path (as mapped onto `WikiPage.path`) → the file coordinates to read.
     private var fileIndex: [String: (root: String, rel: String)] = [:]
@@ -74,7 +74,7 @@ final class CodeGraphSource: WikiSource, ObservableObject {
         return (WikiGraph(pages: pages, links: links), index)
     }
 
-    func fetchGraph() async throws -> WikiGraph {
+    internal func fetchGraph() async throws -> WikiGraph {
         let graph = try await client.codeGraph(service: service)
         lastGraph = graph
         let (wiki, index) = Self.mapToWikiGraph(graph)
@@ -82,7 +82,7 @@ final class CodeGraphSource: WikiSource, ObservableObject {
         return wiki
     }
 
-    func fetchPage(path: String) async throws -> WikiPageContent {
+    internal func fetchPage(path: String) async throws -> WikiPageContent {
         guard let coords = fileIndex[path] else {
             // External/unresolved symbol — no local file to open.
             return WikiPageContent(

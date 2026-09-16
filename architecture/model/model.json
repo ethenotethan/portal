@@ -3605,7 +3605,7 @@
         "owner_type": "WikiGraphViewModel",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-464c6c428789"
+          "task-site-b2904b861fac"
         ]
       }
     ],
@@ -7004,11 +7004,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .userInitiated) { [weak self] in",
-          "line": 764,
+          "line": 753,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6ddbc98aebd",
+        "id": "task-site-ac07e6cb0cd4",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -7020,11 +7020,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "private var interactionSettleTask: Task<Void, Never>?",
-          "line": 881,
+          "line": 870,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-464c6c428789",
+        "id": "task-site-b2904b861fac",
         "kind": "stored_task_handle",
         "label": "interactionSettleTask",
         "rule_id": "swift.task.stored_handle"
@@ -7036,11 +7036,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "interactionSettleTask?.cancel()",
-          "line": 888,
+          "line": 877,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0bf5bfe9810d",
+        "id": "task-site-173be6ec196d",
         "kind": "task_cancellation",
         "label": "interactionSettleTask",
         "rule_id": "swift.task.cancel"
@@ -7052,11 +7052,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "interactionSettleTask = Task { @MainActor [weak self] in",
-          "line": 889,
+          "line": 878,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a3b760650b01",
+        "id": "task-site-d27b5fa476f8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7068,11 +7068,11 @@
         "enclosing_type": "WikiGraphViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .userInitiated) {",
-          "line": 1059,
+          "line": 1048,
           "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5254180a9d97",
+        "id": "task-site-b5d343373448",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -10914,7 +10914,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1511
+      "line_count": 1512
     },
     {
       "declaration_count": 22,
@@ -15585,7 +15585,7 @@
     "assigned_files": 363,
     "declarations": 1077,
     "swift_files": 363,
-    "swift_lines": 105778,
+    "swift_lines": 105779,
     "unassigned_files": []
   },
   "layers": [
@@ -15617,6 +15617,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "4db03c8bbfdad20b84396ef2d3f573f6660f3589a3595d5ff959f1aa3c490d90",
+  "source_tree_sha256": "223edfe85ea00af725a92b74d55fa4d8653d176dd3413757daacd49e88b5c2ff",
   "title": "Portal Architecture"
 }
