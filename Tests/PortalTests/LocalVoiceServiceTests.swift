@@ -244,6 +244,29 @@ internal struct LocalVoiceServiceTests {
         UserDefaults.standard.removeObject(forKey: LocalVoiceService.conversationKey)
     }
 
+    @Test("conversation looks expose stable labels and persist across instances")
+    internal func conversationVisualPersists() {
+        let key = LocalVoiceService.conversationVisualKey
+        UserDefaults.standard.removeObject(forKey: key)
+
+        #expect(ConversationVisual.claude.id == "claude")
+        #expect(ConversationVisual.claude.label == "Claude — organic orb")
+        #expect(ConversationVisual.openai.id == "openai")
+        #expect(ConversationVisual.openai.label == "OpenAI — gradient sphere")
+
+        let first = LocalVoiceService(transcriber: FakeTranscriber(), microphone: FakeMicrophone())
+        #expect(first.conversationVisual == .claude)
+        first.conversationVisual = .openai
+
+        let second = LocalVoiceService(transcriber: FakeTranscriber(), microphone: FakeMicrophone())
+        #expect(second.conversationVisual == .openai)
+
+        UserDefaults.standard.set("unknown", forKey: key)
+        let invalid = LocalVoiceService(transcriber: FakeTranscriber(), microphone: FakeMicrophone())
+        #expect(invalid.conversationVisual == .claude)
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     @Test("the opt-in persists across instances")
     internal func enabledPersists() {
         UserDefaults.standard.removeObject(forKey: LocalVoiceService.enabledKey)

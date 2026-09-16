@@ -6,6 +6,7 @@ import Testing
 /// without a microphone, a model, or the shared singleton.
 @MainActor
 private final class FakeLocalVoice: LocalVoiceControlling {
+    var conversationVisual: ConversationVisual = .claude
     var isEnabledAndAvailable = false
     var conversationMode = false
     var isRunning = false
@@ -251,6 +252,27 @@ internal struct ChatVoiceRoutingTests {
         // ends, but the guard order must not regress).
         speech.isSpeaking = true
         #expect(vm.conversationPhase == .speaking)
+    }
+
+    @Test("conversation presentation follows phase, transcript, reply, and selected look")
+    internal func conversationPresentation() {
+        let vm = ChatViewModel()
+        let fake = FakeLocalVoice()
+        let speech = FakeSpeechStatus()
+        fake.conversationVisual = .openai
+        vm.localVoiceService = fake
+        vm.speechStatus = speech
+
+        vm.inputText = "  live question  "
+        #expect(vm.conversationCaption == "live question")
+        #expect(vm.conversationVisual == .openai)
+
+        vm.messages = [ChatMessage(role: .assistant, content: "  spoken reply  ")]
+        vm.isStreaming = true
+        #expect(vm.conversationCaption == "spoken reply")
+
+        speech.isSpeaking = true
+        #expect(vm.conversationCaption == "spoken reply")
     }
 
     @Test("tapping the mic ends a conversation without submitting")

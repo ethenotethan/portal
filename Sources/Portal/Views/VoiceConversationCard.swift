@@ -158,7 +158,10 @@ private struct ClaudeOrb: View {
             let a = Double(i) / Double(steps) * 2 * .pi
             let w = wobble * (sin(a * 3 + t * speed) + 0.5 * sin(a * 5 - t * speed * 0.7))
             let r = base * CGFloat(1 + w)
-            let point = CGPoint(x: center.x + cos(a) * r, y: center.y + sin(a) * r)
+            let point = CGPoint(
+                x: center.x + CGFloat(cos(a)) * r,
+                y: center.y + CGFloat(sin(a)) * r
+            )
             if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
         path.closeSubpath()
@@ -217,8 +220,8 @@ private struct OpenAIOrb: View {
                             .fill(Color.white.opacity(0.35))
                             .frame(width: 10, height: 10)
                             .offset(
-                                x: cos(t * (phase == .speaking ? 3 : 0.6)) * 8,
-                                y: sin(t * (phase == .speaking ? 3 : 0.6)) * 8
+                                x: CGFloat(cos(t * (phase == .speaking ? 3 : 0.6))) * 8,
+                                y: CGFloat(sin(t * (phase == .speaking ? 3 : 0.6))) * 8
                             )
                             .blur(radius: 3)
                             .scaleEffect(0.62)
