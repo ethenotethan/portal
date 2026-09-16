@@ -1,5 +1,5 @@
 {
-  "originHash" : "e5810a26356831fd32f25188e5e844162176c4048d67e0e92e2f8825d25671bf",
+  "originHash" : "91ee4b606aec1b2f03ce2f9739a3ea59161d69540704f5a2b36e00c7a2f297c7",
   "pins" : [
     {
       "identity" : "beautiful-mermaid-swift",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "a3a85a85214caf642abaa96ae664e4c772a59f6e",
         "version" : "1.4.1"
+      }
+    },
+    {
+      "identity" : "fluidaudio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/FluidInference/FluidAudio",
+      "state" : {
+        "revision" : "41540ea237350afe5117a082b5c28eda642d0612",
+        "version" : "0.15.7"
       }
     },
     {

@@ -340,12 +340,18 @@ final class ChatViewModel: ObservableObject {
     /// supported build, the mic button transcribes locally instead of streaming
     /// to the gateway. Injectable so tests can drive the branch with a fake.
     internal var localVoiceService: any LocalVoiceControlling = LocalVoiceService.shared
-    /// Speech-playback status used to gate hands-free relistening; injectable so
-    /// the conversation loop can be tested without the real synthesizer.
+    /// Speech-playback status used to gate barge-in (talking over a spoken
+    /// reply) and derive the conversation phase; injectable so the conversation
+    /// loop can be tested without the real synthesizer.
     internal var speechStatus: any ConversationSpeechStatus = TTSService.shared
-    /// True while a hands-free conversation is running: the mic reopens after
-    /// each spoken reply until the user ends it by tapping the mic again.
+    /// True while a hands-free conversation is running: the mic stays open
+    /// continuously across turns (so the user can talk over a reply) until the
+    /// user ends it by tapping the mic again.
     @Published internal private(set) var isConversationActive: Bool = false
+
+    /// Smoothed 0...1 microphone level while a conversation is capturing, so the
+    /// orb can expand and shrink with the user's voice. Zero when idle.
+    @Published internal private(set) var voiceLevel: Float = 0
 
     /// The three states the inline voice-conversation card animates between.
     internal enum ConversationPhase {
@@ -380,16 +386,10 @@ final class ChatViewModel: ObservableObject {
 
     /// The look the conversation card should render, chosen in Settings.
     internal var conversationVisual: ConversationVisual { localVoiceService.conversationVisual }
-    /// Set when a reply completes and cleared once the mic reopens — so a stray
-    /// `isSpeaking` change (e.g. a settings voice preview) can't reopen the mic.
-    private var awaitingRelisten = false
-    /// Reopens the conversation mic if a reply is never spoken (TTS disabled or
-    /// failed, empty reply) — the `isSpeaking` observer only fires on real
-    /// playback, so without this a silent turn would strand the loop. Cancelled
-    /// the moment playback actually starts.
-    private var relistenFallbackTask: Task<Void, Never>?
-    /// Whether the `isSpeaking` observer that drives relistening is installed.
-    private var conversationObserverInstalled = false
+    /// True between detecting a barge-in (the user spoke over a reply) and that
+    /// utterance being submitted, so the repeated partial transcripts of a
+    /// single interruption only cancel the in-flight turn once.
+    private var isBargingIn = false
     /// Pending media attachments for the next user message.
     @Published var pendingAttachments: [MediaAttachment] = []
     /// Skills attached to this session (their instructions are prepended to prompts).
@@ -2154,121 +2154,93 @@ client.eventStream
     }
 
     /// Wire the transcript callbacks and open the mic. Shared by the one-shot
-    /// and conversation entry points; `conversation` arms the relisten loop.
+    /// and conversation entry points. A conversation opens a *continuous*
+    /// capture (mic stays live across turns) so the exchange is truly hands-free
+    /// and the user can talk over a reply; a one-shot capture stops at
+    /// end-of-utterance as before.
     private func beginLocalCapture(conversation: Bool) async {
         if conversation {
             isConversationActive = true
-            observeSpeechForRelisten()
+            isBargingIn = false
             // A conversation is a *spoken* exchange — make sure replies are read
-            // back, otherwise there's nothing to converse with (and the mic
-            // reopen keys off speech finishing).
+            // back, otherwise there's nothing to converse with.
             TTSService.shared.isEnabled = true
         }
         localVoiceService.onFinalTranscript = { [weak self] text in
             Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }
         }
         localVoiceService.onPartialTranscript = { [weak self] text in
-            Task { @MainActor in self?.inputText = text }
+            Task { @MainActor in self?.handleLocalVoicePartial(text) }
+        }
+        localVoiceService.onAudioLevel = { [weak self] level in
+            self?.updateVoiceLevel(level)
         }
         inputText = ""
+        voiceLevel = 0
         isVoiceRecording = true
-        await localVoiceService.start()
+        if conversation {
+            await localVoiceService.startConversation()
+        } else {
+            await localVoiceService.start()
+        }
+    }
+
+    /// Mirror the live partial into the composer, and — in a conversation —
+    /// detect a barge-in: the user talking while a reply is still streaming or
+    /// being spoken. That cancels the in-flight turn and stops playback so the
+    /// new utterance supersedes it. `isBargingIn` collapses the many partials of
+    /// one interruption into a single cancel.
+    private func handleLocalVoicePartial(_ text: String) {
+        inputText = text
+        guard isConversationActive, !isBargingIn else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard isStreaming || speechStatus.isSpeaking else { return }
+        isBargingIn = true
+        Task { await interrupt() }
+    }
+
+    /// Fold each raw per-buffer mic level into `voiceLevel`. An exponential
+    /// moving average tames the ~10 Hz buffer jitter so the orb pulses smoothly
+    /// with the voice instead of strobing.
+    private func updateVoiceLevel(_ raw: Float) {
+        let clamped = max(0, min(1, raw))
+        voiceLevel = voiceLevel * 0.7 + clamped * 0.3
     }
 
     /// Submit an on-device transcript as the user's prompt, mirroring the
-    /// gateway `voice.transcript` handler: stop recording, drop empty results.
+    /// gateway `voice.transcript` handler. In a conversation the mic stays open
+    /// (continuous capture), so recording is not stopped and an empty utterance
+    /// simply keeps listening; a one-shot dictation stops here.
     internal func submitLocalVoiceTranscript(_ text: String) async {
-        isVoiceRecording = false
+        isBargingIn = false
+        if !isConversationActive { isVoiceRecording = false }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            // An empty turn (silence) shouldn't end a hands-free conversation —
-            // clear the mirrored partial and reopen the mic so the user can just
-            // keep talking.
             inputText = ""
-            if isConversationActive {
-                awaitingRelisten = true
-                relistenIfQuiet()
-            }
             return
         }
         inputText = trimmed
         await submitPrompt()
     }
 
-    /// After the agent finishes a reply, reopen the mic for the next turn once
-    /// speech playback is quiet. Called from `messageComplete` and whenever the
-    /// TTS `isSpeaking` flag changes. Guarded by `awaitingRelisten` so only a
-    /// just-completed conversational turn triggers it.
+    /// Called when a reply completes (`messageComplete`). With continuous
+    /// capture the mic never closed, so the next utterance is already being
+    /// listened for — there's nothing to reopen. Just clear the barge-in latch
+    /// in case a turn ended without one.
     internal func handleConversationResponseComplete() {
         guard isConversationActive else { return }
-        // Arm the relisten, but do NOT reopen the mic here. TTSService flips
-        // `isSpeaking` asynchronously (AVSpeechSynthesizer's didStart fires a
-        // beat after `speak`), so right now it is still false — reopening would
-        // put the mic up *during* the spoken reply and consume the arm before
-        // the reply is even heard, killing the loop after one turn. The
-        // `isSpeaking` observer reopens once playback actually finishes.
-        awaitingRelisten = true
-        scheduleRelistenFallback()
-    }
-
-    /// Guard against a turn that is never spoken aloud: if playback hasn't
-    /// started shortly after a reply completes, reopen the mic anyway so the
-    /// conversation doesn't stall. Cancelled by the observer once real playback
-    /// begins, so a slow TTS start never races the mic open.
-    private func scheduleRelistenFallback() {
-        relistenFallbackTask?.cancel()
-        relistenFallbackTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: 1_200_000_000)
-            } catch {
-                // Cancelled — real playback started (or the conversation ended),
-                // so the reopen keys off the speech observer instead.
-                return
-            }
-            guard let self, !Task.isCancelled else { return }
-            self.relistenIfQuiet()
-        }
-    }
-
-    /// Reopen the conversation mic if a turn is pending and nothing is being
-    /// spoken. No-op otherwise, so it's safe to call repeatedly.
-    internal func relistenIfQuiet() {
-        guard isConversationActive, awaitingRelisten, !speechStatus.isSpeaking else { return }
-        awaitingRelisten = false
-        inputText = ""
-        isVoiceRecording = true
-        Task { await localVoiceService.start() }
+        isBargingIn = false
     }
 
     /// End a hands-free conversation: silence any spoken reply, abandon the
     /// current capture without submitting, and return the mic to idle.
     internal func endConversation() async {
         isConversationActive = false
-        awaitingRelisten = false
-        relistenFallbackTask?.cancel()
+        isBargingIn = false
         isVoiceRecording = false
+        voiceLevel = 0
         TTSService.shared.stop()
         await localVoiceService.cancel()
-    }
-
-    /// Install the one-shot observer that reopens the mic when a spoken reply
-    /// finishes. Idempotent — a conversation may be started more than once.
-    private func observeSpeechForRelisten() {
-        guard !conversationObserverInstalled else { return }
-        conversationObserverInstalled = true
-        TTSService.shared.$isSpeaking
-            .receive(on: RunLoop.main)
-            .sink { [weak self] speaking in
-                guard let self else { return }
-                if speaking {
-                    // Real playback started — the no-speech fallback is no
-                    // longer needed; the reopen now keys off playback ending.
-                    self.relistenFallbackTask?.cancel()
-                } else {
-                    self.relistenIfQuiet()
-                }
-            }
-            .store(in: &cancellables)
     }
 
     /// Stop the current voice recording session.

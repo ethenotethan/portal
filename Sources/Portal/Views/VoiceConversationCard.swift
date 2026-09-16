@@ -14,6 +14,9 @@ internal struct VoiceConversationCard: View {
     internal var body: some View {
         let phase = chatViewModel.conversationPhase
         let caption = chatViewModel.conversationCaption
+        // While listening, live transcript text means dictation is being
+        // processed — surface that instead of the idle "Listening…".
+        let isTranscribing = phase == .listening && !caption.isEmpty
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 14) {
@@ -21,7 +24,7 @@ internal struct VoiceConversationCard: View {
                     .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(phaseLabel(phase))
+                    Text(isTranscribing ? "Transcribing\u{2026}" : phaseLabel(phase))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.secondary)
                     Text("In conversation")
@@ -68,9 +71,10 @@ internal struct VoiceConversationCard: View {
 
     @ViewBuilder
     private func orb(for phase: ChatViewModel.ConversationPhase) -> some View {
+        let level = Double(chatViewModel.voiceLevel)
         switch chatViewModel.conversationVisual {
-        case .claude: ClaudeOrb(phase: phase)
-        case .openai: OpenAIOrb(phase: phase)
+        case .claude: ClaudeOrb(phase: phase, level: level)
+        case .openai: OpenAIOrb(phase: phase, level: level)
         }
     }
 
@@ -89,6 +93,8 @@ internal struct VoiceConversationCard: View {
 /// whose glow breathes. Livelier while speaking, calmer while listening.
 private struct ClaudeOrb: View {
     internal let phase: ChatViewModel.ConversationPhase
+    /// Live 0...1 mic level; drives the expand/shrink while listening.
+    internal let level: Double
 
     /// Outline wobble amount by phase — how far the blob departs from a circle.
     private var wobble: Double {
@@ -115,9 +121,16 @@ private struct ClaudeOrb: View {
     ])
 
     internal var body: some View {
-        TimelineView(.animation) { timeline in
+        // Voice only drives the orb while listening; a floor keeps it lively as
+        // the very first words come in.
+        let voice = phase == .listening ? max(0, min(1, level)) : 0
+        return TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
-            let glowScale = CGFloat(0.9 + 0.08 * (0.5 + 0.5 * sin(t * speed)))
+            let breathe = 0.9 + 0.08 * (0.5 + 0.5 * sin(t * speed))
+            let glowScale = CGFloat(breathe + 0.4 * voice)
+            // Louder voice both grows the outline and roughens its wobble, so it
+            // visibly reacts to speech peaks.
+            let voiceWobble = wobble + 0.12 * voice
             ZStack {
                 // Breathing glow behind the blob.
                 Circle()
@@ -127,8 +140,8 @@ private struct ClaudeOrb: View {
 
                 Canvas { ctx, size in
                     let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                    let base = min(size.width, size.height) / 2 * 0.72
-                    let path = Self.blobPath(center: center, base: base, wobble: wobble, speed: speed, t: t)
+                    let base = min(size.width, size.height) / 2 * 0.72 * CGFloat(1 + 0.28 * voice)
+                    let path = Self.blobPath(center: center, base: base, wobble: voiceWobble, speed: speed, t: t)
                     ctx.fill(
                         path,
                         with: .radialGradient(
@@ -140,6 +153,7 @@ private struct ClaudeOrb: View {
                     )
                 }
             }
+            .animation(.easeOut(duration: 0.12), value: voice)
         }
     }
 
@@ -176,6 +190,8 @@ private struct ClaudeOrb: View {
 /// speaking.
 private struct OpenAIOrb: View {
     internal let phase: ChatViewModel.ConversationPhase
+    /// Live 0...1 mic level; drives the expand/shrink while listening.
+    internal let level: Double
 
     private var ringSpeed: Double {
         switch phase {
@@ -192,8 +208,17 @@ private struct OpenAIOrb: View {
     ])
 
     internal var body: some View {
-        TimelineView(.animation) { timeline in
+        let voice = phase == .listening ? max(0, min(1, level)) : 0
+        return TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
+            let highlightSpeed: Double = phase == .speaking ? 3 : 0.6
+            let highlightX = CGFloat(cos(t * highlightSpeed) * 8)
+            let highlightY = CGFloat(sin(t * highlightSpeed) * 8)
+            // Core grows with the voice while listening; speaking keeps its own
+            // shimmer pulse.
+            let coreScale = 0.62 + (phase == .speaking
+                ? 0.05 * (0.5 + 0.5 * sin(t * 6))
+                : 0.22 * voice)
             ZStack {
                 // Sonar rings — three staggered pulses expanding and fading.
                 ForEach(0..<3, id: \.self) { index in
@@ -214,20 +239,18 @@ private struct OpenAIOrb: View {
                             endRadius: 34
                         )
                     )
-                    .scaleEffect(0.62 + (phase == .speaking ? 0.05 * (0.5 + 0.5 * sin(t * 6)) : 0))
+                    .scaleEffect(coreScale)
                     .overlay(
                         Circle()
                             .fill(Color.white.opacity(0.35))
                             .frame(width: 10, height: 10)
-                            .offset(
-                                x: CGFloat(cos(t * (phase == .speaking ? 3 : 0.6))) * 8,
-                                y: CGFloat(sin(t * (phase == .speaking ? 3 : 0.6))) * 8
-                            )
+                            .offset(x: highlightX, y: highlightY)
                             .blur(radius: 3)
                             .scaleEffect(0.62)
                     )
                     .shadow(color: Color(red: 0.3, green: 0.4, blue: 1.0).opacity(0.6), radius: 12)
             }
+            .animation(.easeOut(duration: 0.12), value: voice)
         }
     }
 }

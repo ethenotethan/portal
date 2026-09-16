@@ -32,12 +32,16 @@ private final class FakeMicrophone: MicrophoneCapturing {
     var started = false
     var stopped = false
     var startError: Error?
+    var onAudioLevel: (@Sendable (Float) -> Void)?
 
     func start(feeding transcriber: any LocalSpeechTranscribing) throws {
         if let startError { throw startError }
         started = true
     }
     func stop() { stopped = true }
+
+    /// Fire the level sink the service wired up, as the real mic tap would.
+    func emitLevel(_ value: Float) { onAudioLevel?(value) }
 }
 
 private struct MicFailure: Error {}
@@ -135,6 +139,54 @@ internal struct LocalVoiceServiceTests {
         #expect(final == "hello world")
         #expect(!service.isRunning)
         #expect(mic.stopped)
+    }
+
+    @Test("a conversation keeps the mic open after end-of-utterance")
+    internal func conversationEmitsButKeepsListening() async {
+        let (service, transcriber, mic) = makeService()
+        var finals: [String] = []
+        service.onFinalTranscript = { finals.append($0) }
+        await service.startConversation()
+
+        // First utterance ends: the transcript is emitted, but capture stays
+        // live for the next turn — the mic is not stopped.
+        transcriber.finishText = "first turn"
+        transcriber.triggerEndOfUtterance()
+        await settle { finals.count == 1 }
+        #expect(finals == ["first turn"])
+        #expect(service.isRunning)
+        #expect(!mic.stopped)
+
+        // A second utterance flows through the same open mic — no re-`start`.
+        transcriber.finishText = "second turn"
+        transcriber.triggerEndOfUtterance()
+        await settle { finals.count == 2 }
+        #expect(finals == ["first turn", "second turn"])
+        #expect(service.isRunning)
+        #expect(!mic.stopped)
+
+        // Ending the conversation is what finally tears capture down.
+        await service.cancel()
+        #expect(!service.isRunning)
+        #expect(mic.stopped)
+    }
+
+    @Test("mic levels surface for the voice-reactive orb and reset on cancel")
+    internal func audioLevelFlowsThroughAndResets() async {
+        let (service, _, mic) = makeService()
+        var levels: [Float] = []
+        service.onAudioLevel = { levels.append($0) }
+        await service.startConversation()
+
+        mic.emitLevel(0.4)
+        mic.emitLevel(0.9)
+        await settle { levels.count == 2 }
+        #expect(levels == [0.4, 0.9])
+        #expect(service.inputLevel == 0.9)
+
+        // Ending capture returns the level to silence so the orb settles.
+        await service.cancel()
+        #expect(service.inputLevel == 0)
     }
 
     @Test("a manual stop also emits the transcript")
