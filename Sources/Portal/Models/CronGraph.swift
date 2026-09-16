@@ -49,10 +49,21 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
     /// *made of*, not something it exchanges data with, so drawing it as a
     /// resource would clutter the dataflow with edges that carry no data.
     internal var sourceFiles: [CronSourceFile] = []
+    /// Present on a `service` node whose declared code the gateway can build a
+    /// code knowledge graph for: the `ref` (the service id to pass to
+    /// `code.graph`) and a `digest` that changes when the code does — the
+    /// change-token a viewer refetches on. `nil` means no code graph is
+    /// available (no in-root readable sources), so the "View code graph"
+    /// affordance stays hidden. Node metadata, like `sourceFiles`.
+    internal var codeGraph: CronServiceCodeGraphRef? = nil // swiftlint:disable:this implicit_optional_initialization
+    /// The verified code-control anchor for a `service` node (repository +
+    /// revision), when it has one. Undecoded before now; carried so a surface
+    /// can show "graph of owner/name @ revision".
+    internal var codeControl: CodeGraphProvenance? = nil // swiftlint:disable:this implicit_optional_initialization
 
     private enum CodingKeys: String, CodingKey {
         case id, kind, type, label, description, schedule, enabled, usesLLM, lastStatus, deliver, health
-        case sourceFiles
+        case sourceFiles, codeGraph, codeControl
     }
 
     internal init(
@@ -67,7 +78,9 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         lastStatus: String?,
         deliver: String?,
         health: CronServiceHealth? = nil,
-        sourceFiles: [CronSourceFile] = []
+        sourceFiles: [CronSourceFile] = [],
+        codeGraph: CronServiceCodeGraphRef? = nil,
+        codeControl: CodeGraphProvenance? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -81,6 +94,8 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         self.deliver = deliver
         self.health = health
         self.sourceFiles = sourceFiles
+        self.codeGraph = codeGraph
+        self.codeControl = codeControl
     }
 
     /// Tolerates a snapshot written before `sourceFiles` existed: the revision
@@ -101,7 +116,16 @@ internal struct CronGraphNode: Identifiable, Hashable, Codable {
         deliver = try container.decodeIfPresent(String.self, forKey: .deliver)
         health = try container.decodeIfPresent(CronServiceHealth.self, forKey: .health)
         sourceFiles = try container.decodeIfPresent([CronSourceFile].self, forKey: .sourceFiles) ?? []
+        codeGraph = try container.decodeIfPresent(CronServiceCodeGraphRef.self, forKey: .codeGraph)
+        codeControl = try container.decodeIfPresent(CodeGraphProvenance.self, forKey: .codeControl)
     }
+}
+
+/// The pointer a `service` cron node carries to its code knowledge graph.
+/// `ref` is the argument for `code.graph`; `digest` is the content change-token.
+internal struct CronServiceCodeGraphRef: Hashable, Codable {
+    internal let ref: String
+    internal let digest: String
 }
 
 /// One file of the code behind a cron job, as the gateway resolved it.
@@ -274,6 +298,12 @@ internal struct CronGraph: Codable, Equatable {
                 health = nil
             }
             let sourceFiles = (d["source_files"]?.arrayValue ?? []).compactMap(CronSourceFile.decodeGatewayValue)
+            var codeGraph: CronServiceCodeGraphRef?
+            if let cg = d["code_graph"]?.dictionaryValue,
+               let ref = cg["ref"]?.stringValue {
+                codeGraph = CronServiceCodeGraphRef(ref: ref, digest: cg["digest"]?.stringValue ?? "")
+            }
+            let codeControl = d["code_control"].flatMap(CodeGraphProvenance.decodeGatewayValue)
             return CronGraphNode(
                 id: id,
                 kind: kind,
@@ -286,7 +316,9 @@ internal struct CronGraph: Codable, Equatable {
                 lastStatus: d["last_status"]?.stringValue,
                 deliver: d["deliver"]?.stringValue,
                 health: health,
-                sourceFiles: sourceFiles
+                sourceFiles: sourceFiles,
+                codeGraph: codeGraph,
+                codeControl: codeControl
             )
         }
 

@@ -35,6 +35,10 @@ internal struct CronDataflowExpandedView: View {
     @State private var ledgers: [String: [CronRunRecord]] = [:]
     /// The source-file explorer + reader state for the selected job.
     @StateObject private var sourceVM = CronSourceFilesViewModel()
+    /// The service whose code knowledge graph is presented over the surface, if
+    /// any — set from the resource card's button or a request handed up from the
+    /// inline dock. Presented as a sheet backed by `CodeGraphSource`.
+    @State private var presentedCodeGraph: CodeGraphRequest?
 
     internal init(
         graphVM: CronGraphViewModel,
@@ -58,9 +62,20 @@ internal struct CronDataflowExpandedView: View {
                 graphVM.requestedSourceFile = nil
                 await sourceVM.open(file)
             }
+            // A code graph asked for from the inline dock, before this surface
+            // existed: present it here, then clear the request so re-selecting
+            // the service later doesn't replay it.
+            .task(id: graphVM.requestedCodeGraph) {
+                guard let request = graphVM.requestedCodeGraph else { return }
+                graphVM.requestedCodeGraph = nil
+                presentedCodeGraph = request
+            }
             // Selecting another node retires the reader: a file from job A open
             // beside job B's card would read as B's code.
             .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
+            .sheet(item: $presentedCodeGraph) { request in
+                CodeGraphSheetView(request: request, client: gatewayClientWrapper.client)
+            }
     }
 
     private func openSourceFile(_ file: CronSourceFile) {
@@ -280,6 +295,20 @@ internal struct CronDataflowExpandedView: View {
             if node.kind == "service", !node.description.isEmpty {
                 MarkdownContentView(text: node.description)
             }
+            if node.kind == "service", let codeGraph = node.codeGraph {
+                Button {
+                    presentedCodeGraph = CodeGraphRequest(
+                        service: codeGraph.ref,
+                        label: node.label,
+                        digest: codeGraph.digest
+                    )
+                } label: {
+                    Label("View code graph", systemImage: "point.3.connected.trianglepath.dotted")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+            }
             if let health = node.health {
                 Divider().background(Theme.border)
                 Text("Health")
@@ -380,5 +409,52 @@ internal struct CronDataflowExpandedView: View {
         await listVM.loadFullPrompt(id: node.id)
         let runs = await listVM.loadHistory(id: node.id)
         if !runs.isEmpty { ledgers[node.id] = runs }
+    }
+}
+
+// MARK: - CodeGraphSheetView
+
+/// Presents a service's code knowledge graph over the dataflow surface, reusing
+/// the wiki graph renderer via a `CodeGraphSource`. Owns the source as a
+/// `@StateObject` so it (and its fetched graph / file index) survives redraws
+/// while the sheet is up.
+@MainActor
+private struct CodeGraphSheetView: View {
+    private let request: CodeGraphRequest
+    @StateObject private var source: CodeGraphSource
+    @Environment(\.dismiss) private var dismiss
+
+    internal init(request: CodeGraphRequest, client: GatewayClient) {
+        self.request = request
+        _source = StateObject(wrappedValue: CodeGraphSource(client: client, service: request.service))
+    }
+
+    internal var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(request.label)
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                    Text("Code graph")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondary)
+                }
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(12)
+            Divider().background(Theme.border)
+            WikiGraphView(overrideSource: source)
+        }
+        .frame(minWidth: 640, minHeight: 480)
+        .background(Theme.background)
     }
 }

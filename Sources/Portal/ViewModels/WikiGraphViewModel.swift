@@ -250,6 +250,13 @@ final class WikiGraphViewModel: ObservableObject {
         case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
         case "project": return Color(hex: "e8a838")!
         case "goal": return Color(hex: "ff6b9d")!
+        // Code-graph kinds (CodeGraphSource). Distinct hues, no wiki type
+        // collides; modules are the hub hue, externals muted.
+        case "module": return Color(hex: "4a9eff")!     // file/module — hub
+        case "class": return Color(hex: "c678dd")!      // types
+        case "func": return Color(hex: "56d364")!       // functions/methods
+        case "symbol": return Color(hex: "d19a66")!     // module-level vars/consts
+        case "external": return Color(hex: "6a6a6a")!   // imported/unresolved
         default: return Color(hex: "aaaaaa")!
         }
     }
@@ -258,6 +265,10 @@ final class WikiGraphViewModel: ObservableObject {
         switch type {
         case "entity": return 7
         case "meta", "index", "log", "glossary": return 8  // hub/definition pages read larger
+        // Code-graph kinds — modules read as hubs, functions/symbols smaller.
+        case "module": return 8
+        case "class": return 7
+        case "external": return 4
         default: return 5
         }
     }
