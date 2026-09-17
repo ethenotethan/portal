@@ -17,6 +17,18 @@
   const scenarios = behavior.scenarios || [];
   const interplay = model.interplay || { nodes: [], edges: [], clusters: [] };
   const interplayNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
+  // A resource/operation inherits its colour from the owning type's role, so the
+  // free-form graph still reads as "this pool belongs to a transport" without any
+  // column to say so.
+  const interplayRoleByOwnerType = new Map();
+  interplay.nodes.forEach((node) => {
+    if (node.kind !== "owner") return;
+    const roles = node.roles || [];
+    interplayRoleByOwnerType.set(
+      node.label,
+      roles.includes("engine") ? "engine" : roles.includes("transport") ? "transport" : "other"
+    );
+  });
   // Declared before the render sequence below so renderInterplay() (called in
   // init) can close over them without hitting the const temporal dead zone.
   const INTERPLAY_ROLE_COLORS = {
@@ -343,22 +355,132 @@
     return componentById.get(componentId)?.label || componentId || "Unassigned";
   }
 
-  function interplayClusterRole(cluster) {
-    const nodes = cluster.node_ids.map((id) => interplayNodeById.get(id)).filter(Boolean);
-    if (nodes.some((node) => node.kind === "hub")) return "hub";
-    if (nodes.some((node) => node.kind === "seam")) return "seam";
-    if (nodes.length && nodes.every((node) => node.kind === "endpoint")) return "endpoint";
-    if (nodes.some((node) => node.kind === "subscriber")) return "subscriber";
-    const owner = nodes.find((node) => node.kind === "owner");
-    if (owner && (owner.roles || []).includes("transport")) return "transport";
-    if (owner && (owner.roles || []).includes("engine")) return "engine";
-    return "other";
+  function interplayNodeRole(node) {
+    if (node.kind === "hub") return "hub";
+    if (node.kind === "seam") return "seam";
+    if (node.kind === "endpoint") return "endpoint";
+    if (node.kind === "subscriber") return "subscriber";
+    if (node.kind === "owner") return interplayRoleByOwnerType.get(node.label) || "other";
+    return interplayRoleByOwnerType.get(node.owner_type) || "other";
   }
 
   function interplayNodeSize(node) {
-    if (node.kind === "operation") return { width: 176, height: 40 };
-    if (node.kind === "resource") return { width: 190, height: 50 };
-    return { width: 200, height: 60 };
+    if (node.kind === "operation") return { width: 158, height: 38 };
+    if (node.kind === "endpoint") return { width: 150, height: 46 };
+    const label = node.label || "";
+    return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
+  }
+
+  // A tiny deterministic PRNG (mulberry32) so the force layout below is identical
+  // on every load — the graph never re-shuffles itself between visits.
+  function interplaySeededRandom(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // Free-form knowledge-graph placement: Fruchterman–Reingold with a fixed seed,
+  // then a few overlap-resolution passes so the cards stay legible. Runs entirely
+  // in the browser and touches nothing in model.json.
+  function layoutInterplayForce(nodes, edges) {
+    const n = nodes.length;
+    const index = new Map(nodes.map((node, i) => [node.id, i]));
+    const size = nodes.map((node) => interplayNodeSize(node));
+    const px = new Float64Array(n);
+    const py = new Float64Array(n);
+    const k = 132;
+    const rnd = interplaySeededRandom(0x9e3779b9);
+    // A bounded frame keeps repulsion from blowing the cloud apart — FR clamps
+    // every node back inside it each iteration.
+    const frame = k * Math.sqrt(Math.max(1, n)) * 1.2;
+    const half = frame / 2;
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < n; i++) {
+      const r = half * Math.sqrt((i + 0.5) / n);
+      const a = i * golden + (rnd() - 0.5) * 0.6;
+      px[i] = Math.cos(a) * r + (rnd() - 0.5) * 12;
+      py[i] = Math.sin(a) * r + (rnd() - 0.5) * 12;
+    }
+    const links = edges
+      .map((edge) => [index.get(edge.source), index.get(edge.target)])
+      .filter(([a, b]) => a !== undefined && b !== undefined);
+    const dx = new Float64Array(n);
+    const dy = new Float64Array(n);
+    const ITER = 500;
+    let temp = frame * 0.1;
+    const cool = temp / (ITER + 1);
+    for (let step = 0; step < ITER; step++) {
+      dx.fill(0);
+      dy.fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          let ex = px[i] - px[j];
+          let ey = py[i] - py[j];
+          const dist = Math.hypot(ex, ey) || 0.01;
+          const rep = (k * k) / dist;
+          ex /= dist;
+          ey /= dist;
+          dx[i] += ex * rep;
+          dy[i] += ey * rep;
+          dx[j] -= ex * rep;
+          dy[j] -= ey * rep;
+        }
+      }
+      for (const [a, b] of links) {
+        let ex = px[a] - px[b];
+        let ey = py[a] - py[b];
+        const dist = Math.hypot(ex, ey) || 0.01;
+        const att = (dist * dist) / k;
+        ex /= dist;
+        ey /= dist;
+        dx[a] -= ex * att;
+        dy[a] -= ey * att;
+        dx[b] += ex * att;
+        dy[b] += ey * att;
+      }
+      for (let i = 0; i < n; i++) {
+        dx[i] -= px[i] * 0.045;
+        dy[i] -= py[i] * 0.045;
+        const d = Math.hypot(dx[i], dy[i]) || 0.01;
+        const capped = Math.min(d, temp);
+        px[i] = Math.max(-half, Math.min(half, px[i] + (dx[i] / d) * capped));
+        py[i] = Math.max(-half, Math.min(half, py[i] + (dy[i] / d) * capped));
+      }
+      temp -= cool;
+    }
+    for (let pass = 0; pass < 60; pass++) {
+      let moved = false;
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const minGapX = (size[i].width + size[j].width) / 2 + 16;
+          const minGapY = (size[i].height + size[j].height) / 2 + 14;
+          const ex = px[i] - px[j];
+          const ey = py[i] - py[j];
+          if (Math.abs(ex) < minGapX && Math.abs(ey) < minGapY) {
+            const overlapX = minGapX - Math.abs(ex);
+            const overlapY = minGapY - Math.abs(ey);
+            if (overlapX < overlapY) {
+              const shift = (overlapX / 2) * (ex < 0 ? -1 : 1);
+              px[i] += shift;
+              px[j] -= shift;
+            } else {
+              const shift = (overlapY / 2) * (ey < 0 ? -1 : 1);
+              py[i] += shift;
+              py[j] -= shift;
+            }
+            moved = true;
+          }
+        }
+      }
+      if (!moved) break;
+    }
+    const positions = new Map();
+    nodes.forEach((node, i) => positions.set(node.id, { x: px[i], y: py[i] }));
+    return positions;
   }
 
   function renderInterplay() {
@@ -376,95 +498,45 @@
     }
 
     const nodeRole = new Map();
-    const columns = interplay.clusters
-      .map((cluster) => ({ cluster, role: interplayClusterRole(cluster) }))
-      .sort((left, right) =>
-        (INTERPLAY_ROLE_RANK[left.role] - INTERPLAY_ROLE_RANK[right.role]) ||
-        left.cluster.id.localeCompare(right.cluster.id));
+    interplay.nodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
 
-    const marginX = 28;
-    const marginY = 64;
-    const stdColumnWidth = 210;
-    const columnGap = 56;
-    const nodeGap = 18;
-    // A transport can be queried on dozens of RPC namespaces / REST endpoints, so
-    // those columns tile their nodes into a compact grid instead of one tall stack.
-    const endpointCell = { width: 150, height: 46 };
-    const endpointColGap = 14;
-    let maxHeight = marginY;
-
-    // First pass: lay out each column's nodes relative to the column's own origin
-    // and record the column's intrinsic width/height.
-    const laidColumns = columns.map((column) => {
-      const nodes = column.cluster.node_ids
-        .map((id) => interplayNodeById.get(id))
-        .filter(Boolean)
-        .sort((left, right) =>
-          (INTERPLAY_KIND_RANK[left.kind] - INTERPLAY_KIND_RANK[right.kind]) ||
-          ((left.line || 0) - (right.line || 0)) ||
-          left.id.localeCompare(right.id));
-
-      if (column.role === "endpoint") {
-        const gridCols = Math.max(1, Math.ceil(nodes.length / 9));
-        const placements = nodes.map((node, index) => ({
-          node,
-          x: (index % gridCols) * (endpointCell.width + endpointColGap),
-          y: marginY + Math.floor(index / gridCols) * (endpointCell.height + nodeGap),
-          width: endpointCell.width,
-          height: endpointCell.height
-        }));
-        const width = gridCols * endpointCell.width + (gridCols - 1) * endpointColGap;
-        const height = placements.reduce((max, p) => Math.max(max, p.y + p.height), marginY);
-        return { column, placements, width, height };
-      }
-
-      let y = marginY;
-      const placements = nodes.map((node) => {
-        const size = interplayNodeSize(node);
-        const placement = { node, x: 0, y, width: size.width, height: size.height };
-        y += size.height + nodeGap;
-        return placement;
-      });
-      return { column, placements, width: stdColumnWidth, height: y };
+    // Position every node with the deterministic force layout, then translate the
+    // whole cloud so its top-left corner sits at the margin.
+    const layout = layoutInterplayForce(interplay.nodes, interplay.edges);
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    interplay.nodes.forEach((node) => {
+      const size = interplayNodeSize(node);
+      const center = layout.get(node.id);
+      const x = center.x - size.width / 2;
+      const y = center.y - size.height / 2;
+      interplayPositions.set(node.id, { x, y, width: size.width, height: size.height });
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + size.width);
+      maxY = Math.max(maxY, y + size.height);
     });
-
-    // Second pass: flow the columns left-to-right, resolving each node to an
-    // absolute position the edge router and node renderer share.
-    let cursorX = marginX;
-    laidColumns.forEach((laid) => {
-      laid.x = cursorX;
-      laid.placements.forEach((placement) => {
-        interplayPositions.set(placement.node.id, {
-          x: cursorX + placement.x,
-          y: placement.y,
-          width: placement.width,
-          height: placement.height
-        });
-        nodeRole.set(placement.node.id, laid.column.role);
-      });
-      cursorX += laid.width + columnGap;
-      maxHeight = Math.max(maxHeight, laid.height);
+    const margin = 48;
+    interplayPositions.forEach((position) => {
+      position.x += margin - minX;
+      position.y += margin - minY;
     });
-
-    const width = cursorX - columnGap + marginX;
-    const height = Math.max(360, maxHeight + 24);
+    const width = Math.ceil(maxX - minX + margin * 2);
+    const height = Math.ceil(maxY - minY + margin * 2);
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.style.width = `${width}px`;
+    svg.style.height = `${Math.max(height, 640)}px`;
     svg.style.minWidth = `${Math.max(width, 900)}px`;
-
-    laidColumns.forEach((laid) => {
-      const label = svgElement("text", { x: laid.x, y: 32, class: "graph-layer-label" });
-      label.textContent = INTERPLAY_ROLE_LABELS[laid.column.role].toUpperCase();
-      svg.append(label);
-    });
 
     const edgeGroup = svgElement("g", { class: "edges" });
     interplay.edges.forEach((edge) => {
       const source = interplayPositions.get(edge.source);
       const target = interplayPositions.get(edge.target);
       if (!source || !target) return;
-      const anchors = interplayEdgeAnchors(source, target);
       const path = svgElement("path", {
-        d: `M ${anchors.sx} ${anchors.sy} C ${anchors.c1x} ${anchors.c1y}, ${anchors.c2x} ${anchors.c2y}, ${anchors.tx} ${anchors.ty}`,
+        d: interplayLinkPath(source, target),
         class: `interplay-edge ${edge.class}`,
         "data-source": edge.source,
         "data-target": edge.target
@@ -491,24 +563,19 @@
         transform: `translate(${position.x} ${position.y})`
       });
       group.style.setProperty("--node-color", INTERPLAY_ROLE_COLORS[role]);
-      const compact = node.kind === "endpoint";
-      const rect = svgElement("rect", { width: position.width, height: position.height, rx: 5 });
+      const rect = svgElement("rect", { width: position.width, height: position.height, rx: 6 });
       if (node.kind === "operation") rect.setAttribute("class", "operation");
-      else if (compact) rect.setAttribute("class", "endpoint");
+      else if (node.kind === "endpoint") rect.setAttribute("class", "endpoint");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
       group.append(svgElement("line", { x1: 0, x2: 0, y1: 6, y2: position.height - 6, class: "node-rule" }));
-      const kicker = svgElement("text", { x: compact ? 11 : 13, y: compact ? 15 : 18, class: "node-kicker" });
+      const kicker = svgElement("text", { x: 11, y: 15, class: "node-kicker" });
       kicker.textContent = interplayKicker(node);
-      const title = svgElement("text", {
-        x: compact ? 11 : 13,
-        y: node.kind === "operation" ? 30 : (compact ? 29 : 37),
-        class: "node-title"
-      });
+      const title = svgElement("text", { x: 11, y: 29, class: "node-title" });
       title.textContent = node.label;
       group.append(kicker, title);
       if (node.kind !== "operation") {
-        const meta = svgElement("text", { x: compact ? 11 : 13, y: compact ? 41 : 52, class: "node-meta" });
+        const meta = svgElement("text", { x: 11, y: 41, class: "node-meta" });
         meta.textContent = interplayNodeMeta(node);
         group.append(meta);
       }
@@ -523,32 +590,42 @@
     });
     svg.append(nodeGroup);
 
-    renderInterplayLegend(columns);
+    renderInterplayLegend();
     applyInterplayState();
     if (selectedInterplayId) renderInterplayInspector(interplayNodeById.get(selectedInterplayId));
   }
 
-  function interplayEdgeAnchors(source, target) {
-    const sourceMidY = source.y + source.height / 2;
-    const targetMidY = target.y + target.height / 2;
-    if (target.x > source.x) {
-      const sx = source.x + source.width;
-      const tx = target.x;
-      const bend = Math.max(30, (tx - sx) * 0.45);
-      return { sx, sy: sourceMidY, tx, ty: targetMidY, c1x: sx + bend, c1y: sourceMidY, c2x: tx - bend, c2y: targetMidY };
-    }
-    if (target.x < source.x) {
-      const sx = source.x;
-      const tx = target.x + target.width;
-      const bend = Math.max(30, (sx - tx) * 0.45);
-      return { sx, sy: sourceMidY, tx, ty: targetMidY, c1x: sx - bend, c1y: sourceMidY, c2x: tx + bend, c2y: targetMidY };
-    }
-    const sx = source.x + source.width / 2;
-    const tx = target.x + target.width / 2;
-    const sy = source.y + source.height;
-    const ty = target.y;
-    const bend = Math.max(20, (ty - sy) * 0.5);
-    return { sx, sy, tx, ty, c1x: sx, c1y: sy + bend, c2x: tx, c2y: ty - bend };
+  // Where the center→toward ray leaves a node's box, so links touch the border
+  // instead of vanishing under the card.
+  function interplayBoxExit(box, towardX, towardY) {
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    const ex = towardX - cx;
+    const ey = towardY - cy;
+    if (ex === 0 && ey === 0) return { x: cx, y: cy };
+    const halfW = box.width / 2 + 2;
+    const halfH = box.height / 2 + 2;
+    const scale = 1 / Math.max(Math.abs(ex) / halfW, Math.abs(ey) / halfH);
+    return { x: cx + ex * scale, y: cy + ey * scale };
+  }
+
+  function interplayLinkPath(source, target) {
+    const scx = source.x + source.width / 2;
+    const scy = source.y + source.height / 2;
+    const tcx = target.x + target.width / 2;
+    const tcy = target.y + target.height / 2;
+    const start = interplayBoxExit(source, tcx, tcy);
+    const end = interplayBoxExit(target, scx, scy);
+    const mx = (start.x + end.x) / 2;
+    const my = (start.y + end.y) / 2;
+    // Bow the link slightly perpendicular to its run so parallel edges fan apart.
+    const nx = -(end.y - start.y);
+    const ny = end.x - start.x;
+    const nlen = Math.hypot(nx, ny) || 1;
+    const bow = Math.min(26, nlen * 0.12);
+    const cx = mx + (nx / nlen) * bow;
+    const cy = my + (ny / nlen) * bow;
+    return `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
   }
 
   function interplayKicker(node) {
@@ -579,20 +656,34 @@
     return node.owner_type || "";
   }
 
-  function renderInterplayLegend(columns) {
+  function renderInterplayLegend() {
     const legend = document.getElementById("interplay-legend");
     if (!legend) return;
-    const seen = [];
-    columns.forEach((column) => {
-      if (!seen.includes(column.role)) seen.push(column.role);
-    });
-    legend.replaceChildren(...seen.map((role) => {
+    const roles = Object.keys(INTERPLAY_ROLE_LABELS)
+      .filter((role) => interplay.nodes.some((node) => interplayNodeRole(node) === role))
+      .sort((left, right) => INTERPLAY_ROLE_RANK[left] - INTERPLAY_ROLE_RANK[right]);
+    const items = roles.map((role) => {
       const item = element("div", "legend-item");
       const swatch = element("span", "legend-swatch");
       swatch.style.setProperty("--legend-color", INTERPLAY_ROLE_COLORS[role]);
       item.append(swatch, document.createTextNode(INTERPLAY_ROLE_LABELS[role]));
       return item;
-    }));
+    });
+    // The three edge classes read differently in a free-form graph, so name them.
+    const edgeClasses = [
+      ["interplay", "var(--accent)", "Interplay wiring"],
+      ["lifecycle", "#55545a", "Lifecycle"],
+      ["structure", "var(--line-strong)", "Structure"]
+    ];
+    edgeClasses.forEach(([klass, color, label]) => {
+      if (!interplay.edges.some((edge) => edge.class === klass)) return;
+      const item = element("div", "legend-item");
+      const swatch = element("span", "legend-swatch");
+      swatch.style.setProperty("--legend-color", color);
+      item.append(swatch, document.createTextNode(label));
+      items.push(item);
+    });
+    legend.replaceChildren(...items);
   }
 
   function selectInterplayNode(nodeId) {
@@ -634,9 +725,7 @@
   function renderInterplayInspector(node) {
     const inspector = document.getElementById("interplay-inspector");
     if (!inspector || !node) return;
-    const role = node.kind === "owner"
-      ? ((node.roles || []).includes("engine") ? "engine" : (node.roles || []).includes("transport") ? "transport" : "other")
-      : node.kind;
+    const role = interplayNodeRole(node);
     const container = element("div");
     container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS[role] || INTERPLAY_ROLE_COLORS.other);
 
