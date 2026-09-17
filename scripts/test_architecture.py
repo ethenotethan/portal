@@ -79,7 +79,7 @@ actor MessagePump {}
         )
 
         self.assertEqual(
-            [("main_actor", "ScreenModel", 1), ("actor", "MessagePump", 3)],
+            [("main_actor", "ScreenModel", 1), ("actor", "MessagePump", 4)],
             [(item["kind"], item["label"], item["evidence"]["line"]) for item in behavior["execution_domains"]],
         )
         self.assertTrue(all(item["authority"] == "observed" for item in behavior["execution_domains"]))

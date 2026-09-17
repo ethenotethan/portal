@@ -397,12 +397,12 @@
         "authority": "observed",
         "component": "local-services",
         "evidence": {
-          "excerpt": "",
-          "line": 18,
+          "excerpt": "internal actor GitHubContentService {",
+          "line": 22,
           "path": "Sources/Portal/Services/GitHubContentService.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-5466e96fc984",
+        "id": "execution-domain-87ff859a6d6d",
         "kind": "actor",
         "label": "GitHubContentService",
         "rule_id": "swift.execution.actor"
@@ -747,12 +747,12 @@
         "authority": "observed",
         "component": "local-services",
         "evidence": {
-          "excerpt": "",
-          "line": 99,
+          "excerpt": "internal actor TweetContentService {",
+          "line": 104,
           "path": "Sources/Portal/Services/TweetContentService.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-29b056c9b3fe",
+        "id": "execution-domain-8494d2aed175",
         "kind": "actor",
         "label": "TweetContentService",
         "rule_id": "swift.execution.actor"
@@ -817,12 +817,12 @@
         "authority": "observed",
         "component": "local-services",
         "evidence": {
-          "excerpt": "",
-          "line": 12,
+          "excerpt": "internal actor YouTubeContentService {",
+          "line": 16,
           "path": "Sources/Portal/Services/YouTubeContentService.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-c3d25aeb689e",
+        "id": "execution-domain-3f63033f9a07",
         "kind": "actor",
         "label": "YouTubeContentService",
         "rule_id": "swift.execution.actor"
@@ -1725,7 +1725,7 @@
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "CentaurClient",
-        "resource_id": "resource-26fff432d1b8",
+        "resource_id": "resource-aa6474b098cb",
         "resource_label": "eventStream",
         "rule_id": "swift.lifecycle.publish"
       },
@@ -1743,7 +1743,7 @@
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "CentaurClient",
-        "resource_id": "resource-26fff432d1b8",
+        "resource_id": "resource-aa6474b098cb",
         "resource_label": "eventStream",
         "rule_id": "swift.lifecycle.publish"
       },
@@ -1761,9 +1761,63 @@
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "CentaurClient",
-        "resource_id": "resource-26fff432d1b8",
+        "resource_id": "resource-aa6474b098cb",
         "resource_label": "eventStream",
         "rule_id": "swift.lifecycle.publish"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "fetch",
+        "evidence": {
+          "excerpt": "continuations[attachmentID] = continuation",
+          "line": 57,
+          "path": "Sources/Portal/Services/FileDownloadManager.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-6da53606e331",
+        "kind": "pool_register",
+        "label": "continuations[…] =",
+        "owner_type": "FileDownloadManager",
+        "resource_id": "resource-7f2c102d125c",
+        "resource_label": "continuations",
+        "rule_id": "swift.lifecycle.pool_register"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "fetch",
+        "evidence": {
+          "excerpt": "task.resume()",
+          "line": 61,
+          "path": "Sources/Portal/Services/FileDownloadManager.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-5b282dbd0fc0",
+        "kind": "pool_resolve",
+        "label": "resume",
+        "owner_type": "FileDownloadManager",
+        "resource_id": "resource-7f2c102d125c",
+        "resource_label": "continuations",
+        "rule_id": "swift.lifecycle.pool_resolve"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "cancel",
+        "evidence": {
+          "excerpt": "continuation.resume(throwing: CancellationError())",
+          "line": 83,
+          "path": "Sources/Portal/Services/FileDownloadManager.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-ebbfe694ba61",
+        "kind": "pool_resolve",
+        "label": "resume",
+        "owner_type": "FileDownloadManager",
+        "resource_id": "resource-7f2c102d125c",
+        "resource_label": "continuations",
+        "rule_id": "swift.lifecycle.pool_resolve"
       },
       {
         "authority": "observed",
@@ -1894,6 +1948,24 @@
       {
         "authority": "observed",
         "component": "hermes-services",
+        "enclosing_function": "failAllPendingRequests",
+        "evidence": {
+          "excerpt": "cont.resume(throwing: error)",
+          "line": 809,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-b077e3f2c353",
+        "kind": "pool_resolve",
+        "label": "resume",
+        "owner_type": "GatewayClient",
+        "resource_id": "resource-f4c4baad5555",
+        "resource_label": "pendingRequests",
+        "rule_id": "swift.lifecycle.pool_resolve"
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
         "enclosing_function": null,
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
@@ -1908,6 +1980,24 @@
         "resource_id": "resource-4560e4558b76",
         "resource_label": "pendingRequestsLock",
         "rule_id": "swift.lifecycle.acquire"
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
+        "enclosing_function": null,
+        "evidence": {
+          "excerpt": "pendingRequests[id] = continuation",
+          "line": 929,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-23419229cbbb",
+        "kind": "pool_register",
+        "label": "pendingRequests[…] =",
+        "owner_type": "GatewayClient",
+        "resource_id": "resource-f4c4baad5555",
+        "resource_label": "pendingRequests",
+        "rule_id": "swift.lifecycle.pool_register"
       },
       {
         "authority": "observed",
@@ -1941,7 +2031,7 @@
         "kind": "send",
         "label": "webSocketTask.send",
         "owner_type": "GatewayClient",
-        "resource_id": "resource-993faff0d395",
+        "resource_id": "resource-7f83bf85f35b",
         "resource_label": "webSocketTask",
         "rule_id": "swift.lifecycle.send"
       },
@@ -1959,7 +2049,7 @@
         "kind": "receive",
         "label": "webSocketTask.receive",
         "owner_type": "GatewayClient",
-        "resource_id": "resource-993faff0d395",
+        "resource_id": "resource-7f83bf85f35b",
         "resource_label": "webSocketTask",
         "rule_id": "swift.lifecycle.receive"
       },
@@ -1977,7 +2067,7 @@
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "GatewayClient",
-        "resource_id": "resource-a84c817ae58f",
+        "resource_id": "resource-f35184d9bca6",
         "resource_label": "eventStream",
         "rule_id": "swift.lifecycle.publish"
       },
@@ -2020,6 +2110,24 @@
       {
         "authority": "observed",
         "component": "hermes-services",
+        "enclosing_function": "fulfillRequest",
+        "evidence": {
+          "excerpt": "continuation?.resume(returning: response)",
+          "line": 2420,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-807fac51960d",
+        "kind": "pool_resolve",
+        "label": "resume",
+        "owner_type": "GatewayClient",
+        "resource_id": "resource-f4c4baad5555",
+        "resource_label": "pendingRequests",
+        "rule_id": "swift.lifecycle.pool_resolve"
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
@@ -2055,6 +2163,82 @@
       },
       {
         "authority": "observed",
+        "component": "local-services",
+        "detached_off_main": true,
+        "enclosing_function": "summarize",
+        "evidence": {
+          "excerpt": "try await ChatSession(container).respond(to: prompt)",
+          "line": 649,
+          "path": "Sources/Portal/Services/ReasoningSummarizer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-250a3dd578d6",
+        "kind": "model_infer",
+        "label": "ChatSession.respond",
+        "owner_type": "MLXReasoningSummarizer",
+        "resource_id": "resource-aceeaa78d7fa",
+        "resource_label": "container",
+        "rule_id": "swift.lifecycle.model_infer"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "detached_off_main": true,
+        "enclosing_function": "ensureLoaded",
+        "evidence": {
+          "excerpt": "try await LLMModelFactory.shared.loadContainer(",
+          "line": 683,
+          "path": "Sources/Portal/Services/ReasoningSummarizer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-bc2afc6b8f01",
+        "kind": "model_load",
+        "label": "LLMModelFactory.loadContainer",
+        "owner_type": "MLXReasoningSummarizer",
+        "resource_id": "resource-aceeaa78d7fa",
+        "resource_label": "container",
+        "rule_id": "swift.lifecycle.model_load"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "detached_off_main": true,
+        "enclosing_function": "generate",
+        "evidence": {
+          "excerpt": "try await ChatSession(container).respond(to: prompt)",
+          "line": 250,
+          "path": "Sources/Portal/Services/SkillSummaryService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-ac9557913f45",
+        "kind": "model_infer",
+        "label": "ChatSession.respond",
+        "owner_type": "SkillSummaryService",
+        "resource_id": "resource-6a0c8ae84943",
+        "resource_label": "container",
+        "rule_id": "swift.lifecycle.model_infer"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "detached_off_main": true,
+        "enclosing_function": "ensureLoaded",
+        "evidence": {
+          "excerpt": "try await LLMModelFactory.shared.loadContainer(",
+          "line": 284,
+          "path": "Sources/Portal/Services/SkillSummaryService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "lifecycle-operation-c0f0ba49aa5f",
+        "kind": "model_load",
+        "label": "LLMModelFactory.loadContainer",
+        "owner_type": "SkillSummaryService",
+        "resource_id": "resource-6a0c8ae84943",
+        "resource_label": "container",
+        "rule_id": "swift.lifecycle.model_load"
+      },
+      {
+        "authority": "observed",
         "component": "utilities",
         "enclosing_function": "markBusy",
         "evidence": {
@@ -2067,7 +2251,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2085,7 +2269,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2103,7 +2287,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2121,7 +2305,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2139,7 +2323,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2157,7 +2341,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2175,7 +2359,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2193,7 +2377,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2211,7 +2395,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2229,7 +2413,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2247,7 +2431,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2265,7 +2449,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2283,7 +2467,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2301,7 +2485,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2319,7 +2503,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2337,7 +2521,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MainThreadWatchdog",
-        "resource_id": "resource-8f20ebd5567b",
+        "resource_id": "resource-ebc4e2e984d6",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2355,7 +2539,7 @@
         "kind": "invalidate",
         "label": "timer.invalidate",
         "owner_type": "PerfSampler",
-        "resource_id": "resource-f9375f932571",
+        "resource_id": "resource-6503dc087d81",
         "resource_label": "timer",
         "rule_id": "swift.lifecycle.invalidate"
       },
@@ -2553,7 +2737,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2571,7 +2755,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2589,7 +2773,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2607,7 +2791,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2625,7 +2809,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2643,7 +2827,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2661,7 +2845,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "LongResponseDocumentCache",
-        "resource_id": "resource-86526da5dd7c",
+        "resource_id": "resource-aa3647554af7",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2679,7 +2863,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2697,7 +2881,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2715,7 +2899,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2733,7 +2917,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2751,7 +2935,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2769,7 +2953,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -2787,7 +2971,7 @@
         "kind": "acquire",
         "label": "lock.lock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.acquire"
       },
@@ -2805,7 +2989,7 @@
         "kind": "release",
         "label": "lock.unlock",
         "owner_type": "MarkdownParseCache",
-        "resource_id": "resource-ff10c57740ba",
+        "resource_id": "resource-e63e727de304",
         "resource_label": "lock",
         "rule_id": "swift.lifecycle.release"
       },
@@ -3090,13 +3274,13 @@
         ],
         "owner_type": "CentaurClient",
         "resource_ids": [
-          "resource-26fff432d1b8",
+          "resource-60a55d827362",
           "resource-807f9538ca82",
-          "resource-9fac9e4fead6",
+          "resource-aa6474b098cb",
           "resource-ae6153c81f68"
         ],
         "task_handle_ids": [
-          "task-site-a5d1ded7453b",
+          "task-site-5a6fff481643",
           "task-site-cfe3e98360b8"
         ]
       },
@@ -3125,8 +3309,8 @@
         "owner_type": "ChatViewModel",
         "resource_ids": [],
         "task_handle_ids": [
+          "task-site-3510ecf6ac00",
           "task-site-37d28fdc36ca",
-          "task-site-3beade01a69c",
           "task-site-7a3e603f901b"
         ]
       },
@@ -3162,7 +3346,7 @@
         ],
         "owner_type": "LongResponseDocumentCache",
         "resource_ids": [
-          "resource-86526da5dd7c"
+          "resource-aa3647554af7"
         ],
         "task_handle_ids": []
       },
@@ -3185,7 +3369,7 @@
         ],
         "owner_type": "MarkdownParseCache",
         "resource_ids": [
-          "resource-ff10c57740ba"
+          "resource-e63e727de304"
         ],
         "task_handle_ids": []
       },
@@ -3214,7 +3398,7 @@
         "owner_type": "CronGraphRevisionStore",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-5dae496168d9"
+          "task-site-9d5b05ec838e"
         ]
       },
       {
@@ -3269,6 +3453,7 @@
         "operation_ids": [
           "lifecycle-operation-0717b71e6f69",
           "lifecycle-operation-1e26a172dcb5",
+          "lifecycle-operation-23419229cbbb",
           "lifecycle-operation-322a3c282510",
           "lifecycle-operation-34ecd0b2eaed",
           "lifecycle-operation-4100d4f5bbc2",
@@ -3276,22 +3461,25 @@
           "lifecycle-operation-4e61486b382e",
           "lifecycle-operation-60bf9daf80b2",
           "lifecycle-operation-66c8acd2c29c",
+          "lifecycle-operation-807fac51960d",
           "lifecycle-operation-8162a478fe67",
           "lifecycle-operation-89da1d064560",
           "lifecycle-operation-8e330aeb6d89",
+          "lifecycle-operation-b077e3f2c353",
           "lifecycle-operation-ea80aeb47f98"
         ],
         "owner_type": "GatewayClient",
         "resource_ids": [
           "resource-1659d3a8cd64",
           "resource-4560e4558b76",
-          "resource-993faff0d395",
-          "resource-a84c817ae58f"
+          "resource-7f83bf85f35b",
+          "resource-f35184d9bca6",
+          "resource-f4c4baad5555"
         ],
         "task_handle_ids": [
-          "task-site-15bc475a3dbb",
-          "task-site-547873e0d212",
+          "task-site-4480bc21bbc9",
           "task-site-674994ee4a69",
+          "task-site-93a4c6448edc",
           "task-site-fe3605eb0616"
         ]
       },
@@ -3347,6 +3535,24 @@
         "confidence": "mechanically_grouped",
         "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
         "evidence_class": "static_source",
+        "id": "connectivity-pocket-25f686f6e338",
+        "operation_ids": [
+          "lifecycle-operation-5b282dbd0fc0",
+          "lifecycle-operation-6da53606e331",
+          "lifecycle-operation-ebbfe694ba61"
+        ],
+        "owner_type": "FileDownloadManager",
+        "resource_ids": [
+          "resource-7f2c102d125c"
+        ],
+        "task_handle_ids": []
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "confidence": "mechanically_grouped",
+        "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
+        "evidence_class": "static_source",
         "id": "connectivity-pocket-44ffa6b54838",
         "operation_ids": [],
         "owner_type": "GitHubContentService",
@@ -3362,9 +3568,14 @@
         "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
         "evidence_class": "static_source",
         "id": "connectivity-pocket-7b136d3c2c60",
-        "operation_ids": [],
+        "operation_ids": [
+          "lifecycle-operation-250a3dd578d6",
+          "lifecycle-operation-bc2afc6b8f01"
+        ],
         "owner_type": "MLXReasoningSummarizer",
-        "resource_ids": [],
+        "resource_ids": [
+          "resource-aceeaa78d7fa"
+        ],
         "task_handle_ids": [
           "task-site-20eb9593ff05"
         ]
@@ -3410,7 +3621,7 @@
           "resource-73254dce7afa"
         ],
         "task_handle_ids": [
-          "task-site-42b03513c10f",
+          "task-site-38c3c663bc12",
           "task-site-84bb0b788c2b"
         ]
       },
@@ -3421,9 +3632,14 @@
         "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
         "evidence_class": "static_source",
         "id": "connectivity-pocket-e84f95c18c86",
-        "operation_ids": [],
+        "operation_ids": [
+          "lifecycle-operation-ac9557913f45",
+          "lifecycle-operation-c0f0ba49aa5f"
+        ],
         "owner_type": "SkillSummaryService",
-        "resource_ids": [],
+        "resource_ids": [
+          "resource-6a0c8ae84943"
+        ],
         "task_handle_ids": [
           "task-site-04e0eb8af8a5",
           "task-site-9a924997665b"
@@ -3440,8 +3656,22 @@
         "owner_type": "SubagentGraphIntegrator",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-3bc0f3f9c8e0"
+          "task-site-c69aee2d1882"
         ]
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "confidence": "mechanically_grouped",
+        "derivation": "This is a static ownership/lifecycle cluster grouped by a source owner type and component; it does not assert runtime overlap, threads, or live connection counts.",
+        "evidence_class": "static_source",
+        "id": "connectivity-pocket-389b719244e7",
+        "operation_ids": [],
+        "owner_type": "TTSService",
+        "resource_ids": [
+          "resource-27ea1487eff1"
+        ],
+        "task_handle_ids": []
       },
       {
         "authority": "observed",
@@ -3510,7 +3740,7 @@
         "owner_type": "GatewayRestartController",
         "resource_ids": [],
         "task_handle_ids": [
-          "task-site-75e63e7f6cdb"
+          "task-site-b3b6e481c93d"
         ]
       },
       {
@@ -3554,7 +3784,7 @@
         ],
         "owner_type": "MainThreadWatchdog",
         "resource_ids": [
-          "resource-8f20ebd5567b"
+          "resource-ebc4e2e984d6"
         ],
         "task_handle_ids": []
       },
@@ -3570,7 +3800,7 @@
         ],
         "owner_type": "PerfSampler",
         "resource_ids": [
-          "resource-f9375f932571"
+          "resource-6503dc087d81"
         ],
         "task_handle_ids": []
       },
@@ -3615,12 +3845,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "centaur-services",
         "evidence": {
-          "excerpt": "",
-          "line": 35,
+          "excerpt": "let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()",
+          "line": 36,
           "path": "Sources/Portal/Services/CentaurClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-26fff432d1b8",
+        "id": "resource-aa6474b098cb",
         "kind": "combine_subject",
         "label": "eventStream",
         "owner_type": "CentaurClient",
@@ -3631,12 +3861,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "centaur-services",
         "evidence": {
-          "excerpt": "",
-          "line": 84,
+          "excerpt": "private let restSession: URLSession",
+          "line": 88,
           "path": "Sources/Portal/Services/CentaurClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-9fac9e4fead6",
+        "id": "resource-60a55d827362",
         "kind": "url_session",
         "label": "restSession",
         "owner_type": "CentaurClient",
@@ -3693,6 +3923,22 @@
       {
         "authority": "observed",
         "cardinality": "one stored field per owner instance",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "private var continuations: [UUID: CheckedContinuation<Data, Error>] = [:]",
+          "line": 26,
+          "path": "Sources/Portal/Services/FileDownloadManager.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-7f2c102d125c",
+        "kind": "rpc_pool",
+        "label": "continuations",
+        "owner_type": "FileDownloadManager",
+        "rule_id": "swift.resource.rpc_pool.stored"
+      },
+      {
+        "authority": "observed",
+        "cardinality": "one stored field per owner instance",
         "component": "hermes-services",
         "evidence": {
           "excerpt": "private let lock = NSLock()",
@@ -3711,12 +3957,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "hermes-services",
         "evidence": {
-          "excerpt": "",
-          "line": 61,
+          "excerpt": "let eventStream = PassthroughSubject<(GatewayEvent, String?), Never>()",
+          "line": 64,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-a84c817ae58f",
+        "id": "resource-f35184d9bca6",
         "kind": "combine_subject",
         "label": "eventStream",
         "owner_type": "GatewayClient",
@@ -3727,12 +3973,12 @@
         "cardinality": "one stored optional field per owner instance",
         "component": "hermes-services",
         "evidence": {
-          "excerpt": "",
-          "line": 210,
+          "excerpt": "private var webSocketTask: URLSessionWebSocketTask?",
+          "line": 219,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-993faff0d395",
+        "id": "resource-7f83bf85f35b",
         "kind": "websocket",
         "label": "webSocketTask",
         "owner_type": "GatewayClient",
@@ -3753,6 +3999,22 @@
         "label": "urlSession",
         "owner_type": "GatewayClient",
         "rule_id": "swift.resource.url_session.stored"
+      },
+      {
+        "authority": "observed",
+        "cardinality": "one stored field per owner instance",
+        "component": "hermes-services",
+        "evidence": {
+          "excerpt": "private var pendingRequests: [Int: CheckedContinuation<JSONRPCResponse, Error>] = [:]",
+          "line": 223,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-f4c4baad5555",
+        "kind": "rpc_pool",
+        "label": "pendingRequests",
+        "owner_type": "GatewayClient",
+        "rule_id": "swift.resource.rpc_pool.stored"
       },
       {
         "authority": "observed",
@@ -3807,6 +4069,22 @@
         "cardinality": "one stored optional field per owner instance",
         "component": "local-services",
         "evidence": {
+          "excerpt": "private var container: ModelContainer?",
+          "line": 597,
+          "path": "Sources/Portal/Services/ReasoningSummarizer.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-aceeaa78d7fa",
+        "kind": "on_device_model",
+        "label": "container",
+        "owner_type": "MLXReasoningSummarizer",
+        "rule_id": "swift.resource.on_device_model.stored"
+      },
+      {
+        "authority": "observed",
+        "cardinality": "one stored optional field per owner instance",
+        "component": "local-services",
+        "evidence": {
           "excerpt": "private var syncTimer: Timer?",
           "line": 200,
           "path": "Sources/Portal/Services/SkillStore.swift"
@@ -3817,6 +4095,38 @@
         "label": "syncTimer",
         "owner_type": "SkillStore",
         "rule_id": "swift.resource.timer.stored"
+      },
+      {
+        "authority": "observed",
+        "cardinality": "one stored optional field per owner instance",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "private var container: ModelContainer?",
+          "line": 200,
+          "path": "Sources/Portal/Services/SkillSummaryService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-6a0c8ae84943",
+        "kind": "on_device_model",
+        "label": "container",
+        "owner_type": "SkillSummaryService",
+        "rule_id": "swift.resource.on_device_model.stored"
+      },
+      {
+        "authority": "observed",
+        "cardinality": "one on-device synthesizer per owner instance",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "synthesizer: any SpeechSynthesizing = AVSpeechSynthesizer(),",
+          "line": 129,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "resource-27ea1487eff1",
+        "kind": "speech_synth",
+        "label": "AVSpeechSynthesizer",
+        "owner_type": "TTSService",
+        "rule_id": "swift.resource.speech_synth.instantiated"
       },
       {
         "authority": "observed",
@@ -3887,12 +4197,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "utilities",
         "evidence": {
-          "excerpt": "",
-          "line": 202,
+          "excerpt": "private let lock = NSLock()",
+          "line": 203,
           "path": "Sources/Portal/Utilities/MainThreadWatchdog.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-8f20ebd5567b",
+        "id": "resource-ebc4e2e984d6",
         "kind": "lock",
         "label": "lock",
         "owner_type": "MainThreadWatchdog",
@@ -3903,12 +4213,12 @@
         "cardinality": "one stored optional field per owner instance",
         "component": "utilities",
         "evidence": {
-          "excerpt": "",
-          "line": 124,
+          "excerpt": "private var timer: Timer?",
+          "line": 125,
           "path": "Sources/Portal/Utilities/PerfInstrumentation.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-f9375f932571",
+        "id": "resource-6503dc087d81",
         "kind": "timer",
         "label": "timer",
         "owner_type": "PerfSampler",
@@ -3967,12 +4277,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "chat-ui",
         "evidence": {
-          "excerpt": "",
-          "line": 317,
+          "excerpt": "private let lock = NSLock()",
+          "line": 318,
           "path": "Sources/Portal/Views/LongResponseView.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-86526da5dd7c",
+        "id": "resource-aa3647554af7",
         "kind": "lock",
         "label": "lock",
         "owner_type": "LongResponseDocumentCache",
@@ -3983,12 +4293,12 @@
         "cardinality": "one stored field per owner instance",
         "component": "chat-ui",
         "evidence": {
-          "excerpt": "",
-          "line": 127,
+          "excerpt": "private let lock = NSLock()",
+          "line": 128,
           "path": "Sources/Portal/Views/MarkdownContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "resource-ff10c57740ba",
+        "id": "resource-e63e727de304",
         "kind": "lock",
         "label": "lock",
         "owner_type": "MarkdownParseCache",
@@ -4085,13 +4395,16 @@
           "lifecycle-operation-8e330aeb6d89",
           "lifecycle-operation-60bf9daf80b2",
           "lifecycle-operation-34ecd0b2eaed",
+          "lifecycle-operation-b077e3f2c353",
           "lifecycle-operation-8162a478fe67",
+          "lifecycle-operation-23419229cbbb",
           "lifecycle-operation-89da1d064560",
           "lifecycle-operation-0717b71e6f69",
           "lifecycle-operation-4e61486b382e",
           "lifecycle-operation-ea80aeb47f98",
           "lifecycle-operation-322a3c282510",
           "lifecycle-operation-1e26a172dcb5",
+          "lifecycle-operation-807fac51960d",
           "lifecycle-operation-4100d4f5bbc2",
           "lifecycle-operation-66c8acd2c29c"
         ],
@@ -4110,6 +4423,43 @@
         ],
         "owner_type": "LivenessProbeCompletion",
         "pocket_id": "connectivity-pocket-5165283cd9b4"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Evidence-backed source order within one static pocket; not a claim of runtime order.",
+        "id": "scenario-25f686f6e338",
+        "operation_ids": [
+          "lifecycle-operation-6da53606e331",
+          "lifecycle-operation-5b282dbd0fc0",
+          "lifecycle-operation-ebbfe694ba61"
+        ],
+        "owner_type": "FileDownloadManager",
+        "pocket_id": "connectivity-pocket-25f686f6e338"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Evidence-backed source order within one static pocket; not a claim of runtime order.",
+        "id": "scenario-7b136d3c2c60",
+        "operation_ids": [
+          "lifecycle-operation-250a3dd578d6",
+          "lifecycle-operation-bc2afc6b8f01"
+        ],
+        "owner_type": "MLXReasoningSummarizer",
+        "pocket_id": "connectivity-pocket-7b136d3c2c60"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Evidence-backed source order within one static pocket; not a claim of runtime order.",
+        "id": "scenario-e84f95c18c86",
+        "operation_ids": [
+          "lifecycle-operation-ac9557913f45",
+          "lifecycle-operation-c0f0ba49aa5f"
+        ],
+        "owner_type": "SkillSummaryService",
+        "pocket_id": "connectivity-pocket-e84f95c18c86"
       },
       {
         "authority": "observed",
@@ -4251,12 +4601,12 @@
         "enclosing_function": null,
         "enclosing_type": "CronGraphRevisionStore",
         "evidence": {
-          "excerpt": "",
-          "line": 38,
+          "excerpt": "private var saveTask: Task<Void, Never>?",
+          "line": 39,
           "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5dae496168d9",
+        "id": "task-site-9d5b05ec838e",
         "kind": "stored_task_handle",
         "label": "saveTask",
         "rule_id": "swift.task.stored_handle"
@@ -4587,12 +4937,12 @@
         "enclosing_function": null,
         "enclosing_type": "CentaurClient",
         "evidence": {
-          "excerpt": "",
-          "line": 50,
+          "excerpt": "private var sseTask: Task<Void, Never>?",
+          "line": 51,
           "path": "Sources/Portal/Services/CentaurClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a5d1ded7453b",
+        "id": "task-site-5a6fff481643",
         "kind": "stored_task_handle",
         "label": "sseTask",
         "rule_id": "swift.task.stored_handle"
@@ -4891,12 +5241,12 @@
         "enclosing_function": null,
         "enclosing_type": "GatewayClient",
         "evidence": {
-          "excerpt": "",
-          "line": 231,
+          "excerpt": "private var pingTimer: Task<Void, Never>?",
+          "line": 234,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-547873e0d212",
+        "id": "task-site-4480bc21bbc9",
         "kind": "stored_task_handle",
         "label": "pingTimer",
         "rule_id": "swift.task.stored_handle"
@@ -4907,12 +5257,12 @@
         "enclosing_function": null,
         "enclosing_type": "GatewayClient",
         "evidence": {
-          "excerpt": "",
-          "line": 236,
+          "excerpt": "private var reconnectTask: Task<Void, Never>?",
+          "line": 239,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-15bc475a3dbb",
+        "id": "task-site-93a4c6448edc",
         "kind": "stored_task_handle",
         "label": "reconnectTask",
         "rule_id": "swift.task.stored_handle"
@@ -5771,12 +6121,12 @@
         "enclosing_function": null,
         "enclosing_type": "SkillStore",
         "evidence": {
-          "excerpt": "/// One-shot guard: summary pregeneration runs once per app launch.",
-          "line": 202,
+          "excerpt": "private var pregenerationTask: Task<Void, Never>?",
+          "line": 205,
           "path": "Sources/Portal/Services/SkillStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-42b03513c10f",
+        "id": "task-site-38c3c663bc12",
         "kind": "stored_task_handle",
         "label": "pregenerationTask",
         "rule_id": "swift.task.stored_handle"
@@ -6027,12 +6377,12 @@
         "enclosing_function": null,
         "enclosing_type": "SubagentGraphIntegrator",
         "evidence": {
-          "excerpt": "",
-          "line": 34,
+          "excerpt": "private var pendingPublishTask: Task<Void, Never>?",
+          "line": 37,
           "path": "Sources/Portal/Services/SubagentGraphIntegrator.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3bc0f3f9c8e0",
+        "id": "task-site-c69aee2d1882",
         "kind": "stored_task_handle",
         "label": "pendingPublishTask",
         "rule_id": "swift.task.stored_handle"
@@ -6603,12 +6953,12 @@
         "enclosing_function": null,
         "enclosing_type": "ChatViewModel",
         "evidence": {
-          "excerpt": "",
-          "line": 2610,
+          "excerpt": "private var saveHistoryTask: Task<Void, Never>?",
+          "line": 2613,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3beade01a69c",
+        "id": "task-site-3510ecf6ac00",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6843,12 +7193,12 @@
         "enclosing_function": null,
         "enclosing_type": "GatewayRestartController",
         "evidence": {
-          "excerpt": "",
-          "line": 20,
+          "excerpt": "private var task: Task<Void, Never>?",
+          "line": 21,
           "path": "Sources/Portal/ViewModels/GatewayRestartController.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-75e63e7f6cdb",
+        "id": "task-site-b3b6e481c93d",
         "kind": "stored_task_handle",
         "label": "task",
         "rule_id": "swift.task.stored_handle"
@@ -15603,6 +15953,10 @@
       "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
       "swift.lifecycle.hop": "Combine receive(on:) scheduler boundary in a subject pipeline",
       "swift.lifecycle.invalidate": "invalidate() invoked on a named stored timer",
+      "swift.lifecycle.model_infer": "A ChatSession built over an on-device model container to run inference",
+      "swift.lifecycle.model_load": "loadContainer(...) invoked on an MLX model factory to load an on-device model",
+      "swift.lifecycle.pool_register": "A pending continuation registered into a CheckedContinuation pool before a request is sent",
+      "swift.lifecycle.pool_resolve": "resume(...) invoked to settle a pending continuation from a CheckedContinuation pool",
       "swift.lifecycle.publish": "send() invoked on a named stored stream subject",
       "swift.lifecycle.receive": "receive() invoked on a named stored resource",
       "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -15613,6 +15967,9 @@
       "swift.resource.combine_subject.stored": "Stored property initialized as a PassthroughSubject or CurrentValueSubject",
       "swift.resource.continuation.stored": "Stored property declared as an AsyncStream continuation",
       "swift.resource.lock.stored": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
+      "swift.resource.on_device_model.stored": "Stored property declared as an MLX ModelContainer (an on-device language model)",
+      "swift.resource.rpc_pool.stored": "Stored property declared as a dictionary of CheckedContinuation (an in-flight request pool)",
+      "swift.resource.speech_synth.instantiated": "AVSpeechSynthesizer instantiated in a source owner (an on-device speech engine)",
       "swift.resource.sse.bytes": "URLSession bytes(for:) call in a source file containing a text/event-stream marker",
       "swift.resource.timer.stored": "Stored property declared as Timer",
       "swift.resource.url_session.stored": "Stored property declared as URLSession",
@@ -15622,6 +15979,594 @@
       "swift.task.stored_handle": "Stored property whose declared type is Task",
       "swift.task.structured": "Task initializer with closure"
     }
+  },
+  "interplay": {
+    "clusters": [
+      {
+        "component": "chat-state",
+        "id": "interplay-cluster-01c7fd30284b",
+        "node_ids": [
+          "hub:ChatViewModel"
+        ],
+        "owner_type": "ChatViewModel"
+      },
+      {
+        "component": "backend-contract",
+        "id": "interplay-cluster-1f63bb30e98d",
+        "node_ids": [
+          "seam:AgentBackend"
+        ],
+        "owner_type": "AgentBackend"
+      },
+      {
+        "component": "local-services",
+        "id": "interplay-cluster-389b719244e7",
+        "node_ids": [
+          "owner:local-services:TTSService",
+          "resource:resource-27ea1487eff1"
+        ],
+        "owner_type": "TTSService"
+      },
+      {
+        "component": "hermes-services",
+        "id": "interplay-cluster-6854b24de35d",
+        "node_ids": [
+          "operation:lifecycle-operation-23419229cbbb",
+          "operation:lifecycle-operation-807fac51960d",
+          "operation:lifecycle-operation-b077e3f2c353",
+          "owner:hermes-services:GatewayClient",
+          "resource:resource-1659d3a8cd64",
+          "resource:resource-4560e4558b76",
+          "resource:resource-7f83bf85f35b",
+          "resource:resource-f4c4baad5555"
+        ],
+        "owner_type": "GatewayClient"
+      },
+      {
+        "component": "centaur-services",
+        "id": "interplay-cluster-6ebc7a0471a7",
+        "node_ids": [
+          "owner:centaur-services:CentaurClient",
+          "resource:resource-60a55d827362"
+        ],
+        "owner_type": "CentaurClient"
+      },
+      {
+        "component": "local-services",
+        "id": "interplay-cluster-7b136d3c2c60",
+        "node_ids": [
+          "operation:lifecycle-operation-250a3dd578d6",
+          "operation:lifecycle-operation-bc2afc6b8f01",
+          "owner:local-services:MLXReasoningSummarizer",
+          "resource:resource-aceeaa78d7fa"
+        ],
+        "owner_type": "MLXReasoningSummarizer"
+      },
+      {
+        "component": "app-shell",
+        "id": "interplay-cluster-9d9c6463f9af",
+        "node_ids": [
+          "hub:ContentView"
+        ],
+        "owner_type": "ContentView"
+      },
+      {
+        "component": "hermes-services",
+        "id": "interplay-cluster-b2c40c0cbddc",
+        "node_ids": [
+          "owner:hermes-services:HermesStandardClient",
+          "resource:resource-ef0a5f9f446a"
+        ],
+        "owner_type": "HermesStandardClient"
+      },
+      {
+        "component": "local-services",
+        "id": "interplay-cluster-e84f95c18c86",
+        "node_ids": [
+          "operation:lifecycle-operation-ac9557913f45",
+          "operation:lifecycle-operation-c0f0ba49aa5f",
+          "owner:local-services:SkillSummaryService",
+          "resource:resource-6a0c8ae84943"
+        ],
+        "owner_type": "SkillSummaryService"
+      }
+    ],
+    "edges": [
+      {
+        "class": "interplay",
+        "relation": "drives-engine",
+        "source": "hub:ChatViewModel",
+        "target": "owner:local-services:MLXReasoningSummarizer"
+      },
+      {
+        "class": "interplay",
+        "relation": "drives-engine",
+        "source": "hub:ChatViewModel",
+        "target": "owner:local-services:TTSService"
+      },
+      {
+        "class": "interplay",
+        "relation": "binds",
+        "source": "hub:ChatViewModel",
+        "target": "seam:AgentBackend"
+      },
+      {
+        "class": "interplay",
+        "relation": "drives-transport",
+        "source": "hub:ContentView",
+        "target": "owner:centaur-services:CentaurClient"
+      },
+      {
+        "class": "interplay",
+        "relation": "drives-transport",
+        "source": "hub:ContentView",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "interplay",
+        "relation": "drives-engine",
+        "source": "hub:ContentView",
+        "target": "owner:local-services:TTSService"
+      },
+      {
+        "class": "interplay",
+        "relation": "binds",
+        "source": "hub:ContentView",
+        "target": "seam:AgentBackend"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "pool_register",
+        "source": "operation:lifecycle-operation-23419229cbbb",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "model_infer",
+        "source": "operation:lifecycle-operation-250a3dd578d6",
+        "target": "resource:resource-aceeaa78d7fa"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "pool_resolve",
+        "source": "operation:lifecycle-operation-807fac51960d",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "model_infer",
+        "source": "operation:lifecycle-operation-ac9557913f45",
+        "target": "resource:resource-6a0c8ae84943"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "pool_resolve",
+        "source": "operation:lifecycle-operation-b077e3f2c353",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "model_load",
+        "source": "operation:lifecycle-operation-bc2afc6b8f01",
+        "target": "resource:resource-aceeaa78d7fa"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "model_load",
+        "source": "operation:lifecycle-operation-c0f0ba49aa5f",
+        "target": "resource:resource-6a0c8ae84943"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "resource:resource-60a55d827362"
+      },
+      {
+        "class": "interplay",
+        "relation": "conforms",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "seam:AgentBackend"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "operation:lifecycle-operation-23419229cbbb"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "operation:lifecycle-operation-807fac51960d"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "operation:lifecycle-operation-b077e3f2c353"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "resource:resource-1659d3a8cd64"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "resource:resource-4560e4558b76"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "resource:resource-7f83bf85f35b"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "interplay",
+        "relation": "conforms",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "seam:AgentBackend"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:hermes-services:HermesStandardClient",
+        "target": "resource:resource-ef0a5f9f446a"
+      },
+      {
+        "class": "interplay",
+        "relation": "conforms",
+        "source": "owner:hermes-services:HermesStandardClient",
+        "target": "seam:AgentBackend"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:local-services:MLXReasoningSummarizer",
+        "target": "operation:lifecycle-operation-250a3dd578d6"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:local-services:MLXReasoningSummarizer",
+        "target": "operation:lifecycle-operation-bc2afc6b8f01"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:local-services:MLXReasoningSummarizer",
+        "target": "resource:resource-aceeaa78d7fa"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:local-services:SkillSummaryService",
+        "target": "operation:lifecycle-operation-ac9557913f45"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:local-services:SkillSummaryService",
+        "target": "operation:lifecycle-operation-c0f0ba49aa5f"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:local-services:SkillSummaryService",
+        "target": "resource:resource-6a0c8ae84943"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:local-services:TTSService",
+        "target": "resource:resource-27ea1487eff1"
+      }
+    ],
+    "nodes": [
+      {
+        "cluster": "interplay-cluster-1f63bb30e98d",
+        "component": "backend-contract",
+        "id": "seam:AgentBackend",
+        "kind": "seam",
+        "label": "AgentBackend",
+        "line": 63,
+        "path": "Sources/Portal/Services/AgentBackend.swift"
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
+        "id": "owner:centaur-services:CentaurClient",
+        "kind": "owner",
+        "label": "CentaurClient",
+        "line": 26,
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "roles": [
+          "transport"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
+        "id": "resource:resource-60a55d827362",
+        "kind": "resource",
+        "label": "restSession",
+        "line": 88,
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "sub_kind": "url_session"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "id": "owner:hermes-services:GatewayClient",
+        "kind": "owner",
+        "label": "GatewayClient",
+        "line": 40,
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "roles": [
+          "support",
+          "transport"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "id": "resource:resource-7f83bf85f35b",
+        "kind": "resource",
+        "label": "webSocketTask",
+        "line": 219,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "sub_kind": "websocket"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "id": "resource:resource-1659d3a8cd64",
+        "kind": "resource",
+        "label": "urlSession",
+        "line": 220,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "sub_kind": "url_session"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "id": "resource:resource-f4c4baad5555",
+        "kind": "resource",
+        "label": "pendingRequests",
+        "line": 223,
+        "overlay_prose": "The in-flight JSON-RPC request pool. Every outbound request registers a CheckedContinuation under its integer id before the frame is written to the WebSocket, and an inbound response resolves and removes it. The pool is guarded by the co-owned pendingRequestsLock so registration and resolution cannot race across the receive task and caller tasks.",
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "sub_kind": "rpc_pool"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "id": "resource:resource-4560e4558b76",
+        "kind": "resource",
+        "label": "pendingRequestsLock",
+        "line": 225,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "sub_kind": "lock"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-b077e3f2c353",
+        "kind": "operation",
+        "label": "resume",
+        "line": 809,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "resource_id": "resource-f4c4baad5555",
+        "sub_kind": "pool_resolve"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-23419229cbbb",
+        "kind": "operation",
+        "label": "pendingRequests[…] =",
+        "line": 929,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "resource_id": "resource-f4c4baad5555",
+        "sub_kind": "pool_register"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-807fac51960d",
+        "kind": "operation",
+        "label": "resume",
+        "line": 2420,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "resource_id": "resource-f4c4baad5555",
+        "sub_kind": "pool_resolve"
+      },
+      {
+        "cluster": "interplay-cluster-b2c40c0cbddc",
+        "component": "hermes-services",
+        "id": "owner:hermes-services:HermesStandardClient",
+        "kind": "owner",
+        "label": "HermesStandardClient",
+        "line": 168,
+        "path": "Sources/Portal/Services/HermesStandardClient.swift",
+        "roles": [
+          "transport"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-b2c40c0cbddc",
+        "component": "hermes-services",
+        "id": "resource:resource-ef0a5f9f446a",
+        "kind": "resource",
+        "label": "session",
+        "line": 172,
+        "owner_type": "HermesStandardClient",
+        "path": "Sources/Portal/Services/HermesStandardClient.swift",
+        "sub_kind": "url_session"
+      },
+      {
+        "cluster": "interplay-cluster-7b136d3c2c60",
+        "component": "local-services",
+        "id": "owner:local-services:MLXReasoningSummarizer",
+        "kind": "owner",
+        "label": "MLXReasoningSummarizer",
+        "line": 590,
+        "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+        "roles": [
+          "engine"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-7b136d3c2c60",
+        "component": "local-services",
+        "id": "resource:resource-aceeaa78d7fa",
+        "kind": "resource",
+        "label": "container",
+        "line": 597,
+        "overlay_prose": "An on-device MLX Gemma model container that summarizes reasoning traces. It is loaded lazily via LLMModelFactory.loadContainer and every load and inference runs inside a Task.detached closure so the Metal work leaves the @MainActor owner. The whole engine is compiled only behind the MLXLLM/MLXLMCommon/HuggingFace/Tokenizers canImport gate.",
+        "owner_type": "MLXReasoningSummarizer",
+        "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+        "sub_kind": "on_device_model"
+      },
+      {
+        "cluster": "interplay-cluster-7b136d3c2c60",
+        "component": "local-services",
+        "detached_off_main": true,
+        "id": "operation:lifecycle-operation-250a3dd578d6",
+        "kind": "operation",
+        "label": "ChatSession.respond",
+        "line": 649,
+        "owner_type": "MLXReasoningSummarizer",
+        "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+        "resource_id": "resource-aceeaa78d7fa",
+        "sub_kind": "model_infer"
+      },
+      {
+        "cluster": "interplay-cluster-7b136d3c2c60",
+        "component": "local-services",
+        "detached_off_main": true,
+        "id": "operation:lifecycle-operation-bc2afc6b8f01",
+        "kind": "operation",
+        "label": "LLMModelFactory.loadContainer",
+        "line": 683,
+        "owner_type": "MLXReasoningSummarizer",
+        "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+        "resource_id": "resource-aceeaa78d7fa",
+        "sub_kind": "model_load"
+      },
+      {
+        "cluster": "interplay-cluster-e84f95c18c86",
+        "component": "local-services",
+        "id": "owner:local-services:SkillSummaryService",
+        "kind": "owner",
+        "label": "SkillSummaryService",
+        "line": 29,
+        "path": "Sources/Portal/Services/SkillSummaryService.swift",
+        "roles": [
+          "engine"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-e84f95c18c86",
+        "component": "local-services",
+        "id": "resource:resource-6a0c8ae84943",
+        "kind": "resource",
+        "label": "container",
+        "line": 200,
+        "overlay_prose": "A second on-device MLX model container that generates short skill summaries. Like the reasoning summarizer it loads through LLMModelFactory.loadContainer and runs inference off the main actor inside Task.detached, behind the same MLXLLM canImport gate.",
+        "owner_type": "SkillSummaryService",
+        "path": "Sources/Portal/Services/SkillSummaryService.swift",
+        "sub_kind": "on_device_model"
+      },
+      {
+        "cluster": "interplay-cluster-e84f95c18c86",
+        "component": "local-services",
+        "detached_off_main": true,
+        "id": "operation:lifecycle-operation-ac9557913f45",
+        "kind": "operation",
+        "label": "ChatSession.respond",
+        "line": 250,
+        "owner_type": "SkillSummaryService",
+        "path": "Sources/Portal/Services/SkillSummaryService.swift",
+        "resource_id": "resource-6a0c8ae84943",
+        "sub_kind": "model_infer"
+      },
+      {
+        "cluster": "interplay-cluster-e84f95c18c86",
+        "component": "local-services",
+        "detached_off_main": true,
+        "id": "operation:lifecycle-operation-c0f0ba49aa5f",
+        "kind": "operation",
+        "label": "LLMModelFactory.loadContainer",
+        "line": 284,
+        "owner_type": "SkillSummaryService",
+        "path": "Sources/Portal/Services/SkillSummaryService.swift",
+        "resource_id": "resource-6a0c8ae84943",
+        "sub_kind": "model_load"
+      },
+      {
+        "cluster": "interplay-cluster-389b719244e7",
+        "component": "local-services",
+        "id": "owner:local-services:TTSService",
+        "kind": "owner",
+        "label": "TTSService",
+        "line": 47,
+        "path": "Sources/Portal/Services/TTSService.swift",
+        "roles": [
+          "engine"
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-389b719244e7",
+        "component": "local-services",
+        "id": "resource:resource-27ea1487eff1",
+        "kind": "resource",
+        "label": "AVSpeechSynthesizer",
+        "line": 129,
+        "overlay_prose": "The on-device text-to-speech engine that speaks completed responses. TTSService holds an AVSpeechSynthesizer behind the SpeechSynthesizing protocol so the concrete engine can be swapped in tests, and is reached through TTSService.shared from the chat hub.",
+        "owner_type": "TTSService",
+        "path": "Sources/Portal/Services/TTSService.swift",
+        "sub_kind": "speech_synth"
+      },
+      {
+        "cluster": "interplay-cluster-01c7fd30284b",
+        "component": "chat-state",
+        "id": "hub:ChatViewModel",
+        "kind": "hub",
+        "label": "ChatViewModel",
+        "line": 38,
+        "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+      },
+      {
+        "cluster": "interplay-cluster-9d9c6463f9af",
+        "component": "app-shell",
+        "id": "hub:ContentView",
+        "kind": "hub",
+        "label": "ContentView",
+        "line": 11,
+        "path": "Sources/Portal/Views/ContentView.swift"
+      }
+    ]
   },
   "inventory": {
     "assigned_files": 364,
