@@ -88,9 +88,44 @@ class InterplayGraphTests(unittest.TestCase):
 
     def test_new_transport_surfaces_are_ungated(self) -> None:
         # The overlay stays focused on load-bearing pools/engines; endpoints, the
-        # event bus, and subscribers are surfaced but never demand a curated entry.
-        for kind in ("endpoint", "event_bus", "subscriber", "stream_cursor"):
+        # event bus, subscribers, and caller pages are surfaced but never demand a
+        # curated entry.
+        for kind in ("endpoint", "event_bus", "subscriber", "stream_cursor", "caller"):
             self.assertNotIn(kind, architecture.GATED_INTERPLAY_KINDS)
+
+    def test_callers_resolve_pages_to_the_namespaces_they_query(self) -> None:
+        callers = {n["label"]: n for n in self.interplay["nodes"] if n["kind"] == "caller"}
+        self.assertTrue(callers, "expected product surfaces attributed as callers")
+        endpoint_by_id = {n["id"]: n for n in self.interplay["nodes"] if n["kind"] == "endpoint"}
+        # Known page → namespace mappings resolved through typed gateway wrappers
+        # and direct call() sites (receiver-qualified).
+        for page, namespace in (
+            ("WikiGraphViewModel", "wiki"),
+            ("CronListViewModel", "cron"),
+            ("SessionListViewModel", "session"),
+            ("FeedViewModel", "feed"),
+        ):
+            self.assertIn(page, callers, f"expected {page} attributed as a caller")
+            self.assertIn(namespace, callers[page]["namespaces"])
+        # Every caller node deep-links to source and reaches its namespaces only by
+        # `invokes` edges that land on a real endpoint node of that namespace.
+        for node in callers.values():
+            self.assertIsInstance(node["line"], int)
+            self.assertTrue(node["namespaces"], "a caller must invoke ≥1 namespace")
+            invoked = {
+                endpoint_by_id[edge["target"]]["label"]
+                for edge in self.interplay["edges"]
+                if edge["relation"] == "invokes" and edge["source"] == node["id"]
+                and edge["target"] in endpoint_by_id
+            }
+            self.assertEqual(set(node["namespaces"]), invoked)
+
+    def test_caller_attribution_is_receiver_qualified(self) -> None:
+        # A same-named method on an unrelated object must not be mistaken for a
+        # gateway call. GatewayEvent.sessionTitle(...) is a formatting helper, not
+        # a transport query, so GatewayEvent is never surfaced as a caller.
+        caller_labels = {n["label"] for n in self.interplay["nodes"] if n["kind"] == "caller"}
+        self.assertNotIn("GatewayEvent", caller_labels)
 
     def test_overlay_explains_every_gated_resource(self) -> None:
         # The committed overlay must clear the gate against the real source tree.

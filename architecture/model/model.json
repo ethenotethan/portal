@@ -16082,6 +16082,24 @@
         "owner_type": "GatewayClient · endpoints"
       },
       {
+        "component": "wiki-state",
+        "id": "interplay-cluster-60874459817e",
+        "node_ids": [
+          "caller:wiki-state:WikiGraphViewModel",
+          "caller:wiki-state:WikiTimelineViewModel"
+        ],
+        "owner_type": "callers"
+      },
+      {
+        "component": "operations-ui",
+        "id": "interplay-cluster-6543060b403f",
+        "node_ids": [
+          "caller:operations-ui:CentaurWorkflowsView",
+          "caller:operations-ui:SessionUsageBadge"
+        ],
+        "owner_type": "callers"
+      },
+      {
         "component": "hermes-services",
         "id": "interplay-cluster-6854b24de35d",
         "node_ids": [
@@ -16098,6 +16116,14 @@
         "owner_type": "GatewayClient"
       },
       {
+        "component": "hermes-services",
+        "id": "interplay-cluster-6d7f034d539c",
+        "node_ids": [
+          "caller:hermes-services:CronPoller"
+        ],
+        "owner_type": "callers"
+      },
+      {
         "component": "centaur-services",
         "id": "interplay-cluster-6ebc7a0471a7",
         "node_ids": [
@@ -16111,6 +16137,30 @@
         "owner_type": "CentaurClient"
       },
       {
+        "component": "app-shell",
+        "id": "interplay-cluster-6ef5cf6ba37d",
+        "node_ids": [
+          "caller:app-shell:SystemPromptSection"
+        ],
+        "owner_type": "callers"
+      },
+      {
+        "component": "operations-state",
+        "id": "interplay-cluster-6fd58b8bb108",
+        "node_ids": [
+          "caller:operations-state:ActivityInboxViewModel",
+          "caller:operations-state:CodeGraphSource",
+          "caller:operations-state:CronGraphViewModel",
+          "caller:operations-state:CronListViewModel",
+          "caller:operations-state:FeedViewModel",
+          "caller:operations-state:FilesBrowserViewModel",
+          "caller:operations-state:GatewayRestartController",
+          "caller:operations-state:SessionListViewModel",
+          "caller:operations-state:SkillsViewModel"
+        ],
+        "owner_type": "callers"
+      },
+      {
         "component": "local-services",
         "id": "interplay-cluster-7b136d3c2c60",
         "node_ids": [
@@ -16120,6 +16170,15 @@
           "resource:resource-aceeaa78d7fa"
         ],
         "owner_type": "MLXReasoningSummarizer"
+      },
+      {
+        "component": "chat-state",
+        "id": "interplay-cluster-8f7f061bfcff",
+        "node_ids": [
+          "caller:chat-state:ChatViewModel",
+          "caller:chat-state:PersonaManager"
+        ],
+        "owner_type": "callers"
       },
       {
         "component": "app-shell",
@@ -16159,6 +16218,16 @@
           "resource:resource-6a0c8ae84943"
         ],
         "owner_type": "SkillSummaryService"
+      },
+      {
+        "component": "local-services",
+        "id": "interplay-cluster-ef88c482cacc",
+        "node_ids": [
+          "caller:local-services:SessionMetaSyncService",
+          "caller:local-services:SkillCache",
+          "caller:local-services:SkillStore"
+        ],
+        "owner_type": "callers"
       }
     ],
     "edges": [
@@ -16191,6 +16260,210 @@
         "relation": "notifies",
         "source": "bus:AgentBackend.eventStream",
         "target": "subscriber:SpawnTreeStore"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:app-shell:SystemPromptSection",
+        "target": "endpoint:275a028db300"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:13335c26ef47"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:162f92a74671"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:275a028db300"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:5ce832f6c2c8"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:61ef561083b5"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:68a64556d661"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:738ad0135115"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:8fd4309be78f"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:91804a259979"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:a6fe64944ae6"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "endpoint:f045e7fd8bba"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:chat-state:PersonaManager",
+        "target": "endpoint:68a64556d661"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:hermes-services:CronPoller",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:local-services:SessionMetaSyncService",
+        "target": "endpoint:68a64556d661"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:local-services:SkillCache",
+        "target": "endpoint:9f4e70554834"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:local-services:SkillCache",
+        "target": "endpoint:d01b8fa18b67"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:local-services:SkillStore",
+        "target": "endpoint:9f4e70554834"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:local-services:SkillStore",
+        "target": "endpoint:d01b8fa18b67"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:ActivityInboxViewModel",
+        "target": "endpoint:82a5f3049740"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:CodeGraphSource",
+        "target": "endpoint:2e6276e9cf3e"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:CodeGraphSource",
+        "target": "endpoint:8abbe841a1a5"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:CronGraphViewModel",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:CronListViewModel",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:FeedViewModel",
+        "target": "endpoint:6612d53de6e6"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:FilesBrowserViewModel",
+        "target": "endpoint:2e6276e9cf3e"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:GatewayRestartController",
+        "target": "endpoint:24738b20b0b3"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:SessionListViewModel",
+        "target": "endpoint:275a028db300"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:SkillsViewModel",
+        "target": "endpoint:9f4e70554834"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-state:SkillsViewModel",
+        "target": "endpoint:d01b8fa18b67"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-ui:CentaurWorkflowsView",
+        "target": "endpoint:fa8b48486b4d"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:operations-ui:SessionUsageBadge",
+        "target": "endpoint:275a028db300"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:wiki-state:WikiGraphViewModel",
+        "target": "endpoint:7e90ead53b58"
+      },
+      {
+        "class": "usage",
+        "relation": "invokes",
+        "source": "caller:wiki-state:WikiTimelineViewModel",
+        "target": "endpoint:7e90ead53b58"
       },
       {
         "class": "interplay",
@@ -16975,6 +17248,19 @@
         "owner_type": "CentaurClient",
         "path": "Sources/Portal/Services/CentaurClient.swift",
         "sub_kind": "bus_publish"
+      },
+      {
+        "cluster": "interplay-cluster-6d7f034d539c",
+        "component": "hermes-services",
+        "id": "caller:hermes-services:CronPoller",
+        "kind": "caller",
+        "label": "CronPoller",
+        "line": 7,
+        "namespaces": [
+          "cron"
+        ],
+        "path": "Sources/Portal/Services/CronPoller.swift",
+        "sub_kind": "page"
       },
       {
         "cluster": "interplay-cluster-50d529a93091",
@@ -17797,6 +18083,47 @@
         "sub_kind": "model_load"
       },
       {
+        "cluster": "interplay-cluster-ef88c482cacc",
+        "component": "local-services",
+        "id": "caller:local-services:SessionMetaSyncService",
+        "kind": "caller",
+        "label": "SessionMetaSyncService",
+        "line": 14,
+        "namespaces": [
+          "config"
+        ],
+        "path": "Sources/Portal/Services/SessionMetaSyncService.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-ef88c482cacc",
+        "component": "local-services",
+        "id": "caller:local-services:SkillCache",
+        "kind": "caller",
+        "label": "SkillCache",
+        "line": 100,
+        "namespaces": [
+          "commands",
+          "skills"
+        ],
+        "path": "Sources/Portal/Services/SkillCache.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-ef88c482cacc",
+        "component": "local-services",
+        "id": "caller:local-services:SkillStore",
+        "kind": "caller",
+        "label": "SkillStore",
+        "line": 189,
+        "namespaces": [
+          "commands",
+          "skills"
+        ],
+        "path": "Sources/Portal/Services/SkillStore.swift",
+        "sub_kind": "page"
+      },
+      {
         "cluster": "interplay-cluster-e84f95c18c86",
         "component": "local-services",
         "id": "owner:local-services:SkillSummaryService",
@@ -17871,6 +18198,19 @@
         "sub_kind": "speech_synth"
       },
       {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:ActivityInboxViewModel",
+        "kind": "caller",
+        "label": "ActivityInboxViewModel",
+        "line": 8,
+        "namespaces": [
+          "activity"
+        ],
+        "path": "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
         "id": "subscriber:ActivityInboxViewModel",
@@ -17881,6 +18221,29 @@
         "path": "Sources/Portal/ViewModels/ActivityInboxViewModel.swift"
       },
       {
+        "cluster": "interplay-cluster-8f7f061bfcff",
+        "component": "chat-state",
+        "id": "caller:chat-state:ChatViewModel",
+        "kind": "caller",
+        "label": "ChatViewModel",
+        "line": 38,
+        "namespaces": [
+          "approval",
+          "clarify",
+          "config",
+          "execute",
+          "image",
+          "interrupt",
+          "messages",
+          "model",
+          "prompt",
+          "session",
+          "voice"
+        ],
+        "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
         "cluster": "interplay-cluster-01c7fd30284b",
         "component": "chat-state",
         "id": "hub:ChatViewModel",
@@ -17888,6 +18251,111 @@
         "label": "ChatViewModel",
         "line": 38,
         "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:CodeGraphSource",
+        "kind": "caller",
+        "label": "CodeGraphSource",
+        "line": 19,
+        "namespaces": [
+          "code",
+          "files"
+        ],
+        "path": "Sources/Portal/ViewModels/CodeGraphSource.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:CronGraphViewModel",
+        "kind": "caller",
+        "label": "CronGraphViewModel",
+        "line": 15,
+        "namespaces": [
+          "cron"
+        ],
+        "path": "Sources/Portal/ViewModels/CronGraphViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:CronListViewModel",
+        "kind": "caller",
+        "label": "CronListViewModel",
+        "line": 22,
+        "namespaces": [
+          "cron"
+        ],
+        "path": "Sources/Portal/ViewModels/CronListViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:FeedViewModel",
+        "kind": "caller",
+        "label": "FeedViewModel",
+        "line": 8,
+        "namespaces": [
+          "feed"
+        ],
+        "path": "Sources/Portal/ViewModels/FeedViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:FilesBrowserViewModel",
+        "kind": "caller",
+        "label": "FilesBrowserViewModel",
+        "line": 12,
+        "namespaces": [
+          "files"
+        ],
+        "path": "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:GatewayRestartController",
+        "kind": "caller",
+        "label": "GatewayRestartController",
+        "line": 13,
+        "namespaces": [
+          "gateway"
+        ],
+        "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-8f7f061bfcff",
+        "component": "chat-state",
+        "id": "caller:chat-state:PersonaManager",
+        "kind": "caller",
+        "label": "PersonaManager",
+        "line": 10,
+        "namespaces": [
+          "config"
+        ],
+        "path": "Sources/Portal/ViewModels/PersonaManager.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:SessionListViewModel",
+        "kind": "caller",
+        "label": "SessionListViewModel",
+        "line": 12,
+        "namespaces": [
+          "session"
+        ],
+        "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+        "sub_kind": "page"
       },
       {
         "cluster": "interplay-cluster-00216ece3da1",
@@ -17900,6 +18368,20 @@
         "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
       },
       {
+        "cluster": "interplay-cluster-6fd58b8bb108",
+        "component": "operations-state",
+        "id": "caller:operations-state:SkillsViewModel",
+        "kind": "caller",
+        "label": "SkillsViewModel",
+        "line": 16,
+        "namespaces": [
+          "commands",
+          "skills"
+        ],
+        "path": "Sources/Portal/ViewModels/SkillsViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
         "id": "subscriber:SpawnTreeStore",
@@ -17910,6 +18392,45 @@
         "path": "Sources/Portal/ViewModels/SpawnTreeStore.swift"
       },
       {
+        "cluster": "interplay-cluster-60874459817e",
+        "component": "wiki-state",
+        "id": "caller:wiki-state:WikiGraphViewModel",
+        "kind": "caller",
+        "label": "WikiGraphViewModel",
+        "line": 9,
+        "namespaces": [
+          "wiki"
+        ],
+        "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-60874459817e",
+        "component": "wiki-state",
+        "id": "caller:wiki-state:WikiTimelineViewModel",
+        "kind": "caller",
+        "label": "WikiTimelineViewModel",
+        "line": 8,
+        "namespaces": [
+          "wiki"
+        ],
+        "path": "Sources/Portal/ViewModels/WikiTimelineViewModel.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6543060b403f",
+        "component": "operations-ui",
+        "id": "caller:operations-ui:CentaurWorkflowsView",
+        "kind": "caller",
+        "label": "CentaurWorkflowsView",
+        "line": 15,
+        "namespaces": [
+          "workflows"
+        ],
+        "path": "Sources/Portal/Views/CentaurWorkflowsView.swift",
+        "sub_kind": "page"
+      },
+      {
         "cluster": "interplay-cluster-9d9c6463f9af",
         "component": "app-shell",
         "id": "hub:ContentView",
@@ -17917,6 +18438,32 @@
         "label": "ContentView",
         "line": 11,
         "path": "Sources/Portal/Views/ContentView.swift"
+      },
+      {
+        "cluster": "interplay-cluster-6543060b403f",
+        "component": "operations-ui",
+        "id": "caller:operations-ui:SessionUsageBadge",
+        "kind": "caller",
+        "label": "SessionUsageBadge",
+        "line": 15,
+        "namespaces": [
+          "session"
+        ],
+        "path": "Sources/Portal/Views/SessionUsageBadge.swift",
+        "sub_kind": "page"
+      },
+      {
+        "cluster": "interplay-cluster-6ef5cf6ba37d",
+        "component": "app-shell",
+        "id": "caller:app-shell:SystemPromptSection",
+        "kind": "caller",
+        "label": "SystemPromptSection",
+        "line": 830,
+        "namespaces": [
+          "session"
+        ],
+        "path": "Sources/Portal/Views/SettingsView.swift",
+        "sub_kind": "page"
       }
     ]
   },
