@@ -446,3 +446,118 @@ internal struct CronDataflowExpandedView: View {
         if !runs.isEmpty { ledgers[node.id] = runs }
     }
 }
+
+/// Purpose-built code topology surface. It deliberately uses only the shared
+/// force-directed canvas, not `WikiGraphView`: users see code nodes/edges and
+/// code-specific loading/empty/error states rather than a nested "Wiki" app.
+@MainActor
+internal struct CodeGraphSurfaceView: View {
+    private let request: CodeGraphRequest
+    @StateObject private var model: CodeGraphSurfaceModel
+    @Environment(\.dismiss) private var dismiss
+
+    internal init(request: CodeGraphRequest, client: GatewayClient) {
+        self.request = request
+        _model = StateObject(
+            wrappedValue: CodeGraphSurfaceModel(client: client, service: request.service)
+        )
+    }
+
+    internal var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().background(Theme.border)
+            content
+        }
+        #if os(macOS)
+        .frame(minWidth: 640, minHeight: 480)
+        #endif
+        .background(Theme.background)
+        .task(id: request.digest) { await model.load() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.label)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+            Spacer()
+            Button("Done") { dismiss() }
+                .portalButton(prominent: true, size: .small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.surface)
+    }
+
+    private var summary: String {
+        guard let graph = model.codeGraph else { return "Code graph" }
+        return "\(graph.nodes.count) nodes · \(graph.edges.count) edges"
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.phase {
+        case .idle, .loading:
+            stateMessage(
+                icon: "point.3.connected.trianglepath.dotted",
+                title: "Building code graph",
+                detail: "Extracting modules, symbols, and relationships…",
+                showsProgress: true
+            )
+        case .loaded:
+            InteractiveGraphView(graph: model.renderGraph)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .empty:
+            stateMessage(
+                icon: "curlybraces",
+                title: "No code symbols found",
+                detail: "The service has no graphable source files in an allowed source root."
+            )
+        case .failed:
+            VStack(spacing: 14) {
+                stateMessage(
+                    icon: "exclamationmark.triangle",
+                    title: "Code graph unavailable",
+                    detail: model.errorMessage ?? "The gateway could not build this service's code graph."
+                )
+                Button("Try Again") { Task { await model.load() } }
+                    .portalButton(prominent: false, size: .small)
+            }
+        }
+    }
+
+    private func stateMessage(
+        icon: String,
+        title: String,
+        detail: String,
+        showsProgress: Bool = false
+    ) -> some View {
+        VStack(spacing: 10) {
+            if showsProgress {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(Theme.secondary)
+            }
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+}
