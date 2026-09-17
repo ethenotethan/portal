@@ -52,6 +52,17 @@
     other: "Supporting owner"
   };
   const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, caller: 3, endpoint: 4, engine: 5, subscriber: 6, other: 7 };
+  // Top-to-bottom bands for the tiered interplay layout. Kept in this top const
+  // block (like the role maps above) so renderInterplay(), called during init,
+  // can read it without hitting the temporal dead zone.
+  const INTERPLAY_TIER_LABELS = [
+    "SURFACES",
+    "NAMESPACES",
+    "SHARED TRANSPORT",
+    "BACKEND SEAM",
+    "ON-DEVICE ENGINES",
+    "EVENT SUBSCRIBERS"
+  ];
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
   const specifications = payload.specifications || [];
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -379,115 +390,93 @@
     return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
   }
 
-  // A tiny deterministic PRNG (mulberry32) so the force layout below is identical
-  // on every load — the graph never re-shuffles itself between visits.
-  function interplaySeededRandom(seed) {
-    let a = seed >>> 0;
-    return function () {
-      a = (a + 0x6d2b79f5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+  // Layered ("tiered") placement so the graph reads as an information hierarchy
+  // rather than a hairball centred on the one shared client: product surfaces on
+  // top, the RPC/REST namespaces they query beneath them, then the single shared
+  // transport floor (GatewayClient/CentaurClient + their pools), the AgentBackend
+  // seam, the on-device engines, and finally the event subscribers. Fully
+  // deterministic (no PRNG): tiers by role, within-tier order by barycentre.
+  function interplayNodeTier(node) {
+    const role = interplayNodeRole(node);
+    if (role === "caller" || role === "hub") return 0;   // product surfaces (the tabs)
+    if (role === "endpoint") return 1;                   // the namespaces each surface queries
+    if (node.sub_kind === "event_bus") return 2;         // the push channel rides the floor
+    if (role === "transport") return 2;                  // the one shared transport floor
+    if (role === "seam") return 3;                       // AgentBackend
+    if (role === "engine") return 4;                     // on-device language/speech engines
+    if (role === "subscriber") return 5;                 // event consumers
+    return 2;                                            // stray owners settle on the floor
   }
 
-  // Free-form knowledge-graph placement: Fruchterman–Reingold with a fixed seed,
-  // then a few overlap-resolution passes so the cards stay legible. Runs entirely
-  // in the browser and touches nothing in model.json.
-  function layoutInterplayForce(nodes, edges) {
-    const n = nodes.length;
-    const index = new Map(nodes.map((node, i) => [node.id, i]));
-    const size = nodes.map((node) => interplayNodeSize(node));
-    const px = new Float64Array(n);
-    const py = new Float64Array(n);
-    const k = 132;
-    const rnd = interplaySeededRandom(0x9e3779b9);
-    // A bounded frame keeps repulsion from blowing the cloud apart — FR clamps
-    // every node back inside it each iteration.
-    const frame = k * Math.sqrt(Math.max(1, n)) * 1.2;
-    const half = frame / 2;
-    const golden = Math.PI * (3 - Math.sqrt(5));
-    for (let i = 0; i < n; i++) {
-      const r = half * Math.sqrt((i + 0.5) / n);
-      const a = i * golden + (rnd() - 0.5) * 0.6;
-      px[i] = Math.cos(a) * r + (rnd() - 0.5) * 12;
-      py[i] = Math.sin(a) * r + (rnd() - 0.5) * 12;
+  function layoutInterplayTiered(nodes, edges) {
+    const TIERS = INTERPLAY_TIER_LABELS.length;
+    const tierOf = new Map(nodes.map((node) => [node.id, interplayNodeTier(node)]));
+    const size = new Map(nodes.map((node) => [node.id, interplayNodeSize(node)]));
+    // Undirected adjacency, so a tier can be ordered against either neighbour.
+    const neighbours = new Map(nodes.map((node) => [node.id, []]));
+    edges.forEach((edge) => {
+      if (!neighbours.has(edge.source) || !neighbours.has(edge.target)) return;
+      neighbours.get(edge.source).push(edge.target);
+      neighbours.get(edge.target).push(edge.source);
+    });
+    // Seed each tier ordered by label then id, so the layout is stable run to run.
+    const rows = Array.from({ length: TIERS }, () => []);
+    nodes
+      .slice()
+      .sort((a, b) => (a.label || "").localeCompare(b.label || "") || a.id.localeCompare(b.id))
+      .forEach((node) => rows[tierOf.get(node.id)].push(node.id));
+    const orderIndex = new Map();
+    rows.forEach((row) => row.forEach((id, i) => orderIndex.set(id, i)));
+    // A fixed number of barycentre sweeps (down then up) pulls each namespace under
+    // the surface that calls it and clusters the floor beneath them — crossing
+    // reduction without any randomness, so the result is identical every load.
+    const SWEEPS = 8;
+    for (let sweep = 0; sweep < SWEEPS; sweep++) {
+      const downward = sweep % 2 === 0;
+      const tiers = downward
+        ? Array.from({ length: TIERS }, (_, t) => t)
+        : Array.from({ length: TIERS }, (_, t) => TIERS - 1 - t);
+      for (const t of tiers) {
+        const adjacent = downward ? t - 1 : t + 1;
+        if (adjacent < 0 || adjacent >= TIERS) continue;
+        const ranked = rows[t].map((id) => {
+          const positions = neighbours
+            .get(id)
+            .filter((other) => tierOf.get(other) === adjacent)
+            .map((other) => orderIndex.get(other));
+          const key = positions.length
+            ? positions.reduce((sum, value) => sum + value, 0) / positions.length
+            : orderIndex.get(id);
+          return { id, key };
+        });
+        ranked.sort((a, b) => a.key - b.key || a.id.localeCompare(b.id));
+        rows[t] = ranked.map((entry) => entry.id);
+        rows[t].forEach((id, i) => orderIndex.set(id, i));
+      }
     }
-    const links = edges
-      .map((edge) => [index.get(edge.source), index.get(edge.target)])
-      .filter(([a, b]) => a !== undefined && b !== undefined);
-    const dx = new Float64Array(n);
-    const dy = new Float64Array(n);
-    const ITER = 500;
-    let temp = frame * 0.1;
-    const cool = temp / (ITER + 1);
-    for (let step = 0; step < ITER; step++) {
-      dx.fill(0);
-      dy.fill(0);
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          let ex = px[i] - px[j];
-          let ey = py[i] - py[j];
-          const dist = Math.hypot(ex, ey) || 0.01;
-          const rep = (k * k) / dist;
-          ex /= dist;
-          ey /= dist;
-          dx[i] += ex * rep;
-          dy[i] += ey * rep;
-          dx[j] -= ex * rep;
-          dy[j] -= ey * rep;
-        }
-      }
-      for (const [a, b] of links) {
-        let ex = px[a] - px[b];
-        let ey = py[a] - py[b];
-        const dist = Math.hypot(ex, ey) || 0.01;
-        const att = (dist * dist) / k;
-        ex /= dist;
-        ey /= dist;
-        dx[a] -= ex * att;
-        dy[a] -= ey * att;
-        dx[b] += ex * att;
-        dy[b] += ey * att;
-      }
-      for (let i = 0; i < n; i++) {
-        dx[i] -= px[i] * 0.045;
-        dy[i] -= py[i] * 0.045;
-        const d = Math.hypot(dx[i], dy[i]) || 0.01;
-        const capped = Math.min(d, temp);
-        px[i] = Math.max(-half, Math.min(half, px[i] + (dx[i] / d) * capped));
-        py[i] = Math.max(-half, Math.min(half, py[i] + (dy[i] / d) * capped));
-      }
-      temp -= cool;
-    }
-    for (let pass = 0; pass < 60; pass++) {
-      let moved = false;
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          const minGapX = (size[i].width + size[j].width) / 2 + 16;
-          const minGapY = (size[i].height + size[j].height) / 2 + 14;
-          const ex = px[i] - px[j];
-          const ey = py[i] - py[j];
-          if (Math.abs(ex) < minGapX && Math.abs(ey) < minGapY) {
-            const overlapX = minGapX - Math.abs(ex);
-            const overlapY = minGapY - Math.abs(ey);
-            if (overlapX < overlapY) {
-              const shift = (overlapX / 2) * (ex < 0 ? -1 : 1);
-              px[i] += shift;
-              px[j] -= shift;
-            } else {
-              const shift = (overlapY / 2) * (ey < 0 ? -1 : 1);
-              py[i] += shift;
-              py[j] -= shift;
-            }
-            moved = true;
-          }
-        }
-      }
-      if (!moved) break;
-    }
+    // Pack each tier left-to-right, centre every tier against the widest one, and
+    // stack the tiers top-to-bottom with a generous vertical gap.
+    const GAP_X = 34;
+    const GAP_Y = 128;
+    const tierWidth = rows.map((row) =>
+      row.reduce((width, id, i) => width + size.get(id).width + (i ? GAP_X : 0), 0)
+    );
+    const maxWidth = Math.max(1, ...tierWidth);
     const positions = new Map();
-    nodes.forEach((node, i) => positions.set(node.id, { x: px[i], y: py[i] }));
+    const tierBands = [];
+    let y = 0;
+    rows.forEach((row, t) => {
+      const rowHeight = row.reduce((height, id) => Math.max(height, size.get(id).height), 0) || 48;
+      let x = (maxWidth - tierWidth[t]) / 2;
+      row.forEach((id) => {
+        const nodeSize = size.get(id);
+        positions.set(id, { x: x + nodeSize.width / 2, y: y + rowHeight / 2 });
+        x += nodeSize.width + GAP_X;
+      });
+      if (row.length) tierBands.push({ tier: t, y: y + rowHeight / 2 });
+      y += rowHeight + GAP_Y;
+    });
+    positions.tierBands = tierBands;
     return positions;
   }
 
@@ -508,9 +497,11 @@
     const nodeRole = new Map();
     interplay.nodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
 
-    // Position every node with the deterministic force layout, then translate the
-    // whole cloud so its top-left corner sits at the margin.
-    const layout = layoutInterplayForce(interplay.nodes, interplay.edges);
+    // Position every node with the deterministic tiered layout, then translate the
+    // whole graph so its top-left corner sits at the margin (past a left gutter that
+    // holds the tier labels).
+    const layout = layoutInterplayTiered(interplay.nodes, interplay.edges);
+    const tierBands = layout.tierBands || [];
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -527,11 +518,15 @@
       maxY = Math.max(maxY, y + size.height);
     });
     const margin = 48;
+    const leftGutter = 168; // room for the vertical tier labels on the left
+    const shiftX = margin + leftGutter - minX;
+    const shiftY = margin - minY;
     interplayPositions.forEach((position) => {
-      position.x += margin - minX;
-      position.y += margin - minY;
+      position.x += shiftX;
+      position.y += shiftY;
     });
-    const width = Math.ceil(maxX - minX + margin * 2);
+    tierBands.forEach((band) => { band.y += shiftY; });
+    const width = Math.ceil(maxX - minX + margin * 2 + leftGutter);
     const height = Math.ceil(maxY - minY + margin * 2);
     // The SVG fills its frame; a viewBox window pans/zooms over the content. Start
     // fitted to the whole graph so the first paint shows everything.
@@ -542,6 +537,22 @@
     svg.style.minWidth = "0";
     svg.style.removeProperty("height"); // height is governed by CSS (72vh / fullscreen)
     applyInterplayViewBox();
+
+    // Tier labels sit in the left gutter, behind everything, naming each band of
+    // the hierarchy (surfaces → namespaces → shared transport → seam → engines →
+    // subscribers) so the layered reading is explicit.
+    const tierGroup = svgElement("g", { class: "interplay-tiers" });
+    tierBands.forEach((band) => {
+      const label = svgElement("text", {
+        x: margin,
+        y: band.y,
+        class: "interplay-tier-label",
+        "dominant-baseline": "middle"
+      });
+      label.textContent = INTERPLAY_TIER_LABELS[band.tier] || "";
+      tierGroup.append(label);
+    });
+    svg.append(tierGroup);
 
     const edgeGroup = svgElement("g", { class: "edges" });
     interplay.edges.forEach((edge) => {
