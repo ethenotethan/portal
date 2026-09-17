@@ -474,6 +474,9 @@ internal struct CronInterflowGraphView: View {
                     if node.kind == "cron", !node.sourceFiles.isEmpty {
                         sourceFilesList(node.sourceFiles)
                     }
+                    if node.kind == "service", let codeGraph = node.codeGraph {
+                        codeGraphButton(node: node, ref: codeGraph)
+                    }
                     connectionsList
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -570,6 +573,37 @@ internal struct CronInterflowGraphView: View {
             .disabled(onExpand == nil || !file.isOpenable)
             .help(file.isOpenable ? "Open \(file.fileName) in the full-screen graph" : "Outside the browsable roots")
         }
+    }
+
+    /// A service's "View code graph" affordance. Like the source-file chips, the
+    /// inline dock can't present the graph itself, so it hands the request to the
+    /// full-screen surface (via the shared view model) and expands into it.
+    @ViewBuilder
+    private func codeGraphButton(node: CronGraphNode, ref: CronServiceCodeGraphRef) -> some View {
+        Divider().overlay(Theme.border.opacity(0.4)).padding(.vertical, 2)
+        Button {
+            viewModel.requestedCodeGraph = CodeGraphRequest(
+                service: ref.ref,
+                label: node.label,
+                digest: ref.digest
+            )
+            onExpand?()
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 12)
+                Text("View code graph")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                Spacer(minLength: 4)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(onExpand == nil)
+        .help(onExpand == nil ? "Open the full-screen graph to view the code graph" : "Open this service's code knowledge graph")
     }
 
     /// The small caption under a node's title: its kind for the actor nodes

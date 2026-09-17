@@ -296,6 +296,20 @@ actor MessagePump {}
         self.assertIn('"architecture/semantic/components.json"', semantic_assignment.group(1))
         self.assertNotIn("model.behavior", agent)
 
+    def test_inspector_references_portal_code_graph_for_services(self) -> None:
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        # The service code graph lives in the Portal app; the static site
+        # references it (deep-link fallback) rather than embedding a graph,
+        # keeping the generated outputs dependency-free and byte-deterministic.
+        self.assertRegex(app, r"function\s+codeGraphReference\s*\(")
+        self.assertIn("codeGraphReference(component)", app)
+        # Gated to integration-layer (service) components only.
+        self.assertIn('component.layer === "integration"', app)
+        # Reference text builds via textContent (element()), never innerHTML —
+        # the XSS invariant test guards `innerHTML = item.` globally; assert the
+        # reference does not regress the safe-DOM idiom.
+        self.assertIn("View code graph", app)
+
     def test_serialized_generated_outputs_are_byte_deterministic(self) -> None:
         first = architecture.expected_outputs()
         second = architecture.expected_outputs()

@@ -320,6 +320,16 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
   font: 10px/1.6 var(--mono);
 }
 .derivation { max-width: 900px; color: var(--muted); }
+.code-graph-reference {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--integration);
+  background: var(--bg);
+  color: var(--muted);
+  font: 10px/1.7 var(--mono);
+  overflow-wrap: anywhere;
+}
 .behavior-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 18px; }
 .behavior-row { min-width: 0; padding: 14px; border: 1px solid var(--line); background: var(--bg); }
 .behavior-row h4 { margin: 0 0 7px; color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }

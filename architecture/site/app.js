@@ -266,6 +266,28 @@
       section.append(list);
       inspector.append(section);
     }
+
+    if (!component.external && component.layer === "integration") {
+      inspector.append(codeGraphReference(component));
+    }
+  }
+
+  // The interactive code knowledge graph of a service's code — modules, types
+  // and functions with import/call flow — lives in the Portal app, which builds
+  // it on demand from the service's source files (Cron dataflow → select the
+  // service → "View code graph"). The static Observatory references it rather
+  // than re-deriving it here, so the generated site stays dependency-free and
+  // byte-deterministic. Shown for integration-layer (service) components only.
+  function codeGraphReference(component) {
+    const section = inspectorSection("Code graph");
+    section.append(element(
+      "p",
+      "code-graph-reference",
+      `An interactive code knowledge graph of ${component.label}’s ${component.file_count} ` +
+      `source file(s) — modules, types and functions with import/call flow — is available in the ` +
+      `Portal app: open the Cron dataflow view, select this service, and choose “View code graph.”`
+    ));
+    return section;
   }
 
   function inspectorSection(title) {

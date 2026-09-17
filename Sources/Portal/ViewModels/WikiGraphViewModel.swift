@@ -250,17 +250,17 @@ final class WikiGraphViewModel: ObservableObject {
         case "glossary": return Color(hex: "5ad4e6")!   // taxonomy definitions
         case "project": return Color(hex: "e8a838")!
         case "goal": return Color(hex: "ff6b9d")!
+        // Code-graph kinds (CodeGraphSource). Distinct hues, no wiki type
+        // collides; modules are the hub hue, externals muted.
+        case "module": return Color(hex: "4a9eff") ?? .blue
+        case "class": return Color(hex: "c678dd") ?? .purple
+        case "func": return Color(hex: "56d364") ?? .green
+        case "symbol": return Color(hex: "d19a66") ?? .orange
+        case "external": return Color(hex: "6a6a6a") ?? .gray
         default: return Color(hex: "aaaaaa")!
         }
     }
 
-    func nodeRadius(for type: String) -> CGFloat {
-        switch type {
-        case "entity": return 7
-        case "meta", "index", "log", "glossary": return 8  // hub/definition pages read larger
-        default: return 5
-        }
-    }
 
     /// Per-node radii, PRECOMPUTED when degrees change. nodeRadius(at:) is
     /// on the Canvas draw path (every node, every frame at 30fps); computing

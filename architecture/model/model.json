@@ -273,6 +273,20 @@
         "evidence": {
           "excerpt": "@MainActor",
           "line": 5,
+          "path": "Sources/Portal/Services/GatewayClient+CodeGraph.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-571bc4d292b7",
+        "kind": "main_actor",
+        "label": "GatewayClient",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 5,
           "path": "Sources/Portal/Services/GatewayClient+Cron.swift"
         },
         "evidence_class": "static_source",
@@ -916,6 +930,20 @@
         "component": "operations-state",
         "evidence": {
           "excerpt": "@MainActor",
+          "line": 18,
+          "path": "Sources/Portal/ViewModels/CodeGraphSource.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-4c6c59e5a119",
+        "kind": "main_actor",
+        "label": "CodeGraphSource",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-state",
+        "evidence": {
+          "excerpt": "@MainActor",
           "line": 24,
           "path": "Sources/Portal/ViewModels/CronChangesetFeed.swift"
         },
@@ -1245,6 +1273,20 @@
         "id": "execution-domain-e20014534636",
         "kind": "main_actor",
         "label": "CronDataflowExpandedView",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 421,
+          "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-75fd3d0b0e6c",
+        "kind": "main_actor",
+        "label": "CodeGraphSheetView",
         "rule_id": "swift.execution.main_actor"
       },
       {
@@ -8130,11 +8172,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "Task { await sourceVM.open(file) }",
-          "line": 67,
+          "line": 82,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-44e012dc79fb",
+        "id": "task-site-86559f448097",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8146,11 +8188,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onPause: { Task { await listVM.pauseJob(id: job.id) } },",
-          "line": 239,
+          "line": 254,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0eaa26e97d97",
+        "id": "task-site-b3c77abe18f9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8162,11 +8204,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onResume: { Task { await listVM.resumeJob(id: job.id) } },",
-          "line": 240,
+          "line": 255,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f3e59c09a8ec",
+        "id": "task-site-092778527f20",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8178,11 +8220,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRemove: { Task { await listVM.removeJob(id: job.id) } },",
-          "line": 241,
+          "line": 256,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-997f8524d877",
+        "id": "task-site-b6bc0bd599f9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8194,11 +8236,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onUpdatePrompt: { prompt in Task { await listVM.updatePrompt(id: job.id, newPrompt: prompt) } },",
-          "line": 242,
+          "line": 257,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bc69f13ee066",
+        "id": "task-site-392517ab46aa",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8210,11 +8252,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRename: { name in Task { await listVM.renameJob(id: job.id, newName: name) } },",
-          "line": 243,
+          "line": 258,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-552f7ffc6871",
+        "id": "task-site-da38448bd9ce",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10088,7 +10130,7 @@
       "line_count": 6895
     },
     {
-      "declaration_count": 147,
+      "declaration_count": 148,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -10100,6 +10142,7 @@
         "BucketSelection",
         "CentaurWorkflowActivityChart",
         "CentaurWorkflowsView",
+        "CodeGraphSheetView",
         "CronBreakdownView",
         "CronCategoryEditor",
         "CronCategoryHeaderRow",
@@ -10301,7 +10344,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18796,
+      "line_count": 18906,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10756,12 +10799,13 @@
       "line_count": 4722
     },
     {
-      "declaration_count": 31,
+      "declaration_count": 32,
       "declarations": [
         "ActivityInboxViewModel",
         "Availability",
         "CelebrationEvent",
         "CelebrationManager",
+        "CodeGraphSource",
         "CronChangesetFeed",
         "CronFilterState",
         "CronGraphViewModel",
@@ -10792,10 +10836,11 @@
       ],
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
       "external": false,
-      "file_count": 16,
+      "file_count": 17,
       "files": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
+        "Sources/Portal/ViewModels/CodeGraphSource.swift",
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
         "Sources/Portal/ViewModels/CronFilterState.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel+ReviewHighlight.swift",
@@ -10814,7 +10859,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4737,
+      "line_count": 4839,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10869,7 +10914,7 @@
       "id": "wiki-state",
       "label": "Wiki state",
       "layer": "orchestration",
-      "line_count": 1500
+      "line_count": 1512
     },
     {
       "declaration_count": 22,
@@ -10953,9 +10998,10 @@
       ],
       "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
       "external": false,
-      "file_count": 14,
+      "file_count": 15,
       "files": [
         "Sources/Portal/Services/CronPoller.swift",
+        "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
@@ -10973,7 +11019,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 5012,
+      "line_count": 5043,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11264,7 +11310,7 @@
       }
     },
     {
-      "declaration_count": 256,
+      "declaration_count": 262,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -11306,6 +11352,11 @@
         "ChartWaterfall",
         "ChatMessage",
         "ChecklistSpec",
+        "CodeGraph",
+        "CodeGraphEdge",
+        "CodeGraphNode",
+        "CodeGraphProvenance",
+        "CodeGraphRequest",
         "CodingKeys",
         "CompactionMarker",
         "ConceptLink",
@@ -11336,6 +11387,7 @@
         "CronNodeGrouping",
         "CronRunHistoryStore",
         "CronRunRecord",
+        "CronServiceCodeGraphRef",
         "CronServiceHealth",
         "CronSourceFile",
         "CronSourceFileGroup",
@@ -11525,7 +11577,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 80,
+      "file_count": 81,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -11540,6 +11592,7 @@
         "Sources/Portal/Models/ChartSpec.swift",
         "Sources/Portal/Models/ChatMessage.swift",
         "Sources/Portal/Models/ChecklistSpec.swift",
+        "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/ConceptLinker.swift",
         "Sources/Portal/Models/CronCategory.swift",
         "Sources/Portal/Models/CronChangeset.swift",
@@ -11611,7 +11664,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 14286,
+      "line_count": 14497,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13466,6 +13519,7 @@
       "authority": "observed",
       "description": "References 8 declaration(s) owned by hermes-services.",
       "evidence": [
+        "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/CronChangeset.swift",
         "Sources/Portal/Models/CronGraph.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
@@ -13488,7 +13542,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -13526,10 +13580,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by operations-state.",
+      "description": "References 7 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Models/CelebrationBeat.swift",
         "Sources/Portal/Models/CelebrationPreferences.swift",
+        "Sources/Portal/Models/CodeGraph.swift",
         "Sources/Portal/Models/CronCategory.swift",
         "Sources/Portal/Models/CronGraphDigest.swift",
         "Sources/Portal/Models/CronGraphRevisionStore.swift",
@@ -13541,6 +13596,7 @@
       "source": "domain-models",
       "symbols": [
         "CelebrationManager",
+        "CodeGraphSource",
         "CronFilterState",
         "CronGraphViewModel",
         "QuizViewModel",
@@ -13549,7 +13605,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 15
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -13697,9 +13753,10 @@
     },
     {
       "authority": "observed",
-      "description": "References 64 declaration(s) owned by domain-models.",
+      "description": "References 65 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/CronPoller.swift",
+        "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+Cron.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
         "Sources/Portal/Services/GatewayClient+Feed.swift",
@@ -13709,8 +13766,7 @@
         "Sources/Portal/Services/GatewayClient+Restart.swift",
         "Sources/Portal/Services/GatewayClient+Wiki.swift",
         "Sources/Portal/Services/GatewayClient.swift",
-        "Sources/Portal/Services/GatewayClientWrapper.swift",
-        "Sources/Portal/Services/HermesStandardClient.swift"
+        "Sources/Portal/Services/GatewayClientWrapper.swift"
       ],
       "source": "hermes-services",
       "symbols": [
@@ -13719,17 +13775,17 @@
         "AnyCodable",
         "ArtifactRevision",
         "ChatMessage",
+        "CodeGraph",
         "Connection",
         "CronChangeset",
         "CronChangesetActor",
         "CronChangesetProvenance",
         "CronChangesetsPage",
-        "CronGraph",
-        "CronJob"
+        "CronGraph"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 78
+      "weight": 80
     },
     {
       "authority": "observed",
@@ -13754,21 +13810,23 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by operations-state.",
+      "description": "References 4 declaration(s) owned by operations-state.",
       "evidence": [
+        "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
         "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
         "Sources/Portal/Services/GatewayClientWrapper.swift",
         "Sources/Portal/Services/HermesStandardMappers.swift"
       ],
       "source": "hermes-services",
       "symbols": [
+        "CodeGraphSource",
         "CronChangesetFeed",
         "CronListViewModel",
         "SettingsViewModel"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 6
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -14088,10 +14146,11 @@
     },
     {
       "authority": "observed",
-      "description": "References 57 declaration(s) owned by domain-models.",
+      "description": "References 64 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
+        "Sources/Portal/ViewModels/CodeGraphSource.swift",
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
         "Sources/Portal/ViewModels/CronFilterState.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel+ReviewHighlight.swift",
@@ -14100,8 +14159,7 @@
         "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
-        "Sources/Portal/ViewModels/GatewayRestartController.swift",
-        "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift"
+        "Sources/Portal/ViewModels/GatewayRestartController.swift"
       ],
       "source": "operations-state",
       "symbols": [
@@ -14116,17 +14174,18 @@
         "CelebrationPreferences",
         "CelebrationSound",
         "CelebrationStyle",
-        "CronCategory"
+        "CodeGraph"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 73
+      "weight": 81
     },
     {
       "authority": "observed",
       "description": "References 5 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
+        "Sources/Portal/ViewModels/CodeGraphSource.swift",
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
@@ -14148,7 +14207,7 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 16
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -14231,6 +14290,21 @@
       "target": "utilities",
       "type": "references",
       "weight": 6
+    },
+    {
+      "authority": "observed",
+      "description": "References 1 declaration(s) owned by wiki-ui.",
+      "evidence": [
+        "Sources/Portal/ViewModels/CodeGraphSource.swift",
+        "Sources/Portal/ViewModels/CronGraphViewModel.swift"
+      ],
+      "source": "operations-state",
+      "symbols": [
+        "WikiGraphView"
+      ],
+      "target": "wiki-ui",
+      "type": "references",
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -14321,7 +14395,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 59 declaration(s) owned by domain-models.",
+      "description": "References 61 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -14346,14 +14420,14 @@
         "Card",
         "Category",
         "ChatMessage",
+        "CodeGraphRequest",
         "Connection",
         "CronCategory",
-        "CronCategoryGrouping",
-        "CronCategoryNode"
+        "CronCategoryGrouping"
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 113
+      "weight": 115
     },
     {
       "authority": "observed",
@@ -14419,7 +14493,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 15 declaration(s) owned by operations-state.",
+      "description": "References 16 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
@@ -14437,6 +14511,7 @@
       "source": "operations-ui",
       "symbols": [
         "ActivityInboxViewModel",
+        "CodeGraphSource",
         "CronChangesetFeed",
         "CronFilterState",
         "CronGraphViewModel",
@@ -14446,12 +14521,11 @@
         "FeedViewModel",
         "FilesBrowserViewModel",
         "NodeGlyph",
-        "QuizMode",
-        "QuizViewModel"
+        "QuizMode"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 52
+      "weight": 53
     },
     {
       "authority": "observed",
@@ -14535,11 +14609,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 4 declaration(s) owned by wiki-ui.",
+      "description": "References 5 declaration(s) owned by wiki-ui.",
       "evidence": [
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
         "Sources/Portal/Views/CentaurWorkflowsView.swift",
         "Sources/Portal/Views/CronDashboardSections.swift",
+        "Sources/Portal/Views/CronDataflowExpandedView.swift",
         "Sources/Portal/Views/CronGraphCanvas.swift",
         "Sources/Portal/Views/CronListView.swift",
         "Sources/Portal/Views/CronRevisionTimelineDrawer.swift",
@@ -14553,11 +14628,12 @@
         "GraphMouseInterceptor",
         "Status",
         "WikiChangesetInlineDiff",
-        "WikiGraph2DCanvas"
+        "WikiGraph2DCanvas",
+        "WikiGraphView"
       ],
       "target": "wiki-ui",
       "type": "references",
-      "weight": 14
+      "weight": 16
     },
     {
       "authority": "observed",
@@ -15506,10 +15582,10 @@
     }
   },
   "inventory": {
-    "assigned_files": 360,
-    "declarations": 1068,
-    "swift_files": 360,
-    "swift_lines": 105313,
+    "assigned_files": 363,
+    "declarations": 1077,
+    "swift_files": 363,
+    "swift_lines": 105779,
     "unassigned_files": []
   },
   "layers": [
@@ -15541,6 +15617,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "feee0a111e2b3c7c782ddeed0618ee615cd4b28d0f9b35b7d127ab0f238ad13c",
+  "source_tree_sha256": "223edfe85ea00af725a92b74d55fa4d8653d176dd3413757daacd49e88b5c2ff",
   "title": "Portal Architecture"
 }
