@@ -12,8 +12,9 @@ internal struct PortalBootstrapConfigurationTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let file = directory.appendingPathComponent("bootstrap.json")
+        let testAPIKey = String(repeating: "a", count: 64)
         let payload = """
-        {"schemaVersion":1,"gatewayURL":"ws://127.0.0.1:8642/v1/ws","apiKey":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+        {"schemaVersion":1,"gatewayURL":"ws://127.0.0.1:8642/v1/ws","apiKey":"\(testAPIKey)"}
         """
         try Data(payload.utf8).write(to: file, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
@@ -49,8 +50,9 @@ internal struct PortalBootstrapConfigurationTests {
 
         let target = directory.appendingPathComponent("target.json")
         let link = directory.appendingPathComponent("bootstrap.json")
+        let testAPIKey = String(repeating: "a", count: 64)
         let payload = """
-        {"schemaVersion":1,"gatewayURL":"ws://127.0.0.1:8642/v1/ws","apiKey":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+        {"schemaVersion":1,"gatewayURL":"ws://127.0.0.1:8642/v1/ws","apiKey":"\(testAPIKey)"}
         """
         try Data(payload.utf8).write(to: target, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
