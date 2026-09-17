@@ -8,6 +8,40 @@ import Foundation
 @Suite("SettingsViewModel gateway URL and API key didSet")
 internal struct SettingsViewModelGatewayTests {
 
+    @Test("installer handoff only prefills an empty readable harness store")
+    internal func bootstrapPrefillDecisionIsFailClosed() {
+        #expect(SettingsViewModel.shouldLoadBootstrap(
+            hasSavedURL: false,
+            hasSavedGateways: false,
+            hasUnreadableStore: false,
+            isUITest: false
+        ))
+        #expect(!SettingsViewModel.shouldLoadBootstrap(
+            hasSavedURL: true,
+            hasSavedGateways: false,
+            hasUnreadableStore: false,
+            isUITest: false
+        ))
+        #expect(!SettingsViewModel.shouldLoadBootstrap(
+            hasSavedURL: false,
+            hasSavedGateways: true,
+            hasUnreadableStore: false,
+            isUITest: false
+        ))
+        #expect(!SettingsViewModel.shouldLoadBootstrap(
+            hasSavedURL: false,
+            hasSavedGateways: false,
+            hasUnreadableStore: true,
+            isUITest: false
+        ))
+        #expect(!SettingsViewModel.shouldLoadBootstrap(
+            hasSavedURL: false,
+            hasSavedGateways: false,
+            hasUnreadableStore: false,
+            isUITest: true
+        ))
+    }
+
     @Test("setting gatewayURL fires the didSet handler")
     @MainActor
     internal func settingGatewayURLFiresDidSet() {

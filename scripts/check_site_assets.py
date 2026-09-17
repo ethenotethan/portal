@@ -56,7 +56,7 @@ def stale_stats(index: Path) -> list[str]:
     """
     inventory = json.loads(MODEL.read_text(encoding="utf-8"))["inventory"]
     html = index.read_text(encoding="utf-8")
-    quoted = re.findall(r"<strong>([\d,]+)</strong>", html)
+    quoted = re.findall(r"<strong[^>]*>([\d,]+)</strong>", html)
     values = {value.replace(",", "") for value in quoted}
 
     problems = []

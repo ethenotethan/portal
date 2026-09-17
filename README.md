@@ -1,36 +1,56 @@
 # Portal
 
-The native macOS + iOS client for **[Harness](https://github.com/ethenotethan/harness)** — an opinionated fork of [Hermes Agent](https://github.com/NousResearch/hermes-agent). Swift 6 + SwiftUI, no local server, no CLI, no Electron.
+Open-source macOS + iOS SwiftUI client for a personally managed Hermes fork.
 
-Harness and Portal are two halves of one product. Upstream Hermes Agent exposes an OpenAI-compatible HTTP API and drives its own TUI; Harness adds the WebSocket JSON-RPC gateway (`/v1/ws`) and the agent-side machinery that a rich native client needs — a wiki API with an edit history, a cron *dataflow* graph, living artifacts, a learning surface, a read-only file browser, push notifications. Portal is the surface built for that gateway: every one of those RPCs has a view here. Everything Harness changes relative to upstream is published as a fork diff at **[ethenotethan.github.io/harness](https://ethenotethan.github.io/harness/)**, kept honest by CI on the Harness side.
+Portal presents streaming chat, multi-gateway sessions, knowledge graphs, artifacts, skills, cron, and spaced-repetition learning in a native app. A session-scoped Centaur connection is also supported, but the management surfaces depend on the Hermes fork below.
 
-Stock hermes-agent is not a supported backend: it has no `/v1/ws`, so the health probe passes and the socket upgrade fails. Run Harness — see [docs/gateway-setup.md](docs/gateway-setup.md).
+The Hermes gateway is [`ethenotethan/harness`](https://github.com/ethenotethan/harness), a fork of [`NousResearch/hermes-agent`](https://github.com/NousResearch/hermes-agent). The fork is required, not preferred: stock hermes-agent has no `/v1/ws` endpoint. See [docs/gateway-setup.md](docs/gateway-setup.md).
 
 **[ethenotethan.github.io/portal](https://ethenotethan.github.io/portal/)** — the feature tour, with screenshots and an architecture walkthrough.
 
-## What you get
+## Features
 
 - **Chat** — streaming responses with tool calls, reasoning traces, Mermaid diagrams, LaTeX, syntax-highlighted code, and file attachments
 - **Canvas** — the conversation as a resizable panel; peel any message into a floating card
+- **Multi-gateway** — save and switch between multiple backends; per-gateway session and artifact scoping
 - **Thought graph** — live DAG of the agent's tool-call chain with on-device reasoning summarization
 - **Session tools** — spawn tree, session observer, playback timeline, prompt breakdown, token usage
-- **Wiki** — Obsidian-style browser with 2D/3D force graphs, a glossary editor, and the edit timeline Harness records for every page write
-- **Cron dataflow graph** — jobs, the data they read and write, the services they touch, and the source files behind each job, drawn from the metadata Harness makes jobs declare
-- **Living artifacts** — revisioned datasets, models, timelines, kanban boards and HTML documents the agent maintains and the app renders live
-- **Skills, files, activity inbox** — browse and edit skills, read the gateway host's scripts and source in-app, handle approvals and clarifications
+- **Wiki** — Obsidian-style browser with 2D/3D force graphs and edit timeline
+- **Skills & cron** — browse, edit, and schedule agent skills; monitor run history
+- **Activity inbox** — tool approvals, clarifications, and notifications with artifact preview
 - **Learning** — quizzes and flashcard decks with SM-2 spaced repetition
-- **Multi-gateway** — save and switch between several Harness gateways; per-gateway session and artifact scoping
-
-### Other backends
-
-Portal also speaks to **[Centaur](https://github.com/paradigmxyz/centaur)** (REST + SSE, sandboxed, non-interactive) through the same `AgentBackend` contract, and can manage a stock **Hermes Standard** install over its HTTP API. Both are deliberately narrower: each backend declares its capabilities, and the UI hides what the connected backend can't honour. Harness is the one that serves the full surface.
 
 ## Requirements
 
 - macOS 14 (Sonoma) / iOS 17+
+- A model-provider account or local model supported by Hermes
+
+The managed macOS installer supplies Hermes, its local API server, and its
+gateway. Building Portal from source additionally requires:
+
 - Xcode 16+ / Swift 6.1+
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-- A running **Harness** gateway ([`ethenotethan/harness`](https://github.com/ethenotethan/harness)) — or, for the reduced surface, Centaur ([`paradigmxyz/centaur`](https://github.com/paradigmxyz/centaur))
+
+## Managed macOS installer
+
+`make installer` builds `dist/Portal-Installer.dmg`. The image contains the
+signed Portal app and **Set Up Portal.command**, which runs as the logged-in user
+and:
+
+1. Installs Portal into `~/Applications`.
+2. Clones and installs the managed Hermes fork under Portal's Application Support directory.
+3. Configures a loopback-only API server with a generated key.
+4. Runs Hermes provider setup and installs its per-user launchd gateway.
+5. Prefills Portal through a mode-`0600` one-time handoff; Portal moves the values into Keychain after **Connect** is pressed.
+
+It never uses `sudo`, never prints the generated API key, and refuses to replace
+an unexpected checkout or unreadable Keychain state. See
+[docs/macos-installer.md](docs/macos-installer.md) for the complete security and
+release model.
+
+> This removes the manual fork/gateway setup, but it is not yet an honest
+> “two-minute setup” guarantee. Provider authentication and dependency downloads
+> remain variable and must be measured on clean Macs before making that claim.
 
 ## Build & Run
 
@@ -49,7 +69,7 @@ Open `Portal.xcodeproj` in Xcode and select the `Portal-macOS` or `Portal-iOS` t
 
 ## Configuration
 
-On first launch, enter your Harness gateway URL and API key. The app converts `https://` → `wss://` and appends `/v1/ws` automatically.
+On first launch, enter your gateway URL and API key. The app converts `https://` → `wss://` and appends `/v1/ws` automatically for Hermes gateways.
 
 Add or switch gateways any time from **Settings → Connection → Saved Gateways**.
 
@@ -74,8 +94,6 @@ Sources/Portal/
 ```
 
 Swift 6 strict concurrency throughout (`@MainActor`, `Sendable`). SwiftLint enforces zero violations on every CI run.
-
-The gateway contract Portal is written against — every RPC and event — is catalogued in [docs/rpc-reference.md](docs/rpc-reference.md); the Harness side documents each surface under its `docs/api/`.
 
 ## License
 

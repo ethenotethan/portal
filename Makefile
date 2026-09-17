@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
+.PHONY: generate build installer installer-test run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -24,6 +24,17 @@ generate:
 build: generate
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration $(CONFIG) \
 		-destination 'platform=macOS' build
+
+# Build a signed Release app and package it with the user-level Hermes/gateway
+# setup command. Distribution signing/notarization can be supplied through the
+# normal Xcode signing environment; local builds remain useful for smoke tests.
+installer: generate
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME_MAC) -configuration Release \
+		-destination 'platform=macOS' \
+		-derivedDataPath .build/installer-derived build
+	./scripts/build-macos-installer.sh \
+		--app .build/installer-derived/Build/Products/Release/Portal.app \
+		--output dist/Portal-Installer.dmg
 
 # Rebuild from current source, then relaunch. Kills any running instance first
 # so you never end up staring at a stale binary.
@@ -97,7 +108,10 @@ secret-scan:
 secret-scan-guard:
 	python3 scripts/check-secret-baseline-growth.py origin/main
 
-test:
+installer-test:
+	python3 -m unittest discover -s Tests/InstallerTests -p 'test_*.py' -v
+
+test: installer-test
 	swift build --build-tests
 	swift test --disable-sandbox
 
@@ -226,7 +240,7 @@ perf-baseline:
 # If this is green, CI is. (The Warnings/Coverage posture ratchets need a clean
 # from-scratch build + base diff, so run `make metrics-ratchet` separately when
 # touching those — kept out of `check` so the fast pre-push loop stays fast.)
-check: lint lint-baseline-guard secret-scan secret-scan-guard
+check: lint lint-baseline-guard secret-scan secret-scan-guard installer-test
 	swift build
 	swift build --build-tests
 	swift test --disable-sandbox
