@@ -30,9 +30,10 @@
 
     <!-- ───────────────────────── Hero ───────────────────────── -->
     <section class="hero" id="overview">
-      <div class="hero-copy">
-        <p class="eyebrow">MACOS 14 · IOS 17 · SWIFT 6</p>
-        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it lives here.</h2>
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="hero-copy" data-reveal>
+        <p class="badge"><span class="badge-dot" aria-hidden="true"></span> Open source · MIT · Swift 6 · macOS&nbsp;14 + iOS&nbsp;17</p>
+        <h2>The agent you run<br>somewhere else,<br>on a Mac that feels<br>like it <span class="grad">lives here.</span></h2>
         <p class="lede">
           Portal is the native macOS and iOS client for
           <a href="https://github.com/ethenotethan/harness" target="_blank" rel="noreferrer"><strong>Harness</strong></a>,
@@ -47,16 +48,19 @@
         <div class="cta-row">
           <a class="button primary" href="#features">See the surfaces</a>
           <a class="button" href="architecture/">Architecture Observatory ↗</a>
+          <a class="button ghost" href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">GitHub ↗</a>
         </div>
       </div>
       <!-- File and line counts come from architecture/model/model.json; the test
            count comes from `swift test list`, and the RPC count from the outbound
-           and inbound catalogs in docs/rpc-reference.md. -->
-      <ul class="hero-stats" aria-label="Repository scale">
-        <li><strong>350</strong><span>Swift files</span></li>
-        <li><strong>102,584</strong><span>lines</span></li>
-        <li><strong>1,578</strong><span>tests</span></li>
-        <li><strong>93</strong><span>RPC methods &amp; events</span></li>
+           and inbound catalogs in docs/rpc-reference.md. The rendered text is the
+           source of truth; data-count only drives the optional count-up animation
+           and is ignored when JS is off or reduced motion is requested. -->
+      <ul class="hero-stats" aria-label="Repository scale" data-reveal>
+        <li><strong data-count="360">360</strong><span>Swift files</span></li>
+        <li><strong data-count="105313">105,313</strong><span>lines</span></li>
+        <li><strong data-count="1578">1,578</strong><span>tests</span></li>
+        <li><strong data-count="93">93</strong><span>RPC methods &amp; events</span></li>
       </ul>
     </section>
 
@@ -629,5 +633,10 @@ make run        <span class="c"># build and launch</span></code></pre>
       <a href="https://github.com/ethenotethan/portal" target="_blank" rel="noreferrer">GitHub</a>
     </p>
   </footer>
+
+  <!-- Progressive enhancement only: scroll-reveal + stat count-up. Every element
+       is fully visible with no JS and when reduced motion is requested; the
+       script never adds content, only animates what the markup already shows. -->
+  <script src="enhance.js" defer></script>
 </body>
 </html>

@@ -104,11 +104,11 @@
         "component": "backend-contract",
         "evidence": {
           "excerpt": "@MainActor",
-          "line": 32,
+          "line": 62,
           "path": "Sources/Portal/Services/AgentBackend.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-a8614a00e886",
+        "id": "execution-domain-f3c63efed5f0",
         "kind": "main_actor",
         "label": "AgentBackend",
         "rule_id": "swift.execution.main_actor"
@@ -412,6 +412,62 @@
         "component": "local-services",
         "evidence": {
           "excerpt": "@MainActor",
+          "line": 64,
+          "path": "Sources/Portal/Services/LocalVoiceEngine.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-26338bac2c8f",
+        "kind": "main_actor",
+        "label": "AVAudioEngineMicrophone",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 8,
+          "path": "Sources/Portal/Services/LocalVoiceService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-0a6a16d9bf3d",
+        "kind": "main_actor",
+        "label": "MicrophoneCapturing",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 38,
+          "path": "Sources/Portal/Services/LocalVoiceService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-5a3c656ef9bf",
+        "kind": "main_actor",
+        "label": "LocalVoiceControlling",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 72,
+          "path": "Sources/Portal/Services/LocalVoiceService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-a7a5157136cf",
+        "kind": "main_actor",
+        "label": "LocalVoiceService",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
           "line": 16,
           "path": "Sources/Portal/Services/NotificationService.swift"
         },
@@ -594,6 +650,48 @@
         "component": "local-services",
         "evidence": {
           "excerpt": "@MainActor",
+          "line": 28,
+          "path": "Sources/Portal/Services/SpeechPlaybackSession.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-941d0e044706",
+        "kind": "main_actor",
+        "label": "SpeechPlaybackSessioning",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 46,
+          "path": "Sources/Portal/Services/SpeechPlaybackSession.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-185cc5174e3e",
+        "kind": "main_actor",
+        "label": "SystemSpeechPlaybackSession",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 132,
+          "path": "Sources/Portal/Services/SpeechPlaybackSession.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-d4a8bc1c6cfc",
+        "kind": "main_actor",
+        "label": "RecordingSpeechPlaybackSession",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
           "line": 15,
           "path": "Sources/Portal/Services/SubagentGraphIntegrator.swift"
         },
@@ -608,11 +706,25 @@
         "component": "local-services",
         "evidence": {
           "excerpt": "@MainActor",
-          "line": 9,
+          "line": 27,
           "path": "Sources/Portal/Services/TTSService.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-3fc5527ec79e",
+        "id": "execution-domain-2d5762faefcb",
+        "kind": "main_actor",
+        "label": "ConversationSpeechStatus",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 46,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-096771455c0c",
         "kind": "main_actor",
         "label": "TTSService",
         "rule_id": "swift.execution.main_actor"
@@ -839,6 +951,34 @@
         "id": "execution-domain-57084c65f83c",
         "kind": "main_actor",
         "label": "CronGraphViewModel",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-state",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 9,
+          "path": "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-c938edc8b402",
+        "kind": "main_actor",
+        "label": "CronSourceFileReading",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-state",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 26,
+          "path": "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-c03e36bcfa2d",
+        "kind": "main_actor",
+        "label": "CronSourceFilesViewModel",
         "rule_id": "swift.execution.main_actor"
       },
       {
@@ -1098,11 +1238,11 @@
         "component": "operations-ui",
         "evidence": {
           "excerpt": "@MainActor",
-          "line": 16,
+          "line": 22,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "execution-domain-52241251698e",
+        "id": "execution-domain-e20014534636",
         "kind": "main_actor",
         "label": "CronDataflowExpandedView",
         "rule_id": "swift.execution.main_actor"
@@ -1769,11 +1909,11 @@
         "enclosing_function": "receiveLoop",
         "evidence": {
           "excerpt": "let message = try await webSocketTask.receive()",
-          "line": 2208,
+          "line": 2261,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-50077284cb1e",
+        "id": "lifecycle-operation-4e61486b382e",
         "kind": "receive",
         "label": "webSocketTask.receive",
         "owner_type": "GatewayClient",
@@ -1787,11 +1927,11 @@
         "enclosing_function": "applyParsedMessage",
         "evidence": {
           "excerpt": "eventStream.send((event, sessionID))",
-          "line": 2350,
+          "line": 2403,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-80e272378aff",
+        "id": "lifecycle-operation-ea80aeb47f98",
         "kind": "publish",
         "label": "eventStream.send",
         "owner_type": "GatewayClient",
@@ -1805,11 +1945,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
-          "line": 2358,
+          "line": 2411,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-80f12c6f6fa5",
+        "id": "lifecycle-operation-322a3c282510",
         "kind": "acquire",
         "label": "pendingRequestsLock.lock",
         "owner_type": "GatewayClient",
@@ -1823,11 +1963,11 @@
         "enclosing_function": "fulfillRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.unlock()",
-          "line": 2364,
+          "line": 2417,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-8bf03155dc28",
+        "id": "lifecycle-operation-1e26a172dcb5",
         "kind": "release",
         "label": "pendingRequestsLock.unlock",
         "owner_type": "GatewayClient",
@@ -1841,11 +1981,11 @@
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.lock()",
-          "line": 2372,
+          "line": 2425,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-a21cbd4e2a72",
+        "id": "lifecycle-operation-4100d4f5bbc2",
         "kind": "acquire",
         "label": "pendingRequestsLock.lock",
         "owner_type": "GatewayClient",
@@ -1859,11 +1999,11 @@
         "enclosing_function": "removePendingRequest",
         "evidence": {
           "excerpt": "pendingRequestsLock.unlock()",
-          "line": 2375,
+          "line": 2428,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "lifecycle-operation-2490516ceee2",
+        "id": "lifecycle-operation-66c8acd2c29c",
         "kind": "release",
         "label": "pendingRequestsLock.unlock",
         "owner_type": "GatewayClient",
@@ -2944,8 +3084,8 @@
         "resource_ids": [],
         "task_handle_ids": [
           "task-site-37d28fdc36ca",
-          "task-site-53a111d9dca5",
-          "task-site-6408bac39ee8"
+          "task-site-e9bed660c97b",
+          "task-site-f1e5590244c4"
         ]
       },
       {
@@ -3086,18 +3226,18 @@
         "id": "connectivity-pocket-6854b24de35d",
         "operation_ids": [
           "lifecycle-operation-0717b71e6f69",
-          "lifecycle-operation-2490516ceee2",
+          "lifecycle-operation-1e26a172dcb5",
+          "lifecycle-operation-322a3c282510",
           "lifecycle-operation-34ecd0b2eaed",
+          "lifecycle-operation-4100d4f5bbc2",
           "lifecycle-operation-48e672f67c18",
-          "lifecycle-operation-50077284cb1e",
+          "lifecycle-operation-4e61486b382e",
           "lifecycle-operation-60bf9daf80b2",
-          "lifecycle-operation-80e272378aff",
-          "lifecycle-operation-80f12c6f6fa5",
+          "lifecycle-operation-66c8acd2c29c",
           "lifecycle-operation-8162a478fe67",
           "lifecycle-operation-89da1d064560",
-          "lifecycle-operation-8bf03155dc28",
           "lifecycle-operation-8e330aeb6d89",
-          "lifecycle-operation-a21cbd4e2a72"
+          "lifecycle-operation-ea80aeb47f98"
         ],
         "owner_type": "GatewayClient",
         "resource_ids": [
@@ -3906,12 +4046,12 @@
           "lifecycle-operation-8162a478fe67",
           "lifecycle-operation-89da1d064560",
           "lifecycle-operation-0717b71e6f69",
-          "lifecycle-operation-50077284cb1e",
-          "lifecycle-operation-80e272378aff",
-          "lifecycle-operation-80f12c6f6fa5",
-          "lifecycle-operation-8bf03155dc28",
-          "lifecycle-operation-a21cbd4e2a72",
-          "lifecycle-operation-2490516ceee2"
+          "lifecycle-operation-4e61486b382e",
+          "lifecycle-operation-ea80aeb47f98",
+          "lifecycle-operation-322a3c282510",
+          "lifecycle-operation-1e26a172dcb5",
+          "lifecycle-operation-4100d4f5bbc2",
+          "lifecycle-operation-66c8acd2c29c"
         ],
         "owner_type": "GatewayClient",
         "pocket_id": "connectivity-pocket-6854b24de35d"
@@ -4998,11 +5138,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "let parsed = await Task.detached(priority: .userInitiated) {",
-          "line": 2229,
+          "line": 2282,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8adfb5b62681",
+        "id": "task-site-9da42bbc8f80",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -5014,11 +5154,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2387,
+          "line": 2440,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-260578ed59c2",
+        "id": "task-site-d7f5228b9161",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5030,11 +5170,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2439,
+          "line": 2492,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7c65261e2654",
+        "id": "task-site-b986635fd242",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5046,11 +5186,11 @@
         "enclosing_type": "GatewayClient",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 2462,
+          "line": 2515,
           "path": "Sources/Portal/Services/GatewayClient.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-bce1cb8b57aa",
+        "id": "task-site-fffbd0146eba",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5211,6 +5351,54 @@
         },
         "evidence_class": "static_source",
         "id": "task-site-1c85d2e417f9",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "start",
+        "enclosing_type": "AVAudioEngineMicrophone",
+        "evidence": {
+          "excerpt": "Task { await transcriber.append(captured) }",
+          "line": 85,
+          "path": "Sources/Portal/Services/LocalVoiceEngine.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-e715bf754369",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "start",
+        "enclosing_type": "LocalVoiceService",
+        "evidence": {
+          "excerpt": "Task { @MainActor in",
+          "line": 159,
+          "path": "Sources/Portal/Services/LocalVoiceService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-413462004a2d",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "start",
+        "enclosing_type": "LocalVoiceService",
+        "evidence": {
+          "excerpt": "Task { @MainActor in await self?.finishUtterance() }",
+          "line": 165,
+          "path": "Sources/Portal/Services/LocalVoiceService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-9263eddaef39",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5762,6 +5950,22 @@
       {
         "authority": "observed",
         "component": "local-services",
+        "enclosing_function": "bind",
+        "enclosing_type": "SystemSpeechPlaybackSession",
+        "evidence": {
+          "excerpt": "Task { @MainActor [weak self] in",
+          "line": 122,
+          "path": "Sources/Portal/Services/SpeechPlaybackSession.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-6b0b6d4d0f57",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
         "enclosing_function": null,
         "enclosing_type": "SubagentGraphIntegrator",
         "evidence": {
@@ -5829,12 +6033,12 @@
         "enclosing_function": "speechSynthesizer",
         "enclosing_type": "TTSDelegate",
         "evidence": {
-          "excerpt": "Task { @MainActor in",
-          "line": 91,
+          "excerpt": "Task { @MainActor [weak service] in service?.utteranceDidStart(id: id) }",
+          "line": 444,
           "path": "Sources/Portal/Services/TTSService.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3f0743849fcd",
+        "id": "task-site-2aeb194226ee",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5845,12 +6049,60 @@
         "enclosing_function": "speechSynthesizer",
         "enclosing_type": "TTSDelegate",
         "evidence": {
-          "excerpt": "Task { @MainActor in",
-          "line": 97,
+          "excerpt": "Task { @MainActor [weak service] in service?.utteranceDidEnd(id: id) }",
+          "line": 449,
           "path": "Sources/Portal/Services/TTSService.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-94903a868639",
+        "id": "task-site-9d8afac1d98c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "speechSynthesizer",
+        "enclosing_type": "TTSDelegate",
+        "evidence": {
+          "excerpt": "Task { @MainActor [weak service] in service?.utteranceDidEnd(id: id) }",
+          "line": 454,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-fd7e7972d1d8",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "speechSynthesizer",
+        "enclosing_type": "TTSDelegate",
+        "evidence": {
+          "excerpt": "Task { @MainActor [weak service] in service?.utteranceDidPause() }",
+          "line": 458,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-fd4f56b60a42",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "enclosing_function": "speechSynthesizer",
+        "enclosing_type": "TTSDelegate",
+        "evidence": {
+          "excerpt": "Task { @MainActor [weak service] in service?.utteranceDidContinue() }",
+          "line": 462,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-451bb899f0a0",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5990,11 +6242,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var pendingVisibleEventFlush: Task<Void, Never>?",
-          "line": 497,
+          "line": 512,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6408bac39ee8",
+        "id": "task-site-e9bed660c97b",
         "kind": "stored_task_handle",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.stored_handle"
@@ -6006,11 +6258,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 569,
+          "line": 584,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a26261dbab3c",
+        "id": "task-site-cabcae79fede",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6022,11 +6274,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 616,
+          "line": 631,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3369aad68220",
+        "id": "task-site-8415ffba6552",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6038,11 +6290,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 691,
+          "line": 706,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6b65f7802b47",
+        "id": "task-site-6018bbfb909f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6054,11 +6306,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 714,
+          "line": 729,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6e9c2c88393f",
+        "id": "task-site-45f0ce7bedd6",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6070,11 +6322,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 946,
+          "line": 961,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8b0df393aaf9",
+        "id": "task-site-30139d809b10",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6086,11 +6338,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1112,
+          "line": 1166,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8d4e62cb6b65",
+        "id": "task-site-f577569e6b1b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6102,11 +6354,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let parsedMessages: [ChatMessage] = await Task.detached(priority: .userInitiated) {",
-          "line": 1174,
+          "line": 1228,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cd28e931090f",
+        "id": "task-site-99efd4569fa4",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6118,11 +6370,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1318,
+          "line": 1382,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a75ff86072ca",
+        "id": "task-site-21dd3aca6602",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6134,11 +6386,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1406,
+          "line": 1470,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-609fa42beaf4",
+        "id": "task-site-79acb020148a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6150,11 +6402,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1422,
+          "line": 1486,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f1524d6c1bab",
+        "id": "task-site-3900f21c3851",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6166,11 +6418,59 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await autoGenerateQuiz(topic: topic, questionCount: 5) }",
-          "line": 1524,
+          "line": 1588,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-44c58a92cd87",
+        "id": "task-site-766456a1b06c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-state",
+        "enclosing_function": "beginLocalCapture",
+        "enclosing_type": "ChatViewModel",
+        "evidence": {
+          "excerpt": "Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }",
+          "line": 2129,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-d18032b1cfbf",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-state",
+        "enclosing_function": "beginLocalCapture",
+        "enclosing_type": "ChatViewModel",
+        "evidence": {
+          "excerpt": "Task { @MainActor in self?.inputText = text }",
+          "line": 2132,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-ba481bcd828e",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-state",
+        "enclosing_function": "relistenIfQuiet",
+        "enclosing_type": "ChatViewModel",
+        "evidence": {
+          "excerpt": "Task { await localVoiceService.start() }",
+          "line": 2176,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-2685ffc8dcb2",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6182,11 +6482,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2051,
+          "line": 2243,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b9c1fac0449a",
+        "id": "task-site-94ce83ce351a",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6198,11 +6498,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2078,
+          "line": 2270,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-20afac8f01de",
+        "id": "task-site-1b653bd51c27",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -6214,11 +6514,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 2194,
+          "line": 2388,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a4fca1628096",
+        "id": "task-site-a5b99e0a712f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6230,11 +6530,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 2370,
+          "line": 2564,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e54feb21d240",
+        "id": "task-site-bc15e2db6291",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6246,11 +6546,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "",
-          "line": 2372,
+          "line": 2566,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-53a111d9dca5",
+        "id": "task-site-f1e5590244c4",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -6262,11 +6562,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 2389,
+          "line": 2583,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f031b0efcd8f",
+        "id": "task-site-9887dcd2034c",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -6278,11 +6578,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 2390,
+          "line": 2584,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-276bb6222afe",
+        "id": "task-site-08451a1f87e6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6294,11 +6594,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 2500,
+          "line": 2696,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-821370c75ea0",
+        "id": "task-site-45791d719f79",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -6310,11 +6610,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 2501,
+          "line": 2697,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-72df1efa049f",
+        "id": "task-site-aecd8812e377",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6326,11 +6626,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 2737,
+          "line": 2933,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1eb333c261ff",
+        "id": "task-site-1c69213ba71b",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -6342,11 +6642,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 2747,
+          "line": 2943,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-772807cef7f4",
+        "id": "task-site-94fde8634011",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6358,11 +6658,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3028,
+          "line": 3233,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-00aaead8966d",
+        "id": "task-site-d7af869bc5c6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6374,11 +6674,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3077,
+          "line": 3282,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-200e41414be0",
+        "id": "task-site-7082b9d123d8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6390,11 +6690,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 3297,
+          "line": 3502,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ecbbd97e7bf2",
+        "id": "task-site-96a86632e16b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6406,11 +6706,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3548,
+          "line": 3753,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1948534c9ddf",
+        "id": "task-site-914db382502b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -6422,11 +6722,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3606,
+          "line": 3814,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ca70defc5a54",
+        "id": "task-site-05b97f923274",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7222,11 +7522,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 811,
+          "line": 814,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-13c9b4a84750",
+        "id": "task-site-ed42fbf60c60",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7238,11 +7538,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1063,
+          "line": 1066,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e0218ec30bbf",
+        "id": "task-site-cf54e837c05c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7254,11 +7554,11 @@
         "enclosing_type": "ChatView",
         "evidence": {
           "excerpt": "pendingScrollTask = Task { @MainActor in",
-          "line": 1217,
+          "line": 1220,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-44ad9ff892ed",
+        "id": "task-site-0bbca64d9e88",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7270,11 +7570,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "onSubmit: { Task { await chatViewModel.submitPrompt() } },",
-          "line": 1510,
+          "line": 1513,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2017381bf0dd",
+        "id": "task-site-8c007bc3d108",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7286,11 +7586,27 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1538,
+          "line": 1541,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9414d4e3effa",
+        "id": "task-site-4cabd0406886",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "chat-ui",
+        "enclosing_function": null,
+        "enclosing_type": "ChatInputBar",
+        "evidence": {
+          "excerpt": "Task { await chatViewModel.startVoiceConversation() }",
+          "line": 1642,
+          "path": "Sources/Portal/Views/ChatView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-c3a0d8249521",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7302,11 +7618,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1617,
+          "line": 1646,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5a82bf9b0e26",
+        "id": "task-site-0da0379212a7",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7318,11 +7634,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.interrupt() }",
-          "line": 1654,
+          "line": 1674,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f43ede99e7c4",
+        "id": "task-site-1a6512888593",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7334,11 +7650,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { await chatViewModel.submitPrompt() }",
-          "line": 1669,
+          "line": 1689,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a10141e1a43f",
+        "id": "task-site-4bfd9738060c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7350,11 +7666,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1741,
+          "line": 1761,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e4cedf36c435",
+        "id": "task-site-ee1841fd52ab",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7366,11 +7682,11 @@
         "enclosing_type": "ChatInputBar",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1818,
+          "line": 1838,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-37c16bc5f4c6",
+        "id": "task-site-c6cf42fc6361",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7382,11 +7698,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: \"\") }",
-          "line": 2014,
+          "line": 2034,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-377d19c645e9",
+        "id": "task-site-ddcc6297d324",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7398,11 +7714,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: choice) }",
-          "line": 2038,
+          "line": 2058,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c56518c5617b",
+        "id": "task-site-046758de3c35",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7414,11 +7730,11 @@
         "enclosing_type": "ClarifyBanner",
         "evidence": {
           "excerpt": "Task { await chatViewModel.respondClarify(answer: answer) }",
-          "line": 2055,
+          "line": 2075,
           "path": "Sources/Portal/Views/ChatView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-57db16b819fd",
+        "id": "task-site-871061e6959a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7750,11 +8066,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1911,
+          "line": 1946,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b587516c47e0",
+        "id": "task-site-466596a7a2a1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7766,11 +8082,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1916,
+          "line": 1951,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e951e058c4bb",
+        "id": "task-site-23f99527e5fa",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7782,11 +8098,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await xAuth.handleCallback(code: code, state: state) }",
-          "line": 1924,
+          "line": 1959,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3512b402fcc5",
+        "id": "task-site-357a8c95fe50",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7798,11 +8114,27 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1964,
+          "line": 1999,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-15d10e42d611",
+        "id": "task-site-232f90b62b27",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "openSourceFile",
+        "enclosing_type": "CronDataflowExpandedView",
+        "evidence": {
+          "excerpt": "Task { await sourceVM.open(file) }",
+          "line": 67,
+          "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-44e012dc79fb",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7814,11 +8146,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onPause: { Task { await listVM.pauseJob(id: job.id) } },",
-          "line": 183,
+          "line": 239,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a77eb83240bb",
+        "id": "task-site-0eaa26e97d97",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7830,11 +8162,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onResume: { Task { await listVM.resumeJob(id: job.id) } },",
-          "line": 184,
+          "line": 240,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b1fa2efcbfd0",
+        "id": "task-site-f3e59c09a8ec",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7846,11 +8178,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRemove: { Task { await listVM.removeJob(id: job.id) } },",
-          "line": 185,
+          "line": 241,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e7803953dce7",
+        "id": "task-site-997f8524d877",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7862,11 +8194,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onUpdatePrompt: { prompt in Task { await listVM.updatePrompt(id: job.id, newPrompt: prompt) } },",
-          "line": 186,
+          "line": 242,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2c891b3a49aa",
+        "id": "task-site-bc69f13ee066",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7878,11 +8210,11 @@
         "enclosing_type": "CronDataflowExpandedView",
         "evidence": {
           "excerpt": "onRename: { name in Task { await listVM.renameJob(id: job.id, newName: name) } },",
-          "line": 187,
+          "line": 243,
           "path": "Sources/Portal/Views/CronDataflowExpandedView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b0f74ae4cf35",
+        "id": "task-site-552f7ffc6871",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8070,11 +8402,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "onPause: { Task { await cronViewModel.pauseJob(id: job.id) } },",
-          "line": 62,
+          "line": 68,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b6a934e4ec2d",
+        "id": "task-site-d59cf8dd3f88",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8086,11 +8418,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "onResume: { Task { await cronViewModel.resumeJob(id: job.id) } },",
-          "line": 63,
+          "line": 69,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2bc875dc47d7",
+        "id": "task-site-d552dfa8cb0e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8102,54 +8434,6 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "onTrigger: { Task { await cronViewModel.triggerJob(id: job.id) } },",
-          "line": 64,
-          "path": "Sources/Portal/Views/CronListView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-0d0a2ce5c352",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": null,
-        "enclosing_type": "CronListView",
-        "evidence": {
-          "excerpt": "onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },",
-          "line": 65,
-          "path": "Sources/Portal/Views/CronListView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-66217ef70356",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": null,
-        "enclosing_type": "CronListView",
-        "evidence": {
-          "excerpt": "Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }",
-          "line": 67,
-          "path": "Sources/Portal/Views/CronListView.swift"
-        },
-        "evidence_class": "static_source",
-        "id": "task-site-57fb85c70f95",
-        "kind": "task",
-        "label": "Task",
-        "rule_id": "swift.task.structured"
-      },
-      {
-        "authority": "observed",
-        "component": "operations-ui",
-        "enclosing_function": null,
-        "enclosing_type": "CronListView",
-        "evidence": {
-          "excerpt": "Task { await cronViewModel.renameJob(id: job.id, newName: newName) }",
           "line": 70,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
@@ -8162,15 +8446,63 @@
       {
         "authority": "observed",
         "component": "operations-ui",
+        "enclosing_function": null,
+        "enclosing_type": "CronListView",
+        "evidence": {
+          "excerpt": "onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },",
+          "line": 71,
+          "path": "Sources/Portal/Views/CronListView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-421028c09297",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": null,
+        "enclosing_type": "CronListView",
+        "evidence": {
+          "excerpt": "Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }",
+          "line": 73,
+          "path": "Sources/Portal/Views/CronListView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-95e1ba585bae",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": null,
+        "enclosing_type": "CronListView",
+        "evidence": {
+          "excerpt": "Task { await cronViewModel.renameJob(id: job.id, newName: newName) }",
+          "line": 76,
+          "path": "Sources/Portal/Views/CronListView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-bd1213c4c28c",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
         "enclosing_function": "cronActions",
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "Task { await cronViewModel.triggerJob(id: job.id) }",
-          "line": 187,
+          "line": 193,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-65f19123cbee",
+        "id": "task-site-4ad0c7f0532f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8182,11 +8514,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "Task { await cronViewModel.renameJob(id: job.id, newName: newName) }",
-          "line": 235,
+          "line": 241,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-34e9e0ac0550",
+        "id": "task-site-188bcf510f60",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8198,11 +8530,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "Task { await cronViewModel.resumeJob(id: job.id) }",
-          "line": 297,
+          "line": 303,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a96702e10ac7",
+        "id": "task-site-88de9d39cdbd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8214,11 +8546,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "Task { await cronViewModel.pauseJob(id: job.id) }",
-          "line": 306,
+          "line": 312,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c2c63595794d",
+        "id": "task-site-9bae6c41a352",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8230,11 +8562,11 @@
         "enclosing_type": "CronListView",
         "evidence": {
           "excerpt": "Task { await cronViewModel.removeJob(id: job.id) }",
-          "line": 318,
+          "line": 324,
           "path": "Sources/Portal/Views/CronListView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-dea6f3a49dc3",
+        "id": "task-site-4b51ea145053",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8251,6 +8583,38 @@
         },
         "evidence_class": "static_source",
         "id": "task-site-68890e219735",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "folderToggle",
+        "enclosing_type": "CronSourceFilesSection",
+        "evidence": {
+          "excerpt": "Task { await viewModel.toggleFolder(root: root, path: dir) }",
+          "line": 127,
+          "path": "Sources/Portal/Views/CronSourceFilesSection.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-ebf376968509",
+        "kind": "task",
+        "label": "Task",
+        "rule_id": "swift.task.structured"
+      },
+      {
+        "authority": "observed",
+        "component": "operations-ui",
+        "enclosing_function": "siblingRow",
+        "enclosing_type": "CronSourceFilesSection",
+        "evidence": {
+          "excerpt": "Task { await viewModel.open(entry: entry) }",
+          "line": 168,
+          "path": "Sources/Portal/Views/CronSourceFilesSection.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "task-site-9fc4a1367451",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8742,11 +9106,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Task { await loadPrompt() }",
-          "line": 843,
+          "line": 853,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7722e5d12743",
+        "id": "task-site-6f30bde91cc1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8758,11 +9122,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Button(\"Retry\") { Task { await loadPrompt() } }",
-          "line": 867,
+          "line": 877,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-003b090ef419",
+        "id": "task-site-ed719443826f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8774,11 +9138,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Task { await savePrompt() }",
-          "line": 1062,
+          "line": 1072,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a8200536f79e",
+        "id": "task-site-19de4715f616",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8790,11 +9154,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Task { await savePrompt() }",
-          "line": 1068,
+          "line": 1078,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5387bae76113",
+        "id": "task-site-0414922e366f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8806,11 +9170,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1157,
+          "line": 1167,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8ea2c5d0bf57",
+        "id": "task-site-86f89aa882fd",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8822,11 +9186,11 @@
         "enclosing_type": "SystemPromptSection",
         "evidence": {
           "excerpt": "Task { await loadPrompt() }",
-          "line": 1170,
+          "line": 1180,
           "path": "Sources/Portal/Views/SettingsView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-3281ce2fd0bd",
+        "id": "task-site-fbfccf9b7cd6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9622,7 +9986,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4445
+      "line_count": 4490
     },
     {
       "declaration_count": 74,
@@ -9721,10 +10085,10 @@
       "id": "chat-ui",
       "label": "Chat",
       "layer": "experience",
-      "line_count": 6845
+      "line_count": 6895
     },
     {
-      "declaration_count": 145,
+      "declaration_count": 147,
       "declarations": [
         "ActivityArtifactView",
         "ActivityAxes",
@@ -9764,6 +10128,8 @@
         "CronSessionNavigatorKey",
         "CronSessionView",
         "CronSingleRunPopover",
+        "CronSourceFileReaderPane",
+        "CronSourceFilesSection",
         "CronSummaryView",
         "CronTimeHorizon",
         "CronTimelineView",
@@ -9874,7 +10240,7 @@
       ],
       "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
       "external": false,
-      "file_count": 54,
+      "file_count": 55,
       "files": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -9896,6 +10262,7 @@
         "Sources/Portal/Views/CronServiceHealthView.swift",
         "Sources/Portal/Views/CronSessionNavigation.swift",
         "Sources/Portal/Views/CronSessionView.swift",
+        "Sources/Portal/Views/CronSourceFilesSection.swift",
         "Sources/Portal/Views/FeedView.swift",
         "Sources/Portal/Views/Files/FilesBrowserView.swift",
         "Sources/Portal/Views/Learning/CurriculumCard.swift",
@@ -9934,7 +10301,7 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "line_count": 18342,
+      "line_count": 18796,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10328,7 +10695,7 @@
       "id": "thought-graph-ui",
       "label": "Thought graph",
       "layer": "experience",
-      "line_count": 7312,
+      "line_count": 7315,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10386,10 +10753,10 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 4514
+      "line_count": 4722
     },
     {
-      "declaration_count": 29,
+      "declaration_count": 31,
       "declarations": [
         "ActivityInboxViewModel",
         "Availability",
@@ -10399,6 +10766,8 @@
         "CronFilterState",
         "CronGraphViewModel",
         "CronListViewModel",
+        "CronSourceFileReading",
+        "CronSourceFilesViewModel",
         "CurriculumViewModel",
         "DiagnosticTest",
         "DiffState",
@@ -10423,7 +10792,7 @@
       ],
       "description": "Session, cron, activity, feed, skill, settings, gateway-lifecycle, learning, and file-browser state machines.",
       "external": false,
-      "file_count": 15,
+      "file_count": 16,
       "files": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -10432,6 +10801,7 @@
         "Sources/Portal/ViewModels/CronGraphViewModel+ReviewHighlight.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
+        "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
         "Sources/Portal/ViewModels/GatewayRestartController.swift",
@@ -10444,7 +10814,7 @@
       "id": "operations-state",
       "label": "Operations state",
       "layer": "orchestration",
-      "line_count": 4454,
+      "line_count": 4737,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10502,7 +10872,7 @@
       "line_count": 1500
     },
     {
-      "declaration_count": 20,
+      "declaration_count": 22,
       "declarations": [
         "AgentBackend",
         "AgentBackendError",
@@ -10511,8 +10881,10 @@
         "ClarifyPayload",
         "CodingKeys",
         "GatewayEvent",
+        "InflightTurn",
         "MCPServerInfo",
         "MessageCompletePayload",
+        "ResumedSession",
         "SessionBackendRegistry",
         "SessionInfo",
         "SubagentCompletePayload",
@@ -10536,7 +10908,7 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "line_count": 979
+      "line_count": 1031
     },
     {
       "declaration_count": 37,
@@ -10601,7 +10973,7 @@
       "id": "hermes-services",
       "label": "Hermes services",
       "layer": "integration",
-      "line_count": 4959,
+      "line_count": 5012,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10737,13 +11109,15 @@
       "line_count": 118
     },
     {
-      "declaration_count": 75,
+      "declaration_count": 88,
       "declarations": [
+        "AVAudioEngineMicrophone",
         "AgentRun",
         "CacheEntry",
         "CachedSkillInfo",
         "CachedSkills",
         "ChatHistoryStore",
+        "ConversationSpeechStatus",
         "CronChangesetDiff",
         "CronChangesetSource",
         "CurriculumStore",
@@ -10759,6 +11133,7 @@
         "ExportToolCalls",
         "ExportUserText",
         "FileDownloadManager",
+        "FluidAudioTranscriber",
         "GitHubContentService",
         "GitHubReleaseEmbed",
         "HFHubDownloader",
@@ -10766,9 +11141,14 @@
         "HFTokenizerWrapper",
         "HeuristicReasoningSummarizer",
         "KeychainStore",
+        "Keys",
         "LearningStore",
+        "LocalSpeechTranscribing",
+        "LocalVoiceControlling",
+        "LocalVoiceService",
         "MLXReasoningSummarizer",
         "Metadata",
+        "MicrophoneCapturing",
         "NotificationCategory",
         "NotificationService",
         "Page",
@@ -10781,6 +11161,7 @@
         "ReasoningGraphIntegrator",
         "ReasoningSummarizing",
         "ReasoningSummary",
+        "RecordingSpeechPlaybackSession",
         "SRSEngine",
         "SRSStore",
         "SessionExporter",
@@ -10792,12 +11173,16 @@
         "SkillStoreDisk",
         "SkillSummaryError",
         "SkillSummaryService",
+        "SpeechPlaybackSessioning",
+        "SpeechRemoteCommand",
+        "SpeechSynthesizing",
         "StoredSkillInfo",
         "StoredSkills",
         "SubagentGraphIntegrator",
         "SummarizerError",
         "SummaryState",
         "SyncAvailability",
+        "SystemSpeechPlaybackSession",
         "TTSDelegate",
         "TTSService",
         "TweetContentService",
@@ -10817,7 +11202,7 @@
       ],
       "description": "Persistence, export, media, notifications, caching, reasoning, and device-local support services.",
       "external": false,
-      "file_count": 29,
+      "file_count": 32,
       "files": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
@@ -10826,6 +11211,8 @@
         "Sources/Portal/Services/GitHubContentService.swift",
         "Sources/Portal/Services/KeychainStore.swift",
         "Sources/Portal/Services/LearningStore.swift",
+        "Sources/Portal/Services/LocalVoiceEngine.swift",
+        "Sources/Portal/Services/LocalVoiceService.swift",
         "Sources/Portal/Services/NotificationService.swift",
         "Sources/Portal/Services/QuizStore.swift",
         "Sources/Portal/Services/RawEventLog.swift",
@@ -10840,6 +11227,7 @@
         "Sources/Portal/Services/SkillCache.swift",
         "Sources/Portal/Services/SkillStore.swift",
         "Sources/Portal/Services/SkillSummaryService.swift",
+        "Sources/Portal/Services/SpeechPlaybackSession.swift",
         "Sources/Portal/Services/SubagentGraphIntegrator.swift",
         "Sources/Portal/Services/TTSService.swift",
         "Sources/Portal/Services/TweetContentService.swift",
@@ -10852,7 +11240,7 @@
       "id": "local-services",
       "label": "Local services",
       "layer": "integration",
-      "line_count": 6715,
+      "line_count": 7574,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10876,7 +11264,7 @@
       }
     },
     {
-      "declaration_count": 249,
+      "declaration_count": 256,
       "declarations": [
         "ActivityAction",
         "ActivityArtifact",
@@ -10949,6 +11337,8 @@
         "CronRunHistoryStore",
         "CronRunRecord",
         "CronServiceHealth",
+        "CronSourceFile",
+        "CronSourceFileGroup",
         "CronTurnRef",
         "Curriculum",
         "CurriculumModule",
@@ -11011,6 +11401,7 @@
         "LearningWire",
         "Link",
         "LivingArtifact",
+        "LoadError",
         "MediaAttachment",
         "MediaParser",
         "ModelCatalog",
@@ -11024,6 +11415,7 @@
         "NodeStatus",
         "NodeToolCall",
         "NodeTranscriptEntry",
+        "Options",
         "PageChange",
         "PanelKind",
         "PersistedQuizSession",
@@ -11031,6 +11423,7 @@
         "PersonaImage",
         "PlacedNode",
         "Polarity",
+        "PortalBootstrapConfiguration",
         "PromptBreakdown",
         "PromptSection",
         "Provider",
@@ -11058,6 +11451,7 @@
         "SavedGateway",
         "Segment",
         "Segments",
+        "SentenceChunker",
         "Session",
         "SessionFolder",
         "SessionRunEvent",
@@ -11080,6 +11474,7 @@
         "SpawnNode",
         "SpawnTreeEntry",
         "SpawnTreeSnapshot",
+        "SpokenText",
         "StatTileSpec",
         "SubagentRecord",
         "Task",
@@ -11130,7 +11525,7 @@
       ],
       "description": "Value types and wire/domain models shared across user experiences and service adapters.",
       "external": false,
-      "file_count": 77,
+      "file_count": 80,
       "files": [
         "Sources/Portal/Models/ActivityItem.swift",
         "Sources/Portal/Models/ActivityStore.swift",
@@ -11183,6 +11578,7 @@
         "Sources/Portal/Models/NetworkGraphSpec.swift",
         "Sources/Portal/Models/Persona.swift",
         "Sources/Portal/Models/PersonaImage.swift",
+        "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
         "Sources/Portal/Models/PromptBreakdown.swift",
         "Sources/Portal/Models/PromptCandidateSessions.swift",
         "Sources/Portal/Models/Quiz/FlashcardModels.swift",
@@ -11190,6 +11586,7 @@
         "Sources/Portal/Models/ResponseStyle.swift",
         "Sources/Portal/Models/SankeySpec.swift",
         "Sources/Portal/Models/SavedGateway.swift",
+        "Sources/Portal/Models/SentenceChunker.swift",
         "Sources/Portal/Models/Session.swift",
         "Sources/Portal/Models/SessionFolder.swift",
         "Sources/Portal/Models/SessionRunEvent.swift",
@@ -11199,6 +11596,7 @@
         "Sources/Portal/Models/SkillCategory.swift",
         "Sources/Portal/Models/SpawnNode.swift",
         "Sources/Portal/Models/SpawnTreeModels.swift",
+        "Sources/Portal/Models/SpokenText.swift",
         "Sources/Portal/Models/StatTileSpec.swift",
         "Sources/Portal/Models/ThoughtGraphNode.swift",
         "Sources/Portal/Models/TimelineSpec.swift",
@@ -11213,7 +11611,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 13819,
+      "line_count": 14286,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11257,7 +11655,7 @@
       }
     },
     {
-      "declaration_count": 78,
+      "declaration_count": 80,
       "declarations": [
         "AppFontSettingsSection",
         "ApprovalBanner",
@@ -11327,6 +11725,8 @@
         "PromptBreakdownView",
         "SceneKitStage",
         "SectionRowView",
+        "SpeechNowPlayingBar",
+        "SpeechSettingsSection",
         "StreamingBrailleSpinner",
         "StreamingStatusBar",
         "TUISkin",
@@ -11340,7 +11740,7 @@
       ],
       "description": "Reusable presentation primitives that are not owned by a single product surface.",
       "external": false,
-      "file_count": 34,
+      "file_count": 36,
       "files": [
         "Sources/Portal/Views/AppFontSettingsSection.swift",
         "Sources/Portal/Views/ApprovalBanner.swift",
@@ -11371,6 +11771,8 @@
         "Sources/Portal/Views/Skins/ChatSkin.swift",
         "Sources/Portal/Views/Skins/DarkMangaSkin.swift",
         "Sources/Portal/Views/Skins/TUISkin.swift",
+        "Sources/Portal/Views/SpeechNowPlayingBar.swift",
+        "Sources/Portal/Views/SpeechSettingsSection.swift",
         "Sources/Portal/Views/StreamingStatusBar.swift",
         "Sources/Portal/Views/ThemedSegmentedControl.swift",
         "Sources/Portal/Views/ThumbnailImageView.swift",
@@ -11380,7 +11782,7 @@
       "id": "shared-ui",
       "label": "Shared UI",
       "layer": "foundation",
-      "line_count": 6322,
+      "line_count": 6577,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11942,7 +12344,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 14 declaration(s) owned by shared-ui.",
+      "description": "References 15 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/ContentView.swift",
         "Sources/Portal/Views/OnboardingView.swift",
@@ -11965,7 +12367,7 @@
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 17
+      "weight": 18
     },
     {
       "authority": "observed",
@@ -12151,7 +12553,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 42 declaration(s) owned by domain-models.",
+      "description": "References 43 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ArtifactCanvasView.swift",
         "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
@@ -12183,7 +12585,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 74
+      "weight": 76
     },
     {
       "authority": "observed",
@@ -12583,27 +12985,28 @@
     },
     {
       "authority": "observed",
-      "description": "References 11 declaration(s) owned by local-services.",
+      "description": "References 14 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift"
       ],
       "source": "chat-state",
       "symbols": [
         "ChatHistoryStore",
+        "ConversationSpeechStatus",
         "FileDownloadManager",
         "HeuristicReasoningSummarizer",
         "LearningStore",
+        "LocalVoiceControlling",
+        "LocalVoiceService",
         "MLXReasoningSummarizer",
         "NotificationService",
         "Page",
         "ReasoningGraphIntegrator",
-        "SkillStore",
-        "SubagentGraphIntegrator",
-        "TTSService"
+        "SkillStore"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 12
+      "weight": 15
     },
     {
       "authority": "observed",
@@ -12784,7 +13187,8 @@
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
         "Sources/Portal/Views/LongResponseView.swift",
-        "Sources/Portal/Views/MarkdownContentView.swift"
+        "Sources/Portal/Views/MarkdownContentView.swift",
+        "Sources/Portal/Views/MessageBubbleView.swift"
       ],
       "source": "chat-ui",
       "symbols": [
@@ -12795,7 +13199,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 8
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -12833,7 +13237,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 12 declaration(s) owned by shared-ui.",
+      "description": "References 13 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/AttachmentChipView.swift",
         "Sources/Portal/Views/ChatView.swift",
@@ -12857,11 +13261,11 @@
         "Layout",
         "PortalButtonStyle",
         "PortalProgressView",
-        "ThumbnailImageView"
+        "SpeechNowPlayingBar"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 20
+      "weight": 21
     },
     {
       "authority": "observed",
@@ -13088,7 +13492,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 9 declaration(s) owned by local-services.",
+      "description": "References 10 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Models/CronRunHistory.swift",
         "Sources/Portal/Models/DomainProtocols.swift",
@@ -13098,10 +13502,10 @@
         "Sources/Portal/Models/Learning/LearningWire.swift",
         "Sources/Portal/Models/Quiz/FlashcardModels.swift",
         "Sources/Portal/Models/SavedGateway.swift",
+        "Sources/Portal/Models/SentenceChunker.swift",
         "Sources/Portal/Models/SpawnNode.swift",
         "Sources/Portal/Models/SpawnTreeModels.swift",
-        "Sources/Portal/Models/WikiEventTimeline.swift",
-        "Sources/Portal/Models/WikiEventTypeRegistry.swift"
+        "Sources/Portal/Models/WikiEventTimeline.swift"
       ],
       "source": "domain-models",
       "symbols": [
@@ -13113,11 +13517,12 @@
         "Page",
         "QuizStore",
         "SRSEngine",
+        "TTSService",
         "YouTubeContentService"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 21
+      "weight": 23
     },
     {
       "authority": "observed",
@@ -13129,6 +13534,7 @@
         "Sources/Portal/Models/CronGraphDigest.swift",
         "Sources/Portal/Models/CronGraphRevisionStore.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
+        "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
         "Sources/Portal/Models/SavedGateway.swift",
         "Sources/Portal/Models/SessionFolder.swift"
       ],
@@ -13143,7 +13549,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 14
+      "weight": 15
     },
     {
       "authority": "observed",
@@ -13271,7 +13677,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 3 declaration(s) owned by backend-contract.",
+      "description": "References 5 declaration(s) owned by backend-contract.",
       "evidence": [
         "Sources/Portal/Services/GatewayClient.swift",
         "Sources/Portal/Services/GatewayClientWrapper.swift",
@@ -13281,11 +13687,13 @@
       "symbols": [
         "AgentBackend",
         "GatewayEvent",
+        "InflightTurn",
+        "ResumedSession",
         "SessionInfo"
       ],
       "target": "backend-contract",
       "type": "references",
-      "weight": 6
+      "weight": 8
     },
     {
       "authority": "observed",
@@ -13475,6 +13883,7 @@
       "description": "References 1 declaration(s) owned by chat-state.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
+        "Sources/Portal/Services/LocalVoiceService.swift",
         "Sources/Portal/Services/NotificationService.swift"
       ],
       "source": "local-services",
@@ -13483,7 +13892,7 @@
       ],
       "target": "chat-state",
       "type": "references",
-      "weight": 3
+      "weight": 4
     },
     {
       "authority": "observed",
@@ -13508,7 +13917,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 36 declaration(s) owned by domain-models.",
+      "description": "References 39 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Services/ChatHistoryStore.swift",
         "Sources/Portal/Services/CronChangesetSource.swift",
@@ -13517,11 +13926,11 @@
         "Sources/Portal/Services/GitHubContentService.swift",
         "Sources/Portal/Services/KeychainStore.swift",
         "Sources/Portal/Services/LearningStore.swift",
+        "Sources/Portal/Services/LocalVoiceEngine.swift",
+        "Sources/Portal/Services/LocalVoiceService.swift",
         "Sources/Portal/Services/NotificationService.swift",
         "Sources/Portal/Services/QuizStore.swift",
-        "Sources/Portal/Services/RawEventLog.swift",
-        "Sources/Portal/Services/ReasoningGraphIntegrator.swift",
-        "Sources/Portal/Services/ReasoningSummarizer.swift"
+        "Sources/Portal/Services/RawEventLog.swift"
       ],
       "source": "local-services",
       "symbols": [
@@ -13540,7 +13949,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 63
+      "weight": 69
     },
     {
       "authority": "observed",
@@ -13679,7 +14088,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 54 declaration(s) owned by domain-models.",
+      "description": "References 57 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CelebrationManager.swift",
@@ -13688,11 +14097,11 @@
         "Sources/Portal/ViewModels/CronGraphViewModel+ReviewHighlight.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
+        "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
         "Sources/Portal/ViewModels/GatewayRestartController.swift",
-        "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
-        "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift"
+        "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift"
       ],
       "source": "operations-state",
       "symbols": [
@@ -13711,7 +14120,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 69
+      "weight": 73
     },
     {
       "authority": "observed",
@@ -13721,6 +14130,7 @@
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
         "Sources/Portal/ViewModels/CronGraphViewModel.swift",
         "Sources/Portal/ViewModels/CronListViewModel.swift",
+        "Sources/Portal/ViewModels/CronSourceFilesViewModel.swift",
         "Sources/Portal/ViewModels/FeedViewModel.swift",
         "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
         "Sources/Portal/ViewModels/GatewayRestartController.swift",
@@ -13738,14 +14148,15 @@
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 15
+      "weight": 16
     },
     {
       "authority": "observed",
-      "description": "References 13 declaration(s) owned by local-services.",
+      "description": "References 14 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ActivityInboxViewModel.swift",
         "Sources/Portal/ViewModels/CronChangesetFeed.swift",
+        "Sources/Portal/ViewModels/FilesBrowserViewModel.swift",
         "Sources/Portal/ViewModels/Learning/CurriculumViewModel.swift",
         "Sources/Portal/ViewModels/Quiz/QuizViewModel.swift",
         "Sources/Portal/ViewModels/SessionListViewModel.swift",
@@ -13760,16 +14171,16 @@
         "Document",
         "Entry",
         "KeychainStore",
+        "Keys",
         "LearningStore",
         "Metadata",
         "NotificationService",
         "SessionMetaSyncService",
-        "SkillStore",
-        "SkillSummaryService"
+        "SkillStore"
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 20
+      "weight": 22
     },
     {
       "authority": "observed",
@@ -13845,7 +14256,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 53
+      "weight": 54
     },
     {
       "authority": "observed",
@@ -13889,13 +14300,13 @@
         "Sources/Portal/Views/CronInterflowGraphView.swift",
         "Sources/Portal/Views/CronJobCard.swift",
         "Sources/Portal/Views/CronSessionView.swift",
+        "Sources/Portal/Views/CronSourceFilesSection.swift",
         "Sources/Portal/Views/FeedView.swift",
         "Sources/Portal/Views/Files/FilesBrowserView.swift",
         "Sources/Portal/Views/Learning/CurriculumPlayerView.swift",
         "Sources/Portal/Views/Learning/LearningDashboardView.swift",
         "Sources/Portal/Views/SessionExportMenu.swift",
-        "Sources/Portal/Views/Skills/SkillsDetailPanel.swift",
-        "Sources/Portal/Views/Skills/SkillsEditorPanel.swift"
+        "Sources/Portal/Views/Skills/SkillsDetailPanel.swift"
       ],
       "source": "operations-ui",
       "symbols": [
@@ -13906,11 +14317,11 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 17
+      "weight": 18
     },
     {
       "authority": "observed",
-      "description": "References 57 declaration(s) owned by domain-models.",
+      "description": "References 59 declaration(s) owned by domain-models.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CentaurWorkflowActivityChart.swift",
@@ -13942,7 +14353,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 110
+      "weight": 113
     },
     {
       "authority": "observed",
@@ -14008,7 +14419,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 14 declaration(s) owned by operations-state.",
+      "description": "References 15 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/ActivityInboxView.swift",
         "Sources/Portal/Views/CronCategoryTree.swift",
@@ -14030,17 +14441,17 @@
         "CronFilterState",
         "CronGraphViewModel",
         "CronListViewModel",
+        "CronSourceFilesViewModel",
         "CurriculumViewModel",
         "FeedViewModel",
         "FilesBrowserViewModel",
         "NodeGlyph",
         "QuizMode",
-        "QuizViewModel",
-        "SessionListViewModel"
+        "QuizViewModel"
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 50
+      "weight": 52
     },
     {
       "authority": "observed",
@@ -14174,7 +14585,7 @@
       ],
       "target": "app-shell",
       "type": "references",
-      "weight": 30
+      "weight": 32
     },
     {
       "authority": "observed",
@@ -14271,7 +14682,7 @@
       ],
       "target": "domain-models",
       "type": "references",
-      "weight": 68
+      "weight": 70
     },
     {
       "authority": "observed",
@@ -14298,10 +14709,12 @@
     },
     {
       "authority": "observed",
-      "description": "References 9 declaration(s) owned by local-services.",
+      "description": "References 11 declaration(s) owned by local-services.",
       "evidence": [
         "Sources/Portal/Views/ExportPrimitives.swift",
         "Sources/Portal/Views/GitHubReleaseCard.swift",
+        "Sources/Portal/Views/SpeechNowPlayingBar.swift",
+        "Sources/Portal/Views/SpeechSettingsSection.swift",
         "Sources/Portal/Views/TweetPostCard.swift",
         "Sources/Portal/Views/YouTubeVideoCard.swift"
       ],
@@ -14310,8 +14723,10 @@
         "ExportImageRow",
         "GitHubContentService",
         "GitHubReleaseEmbed",
+        "LocalVoiceService",
         "Metadata",
         "SessionPDFExporter",
+        "TTSService",
         "TweetContentService",
         "TweetEmbed",
         "YouTubeContentService",
@@ -14319,7 +14734,7 @@
       ],
       "target": "local-services",
       "type": "references",
-      "weight": 13
+      "weight": 17
     },
     {
       "authority": "observed",
@@ -14585,7 +15000,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by shared-ui.",
+      "description": "References 7 declaration(s) owned by shared-ui.",
       "evidence": [
         "Sources/Portal/Views/ThoughtGraph/ConversationPanel.swift",
         "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
@@ -14599,11 +15014,12 @@
         "EmptyTranscriptStateView",
         "Layout",
         "PortalProgressView",
+        "SpeechNowPlayingBar",
         "ThemedSegmentedControl"
       ],
       "target": "shared-ui",
       "type": "references",
-      "weight": 10
+      "weight": 11
     },
     {
       "authority": "observed",
@@ -15090,10 +15506,10 @@
     }
   },
   "inventory": {
-    "assigned_files": 350,
-    "declarations": 1040,
-    "swift_files": 350,
-    "swift_lines": 102584,
+    "assigned_files": 360,
+    "declarations": 1068,
+    "swift_files": 360,
+    "swift_lines": 105313,
     "unassigned_files": []
   },
   "layers": [
@@ -15125,6 +15541,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "d39a2652cd2701228effa18700e3963f22dfbf7610fe5cc48dfe2b7a80eb5338",
+  "source_tree_sha256": "feee0a111e2b3c7c782ddeed0618ee615cd4b28d0f9b35b7d127ab0f238ad13c",
   "title": "Portal Architecture"
 }

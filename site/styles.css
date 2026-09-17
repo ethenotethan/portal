@@ -103,6 +103,9 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
 
 /* ── Hero ──────────────────────────────────────────────────────────── */
 .hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr);
   gap: clamp(32px, 5vw, 72px);
@@ -110,11 +113,67 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   padding: clamp(48px, 8vw, 104px) var(--pad) clamp(40px, 6vw, 72px);
   border-bottom: 1px solid var(--line);
 }
+/* A soft off-screen accent bloom behind the copy — the only colour on an
+   otherwise monochrome page, slowly breathing so the fold isn't inert. */
+.hero-glow {
+  position: absolute;
+  z-index: -1;
+  top: -30%;
+  right: -12%;
+  width: min(760px, 82%);
+  height: 120%;
+  background:
+    radial-gradient(closest-side, rgba(139,131,255,.20), transparent 70%),
+    radial-gradient(closest-side, rgba(92,168,216,.14), transparent 72%);
+  background-position: 30% 30%, 75% 70%;
+  background-repeat: no-repeat;
+  filter: blur(18px);
+  pointer-events: none;
+  animation: heroDrift 18s ease-in-out infinite alternate;
+}
+@keyframes heroDrift {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: .85; }
+  to   { transform: translate3d(-4%, 3%, 0) scale(1.08); opacity: 1; }
+}
 .hero h2 {
   margin: 0 0 22px;
   font-size: clamp(30px, 5.2vw, 56px);
   line-height: 1.04;
   letter-spacing: -.03em;
+}
+/* Gradient accent on the payoff phrase — a thin flourish, not a rainbow. */
+.grad {
+  background: linear-gradient(96deg, var(--accent) 8%, var(--integration) 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Live open-source badge with a quietly pulsing status dot. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 22px;
+  padding: 6px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 11px var(--mono);
+  letter-spacing: .04em;
+}
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--foundation);
+  box-shadow: 0 0 0 0 rgba(112,185,141,.55);
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(112,185,141,.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(112,185,141,0); }
+  100% { box-shadow: 0 0 0 0 rgba(112,185,141,0); }
 }
 .lede {
   margin: 0;
@@ -132,13 +191,16 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   color: var(--ink);
   font: 600 12.5px var(--mono);
   text-decoration: none;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
 }
-.button:hover { background: var(--surface-hover); }
+.button:hover { background: var(--surface-hover); transform: translateY(-1px); }
 .button.primary {
   border-color: var(--accent);
   background: rgba(139,131,255,.14);
 }
 .button.primary:hover { background: rgba(139,131,255,.24); }
+.button.ghost { border-color: transparent; color: var(--muted); }
+.button.ghost:hover { border-color: var(--line-strong); color: var(--ink); }
 
 .hero-stats {
   display: grid;
@@ -159,7 +221,10 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   padding: 18px 16px;
   background: var(--surface);
 }
-.hero-stats strong { font: 600 22px var(--mono); letter-spacing: -.02em; }
+.hero-stats li { transition: background .18s ease; }
+.hero-stats li:hover { background: var(--surface-hover); }
+/* Tabular figures so the count-up animation doesn't reflow the tile width. */
+.hero-stats strong { font: 600 22px var(--mono); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .hero-stats span { color: var(--faint); font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 
 /* ── Bands ─────────────────────────────────────────────────────────── */
@@ -184,6 +249,12 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
+  transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -18px rgba(0,0,0,.8);
 }
 .card h4 { margin: 0 0 10px; font-size: 15px; letter-spacing: -.01em; }
 .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
@@ -296,7 +367,9 @@ h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -.01em; }
   border-left: 3px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
+  transition: background .2s ease, transform .2s ease;
 }
+.layer:hover { background: var(--surface-hover); transform: translateX(3px); }
 .layer[data-layer="experience"] { border-left-color: var(--experience); }
 .layer[data-layer="orchestration"] { border-left-color: var(--orchestration); }
 .layer[data-layer="integration"] { border-left-color: var(--integration); }
@@ -394,6 +467,22 @@ footer strong { color: var(--muted); }
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: var(--ink); text-decoration: underline; }
 
+/* ── Scroll reveal ─────────────────────────────────────────────────── */
+/* Gated on `.js`: the class is only present when enhance.js runs, so a no-JS
+   render never carries the hidden initial state. enhance.js also bails entirely
+   under prefers-reduced-motion, and the media query below is the belt to that
+   suspenders. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.22, 1, .36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.js [data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+}
+
 /* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 980px) {
   .hero,
@@ -417,4 +506,10 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  /* Still every ambient/animated flourish and neutralise the reveal gate so
+     content is fully visible and static. */
+  .hero-glow, .badge-dot { animation: none; }
+  .js [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .button:hover, .card:hover, .layer:hover { transform: none; }
+  *, *::before, *::after { animation-duration: .001ms !important; }
 }
