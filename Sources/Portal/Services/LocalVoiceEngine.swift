@@ -65,6 +65,10 @@ internal final class FluidAudioTranscriber: LocalSpeechTranscribing {
 internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
     private let engine = AVAudioEngine()
 
+    /// Snapshotted at `start` and called from the audio thread with a 0...1
+    /// loudness per buffer, driving the voice-reactive conversation orb.
+    internal var onAudioLevel: (@Sendable (Float) -> Void)?
+
     internal func start(feeding transcriber: any LocalSpeechTranscribing) throws {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
@@ -76,16 +80,47 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
         try session.setActive(true)
         #endif
         let input = engine.inputNode
+        // Echo cancellation: with a hands-free conversation the mic stays open
+        // while the reply is spoken aloud, so without this the assistant's own
+        // voice would be transcribed and loop. Voice-processing I/O runs the
+        // system AEC/AGC. Best-effort — if the device/driver can't enable it the
+        // mic still works (headphones avoid the echo regardless).
+        do {
+            try input.setVoiceProcessingEnabled(true)
+        } catch {
+            // Non-fatal: fall back to raw capture.
+        }
         let format = input.outputFormat(forBus: 0)
+        let onLevel = onAudioLevel
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
             // The engine hands each callback a fresh buffer it will recycle, so
             // transferring it into the transcriber actor is safe; the sending
             // check can't see that, hence `nonisolated(unsafe)`.
             nonisolated(unsafe) let captured = buffer
             Task { await transcriber.append(captured) }
+            // Reading the samples here (on the audio thread) is safe; only the
+            // hand-off into the actor needed the unsafe transfer above.
+            if let onLevel { onLevel(Self.level(of: buffer)) }
         }
         engine.prepare()
         try engine.start()
+    }
+
+    /// Normalized 0...1 loudness of a capture buffer: RMS mapped from a roughly
+    /// -50…-10 dBFS speech window, so quiet rooms sit near 0 and normal talking
+    /// swings toward 1. Cheap enough to run on every tap callback.
+    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0] else { return 0 }
+        let count = Int(buffer.frameLength)
+        guard count > 0 else { return 0 }
+        var sumOfSquares: Float = 0
+        for index in 0..<count {
+            let sample = channel[index]
+            sumOfSquares += sample * sample
+        }
+        let rms = (sumOfSquares / Float(count)).squareRoot()
+        let decibels = 20 * log10(max(rms, 1e-7))
+        return max(0, min(1, (decibels + 50) / 40))
     }
 
     internal func stop() {

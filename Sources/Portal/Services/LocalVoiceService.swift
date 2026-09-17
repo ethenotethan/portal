@@ -12,6 +12,10 @@ internal protocol MicrophoneCapturing: AnyObject {
     /// actor, so the orchestration core never touches raw audio.
     func start(feeding transcriber: any LocalSpeechTranscribing) throws
     func stop()
+    /// Set by the service before `start`; invoked off the main actor with a
+    /// normalized 0...1 microphone level per buffer so the UI can pulse with the
+    /// user's voice. The real implementation snapshots it at `start`.
+    var onAudioLevel: (@Sendable (Float) -> Void)? { get set }
 }
 
 /// On-device streaming ASR seam. The real implementation wraps FluidAudio's
@@ -32,11 +36,33 @@ internal protocol LocalSpeechTranscribing: AnyObject, Sendable {
     func reset() async
 }
 
+/// Which animated treatment the conversation pane shows while a hands-free
+/// voice turn is live. Two reverse-engineered looks — one modeled on Claude's
+/// warm organic orb, one on OpenAI's glowing gradient sphere — chosen in
+/// Settings. Persisted by raw value.
+internal enum ConversationVisual: String, CaseIterable, Identifiable, Sendable {
+    case claude
+    case openai
+
+    internal var id: String { rawValue }
+
+    /// Label for the Settings picker.
+    internal var label: String {
+        switch self {
+        case .claude: "Claude — organic orb"
+        case .openai: "OpenAI — gradient sphere"
+        }
+    }
+}
+
 /// The slice of the local-voice service `ChatViewModel` drives. A protocol so
 /// the view model can be tested with a fake, decoupled from the shared
 /// singleton and any real microphone.
 @MainActor
 internal protocol LocalVoiceControlling: AnyObject {
+    /// The animated voice-conversation look to render. Defaults to `.claude`
+    /// (see the extension below) so test fakes need not implement it.
+    var conversationVisual: ConversationVisual { get }
     /// True when the user opted in AND this build/device can transcribe locally.
     var isEnabledAndAvailable: Bool { get }
     /// True when the user wants hands-free back-and-forth: after each spoken
@@ -50,11 +76,29 @@ internal protocol LocalVoiceControlling: AnyObject {
     /// Set by the view model; fired on the main actor with the live partial
     /// transcript as the user speaks, so it can be mirrored into the composer.
     var onPartialTranscript: ((String) -> Void)? { get set }
+    /// Set by the view model; fired on the main actor with the live 0...1 input
+    /// level while capturing, so the conversation orb can pulse with the user's
+    /// voice. A stored property on conformers (no default — it holds state).
+    var onAudioLevel: ((Float) -> Void)? { get set }
     func start() async
+    /// Begin a *continuous* capture for hands-free conversation: unlike `start`,
+    /// end-of-utterance emits a transcript but does NOT stop the mic — capture
+    /// runs across turns so the user can keep talking (and talk over a reply)
+    /// without re-tapping. The default mirrors `start()` so test fakes that only
+    /// implement one-shot capture still behave.
+    func startConversation() async
     func stop() async
     /// Tear down capture without emitting a transcript — used to abandon the
     /// current turn when the user ends a conversation.
     func cancel() async
+}
+
+extension LocalVoiceControlling {
+    /// Default look for conformers (test fakes) that don't set one.
+    internal var conversationVisual: ConversationVisual { .claude }
+    /// Default: a conversation start is just a start. The real service overrides
+    /// this to keep the mic open across utterances.
+    internal func startConversation() async { await start() }
 }
 
 /// On-device speech-to-text for the walkie-talkie mic button, mirroring how
@@ -76,6 +120,7 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
 
     internal static let enabledKey = "portal.localVoiceEnabled"
     internal static let conversationKey = "portal.localVoiceConversation"
+    internal static let conversationVisualKey = "portal.localVoiceConversationVisual"
 
     /// User opt-in. Off by default. Persisted like `TTSService`'s settings so
     /// there's no second copy of the state to drift.
@@ -90,8 +135,18 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         didSet { UserDefaults.standard.set(conversationMode, forKey: Self.conversationKey) }
     }
 
+    /// Which reverse-engineered look the conversation pane renders during a
+    /// hands-free turn (Claude orb vs. OpenAI sphere). Persisted like the rest.
+    @Published internal var conversationVisual: ConversationVisual {
+        didSet { UserDefaults.standard.set(conversationVisual.rawValue, forKey: Self.conversationVisualKey) }
+    }
+
     /// Live partial transcript, for optional UI display while recording.
     @Published internal private(set) var partialTranscript: String = ""
+
+    /// Live normalized microphone level (0...1) while capturing, for the
+    /// voice-reactive conversation orb. Zero when idle.
+    @Published internal private(set) var inputLevel: Float = 0
 
     @Published internal private(set) var isRunning: Bool = false
 
@@ -101,6 +156,9 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     /// Set by `ChatViewModel`; fired on the main actor with each live partial.
     internal var onPartialTranscript: ((String) -> Void)?
 
+    /// Set by `ChatViewModel`; fired on the main actor with each live mic level.
+    internal var onAudioLevel: ((Float) -> Void)?
+
     /// nil when the build has no on-device engine (FluidAudio not linked, or an
     /// unsupported platform) — the mic button then uses the gateway instead.
     private let transcriber: LocalSpeechTranscribing?
@@ -109,6 +167,11 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     private let requestPermission: @Sendable () async -> Bool
 
     private var didLoadModels = false
+
+    /// When true, end-of-utterance flushes and emits a transcript but leaves the
+    /// mic capturing, so a hands-free conversation keeps listening across turns
+    /// (and while a reply plays, enabling barge-in). Set by `startConversation`.
+    private var continuous = false
 
     /// Production initializer: wires the default on-device engine, or leaves the
     /// service unavailable when none is linked. Runs on the main actor so it can
@@ -134,6 +197,8 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         self.requestPermission = requestPermission
         self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
         self.conversationMode = UserDefaults.standard.bool(forKey: Self.conversationKey)
+        self.conversationVisual = UserDefaults.standard.string(forKey: Self.conversationVisualKey)
+            .flatMap(ConversationVisual.init(rawValue:)) ?? .claude
     }
 
     /// Whether this build can transcribe on-device at all (engine linked +
@@ -145,9 +210,19 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     /// Begin capturing and transcribing. No-op unless enabled, available, idle,
     /// and microphone permission is granted.
     internal func start() async {
+        await start(continuous: false)
+    }
+
+    /// Begin a continuous conversation capture (see the protocol requirement).
+    internal func startConversation() async {
+        await start(continuous: true)
+    }
+
+    private func start(continuous: Bool) async {
         guard isEnabledAndAvailable, !isRunning,
               let transcriber, let microphone else { return }
         guard await requestPermission() else { return }
+        self.continuous = continuous
         do {
             if !didLoadModels {
                 try await transcriber.loadModels()
@@ -163,6 +238,12 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
             }
             await transcriber.onEndOfUtterance { [weak self] in
                 Task { @MainActor in await self?.finishUtterance() }
+            }
+            microphone.onAudioLevel = { [weak self] level in
+                Task { @MainActor in
+                    self?.inputLevel = level
+                    self?.onAudioLevel?(level)
+                }
             }
             try microphone.start(feeding: transcriber)
             isRunning = true
@@ -183,18 +264,25 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
     internal func cancel() async {
         guard isRunning, let transcriber, let microphone else { return }
         isRunning = false
+        continuous = false
         microphone.stop()
         await transcriber.reset()
         partialTranscript = ""
+        inputLevel = 0
     }
 
-    /// Tear down capture, flush the transcript, and fire `onFinalTranscript`.
-    /// Guarded on `isRunning` so end-of-utterance and a manual `stop()` racing
-    /// each other only finalize once.
+    /// End-of-utterance / manual-stop handler. In one-shot mode it tears down
+    /// capture and emits the transcript. In continuous (conversation) mode it
+    /// flushes and emits the utterance but leaves the mic running, so the next
+    /// utterance — including one spoken over a reply — is captured immediately.
+    /// Guarded on `isRunning` so EOU and a manual `stop()` only finalize once.
     private func finishUtterance() async {
         guard isRunning, let transcriber, let microphone else { return }
-        isRunning = false
-        microphone.stop()
+        if !continuous {
+            isRunning = false
+            microphone.stop()
+            inputLevel = 0
+        }
         let text: String
         do {
             text = try await transcriber.finish()

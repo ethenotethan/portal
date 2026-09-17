@@ -388,6 +388,7 @@
 		7158726390721AE377318FE7 /* CronCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9559C6BB8CC4D5A23041773 /* CronCategoryTests.swift */; };
 		71686CDAE62ABFB405141146 /* MapEntryTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8146991749E60E5DB327570E /* MapEntryTableView.swift */; };
 		7178231BD0FEE369AE58B712 /* ToolPillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DC8A5590D3552402FA4965F /* ToolPillView.swift */; };
+		71A48F6313A787D48C53BEC8 /* VoiceConversationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E794B410514A4E0C1165E157 /* VoiceConversationCard.swift */; };
 		71D6F9CDE6A7A3AD8F071F6E /* SkillsFilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 487EC264D75CE09B8F47C489 /* SkillsFilterState.swift */; };
 		71E62024F425DF2DA0F1B8F4 /* WikiChangesetInlineDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FAA13E3F9FD3D2A0DC813D /* WikiChangesetInlineDiff.swift */; };
 		722D1A26F3ADA6E9C5C83299 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1BFE43A1BB8C08760A8CF3 /* Theme.swift */; };
@@ -699,6 +700,7 @@
 		C908377063169D15834533A7 /* ChecklistBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4532702E01A34652A0065CAF /* ChecklistBlockView.swift */; };
 		C9A2F0F561B31711CF1357D8 /* GitHubLinkCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5798D1367ED862755773F47 /* GitHubLinkCard.swift */; };
 		CA44F4102390E54F5DFECC4A /* SentenceChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 886318CD44C7CCDED664D779 /* SentenceChunker.swift */; };
+		CA47C4C66093A3A6A7F8D17E /* VoiceConversationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E794B410514A4E0C1165E157 /* VoiceConversationCard.swift */; };
 		CA9CFC3CC2512F9DC15FBD73 /* WikiPageReaderBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F784842A1B4EAFDF79893A2 /* WikiPageReaderBody.swift */; };
 		CBAD618DFE15374D179FAA4C /* AppFontTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DA3C79CF41E6F1C00C1F70 /* AppFontTheme.swift */; };
 		CBFFD4D74E79EC81CA85E93D /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91E39B6C4EB4E9A8CCBEF9B /* DocumentTextExtractor.swift */; };
@@ -1377,6 +1379,7 @@
 		E50404D5FF5C98AC42E5340A /* TimelineBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineBlockView.swift; sourceTree = "<group>"; };
 		E5EBFFB516D88DCDFF928326 /* LocalVoiceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalVoiceEngine.swift; sourceTree = "<group>"; };
 		E655BD8AFCBD0EA2BA2B3368 /* ArtifactFullscreenSuspendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactFullscreenSuspendTests.swift; sourceTree = "<group>"; };
+		E794B410514A4E0C1165E157 /* VoiceConversationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceConversationCard.swift; sourceTree = "<group>"; };
 		E7998F54C96448121326A4B4 /* DelegationBatchMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DelegationBatchMessage.swift; sourceTree = "<group>"; };
 		E80196A0039457D6F79A45B5 /* CronChangesetSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronChangesetSource.swift; sourceTree = "<group>"; };
 		E804D7DE20A4CDB50DBEA166 /* ThoughtGraphLayoutEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThoughtGraphLayoutEngineTests.swift; sourceTree = "<group>"; };
@@ -1816,6 +1819,7 @@
 				3BDDC3902F7860A5D9A5FA98 /* ToolCallView.swift */,
 				8DC8A5590D3552402FA4965F /* ToolPillView.swift */,
 				2528230688CC5940286A9C55 /* TweetPostCard.swift */,
+				E794B410514A4E0C1165E157 /* VoiceConversationCard.swift */,
 				9062A84C9FDE51679DDC8771 /* YouTubeVideoCard.swift */,
 				A3496E2780474EF2AD8BD7E8 /* Blocks */,
 				6D57CB5C0873AEC57CBFCC53 /* Charts */,
@@ -2793,6 +2797,7 @@
 				F390BCF790CD1148695CBA70 /* TweetContentService.swift in Sources */,
 				FA98C10A1C08906F39105F39 /* TweetPostCard.swift in Sources */,
 				68988E17DB58965B7067D04F /* VideoCache.swift in Sources */,
+				71A48F6313A787D48C53BEC8 /* VoiceConversationCard.swift in Sources */,
 				71E62024F425DF2DA0F1B8F4 /* WikiChangesetInlineDiff.swift in Sources */,
 				ABBAE79386223D3339FA8914 /* WikiChangesetSource.swift in Sources */,
 				0B2A2E6BF97BFA8AED61A1D6 /* WikiDockedReader.swift in Sources */,
@@ -3329,6 +3334,7 @@
 				DC5C663E22AD27E3A46F4B1A /* TweetContentService.swift in Sources */,
 				40F7F0EDEBA25D68FDFAC17E /* TweetPostCard.swift in Sources */,
 				3BB2D863BE6AFA0AC118F19B /* VideoCache.swift in Sources */,
+				CA47C4C66093A3A6A7F8D17E /* VoiceConversationCard.swift in Sources */,
 				5C74289EDEBFA77C921A9C2E /* WikiChangesetInlineDiff.swift in Sources */,
 				AE503166280EC565DF48725F /* WikiChangesetSource.swift in Sources */,
 				ACCB967D1B679D7F88EE75D4 /* WikiDockedReader.swift in Sources */,

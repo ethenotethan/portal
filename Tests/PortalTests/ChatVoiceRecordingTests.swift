@@ -75,6 +75,7 @@ private final class ConvLocalVoiceFake: LocalVoiceControlling {
     var isRunning = false
     var onFinalTranscript: ((String) -> Void)?
     var onPartialTranscript: ((String) -> Void)?
+    var onAudioLevel: ((Float) -> Void)?
 
     func start() async { isRunning = true }
     func stop() async { isRunning = false }
