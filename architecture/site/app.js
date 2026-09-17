@@ -52,17 +52,18 @@
     other: "Supporting owner"
   };
   const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, caller: 3, endpoint: 4, engine: 5, subscriber: 6, other: 7 };
-  // Top-to-bottom bands for the tiered interplay layout. Kept in this top const
-  // block (like the role maps above) so renderInterplay(), called during init,
-  // can read it without hitting the temporal dead zone.
-  const INTERPLAY_TIER_LABELS = [
-    "SURFACES",
-    "NAMESPACES",
-    "SHARED TRANSPORT",
-    "BACKEND SEAM",
-    "ON-DEVICE ENGINES",
-    "EVENT SUBSCRIBERS"
-  ];
+  // Friendly module names for the well-known product namespaces, and the label of
+  // the factored-out shared region. Declared in this top const block (like the
+  // role maps) so renderInterplay(), called during init, reads them without
+  // hitting the temporal dead zone.
+  const INTERPLAY_FEATURE_NAMES = {
+    prompt: "Chat", messages: "Chat", model: "Chat", clarify: "Chat", approval: "Chat",
+    execute: "Chat", image: "Chat", interrupt: "Chat", voice: "Chat",
+    wiki: "Wiki", cron: "CRON", feed: "Feed", files: "Files", code: "Code",
+    commands: "Skills", skills: "Skills", session: "Session", config: "Config",
+    gateway: "Gateway", activity: "Activity", workflows: "Workflows"
+  };
+  const INTERPLAY_SHARED_GROUP = "Shared core";
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
   const specifications = payload.specifications || [];
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -390,93 +391,143 @@
     return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
   }
 
-  // Layered ("tiered") placement so the graph reads as an information hierarchy
-  // rather than a hairball centred on the one shared client: product surfaces on
-  // top, the RPC/REST namespaces they query beneath them, then the single shared
-  // transport floor (GatewayClient/CentaurClient + their pools), the AgentBackend
-  // seam, the on-device engines, and finally the event subscribers. Fully
-  // deterministic (no PRNG): tiers by role, within-tier order by barycentre.
-  function interplayNodeTier(node) {
-    const role = interplayNodeRole(node);
-    if (role === "caller" || role === "hub") return 0;   // product surfaces (the tabs)
-    if (role === "endpoint") return 1;                   // the namespaces each surface queries
-    if (node.sub_kind === "event_bus") return 2;         // the push channel rides the floor
-    if (role === "transport") return 2;                  // the one shared transport floor
-    if (role === "seam") return 3;                       // AgentBackend
-    if (role === "engine") return 4;                     // on-device language/speech engines
-    if (role === "subscriber") return 5;                 // event consumers
-    return 2;                                            // stray owners settle on the floor
+  // Feature-module placement: each product feature (Chat, CRON, Wiki, Skills, …)
+  // becomes its own bounded, labelled region holding its calling surface plus the
+  // namespaces only that feature calls. Everything genuinely shared — the single
+  // GatewayClient/CentaurClient and pools, cross-feature namespaces (session,
+  // config, files…), the AgentBackend seam, the on-device engines, the event bus
+  // and its subscribers — is factored out into one SHARED CORE the features depend
+  // on. Deterministic: feature keys come from the call graph, packing from sorted
+  // order, no PRNG. INTERPLAY_FEATURE_NAMES / INTERPLAY_SHARED_GROUP live in the
+  // top const block to stay clear of the temporal dead zone during init.
+  function interplayFeatureName(namespace) {
+    if (INTERPLAY_FEATURE_NAMES[namespace]) return INTERPLAY_FEATURE_NAMES[namespace];
+    if (!namespace) return "Other";
+    return namespace.charAt(0).toUpperCase() + namespace.slice(1);
   }
 
-  function layoutInterplayTiered(nodes, edges) {
-    const TIERS = INTERPLAY_TIER_LABELS.length;
-    const tierOf = new Map(nodes.map((node) => [node.id, interplayNodeTier(node)]));
-    const size = new Map(nodes.map((node) => [node.id, interplayNodeSize(node)]));
-    // Undirected adjacency, so a tier can be ordered against either neighbour.
-    const neighbours = new Map(nodes.map((node) => [node.id, []]));
+  // Assign every node to a group id. A caller lands in the feature of its most
+  // distinctive namespace (fewest callers, lexicographic tie-break). An endpoint
+  // joins a feature only when every caller invoking it lives in that one feature;
+  // endpoints spanning features (session, config, files) plus every
+  // transport/seam/engine/bus/subscriber node fall into the shared core.
+  function assignInterplayGroups(nodes, edges) {
+    const nodeById = new Map(nodes.map((node) => [node.id, node]));
+    const invokedBy = new Map();        // endpointId -> Set(callerId)
+    const callerEndpoints = new Map();  // callerId   -> Set(endpointId)
     edges.forEach((edge) => {
-      if (!neighbours.has(edge.source) || !neighbours.has(edge.target)) return;
-      neighbours.get(edge.source).push(edge.target);
-      neighbours.get(edge.target).push(edge.source);
+      if (edge.relation !== "invokes") return;
+      if (!invokedBy.has(edge.target)) invokedBy.set(edge.target, new Set());
+      invokedBy.get(edge.target).add(edge.source);
+      if (!callerEndpoints.has(edge.source)) callerEndpoints.set(edge.source, new Set());
+      callerEndpoints.get(edge.source).add(edge.target);
     });
-    // Seed each tier ordered by label then id, so the layout is stable run to run.
-    const rows = Array.from({ length: TIERS }, () => []);
-    nodes
-      .slice()
-      .sort((a, b) => (a.label || "").localeCompare(b.label || "") || a.id.localeCompare(b.id))
-      .forEach((node) => rows[tierOf.get(node.id)].push(node.id));
-    const orderIndex = new Map();
-    rows.forEach((row) => row.forEach((id, i) => orderIndex.set(id, i)));
-    // A fixed number of barycentre sweeps (down then up) pulls each namespace under
-    // the surface that calls it and clusters the floor beneath them — crossing
-    // reduction without any randomness, so the result is identical every load.
-    const SWEEPS = 8;
-    for (let sweep = 0; sweep < SWEEPS; sweep++) {
-      const downward = sweep % 2 === 0;
-      const tiers = downward
-        ? Array.from({ length: TIERS }, (_, t) => t)
-        : Array.from({ length: TIERS }, (_, t) => TIERS - 1 - t);
-      for (const t of tiers) {
-        const adjacent = downward ? t - 1 : t + 1;
-        if (adjacent < 0 || adjacent >= TIERS) continue;
-        const ranked = rows[t].map((id) => {
-          const positions = neighbours
-            .get(id)
-            .filter((other) => tierOf.get(other) === adjacent)
-            .map((other) => orderIndex.get(other));
-          const key = positions.length
-            ? positions.reduce((sum, value) => sum + value, 0) / positions.length
-            : orderIndex.get(id);
-          return { id, key };
-        });
-        ranked.sort((a, b) => a.key - b.key || a.id.localeCompare(b.id));
-        rows[t] = ranked.map((entry) => entry.id);
-        rows[t].forEach((id, i) => orderIndex.set(id, i));
+    const callerFeature = new Map();
+    nodes.forEach((node) => {
+      if (interplayNodeRole(node) !== "caller") return;
+      const candidates = Array.from(callerEndpoints.get(node.id) || []).map((ep) => ({
+        label: (nodeById.get(ep) || {}).label || "",
+        count: (invokedBy.get(ep) || new Set()).size || 99
+      }));
+      candidates.sort((a, b) => a.count - b.count || a.label.localeCompare(b.label));
+      callerFeature.set(node.id, candidates.length ? interplayFeatureName(candidates[0].label) : INTERPLAY_SHARED_GROUP);
+    });
+    const group = new Map();
+    nodes.forEach((node) => {
+      const role = interplayNodeRole(node);
+      if (role === "caller") { group.set(node.id, callerFeature.get(node.id) || INTERPLAY_SHARED_GROUP); return; }
+      if (role === "endpoint") {
+        const features = new Set(Array.from(invokedBy.get(node.id) || []).map((id) => callerFeature.get(id)).filter(Boolean));
+        group.set(node.id, features.size === 1 ? Array.from(features)[0] : INTERPLAY_SHARED_GROUP);
+        return;
       }
-    }
-    // Pack each tier left-to-right, centre every tier against the widest one, and
-    // stack the tiers top-to-bottom with a generous vertical gap.
-    const GAP_X = 34;
-    const GAP_Y = 128;
-    const tierWidth = rows.map((row) =>
-      row.reduce((width, id, i) => width + size.get(id).width + (i ? GAP_X : 0), 0)
-    );
-    const maxWidth = Math.max(1, ...tierWidth);
-    const positions = new Map();
-    const tierBands = [];
-    let y = 0;
-    rows.forEach((row, t) => {
-      const rowHeight = row.reduce((height, id) => Math.max(height, size.get(id).height), 0) || 48;
-      let x = (maxWidth - tierWidth[t]) / 2;
-      row.forEach((id) => {
-        const nodeSize = size.get(id);
-        positions.set(id, { x: x + nodeSize.width / 2, y: y + rowHeight / 2 });
-        x += nodeSize.width + GAP_X;
-      });
-      if (row.length) tierBands.push({ tier: t, y: y + rowHeight / 2 });
-      y += rowHeight + GAP_Y;
+      group.set(node.id, INTERPLAY_SHARED_GROUP);
     });
-    positions.tierBands = tierBands;
+    return group;
+  }
+
+  function layoutInterplayGrouped(nodes, edges) {
+    const size = new Map(nodes.map((node) => [node.id, interplayNodeSize(node)]));
+    const group = assignInterplayGroups(nodes, edges);
+    const kindRank = (node) => {
+      const role = interplayNodeRole(node);
+      if (role === "caller") return 0;
+      if (role === "endpoint") return 1;
+      if (role === "transport") return 2;
+      if (role === "seam") return 3;
+      if (role === "engine") return 4;
+      return 5;
+    };
+    const byGroup = new Map();
+    nodes.forEach((node) => {
+      const g = group.get(node.id);
+      if (!byGroup.has(g)) byGroup.set(g, []);
+      byGroup.get(g).push(node);
+    });
+    byGroup.forEach((list) => list.sort((a, b) =>
+      kindRank(a) - kindRank(b) || (a.label || "").localeCompare(b.label || "") || a.id.localeCompare(b.id)));
+
+    const PAD = 20;
+    const HEADER = 30;
+    const GAP = 14;
+    function layoutGroup(list, cols) {
+      const place = new Map();
+      let x = PAD;
+      let y = PAD + HEADER;
+      let rowH = 0;
+      let maxRight = PAD;
+      let col = 0;
+      let prevRank = null;
+      list.forEach((node) => {
+        const s = size.get(node.id);
+        const rank = kindRank(node);
+        const wrap = col >= cols || (prevRank === 0 && rank !== 0); // callers get their own top row
+        if (wrap) { col = 0; x = PAD; y += rowH + GAP; rowH = 0; }
+        place.set(node.id, { x: x + s.width / 2, y: y + s.height / 2 });
+        x += s.width + GAP;
+        maxRight = Math.max(maxRight, x - GAP);
+        rowH = Math.max(rowH, s.height);
+        col += 1;
+        prevRank = rank;
+      });
+      return { w: maxRight + PAD, h: y + rowH + PAD, place };
+    }
+
+    const laid = new Map();
+    byGroup.forEach((list, g) => {
+      const cols = g === INTERPLAY_SHARED_GROUP ? 6 : Math.max(2, Math.min(4, Math.ceil(Math.sqrt(list.length))));
+      laid.set(g, layoutGroup(list, cols));
+    });
+
+    // Feature modules shelf-pack in a wrapping row; the shared core spans a full
+    // shelf of its own beneath them.
+    const BOX_GAP = 40;
+    const shared = laid.get(INTERPLAY_SHARED_GROUP);
+    const targetWidth = Math.max(shared ? shared.w : 0, 1280);
+    const featureOrder = Array.from(byGroup.keys())
+      .filter((g) => g !== INTERPLAY_SHARED_GROUP)
+      .sort((a, b) => laid.get(b).h - laid.get(a).h || a.localeCompare(b));
+    const groupBoxes = [];
+    let cx = 0;
+    let cy = 0;
+    let shelfH = 0;
+    featureOrder.forEach((g) => {
+      const box = laid.get(g);
+      if (cx > 0 && cx + box.w > targetWidth) { cx = 0; cy += shelfH + BOX_GAP; shelfH = 0; }
+      groupBoxes.push({ label: g, x: cx, y: cy, w: box.w, h: box.h, place: box.place });
+      cx += box.w + BOX_GAP;
+      shelfH = Math.max(shelfH, box.h);
+    });
+    if (shared) {
+      cy += shelfH + BOX_GAP;
+      groupBoxes.push({ label: INTERPLAY_SHARED_GROUP, x: 0, y: cy, w: shared.w, h: shared.h, place: shared.place });
+    }
+
+    const positions = new Map();
+    groupBoxes.forEach((box) => {
+      box.place.forEach((rel, id) => positions.set(id, { x: box.x + rel.x, y: box.y + rel.y }));
+    });
+    positions.groupBoxes = groupBoxes.map((box) => ({ label: box.label, x: box.x, y: box.y, w: box.w, h: box.h }));
     return positions;
   }
 
@@ -497,11 +548,10 @@
     const nodeRole = new Map();
     interplay.nodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
 
-    // Position every node with the deterministic tiered layout, then translate the
-    // whole graph so its top-left corner sits at the margin (past a left gutter that
-    // holds the tier labels).
-    const layout = layoutInterplayTiered(interplay.nodes, interplay.edges);
-    const tierBands = layout.tierBands || [];
+    // Position every node with the deterministic feature-module layout, then
+    // translate the whole graph so its top-left corner sits at the margin.
+    const layout = layoutInterplayGrouped(interplay.nodes, interplay.edges);
+    const groupBoxes = layout.groupBoxes || [];
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -517,16 +567,23 @@
       maxX = Math.max(maxX, x + size.width);
       maxY = Math.max(maxY, y + size.height);
     });
+    // The module hulls extend past the node centres, so fold their extents into the
+    // bounds too before centring the whole diagram.
+    groupBoxes.forEach((box) => {
+      minX = Math.min(minX, box.x);
+      minY = Math.min(minY, box.y);
+      maxX = Math.max(maxX, box.x + box.w);
+      maxY = Math.max(maxY, box.y + box.h);
+    });
     const margin = 48;
-    const leftGutter = 168; // room for the vertical tier labels on the left
-    const shiftX = margin + leftGutter - minX;
+    const shiftX = margin - minX;
     const shiftY = margin - minY;
     interplayPositions.forEach((position) => {
       position.x += shiftX;
       position.y += shiftY;
     });
-    tierBands.forEach((band) => { band.y += shiftY; });
-    const width = Math.ceil(maxX - minX + margin * 2 + leftGutter);
+    groupBoxes.forEach((box) => { box.x += shiftX; box.y += shiftY; });
+    const width = Math.ceil(maxX - minX + margin * 2);
     const height = Math.ceil(maxY - minY + margin * 2);
     // The SVG fills its frame; a viewBox window pans/zooms over the content. Start
     // fitted to the whole graph so the first paint shows everything.
@@ -538,21 +595,36 @@
     svg.style.removeProperty("height"); // height is governed by CSS (72vh / fullscreen)
     applyInterplayViewBox();
 
-    // Tier labels sit in the left gutter, behind everything, naming each band of
-    // the hierarchy (surfaces → namespaces → shared transport → seam → engines →
-    // subscribers) so the layered reading is explicit.
-    const tierGroup = svgElement("g", { class: "interplay-tiers" });
-    tierBands.forEach((band) => {
-      const label = svgElement("text", {
-        x: margin,
-        y: band.y,
-        class: "interplay-tier-label",
-        "dominant-baseline": "middle"
+    // Each product feature (Chat, CRON, Wiki, Skills…) is drawn as a bounded,
+    // labelled module holding its surface and the namespaces only it calls; the
+    // shared core sits in its own wider hull beneath them. The hulls render behind
+    // everything so edges and nodes read on top.
+    const groupLayer = svgElement("g", { class: "interplay-groups" });
+    groupBoxes.forEach((box) => {
+      const shared = box.label === INTERPLAY_SHARED_GROUP;
+      const hull = svgElement("g", {
+        class: `interplay-group${shared ? " shared" : ""}`,
+        "data-group": box.label
       });
-      label.textContent = INTERPLAY_TIER_LABELS[band.tier] || "";
-      tierGroup.append(label);
+      const rect = svgElement("rect", {
+        x: box.x,
+        y: box.y,
+        width: box.w,
+        height: box.h,
+        rx: 16,
+        ry: 16,
+        class: "interplay-group-rect"
+      });
+      const label = svgElement("text", {
+        x: box.x + 18,
+        y: box.y + 20,
+        class: "interplay-group-label"
+      });
+      label.textContent = box.label;
+      hull.append(rect, label);
+      groupLayer.append(hull);
     });
-    svg.append(tierGroup);
+    svg.append(groupLayer);
 
     const edgeGroup = svgElement("g", { class: "edges" });
     interplay.edges.forEach((edge) => {
