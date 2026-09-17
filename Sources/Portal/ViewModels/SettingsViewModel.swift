@@ -226,6 +226,7 @@ internal final class SettingsViewModel: ObservableObject {
         UserDefaults.standard.bool(forKey: Self.onboardingCompleteKey)
     }
     private var didCompleteInit = false
+    private var pendingBootstrapURL: URL?
 
     /// Whether the gateway domain likely requires CF Access auth.
     ///
@@ -286,6 +287,18 @@ internal final class SettingsViewModel: ObservableObject {
         return onboarded || hasAPIKey
     }
 
+    /// Whether a local installer-created configuration may prefill onboarding.
+    /// Existing or unreadable Keychain state always wins; UI tests supply their
+    /// own isolated connection settings and must not inspect the real home.
+    nonisolated internal static func shouldLoadBootstrap(
+        hasSavedURL: Bool,
+        hasSavedGateways: Bool,
+        hasUnreadableStore: Bool,
+        isUITest: Bool
+    ) -> Bool {
+        !hasSavedURL && !hasSavedGateways && !hasUnreadableStore && !isUITest
+    }
+
     init() {
         let env = ProcessInfo.processInfo.environment
         let args = ProcessInfo.processInfo.arguments
@@ -304,9 +317,34 @@ internal final class SettingsViewModel: ObservableObject {
         self.hasUnreadableStoredHarness = unreadable
 
         let savedURL = urlOutcome.value
-        let resolvedGatewayURL = uiTestGatewayURL ?? savedURL ?? Constants.defaultGatewayURL
+        let bootstrapURL = PortalBootstrapConfiguration.defaultHandoffURL()
+        let shouldLoadBootstrap = Self.shouldLoadBootstrap(
+            hasSavedURL: savedURL != nil,
+            hasSavedGateways: !(gatewaysOutcome.value ?? []).isEmpty,
+            hasUnreadableStore: unreadable,
+            isUITest: isUITest
+        )
+        let bootstrap: PortalBootstrapConfiguration? = {
+            guard shouldLoadBootstrap, let bootstrapURL else { return nil }
+            do {
+                return try PortalBootstrapConfiguration.load(from: bootstrapURL)
+            } catch CocoaError.fileNoSuchFile {
+                return nil
+            } catch {
+                log.error("Refusing installer handoff: \(error.localizedDescription, privacy: .public)")
+                return nil
+            }
+        }()
+        self.pendingBootstrapURL = bootstrap == nil ? nil : bootstrapURL
+        let resolvedGatewayURL = uiTestGatewayURL
+            ?? bootstrap?.gatewayURL
+            ?? savedURL
+            ?? Constants.defaultGatewayURL
         self.gatewayURL = resolvedGatewayURL
-        self.apiKey = uiTestAPIKey ?? KeychainStore.shared.loadAPIKey() ?? ""
+        self.apiKey = uiTestAPIKey
+            ?? bootstrap?.apiKey
+            ?? KeychainStore.shared.loadAPIKey()
+            ?? ""
         self.responseCompleteNotificationsEnabled = UserDefaults.standard.object(forKey: Self.responseCompleteNotificationsKey) as? Bool ?? true
         self.mlxReasoningEnabled = UserDefaults.standard.bool(forKey: Self.mlxReasoningKey)
 
@@ -332,7 +370,7 @@ internal final class SettingsViewModel: ObservableObject {
             loadedIsEmpty: loadedGateways.isEmpty,
             unreadable: unreadable,
             onboarded: onboarded,
-            hasAPIKey: !self.apiKey.isEmpty
+            hasAPIKey: bootstrap == nil && !self.apiKey.isEmpty
         ) {
             let migrated = SavedGateway(
                 name: URL(string: resolvedGatewayURL)?.host ?? "Harness",
@@ -559,6 +597,24 @@ internal final class SettingsViewModel: ObservableObject {
     /// Validate and update the configured state.
     func validate() {
         guard !gatewayURL.isEmpty else { return }
+        guard !hasUnreadableStoredHarness else {
+            gatewayPersistenceError =
+                "Portal couldn’t read the existing Keychain entry. Acknowledge that warning before replacing it."
+            return
+        }
+        guard KeychainStore.shared.saveGatewayURL(gatewayURL),
+              KeychainStore.shared.saveAPIKey(apiKey) else {
+            reportKeychainWriteFailure(what: "installer connection")
+            return
+        }
+        if let pendingBootstrapURL {
+            do {
+                try PortalBootstrapConfiguration.removeHandoff(at: pendingBootstrapURL)
+                self.pendingBootstrapURL = nil
+            } catch {
+                log.error("Connected, but could not remove installer handoff: \(error.localizedDescription, privacy: .public)")
+            }
+        }
         UserDefaults.standard.set(true, forKey: Self.onboardingCompleteKey)
         isConfigured = true
     }
