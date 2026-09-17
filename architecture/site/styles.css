@@ -283,6 +283,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-edge.interplay { stroke: var(--accent); opacity: .8; stroke-width: 1.75; }
 /* A product surface invoking a queried namespace — the caller perspective. */
 .interplay-edge.usage { stroke: #7ec8b0; stroke-dasharray: 5 4; opacity: .55; }
+.interplay-tier-label { fill: var(--faint); font: 700 11px var(--mono); letter-spacing: .14em; opacity: .5; text-transform: uppercase; }
 .interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; }
 .interplay-edge.dimmed { opacity: .07; }
 .interplay-node { cursor: grab; transition: opacity .18s ease; }
