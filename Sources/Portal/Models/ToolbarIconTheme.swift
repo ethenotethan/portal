@@ -189,7 +189,9 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
         case .skills: return "Skills"
         case .feed: return "Feed"
         case .learning: return "Learning"
-        case .wiki: return "Wiki"
+        // The slot's `wiki` raw value is persisted in icon overrides, so the case
+        // keeps its name while the door it opens is now the Graphs section.
+        case .wiki: return "Graphs"
         case .artifacts: return "Artifacts"
         case .workflows: return "Workflows"
         case .files: return "Files"
@@ -228,7 +230,7 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
         case .skills: return "Skills library"
         case .feed: return "News feed"
         case .learning: return "Learning — courses, quizzes, and flashcards"
-        case .wiki: return "Wiki knowledge graph"
+        case .wiki: return "Graphs — wiki knowledge and cron runtime"
         case .artifacts: return "Living artifacts"
         case .workflows: return "Workflow runs"
         case .files: return "Browse Hermes files"
