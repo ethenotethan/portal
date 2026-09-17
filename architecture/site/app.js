@@ -38,18 +38,20 @@
     endpoint: "#e7a84b",
     engine: "#70b98d",
     subscriber: "#d16f86",
+    caller: "#7ec8b0",
     other: "#6d6a68"
   };
   const INTERPLAY_ROLE_LABELS = {
     hub: "Interplay hub",
     seam: "Backend seam",
     transport: "Connection-pool transport",
+    caller: "Calling surface",
     endpoint: "Queried endpoints",
     engine: "On-device engine",
     subscriber: "Event subscribers",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, endpoint: 3, engine: 4, subscriber: 5, other: 6 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, caller: 3, endpoint: 4, engine: 5, subscriber: 6, other: 7 };
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
   const specifications = payload.specifications || [];
   const componentById = new Map(model.components.map((component) => [component.id, component]));
@@ -66,6 +68,11 @@
   let positions = new Map();
   let selectedInterplayId = null;
   let interplayPositions = new Map();
+  // Pan/zoom state for the free-form graph: the SVG fills its frame and we move a
+  // viewBox window over the content, so click-drag pans, the wheel zooms, and a
+  // node can be dragged to a new resting place. Content bounds anchor "fit".
+  let interplayViewBox = null;
+  let interplayContentBounds = { width: 0, height: 0 };
 
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderStats();
@@ -360,6 +367,7 @@
     if (node.kind === "seam") return "seam";
     if (node.kind === "endpoint") return "endpoint";
     if (node.kind === "subscriber") return "subscriber";
+    if (node.kind === "caller") return "caller";
     if (node.kind === "owner") return interplayRoleByOwnerType.get(node.label) || "other";
     return interplayRoleByOwnerType.get(node.owner_type) || "other";
   }
@@ -525,10 +533,15 @@
     });
     const width = Math.ceil(maxX - minX + margin * 2);
     const height = Math.ceil(maxY - minY + margin * 2);
-    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-    svg.style.width = `${width}px`;
-    svg.style.height = `${Math.max(height, 640)}px`;
-    svg.style.minWidth = `${Math.max(width, 900)}px`;
+    // The SVG fills its frame; a viewBox window pans/zooms over the content. Start
+    // fitted to the whole graph so the first paint shows everything.
+    interplayContentBounds = { width, height };
+    interplayViewBox = { x: 0, y: 0, w: width, h: height };
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.style.width = "100%";
+    svg.style.minWidth = "0";
+    svg.style.removeProperty("height"); // height is governed by CSS (72vh / fullscreen)
+    applyInterplayViewBox();
 
     const edgeGroup = svgElement("g", { class: "edges" });
     interplay.edges.forEach((edge) => {
@@ -566,6 +579,7 @@
       const rect = svgElement("rect", { width: position.width, height: position.height, rx: 6 });
       if (node.kind === "operation") rect.setAttribute("class", "operation");
       else if (node.kind === "endpoint") rect.setAttribute("class", "endpoint");
+      else if (node.kind === "caller") rect.setAttribute("class", "caller");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
       group.append(svgElement("line", { x1: 0, x2: 0, y1: 6, y2: position.height - 6, class: "node-rule" }));
@@ -579,7 +593,7 @@
         meta.textContent = interplayNodeMeta(node);
         group.append(meta);
       }
-      group.addEventListener("click", () => selectInterplayNode(node.id));
+      wireInterplayNodeDrag(svg, group, node.id);
       group.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -590,9 +604,154 @@
     });
     svg.append(nodeGroup);
 
+    wireInterplayPanZoom(svg);
     renderInterplayLegend();
     applyInterplayState();
     if (selectedInterplayId) renderInterplayInspector(interplayNodeById.get(selectedInterplayId));
+  }
+
+  // ---- Pan / zoom / drag over the free-form graph ---------------------------
+  function applyInterplayViewBox() {
+    const svg = document.getElementById("interplay-graph");
+    if (!svg || !interplayViewBox) return;
+    const { x, y, w, h } = interplayViewBox;
+    svg.setAttribute("viewBox", `${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)}`);
+  }
+
+  // Fit the whole graph back into view — the escape hatch after panning away.
+  function fitInterplayView() {
+    if (!interplayContentBounds.width) return;
+    interplayViewBox = { x: 0, y: 0, w: interplayContentBounds.width, h: interplayContentBounds.height };
+    applyInterplayViewBox();
+  }
+
+  // Convert a client (screen) point to content coordinates via the live CTM, so
+  // dragging tracks the cursor exactly at any zoom/pan.
+  function interplayClientToContent(svg, clientX, clientY) {
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: clientX, y: clientY };
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const mapped = point.matrixTransform(ctm.inverse());
+    return { x: mapped.x, y: mapped.y };
+  }
+
+  function redrawInterplayEdgesFor(nodeId) {
+    document.querySelectorAll(".interplay-edge").forEach((path) => {
+      if (path.dataset.source !== nodeId && path.dataset.target !== nodeId) return;
+      const source = interplayPositions.get(path.dataset.source);
+      const target = interplayPositions.get(path.dataset.target);
+      if (source && target) path.setAttribute("d", interplayLinkPath(source, target));
+    });
+  }
+
+  function wireInterplayNodeDrag(svg, group, nodeId) {
+    let offsetX = 0;
+    let offsetY = 0;
+    let moved = false;
+    let dragging = false;
+    group.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.stopPropagation(); // keep the background pan handler from also firing
+      const position = interplayPositions.get(nodeId);
+      if (!position) return;
+      const start = interplayClientToContent(svg, event.clientX, event.clientY);
+      offsetX = start.x - position.x;
+      offsetY = start.y - position.y;
+      moved = false;
+      dragging = true;
+      group.setPointerCapture(event.pointerId);
+      group.classList.add("dragging");
+    });
+    group.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      const position = interplayPositions.get(nodeId);
+      const point = interplayClientToContent(svg, event.clientX, event.clientY);
+      const nextX = point.x - offsetX;
+      const nextY = point.y - offsetY;
+      if (Math.abs(nextX - position.x) > 0.5 || Math.abs(nextY - position.y) > 0.5) moved = true;
+      position.x = nextX;
+      position.y = nextY;
+      group.setAttribute("transform", `translate(${nextX} ${nextY})`);
+      redrawInterplayEdgesFor(nodeId);
+    });
+    const end = (event) => {
+      if (!dragging) return;
+      dragging = false;
+      group.classList.remove("dragging");
+      if (group.hasPointerCapture(event.pointerId)) group.releasePointerCapture(event.pointerId);
+      if (!moved) selectInterplayNode(nodeId); // a drag that never moved is a click
+    };
+    group.addEventListener("pointerup", end);
+    group.addEventListener("pointercancel", end);
+  }
+
+  function wireInterplayPanZoom(svg) {
+    if (svg.dataset.panzoom === "on") return; // wire the frame once, not per render
+    svg.dataset.panzoom = "on";
+    const scroll = document.getElementById("interplay-scroll");
+    let panning = false;
+    let startX = 0;
+    let startY = 0;
+    let originX = 0;
+    let originY = 0;
+    svg.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || !interplayViewBox) return;
+      panning = true;
+      startX = event.clientX;
+      startY = event.clientY;
+      originX = interplayViewBox.x;
+      originY = interplayViewBox.y;
+      svg.setPointerCapture(event.pointerId);
+      if (scroll) scroll.classList.add("panning");
+    });
+    svg.addEventListener("pointermove", (event) => {
+      if (!panning || !interplayViewBox) return;
+      const rect = svg.getBoundingClientRect();
+      const scaleX = interplayViewBox.w / (rect.width || 1);
+      const scaleY = interplayViewBox.h / (rect.height || 1);
+      interplayViewBox.x = originX - (event.clientX - startX) * scaleX;
+      interplayViewBox.y = originY - (event.clientY - startY) * scaleY;
+      applyInterplayViewBox();
+    });
+    const stop = (event) => {
+      if (!panning) return;
+      panning = false;
+      if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+      if (scroll) scroll.classList.remove("panning");
+    };
+    svg.addEventListener("pointerup", stop);
+    svg.addEventListener("pointercancel", stop);
+    svg.addEventListener("wheel", (event) => {
+      if (!interplayViewBox) return;
+      event.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const px = (event.clientX - rect.left) / (rect.width || 1);
+      const py = (event.clientY - rect.top) / (rect.height || 1);
+      const anchorX = interplayViewBox.x + px * interplayViewBox.w;
+      const anchorY = interplayViewBox.y + py * interplayViewBox.h;
+      const factor = event.deltaY > 0 ? 1.1 : 1 / 1.1;
+      const minW = interplayContentBounds.width * 0.2;
+      const maxW = interplayContentBounds.width * 3;
+      const nextW = Math.max(minW, Math.min(maxW, interplayViewBox.w * factor));
+      const ratio = nextW / interplayViewBox.w;
+      interplayViewBox.w = nextW;
+      interplayViewBox.h *= ratio;
+      interplayViewBox.x = anchorX - px * interplayViewBox.w;
+      interplayViewBox.y = anchorY - py * interplayViewBox.h;
+      applyInterplayViewBox();
+    }, { passive: false });
+  }
+
+  function toggleInterplayFullscreen() {
+    const workspace = document.getElementById("interplay-workspace");
+    if (!workspace) return;
+    if (document.fullscreenElement === workspace) {
+      document.exitFullscreen && document.exitFullscreen();
+    } else if (workspace.requestFullscreen) {
+      workspace.requestFullscreen().catch(() => {});
+    }
   }
 
   // Where the center→toward ray leaves a node's box, so links touch the border
@@ -633,6 +792,7 @@
     if (node.kind === "seam") return "SEAM";
     if (node.kind === "endpoint") return node.protocol === "jsonrpc" ? "JSON-RPC" : "REST";
     if (node.kind === "subscriber") return "SUBSCRIBER";
+    if (node.kind === "caller") return (componentLabel(node.component) || "CALLER").toUpperCase();
     if (node.kind === "owner") return (node.roles || []).join(" · ").toUpperCase() || "OWNER";
     return String(node.sub_kind || node.kind).replace(/_/g, " ").toUpperCase();
   }
@@ -650,6 +810,10 @@
       return `${node.method_count} ${noun}${node.method_count === 1 ? "" : "s"}`;
     }
     if (node.kind === "subscriber") return "binds eventStream";
+    if (node.kind === "caller") {
+      const count = (node.namespaces || []).length;
+      return `queries ${count} namespace${count === 1 ? "" : "s"}`;
+    }
     if (node.sub_kind === "event_bus") return `fan-out · ${interplayBusSubscriberCount(node)} subscribers`;
     if (node.sub_kind === "stream_cursor") return `${node.owner_type} · SSE replay`;
     if (node.overlay_prose) return `${node.owner_type} · explained`;
@@ -672,6 +836,7 @@
     // The three edge classes read differently in a free-form graph, so name them.
     const edgeClasses = [
       ["interplay", "var(--accent)", "Interplay wiring"],
+      ["usage", "#7ec8b0", "Page invokes namespace"],
       ["lifecycle", "#55545a", "Lifecycle"],
       ["structure", "var(--line-strong)", "Structure"]
     ];
@@ -708,6 +873,7 @@
       if (!node) return;
       const searchable = [node.label, node.kind, node.sub_kind, node.owner_type, node.component, node.overlay_prose]
         .concat((node.methods || []).map((entry) => entry.method))
+        .concat(node.namespaces || [])
         .filter(Boolean).join(" ").toLowerCase();
       const queryMismatch = query && !searchable.includes(query);
       const selectionMismatch = selectedInterplayId && !connected.has(node.id);
@@ -736,6 +902,18 @@
     const summary = element("p", "", interplayInspectorSummary(node));
     container.append(summary);
 
+    const metrics = interplayInspectorMetrics(node);
+    if (metrics.length) {
+      const grid = element("div", "inspector-metrics");
+      metrics.forEach(([value, label]) => {
+        const cell = element("div", "inspector-metric");
+        cell.append(element("strong", "", String(value)));
+        cell.append(element("span", "", label));
+        grid.append(cell);
+      });
+      container.append(grid);
+    }
+
     if (node.overlay_prose) {
       const proseSection = element("section", "inspector-section");
       proseSection.append(element("h4", "", "Curated overlay"));
@@ -760,6 +938,39 @@
         });
       methodsSection.append(list);
       container.append(methodsSection);
+    }
+
+    // Endpoints now record who queries them — the caller perspective the rollup
+    // otherwise collapses. Each caller deep-links to its own declaration.
+    if (node.kind === "endpoint") {
+      const callers = interplay.edges
+        .filter((edge) => edge.target === node.id && edge.relation === "invokes")
+        .map((edge) => interplayNodeById.get(edge.source))
+        .filter(Boolean)
+        .sort((left, right) => left.label.localeCompare(right.label));
+      if (callers.length) {
+        const section = element("section", "inspector-section");
+        section.append(element("h4", "", `Called by (${callers.length})`));
+        const list = element("ul", "evidence-list");
+        callers.forEach((caller) => {
+          const li = document.createElement("li");
+          const link = sourceLink({ path: caller.path, line: caller.line || 1 });
+          link.textContent = `${caller.label}  ·  ${componentLabel(caller.component)}`;
+          li.append(link);
+          list.append(li);
+        });
+        section.append(list);
+        container.append(section);
+      }
+    }
+
+    if (node.kind === "caller" && Array.isArray(node.namespaces) && node.namespaces.length) {
+      const section = element("section", "inspector-section");
+      section.append(element("h4", "", `Invokes (${node.namespaces.length})`));
+      const chips = element("div", "chip-list");
+      node.namespaces.forEach((namespace) => chips.append(element("span", "chip", namespace)));
+      section.append(chips);
+      container.append(section);
     }
 
     const relations = interplay.edges.filter((edge) => edge.source === node.id || edge.target === node.id);
@@ -795,6 +1006,21 @@
     inspector.replaceChildren(container);
   }
 
+  // Compact headline numbers for the inspector metrics grid, per node kind.
+  function interplayInspectorMetrics(node) {
+    if (node.kind === "endpoint") {
+      const callers = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "invokes").length;
+      const noun = node.protocol === "jsonrpc" ? "Methods" : "Routes";
+      return [[node.method_count, noun], [callers, "Callers"], [node.protocol === "jsonrpc" ? "JSON-RPC" : "REST", "Protocol"]];
+    }
+    if (node.kind === "caller") {
+      return [[(node.namespaces || []).length, "Namespaces"], [componentLabel(node.component), "Surface"]];
+    }
+    if (node.sub_kind === "event_bus") return [[interplayBusSubscriberCount(node), "Subscribers"]];
+    if (node.kind === "owner") return [[(node.roles || []).length, "Roles"]];
+    return [];
+  }
+
   function interplayInspectorSummary(node) {
     if (node.kind === "seam") return "The protocol both network transports conform to—the seam a hub binds to reach either backend.";
     if (node.kind === "hub") return `A construction that wires a network transport and an on-device engine together, owned by ${componentLabel(node.component)}.`;
@@ -810,6 +1036,10 @@
     }
     if (node.kind === "subscriber") {
       return `${node.label} subscribes to the AgentBackend eventStream fan-out—the uncorrelated push leg, delivered independently of any request it made.`;
+    }
+    if (node.kind === "caller") {
+      const namespaces = node.namespaces || [];
+      return `A ${componentLabel(node.component)} surface that queries ${namespaces.length} namespace${namespaces.length === 1 ? "" : "s"}—${namespaces.join(", ")}—through the transport, resolved from its call sites. This is the caller perspective the transport's namespace rollup otherwise collapses.`;
     }
     if (node.sub_kind === "event_bus") {
       return `The Combine subject the backend seam publishes events onto—the uncorrelated push leg, fanned out to ${interplayBusSubscriberCount(node)} subscribers.`;
@@ -1105,9 +1335,19 @@
           empty.append(element("p", "", "Inspect a connection pool, an on-device engine, the AgentBackend seam, or the hub that wires them—with its curated prose and exact source line."));
           inspector.replaceChildren(empty);
         }
+        fitInterplayView(); // reset the pan/zoom window back to the whole graph too
         applyInterplayState();
       });
     }
+    const interplayFullscreen = document.getElementById("interplay-fullscreen");
+    if (interplayFullscreen) interplayFullscreen.addEventListener("click", toggleInterplayFullscreen);
+    // Re-fit when entering/leaving fullscreen so the graph fills the new frame.
+    document.addEventListener("fullscreenchange", () => {
+      const workspace = document.getElementById("interplay-workspace");
+      if (!workspace) return;
+      workspace.classList.toggle("is-fullscreen", document.fullscreenElement === workspace);
+      requestAnimationFrame(fitInterplayView);
+    });
   }
 
   function element(tag, className = "", text = "") {

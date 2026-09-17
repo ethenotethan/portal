@@ -1247,6 +1247,10 @@ def build_interplay_graph(
     # by namespace, keeping individual methods as attributes with source lines so
     # 40+ JSON-RPC methods stay legible as ~a dozen deep-linkable namespace nodes.
     endpoint_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    # A typed wrapper method (e.g. GatewayClient.promptBreakdown) is one whose body
+    # issues call("ns.method"); mapping its name to the namespaces it reaches lets
+    # us resolve a consumer's `client.promptBreakdown(...)` back to `session` below.
+    wrapper_method_ns: dict[str, set[str]] = {}
     for source in sorted(files, key=lambda item: item["path"]):
         text = source["_text"]
         # The method/path names live inside string literals, which the stripped
@@ -1262,7 +1266,7 @@ def build_interplay_graph(
                     continue
                 if protocol == "rest" and not code[max(0, match.start() - 1):match.start()].strip():
                     continue
-                owner_type, _ = enclosing_context(code, match.start())
+                owner_type, enclosing_fn = enclosing_context(code, match.start())
                 if owner_type not in transport_owner_by_type:
                     continue
                 component = transport_owner_by_type[owner_type]
@@ -1271,6 +1275,8 @@ def build_interplay_graph(
                 else:
                     namespace = rest_namespace(match.group(2))
                     method = f"{match.group(1)} {match.group(2)}"
+                if enclosing_fn:
+                    wrapper_method_ns.setdefault(enclosing_fn, set()).add(namespace)
                 line = code.count("\n", 0, match.start()) + 1
                 key = (component, owner_type, protocol, namespace)
                 group = endpoint_groups.setdefault(key, {"methods": {}, "path": source["path"], "line": line})
@@ -1294,6 +1300,82 @@ def build_interplay_graph(
         for pool in resources:
             if pool["kind"] == "rpc_pool" and pool["owner_type"] == owner_type and pool["component"] == component:
                 edges.add((ep_id, resource_node_by_id[pool["id"]], "lifecycle", "correlates"))
+
+    # Caller attribution: which product surface actually invokes each namespace.
+    # Two hops, both receiver-qualified so a same-named method on an unrelated
+    # object (a view model's own submitPrompt, a formatter's sessionTitle) never
+    # masquerades as a gateway call: (a) a consumer that calls a typed wrapper
+    # method through a client/seam-typed reference resolves to that wrapper's
+    # namespaces; (b) a consumer that calls .call("ns.method") directly through
+    # such a reference resolves to `ns`. Each caller becomes a node with an
+    # `invokes` edge to every namespace endpoint it reaches, so the transport's
+    # namespace fan finally records who queries it — not just that it is queried.
+    endpoint_ids_by_namespace: dict[str, list[str]] = {}
+    for node in nodes.values():
+        if node["kind"] == "endpoint":
+            endpoint_ids_by_namespace.setdefault(node["label"], []).append(node["id"])
+
+    client_ref_pattern = "|".join(re.escape(name) for name in sorted(transport_owner_types | {SEAM_PROTOCOL}))
+    client_var_re = re.compile(
+        r"\b([a-z_][A-Za-z0-9_]*)\s*:\s*(?:any\s+|some\s+)?(?:" + client_ref_pattern + r")\b"
+    )
+    member_call_re = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*[?!]?\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+    receiver_before_re = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*[?!]?\s*\.\s*$")
+
+    caller_namespaces: dict[str, dict[str, Any]] = {}
+
+    def record_caller(caller_type: str | None, source: dict[str, Any], namespace: str, offset: int) -> None:
+        if not caller_type or caller_type in transport_owner_types:
+            return
+        entry = caller_namespaces.setdefault(
+            caller_type,
+            {
+                "component": source["component"],
+                "namespaces": set(),
+                "path": source["path"],
+                "line": strip_swift_noncode(source["_text"]).count("\n", 0, offset) + 1,
+            },
+        )
+        entry["namespaces"].add(namespace)
+
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = strip_swift_noncode(source["_text"])
+        client_vars = {match.group(1) for match in client_var_re.finditer(code)}
+        if not client_vars:
+            continue
+        # (a) typed wrapper invocations, receiver must be a client-typed variable.
+        for match in member_call_re.finditer(code):
+            receiver, method = match.group(1), match.group(2)
+            if receiver not in client_vars or method not in wrapper_method_ns:
+                continue
+            caller_type, _ = enclosing_context(code, match.start())
+            for namespace in wrapper_method_ns[method]:
+                record_caller(caller_type, source, namespace, match.start())
+        # (b) direct call("ns.method") through a client-typed receiver.
+        for match in RPC_METHOD_RE.finditer(source["_text"]):
+            if code[match.start():match.start() + 4] != "call":
+                continue
+            preceding = receiver_before_re.search(code[max(0, match.start() - 48):match.start()])
+            if preceding is None or preceding.group(1) not in client_vars:
+                continue
+            caller_type, _ = enclosing_context(code, match.start())
+            record_caller(caller_type, source, match.group(1).split(".")[0], match.start())
+
+    for caller_type, info in sorted(caller_namespaces.items()):
+        namespaces = sorted(ns for ns in info["namespaces"] if ns in endpoint_ids_by_namespace)
+        if not namespaces:
+            continue
+        decl = decl_index.get(caller_type)
+        caller_id = f"caller:{info['component'] or 'unassigned'}:{caller_type}"
+        nodes[caller_id] = {
+            "id": caller_id, "kind": "caller", "sub_kind": "page",
+            "label": caller_type, "component": info["component"], "namespaces": namespaces,
+            "path": decl["path"] if decl else info["path"],
+            "line": decl["line"] if decl else info["line"],
+        }
+        for namespace in namespaces:
+            for ep_id in endpoint_ids_by_namespace[namespace]:
+                edges.add((caller_id, ep_id, "usage", "invokes"))
 
     # SSE replay cursor: the REST/SSE transport's "where was I" construction — the
     # push-leg analog of the pool+socket, feeding replayed events back to the bus.
@@ -1332,6 +1414,8 @@ def build_interplay_graph(
             # The many namespace endpoints get their own per-transport column so a
             # transport's structural resources stay legible beside them.
             component, grouping = node["component"], f"{node['owner_type']} · endpoints"
+        elif node["kind"] == "caller":
+            component, grouping = node["component"], "callers"
         else:
             component, grouping = node["component"], node.get("owner_type") or node["label"]
         digest = hashlib.sha256(
