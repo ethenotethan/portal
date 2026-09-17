@@ -32,6 +32,7 @@
 
   <nav class="section-nav" aria-label="Architecture views">
     <button class="nav-item active" data-view="graph" type="button">System map</button>
+    <button class="nav-item" data-view="interplay" type="button">Interplay</button>
     <button class="nav-item" data-view="execution" type="button">Execution &amp; tasks</button>
     <button class="nav-item" data-view="connections" type="button">Connections &amp; streams</button>
     <button class="nav-item" data-view="scenarios" type="button">Scenarios</button>
@@ -78,6 +79,37 @@
         </aside>
       </div>
       <div class="legend" id="legend" aria-label="Architecture layers"></div>
+    </section>
+
+    <section class="view" id="interplay-view" aria-labelledby="interplay-title">
+      <div class="intro-row">
+        <div>
+          <p class="eyebrow">DETERMINISTIC INTERPLAY GRAPH</p>
+          <h2 id="interplay-title">Connection pools &amp; on-device models</h2>
+          <p class="lede">A verbose, source-extracted graph of the connection-pool resources, the queried RPC and REST endpoints, the on-device language and speech engines, and the event bus, seam, and hub constructions that fan a transport's push events out to their subscribers and make a network transport and an on-device model interplay. Every node deep-links to its source; the load-bearing pools and engines are gated by a curated overlay.</p>
+        </div>
+      </div>
+      <div class="authority-banner" role="note">Extracted by static source rules and checked against <code>architecture/interplay/overlay.json</code>. Edges are ownership, lifecycle, and cross-domain wiring—not runtime topology or live connection counts.</div>
+      <div class="graph-toolbar" aria-label="Interplay controls">
+        <label class="search-control">
+          <span class="sr-only">Search interplay nodes</span>
+          <input id="interplay-search" type="search" placeholder="Search owners, endpoints, resources, or engines…" autocomplete="off">
+        </label>
+        <button id="reset-interplay" class="quiet-button" type="button">Reset selection</button>
+      </div>
+      <div class="graph-workspace">
+        <div class="graph-scroll" id="interplay-scroll">
+          <svg id="interplay-graph" role="img" aria-label="Portal connection-pool and on-device-model interplay graph"></svg>
+        </div>
+        <aside class="inspector" id="interplay-inspector" aria-live="polite">
+          <div class="inspector-empty">
+            <span class="inspector-index">◇</span>
+            <h3>Select a node</h3>
+            <p>Inspect a connection pool, a queried RPC or REST endpoint, an on-device engine, the event bus and its subscribers, the AgentBackend seam, or the hub that wires them—with its curated prose and exact source line.</p>
+          </div>
+        </aside>
+      </div>
+      <div class="legend" id="interplay-legend" aria-label="Interplay node roles"></div>
     </section>
 
     <section class="view" id="execution-view" aria-labelledby="execution-title">

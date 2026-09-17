@@ -19,9 +19,10 @@ CONFIG_PATH = ROOT / "architecture/config.json"
 MODEL_PATH = ROOT / "architecture/model/model.json"
 SITE_DATA_PATH = ROOT / "architecture/site/data.js"
 SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
+INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
 
 DECLARATION_RE = re.compile(
-    r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
+    r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
     r"(?:class|struct|enum|protocol|actor)\s+([A-Z][A-Za-z0-9_]*)\b"
 )
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]{3,}\b")
@@ -41,6 +42,13 @@ BEHAVIOR_RULES = {
     "swift.resource.continuation.stored": "Stored property declared as an AsyncStream continuation",
     "swift.resource.lock.stored": "Stored property declared or initialized as NSLock or OSAllocatedUnfairLock",
     "swift.resource.timer.stored": "Stored property declared as Timer",
+    "swift.resource.rpc_pool.stored": "Stored property declared as a dictionary of CheckedContinuation (an in-flight request pool)",
+    "swift.resource.on_device_model.stored": "Stored property declared as an MLX ModelContainer (an on-device language model)",
+    "swift.resource.speech_synth.instantiated": "AVSpeechSynthesizer instantiated in a source owner (an on-device speech engine)",
+    "swift.lifecycle.model_load": "loadContainer(...) invoked on an MLX model factory to load an on-device model",
+    "swift.lifecycle.model_infer": "A ChatSession built over an on-device model container to run inference",
+    "swift.lifecycle.pool_register": "A pending continuation registered into a CheckedContinuation pool before a request is sent",
+    "swift.lifecycle.pool_resolve": "resume(...) invoked to settle a pending continuation from a CheckedContinuation pool",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -62,6 +70,51 @@ STATIC_SOURCE_LIMITATIONS = [
     "Static source evidence does not prove runtime overlap, scheduling order, OS thread use, or live resource counts.",
     "Regex and lexical rules identify mechanically visible declarations and operations; dynamic aliases and interprocedural flows remain unresolved.",
 ]
+
+# Interplay graph taxonomy: which extracted resource/operation kinds feed the
+# verbose connection-pool ⋈ on-device-LLM graph, and the seam protocol both
+# network transports conform to.
+INTERPLAY_TRANSPORT_KINDS = {"websocket", "url_session", "rpc_pool"}
+INTERPLAY_ENGINE_KINDS = {"on_device_model", "speech_synth"}
+INTERPLAY_SUPPORT_KINDS = {"lock"}
+INTERPLAY_RESOURCE_KINDS = (
+    INTERPLAY_TRANSPORT_KINDS | INTERPLAY_ENGINE_KINDS | INTERPLAY_SUPPORT_KINDS
+)
+INTERPLAY_OP_KINDS = {"model_load", "model_infer", "pool_register", "pool_resolve"}
+SEAM_PROTOCOL = "AgentBackend"
+# The load-bearing resources the curated overlay must explain: the connection
+# pool and every on-device engine. Adding one of these to Swift source without a
+# matching overlay entry (or leaving an entry whose resource was removed) fails
+# the build — the bidirectional generation gate.
+GATED_INTERPLAY_KINDS = {"rpc_pool", "on_device_model", "speech_synth"}
+# The transport⋈app event bus (a Combine subject declared on the seam) and the
+# request-leg constructions — JSON-RPC method endpoints and the SSE replay
+# cursor. These are drawn and deep-linked but NOT gated: the curated overlay
+# stays focused on the load-bearing pools/engines above, per design.
+INTERPLAY_BUS_RESOURCE_KIND = "combine_subject"
+# A JSON-RPC method invocation: `call("session.create", …)` / `callWithRetry("…")`.
+RPC_METHOD_RE = re.compile(r"\bcall(?:WithRetry)?\s*\(\s*\"([a-z][A-Za-z0-9_.]*)\"")
+# A REST query: an HTTP verb literal paired with the first path string literal in
+# the same call — covers both `("GET", "api/workflows/runs?…")` and
+# `("POST", sessionPath(threadKey, "/messages"))`.
+HTTP_METHOD_RE = re.compile(
+    r"\"(GET|POST|PUT|DELETE|PATCH)\"\s*,\s*[^\n]*?\"([^\"\n]+)\""
+)
+
+
+def rest_namespace(path: str) -> str:
+    """Coarse namespace for a REST path literal: the first meaningful segment.
+
+    `api/workflows/runs?limit=…` → `workflows`, `/messages` → `messages`. Kept
+    deterministic and purely lexical so the endpoint rollup is byte-stable.
+    """
+    cleaned = path.strip("/").split("?")[0]
+    segments = [seg for seg in cleaned.split("/") if seg and "\\(" not in seg]
+    if not segments:
+        return "session"
+    if segments[0] == "api" and len(segments) > 1:
+        return segments[1]
+    return segments[0]
 
 
 class ArchitectureError(RuntimeError):
@@ -210,6 +263,25 @@ def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:
     return enclosing_type, enclosing_function
 
 
+def enclosing_function_range(code: str, offset: int) -> tuple[int, int] | None:
+    """Return the byte range of the innermost `func` body enclosing offset."""
+    declaration_re = re.compile(r"\bfunc\s+[A-Za-z_][A-Za-z0-9_]*[^\n{]*\{")
+    best: tuple[int, int] | None = None
+    for match in declaration_re.finditer(code, 0, offset + 1):
+        depth = 1
+        cursor = match.end()
+        while cursor < len(code) and depth:
+            if code[cursor] == "{":
+                depth += 1
+            elif code[cursor] == "}":
+                depth -= 1
+            cursor += 1
+        end = cursor if depth == 0 else len(code)
+        if match.start() <= offset < end and (best is None or match.start() > best[0]):
+            best = (match.start(), end)
+    return best
+
+
 def extract_behavioral_source(path: str, text: str, component: str | None) -> dict[str, list[dict[str, Any]]]:
     code = strip_swift_noncode(text)
     domains: list[dict[str, Any]] = []
@@ -224,7 +296,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
         ))
     main_actor_names = {item["label"] for item in domains}
     actor_re = re.compile(
-        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
+        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
         r"actor\s+([A-Z][A-Za-z0-9_]*)\b"
     )
     for match in actor_re.finditer(code):
@@ -234,7 +306,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
                 "swift.execution.actor", path, text, match.start()
             ))
     queue_re = re.compile(
-        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
         r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*DispatchQueue\s*\(\s*label\s*:"
     )
     source_lines = text.splitlines()
@@ -254,7 +326,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
     task_sites: list[dict[str, Any]] = []
     task_patterns = [
         ("stored_task_handle", "swift.task.stored_handle", re.compile(
-            r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
             r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Task\s*<"
         )),
         ("task_detached", "swift.task.detached", re.compile(r"\bTask\s*\.\s*detached\s*(?:\([^)]*\)\s*)?\{")),
@@ -289,7 +361,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
     ]
     for resource_kind, type_name, rule_id in stored_resource_specs:
         resource_re = re.compile(
-            rf"(?m)^\s*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
+            rf"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|weak|unowned)\s+)*"
             rf"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*{type_name}\s*(\?)?(?![A-Za-z0-9_])"
         )
         for match in resource_re.finditer(code):
@@ -309,7 +381,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "continuation",
             "swift.resource.continuation.stored",
             re.compile(
-                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
                 r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*"
                 r"Async(?:Throwing)?Stream\s*<[^\n>]+>\s*\.\s*Continuation\s*(\?)?"
             ),
@@ -318,7 +390,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "lock",
             "swift.resource.lock.stored",
             re.compile(
-                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
                 r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
                 r"(?::\s*(?:NSLock|OSAllocatedUnfairLock)(?:\s*<[^\n>]+>)?\s*)?"
                 r"=\s*(?:NSLock|OSAllocatedUnfairLock)\s*(?:<[^\n>]+>)?\s*\("
@@ -328,8 +400,25 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "timer",
             "swift.resource.timer.stored",
             re.compile(
-                r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
                 r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*Timer\s*(\?)?"
+            ),
+        ),
+        (
+            "rpc_pool",
+            "swift.resource.rpc_pool.stored",
+            re.compile(
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*"
+                r"\[[^\]\n]*:\s*CheckedContinuation\s*<[^\n]*"
+            ),
+        ),
+        (
+            "on_device_model",
+            "swift.resource.on_device_model.stored",
+            re.compile(
+                r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+                r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ModelContainer\s*(\?)?(?![A-Za-z0-9_])"
             ),
         ),
     ]
@@ -348,7 +437,7 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             ))
 
     combine_re = re.compile(
-        r"(?m)^\s*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
         r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*"
         r"(?:PassthroughSubject|CurrentValueSubject)\s*<"
     )
@@ -359,6 +448,15 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "swift.resource.combine_subject.stored", path, text, match.start(),
             owner_type=owner_type,
             cardinality="one stored field per owner instance" if owner_type else "unresolved",
+        ))
+
+    for match in re.finditer(r"\bAVSpeechSynthesizer\s*\(", code):
+        owner_type, _ = enclosing_context(code, match.start())
+        resources.append(observed_item(
+            "resource", "speech_synth", "AVSpeechSynthesizer", component,
+            "swift.resource.speech_synth.instantiated", path, text, match.start(),
+            owner_type=owner_type,
+            cardinality="one on-device synthesizer per owner instance" if owner_type else "unresolved",
         ))
 
     bytes_matches = list(re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*bytes\s*\(\s*for\s*:", code))
@@ -494,6 +592,74 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
                 resource_label=resource["label"], owner_type=owner_type,
                 enclosing_function=enclosing_function,
             ))
+    # On-device model lifecycle: model load + inference, each flagged when it
+    # runs inside a Task.detached closure (the MLX engines are @MainActor but
+    # must move the heavy Metal work off the actor). The detached ranges are the
+    # balanced-brace bodies of every Task.detached in the file.
+    detached_closure_ranges: list[tuple[int, int]] = []
+    for match in re.finditer(r"\bTask\s*\.\s*detached\s*(?:\([^)]*\)\s*)?\{", code):
+        depth = 1
+        cursor = match.end()
+        while cursor < len(code) and depth:
+            if code[cursor] == "{":
+                depth += 1
+            elif code[cursor] == "}":
+                depth -= 1
+            cursor += 1
+        detached_closure_ranges.append((match.end(), cursor))
+
+    def runs_detached(offset: int) -> bool:
+        return any(start <= offset < end for start, end in detached_closure_ranges)
+
+    model_resources = [item for item in resources if item["kind"] == "on_device_model"]
+    if model_resources:
+        model_resource = model_resources[0]
+        model_operation_specs = [
+            ("model_load", "swift.lifecycle.model_load",
+             re.compile(r"\bLLMModelFactory[A-Za-z0-9_.]*\.\s*loadContainer\s*\("),
+             "LLMModelFactory.loadContainer"),
+            ("model_infer", "swift.lifecycle.model_infer",
+             re.compile(r"\bChatSession\s*\("), "ChatSession.respond"),
+        ]
+        for kind, rule_id, pattern, label in model_operation_specs:
+            for match in pattern.finditer(code):
+                owner_type, enclosing_function = enclosing_context(code, match.start())
+                operations.append(observed_item(
+                    "lifecycle-operation", kind, label, component,
+                    rule_id, path, text, match.start(),
+                    resource_id=model_resource["id"], resource_label=model_resource["label"],
+                    owner_type=owner_type, enclosing_function=enclosing_function,
+                    detached_off_main=runs_detached(match.start()),
+                ))
+
+    for resource in (item for item in resources if item["kind"] == "rpc_pool"):
+        register_re = re.compile(rf"\b{re.escape(resource['label'])}\s*\[[^\]\n]+\]\s*=(?!=)")
+        for match in register_re.finditer(code):
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "pool_register", f"{resource['label']}[…] =", component,
+                "swift.lifecycle.pool_register", path, text, match.start(),
+                resource_id=resource["id"], resource_label=resource["label"],
+                owner_type=owner_type, enclosing_function=enclosing_function,
+            ))
+        # A `.resume(` is a pool resolve only when it settles a continuation
+        # drawn from this pool — approximated deterministically as a resume whose
+        # innermost enclosing function also references the pool field. This
+        # excludes the unrelated AsyncStream/ping continuation resumes elsewhere
+        # in the same file.
+        pool_label_re = re.compile(rf"\b{re.escape(resource['label'])}\b")
+        for match in re.finditer(r"\.\s*resume\s*\(", code):
+            func_range = enclosing_function_range(code, match.start())
+            if not func_range or not pool_label_re.search(code, func_range[0], func_range[1]):
+                continue
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "pool_resolve", "resume", component,
+                "swift.lifecycle.pool_resolve", path, text, match.start(),
+                resource_id=resource["id"], resource_label=resource["label"],
+                owner_type=owner_type, enclosing_function=enclosing_function,
+            ))
+
     resources.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
     operations.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
     return {"execution_domains": domains, "task_sites": task_sites,
@@ -782,6 +948,486 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
     return {**collections, "pockets": pockets, "scenarios": scenarios}
 
 
+def build_interplay_graph(
+    files: list[dict[str, Any]], behavior: dict[str, Any]
+) -> dict[str, Any]:
+    """Deterministic connection-pool ⋈ on-device-LLM graph over extracted behavior.
+
+    Nodes are owner types, the transport/engine resources they own, the lifecycle
+    operations that drive those resources, the AgentBackend seam, and the hub type
+    that wires a network transport to an on-device engine. Edges are `structure`
+    (owns), `lifecycle` (operates / acts-on), and `interplay` (the cross-domain
+    wiring). Everything is derived from source-backed evidence and sorted, so the
+    graph is byte-stable for the invariants layered on top.
+    """
+    resources = [
+        item
+        for item in behavior["resources"]
+        if item.get("owner_type") and item["kind"] in INTERPLAY_RESOURCE_KINDS
+    ]
+    operations = [
+        item for item in behavior["operations"] if item["kind"] in INTERPLAY_OP_KINDS
+    ]
+
+    # Type-declaration index (name -> earliest source site) for deep-linking the
+    # owner/seam/hub nodes to the type that declares them, and a file-by-type map
+    # for reference-based interplay detection. Both anchor on the earliest source
+    # site rather than first-seen so the result is order-independent.
+    decl_index: dict[str, dict[str, Any]] = {}
+    file_by_type: dict[str, dict[str, Any]] = {}
+    for source in files:
+        code = strip_swift_noncode(source["_text"])
+        for match in DECLARATION_RE.finditer(code):
+            name = match.group(1)
+            line = code.count("\n", 0, match.start()) + 1
+            entry = {"path": source["path"], "line": line, "component": source["component"]}
+            current = decl_index.get(name)
+            if current is None or (entry["path"], entry["line"]) < (current["path"], current["line"]):
+                decl_index[name] = entry
+        for name in source["declarations"]:
+            existing = file_by_type.get(name)
+            if existing is None or source["path"] < existing["path"]:
+                file_by_type[name] = source
+
+    candidate_transport_owners = {
+        (item["component"], item["owner_type"])
+        for item in resources
+        if item["kind"] in INTERPLAY_TRANSPORT_KINDS
+    }
+    engine_owners = {
+        (item["component"], item["owner_type"])
+        for item in resources
+        if item["kind"] in INTERPLAY_ENGINE_KINDS
+    }
+    engine_owner_types = {owner_type for _, owner_type in engine_owners}
+
+    # A transport owner belongs to the interplay story only when it conforms to
+    # the AgentBackend seam — that is what distinguishes an agent connection-pool
+    # client (GatewayClient, CentaurClient, HermesStandardClient) from a one-shot
+    # URLSession content fetcher. Support resources (locks) are kept only when
+    # co-owned by an included transport/engine owner, so an unrelated cache lock
+    # never enters the graph.
+    transport_owners = {
+        (component, owner_type)
+        for component, owner_type in candidate_transport_owners
+        if (source := file_by_type.get(owner_type)) is not None
+        and SEAM_PROTOCOL in source["identifiers"]
+    }
+    transport_owner_types = {owner_type for _, owner_type in transport_owners}
+    included_owner_keys = transport_owners | engine_owners
+
+    def resource_included(item: dict[str, Any]) -> bool:
+        return (item["component"], item["owner_type"]) in included_owner_keys
+
+    resources = [item for item in resources if resource_included(item)]
+    operations = [
+        item
+        for item in operations
+        if (item["component"], item.get("owner_type")) in included_owner_keys
+    ]
+
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: set[tuple[str, str, str, str]] = set()
+
+    def owner_node_id(component: str | None, owner_type: str) -> str:
+        return f"owner:{component or 'unassigned'}:{owner_type}"
+
+    def add_owner(component: str | None, owner_type: str, role: str) -> str:
+        node_id = owner_node_id(component, owner_type)
+        node = nodes.get(node_id)
+        if node is None:
+            decl = decl_index.get(owner_type)
+            node = nodes[node_id] = {
+                "id": node_id,
+                "kind": "owner",
+                "label": owner_type,
+                "component": component,
+                "path": decl["path"] if decl else None,
+                "line": decl["line"] if decl else 0,
+                "roles": set(),
+            }
+        node["roles"].add(role)
+        return node_id
+
+    def role_for_kind(kind: str) -> str:
+        if kind in INTERPLAY_ENGINE_KINDS:
+            return "engine"
+        if kind in INTERPLAY_TRANSPORT_KINDS:
+            return "transport"
+        return "support"
+
+    resource_node_by_id: dict[str, str] = {}
+    for resource in resources:
+        add_owner(resource["component"], resource["owner_type"], role_for_kind(resource["kind"]))
+        node_id = f"resource:{resource['id']}"
+        nodes[node_id] = {
+            "id": node_id,
+            "kind": "resource",
+            "sub_kind": resource["kind"],
+            "label": resource["label"],
+            "component": resource["component"],
+            "owner_type": resource.get("owner_type"),
+            "path": resource["evidence"]["path"],
+            "line": resource["evidence"]["line"],
+        }
+        resource_node_by_id[resource["id"]] = node_id
+        edges.add((owner_node_id(resource["component"], resource["owner_type"]), node_id, "structure", "owns"))
+
+    for operation in operations:
+        node_id = f"operation:{operation['id']}"
+        nodes[node_id] = {
+            "id": node_id,
+            "kind": "operation",
+            "sub_kind": operation["kind"],
+            "label": operation["label"],
+            "component": operation["component"],
+            "owner_type": operation.get("owner_type"),
+            "resource_id": operation.get("resource_id"),
+            "detached_off_main": operation.get("detached_off_main", False),
+            "path": operation["evidence"]["path"],
+            "line": operation["evidence"]["line"],
+        }
+        owner_type = operation.get("owner_type")
+        if owner_type:
+            role = "engine" if operation["kind"] in {"model_load", "model_infer"} else "transport"
+            add_owner(operation["component"], owner_type, role)
+            edges.add((owner_node_id(operation["component"], owner_type), node_id, "lifecycle", "operates"))
+        target_resource = resource_node_by_id.get(operation.get("resource_id"))
+        if target_resource:
+            edges.add((node_id, target_resource, "lifecycle", operation["kind"]))
+
+    seam_node_id: str | None = None
+    seam_decl = decl_index.get(SEAM_PROTOCOL)
+    if seam_decl is not None:
+        seam_node_id = f"seam:{SEAM_PROTOCOL}"
+        nodes[seam_node_id] = {
+            "id": seam_node_id,
+            "kind": "seam",
+            "label": SEAM_PROTOCOL,
+            "component": seam_decl["component"],
+            "path": seam_decl["path"],
+            "line": seam_decl["line"],
+        }
+        # A transport owner whose source references the seam protocol conforms to
+        # it — the structural half of the interplay (both transports are backends).
+        for component, owner_type in sorted(transport_owners):
+            source = file_by_type.get(owner_type)
+            if source and SEAM_PROTOCOL in source["identifiers"]:
+                edges.add((owner_node_id(component, owner_type), seam_node_id, "interplay", "conforms"))
+
+    # Hub detection: the construction that makes a network transport and an
+    # on-device engine interplay. A hub is the specific type whose own body
+    # references the AgentBackend seam AND an on-device engine owner, without
+    # itself being one of those owners. Resolving to the enclosing type (via
+    # balanced braces) rather than the file's first declaration keeps an unrelated
+    # top-level enum or protocol in the same file from being mislabelled the hub.
+    included_owner_types = transport_owner_types | engine_owner_types
+    hub_reference_types = {SEAM_PROTOCOL} | engine_owner_types
+    for source in sorted(files, key=lambda item: item["path"]):
+        identifiers = set(source["identifiers"])
+        if SEAM_PROTOCOL not in identifiers or not identifiers & engine_owner_types:
+            continue
+        code = strip_swift_noncode(source["_text"])
+        for match in DECLARATION_RE.finditer(code):
+            hub_type = match.group(1)
+            if hub_type in included_owner_types:
+                continue
+            brace_start = code.find("{", match.end())
+            if brace_start == -1:
+                continue
+            depth = 0
+            cursor = brace_start
+            while cursor < len(code):
+                if code[cursor] == "{":
+                    depth += 1
+                elif code[cursor] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        cursor += 1
+                        break
+                cursor += 1
+            body = code[match.start():cursor]
+            body_refs = {token for token in hub_reference_types if re.search(rf"\b{re.escape(token)}\b", body)}
+            if SEAM_PROTOCOL not in body_refs or not body_refs & engine_owner_types:
+                continue
+            hub_node_id = f"hub:{hub_type}"
+            nodes[hub_node_id] = {
+                "id": hub_node_id,
+                "kind": "hub",
+                "label": hub_type,
+                "component": source["component"],
+                "path": source["path"],
+                "line": code.count("\n", 0, match.start()) + 1,
+            }
+            if seam_node_id:
+                edges.add((hub_node_id, seam_node_id, "interplay", "binds"))
+            for component, owner_type in sorted(transport_owners):
+                if re.search(rf"\b{re.escape(owner_type)}\b", body):
+                    edges.add((hub_node_id, owner_node_id(component, owner_type), "interplay", "drives-transport"))
+            for component, owner_type in sorted(engine_owners):
+                if owner_type in body_refs:
+                    edges.add((hub_node_id, owner_node_id(component, owner_type), "interplay", "drives-engine"))
+
+    # ── Request leg + push leg (the full-duplex construction over one socket).
+    # The RPC `call(method:)` is the id-correlated request half, drawn as
+    # namespace-rollup endpoints routed through the pool; the seam's
+    # `eventStream` is the uncorrelated push half fanned out to subscribers. The
+    # SSE replay cursor is the REST/SSE analog of the pool. None of this is gated.
+    transport_owner_by_type = {owner_type: component for component, owner_type in transport_owners}
+    special_types = {node["label"] for node in nodes.values() if node["kind"] in {"owner", "seam", "hub"}}
+
+    # Event bus: anchored on the seam's `eventStream` member — the contract every
+    # transport provides — with providers, publish operations, and subscribers.
+    bus_node_id: str | None = None
+    seam_source = file_by_type.get(SEAM_PROTOCOL)
+    if seam_node_id is not None and seam_source is not None:
+        seam_code = strip_swift_noncode(seam_source["_text"])
+        bus_match = re.search(
+            r"\bvar\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*"
+            r"(?:PassthroughSubject|CurrentValueSubject)\s*<",
+            seam_code,
+        )
+        if bus_match is not None:
+            bus_field = bus_match.group(1)
+            bus_node_id = f"bus:{SEAM_PROTOCOL}.{bus_field}"
+            nodes[bus_node_id] = {
+                "id": bus_node_id,
+                "kind": "resource",
+                "sub_kind": "event_bus",
+                "label": bus_field,
+                "component": seam_source["component"],
+                "owner_type": SEAM_PROTOCOL,
+                "path": seam_source["path"],
+                "line": seam_code.count("\n", 0, bus_match.start()) + 1,
+            }
+            edges.add((seam_node_id, bus_node_id, "structure", "declares"))
+            for component, owner_type in sorted(transport_owners):
+                edges.add((owner_node_id(component, owner_type), bus_node_id, "structure", "provides"))
+            for op in behavior["operations"]:
+                if op["kind"] != "publish" or (op["component"], op.get("owner_type")) not in transport_owners:
+                    continue
+                pub_id = f"operation:{op['id']}"
+                nodes[pub_id] = {
+                    "id": pub_id, "kind": "operation", "sub_kind": "bus_publish",
+                    "label": op["label"], "component": op["component"],
+                    "owner_type": op.get("owner_type"),
+                    "detached_off_main": op.get("detached_off_main", False),
+                    "path": op["evidence"]["path"], "line": op["evidence"]["line"],
+                }
+                edges.add((owner_node_id(op["component"], op["owner_type"]), pub_id, "lifecycle", "operates"))
+                edges.add((pub_id, bus_node_id, "lifecycle", "publish"))
+            # Subscribers: every declared type whose body references `.eventStream`
+            # and is neither a transport that provides one nor an owner/seam/hub.
+            subscriber_types: dict[str, dict[str, Any]] = {}
+            for source in sorted(files, key=lambda item: item["path"]):
+                if ".eventStream" not in source["_text"]:
+                    continue
+                code = strip_swift_noncode(source["_text"])
+                for match in re.finditer(r"\.\s*eventStream\b", code):
+                    owner_type, _ = enclosing_context(code, match.start())
+                    if not owner_type or owner_type in transport_owner_by_type or owner_type in special_types:
+                        continue
+                    if owner_type not in subscriber_types:
+                        decl = decl_index.get(owner_type)
+                        subscriber_types[owner_type] = {
+                            "path": decl["path"] if decl else source["path"],
+                            "line": decl["line"] if decl else code.count("\n", 0, match.start()) + 1,
+                        }
+            for sub_type in sorted(subscriber_types):
+                info = subscriber_types[sub_type]
+                sub_id = f"subscriber:{sub_type}"
+                nodes[sub_id] = {
+                    "id": sub_id, "kind": "subscriber", "label": sub_type,
+                    "component": None, "owner_type": "Event subscribers",
+                    "path": info["path"], "line": info["line"],
+                }
+                edges.add((bus_node_id, sub_id, "interplay", "notifies"))
+
+    # RPC/HTTP endpoints (namespace rollup): group each transport's method calls
+    # by namespace, keeping individual methods as attributes with source lines so
+    # 40+ JSON-RPC methods stay legible as ~a dozen deep-linkable namespace nodes.
+    endpoint_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        text = source["_text"]
+        # The method/path names live inside string literals, which the stripped
+        # `code` blanks — so match on the original text, then use `code` (same
+        # offsets) to reject comment/string hits and resolve the enclosing type.
+        code = strip_swift_noncode(text)
+        for protocol, pattern in (("jsonrpc", RPC_METHOD_RE), ("rest", HTTP_METHOD_RE)):
+            for match in pattern.finditer(text):
+                # Reject comment/doc hits: real code keeps the `call` identifier
+                # (jsonrpc) or the delimiter before the verb literal (rest);
+                # strip_swift_noncode blanks both inside comments.
+                if protocol == "jsonrpc" and code[match.start():match.start() + 4] != "call":
+                    continue
+                if protocol == "rest" and not code[max(0, match.start() - 1):match.start()].strip():
+                    continue
+                owner_type, _ = enclosing_context(code, match.start())
+                if owner_type not in transport_owner_by_type:
+                    continue
+                component = transport_owner_by_type[owner_type]
+                if protocol == "jsonrpc":
+                    method, namespace = match.group(1), match.group(1).split(".")[0]
+                else:
+                    namespace = rest_namespace(match.group(2))
+                    method = f"{match.group(1)} {match.group(2)}"
+                line = code.count("\n", 0, match.start()) + 1
+                key = (component, owner_type, protocol, namespace)
+                group = endpoint_groups.setdefault(key, {"methods": {}, "path": source["path"], "line": line})
+                if method not in group["methods"] or line < group["methods"][method]:
+                    group["methods"][method] = line
+                if (source["path"], line) < (group["path"], group["line"]):
+                    group["path"], group["line"] = source["path"], line
+    for (component, owner_type, protocol, namespace), group in sorted(endpoint_groups.items()):
+        digest = hashlib.sha256("\0".join([owner_type, protocol, namespace]).encode("utf-8")).hexdigest()[:12]
+        ep_id = f"endpoint:{digest}"
+        add_owner(component, owner_type, "transport")
+        nodes[ep_id] = {
+            "id": ep_id, "kind": "endpoint",
+            "sub_kind": "rpc_namespace" if protocol == "jsonrpc" else "http_endpoint",
+            "label": namespace, "component": component, "owner_type": owner_type,
+            "protocol": protocol, "method_count": len(group["methods"]),
+            "methods": [{"method": method, "line": line} for method, line in sorted(group["methods"].items())],
+            "path": group["path"], "line": group["line"],
+        }
+        edges.add((owner_node_id(component, owner_type), ep_id, "structure", "calls"))
+        for pool in resources:
+            if pool["kind"] == "rpc_pool" and pool["owner_type"] == owner_type and pool["component"] == component:
+                edges.add((ep_id, resource_node_by_id[pool["id"]], "lifecycle", "correlates"))
+
+    # SSE replay cursor: the REST/SSE transport's "where was I" construction — the
+    # push-leg analog of the pool+socket, feeding replayed events back to the bus.
+    # Recognized as a stored per-stream event-id field on a transport owner.
+    cursor_re = re.compile(
+        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?:var|let)\s+((?i:lastEventID|eventCursor|afterEventID)[A-Za-z0-9_]*)\s*:",
+    )
+    for owner_type, component in sorted(transport_owner_by_type.items()):
+        source = file_by_type.get(owner_type)
+        if source is None:
+            continue
+        code = strip_swift_noncode(source["_text"])
+        match = cursor_re.search(code)
+        if match is None:
+            continue
+        enclosing, _ = enclosing_context(code, match.start())
+        if enclosing != owner_type:
+            continue
+        cur_id = f"cursor:{component}:{owner_type}"
+        nodes[cur_id] = {
+            "id": cur_id, "kind": "resource", "sub_kind": "stream_cursor",
+            "label": match.group(1), "component": component, "owner_type": owner_type,
+            "path": source["path"], "line": code.count("\n", 0, match.start()) + 1,
+        }
+        edges.add((owner_node_id(component, owner_type), cur_id, "structure", "owns"))
+        if bus_node_id is not None:
+            edges.add((cur_id, bus_node_id, "interplay", "replays-into"))
+
+    # Cluster every node by (component, owner/type) — the columns of the view.
+    clusters: dict[str, dict[str, Any]] = {}
+    for node in nodes.values():
+        if node["kind"] in {"owner", "seam", "hub"}:
+            component, grouping = node["component"], node["label"]
+        elif node["kind"] == "endpoint":
+            # The many namespace endpoints get their own per-transport column so a
+            # transport's structural resources stay legible beside them.
+            component, grouping = node["component"], f"{node['owner_type']} · endpoints"
+        else:
+            component, grouping = node["component"], node.get("owner_type") or node["label"]
+        digest = hashlib.sha256(
+            "\0".join([component or "unassigned", grouping or "unresolved"]).encode("utf-8")
+        ).hexdigest()[:12]
+        cluster_id = f"interplay-cluster-{digest}"
+        node["cluster"] = cluster_id
+        cluster = clusters.get(cluster_id)
+        if cluster is None:
+            cluster = clusters[cluster_id] = {
+                "id": cluster_id,
+                "component": component,
+                "owner_type": grouping,
+                "node_ids": [],
+            }
+        cluster["node_ids"].append(node["id"])
+
+    for node in nodes.values():
+        if node["kind"] == "owner":
+            node["roles"] = sorted(node["roles"])
+    for cluster in clusters.values():
+        cluster["node_ids"] = sorted(set(cluster["node_ids"]))
+
+    node_list = sorted(
+        nodes.values(),
+        key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]),
+    )
+    edge_list = [
+        {"source": source, "target": target, "class": edge_class, "relation": relation}
+        for source, target, edge_class, relation in sorted(edges)
+    ]
+    cluster_list = sorted(clusters.values(), key=lambda item: item["id"])
+    return {"nodes": node_list, "edges": edge_list, "clusters": cluster_list}
+
+
+def interplay_overlay_key(kind: str, owner_type: str | None, label: str) -> str:
+    return f"{kind}:{owner_type}:{label}"
+
+
+def validate_interplay(interplay: dict[str, Any], overlay: dict[str, Any]) -> None:
+    """Bidirectional gate between extracted resources and the curated overlay.
+
+    Fails the build when the source contains a load-bearing resource the overlay
+    does not explain (unexplained source), and when the overlay carries prose for
+    a resource the source no longer contains (stale prose). Each explanation must
+    cite existing source files. The matched prose is folded onto the graph nodes
+    so the renderer can surface it.
+    """
+    if overlay.get("schema_version") != "1.0.0" or not isinstance(overlay.get("entries"), list):
+        raise ArchitectureError("architecture/interplay/overlay.json has an unsupported schema")
+
+    gated_nodes: dict[str, dict[str, Any]] = {}
+    for node in interplay["nodes"]:
+        if node["kind"] == "resource" and node["sub_kind"] in GATED_INTERPLAY_KINDS:
+            key = interplay_overlay_key(node["sub_kind"], node.get("owner_type"), node["label"])
+            gated_nodes[key] = node
+
+    entries: dict[str, dict[str, Any]] = {}
+    for raw in overlay["entries"]:
+        if not isinstance(raw, dict):
+            raise ArchitectureError("interplay overlay entries must be objects")
+        kind, owner_type, label = raw.get("kind"), raw.get("owner_type"), raw.get("label")
+        if kind not in GATED_INTERPLAY_KINDS or not owner_type or not label:
+            raise ArchitectureError(f"interplay overlay entry has an invalid kind/owner_type/label: {raw.get('id')!r}")
+        expected_id = interplay_overlay_key(kind, owner_type, label)
+        if raw.get("id") != expected_id:
+            raise ArchitectureError(f"interplay overlay entry id {raw.get('id')!r} must equal {expected_id!r}")
+        if not isinstance(raw.get("prose"), str) or not raw["prose"].strip():
+            raise ArchitectureError(f"interplay overlay entry {expected_id} needs prose")
+        if expected_id in entries:
+            raise ArchitectureError(f"duplicate interplay overlay entry: {expected_id}")
+        paths = [source.rsplit(":", 1)[0] if ":" in source else source
+                 for source in raw.get("sources", [])]
+        validate_evidence(paths, f"interplay overlay entry {expected_id}")
+        entries[expected_id] = raw
+
+    unexplained = sorted(key for key in gated_nodes if key not in entries)
+    if unexplained:
+        details = "; ".join(f"{key} at {gated_nodes[key]['path']}:{gated_nodes[key]['line']}" for key in unexplained)
+        raise ArchitectureError(
+            "interplay overlay does not explain extracted resource(s): "
+            + details
+            + "; add matching entries to architecture/interplay/overlay.json"
+        )
+    stale = sorted(key for key in entries if key not in gated_nodes)
+    if stale:
+        raise ArchitectureError(
+            "interplay overlay has stale entr(ies) with no matching source: "
+            + ", ".join(stale)
+            + "; remove them from architecture/interplay/overlay.json"
+        )
+
+    for key, node in gated_nodes.items():
+        node["overlay_prose"] = entries[key]["prose"]
+
+
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
@@ -831,6 +1477,8 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
 
     reference_edges = build_reference_edges(files)
     behavior = build_behavior_model(files)
+    interplay = build_interplay_graph(files, behavior)
+    validate_interplay(interplay, load_json(INTERPLAY_OVERLAY_PATH))
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -844,6 +1492,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
             "limitations": STATIC_SOURCE_LIMITATIONS,
         },
         "behavior": behavior,
+        "interplay": interplay,
         "layers": sorted(config["layers"], key=lambda item: item["order"]),
         "components": components,
         "edges": specified_edges + reference_edges,
