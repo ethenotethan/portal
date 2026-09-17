@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // MARK: - CodeGraph → WikiGraph adapter
 
@@ -93,5 +94,48 @@ internal final class CodeGraphSource: WikiSource, ObservableObject {
         }
         let file = try await client.readFile(root: coords.root, path: coords.rel)
         return WikiPageContent(frontmatter: [:], body: file.content, path: path)
+    }
+}
+
+// MARK: - Dedicated code graph surface
+
+/// Loading state for the code-graph sheet. The graph renderer can share the
+/// force-layout model with the wiki, but the product surface must not inherit
+/// wiki chrome, copy, empty states, or navigation.
+@MainActor
+internal final class CodeGraphSurfaceModel: ObservableObject {
+    internal enum Phase: Equatable {
+        case idle
+        case loading
+        case loaded
+        case empty
+        case failed
+    }
+
+    @Published internal private(set) var phase: Phase = .idle
+    @Published internal private(set) var codeGraph: CodeGraph?
+    @Published internal private(set) var renderGraph: WikiGraph = .empty
+    @Published internal private(set) var errorMessage: String?
+
+    private let fetch: @MainActor () async throws -> CodeGraph
+
+    internal init(fetch: @escaping @MainActor () async throws -> CodeGraph) {
+        self.fetch = fetch
+    }
+
+    internal func load() async {
+        phase = .loading
+        errorMessage = nil
+        do {
+            let graph = try await fetch()
+            codeGraph = graph
+            renderGraph = CodeGraphSource.mapToWikiGraph(graph).graph
+            phase = graph.isEmpty ? .empty : .loaded
+        } catch {
+            codeGraph = nil
+            renderGraph = .empty
+            errorMessage = error.localizedDescription
+            phase = .failed
+        }
     }
 }
