@@ -25,14 +25,24 @@ internal struct WikiGraphView: View {
     /// the same graph/reader/sidebar UI renders the Darkbloom KB.
     internal var overrideSource: (any WikiSource)?
 
+    /// Set when this graph is hosted by the **Graphs** section, which swaps the
+    /// "Wiki" title for a dropdown onto its sibling runtime graph. nil keeps the
+    /// plain title, so the view still stands alone.
+    internal var surfaceSelection: Binding<GraphSurface>?
+
     @ObservedObject internal var viewModel: WikiGraphViewModel
     @EnvironmentObject internal var gatewayClientWrapper: GatewayClientWrapper
     @EnvironmentObject private var capabilitiesStore: GatewayCapabilitiesStore
 
     @MainActor
-    internal init(viewModel: WikiGraphViewModel? = nil, overrideSource: (any WikiSource)? = nil) {
+    internal init(
+        viewModel: WikiGraphViewModel? = nil,
+        overrideSource: (any WikiSource)? = nil,
+        surfaceSelection: Binding<GraphSurface>? = nil
+    ) {
         self.viewModel = viewModel ?? WikiGraphViewModel()
         self.overrideSource = overrideSource
+        self.surfaceSelection = surfaceSelection
     }
 
     /// Hermes-only chrome (wiki picker, taxonomy from wiki.list) hides when
@@ -452,9 +462,13 @@ internal struct WikiGraphView: View {
     private var infoOverlay: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Text("Wiki")
-                    .font(.headline)
-                    .foregroundStyle(Theme.primary)
+                if let surfaceSelection {
+                    GraphSurfaceMenu(selection: surfaceSelection)
+                } else {
+                    Text("Wiki")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
 
                 if !isOverride { wikiPickerMenu }
             }

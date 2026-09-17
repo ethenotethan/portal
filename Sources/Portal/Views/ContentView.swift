@@ -44,7 +44,7 @@ internal struct ContentView: View {
     @State private var showLiveSessions = false
     @State private var showCronDashboard = false
     @State private var showSkills = false
-    @State private var showWikiGraph = false
+    @State private var showGraphs = false
     @State private var showFeedSheet = false
     @State private var showLearning = false
     /// Course to jump straight into when Learning opens — set when the agent
@@ -320,10 +320,10 @@ internal struct ContentView: View {
             }
             .tag(1)
 
-            WikiGraphView(viewModel: wikiViewModel)
+            GraphsView(wikiViewModel: wikiViewModel)
                 .environmentObject(gatewayClientWrapper)
                 .tabItem {
-                    Label("Wiki", systemImage: "network")
+                    Label("Graphs", systemImage: "network")
                 }
                 .tag(2)
 
@@ -601,13 +601,13 @@ internal struct ContentView: View {
 
     private var isOverlayActive: Bool {
         showCronDashboard || showLiveSessions || showActivitySheet
-            || showFeedSheet || showSkills || showWikiGraph || showLearning || showCentaurWorkflows
+            || showFeedSheet || showSkills || showGraphs || showLearning || showCentaurWorkflows
             || showArtifactsPane || showFiles || showSettingsOverlay
     }
 
     private var overlayTitle: String {
         if showSettingsOverlay { return "Settings" }
-        if showWikiGraph { return "Wiki Graph" }
+        if showGraphs { return "Graphs" }
         if showCentaurWorkflows { return "Workflows" }
         if showArtifactsPane { return "Artifacts" }
         if showFiles { return "Files" }
@@ -726,7 +726,7 @@ internal struct ContentView: View {
         showLiveSessions = false
         showActivitySheet = false
         showSkills = false
-        showWikiGraph = false
+        showGraphs = false
         showCentaurWorkflows = false
         showArtifactsPane = false
         showFiles = false
@@ -1146,14 +1146,14 @@ internal struct ContentView: View {
             if chatViewModel.backendCapabilities.supportsWiki {
                 Button {
                     closeAllOverlays()
-                    showWikiGraph = true
+                    showGraphs = true
                 } label: {
-                    Label("Wiki", systemImage: "network")
+                    Label("Graphs", systemImage: "network")
                         .labelStyle(.iconOnly)
                 }
                 .toolbarIcon(.wiki)
                 .keyboardShortcut("w", modifiers: .command)
-                .accessibilityLabel("Wiki Graph")
+                .accessibilityLabel("Graphs")
             }
 
             if chatViewModel.backendCapabilities.supportsGatewayServices {
@@ -1372,8 +1372,8 @@ internal struct ContentView: View {
                 .transition(.opacity)
             }
 
-            if showWikiGraph {
-                WikiGraphView(viewModel: wikiViewModel, overrideSource: centaurWikiSource)
+            if showGraphs {
+                GraphsView(wikiViewModel: wikiViewModel, overrideSource: centaurWikiSource)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)

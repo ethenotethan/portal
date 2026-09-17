@@ -66,4 +66,48 @@ internal struct ViewSnapshotTests {
         }
         expect(GitHubLinkCard(link: link), "github-link-card-repo", size: CGSize(width: 320, height: 72))
     }
+
+    // MARK: - Graphs section switcher
+
+    private static let switcherSize = CGSize(width: 220, height: 32)
+
+    // `GraphSurfaceTitle`, not `GraphSurfaceMenu`: the menu itself needs AppKit's
+    // menu hosting and renders as an unavailable-content placeholder here, so a
+    // golden of the control would be a blank box. The title is the part a reader
+    // sees, and it renders from a plain value — exactly this gate's scope.
+
+    @Test("GraphSurfaceTitle — wiki selected")
+    @MainActor
+    internal func graphSurfaceTitleWiki() {
+        expect(
+            GraphSurfaceTitle(surface: .wiki),
+            "graph-surface-title-wiki",
+            size: Self.switcherSize
+        )
+    }
+
+    @Test("GraphSurfaceTitle — runtime graph selected")
+    @MainActor
+    internal func graphSurfaceTitleRuntime() {
+        expect(
+            GraphSurfaceTitle(surface: .runtime),
+            "graph-surface-title-runtime",
+            size: Self.switcherSize
+        )
+    }
+
+    /// The goldens above are born on CI, so until they exist neither test can
+    /// fail — and a switcher that renders the *same* thing for both graphs (a
+    /// title wired to the wrong side of the binding) would slip through. Compare
+    /// the two renders directly: they must both draw, and they must differ.
+    @Test("the switcher renders each graph's own title")
+    @MainActor
+    internal func graphSurfaceTitleReflectsSelection() {
+        let wiki = ViewSnapshot.png(GraphSurfaceTitle(surface: .wiki), size: Self.switcherSize)
+        let runtime = ViewSnapshot.png(GraphSurfaceTitle(surface: .runtime), size: Self.switcherSize)
+
+        #expect(wiki != nil, "the switcher should render with the wiki graph selected")
+        #expect(runtime != nil, "the switcher should render with the runtime graph selected")
+        #expect(wiki != runtime, "the switcher must show the selected graph's label, not a fixed one")
+    }
 }

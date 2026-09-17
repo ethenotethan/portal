@@ -23,7 +23,15 @@ import SwiftUI
 internal struct CronDataflowExpandedView: View {
     @ObservedObject internal var graphVM: CronGraphViewModel
     internal var listVM: CronListViewModel
-    internal var onDismiss: () -> Void
+
+    /// How to leave. nil means there is nowhere to go back to — the graph *is*
+    /// the surface, as it is inside the **Graphs** section — so the collapse and
+    /// Done affordances are dropped rather than left as dead controls.
+    internal var onDismiss: (() -> Void)?
+
+    /// Set when hosted by the **Graphs** section, which swaps the "Data flow"
+    /// title for a dropdown onto its sibling wiki graph.
+    internal var surfaceSelection: Binding<GraphSurface>?
 
     @EnvironmentObject private var gatewayClientWrapper: GatewayClientWrapper
     #if os(iOS)
@@ -43,11 +51,13 @@ internal struct CronDataflowExpandedView: View {
     internal init(
         graphVM: CronGraphViewModel,
         listVM: CronListViewModel,
-        onDismiss: @escaping () -> Void
+        onDismiss: (() -> Void)?,
+        surfaceSelection: Binding<GraphSurface>? = nil
     ) {
         self.graphVM = graphVM
         self.listVM = listVM
         self.onDismiss = onDismiss
+        self.surfaceSelection = surfaceSelection
     }
 
     internal var body: some View {
@@ -92,7 +102,7 @@ internal struct CronDataflowExpandedView: View {
         }
         #else
         regularSurface
-            .overlay(alignment: .topLeading) { collapseButton }
+            .overlay(alignment: .topLeading) { macTopLeadingChrome }
         #endif
     }
 
@@ -131,18 +141,24 @@ internal struct CronDataflowExpandedView: View {
     private var compactHeader: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Data flow")
-                    .font(.headline)
-                    .foregroundStyle(Theme.primary)
+                if let surfaceSelection {
+                    GraphSurfaceMenu(selection: surfaceSelection)
+                } else {
+                    Text("Data flow")
+                        .font(.headline)
+                        .foregroundStyle(Theme.primary)
+                }
                 Text("Tap a node to inspect it")
                     .font(.caption)
                     .foregroundStyle(Theme.secondary)
             }
             Spacer()
-            Button("Done", action: onDismiss)
-                .font(.body.weight(.medium))
-                .frame(minWidth: 44, minHeight: 44)
-                .accessibilityIdentifier("cron.dataflow.done")
+            if let onDismiss {
+                Button("Done", action: onDismiss)
+                    .font(.body.weight(.medium))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityIdentifier("cron.dataflow.done")
+            }
         }
         .padding(.horizontal, 16)
         .background(Theme.surface)
@@ -201,8 +217,28 @@ internal struct CronDataflowExpandedView: View {
 
     // MARK: - Chrome
 
-    private var collapseButton: some View {
-        Button(action: onDismiss) {
+    /// The macOS canvas has no header bar, so its title and its way out both
+    /// float over the top-leading corner. Either can be absent: inside the
+    /// **Graphs** section there is nothing to collapse back to, and as a
+    /// standalone takeover there is no sibling graph to name.
+    @ViewBuilder
+    private var macTopLeadingChrome: some View {
+        HStack(spacing: 8) {
+            if let onDismiss {
+                collapseButton(onDismiss)
+            }
+            if let surfaceSelection {
+                GraphSurfaceMenu(selection: surfaceSelection)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.surface.opacity(0.82), in: RoundedRectangle(cornerRadius: 9))
+            }
+        }
+        .padding(14)
+    }
+
+    private func collapseButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: "arrow.down.right.and.arrow.up.left")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Theme.secondary)
@@ -216,7 +252,6 @@ internal struct CronDataflowExpandedView: View {
         .buttonStyle(.plain)
         .keyboardShortcut(.escape, modifiers: [])
         .help("Close full screen")
-        .padding(14)
     }
 
     // MARK: - Sidebar
