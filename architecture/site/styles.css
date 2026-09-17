@@ -345,7 +345,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .scenario-sequence li { padding: 0 0 10px 8px; color: var(--faint); font: 11px var(--mono); }
 .scenario-sequence .behavior-row { color: var(--ink); }
 
-.document-workspace { display: grid; grid-template-columns: 260px minmax(0, 850px); gap: 48px; align-items: start; }
+.document-workspace { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 48px; align-items: start; }
 .document-list { position: sticky; top: 72px; display: grid; gap: 2px; }
 .document-link {
   min-height: 48px;
@@ -364,7 +364,7 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .document h1 { margin: 0 0 32px; font-size: clamp(30px, 5vw, 52px); line-height: 1; letter-spacing: -.05em; }
 .document h2 { margin: 44px 0 14px; font-size: 22px; line-height: 1.15; letter-spacing: -.025em; }
 .document h3 { margin: 28px 0 10px; font-size: 16px; }
-.document p, .document li { color: #c6c3be; font-size: 15px; line-height: 1.75; }
+.document p, .document li { max-width: 70ch; color: #c6c3be; font-size: 15px; line-height: 1.75; }
 .document code { padding: 2px 5px; background: var(--bg); color: #d5d0ff; border-radius: 3px; font: 12px var(--mono); }
 .document strong { color: var(--ink); }
 .document ul, .document ol { padding-left: 22px; }
