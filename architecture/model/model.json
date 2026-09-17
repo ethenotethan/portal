@@ -16013,6 +16013,18 @@
   "interplay": {
     "clusters": [
       {
+        "component": null,
+        "id": "interplay-cluster-00216ece3da1",
+        "node_ids": [
+          "subscriber:ActivityInboxViewModel",
+          "subscriber:ArtifactStore",
+          "subscriber:LearningStore",
+          "subscriber:SessionListViewModel",
+          "subscriber:SpawnTreeStore"
+        ],
+        "owner_type": "Event subscribers"
+      },
+      {
         "component": "chat-state",
         "id": "interplay-cluster-01c7fd30284b",
         "node_ids": [
@@ -16024,6 +16036,7 @@
         "component": "backend-contract",
         "id": "interplay-cluster-1f63bb30e98d",
         "node_ids": [
+          "bus:AgentBackend.eventStream",
           "seam:AgentBackend"
         ],
         "owner_type": "AgentBackend"
@@ -16039,11 +16052,43 @@
       },
       {
         "component": "hermes-services",
+        "id": "interplay-cluster-50d529a93091",
+        "node_ids": [
+          "endpoint:00d6875c0625",
+          "endpoint:162f92a74671",
+          "endpoint:1f147016b905",
+          "endpoint:24738b20b0b3",
+          "endpoint:275a028db300",
+          "endpoint:2e6276e9cf3e",
+          "endpoint:38507a0dce8b",
+          "endpoint:5ce832f6c2c8",
+          "endpoint:5e7781ff3cfe",
+          "endpoint:61ef561083b5",
+          "endpoint:6612d53de6e6",
+          "endpoint:68a64556d661",
+          "endpoint:7e90ead53b58",
+          "endpoint:82a5f3049740",
+          "endpoint:8abbe841a1a5",
+          "endpoint:8fd4309be78f",
+          "endpoint:91804a259979",
+          "endpoint:9f4e70554834",
+          "endpoint:a22445ecbadb",
+          "endpoint:a6fe64944ae6",
+          "endpoint:b2ab5444930d",
+          "endpoint:cef1ba05dfc0",
+          "endpoint:d01b8fa18b67",
+          "endpoint:efb9148cebbd"
+        ],
+        "owner_type": "GatewayClient · endpoints"
+      },
+      {
+        "component": "hermes-services",
         "id": "interplay-cluster-6854b24de35d",
         "node_ids": [
           "operation:lifecycle-operation-23419229cbbb",
           "operation:lifecycle-operation-807fac51960d",
           "operation:lifecycle-operation-b077e3f2c353",
+          "operation:lifecycle-operation-ea80aeb47f98",
           "owner:hermes-services:GatewayClient",
           "resource:resource-1659d3a8cd64",
           "resource:resource-4560e4558b76",
@@ -16056,6 +16101,10 @@
         "component": "centaur-services",
         "id": "interplay-cluster-6ebc7a0471a7",
         "node_ids": [
+          "cursor:centaur-services:CentaurClient",
+          "operation:lifecycle-operation-5df82ef5dca0",
+          "operation:lifecycle-operation-a0b9c59883ae",
+          "operation:lifecycle-operation-f2aecdf2653e",
           "owner:centaur-services:CentaurClient",
           "resource:resource-60a55d827362"
         ],
@@ -16090,6 +16139,17 @@
         "owner_type": "HermesStandardClient"
       },
       {
+        "component": "centaur-services",
+        "id": "interplay-cluster-d27bf0fee56e",
+        "node_ids": [
+          "endpoint:13335c26ef47",
+          "endpoint:738ad0135115",
+          "endpoint:f045e7fd8bba",
+          "endpoint:fa8b48486b4d"
+        ],
+        "owner_type": "CentaurClient · endpoints"
+      },
+      {
         "component": "local-services",
         "id": "interplay-cluster-e84f95c18c86",
         "node_ids": [
@@ -16102,6 +16162,186 @@
       }
     ],
     "edges": [
+      {
+        "class": "interplay",
+        "relation": "notifies",
+        "source": "bus:AgentBackend.eventStream",
+        "target": "subscriber:ActivityInboxViewModel"
+      },
+      {
+        "class": "interplay",
+        "relation": "notifies",
+        "source": "bus:AgentBackend.eventStream",
+        "target": "subscriber:ArtifactStore"
+      },
+      {
+        "class": "interplay",
+        "relation": "notifies",
+        "source": "bus:AgentBackend.eventStream",
+        "target": "subscriber:LearningStore"
+      },
+      {
+        "class": "interplay",
+        "relation": "notifies",
+        "source": "bus:AgentBackend.eventStream",
+        "target": "subscriber:SessionListViewModel"
+      },
+      {
+        "class": "interplay",
+        "relation": "notifies",
+        "source": "bus:AgentBackend.eventStream",
+        "target": "subscriber:SpawnTreeStore"
+      },
+      {
+        "class": "interplay",
+        "relation": "replays-into",
+        "source": "cursor:centaur-services:CentaurClient",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:00d6875c0625",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:162f92a74671",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:1f147016b905",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:24738b20b0b3",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:275a028db300",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:2e6276e9cf3e",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:38507a0dce8b",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:5ce832f6c2c8",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:5e7781ff3cfe",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:61ef561083b5",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:6612d53de6e6",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:68a64556d661",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:7e90ead53b58",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:82a5f3049740",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:8abbe841a1a5",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:8fd4309be78f",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:91804a259979",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:9f4e70554834",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:a22445ecbadb",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:a6fe64944ae6",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:b2ab5444930d",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:cef1ba05dfc0",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:d01b8fa18b67",
+        "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "correlates",
+        "source": "endpoint:efb9148cebbd",
+        "target": "resource:resource-f4c4baad5555"
+      },
       {
         "class": "interplay",
         "relation": "drives-engine",
@@ -16158,9 +16398,21 @@
       },
       {
         "class": "lifecycle",
+        "relation": "publish",
+        "source": "operation:lifecycle-operation-5df82ef5dca0",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "lifecycle",
         "relation": "pool_resolve",
         "source": "operation:lifecycle-operation-807fac51960d",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "publish",
+        "source": "operation:lifecycle-operation-a0b9c59883ae",
+        "target": "bus:AgentBackend.eventStream"
       },
       {
         "class": "lifecycle",
@@ -16187,6 +16439,72 @@
         "target": "resource:resource-6a0c8ae84943"
       },
       {
+        "class": "lifecycle",
+        "relation": "publish",
+        "source": "operation:lifecycle-operation-ea80aeb47f98",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "publish",
+        "source": "operation:lifecycle-operation-f2aecdf2653e",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "structure",
+        "relation": "provides",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "structure",
+        "relation": "owns",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "cursor:centaur-services:CentaurClient"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "endpoint:13335c26ef47"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "endpoint:738ad0135115"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "endpoint:f045e7fd8bba"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "endpoint:fa8b48486b4d"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "operation:lifecycle-operation-5df82ef5dca0"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "operation:lifecycle-operation-a0b9c59883ae"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:centaur-services:CentaurClient",
+        "target": "operation:lifecycle-operation-f2aecdf2653e"
+      },
+      {
         "class": "structure",
         "relation": "owns",
         "source": "owner:centaur-services:CentaurClient",
@@ -16197,6 +16515,156 @@
         "relation": "conforms",
         "source": "owner:centaur-services:CentaurClient",
         "target": "seam:AgentBackend"
+      },
+      {
+        "class": "structure",
+        "relation": "provides",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:00d6875c0625"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:162f92a74671"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:1f147016b905"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:24738b20b0b3"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:275a028db300"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:2e6276e9cf3e"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:5ce832f6c2c8"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:5e7781ff3cfe"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:61ef561083b5"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:6612d53de6e6"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:68a64556d661"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:7e90ead53b58"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:82a5f3049740"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:8abbe841a1a5"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:8fd4309be78f"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:91804a259979"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:9f4e70554834"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:a22445ecbadb"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:a6fe64944ae6"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:b2ab5444930d"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:cef1ba05dfc0"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:d01b8fa18b67"
+      },
+      {
+        "class": "structure",
+        "relation": "calls",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "endpoint:efb9148cebbd"
       },
       {
         "class": "lifecycle",
@@ -16215,6 +16683,12 @@
         "relation": "operates",
         "source": "owner:hermes-services:GatewayClient",
         "target": "operation:lifecycle-operation-b077e3f2c353"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "operates",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "operation:lifecycle-operation-ea80aeb47f98"
       },
       {
         "class": "structure",
@@ -16245,6 +16719,12 @@
         "relation": "conforms",
         "source": "owner:hermes-services:GatewayClient",
         "target": "seam:AgentBackend"
+      },
+      {
+        "class": "structure",
+        "relation": "provides",
+        "source": "owner:hermes-services:HermesStandardClient",
+        "target": "bus:AgentBackend.eventStream"
       },
       {
         "class": "structure",
@@ -16299,6 +16779,12 @@
         "relation": "owns",
         "source": "owner:local-services:TTSService",
         "target": "resource:resource-27ea1487eff1"
+      },
+      {
+        "class": "structure",
+        "relation": "declares",
+        "source": "seam:AgentBackend",
+        "target": "bus:AgentBackend.eventStream"
       }
     ],
     "nodes": [
@@ -16310,6 +16796,27 @@
         "label": "AgentBackend",
         "line": 63,
         "path": "Sources/Portal/Services/AgentBackend.swift"
+      },
+      {
+        "cluster": "interplay-cluster-1f63bb30e98d",
+        "component": "backend-contract",
+        "id": "bus:AgentBackend.eventStream",
+        "kind": "resource",
+        "label": "eventStream",
+        "line": 68,
+        "owner_type": "AgentBackend",
+        "path": "Sources/Portal/Services/AgentBackend.swift",
+        "sub_kind": "event_bus"
+      },
+      {
+        "cluster": "interplay-cluster-00216ece3da1",
+        "component": null,
+        "id": "subscriber:ArtifactStore",
+        "kind": "subscriber",
+        "label": "ArtifactStore",
+        "line": 18,
+        "owner_type": "Event subscribers",
+        "path": "Sources/Portal/Services/ArtifactStore.swift"
       },
       {
         "cluster": "interplay-cluster-6ebc7a0471a7",
@@ -16326,6 +16833,17 @@
       {
         "cluster": "interplay-cluster-6ebc7a0471a7",
         "component": "centaur-services",
+        "id": "cursor:centaur-services:CentaurClient",
+        "kind": "resource",
+        "label": "lastEventID",
+        "line": 57,
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "sub_kind": "stream_cursor"
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
         "id": "resource:resource-60a55d827362",
         "kind": "resource",
         "label": "restSession",
@@ -16333,6 +16851,354 @@
         "owner_type": "CentaurClient",
         "path": "Sources/Portal/Services/CentaurClient.swift",
         "sub_kind": "url_session"
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-f2aecdf2653e",
+        "kind": "operation",
+        "label": "eventStream.send",
+        "line": 192,
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "sub_kind": "bus_publish"
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-5df82ef5dca0",
+        "kind": "operation",
+        "label": "eventStream.send",
+        "line": 214,
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "sub_kind": "bus_publish"
+      },
+      {
+        "cluster": "interplay-cluster-d27bf0fee56e",
+        "component": "centaur-services",
+        "id": "endpoint:fa8b48486b4d",
+        "kind": "endpoint",
+        "label": "workflows",
+        "line": 233,
+        "method_count": 4,
+        "methods": [
+          {
+            "line": 257,
+            "method": "GET api/workflows/runs/\\(encodeSegment(runID))"
+          },
+          {
+            "line": 233,
+            "method": "GET api/workflows/runs?limit=\\(limit)"
+          },
+          {
+            "line": 246,
+            "method": "GET api/workflows/schedules"
+          },
+          {
+            "line": 264,
+            "method": "POST api/workflows/runs/\\(encodeSegment(runID))/cancel"
+          }
+        ],
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "protocol": "rest",
+        "sub_kind": "http_endpoint"
+      },
+      {
+        "cluster": "interplay-cluster-d27bf0fee56e",
+        "component": "centaur-services",
+        "id": "endpoint:738ad0135115",
+        "kind": "endpoint",
+        "label": "interrupt",
+        "line": 268,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 268,
+            "method": "POST /interrupt"
+          }
+        ],
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "protocol": "rest",
+        "sub_kind": "http_endpoint"
+      },
+      {
+        "cluster": "interplay-cluster-d27bf0fee56e",
+        "component": "centaur-services",
+        "id": "endpoint:f045e7fd8bba",
+        "kind": "endpoint",
+        "label": "messages",
+        "line": 278,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 278,
+            "method": "POST /messages"
+          }
+        ],
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "protocol": "rest",
+        "sub_kind": "http_endpoint"
+      },
+      {
+        "cluster": "interplay-cluster-d27bf0fee56e",
+        "component": "centaur-services",
+        "id": "endpoint:13335c26ef47",
+        "kind": "endpoint",
+        "label": "execute",
+        "line": 301,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 301,
+            "method": "POST /execute"
+          }
+        ],
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "protocol": "rest",
+        "sub_kind": "http_endpoint"
+      },
+      {
+        "cluster": "interplay-cluster-6ebc7a0471a7",
+        "component": "centaur-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-a0b9c59883ae",
+        "kind": "operation",
+        "label": "eventStream.send",
+        "line": 406,
+        "owner_type": "CentaurClient",
+        "path": "Sources/Portal/Services/CentaurClient.swift",
+        "sub_kind": "bus_publish"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:8abbe841a1a5",
+        "kind": "endpoint",
+        "label": "code",
+        "line": 18,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 18,
+            "method": "code.graph"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:38507a0dce8b",
+        "kind": "endpoint",
+        "label": "cron",
+        "line": 20,
+        "method_count": 4,
+        "methods": [
+          {
+            "line": 38,
+            "method": "cron.changeset_diff"
+          },
+          {
+            "line": 27,
+            "method": "cron.changesets"
+          },
+          {
+            "line": 20,
+            "method": "cron.graph"
+          },
+          {
+            "line": 1191,
+            "method": "cron.manage"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Cron.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:6612d53de6e6",
+        "kind": "endpoint",
+        "label": "feed",
+        "line": 13,
+        "method_count": 3,
+        "methods": [
+          {
+            "line": 13,
+            "method": "feed.get"
+          },
+          {
+            "line": 97,
+            "method": "feed.sources"
+          },
+          {
+            "line": 78,
+            "method": "feed.tweet_detail"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Feed.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:2e6276e9cf3e",
+        "kind": "endpoint",
+        "label": "files",
+        "line": 12,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 12,
+            "method": "files.list"
+          },
+          {
+            "line": 40,
+            "method": "files.read"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Files.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:a22445ecbadb",
+        "kind": "endpoint",
+        "label": "learning",
+        "line": 119,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 119,
+            "method": "learning.course.get"
+          },
+          {
+            "line": 201,
+            "method": "learning.deck.get"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Learning.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:cef1ba05dfc0",
+        "kind": "endpoint",
+        "label": "push",
+        "line": 32,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 32,
+            "method": "push.register"
+          },
+          {
+            "line": 45,
+            "method": "push.unregister"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Push.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:24738b20b0b3",
+        "kind": "endpoint",
+        "label": "gateway",
+        "line": 37,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 37,
+            "method": "gateway.restart"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Restart.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:7e90ead53b58",
+        "kind": "endpoint",
+        "label": "wiki",
+        "line": 177,
+        "method_count": 11,
+        "methods": [
+          {
+            "line": 658,
+            "method": "wiki.changeset_diff"
+          },
+          {
+            "line": 503,
+            "method": "wiki.changesets"
+          },
+          {
+            "line": 583,
+            "method": "wiki.events"
+          },
+          {
+            "line": 431,
+            "method": "wiki.expand_links"
+          },
+          {
+            "line": 177,
+            "method": "wiki.glossary"
+          },
+          {
+            "line": 195,
+            "method": "wiki.glossary.update"
+          },
+          {
+            "line": 454,
+            "method": "wiki.list"
+          },
+          {
+            "line": 331,
+            "method": "wiki.page"
+          },
+          {
+            "line": 264,
+            "method": "wiki.scan"
+          },
+          {
+            "line": 410,
+            "method": "wiki.taxonomy"
+          },
+          {
+            "line": 377,
+            "method": "wiki.update"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Wiki.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
       },
       {
         "cluster": "interplay-cluster-6854b24de35d",
@@ -16346,6 +17212,126 @@
           "support",
           "transport"
         ]
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:00d6875c0625",
+        "kind": "endpoint",
+        "label": "delegation",
+        "line": 84,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 84,
+            "method": "delegation.status"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:b2ab5444930d",
+        "kind": "endpoint",
+        "label": "subagent",
+        "line": 97,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 97,
+            "method": "subagent.interrupt"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:efb9148cebbd",
+        "kind": "endpoint",
+        "label": "spawn_tree",
+        "line": 114,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 114,
+            "method": "spawn_tree.list"
+          },
+          {
+            "line": 137,
+            "method": "spawn_tree.load"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:275a028db300",
+        "kind": "endpoint",
+        "label": "session",
+        "line": 147,
+        "method_count": 11,
+        "methods": [
+          {
+            "line": 1858,
+            "method": "session.close"
+          },
+          {
+            "line": 1097,
+            "method": "session.create"
+          },
+          {
+            "line": 1937,
+            "method": "session.history"
+          },
+          {
+            "line": 1825,
+            "method": "session.interrupt"
+          },
+          {
+            "line": 1133,
+            "method": "session.list"
+          },
+          {
+            "line": 177,
+            "method": "session.prompt_breakdown"
+          },
+          {
+            "line": 1870,
+            "method": "session.resume"
+          },
+          {
+            "line": 1121,
+            "method": "session.set_prompt"
+          },
+          {
+            "line": 159,
+            "method": "session.timeline"
+          },
+          {
+            "line": 1953,
+            "method": "session.title"
+          },
+          {
+            "line": 147,
+            "method": "session.usage"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
       },
       {
         "cluster": "interplay-cluster-6854b24de35d",
@@ -16419,6 +17405,302 @@
         "sub_kind": "pool_register"
       },
       {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:d01b8fa18b67",
+        "kind": "endpoint",
+        "label": "skills",
+        "line": 1341,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 1341,
+            "method": "skills.manage"
+          },
+          {
+            "line": 1550,
+            "method": "skills.reload"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:9f4e70554834",
+        "kind": "endpoint",
+        "label": "commands",
+        "line": 1404,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1404,
+            "method": "commands.catalog"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:5e7781ff3cfe",
+        "kind": "endpoint",
+        "label": "slash",
+        "line": 1539,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1539,
+            "method": "slash.exec"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:82a5f3049740",
+        "kind": "endpoint",
+        "label": "activity",
+        "line": 1588,
+        "method_count": 4,
+        "methods": [
+          {
+            "line": 1639,
+            "method": "activity.artifacts.get"
+          },
+          {
+            "line": 1626,
+            "method": "activity.dismiss"
+          },
+          {
+            "line": 1588,
+            "method": "activity.list"
+          },
+          {
+            "line": 1612,
+            "method": "activity.mark_read"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:162f92a74671",
+        "kind": "endpoint",
+        "label": "prompt",
+        "line": 1673,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1673,
+            "method": "prompt.submit"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:a6fe64944ae6",
+        "kind": "endpoint",
+        "label": "image",
+        "line": 1818,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1818,
+            "method": "image.attach"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:8fd4309be78f",
+        "kind": "endpoint",
+        "label": "approval",
+        "line": 1834,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1834,
+            "method": "approval.respond"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:61ef561083b5",
+        "kind": "endpoint",
+        "label": "clarify",
+        "line": 1848,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 1848,
+            "method": "clarify.respond"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:68a64556d661",
+        "kind": "endpoint",
+        "label": "config",
+        "line": 2024,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 2244,
+            "method": "config.get"
+          },
+          {
+            "line": 2024,
+            "method": "config.set"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:91804a259979",
+        "kind": "endpoint",
+        "label": "model",
+        "line": 2067,
+        "method_count": 1,
+        "methods": [
+          {
+            "line": 2067,
+            "method": "model.options"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:1f147016b905",
+        "kind": "endpoint",
+        "label": "artifact",
+        "line": 2092,
+        "method_count": 9,
+        "methods": [
+          {
+            "line": 2200,
+            "method": "artifact.action.confirm"
+          },
+          {
+            "line": 2157,
+            "method": "artifact.action.invoke"
+          },
+          {
+            "line": 2178,
+            "method": "artifact.action.log"
+          },
+          {
+            "line": 2122,
+            "method": "artifact.delete"
+          },
+          {
+            "line": 2101,
+            "method": "artifact.get"
+          },
+          {
+            "line": 2112,
+            "method": "artifact.list"
+          },
+          {
+            "line": 2210,
+            "method": "artifact.revision"
+          },
+          {
+            "line": 2130,
+            "method": "artifact.revisions"
+          },
+          {
+            "line": 2092,
+            "method": "artifact.set"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-50d529a93091",
+        "component": "hermes-services",
+        "id": "endpoint:5ce832f6c2c8",
+        "kind": "endpoint",
+        "label": "voice",
+        "line": 2224,
+        "method_count": 2,
+        "methods": [
+          {
+            "line": 2234,
+            "method": "voice.record"
+          },
+          {
+            "line": 2224,
+            "method": "voice.toggle"
+          }
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "jsonrpc",
+        "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-6854b24de35d",
+        "component": "hermes-services",
+        "detached_off_main": false,
+        "id": "operation:lifecycle-operation-ea80aeb47f98",
+        "kind": "operation",
+        "label": "eventStream.send",
+        "line": 2403,
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "sub_kind": "bus_publish"
+      },
+      {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
         "detached_off_main": false,
@@ -16453,6 +17735,16 @@
         "owner_type": "HermesStandardClient",
         "path": "Sources/Portal/Services/HermesStandardClient.swift",
         "sub_kind": "url_session"
+      },
+      {
+        "cluster": "interplay-cluster-00216ece3da1",
+        "component": null,
+        "id": "subscriber:LearningStore",
+        "kind": "subscriber",
+        "label": "LearningStore",
+        "line": 30,
+        "owner_type": "Event subscribers",
+        "path": "Sources/Portal/Services/LearningStore.swift"
       },
       {
         "cluster": "interplay-cluster-7b136d3c2c60",
@@ -16579,6 +17871,16 @@
         "sub_kind": "speech_synth"
       },
       {
+        "cluster": "interplay-cluster-00216ece3da1",
+        "component": null,
+        "id": "subscriber:ActivityInboxViewModel",
+        "kind": "subscriber",
+        "label": "ActivityInboxViewModel",
+        "line": 8,
+        "owner_type": "Event subscribers",
+        "path": "Sources/Portal/ViewModels/ActivityInboxViewModel.swift"
+      },
+      {
         "cluster": "interplay-cluster-01c7fd30284b",
         "component": "chat-state",
         "id": "hub:ChatViewModel",
@@ -16586,6 +17888,26 @@
         "label": "ChatViewModel",
         "line": 38,
         "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+      },
+      {
+        "cluster": "interplay-cluster-00216ece3da1",
+        "component": null,
+        "id": "subscriber:SessionListViewModel",
+        "kind": "subscriber",
+        "label": "SessionListViewModel",
+        "line": 12,
+        "owner_type": "Event subscribers",
+        "path": "Sources/Portal/ViewModels/SessionListViewModel.swift"
+      },
+      {
+        "cluster": "interplay-cluster-00216ece3da1",
+        "component": null,
+        "id": "subscriber:SpawnTreeStore",
+        "kind": "subscriber",
+        "label": "SpawnTreeStore",
+        "line": 7,
+        "owner_type": "Event subscribers",
+        "path": "Sources/Portal/ViewModels/SpawnTreeStore.swift"
       },
       {
         "cluster": "interplay-cluster-9d9c6463f9af",

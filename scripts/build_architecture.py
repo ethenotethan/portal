@@ -87,6 +87,34 @@ SEAM_PROTOCOL = "AgentBackend"
 # matching overlay entry (or leaving an entry whose resource was removed) fails
 # the build — the bidirectional generation gate.
 GATED_INTERPLAY_KINDS = {"rpc_pool", "on_device_model", "speech_synth"}
+# The transport⋈app event bus (a Combine subject declared on the seam) and the
+# request-leg constructions — JSON-RPC method endpoints and the SSE replay
+# cursor. These are drawn and deep-linked but NOT gated: the curated overlay
+# stays focused on the load-bearing pools/engines above, per design.
+INTERPLAY_BUS_RESOURCE_KIND = "combine_subject"
+# A JSON-RPC method invocation: `call("session.create", …)` / `callWithRetry("…")`.
+RPC_METHOD_RE = re.compile(r"\bcall(?:WithRetry)?\s*\(\s*\"([a-z][A-Za-z0-9_.]*)\"")
+# A REST query: an HTTP verb literal paired with the first path string literal in
+# the same call — covers both `("GET", "api/workflows/runs?…")` and
+# `("POST", sessionPath(threadKey, "/messages"))`.
+HTTP_METHOD_RE = re.compile(
+    r"\"(GET|POST|PUT|DELETE|PATCH)\"\s*,\s*[^\n]*?\"([^\"\n]+)\""
+)
+
+
+def rest_namespace(path: str) -> str:
+    """Coarse namespace for a REST path literal: the first meaningful segment.
+
+    `api/workflows/runs?limit=…` → `workflows`, `/messages` → `messages`. Kept
+    deterministic and purely lexical so the endpoint rollup is byte-stable.
+    """
+    cleaned = path.strip("/").split("?")[0]
+    segments = [seg for seg in cleaned.split("/") if seg and "\\(" not in seg]
+    if not segments:
+        return "session"
+    if segments[0] == "api" and len(segments) > 1:
+        return segments[1]
+    return segments[0]
 
 
 class ArchitectureError(RuntimeError):
@@ -1140,11 +1168,170 @@ def build_interplay_graph(
                 if owner_type in body_refs:
                     edges.add((hub_node_id, owner_node_id(component, owner_type), "interplay", "drives-engine"))
 
+    # ── Request leg + push leg (the full-duplex construction over one socket).
+    # The RPC `call(method:)` is the id-correlated request half, drawn as
+    # namespace-rollup endpoints routed through the pool; the seam's
+    # `eventStream` is the uncorrelated push half fanned out to subscribers. The
+    # SSE replay cursor is the REST/SSE analog of the pool. None of this is gated.
+    transport_owner_by_type = {owner_type: component for component, owner_type in transport_owners}
+    special_types = {node["label"] for node in nodes.values() if node["kind"] in {"owner", "seam", "hub"}}
+
+    # Event bus: anchored on the seam's `eventStream` member — the contract every
+    # transport provides — with providers, publish operations, and subscribers.
+    bus_node_id: str | None = None
+    seam_source = file_by_type.get(SEAM_PROTOCOL)
+    if seam_node_id is not None and seam_source is not None:
+        seam_code = strip_swift_noncode(seam_source["_text"])
+        bus_match = re.search(
+            r"\bvar\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*"
+            r"(?:PassthroughSubject|CurrentValueSubject)\s*<",
+            seam_code,
+        )
+        if bus_match is not None:
+            bus_field = bus_match.group(1)
+            bus_node_id = f"bus:{SEAM_PROTOCOL}.{bus_field}"
+            nodes[bus_node_id] = {
+                "id": bus_node_id,
+                "kind": "resource",
+                "sub_kind": "event_bus",
+                "label": bus_field,
+                "component": seam_source["component"],
+                "owner_type": SEAM_PROTOCOL,
+                "path": seam_source["path"],
+                "line": seam_code.count("\n", 0, bus_match.start()) + 1,
+            }
+            edges.add((seam_node_id, bus_node_id, "structure", "declares"))
+            for component, owner_type in sorted(transport_owners):
+                edges.add((owner_node_id(component, owner_type), bus_node_id, "structure", "provides"))
+            for op in behavior["operations"]:
+                if op["kind"] != "publish" or (op["component"], op.get("owner_type")) not in transport_owners:
+                    continue
+                pub_id = f"operation:{op['id']}"
+                nodes[pub_id] = {
+                    "id": pub_id, "kind": "operation", "sub_kind": "bus_publish",
+                    "label": op["label"], "component": op["component"],
+                    "owner_type": op.get("owner_type"),
+                    "detached_off_main": op.get("detached_off_main", False),
+                    "path": op["evidence"]["path"], "line": op["evidence"]["line"],
+                }
+                edges.add((owner_node_id(op["component"], op["owner_type"]), pub_id, "lifecycle", "operates"))
+                edges.add((pub_id, bus_node_id, "lifecycle", "publish"))
+            # Subscribers: every declared type whose body references `.eventStream`
+            # and is neither a transport that provides one nor an owner/seam/hub.
+            subscriber_types: dict[str, dict[str, Any]] = {}
+            for source in sorted(files, key=lambda item: item["path"]):
+                if ".eventStream" not in source["_text"]:
+                    continue
+                code = strip_swift_noncode(source["_text"])
+                for match in re.finditer(r"\.\s*eventStream\b", code):
+                    owner_type, _ = enclosing_context(code, match.start())
+                    if not owner_type or owner_type in transport_owner_by_type or owner_type in special_types:
+                        continue
+                    if owner_type not in subscriber_types:
+                        decl = decl_index.get(owner_type)
+                        subscriber_types[owner_type] = {
+                            "path": decl["path"] if decl else source["path"],
+                            "line": decl["line"] if decl else code.count("\n", 0, match.start()) + 1,
+                        }
+            for sub_type in sorted(subscriber_types):
+                info = subscriber_types[sub_type]
+                sub_id = f"subscriber:{sub_type}"
+                nodes[sub_id] = {
+                    "id": sub_id, "kind": "subscriber", "label": sub_type,
+                    "component": None, "owner_type": "Event subscribers",
+                    "path": info["path"], "line": info["line"],
+                }
+                edges.add((bus_node_id, sub_id, "interplay", "notifies"))
+
+    # RPC/HTTP endpoints (namespace rollup): group each transport's method calls
+    # by namespace, keeping individual methods as attributes with source lines so
+    # 40+ JSON-RPC methods stay legible as ~a dozen deep-linkable namespace nodes.
+    endpoint_groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        text = source["_text"]
+        # The method/path names live inside string literals, which the stripped
+        # `code` blanks — so match on the original text, then use `code` (same
+        # offsets) to reject comment/string hits and resolve the enclosing type.
+        code = strip_swift_noncode(text)
+        for protocol, pattern in (("jsonrpc", RPC_METHOD_RE), ("rest", HTTP_METHOD_RE)):
+            for match in pattern.finditer(text):
+                # Reject comment/doc hits: real code keeps the `call` identifier
+                # (jsonrpc) or the delimiter before the verb literal (rest);
+                # strip_swift_noncode blanks both inside comments.
+                if protocol == "jsonrpc" and code[match.start():match.start() + 4] != "call":
+                    continue
+                if protocol == "rest" and not code[max(0, match.start() - 1):match.start()].strip():
+                    continue
+                owner_type, _ = enclosing_context(code, match.start())
+                if owner_type not in transport_owner_by_type:
+                    continue
+                component = transport_owner_by_type[owner_type]
+                if protocol == "jsonrpc":
+                    method, namespace = match.group(1), match.group(1).split(".")[0]
+                else:
+                    namespace = rest_namespace(match.group(2))
+                    method = f"{match.group(1)} {match.group(2)}"
+                line = code.count("\n", 0, match.start()) + 1
+                key = (component, owner_type, protocol, namespace)
+                group = endpoint_groups.setdefault(key, {"methods": {}, "path": source["path"], "line": line})
+                if method not in group["methods"] or line < group["methods"][method]:
+                    group["methods"][method] = line
+                if (source["path"], line) < (group["path"], group["line"]):
+                    group["path"], group["line"] = source["path"], line
+    for (component, owner_type, protocol, namespace), group in sorted(endpoint_groups.items()):
+        digest = hashlib.sha256("\0".join([owner_type, protocol, namespace]).encode("utf-8")).hexdigest()[:12]
+        ep_id = f"endpoint:{digest}"
+        add_owner(component, owner_type, "transport")
+        nodes[ep_id] = {
+            "id": ep_id, "kind": "endpoint",
+            "sub_kind": "rpc_namespace" if protocol == "jsonrpc" else "http_endpoint",
+            "label": namespace, "component": component, "owner_type": owner_type,
+            "protocol": protocol, "method_count": len(group["methods"]),
+            "methods": [{"method": method, "line": line} for method, line in sorted(group["methods"].items())],
+            "path": group["path"], "line": group["line"],
+        }
+        edges.add((owner_node_id(component, owner_type), ep_id, "structure", "calls"))
+        for pool in resources:
+            if pool["kind"] == "rpc_pool" and pool["owner_type"] == owner_type and pool["component"] == component:
+                edges.add((ep_id, resource_node_by_id[pool["id"]], "lifecycle", "correlates"))
+
+    # SSE replay cursor: the REST/SSE transport's "where was I" construction — the
+    # push-leg analog of the pool+socket, feeding replayed events back to the bus.
+    # Recognized as a stored per-stream event-id field on a transport owner.
+    cursor_re = re.compile(
+        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
+        r"(?:var|let)\s+((?i:lastEventID|eventCursor|afterEventID)[A-Za-z0-9_]*)\s*:",
+    )
+    for owner_type, component in sorted(transport_owner_by_type.items()):
+        source = file_by_type.get(owner_type)
+        if source is None:
+            continue
+        code = strip_swift_noncode(source["_text"])
+        match = cursor_re.search(code)
+        if match is None:
+            continue
+        enclosing, _ = enclosing_context(code, match.start())
+        if enclosing != owner_type:
+            continue
+        cur_id = f"cursor:{component}:{owner_type}"
+        nodes[cur_id] = {
+            "id": cur_id, "kind": "resource", "sub_kind": "stream_cursor",
+            "label": match.group(1), "component": component, "owner_type": owner_type,
+            "path": source["path"], "line": code.count("\n", 0, match.start()) + 1,
+        }
+        edges.add((owner_node_id(component, owner_type), cur_id, "structure", "owns"))
+        if bus_node_id is not None:
+            edges.add((cur_id, bus_node_id, "interplay", "replays-into"))
+
     # Cluster every node by (component, owner/type) — the columns of the view.
     clusters: dict[str, dict[str, Any]] = {}
     for node in nodes.values():
         if node["kind"] in {"owner", "seam", "hub"}:
             component, grouping = node["component"], node["label"]
+        elif node["kind"] == "endpoint":
+            # The many namespace endpoints get their own per-transport column so a
+            # transport's structural resources stay legible beside them.
+            component, grouping = node["component"], f"{node['owner_type']} · endpoints"
         else:
             component, grouping = node["component"], node.get("owner_type") or node["label"]
         digest = hashlib.sha256(

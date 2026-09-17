@@ -55,6 +55,43 @@ class InterplayGraphTests(unittest.TestCase):
         for pool in pools:
             self.assertIn((pool["component"], pool["owner_type"]), lock_owners)
 
+    def test_surfaces_event_bus_and_its_subscribers(self) -> None:
+        buses = self._nodes("event_bus")
+        self.assertTrue(buses, "expected the AgentBackend eventStream bus")
+        bus_ids = {node["id"] for node in buses}
+        subscribers = [n for n in self.interplay["nodes"] if n["kind"] == "subscriber"]
+        self.assertTrue(subscribers, "expected at least one event subscriber")
+        # Every subscriber is reached from a bus by an interplay `notifies` edge.
+        notified = {
+            edge["target"]
+            for edge in self.interplay["edges"]
+            if edge["relation"] == "notifies" and edge["source"] in bus_ids
+        }
+        for subscriber in subscribers:
+            self.assertIn(subscriber["id"], notified)
+
+    def test_endpoints_roll_up_methods_with_source_lines(self) -> None:
+        endpoints = [n for n in self.interplay["nodes"] if n["kind"] == "endpoint"]
+        self.assertTrue(endpoints, "expected queried endpoints")
+        self.assertTrue(any(n["sub_kind"] == "rpc_namespace" for n in endpoints))
+        for endpoint in endpoints:
+            self.assertEqual(endpoint["method_count"], len(endpoint["methods"]))
+            self.assertTrue(endpoint["methods"], "endpoint must roll up ≥1 method")
+            for method in endpoint["methods"]:
+                self.assertIn("method", method)
+                self.assertIsInstance(method["line"], int)
+            # Each endpoint deep-links to its owning transport type.
+            self.assertTrue(any(
+                edge["relation"] == "calls" and edge["target"] == endpoint["id"]
+                for edge in self.interplay["edges"]
+            ))
+
+    def test_new_transport_surfaces_are_ungated(self) -> None:
+        # The overlay stays focused on load-bearing pools/engines; endpoints, the
+        # event bus, and subscribers are surfaced but never demand a curated entry.
+        for kind in ("endpoint", "event_bus", "subscriber", "stream_cursor"):
+            self.assertNotIn(kind, architecture.GATED_INTERPLAY_KINDS)
+
     def test_overlay_explains_every_gated_resource(self) -> None:
         # The committed overlay must clear the gate against the real source tree.
         architecture.validate_interplay(copy.deepcopy(self.interplay), copy.deepcopy(self.overlay))
