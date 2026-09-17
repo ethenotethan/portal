@@ -123,10 +123,6 @@ internal final class CodeGraphSurfaceModel: ObservableObject {
         self.fetch = fetch
     }
 
-    internal convenience init(client: GatewayClient, service: String) {
-        self.init { try await client.codeGraph(service: service) }
-    }
-
     internal func load() async {
         phase = .loading
         errorMessage = nil

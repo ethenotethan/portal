@@ -239,6 +239,21 @@ internal struct CodeGraphTests {
         #expect(model.errorMessage == nil)
     }
 
+    @Test("the dedicated code graph surface exposes gateway failures")
+    internal func dedicatedSurfaceReportsFailure() async {
+        struct FetchFailure: Error, LocalizedError {
+            var errorDescription: String? { "Graph fetch failed" }
+        }
+        let model = CodeGraphSurfaceModel { throw FetchFailure() }
+
+        await model.load()
+
+        #expect(model.phase == .failed)
+        #expect(model.codeGraph == nil)
+        #expect(model.renderGraph == .empty)
+        #expect(model.errorMessage == "Graph fetch failed")
+    }
+
     // MARK: - Color / radius regression guard
 
     @Test("code kinds get distinct colors; wiki types are unchanged")

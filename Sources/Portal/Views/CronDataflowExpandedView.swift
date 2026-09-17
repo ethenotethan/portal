@@ -459,7 +459,9 @@ internal struct CodeGraphSurfaceView: View {
     internal init(request: CodeGraphRequest, client: GatewayClient) {
         self.request = request
         _model = StateObject(
-            wrappedValue: CodeGraphSurfaceModel(client: client, service: request.service)
+            wrappedValue: CodeGraphSurfaceModel {
+                try await client.codeGraph(service: request.service)
+            }
         )
     }
 
