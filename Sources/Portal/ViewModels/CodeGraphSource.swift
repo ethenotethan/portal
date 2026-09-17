@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - CodeGraph → WikiGraph adapter
 
@@ -93,5 +94,167 @@ internal final class CodeGraphSource: WikiSource, ObservableObject {
         }
         let file = try await client.readFile(root: coords.root, path: coords.rel)
         return WikiPageContent(frontmatter: [:], body: file.content, path: path)
+    }
+}
+
+// MARK: - Dedicated code graph surface
+
+/// Loading state for the code-graph sheet. The graph renderer can share the
+/// force-layout model with the wiki, but the product surface must not inherit
+/// wiki chrome, copy, empty states, or navigation.
+@MainActor
+internal final class CodeGraphSurfaceModel: ObservableObject {
+    internal enum Phase: Equatable {
+        case idle
+        case loading
+        case loaded
+        case empty
+        case failed
+    }
+
+    @Published internal private(set) var phase: Phase = .idle
+    @Published internal private(set) var codeGraph: CodeGraph?
+    @Published internal private(set) var renderGraph: WikiGraph = .empty
+    @Published internal private(set) var errorMessage: String?
+
+    private let fetch: @MainActor () async throws -> CodeGraph
+
+    internal init(fetch: @escaping @MainActor () async throws -> CodeGraph) {
+        self.fetch = fetch
+    }
+
+    internal convenience init(client: GatewayClient, service: String) {
+        self.init { try await client.codeGraph(service: service) }
+    }
+
+    internal func load() async {
+        phase = .loading
+        errorMessage = nil
+        do {
+            let graph = try await fetch()
+            codeGraph = graph
+            renderGraph = CodeGraphSource.mapToWikiGraph(graph).graph
+            phase = graph.isEmpty ? .empty : .loaded
+        } catch {
+            codeGraph = nil
+            renderGraph = .empty
+            errorMessage = error.localizedDescription
+            phase = .failed
+        }
+    }
+}
+
+/// Purpose-built code topology surface. It deliberately uses only the shared
+/// force-directed canvas, not `WikiGraphView`: users see code nodes/edges and
+/// code-specific loading/empty/error states rather than a nested "Wiki" app.
+@MainActor
+internal struct CodeGraphSurfaceView: View {
+    private let request: CodeGraphRequest
+    @StateObject private var model: CodeGraphSurfaceModel
+    @Environment(\.dismiss) private var dismiss
+
+    internal init(request: CodeGraphRequest, client: GatewayClient) {
+        self.request = request
+        _model = StateObject(
+            wrappedValue: CodeGraphSurfaceModel(client: client, service: request.service)
+        )
+    }
+
+    internal var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().background(Theme.border)
+            content
+        }
+        #if os(macOS)
+        .frame(minWidth: 640, minHeight: 480)
+        #endif
+        .background(Theme.background)
+        .task(id: request.digest) { await model.load() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(request.label)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+                    .lineLimit(1)
+                Text(summary)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondary)
+            }
+            Spacer()
+            Button("Done") { dismiss() }
+                .portalButton(prominent: true, size: .small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Theme.surface)
+    }
+
+    private var summary: String {
+        guard let graph = model.codeGraph else { return "Code graph" }
+        return "\(graph.nodes.count) nodes · \(graph.edges.count) edges"
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.phase {
+        case .idle, .loading:
+            stateMessage(
+                icon: "point.3.connected.trianglepath.dotted",
+                title: "Building code graph",
+                detail: "Extracting modules, symbols, and relationships…",
+                showsProgress: true
+            )
+        case .loaded:
+            InteractiveGraphView(graph: model.renderGraph)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .empty:
+            stateMessage(
+                icon: "curlybraces",
+                title: "No code symbols found",
+                detail: "The service has no graphable source files in an allowed source root."
+            )
+        case .failed:
+            VStack(spacing: 14) {
+                stateMessage(
+                    icon: "exclamationmark.triangle",
+                    title: "Code graph unavailable",
+                    detail: model.errorMessage ?? "The gateway could not build this service's code graph."
+                )
+                Button("Try Again") { Task { await model.load() } }
+                    .portalButton(prominent: false, size: .small)
+            }
+        }
+    }
+
+    private func stateMessage(
+        icon: String,
+        title: String,
+        detail: String,
+        showsProgress: Bool = false
+    ) -> some View {
+        VStack(spacing: 10) {
+            if showsProgress {
+                ProgressView()
+                    .controlSize(.large)
+            } else {
+                Image(systemName: icon)
+                    .font(.system(size: 30, weight: .light))
+                    .foregroundStyle(Theme.secondary)
+            }
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(Theme.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
     }
 }

@@ -197,6 +197,48 @@ internal struct CodeGraphTests {
         #expect(CodeGraph.empty.isEmpty)
     }
 
+    @Test("the dedicated code graph surface loads graph data without wiki state")
+    internal func dedicatedSurfaceLoadsCodeGraph() async {
+        let codeGraph = CodeGraph(
+            service: "svc",
+            digest: "digest",
+            codeControl: nil,
+            nodes: [
+                CodeGraphNode(
+                    id: "worker.py",
+                    kind: "module",
+                    type: "module",
+                    label: "worker.py",
+                    path: "worker.py",
+                    root: "repo",
+                    rel: "worker.py",
+                    line: 1,
+                    community: "0"
+                )
+            ],
+            edges: [],
+            communities: ["0": ["worker.py"]]
+        )
+        let model = CodeGraphSurfaceModel { codeGraph }
+
+        await model.load()
+
+        #expect(model.phase == .loaded)
+        #expect(model.codeGraph == codeGraph)
+        #expect(model.renderGraph.pages.map(\.title) == ["worker.py"])
+    }
+
+    @Test("the dedicated code graph surface reports an empty code graph explicitly")
+    internal func dedicatedSurfaceReportsEmptyGraph() async {
+        let model = CodeGraphSurfaceModel { .empty }
+
+        await model.load()
+
+        #expect(model.phase == .empty)
+        #expect(model.renderGraph.pages.isEmpty)
+        #expect(model.errorMessage == nil)
+    }
+
     // MARK: - Color / radius regression guard
 
     @Test("code kinds get distinct colors; wiki types are unchanged")

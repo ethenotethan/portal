@@ -45,7 +45,7 @@ internal struct CronDataflowExpandedView: View {
     @StateObject private var sourceVM = CronSourceFilesViewModel()
     /// The service whose code knowledge graph is presented over the surface, if
     /// any — set from the resource card's button or a request handed up from the
-    /// inline dock. Presented as a sheet backed by `CodeGraphSource`.
+    /// inline dock. Presented on its own code-topology surface.
     @State private var presentedCodeGraph: CodeGraphRequest?
 
     internal init(
@@ -84,7 +84,7 @@ internal struct CronDataflowExpandedView: View {
             // beside job B's card would read as B's code.
             .onChange(of: graphVM.selectedNodeIndex) { _, _ in sourceVM.close() }
             .sheet(item: $presentedCodeGraph) { request in
-                CodeGraphSheetView(request: request, client: gatewayClientWrapper.client)
+                CodeGraphSurfaceView(request: request, client: gatewayClientWrapper.client)
             }
     }
 
@@ -444,52 +444,5 @@ internal struct CronDataflowExpandedView: View {
         await listVM.loadFullPrompt(id: node.id)
         let runs = await listVM.loadHistory(id: node.id)
         if !runs.isEmpty { ledgers[node.id] = runs }
-    }
-}
-
-// MARK: - CodeGraphSheetView
-
-/// Presents a service's code knowledge graph over the dataflow surface, reusing
-/// the wiki graph renderer via a `CodeGraphSource`. Owns the source as a
-/// `@StateObject` so it (and its fetched graph / file index) survives redraws
-/// while the sheet is up.
-@MainActor
-private struct CodeGraphSheetView: View {
-    private let request: CodeGraphRequest
-    @StateObject private var source: CodeGraphSource
-    @Environment(\.dismiss) private var dismiss
-
-    internal init(request: CodeGraphRequest, client: GatewayClient) {
-        self.request = request
-        _source = StateObject(wrappedValue: CodeGraphSource(client: client, service: request.service))
-    }
-
-    internal var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(request.label)
-                        .font(.headline)
-                        .foregroundStyle(Theme.primary)
-                    Text("Code graph")
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
-                }
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(Theme.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(12)
-            Divider().background(Theme.border)
-            WikiGraphView(overrideSource: source)
-        }
-        .frame(minWidth: 640, minHeight: 480)
-        .background(Theme.background)
     }
 }
