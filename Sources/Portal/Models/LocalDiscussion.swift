@@ -26,25 +26,37 @@ internal struct LocalDiscussionTurn: Identifiable, Equatable, Sendable {
     }
 }
 
-/// A spoken side-conversation with the on-device model, anchored to one
-/// assistant message.
+/// A spoken side-conversation with the on-device model.
 ///
-/// The anchor is what the user wants to talk *about*: its text — plus the
-/// options it offered, when the reasoning summarizer found any — becomes the
-/// model's grounding, so "why B?" resolves against the actual reply instead of
-/// thin air. The discussion is scratch space: it costs no gateway tokens, never
+/// It runs in one of two directions. *Backwards*, anchored to an assistant
+/// reply: its text — plus the options it offered, when the reasoning summarizer
+/// found any — becomes the model's grounding, so "why B?" resolves against the
+/// actual reply instead of thin air. *Forwards*, from the composer with no reply
+/// yet: the user talks through what they are about to ask for, and the grounding
+/// is their draft plus a briefing on the other sessions, so "what are we working
+/// on today?" has an answer.
+///
+/// Either way the discussion is scratch space: it costs no gateway tokens, never
 /// appears in `ChatViewModel.messages`, and is thrown away on end unless the
-/// user explicitly hands its conclusion to the agent.
+/// user explicitly takes its conclusion forward.
 internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// The anchor message's id, so a second "discuss" tap on the same message
-    /// resumes rather than duplicates.
+    /// resumes rather than duplicates. A composer-started discussion gets a
+    /// fresh id, which is what keeps it from colliding with any message.
     internal let id: UUID
     /// The anchor reply, already trimmed to a context budget the small local
-    /// models can actually attend to (see `Self.anchorBudget`).
+    /// models can actually attend to (see `Self.anchorBudget`). Empty when the
+    /// discussion was started from the composer, before any reply exists.
     internal let anchorText: String
+    /// What the user has typed but not sent — the "here's a design, let's talk
+    /// about it" case. Trimmed to the same budget as an anchor.
+    internal let draftText: String
     /// Options the anchor offered ("Reply A, B, or C"), when a reasoning
     /// summary made them explicit. Empty is normal and fine.
     internal let options: [String]
+    /// What else is open on this machine. Lets the model answer about the work
+    /// rather than only about the text in front of it.
+    internal let briefing: LocalDiscussionBriefing
     internal var turns: [LocalDiscussionTurn]
 
     /// How much of the anchor reply is handed to the model. A 1-4B model given
@@ -52,12 +64,25 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// where the claim being discussed almost always is.
     internal static let anchorBudget = 1_600
 
-    internal init(anchorID: UUID, anchorText: String, options: [String] = [], turns: [LocalDiscussionTurn] = []) {
+    internal init(
+        anchorID: UUID,
+        anchorText: String = "",
+        draftText: String = "",
+        options: [String] = [],
+        briefing: LocalDiscussionBriefing = .empty,
+        turns: [LocalDiscussionTurn] = []
+    ) {
         self.id = anchorID
         self.anchorText = Self.trimAnchor(anchorText)
+        self.draftText = Self.trimAnchor(draftText)
         self.options = options
+        self.briefing = briefing
         self.turns = turns
     }
+
+    /// Whether this discussion is about a reply that already exists, as opposed
+    /// to one the user is still working out how to ask for.
+    internal var isAnchored: Bool { !anchorText.isEmpty }
 
     /// Whether there's anything worth handing back to the agent.
     internal var hasExchange: Bool {
@@ -137,25 +162,40 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// Three things this has to get right, all of them learned from what small
     /// models do wrong when spoken aloud: length (a paragraph read by a
     /// synthesizer is interminable), formatting (markdown read aloud is
-    /// gibberish — "asterisk asterisk"), and honesty (the model can see the
-    /// quoted reply and nothing else, so it must decline rather than invent
-    /// repo details).
+    /// gibberish — "asterisk asterisk"), and honesty — it can see what is written
+    /// into this prompt and nothing else, so it must decline rather than invent
+    /// repo details.
+    ///
+    /// The context that follows the instructions is whatever the discussion has:
+    /// a session briefing, the draft being worked on, the reply being discussed.
+    /// A composer-started discussion often has only the briefing, and that is the
+    /// point of the briefing — "what are we working on today?" used to be
+    /// unanswerable by construction.
     internal func instructions() -> String {
         var prompt = """
         You are a thinking partner in a SPOKEN conversation. The user is an experienced \
-        engineer talking out loud with you about a reply they just received from a coding \
-        agent. The reply is quoted below.
+        engineer talking out loud with you\(situation).
 
         How to answer:
         - You are being read aloud by a speech synthesizer. Answer in one to three short \
         sentences. No markdown, no bullet lists, no code blocks, no headings.
-        - Discuss what is actually in the reply. Quote its own words when it helps.
-        - You can see ONLY the quoted reply — not their repository, files, or history. If \
-        a question needs something you cannot see, say what you'd need to know instead of \
-        guessing at specifics.
+        - Ground every answer in the context below. Use the sessions' own names and the \
+        text's own words when it helps.
+        - The context below is ALL you can see — you cannot open files, run commands, read \
+        code, or look up history. If a question needs something that isn't here, say what \
+        you'd need to know instead of guessing at specifics.
         - Skip preamble, apologies, and flattery. Answer the question, then stop.
         - Take a position when asked for one. "Both are reasonable" is not an answer.
         """
+        prompt += purpose
+
+        if let sessions = briefing.promptBlock {
+            prompt += """
+
+
+            \(sessions)
+            """
+        }
 
         if !options.isEmpty {
             let list = options.enumerated()
@@ -169,15 +209,56 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
             """
         }
 
-        prompt += """
+        if isAnchored {
+            prompt += """
 
 
-        The reply under discussion:
-        \"\"\"
-        \(anchorText)
-        \"\"\"
-        """
+            The reply under discussion:
+            \"\"\"
+            \(anchorText)
+            \"\"\"
+            """
+        }
+
+        if !draftText.isEmpty {
+            prompt += """
+
+
+            What they have drafted so far but NOT yet sent to the agent:
+            \"\"\"
+            \(draftText)
+            \"\"\"
+            """
+        }
         return prompt
+    }
+
+    /// The clause that tells the model which conversation it is in. Getting this
+    /// wrong is what made a composer-started discussion answer as though a reply
+    /// it cannot see were the subject.
+    private var situation: String {
+        isAnchored
+            ? " about a reply they just received from a coding agent. The reply is quoted below"
+            : " before they ask a coding agent to do anything"
+    }
+
+    /// What the user is trying to get out of the exchange, which differs by
+    /// direction: understanding a reply versus deciding what to ask for.
+    private var purpose: String {
+        if isAnchored {
+            return """
+
+            - Discuss what is actually in the reply. Do not re-plan work they didn't ask about.
+            """
+        }
+        return """
+
+        - They are working out what to ask the agent for next. Help them shape and sharpen \
+        that ask; do not try to do the work yourself.
+        - If they ask what they are working on, answer from the session list — name the \
+        threads and say where each one stopped. Do not claim to know more about a session \
+        than its line says.
+        """
     }
 
     /// The prompt that hands the discussion's conclusion back to the real agent.
@@ -186,6 +267,10 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// gateway turn on the decision you actually reached. The local model's side
     /// is included but labelled as a local model's, so the agent weighs it as
     /// scratch thinking rather than as prior instruction from the user.
+    ///
+    /// A composer-started discussion carries the draft into the prompt, because
+    /// that prompt goes back into the composer the draft came from — leaving it
+    /// out would silently eat the design the user pasted there.
     internal func handoffPrompt() -> String {
         let transcript = turns
             .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -197,10 +282,23 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
             }
             .joined(separator: "\n")
 
+        let opening = isAnchored
+            ? "I talked your last reply over with a small on-device model."
+            : "Before asking you for anything, I talked this through with a small on-device model."
+        var draft = ""
+        if !isAnchored, !draftText.isEmpty {
+            draft = """
+
+
+            What I had drafted going in:
+            \"\"\"
+            \(draftText)
+            \"\"\"
+            """
+        }
         return """
-        I talked your last reply over with a small on-device model. That side conversation \
-        is below for context — treat my lines as what I actually think and the local \
-        model's as unverified scratch thinking.
+        \(opening) That side conversation is below for context — treat my lines as what I \
+        actually think and the local model's as unverified scratch thinking.\(draft)
 
         \(transcript)
 

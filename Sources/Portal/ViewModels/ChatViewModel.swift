@@ -349,6 +349,14 @@ final class ChatViewModel: ObservableObject {
     /// voice loop can be tested without a model or a synthesizer.
     internal var localChatService: any LocalChatControlling = LocalChatService.shared
     internal var conversationSpeaker: any ConversationSpeaking = TTSService.shared
+    /// Raw material for the local model's briefing: the other sessions on this
+    /// machine, so a discussion can start knowing what "today" means.
+    ///
+    /// A closure rather than a dependency on `SessionListViewModel` because the
+    /// session list belongs to the sidebar, not to chat — `ContentView` owns both
+    /// and wires this up. Defaults to nothing, which degrades to the previous
+    /// behavior (no briefing block) rather than to a crash.
+    internal var recentSessionsProvider: @MainActor () -> [Session] = { [] }
     /// True while a hands-free conversation is running: the mic stays open
     /// continuously across turns (so the user can talk over a reply) until the
     /// user ends it by tapping the mic again.
@@ -2303,9 +2311,39 @@ client.eventStream
             localDiscussion = LocalDiscussion(
                 anchorID: message.id,
                 anchorText: anchor,
-                options: LocalDiscussion.detectOptions(in: anchor)
+                options: LocalDiscussion.detectOptions(in: anchor),
+                briefing: currentBriefing()
             )
         }
+        await openDiscussionSurface()
+    }
+
+    /// Open a discussion with no reply to anchor to — the composer's own discuss
+    /// button.
+    ///
+    /// This is the forward-facing direction: talk through what you are about to
+    /// ask for before spending a gateway turn on it. Whatever is in the composer
+    /// comes along as the draft, and an empty composer is a perfectly good start —
+    /// "what are we working on today?" is answered from the session briefing.
+    /// Re-tapping resumes the open discussion instead of restarting it, which also
+    /// keeps the engine's KV cache warm.
+    internal func startLocalDiscussion() async {
+        guard localChatService.isEnabledAndAvailable else { return }
+        // An anchored discussion is about something else entirely; don't quietly
+        // fold the composer's draft into it.
+        if localDiscussion?.isAnchored == true { await closeLocalDiscussion() }
+        if localDiscussion == nil {
+            localDiscussion = LocalDiscussion(
+                anchorID: UUID(),
+                draftText: inputText.trimmingCharacters(in: .whitespacesAndNewlines),
+                briefing: currentBriefing()
+            )
+        }
+        await openDiscussionSurface()
+    }
+
+    /// Load the model and open the mic. Shared by both entry points.
+    private func openDiscussionSurface() async {
         // Start the (possibly multi-gigabyte) load now so the first question isn't
         // also waiting on weights.
         localChatService.prepare()
@@ -2313,6 +2351,16 @@ client.eventStream
         if localVoiceService.isEnabledAndAvailable, !isVoiceRecording {
             await beginLocalCapture(conversation: true)
         }
+    }
+
+    /// Digest the other sessions for the local model. Read at open time rather
+    /// than kept live: the instructions are held constant for the whole exchange
+    /// so the engine can reuse one chat session.
+    private func currentBriefing() -> LocalDiscussionBriefing {
+        LocalDiscussionBriefing.build(
+            from: recentSessionsProvider(),
+            currentSessionID: currentSessionID
+        )
     }
 
     /// Ask the local model something typed rather than spoken — the fallback path
@@ -2398,16 +2446,29 @@ client.eventStream
         conversationSpeaker.stop()
     }
 
-    /// Hand the discussion's conclusion to the real agent: one gateway turn,
-    /// carrying the exchange as context. The discussion closes — its job is done —
-    /// but a hands-free conversation stays open, so the agent's answer is spoken
-    /// and the next question can follow without touching anything.
+    /// Take the discussion's conclusion forward to the real agent. The discussion
+    /// closes either way — its job is done.
+    ///
+    /// Which "forward" depends on where the discussion started. Anchored to a
+    /// reply, it submits: one gateway turn carrying the exchange as context, with
+    /// a hands-free conversation left open so the answer is spoken and the next
+    /// question needs no tap. Started from the composer, it does NOT submit — the
+    /// whole point of talking first was to shape the prompt, so the prompt lands
+    /// in the composer for a read-through and an edit before it costs anything.
     internal func handLocalDiscussionToAgent() async {
         guard let discussion = localDiscussion, discussion.hasExchange else { return }
         let prompt = discussion.handoffPrompt()
+        let submits = discussion.isAnchored
         await closeLocalDiscussion()
         inputText = prompt
-        await submitPrompt()
+        if submits {
+            await submitPrompt()
+        } else {
+            // Nothing was sent, so nothing should be spoken at us either; hand the
+            // user their cursor and let them decide.
+            if isConversationActive { await endConversation() }
+            refocusInput += 1
+        }
     }
 
     /// Close the discussion and return the mic to the agent.

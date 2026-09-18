@@ -96,7 +96,13 @@ internal struct LocalDiscussionCard: View {
         if localChat.isPreparing { return "Loading the local model\u{2026}" }
         if chatViewModel.isLocalStreaming { return "Thinking\u{2026}" }
         if chatViewModel.isConversationActive { return "Listening\u{2026}" }
-        return "Discussing this reply"
+        return isAnchored ? "Discussing this reply" : "Talking it through first"
+    }
+
+    /// True when the discussion is about a reply; false when it was started from
+    /// the composer to shape what to ask for next.
+    private var isAnchored: Bool {
+        chatViewModel.localDiscussion?.isAnchored == true
     }
 
     // MARK: Anchor
@@ -111,7 +117,7 @@ internal struct LocalDiscussionCard: View {
                     HStack(spacing: 4) {
                         Image(systemName: showsAnchor ? "chevron.down" : "chevron.right")
                             .font(.system(size: 9, weight: .semibold))
-                        Text("About this reply")
+                        Text(contextLabel(discussion))
                             .font(.caption.weight(.medium))
                     }
                     .foregroundStyle(Theme.tertiary)
@@ -119,11 +125,28 @@ internal struct LocalDiscussionCard: View {
                 .buttonStyle(.plain)
 
                 if showsAnchor {
-                    Text(discussion.anchorText)
-                        .font(.caption)
-                        .foregroundStyle(Theme.secondary)
-                        .lineLimit(8)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if discussion.isAnchored {
+                        Text(discussion.anchorText)
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(8)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !discussion.draftText.isEmpty {
+                        Text("Your draft: \(discussion.draftText)")
+                            .font(.caption)
+                            .foregroundStyle(Theme.secondary)
+                            .lineLimit(6)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    // The sessions the model was briefed on, so what it knows is
+                    // inspectable rather than uncanny.
+                    ForEach(Array(discussion.briefing.entries.enumerated()), id: \.offset) { _, entry in
+                        Text("\u{2022} \(entry.title)\(entry.age.isEmpty ? "" : " \u{2014} \(entry.age)")")
+                            .font(.caption)
+                            .foregroundStyle(Theme.tertiary)
+                            .lineLimit(1)
+                    }
                 }
 
                 // The choices the reply offered, which are usually the actual
@@ -139,6 +162,16 @@ internal struct LocalDiscussionCard: View {
                 }
             }
         }
+    }
+
+    /// What the disclosure row is hiding, named for what's actually behind it —
+    /// a reply, a draft, or just the briefing.
+    private func contextLabel(_ discussion: LocalDiscussion) -> String {
+        if discussion.isAnchored { return "About this reply" }
+        let sessions = discussion.briefing.entries.count
+        if sessions == 0 { return discussion.draftText.isEmpty ? "No context yet" : "Your draft" }
+        let known = "knows \(sessions) session\(sessions == 1 ? "" : "s")"
+        return discussion.draftText.isEmpty ? "What it knows \u{2014} \(known)" : "Your draft \u{2014} \(known)"
     }
 
     // MARK: Turns
@@ -169,7 +202,7 @@ internal struct LocalDiscussionCard: View {
     /// transcription still get the whole feature this way.
     private var composer: some View {
         HStack(spacing: 8) {
-            TextField("Ask about this reply\u{2026}", text: $draft)
+            TextField(isAnchored ? "Ask about this reply\u{2026}" : "What are we working on?\u{2026}", text: $draft)
                 .textFieldStyle(.plain)
                 .font(.callout)
                 .onSubmit(send)
@@ -204,14 +237,19 @@ internal struct LocalDiscussionCard: View {
                 Button {
                     Task { await chatViewModel.handLocalDiscussionToAgent() }
                 } label: {
-                    Text("Hand to Claude")
+                    // Anchored, this submits a turn; from the composer it only
+                    // fills the composer — so the label has to say which, or the
+                    // button is a surprise either way.
+                    Text(isAnchored ? "Hand to Claude" : "Put in composer")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(Theme.accent.opacity(0.18), in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("Send this side conversation to the agent as the next prompt")
+                .help(isAnchored
+                      ? "Send this side conversation to the agent as the next prompt"
+                      : "Write this up into the composer \u{2014} nothing is sent until you send it")
             }
 
             Button {

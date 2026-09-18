@@ -337,6 +337,123 @@ internal struct ChatLocalDiscussionTests {
         #expect(chat.endSessionCount == 1)
     }
 
+    // MARK: - Started from the composer
+
+    @Test("the composer can open a discussion with no reply to anchor to")
+    internal func opensFromTheComposer() async {
+        let (vm, chat, voice, speaker) = makeViewModel()
+        vm.recentSessionsProvider = { Self.sessions }
+
+        await vm.startLocalDiscussion()
+        // The case the anchored entry point couldn't reach: nothing sent yet.
+        #expect(vm.localDiscussion != nil)
+        #expect(vm.localDiscussion?.isAnchored == false)
+        #expect(chat.prepareCount == 1)
+        #expect(vm.isConversationActive)
+        #expect(voice.isRunning)
+        #expect(speaker.isEnabled)
+    }
+
+    @Test("a composer discussion is briefed on the other sessions")
+    internal func briefedOnOtherSessions() async {
+        let (vm, chat, _, _) = makeViewModel()
+        vm.recentSessionsProvider = { Self.sessions }
+
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("what are we working on today?")
+
+        // The whole point: this question used to be unanswerable by construction.
+        let instructions = chat.instructions.first ?? ""
+        #expect(instructions.contains("Wiki space discovery fix"))
+        #expect(instructions.contains("Harness forkdiff CI gate"))
+        #expect(instructions.contains("last message: \"pushed as #492\""))
+        #expect(vm.localDiscussion?.briefing.entries.count == 2)
+    }
+
+    @Test("what's in the composer comes along as the draft")
+    internal func carriesTheDraft() async {
+        let (vm, chat, _, _) = makeViewModel()
+        vm.inputText = "  Here's a design for the cron digest.  "
+
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("is that one change or two?")
+
+        #expect(vm.localDiscussion?.draftText == "Here's a design for the cron digest.")
+        #expect(chat.instructions.first?.contains("NOT yet sent to the agent") == true)
+        #expect(chat.instructions.first?.contains("Here's a design for the cron digest.") == true)
+    }
+
+    @Test("re-tapping resumes, and an anchored discussion is not folded into it")
+    internal func composerReopenRules() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("where did we leave the wiki fix?")
+        let id = vm.localDiscussion?.id
+
+        // Same discussion: the exchange survives and the KV cache stays warm.
+        await vm.startLocalDiscussion()
+        #expect(vm.localDiscussion?.id == id)
+        #expect(vm.localDiscussion?.turns.count == 2)
+        #expect(chat.endSessionCount == 0)
+
+        // A discussion about a reply is about something else; the composer button
+        // starts a new one rather than quietly re-pointing that one.
+        await vm.startLocalDiscussion(about: anchor("Use an actor."))
+        #expect(vm.localDiscussion?.isAnchored == true)
+        await vm.startLocalDiscussion()
+        #expect(vm.localDiscussion?.isAnchored == false)
+        #expect(vm.localDiscussion?.turns.isEmpty == true)
+        #expect(chat.endSessionCount == 2)
+    }
+
+    @Test("a pre-send conclusion lands in the composer instead of being submitted")
+    internal func composerHandoffDoesNotSubmit() async {
+        let (vm, chat, voice, _) = makeViewModel()
+        vm.inputText = "Rework the cron digest."
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("one change or two?")
+
+        await vm.handLocalDiscussionToAgent()
+        // The point of talking first was to shape the prompt, so it is handed back
+        // for a read-through — not spent on a gateway turn behind the user's back.
+        #expect(vm.inputText.contains("Rework the cron digest."))
+        #expect(vm.inputText.contains("Me: one change or two?"))
+        #expect(vm.refocusInput == 1)
+        // Nothing was sent, so nothing should be read aloud at us either.
+        #expect(!vm.isConversationActive)
+        #expect(voice.cancelCalled)
+        #expect(vm.localDiscussion == nil)
+        #expect(chat.endSessionCount == 1)
+    }
+
+    @Test("with no sessions to draw on, a discussion still opens")
+    internal func opensWithoutABriefing() async {
+        let (vm, chat, _, _) = makeViewModel()
+        // The gateway being down means an empty session list; the local path does
+        // not depend on it.
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("what should I ask for?")
+        #expect(vm.localDiscussion?.briefing.entries.isEmpty == true)
+        #expect(chat.instructions.first?.contains("Recent work on this machine") == false)
+        #expect(chat.prompts == ["what should I ask for?"])
+    }
+
+    @Test("the composer button does nothing until the user has opted in")
+    internal func composerRequiresOptIn() async {
+        let (vm, chat, _, _) = makeViewModel()
+        chat.isEnabled = false
+        await vm.startLocalDiscussion()
+        #expect(vm.localDiscussion == nil)
+        #expect(chat.prepareCount == 0)
+    }
+
+    private static var sessions: [Session] {
+        [
+            Session(id: "a", title: "Wiki space discovery fix", preview: "pushed as #492", messageCount: 34),
+            Session(id: "b", title: "Harness forkdiff CI gate", preview: "base pinned", messageCount: 88)
+        ]
+    }
+
     /// Spin the runloop until `predicate` holds — local replies stream from a
     /// child task, so effects settle asynchronously.
     private func settle(_ predicate: @escaping () -> Bool) async {

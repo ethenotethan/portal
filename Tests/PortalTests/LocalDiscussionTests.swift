@@ -109,13 +109,74 @@ internal struct LocalDiscussionTests {
         // The three rules that matter when this is read aloud.
         #expect(prompt.contains("SPOKEN"))
         #expect(prompt.contains("No markdown"))
-        #expect(prompt.contains("ONLY the quoted reply"))
+        #expect(prompt.contains("The context below is ALL you can see"))
+        // Anchored, the subject is the reply — not a fresh planning session.
+        #expect(prompt.contains("a reply they just received"))
+        #expect(prompt.contains("The reply under discussion:"))
+        #expect(!prompt.contains("working out what to ask"))
     }
 
     @Test("no options means no options list")
     internal func instructionsOmitEmptyOptions() {
         let discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Just do it.")
         #expect(!discussion.instructions().contains("offered these options"))
+    }
+
+    @Test("a composer-started discussion is briefed instead of anchored")
+    internal func unanchoredInstructionsUseTheBriefing() {
+        let briefing = LocalDiscussionBriefing.build(
+            from: [
+                LocalDiscussionTests.session(id: "a", title: "Forkdiff CI gate", preview: "base pinned"),
+                LocalDiscussionTests.session(id: "b", title: "Wiki space picker", preview: "PR #492 open")
+            ]
+        )
+        let discussion = LocalDiscussion(
+            anchorID: UUID(),
+            draftText: "Here's a design for the cron digest.",
+            briefing: briefing
+        )
+        let prompt = discussion.instructions()
+        #expect(!discussion.isAnchored)
+        // "What are we working on today?" is answerable now — this is the whole
+        // point of the briefing.
+        #expect(prompt.contains("Forkdiff CI gate"))
+        #expect(prompt.contains("Wiki space picker"))
+        #expect(prompt.contains("answer from the session list"))
+        #expect(prompt.contains("before they ask a coding agent to do anything"))
+        // The draft is labelled as unsent, so the model doesn't discuss it as
+        // though the agent had already replied to it.
+        #expect(prompt.contains("NOT yet sent to the agent"))
+        #expect(prompt.contains("Here's a design for the cron digest."))
+        #expect(!prompt.contains("The reply under discussion:"))
+    }
+
+    @Test("an empty composer with nothing open still yields usable instructions")
+    internal func unanchoredWithNoContext() {
+        let prompt = LocalDiscussion(anchorID: UUID()).instructions()
+        #expect(prompt.contains("SPOKEN"))
+        // No headings for context that doesn't exist — an empty "Recent work"
+        // list is an invitation to invent one.
+        #expect(!prompt.contains("Recent work on this machine"))
+        #expect(!prompt.contains("drafted so far"))
+        #expect(!prompt.contains("The reply under discussion:"))
+    }
+
+    @Test("a briefing is included when discussing a reply too")
+    internal func anchoredInstructionsAlsoCarryTheBriefing() {
+        let discussion = LocalDiscussion(
+            anchorID: UUID(),
+            anchorText: "Use an actor.",
+            briefing: LocalDiscussionBriefing.build(
+                from: [LocalDiscussionTests.session(id: "a", title: "Local discussion feature")]
+            )
+        )
+        let prompt = discussion.instructions()
+        #expect(prompt.contains("Local discussion feature"))
+        #expect(prompt.contains("The reply under discussion:"))
+    }
+
+    private static func session(id: String, title: String, preview: String? = nil) -> Session {
+        Session(id: id, title: title, preview: preview, messageCount: 2)
     }
 
     @Test("the handoff labels who said what and drops empty turns")
@@ -133,6 +194,26 @@ internal struct LocalDiscussionTests {
         #expect(prompt.components(separatedBy: "Local model:").count == 2)
         // The agent is told how much to trust each side.
         #expect(prompt.contains("unverified scratch thinking"))
+        #expect(prompt.contains("talked your last reply over"))
+    }
+
+    @Test("a pre-send handoff carries the draft, since it replaces the composer")
+    internal func unanchoredHandoffKeepsTheDraft() {
+        var discussion = LocalDiscussion(
+            anchorID: UUID(),
+            draftText: "Rework the cron digest so source files stay out of it."
+        )
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "is that one change or two?"),
+            LocalDiscussionTurn(role: .assistant, text: "two — the digest and the node surface")
+        ]
+        let prompt = discussion.handoffPrompt()
+        // This text goes back into the composer the draft came from, so leaving
+        // the draft out would silently eat what the user pasted there.
+        #expect(prompt.contains("Rework the cron digest so source files stay out of it."))
+        #expect(prompt.contains("What I had drafted going in:"))
+        #expect(prompt.contains("Before asking you for anything"))
+        #expect(!prompt.contains("talked your last reply over"))
     }
 
     @Test("a discussion has nothing to hand over until the model has answered")

@@ -1334,6 +1334,10 @@ struct ChatInputBar: View {
     /// app-wide via the "composerStyle" key.
     @AppStorage("composerStyle") private var composerStyle: ComposerStyle = .card
 
+    /// Drives the composer's discuss button: whether a local model is opted into
+    /// and available, and which one, for the tooltip.
+    @ObservedObject private var localChat = LocalChatService.shared
+
     /// The identity the composer placeholder names — an adopted gateway persona
     /// wins, else the backend's harness-fixed identity (Centaur).
     private var displayPersona: Persona {
@@ -1384,6 +1388,7 @@ struct ChatInputBar: View {
                 }
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
+                discussButton
                 voiceButton
                 sendButton
             }
@@ -1417,6 +1422,7 @@ struct ChatInputBar: View {
                     attachButton
                 }
                 inputField
+                discussButton
                 voiceButton
                 sendButton
             }
@@ -1627,6 +1633,48 @@ struct ChatInputBar: View {
     }
 
     // MARK: - Voice Button
+
+    /// "Talk it over first" — a local discussion started from the composer,
+    /// before anything is sent.
+    ///
+    /// The mic next to it dictates *to the agent*; this one opens a free,
+    /// on-device conversation about what to ask for, seeded with whatever is in
+    /// the composer and a briefing on the other sessions. Only shown when the
+    /// user has opted in (Settings → Speech) on a build that can run a local
+    /// model, and independent of the gateway — this path needs no network.
+    private var discussButton: some View {
+        guard localChat.isEnabledAndAvailable else { return AnyView(EmptyView()) }
+        let isOpen = chatViewModel.localDiscussion != nil
+        let symbol = isOpen ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right"
+        let fill: Color = isOpen ? Color.accentColor : Theme.surfaceHover
+        let foreground: Color = isOpen ? .white : Theme.secondary
+        return AnyView(Image(systemName: symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(foreground)
+            .frame(width: 30, height: 30)
+            .background(fill, in: Circle())
+            .contentShape(Circle())
+            .onTapGesture {
+                Task {
+                    if isOpen {
+                        await chatViewModel.endLocalDiscussion()
+                    } else {
+                        await chatViewModel.startLocalDiscussion()
+                    }
+                }
+            }
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(isOpen ? "End local discussion" : "Talk it over on-device first")
+            .accessibilityIdentifier("composerDiscussButton")
+            .help(discussButtonHelp(isOpen: isOpen)))
+    }
+
+    private func discussButtonHelp(isOpen: Bool) -> String {
+        if isOpen { return "In a local discussion \u{2014} tap to end" }
+        return "Talk it over with \(localChat.model.label) on-device first \u{2014} free, "
+            + "off the transcript, and it knows what else you have open"
+    }
 
     /// Walkie-talkie mic button. Taps toggle recording on/off.
     /// With the gateway path, the backend captures speech via faster-whisper and
