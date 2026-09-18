@@ -55,11 +55,16 @@ internal struct LocalChatServiceTests {
         return UserDefaults(suiteName: "portal.tests.localchat.\(UUID().uuidString)")!
     }
 
+    /// A fixed machine, so the default model (and therefore what gets loaded)
+    /// doesn't depend on whichever Mac the suite runs on.
+    private static let mac16GB = HardwareProfile(memoryGB: 16, chip: "Apple M4")
+
     private func makeService(
         engine: (any LocalChatGenerating)?,
-        enabled: Bool = true
+        enabled: Bool = true,
+        hardware: HardwareProfile = Self.mac16GB
     ) -> LocalChatService {
-        let service = LocalChatService(engine: engine, defaults: makeDefaults())
+        let service = LocalChatService(engine: engine, defaults: makeDefaults(), hardware: hardware)
         service.isEnabled = enabled
         return service
     }
@@ -86,21 +91,53 @@ internal struct LocalChatServiceTests {
         #expect(engine.prompts.isEmpty)
     }
 
-    @Test("preparing loads the selected model once")
-    internal func prepareLoadsSelectedModel() async {
+    @Test("opting in starts the download there and then, not at the first question")
+    internal func optingInPreloads() async {
         let engine = FakeChatEngine()
-        let service = makeService(engine: engine)
-        service.model = .qwen3_4b
+        let service = makeService(engine: engine, enabled: false)
+        #expect(engine.preparedModels.isEmpty)
 
-        service.prepare()
+        service.isEnabled = true
         await settle { !service.isPreparing }
+        // Waiting for gigabytes of weights mid-conversation is the thing this
+        // avoids: the load happens while the user is still in Settings.
         #expect(engine.preparedModels == [.qwen3_4b])
+        #expect(service.isReady)
         #expect(service.lastError == nil)
 
-        // Already loaded: asking again doesn't reload gigabytes of weights.
+        // Already loaded: asking again doesn't reload it.
         service.prepare()
         await settle { !service.isPreparing }
         #expect(engine.preparedModels == [.qwen3_4b])
+    }
+
+    @Test("the default model is the one that suits the machine")
+    internal func defaultModelFollowsHardware() {
+        let air = LocalChatService(
+            engine: nil,
+            defaults: makeDefaults(),
+            hardware: HardwareProfile(memoryGB: 8, chip: "Apple M2")
+        )
+        #expect(air.model == .qwen3_1_7b)
+        #expect(air.recommendedModel == .qwen3_1_7b)
+
+        let studio = LocalChatService(
+            engine: nil,
+            defaults: makeDefaults(),
+            hardware: HardwareProfile(memoryGB: 128, chip: "Apple M3 Ultra")
+        )
+        #expect(studio.model == .qwen3_30b_a3b)
+    }
+
+    @Test("an Intel Mac reports the feature unavailable rather than failing at load")
+    internal func intelIsUnavailable() {
+        let service = LocalChatService(
+            engine: FakeChatEngine(),
+            defaults: makeDefaults(),
+            hardware: HardwareProfile(memoryGB: 32, chip: "Intel Core i9", isAppleSilicon: false)
+        )
+        // The weights would download and then fail on a Metal-less GPU.
+        #expect(!service.isAvailable)
     }
 
     @Test("a failed load is reported and blocks generation")
@@ -188,23 +225,20 @@ internal struct LocalChatServiceTests {
         #expect(engine.prompts.last == "why?")
     }
 
-    @Test("switching models drops the session and the loaded state")
+    @Test("switching models drops the session and loads the new weights")
     internal func switchingModelResets() async {
         let engine = FakeChatEngine()
         let service = makeService(engine: engine)
-        service.prepare()
-        await settle { !service.isPreparing }
-        #expect(service.isReady)
+        await settle { service.isReady }
 
-        service.model = .llama3_2_3b
+        service.model = .qwen3_8b
         await settle { engine.endSessionCount == 1 }
         #expect(engine.endSessionCount == 1)
-        #expect(!service.isReady)
 
-        // …and the new weights are actually loaded rather than skipped.
-        service.prepare()
-        await settle { !service.isPreparing }
-        #expect(engine.preparedModels == [.gemma3_1b, .llama3_2_3b])
+        // The new weights are actually loaded rather than skipped — an in-flight
+        // load for the old model used to swallow the switch.
+        await settle { service.isReady }
+        #expect(engine.preparedModels == [.qwen3_4b, .qwen3_8b])
     }
 
     @Test("ending the session forwards to the engine")
@@ -218,13 +252,15 @@ internal struct LocalChatServiceTests {
     @Test("the opt-ins persist")
     internal func settingsPersist() {
         let defaults = makeDefaults()
-        let first = LocalChatService(engine: nil, defaults: defaults)
+        let first = LocalChatService(engine: nil, defaults: defaults, hardware: Self.mac16GB)
         first.isEnabled = true
-        first.model = .qwen3_4b
+        // Deliberately not this machine's recommendation: an explicit pick has to
+        // survive, not be re-derived from the hardware on every launch.
+        first.model = .qwen3_8b
 
-        let second = LocalChatService(engine: nil, defaults: defaults)
+        let second = LocalChatService(engine: nil, defaults: defaults, hardware: Self.mac16GB)
         #expect(second.isEnabled)
-        #expect(second.model == .qwen3_4b)
+        #expect(second.model == .qwen3_8b)
     }
 
     private func settle(_ predicate: @escaping () -> Bool) async {

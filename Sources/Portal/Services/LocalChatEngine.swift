@@ -134,9 +134,11 @@ internal actor MLXLocalChatEngine: LocalChatGenerating {
     private static func configuration(for model: LocalChatModel) -> ModelConfiguration {
         switch model {
         case .gemma3_1b: return LLMRegistry.gemma3_1B_qat_4bit
-        case .llama3_2_3b: return LLMRegistry.llama3_2_3B_4bit
+        case .qwen3_1_7b: return LLMRegistry.qwen3_1_7b_4bit
         case .qwen3_4b: return LLMRegistry.qwen3_4b_4bit
+        case .lfm2_8b_a1b: return LLMRegistry.lfm2_8b_a1b_3bit_mlx
         case .qwen3_8b: return LLMRegistry.qwen3_8b_4bit
+        case .qwen3_30b_a3b: return LLMRegistry.qwen3MoE_30b_a3b_4bit
         }
     }
 }

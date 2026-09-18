@@ -135,16 +135,55 @@ internal struct SpeechSettingsSection: View {
                 Text(localChat.model.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if localChat.isPreparing {
-                    Label("Loading \(localChat.model.label)\u{2026}", systemImage: "arrow.down.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if let error = localChat.lastError {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(Theme.warning)
-                }
+                localModelFit
+                localModelStatus
             }
+        }
+    }
+
+    /// How the pick lands on *this* machine. Which model is right is mostly a
+    /// memory question, and the user can't be expected to know that a 30B-A3B
+    /// wants 32 GB — so say it, and offer the model that suits the hardware.
+    @ViewBuilder
+    private var localModelFit: some View {
+        if !localChat.model.fits(localChat.hardware) {
+            Label(
+                "This Mac has \(localChat.hardware.memoryGB) GB; \(localChat.model.label) wants "
+                    + "at least \(localChat.model.minimumMemoryGB) GB. Expect swapping mid-sentence.",
+                systemImage: "exclamationmark.triangle"
+            )
+            .font(.caption)
+            .foregroundStyle(Theme.warning)
+        }
+        if localChat.model != localChat.recommendedModel {
+            HStack(spacing: 6) {
+                Text("\(localChat.hardware.summary) suits \(localChat.recommendedModel.label).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Use it") { localChat.model = localChat.recommendedModel }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+    }
+
+    /// The load is kicked off by opting in or switching models, so this is where
+    /// a multi-gigabyte download is visible rather than mid-conversation.
+    @ViewBuilder
+    private var localModelStatus: some View {
+        if localChat.isPreparing {
+            Label("Loading \(localChat.model.label)\u{2026}", systemImage: "arrow.down.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if let error = localChat.lastError {
+            Label(error, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(Theme.warning)
+        } else if localChat.isReady {
+            Label("\(localChat.model.label) ready", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

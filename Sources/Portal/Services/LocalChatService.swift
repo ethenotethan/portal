@@ -6,25 +6,37 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalC
 
 /// Which on-device model backs local discussions.
 ///
-/// Ordered smallest-first, and each case owns its own download size and
-/// character description because that is the whole decision the user is making:
-/// a 1B answers instantly and shallowly, an 8B is worth waiting for. The MLX
-/// configuration these map to lives in `LocalChatEngine.swift` — this layer
-/// stays free of ML imports so it can be unit-tested.
+/// Ordered smallest-first. The lineup is picked for *spoken* use, which is a
+/// narrower job than "best local model": the reply has to start within about a
+/// second and then out-pace speech (~6 tokens/sec), so decode throughput and a
+/// short time-to-first-token matter more than benchmark scores, and a model that
+/// reasons at length by default is actively bad — the user sits in silence while
+/// it thinks. That is why two mixture-of-experts models are here: they activate
+/// a fraction of their weights per token, so they answer like a small model
+/// while knowing like a large one.
+///
+/// Each case owns its own size, character, and memory floor because that is the
+/// whole decision the user is making. The MLX configuration they map to lives in
+/// `LocalChatEngine.swift` — this layer stays free of ML imports so it can be
+/// unit-tested.
 internal enum LocalChatModel: String, CaseIterable, Identifiable, Sendable {
     case gemma3_1b
-    case llama3_2_3b
+    case qwen3_1_7b
     case qwen3_4b
+    case lfm2_8b_a1b
     case qwen3_8b
+    case qwen3_30b_a3b
 
     internal var id: String { rawValue }
 
     internal var label: String {
         switch self {
         case .gemma3_1b: return "Gemma 3 1B"
-        case .llama3_2_3b: return "Llama 3.2 3B"
-        case .qwen3_4b: return "Qwen 3 4B"
-        case .qwen3_8b: return "Qwen 3 8B"
+        case .qwen3_1_7b: return "Qwen3 1.7B"
+        case .qwen3_4b: return "Qwen3 4B"
+        case .lfm2_8b_a1b: return "LFM2 8B-A1B"
+        case .qwen3_8b: return "Qwen3 8B"
+        case .qwen3_30b_a3b: return "Qwen3 30B-A3B"
         }
     }
 
@@ -32,33 +44,74 @@ internal enum LocalChatModel: String, CaseIterable, Identifiable, Sendable {
     /// surprise multi-gigabyte wait on the first spoken question.
     internal var downloadSize: String {
         switch self {
-        case .gemma3_1b: return "~600 MB"
-        case .llama3_2_3b: return "~1.8 GB"
+        case .gemma3_1b: return "~0.7 GB"
+        case .qwen3_1_7b: return "~1.0 GB"
         case .qwen3_4b: return "~2.3 GB"
+        case .lfm2_8b_a1b: return "~4.2 GB"
         case .qwen3_8b: return "~4.6 GB"
+        case .qwen3_30b_a3b: return "~17 GB"
         }
     }
 
     internal var detail: String {
         switch self {
         case .gemma3_1b:
-            return "Instant, shallow. Shared with skill summaries, so it's usually already downloaded."
-        case .llama3_2_3b:
-            return "Fast and conversational; light on technical depth."
+            return "Instant and shallow. Skill summaries already use it, so there's usually nothing to download."
+        case .qwen3_1_7b:
+            return "The smartest model that still fits an 8 GB Mac. Fine for \"which option, and why\"."
         case .qwen3_4b:
-            return "Best balance for talking through a design. Recommended."
+            return "The balance point: follows an architecture argument and still answers in about a second."
+        case .lfm2_8b_a1b:
+            return "Mixture-of-experts: 8B of breadth, 1.5B active, so it talks back faster than a 2B. Weaker on deep code detail."
         case .qwen3_8b:
-            return "Strongest reasoning; slower first token and heaviest on memory."
+            return "The strongest dense model that still keeps pace with speech. Heaviest first token."
+        case .qwen3_30b_a3b:
+            return "3.3B active out of 30B — the sharpest option here, and still faster than you can listen. Wants real headroom."
+        }
+    }
+
+    /// Unified memory below which this is a bad idea: the weights, the KV cache,
+    /// the speech models and the app share one pool, and overcommitting it trades
+    /// a slow reply for a swapping machine.
+    internal var minimumMemoryGB: Int {
+        switch self {
+        case .gemma3_1b, .qwen3_1_7b: return 8
+        case .qwen3_4b: return 12
+        case .lfm2_8b_a1b, .qwen3_8b: return 16
+        case .qwen3_30b_a3b: return 32
         }
     }
 
     /// Reasoning-by-default models are told to skip the monologue: in a spoken
     /// exchange the user is waiting in silence while it thinks, and the block is
-    /// discarded before display anyway (see `ThinkBlockFilter`).
+    /// discarded before display anyway (see `ThinkBlockFilter`). All four Qwen3
+    /// releases honour the `/no_think` soft switch; Gemma and LFM2 have no
+    /// thinking mode to switch off.
     internal var promptSuffix: String {
         switch self {
-        case .qwen3_4b, .qwen3_8b: return " /no_think"
-        case .gemma3_1b, .llama3_2_3b: return ""
+        case .qwen3_1_7b, .qwen3_4b, .qwen3_8b, .qwen3_30b_a3b: return " /no_think"
+        case .gemma3_1b, .lfm2_8b_a1b: return ""
+        }
+    }
+
+    /// Whether this machine can hold the model without fighting itself.
+    internal func fits(_ hardware: HardwareProfile) -> Bool {
+        hardware.memoryGB >= minimumMemoryGB
+    }
+
+    /// The best pick for a given machine — the default on first run, and what
+    /// Settings offers as the recommendation.
+    ///
+    /// Deliberately one tier below "the biggest thing that fits": the discussion
+    /// runs *alongside* the editor, the agent, and two speech models, and a
+    /// reply that arrives late is worse than one that arrives a little dumber.
+    internal static func recommended(for hardware: HardwareProfile) -> LocalChatModel {
+        switch hardware.memoryGB {
+        case ..<12: return .qwen3_1_7b
+        case 12..<18: return .qwen3_4b
+        case 18..<32: return .lfm2_8b_a1b
+        case 32..<48: return .qwen3_8b
+        default: return .qwen3_30b_a3b
         }
     }
 }
@@ -156,7 +209,14 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
     internal static let modelKey = "portal.localChatModel"
 
     @Published internal var isEnabled: Bool {
-        didSet { defaults.set(isEnabled, forKey: Self.enabledKey) }
+        didSet {
+            defaults.set(isEnabled, forKey: Self.enabledKey)
+            // Opting in is the moment to pay the download, not the first spoken
+            // question: the user is sitting in Settings watching a progress label
+            // instead of waiting mid-conversation for gigabytes of weights.
+            // Launch stays lazy — `didSet` doesn't fire for the stored value.
+            if isEnabled, !oldValue { prepare() }
+        }
     }
 
     /// Switching models drops the loaded weights and any live session — the next
@@ -171,8 +231,14 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
             isReady = false
             loadFailed = false
             lastError = nil
+            // A load already running is for the model the user just moved off.
+            // It also has to be cleared, or `prepare()` folds into it and the new
+            // weights never load.
+            prepareTask?.cancel()
+            prepareTask = nil
             let engine = self.engine
             Task { await engine?.endSession() }
+            if isEnabled { prepare() }
         }
     }
 
@@ -191,25 +257,42 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
     /// only the former means asking again is pointless.
     private var loadFailed = false
 
+    /// What the recommendation and the memory warnings are based on. Injected so
+    /// tests can pretend to be an 8 GB Air or a 128 GB Studio.
+    internal let hardware: HardwareProfile
+
     /// Production initializer: wires the default engine, or leaves the service
     /// unavailable when none is linked.
     internal convenience init() {
         self.init(engine: LocalChatService.defaultEngine())
     }
 
-    internal init(engine: (any LocalChatGenerating)?, defaults: UserDefaults = .standard) {
+    internal init(
+        engine: (any LocalChatGenerating)?,
+        defaults: UserDefaults = .standard,
+        hardware: HardwareProfile = .current()
+    ) {
         self.engine = engine
         self.defaults = defaults
+        self.hardware = hardware
         self.isEnabled = defaults.bool(forKey: Self.enabledKey)
+        // First run picks by machine rather than by a hardcoded default: the same
+        // build has to serve an 8 GB Air and a 128 GB Studio, and the wrong guess
+        // is either a needlessly dim conversation or a swapping one.
         self.model = defaults.string(forKey: Self.modelKey)
-            .flatMap(LocalChatModel.init(rawValue:)) ?? .gemma3_1b
+            .flatMap(LocalChatModel.init(rawValue:)) ?? LocalChatModel.recommended(for: hardware)
     }
 
-    internal var isAvailable: Bool { engine != nil }
+    /// MLX generation needs both a linked engine and an Apple Silicon GPU — on
+    /// Intel the download would succeed and the load would not.
+    internal var isAvailable: Bool { engine != nil && hardware.isAppleSilicon }
 
-    /// Start loading in the background. Called when a discussion opens (and from
-    /// Settings on model change) so the first spoken question doesn't also pay
-    /// for the weight load.
+    /// The pick for this machine, for Settings to offer.
+    internal var recommendedModel: LocalChatModel { LocalChatModel.recommended(for: hardware) }
+
+    /// Start loading in the background. Called the moment the user opts in or
+    /// changes model in Settings, and again when a discussion opens, so the first
+    /// spoken question doesn't also pay for the weight load.
     internal func prepare() {
         guard isEnabledAndAvailable, prepareTask == nil, !isReady else { return }
         let engine = self.engine
