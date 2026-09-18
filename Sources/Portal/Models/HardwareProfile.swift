@@ -55,9 +55,14 @@ internal struct HardwareProfile: Sendable, Equatable {
     private static func sysctlString(_ name: String) -> String? {
         var size = 0
         guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 0 else { return nil }
-        var buffer = [CChar](repeating: 0, count: size)
+        var buffer = [UInt8](repeating: 0, count: size)
         guard sysctlbyname(name, &buffer, &size, nil, 0) == 0 else { return nil }
-        let value = String(cString: buffer).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Decoded rather than read as a C string: sysctl reports a NUL-terminated
+        // buffer, and the C-string initializers are deprecated (while the
+        // validating replacement needs macOS 15). Failable, so a chip name that
+        // somehow isn't UTF-8 reads as "unknown chip" instead of mojibake.
+        guard let raw = String(bytes: buffer.prefix { $0 != 0 }, encoding: .utf8) else { return nil }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
 }
