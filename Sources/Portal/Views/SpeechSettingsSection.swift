@@ -10,6 +10,7 @@ import SwiftUI
 internal struct SpeechSettingsSection: View {
     @ObservedObject private var speech = TTSService.shared
     @ObservedObject private var localVoice = LocalVoiceService.shared
+    @ObservedObject private var localChat = LocalChatService.shared
 
     /// macOS renders a titled pane; iOS embeds the rows in a `Form` section that
     /// supplies its own header.
@@ -68,6 +69,8 @@ internal struct SpeechSettingsSection: View {
                 }
             }
 
+            localDiscussionControls
+
             Divider()
             Toggle("Start while the reply is still streaming", isOn: $speech.speaksWhileStreaming)
             Text("Speaks each sentence as soon as it's complete instead of waiting for the whole answer.")
@@ -101,6 +104,47 @@ internal struct SpeechSettingsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             #endif
+        }
+    }
+
+    // MARK: - Local discussion
+
+    /// Opt-in and model choice for talking a reply over with an on-device model.
+    ///
+    /// Lives next to the speech controls because it *is* a speech feature from
+    /// where the user sits: the alternative to having a reply read at you is
+    /// talking about it. The model picker shows download sizes because picking
+    /// one is committing to a download.
+    @ViewBuilder
+    private var localDiscussionControls: some View {
+        if localChat.isAvailable {
+            Divider()
+            Toggle("Discuss replies on-device", isOn: $localChat.isEnabled)
+            Text("Adds a \u{201C}discuss\u{201D} button under each reply. Instead of having the whole "
+                 + "answer read to you, talk it over with a local model — free, private, and kept "
+                 + "out of the session — then hand what you decided back to the agent.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if localChat.isEnabled {
+                Picker("Local model", selection: $localChat.model) {
+                    ForEach(LocalChatModel.allCases) { model in
+                        Text("\(model.label) \u{00B7} \(model.downloadSize)").tag(model)
+                    }
+                }
+                Text(localChat.model.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if localChat.isPreparing {
+                    Label("Loading \(localChat.model.label)\u{2026}", systemImage: "arrow.down.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let error = localChat.lastError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(Theme.warning)
+                }
+            }
         }
     }
 

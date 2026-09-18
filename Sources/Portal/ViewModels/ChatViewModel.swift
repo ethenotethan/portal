@@ -344,6 +344,11 @@ final class ChatViewModel: ObservableObject {
     /// reply) and derive the conversation phase; injectable so the conversation
     /// loop can be tested without the real synthesizer.
     internal var speechStatus: any ConversationSpeechStatus = TTSService.shared
+    /// On-device conversation partner for talking a reply over locally, and the
+    /// playback it streams through. Both injectable so the local branch of the
+    /// voice loop can be tested without a model or a synthesizer.
+    internal var localChatService: any LocalChatControlling = LocalChatService.shared
+    internal var conversationSpeaker: any ConversationSpeaking = TTSService.shared
     /// True while a hands-free conversation is running: the mic stays open
     /// continuously across turns (so the user can talk over a reply) until the
     /// user ends it by tapping the mic again.
@@ -352,6 +357,17 @@ final class ChatViewModel: ObservableObject {
     /// Smoothed 0...1 microphone level while a conversation is capturing, so the
     /// orb can expand and shrink with the user's voice. Zero when idle.
     @Published internal private(set) var voiceLevel: Float = 0
+
+    /// The open local side-discussion, if any: a spoken exchange about one
+    /// assistant reply that runs entirely on this machine. Non-nil is what routes
+    /// spoken input to the local model instead of the gateway.
+    @Published internal private(set) var localDiscussion: LocalDiscussion?
+    /// True while a local reply is being generated — the local twin of
+    /// `isStreaming`, kept separate so nothing mistakes it for a gateway turn.
+    @Published internal private(set) var isLocalStreaming: Bool = false
+    /// The in-flight local generation, retained so barge-in and "end" can cancel
+    /// it rather than talking over it.
+    private var localReplyTask: Task<Void, Never>?
 
     /// The three states the inline voice-conversation card animates between.
     internal enum ConversationPhase {
@@ -368,7 +384,7 @@ final class ChatViewModel: ObservableObject {
     /// speaking wins over thinking, and both win over the idle mic-open state.
     internal var conversationPhase: ConversationPhase {
         if speechStatus.isSpeaking { return .speaking }
-        if isStreaming { return .thinking }
+        if isStreaming || isLocalStreaming { return .thinking }
         return .listening
     }
 
@@ -379,6 +395,12 @@ final class ChatViewModel: ObservableObject {
         case .listening:
             return inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         case .thinking, .speaking:
+            // In a local discussion the reply being spoken is the local model's,
+            // not the last thing the agent said.
+            if let discussion = localDiscussion {
+                return discussion.turns.last(where: { $0.role == .assistant })?.text
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            }
             return messages.last(where: { $0.role == .assistant })?.content
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
@@ -2164,7 +2186,7 @@ client.eventStream
             isBargingIn = false
             // A conversation is a *spoken* exchange — make sure replies are read
             // back, otherwise there's nothing to converse with.
-            TTSService.shared.isEnabled = true
+            conversationSpeaker.isEnabled = true
         }
         localVoiceService.onFinalTranscript = { [weak self] text in
             Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }
@@ -2194,9 +2216,15 @@ client.eventStream
         inputText = text
         guard isConversationActive, !isBargingIn else { return }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        guard isStreaming || speechStatus.isSpeaking else { return }
+        guard isStreaming || isLocalStreaming || speechStatus.isSpeaking else { return }
         isBargingIn = true
-        Task { await interrupt() }
+        // In a local discussion there is no gateway turn to interrupt — the thing
+        // to stop is the on-device generation.
+        if localDiscussion != nil {
+            cancelLocalReply()
+        } else {
+            Task { await interrupt() }
+        }
     }
 
     /// Fold each raw per-buffer mic level into `voiceLevel`. An exponential
@@ -2220,6 +2248,12 @@ client.eventStream
             return
         }
         inputText = trimmed
+        // An open local discussion is the sink for spoken input: the whole point
+        // is that these turns cost nothing and never touch the session.
+        if localDiscussion != nil {
+            await respondLocally(to: trimmed)
+            return
+        }
         await submitPrompt()
     }
 
@@ -2239,8 +2273,155 @@ client.eventStream
         isBargingIn = false
         isVoiceRecording = false
         voiceLevel = 0
-        TTSService.shared.stop()
+        conversationSpeaker.stop()
+        // A local discussion only exists as a spoken exchange, so closing the mic
+        // closes it too rather than leaving it open with no way to talk.
+        if localDiscussion != nil { await closeLocalDiscussion() }
         await localVoiceService.cancel()
+    }
+
+    // MARK: - Local discussion
+
+    /// Open a spoken side-discussion about one assistant reply, running entirely
+    /// on this machine.
+    ///
+    /// This is the "Reply A, B, or C" case: instead of having the whole answer
+    /// read at you, you talk it over — for free, with no gateway turn and nothing
+    /// added to the transcript — and then hand the conclusion back to the agent
+    /// (`handLocalDiscussionToAgent`). Re-opening on the same message resumes the
+    /// exchange; opening on a different one starts fresh.
+    ///
+    /// Hands-free when on-device transcription is available; otherwise the
+    /// discussion surface's text field is the input and the reply is still spoken.
+    internal func startLocalDiscussion(about message: ChatMessage) async {
+        guard localChatService.isEnabledAndAvailable else { return }
+        let anchor = message.contentWithoutAttachments.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !anchor.isEmpty else { return }
+
+        if localDiscussion?.id != message.id {
+            if localDiscussion != nil { await closeLocalDiscussion() }
+            localDiscussion = LocalDiscussion(
+                anchorID: message.id,
+                anchorText: anchor,
+                options: LocalDiscussion.detectOptions(in: anchor)
+            )
+        }
+        // Start the (possibly multi-gigabyte) load now so the first question isn't
+        // also waiting on weights.
+        localChatService.prepare()
+        conversationSpeaker.isEnabled = true
+        if localVoiceService.isEnabledAndAvailable, !isVoiceRecording {
+            await beginLocalCapture(conversation: true)
+        }
+    }
+
+    /// Ask the local model something typed rather than spoken — the fallback path
+    /// on builds without on-device transcription, and the way to correct a
+    /// mis-transcribed question.
+    internal func submitLocalDiscussionInput(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, localDiscussion != nil else { return }
+        await respondLocally(to: trimmed)
+    }
+
+    /// Generate one local reply, streaming it into the discussion and out through
+    /// the synthesizer as it arrives.
+    private func respondLocally(to prompt: String) async {
+        guard var discussion = localDiscussion else { return }
+        cancelLocalReply()
+        discussion.turns.append(LocalDiscussionTurn(role: .user, text: prompt))
+        let replyID = UUID()
+        discussion.turns.append(LocalDiscussionTurn(id: replyID, role: .assistant, text: "", isStreaming: true))
+        localDiscussion = discussion
+        inputText = ""
+        isLocalStreaming = true
+
+        // Instructions are computed once and held constant for the exchange: the
+        // engine reuses its chat session (and KV cache) while they match.
+        let instructions = discussion.instructions()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            let result = await self.localChatService.respond(instructions: instructions, to: prompt) { [weak self] delta in
+                self?.appendLocalDelta(delta, turnID: replyID)
+            }
+            self.finishLocalReply(result, turnID: replyID)
+        }
+        localReplyTask = task
+        await task.value
+        if localReplyTask == task { localReplyTask = nil }
+    }
+
+    private func appendLocalDelta(_ delta: String, turnID: UUID) {
+        guard var discussion = localDiscussion,
+              let index = discussion.turns.firstIndex(where: { $0.id == turnID }) else { return }
+        discussion.turns[index].text += delta
+        localDiscussion = discussion
+        // Sentence-by-sentence while it generates, when the user has that on;
+        // otherwise the whole reply is spoken once it lands (`finishLocalReply`).
+        if conversationSpeaker.speaksWhileStreaming {
+            conversationSpeaker.streamDelta(delta, messageID: turnID)
+        }
+    }
+
+    private func finishLocalReply(_ result: Result<String, Error>, turnID: UUID) {
+        isLocalStreaming = false
+        isBargingIn = false
+        guard var discussion = localDiscussion,
+              let index = discussion.turns.firstIndex(where: { $0.id == turnID }) else { return }
+        discussion.turns[index].isStreaming = false
+        switch result {
+        case .success(let reply):
+            // The cleaned full reply is authoritative: a reasoning block split
+            // across deltas can only be resolved once the stream has ended.
+            discussion.turns[index].text = reply
+            if conversationSpeaker.speaksWhileStreaming {
+                conversationSpeaker.finishStreaming(messageID: turnID)
+            } else {
+                conversationSpeaker.speak(reply)
+            }
+        case .failure:
+            // A reply cut off by barge-in keeps what was said; one that produced
+            // nothing leaves no empty bubble behind (the service holds the error).
+            if discussion.turns[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                discussion.turns.remove(at: index)
+            }
+        }
+        localDiscussion = discussion
+    }
+
+    /// Stop an in-flight local reply, keeping the discussion open.
+    private func cancelLocalReply() {
+        guard localReplyTask != nil || isLocalStreaming else { return }
+        localReplyTask?.cancel()
+        localReplyTask = nil
+        isLocalStreaming = false
+        conversationSpeaker.stop()
+    }
+
+    /// Hand the discussion's conclusion to the real agent: one gateway turn,
+    /// carrying the exchange as context. The discussion closes — its job is done —
+    /// but a hands-free conversation stays open, so the agent's answer is spoken
+    /// and the next question can follow without touching anything.
+    internal func handLocalDiscussionToAgent() async {
+        guard let discussion = localDiscussion, discussion.hasExchange else { return }
+        let prompt = discussion.handoffPrompt()
+        await closeLocalDiscussion()
+        inputText = prompt
+        await submitPrompt()
+    }
+
+    /// Close the discussion and return the mic to the agent.
+    internal func endLocalDiscussion() async {
+        await closeLocalDiscussion()
+        if isConversationActive { await endConversation() }
+    }
+
+    /// Tear down the local exchange itself, without touching the mic — shared by
+    /// "end" and by re-anchoring onto a different message.
+    private func closeLocalDiscussion() async {
+        cancelLocalReply()
+        localDiscussion = nil
+        await localChatService.endSession()
     }
 
     /// Stop the current voice recording session.

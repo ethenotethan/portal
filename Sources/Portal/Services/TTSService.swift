@@ -29,6 +29,29 @@ internal protocol ConversationSpeechStatus: AnyObject {
     var isSpeaking: Bool { get }
 }
 
+/// The playback surface a spoken side-conversation drives: `ConversationSpeechStatus`
+/// plus the ability to actually say something.
+///
+/// Separate from `ConversationSpeechStatus` because the two roles are genuinely
+/// different — the gateway conversation only *observes* playback (the agent's
+/// replies are spoken by the `message.complete` path), while a local discussion
+/// owns its replies end to end and has to stream them out itself. Kept as a
+/// protocol for the same reason: `ChatViewModel` can be tested against a recorder.
+@MainActor
+internal protocol ConversationSpeaking: ConversationSpeechStatus {
+    /// Automatic speech. Settable because opening a spoken discussion has to turn
+    /// it on — an unspoken spoken conversation is nothing at all.
+    var isEnabled: Bool { get set }
+    /// Whether streamed deltas get voiced as they arrive. Read rather than
+    /// forced: a caller that streams has to know, because with this off
+    /// `streamDelta` is a no-op and the reply has to be spoken whole instead.
+    var speaksWhileStreaming: Bool { get }
+    func speak(_ text: String)
+    func streamDelta(_ text: String, messageID: UUID)
+    func finishStreaming(messageID: UUID)
+    func stop()
+}
+
 /// On-device text-to-speech using Apple's AVSpeechSynthesizer.
 /// Speaks assistant responses aloud — no network, no API key, no privacy concerns.
 ///
@@ -44,7 +67,7 @@ internal protocol ConversationSpeechStatus: AnyObject {
 /// automatically), `speaksWhileStreaming` (start before the turn ends), and
 /// the voice/rate/code-block preferences that shape every utterance.
 @MainActor
-internal final class TTSService: ObservableObject, ConversationSpeechStatus {
+internal final class TTSService: ObservableObject, ConversationSpeaking {
     static let shared = TTSService()
 
     // MARK: Settings

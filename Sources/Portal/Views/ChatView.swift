@@ -402,6 +402,12 @@ struct ChatView: View {
                 let _ = Task<Void, Never> { await chatViewModel.reviewQuizWithAgent(prompt: prompt) }
             }
         }
+        // Per-message "talk this over locally" action. Installed here because the
+        // bubbles don't own a view model; where it isn't installed (previews,
+        // exports) the button doesn't render.
+        .environment(\.discussMessage) { message in
+            Task { await chatViewModel.startLocalDiscussion(about: message) }
+        }
         .onChange(of: chatViewModel.currentSessionID) { _, _ in
             // Close the thought graph when switching sessions
             withAnimation(.easeOut(duration: 0.2)) {
@@ -908,7 +914,14 @@ struct ChatView: View {
                             // panel with the inline conversation card: it's a
                             // tool-less chat, so there's no tool timeline to
                             // show — just the orb, phase and live caption.
-                            if chatViewModel.isConversationActive {
+                            if chatViewModel.localDiscussion != nil {
+                                // A local side-discussion takes the same slot: it
+                                // is a conversation about the reply above it, and
+                                // no gateway turn is running to report on.
+                                LocalDiscussionCard(chatViewModel: chatViewModel)
+                                    .id("local-discussion-card")
+                                    .transition(.opacity)
+                            } else if chatViewModel.isConversationActive {
                                 VoiceConversationCard(chatViewModel: chatViewModel)
                                     .id("voice-conversation-card")
                                     .transition(.opacity)
