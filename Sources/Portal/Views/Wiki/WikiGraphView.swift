@@ -140,42 +140,52 @@ internal struct WikiGraphView: View {
                 WikiGlossaryEditorView(wiki: glossaryWikiAtOpen, source: gatewayClientWrapper.client)
             }
             .onAppear {
-                // For override sources (Centaur), always load — the source
-                // changes per session and the VM is shared from ContentView.
-                // For the home gateway, skip if the graph is already populated:
-                // ContentView warms it at connect (see the isConnected handler),
-                // so opening the panel usually finds it loaded and paints
-                // instantly instead of re-fetching. Only cold cases (prefetch
-                // still in flight, or it failed) fall through to load here.
-                guard isOverride || viewModel.graph.pages.isEmpty else { return }
+                guard needsGraphLoad || needsWikiDiscovery else { return }
                 Task { await attemptInitialLoad() }
             }
             .onChange(of: gatewayClientWrapper.isConnected) { _, connected in
-                // The home-gateway graph loads over the WebSocket. If the view
-                // appeared before the socket finished connecting, the first
-                // wiki.scan threw .notConnected and left the surface blank with
-                // no recovery — the "sometimes it doesn't load" bug. Retry once
-                // the connection comes up, but only while we still have no data
-                // (don't disrupt a loaded graph on a mid-session reconnect) and
-                // only for the home gateway (override sources use REST, not the
-                // WS, so isConnected is irrelevant to them).
-                guard connected, !isOverride, viewModel.graph.pages.isEmpty else { return }
+                // The home-gateway graph and wiki list both load over the
+                // WebSocket. If the view appeared before the socket finished
+                // connecting, the first wiki.scan/wiki.list threw .notConnected
+                // and left the surface blank with no recovery — the "sometimes
+                // it doesn't load" bug. Retry once the connection comes up;
+                // whatever already has data is skipped inside
+                // attemptInitialLoad. Home gateway only (override sources use
+                // REST, not the WS, so isConnected is irrelevant to them).
+                guard connected, !isOverride, needsGraphLoad || needsWikiDiscovery else { return }
                 Task { await attemptInitialLoad() }
             }
     }
 
-    /// Discover wikis, then load the selected graph. Safe to call more than
-    /// once: the view model drops stale responses by generation, and the
-    /// retry-on-connect path guards on an empty graph so this never stacks
-    /// redundant loads over live data.
+    /// Whether the graph still needs fetching. For override sources (Centaur),
+    /// always — the source changes per session and the VM is shared from
+    /// ContentView. For the home gateway, skip if the graph is already
+    /// populated: ContentView warms it at connect (see the isConnected
+    /// handler), so opening the panel usually finds it loaded and paints
+    /// instantly instead of re-fetching. Only cold cases (prefetch still in
+    /// flight, or it failed) fall through to a load.
+    private var needsGraphLoad: Bool { isOverride || viewModel.graph.pages.isEmpty }
+
+    /// Whether the picker still needs `wiki.list`. Tracked separately from the
+    /// graph because ContentView's connect-time prefetch warms the *graph*
+    /// only: gating discovery on an empty graph meant a warmed surface never
+    /// ran wiki.list, so the picker offered "Default wiki" alone and every
+    /// named space was unreachable (macOS hit this every time, since the Graphs
+    /// door usually opens well after connect). Override sources have no list.
+    private var needsWikiDiscovery: Bool { !isOverride && viewModel.availableWikis.isEmpty }
+
+    /// Discover wikis and load the selected graph — each only if it's still
+    /// missing. Safe to call more than once: the view model drops stale
+    /// responses by generation, and the two needs-guards keep this from
+    /// stacking redundant fetches over live data.
     private func attemptInitialLoad() async {
         // wiki.list (the picker/taxonomy chrome) and wiki.scan (the graph) are
         // independent RPCs. Running them concurrently instead of serially means
         // the graph no longer waits on the list — it paints as soon as the scan
-        // returns (or instantly from cache). Override sources ignore the list.
+        // returns (or instantly from cache).
         let client = gatewayClientWrapper.client
-        async let wikis: Void = isOverride ? () : viewModel.discoverWikis(client: client)
-        async let graph: Void = loadGraph(wiki: viewModel.selectedWikiPath)
+        async let wikis: Void = needsWikiDiscovery ? viewModel.discoverWikis(client: client) : ()
+        async let graph: Void = needsGraphLoad ? loadGraph(wiki: viewModel.selectedWikiPath) : ()
         _ = await (wikis, graph)
     }
 
