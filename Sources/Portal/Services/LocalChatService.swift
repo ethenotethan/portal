@@ -40,17 +40,40 @@ internal enum LocalChatModel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Approximate 4-bit download size, shown in Settings so a pick isn't a
-    /// surprise multi-gigabyte wait on the first spoken question.
-    internal var downloadSize: String {
+    /// The Hugging Face repo this maps to. Duplicated from the MLX registry
+    /// deliberately: this layer has to name the repo without importing MLX, both
+    /// to stay testable and so `LocalModelCacheScanner` can tell a downloaded
+    /// model from a pending one on a build with no engine. `LocalChatEngine`'s
+    /// mapping is the source of truth, and a test pins the two together.
+    internal var repositoryID: String {
         switch self {
-        case .gemma3_1b: return "~0.7 GB"
-        case .qwen3_1_7b: return "~1.0 GB"
-        case .qwen3_4b: return "~2.3 GB"
-        case .lfm2_8b_a1b: return "~4.2 GB"
-        case .qwen3_8b: return "~4.6 GB"
-        case .qwen3_30b_a3b: return "~17 GB"
+        case .gemma3_1b: return "mlx-community/gemma-3-1b-it-qat-4bit"
+        case .qwen3_1_7b: return "mlx-community/Qwen3-1.7B-4bit"
+        case .qwen3_4b: return "mlx-community/Qwen3-4B-4bit"
+        case .lfm2_8b_a1b: return "mlx-community/LFM2-8B-A1B-3bit-MLX"
+        case .qwen3_8b: return "mlx-community/Qwen3-8B-4bit"
+        case .qwen3_30b_a3b: return "mlx-community/Qwen3-30B-A3B-4bit"
         }
+    }
+
+    /// Total repo size, as Hugging Face reports it. Used for two things: telling
+    /// the user what a pick costs, and deciding whether what's on disk is a whole
+    /// model or an interrupted download.
+    internal var downloadBytes: Int64 {
+        switch self {
+        case .gemma3_1b: return 730_000_000
+        case .qwen3_1_7b: return 970_000_000
+        case .qwen3_4b: return 2_260_000_000
+        case .lfm2_8b_a1b: return 4_170_000_000
+        case .qwen3_8b: return 4_610_000_000
+        case .qwen3_30b_a3b: return 17_170_000_000
+        }
+    }
+
+    /// Approximate download size, shown in Settings so a pick isn't a surprise
+    /// multi-gigabyte wait on the first spoken question.
+    internal var downloadSize: String {
+        "~" + ByteCountLabel.gigabytes(downloadBytes)
     }
 
     internal var detail: String {
@@ -106,13 +129,53 @@ internal enum LocalChatModel: String, CaseIterable, Identifiable, Sendable {
     /// runs *alongside* the editor, the agent, and two speech models, and a
     /// reply that arrives late is worse than one that arrives a little dumber.
     internal static func recommended(for hardware: HardwareProfile) -> LocalChatModel {
-        switch hardware.memoryGB {
+        let byMemory = recommendedByMemory(hardware.memoryGB)
+        // Memory says what fits; the chip tier says how fast it will talk. A base
+        // M-series has roughly a third of a Max's memory bandwidth, and decode is
+        // bandwidth-bound, so a dense model that a 32 GB base Mac mini can hold
+        // still answers slower than the user reads. Cap those machines at the
+        // mixture-of-experts model, which only reads its active experts per token.
+        guard hardware.tier == .base, isHeavier(byMemory, than: .lfm2_8b_a1b) else { return byMemory }
+        return .lfm2_8b_a1b
+    }
+
+    /// The memory-only tiering, deliberately one rung below "the biggest thing
+    /// that fits" for the reason above.
+    private static func recommendedByMemory(_ memoryGB: Int) -> LocalChatModel {
+        switch memoryGB {
         case ..<12: return .qwen3_1_7b
         case 12..<18: return .qwen3_4b
         case 18..<32: return .lfm2_8b_a1b
         case 32..<48: return .qwen3_8b
         default: return .qwen3_30b_a3b
         }
+    }
+
+    /// Lineup order, which is smallest-first, as the comparison — memory floors
+    /// tie (LFM2 and Qwen3 8B both want 16 GB) and cannot order the two.
+    private static func isHeavier(_ model: LocalChatModel, than other: LocalChatModel) -> Bool {
+        guard let lhs = allCases.firstIndex(of: model),
+              let rhs = allCases.firstIndex(of: other) else { return false }
+        return lhs > rhs
+    }
+
+    /// What to select on first run, before the user has expressed any preference.
+    ///
+    /// Not simply `recommended(for:)`, because opting in now starts the download
+    /// immediately: on a 48 GB Mac that would fire off 17 GB the moment the toggle
+    /// flips. Weights already on disk — often Gemma, which skill summaries fetch —
+    /// make the feature work in seconds instead, and Settings still offers the
+    /// hardware's pick with its size next to it.
+    internal static func startingChoice(
+        hardware: HardwareProfile,
+        downloaded: Set<LocalChatModel>
+    ) -> LocalChatModel {
+        let ideal = recommended(for: hardware)
+        if downloaded.contains(ideal) { return ideal }
+        // The best already-present model this machine can hold; "best" being
+        // lineup order, which is roughly capability order.
+        let present = allCases.filter { downloaded.contains($0) && $0.fits(hardware) }
+        return present.last ?? ideal
     }
 }
 
@@ -215,7 +278,10 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
             // question: the user is sitting in Settings watching a progress label
             // instead of waiting mid-conversation for gigabytes of weights.
             // Launch stays lazy — `didSet` doesn't fire for the stored value.
-            if isEnabled, !oldValue { prepare() }
+            if isEnabled, !oldValue {
+                refreshInventory()
+                prepare()
+            }
         }
     }
 
@@ -244,6 +310,9 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
 
     @Published internal private(set) var isPreparing = false
     @Published internal private(set) var lastError: String?
+    /// Which models are already on this machine. Starts `.unknown` and is filled
+    /// in by a background scan, so nothing here blocks a launch or a view update.
+    @Published internal private(set) var inventory: LocalModelInventory = .unknown
     /// True once a `prepare` has completed for the current model, so the surface
     /// can distinguish "warming up" from "ready and just thinking".
     @Published internal private(set) var isReady = false
@@ -260,6 +329,9 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
     /// What the recommendation and the memory warnings are based on. Injected so
     /// tests can pretend to be an 8 GB Air or a 128 GB Studio.
     internal let hardware: HardwareProfile
+    /// Reads the shared Hugging Face cache. Injected so tests scan a temp
+    /// directory instead of the developer's real 100 GB of weights.
+    private let scanner: LocalModelCacheScanner
 
     /// Production initializer: wires the default engine, or leaves the service
     /// unavailable when none is linked.
@@ -270,17 +342,39 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
     internal init(
         engine: (any LocalChatGenerating)?,
         defaults: UserDefaults = .standard,
-        hardware: HardwareProfile = .current()
+        hardware: HardwareProfile = .current(),
+        scanner: LocalModelCacheScanner = .current()
     ) {
         self.engine = engine
         self.defaults = defaults
         self.hardware = hardware
+        self.scanner = scanner
         self.isEnabled = defaults.bool(forKey: Self.enabledKey)
-        // First run picks by machine rather than by a hardcoded default: the same
-        // build has to serve an 8 GB Air and a 128 GB Studio, and the wrong guess
-        // is either a needlessly dim conversation or a swapping one.
-        self.model = defaults.string(forKey: Self.modelKey)
-            .flatMap(LocalChatModel.init(rawValue:)) ?? LocalChatModel.recommended(for: hardware)
+        if let saved = defaults.string(forKey: Self.modelKey).flatMap(LocalChatModel.init(rawValue:)) {
+            self.model = saved
+        } else {
+            // First run picks by machine rather than by a hardcoded default: the
+            // same build has to serve an 8 GB Air and a 128 GB Studio, and the
+            // wrong guess is either a needlessly dim conversation or a swapping
+            // one. The one scan on the main thread is confined to this path — the
+            // default also has to account for what's already downloaded, and by
+            // the time an async scan landed the toggle could already have started
+            // fetching 17 GB.
+            let scan = scanner.scan()
+            self.inventory = scan
+            self.model = LocalChatModel.startingChoice(hardware: hardware, downloaded: scan.downloadedSet)
+        }
+    }
+
+    /// Re-read the cache in the background. Called on opt-in, after a load
+    /// finishes (the download that just completed should stop reading as pending),
+    /// and when the Settings pane appears.
+    internal func refreshInventory() {
+        let scanner = self.scanner
+        Task { [weak self] in
+            let scan = await Task.detached(priority: .utility) { scanner.scan() }.value
+            self?.inventory = scan
+        }
     }
 
     /// MLX generation needs both a linked engine and an Apple Silicon GPU — on
@@ -312,6 +406,8 @@ internal final class LocalChatService: ObservableObject, LocalChatControlling {
             }
             self?.isPreparing = false
             self?.prepareTask = nil
+            // Whatever that load downloaded is on disk now.
+            self?.refreshInventory()
         }
     }
 

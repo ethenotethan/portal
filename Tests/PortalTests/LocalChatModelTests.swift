@@ -17,19 +17,41 @@ internal struct HardwareProfileTests {
 
     @Test("the summary names what the recommendation was based on")
     internal func summarizes() {
+        #expect(
+            HardwareProfile(memoryGB: 48, chip: "Apple M4 Pro", gpuCores: 20).summary
+                == "Apple M4 Pro \u{00B7} 20 GPU cores \u{00B7} 48 GB"
+        )
+        // Whatever the system won't say is dropped rather than shown as a gap.
         #expect(HardwareProfile(memoryGB: 48, chip: "Apple M4 Pro").summary == "Apple M4 Pro \u{00B7} 48 GB")
-        // No chip name is not worth an empty separator.
         #expect(HardwareProfile(memoryGB: 16, chip: nil).summary == "16 GB")
         #expect(HardwareProfile(memoryGB: 16, chip: "").summary == "16 GB")
+        #expect(HardwareProfile(memoryGB: 16, chip: nil, gpuCores: 0).summary == "16 GB")
+    }
+
+    @Test("the chip tier is read out of the chip name")
+    internal func detectsChipTier() {
+        #expect(ChipTier.detect(chip: "Apple M4") == .base)
+        #expect(ChipTier.detect(chip: "Apple M4 Pro") == .pro)
+        #expect(ChipTier.detect(chip: "Apple M2 Max") == .max)
+        #expect(ChipTier.detect(chip: "Apple M1 Ultra") == .ultra)
+        // Intel Macs and anything unrecognised claim nothing, so memory decides
+        // alone rather than a wrong tier capping the recommendation.
+        #expect(ChipTier.detect(chip: "Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz") == .unknown)
+        #expect(ChipTier.detect(chip: nil) == .unknown)
+        #expect(ChipTier.detect(chip: "") == .unknown)
+        #expect(HardwareProfile(memoryGB: 48, chip: "Apple M4 Max").tier == .max)
     }
 
     @Test("this machine answers plausibly")
     internal func currentMachineIsSane() {
         let current = HardwareProfile.current()
-        // Not asserting a value — the suite runs on CI runners and laptops alike.
-        // The point is that the probe returns something usable rather than zero.
+        // Not asserting values — the suite runs on CI runners and laptops alike.
+        // The point is that each probe returns something usable rather than zero.
         #expect(current.memoryGB > 0)
         #expect(LocalChatModel.recommended(for: current).minimumMemoryGB > 0)
+        // GPU cores are optional (a VM won't say), but a number, if given, is real.
+        #expect((current.gpuCores ?? 1) > 0)
+        #expect(!current.summary.isEmpty)
     }
 }
 
@@ -101,6 +123,64 @@ internal struct LocalChatModelTests {
         #expect(!LocalChatModel.qwen3_4b.fits(air))
         #expect(!LocalChatModel.qwen3_30b_a3b.fits(air))
         #expect(LocalChatModel.qwen3_30b_a3b.fits(HardwareProfile(memoryGB: 32)))
+    }
+
+    @Test("every model names a distinct hub repo, sized in step with the lineup")
+    internal func repositoriesAndSizes() {
+        var seen: Set<String> = []
+        for model in LocalChatModel.allCases {
+            // mlx-community, because these are the 4-bit MLX conversions; a
+            // typo here reads as "never downloaded" forever.
+            #expect(model.repositoryID.hasPrefix("mlx-community/"))
+            #expect(!seen.contains(model.repositoryID))
+            seen.insert(model.repositoryID)
+            #expect(model.downloadBytes > 0)
+            #expect(model.downloadSize.hasPrefix("~"))
+        }
+        // Smallest-first by download too, not just by memory floor.
+        let sizes = LocalChatModel.allCases.map(\.downloadBytes)
+        #expect(sizes == sizes.sorted())
+        #expect(LocalChatModel.gemma3_1b.downloadSize == "~0.7 GB")
+    }
+
+    @Test("a base-tier chip is capped at the mixture-of-experts model")
+    internal func baseTierPrefersMoE() {
+        // A 32 GB base M4 mini has the memory for a dense 8B and about a third of
+        // a Max's bandwidth to feed it, so it would answer slower than the user
+        // reads. Same memory on a Pro keeps the dense model.
+        let mini = HardwareProfile(memoryGB: 32, chip: "Apple M4")
+        #expect(LocalChatModel.qwen3_8b.fits(mini))
+        #expect(LocalChatModel.recommended(for: mini) == .lfm2_8b_a1b)
+        #expect(LocalChatModel.recommended(for: HardwareProfile(memoryGB: 32, chip: "Apple M4 Pro")) == .qwen3_8b)
+        // Below the MoE the cap changes nothing — a base chip with 16 GB was
+        // already being offered the 4B.
+        #expect(LocalChatModel.recommended(for: HardwareProfile(memoryGB: 16, chip: "Apple M4")) == .qwen3_4b)
+        #expect(LocalChatModel.recommended(for: HardwareProfile(memoryGB: 24, chip: "Apple M4")) == .lfm2_8b_a1b)
+    }
+
+    @Test("the first-run pick uses weights that are already here")
+    internal func startingChoicePrefersDownloadedWeights() {
+        let studio = HardwareProfile(memoryGB: 64, chip: "Apple M4 Max")
+        #expect(LocalChatModel.recommended(for: studio) == .qwen3_30b_a3b)
+        // Opting in starts the download, so defaulting to the ideal model here
+        // means 17 GB before the first sentence. Gemma is usually already on disk
+        // (skill summaries fetch it), and Settings still offers the upgrade.
+        #expect(LocalChatModel.startingChoice(hardware: studio, downloaded: [.gemma3_1b]) == .gemma3_1b)
+        // The best of what's present, not merely the first.
+        #expect(
+            LocalChatModel.startingChoice(hardware: studio, downloaded: [.gemma3_1b, .qwen3_8b]) == .qwen3_8b
+        )
+        // Already have the right model: no reason to settle.
+        #expect(
+            LocalChatModel.startingChoice(hardware: studio, downloaded: [.gemma3_1b, .qwen3_30b_a3b])
+                == .qwen3_30b_a3b
+        )
+        // Nothing on disk falls back to the hardware's pick.
+        #expect(LocalChatModel.startingChoice(hardware: studio, downloaded: []) == .qwen3_30b_a3b)
+        // A downloaded model that doesn't fit this machine is not a shortcut.
+        let air = HardwareProfile(memoryGB: 8, chip: "Apple M2")
+        #expect(LocalChatModel.startingChoice(hardware: air, downloaded: [.qwen3_30b_a3b]) == .qwen3_1_7b)
+        #expect(LocalChatModel.startingChoice(hardware: air, downloaded: [.gemma3_1b]) == .gemma3_1b)
     }
 
     @Test("the recommendation leaves headroom rather than maxing the machine out")

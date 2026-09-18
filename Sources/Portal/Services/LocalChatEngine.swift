@@ -131,7 +131,12 @@ internal actor MLXLocalChatEngine: LocalChatGenerating {
         log.info("Local discussion model loaded: \(model.label, privacy: .public)")
     }
 
-    private static func configuration(for model: LocalChatModel) -> ModelConfiguration {
+    /// Internal rather than private so a test can assert that each case's
+    /// `repositoryID` — the string `LocalModelCacheScanner` looks for on disk —
+    /// is the repo this engine actually downloads. The two live in different files
+    /// (this one can't be compiled without MLX) and would otherwise drift, with
+    /// the only symptom being a downloaded model that Settings calls a download.
+    internal static func configuration(for model: LocalChatModel) -> ModelConfiguration {
         switch model {
         case .gemma3_1b: return LLMRegistry.gemma3_1B_qat_4bit
         case .qwen3_1_7b: return LLMRegistry.qwen3_1_7b_4bit

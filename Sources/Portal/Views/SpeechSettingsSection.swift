@@ -105,6 +105,10 @@ internal struct SpeechSettingsSection: View {
                 .foregroundStyle(.secondary)
             #endif
         }
+        // Weights can arrive (or be deleted) outside the app — the skill
+        // summarizer downloads Gemma, and `huggingface-cli` shares the same
+        // cache — so re-read on the way in rather than trusting a stale scan.
+        .task { localChat.refreshInventory() }
     }
 
     // MARK: - Local discussion
@@ -129,23 +133,29 @@ internal struct SpeechSettingsSection: View {
             if localChat.isEnabled {
                 Picker("Local model", selection: $localChat.model) {
                     ForEach(LocalChatModel.allCases) { model in
-                        Text("\(model.label) \u{00B7} \(model.downloadSize)").tag(model)
+                        // "downloaded" or "~4.2 GB to fetch": which of these is a
+                        // wait and which is instant is the first thing you want to
+                        // know while choosing.
+                        Text("\(model.label) \u{00B7} \(localChat.inventory.status(of: model))").tag(model)
                     }
                 }
                 Text(localChat.model.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                localModelFit
+                localModelProfile
                 localModelStatus
             }
         }
     }
 
-    /// How the pick lands on *this* machine. Which model is right is mostly a
-    /// memory question, and the user can't be expected to know that a 30B-A3B
-    /// wants 32 GB — so say it, and offer the model that suits the hardware.
+    /// What this machine can run, and what of it is already here.
+    ///
+    /// Three facts, in the order they answer "why that model?": the hardware the
+    /// recommendation was read off, what's already on disk (so a pick isn't a
+    /// surprise download, and so 17 GB of weights aren't invisible), and the
+    /// hardware's own pick with its cost when the user is on something else.
     @ViewBuilder
-    private var localModelFit: some View {
+    private var localModelProfile: some View {
         if !localChat.model.fits(localChat.hardware) {
             Label(
                 "This Mac has \(localChat.hardware.memoryGB) GB; \(localChat.model.label) wants "
@@ -155,9 +165,21 @@ internal struct SpeechSettingsSection: View {
             .font(.caption)
             .foregroundStyle(Theme.warning)
         }
+
+        Text(localChat.hardware.summary)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        if let onDisk = localChat.inventory.summary {
+            Text("On disk: \(onDisk)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
         if localChat.model != localChat.recommendedModel {
             HStack(spacing: 6) {
-                Text("\(localChat.hardware.summary) suits \(localChat.recommendedModel.label).")
+                Text("\(localChat.recommendedModel.label) suits this Mac \u{2014} "
+                     + "\(localChat.inventory.status(of: localChat.recommendedModel)).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button("Use it") { localChat.model = localChat.recommendedModel }
