@@ -122,6 +122,11 @@ internal struct ContentView: View {
             return .handled
         })
         .task {
+            // What the on-device model gets briefed on before a local discussion.
+            // Wired here because this is where both view models are owned; read
+            // lazily, so the briefing reflects the list at the moment a discussion
+            // opens rather than at launch.
+            chatViewModel.recentSessionsProvider = { [sessionList] in sessionList.sessions }
             if settings.isConfigured {
                 // Bounded retry: a cold-start connect can fail before the
                 // network path is up, and a failed first connect is terminal

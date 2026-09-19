@@ -69,13 +69,12 @@ internal struct VoiceConversationCard: View {
         .accessibilityLabel("Voice conversation, \(phaseLabel(phase))")
     }
 
-    @ViewBuilder
     private func orb(for phase: ChatViewModel.ConversationPhase) -> some View {
-        let level = Double(chatViewModel.voiceLevel)
-        switch chatViewModel.conversationVisual {
-        case .claude: ClaudeOrb(phase: phase, level: level)
-        case .openai: OpenAIOrb(phase: phase, level: level)
-        }
+        ConversationOrb(
+            visual: chatViewModel.conversationVisual,
+            phase: phase,
+            level: Double(chatViewModel.voiceLevel)
+        )
     }
 
     private func phaseLabel(_ phase: ChatViewModel.ConversationPhase) -> String {
@@ -83,6 +82,25 @@ internal struct VoiceConversationCard: View {
         case .listening: "Listening\u{2026}"
         case .thinking: "Thinking\u{2026}"
         case .speaking: "Speaking"
+        }
+    }
+}
+
+// MARK: - Orb selection
+
+/// The phase-animated orb, in whichever look Settings selected. Its own view so
+/// every spoken surface renders the same thing — the local-discussion card
+/// (`LocalDiscussionCard`) uses it too, and the two must not drift apart.
+internal struct ConversationOrb: View {
+    internal let visual: ConversationVisual
+    internal let phase: ChatViewModel.ConversationPhase
+    /// Live 0...1 mic level.
+    internal let level: Double
+
+    internal var body: some View {
+        switch visual {
+        case .claude: ClaudeOrb(phase: phase, level: level)
+        case .openai: OpenAIOrb(phase: phase, level: level)
         }
     }
 }

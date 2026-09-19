@@ -10,6 +10,7 @@ import SwiftUI
 internal struct SpeechSettingsSection: View {
     @ObservedObject private var speech = TTSService.shared
     @ObservedObject private var localVoice = LocalVoiceService.shared
+    @ObservedObject private var localChat = LocalChatService.shared
 
     /// macOS renders a titled pane; iOS embeds the rows in a `Form` section that
     /// supplies its own header.
@@ -68,6 +69,8 @@ internal struct SpeechSettingsSection: View {
                 }
             }
 
+            localDiscussionControls
+
             Divider()
             Toggle("Start while the reply is still streaming", isOn: $speech.speaksWhileStreaming)
             Text("Speaks each sentence as soon as it's complete instead of waiting for the whole answer.")
@@ -101,6 +104,108 @@ internal struct SpeechSettingsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             #endif
+        }
+        // Weights can arrive (or be deleted) outside the app — the skill
+        // summarizer downloads Gemma, and `huggingface-cli` shares the same
+        // cache — so re-read on the way in rather than trusting a stale scan.
+        .task { localChat.refreshInventory() }
+    }
+
+    // MARK: - Local discussion
+
+    /// Opt-in and model choice for talking a reply over with an on-device model.
+    ///
+    /// Lives next to the speech controls because it *is* a speech feature from
+    /// where the user sits: the alternative to having a reply read at you is
+    /// talking about it. The model picker shows download sizes because picking
+    /// one is committing to a download.
+    @ViewBuilder
+    private var localDiscussionControls: some View {
+        if localChat.isAvailable {
+            Divider()
+            Toggle("Discuss replies on-device", isOn: $localChat.isEnabled)
+            Text("Adds a \u{201C}discuss\u{201D} button under each reply. Instead of having the whole "
+                 + "answer read to you, talk it over with a local model — free, private, and kept "
+                 + "out of the session — then hand what you decided back to the agent.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if localChat.isEnabled {
+                Picker("Local model", selection: $localChat.model) {
+                    ForEach(LocalChatModel.allCases) { model in
+                        // "downloaded" or "~4.2 GB to fetch": which of these is a
+                        // wait and which is instant is the first thing you want to
+                        // know while choosing.
+                        Text("\(model.label) \u{00B7} \(localChat.inventory.status(of: model))").tag(model)
+                    }
+                }
+                Text(localChat.model.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                localModelProfile
+                localModelStatus
+            }
+        }
+    }
+
+    /// What this machine can run, and what of it is already here.
+    ///
+    /// Three facts, in the order they answer "why that model?": the hardware the
+    /// recommendation was read off, what's already on disk (so a pick isn't a
+    /// surprise download, and so 17 GB of weights aren't invisible), and the
+    /// hardware's own pick with its cost when the user is on something else.
+    @ViewBuilder
+    private var localModelProfile: some View {
+        if !localChat.model.fits(localChat.hardware) {
+            Label(
+                "This Mac has \(localChat.hardware.memoryGB) GB; \(localChat.model.label) wants "
+                    + "at least \(localChat.model.minimumMemoryGB) GB. Expect swapping mid-sentence.",
+                systemImage: "exclamationmark.triangle"
+            )
+            .font(.caption)
+            .foregroundStyle(Theme.warning)
+        }
+
+        Text(localChat.hardware.summary)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+        if let onDisk = localChat.inventory.summary {
+            Text("On disk: \(onDisk)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        if localChat.model != localChat.recommendedModel {
+            HStack(spacing: 6) {
+                Text("\(localChat.recommendedModel.label) suits this Mac \u{2014} "
+                     + "\(localChat.inventory.status(of: localChat.recommendedModel)).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Use it") { localChat.model = localChat.recommendedModel }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+    }
+
+    /// The load is kicked off by opting in or switching models, so this is where
+    /// a multi-gigabyte download is visible rather than mid-conversation.
+    @ViewBuilder
+    private var localModelStatus: some View {
+        if localChat.isPreparing {
+            Label("Loading \(localChat.model.label)\u{2026}", systemImage: "arrow.down.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if let error = localChat.lastError {
+            Label(error, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(Theme.warning)
+        } else if localChat.isReady {
+            Label("\(localChat.model.label) ready", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

@@ -10,6 +10,10 @@ struct MessageBubbleView: View {
     /// object: this view is built in places (skins, site captures) that don't
     /// install one, and speech is app-global state anyway.
     @ObservedObject private var speech = TTSService.shared
+    /// Whether a local side-discussion is even possible, for the same reason and
+    /// on the same terms as `speech`.
+    @ObservedObject private var localChat = LocalChatService.shared
+    @Environment(\.discussMessage) private var discussMessage
 
     var body: some View {
         #if os(iOS)
@@ -191,11 +195,34 @@ struct MessageBubbleView: View {
                 }
                 Spacer(minLength: 0)
                 if !message.isStreaming, !message.contentWithoutAttachments.isEmpty {
+                    discussButton
                     speakButton
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Talk this reply over with the on-device model instead of having it read at
+    /// you. Only appears when the user has opted in (Settings → Speech) on a build
+    /// that can run a local model, and only inside a chat that installed the
+    /// action — a discuss button with nowhere to go would be a lie.
+    @ViewBuilder
+    private var discussButton: some View {
+        if localChat.isEnabledAndAvailable, let discuss = discussMessage {
+            Button {
+                discuss(message)
+            } label: {
+                Image(systemName: "bubble.left.and.text.bubble.right")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.tertiary)
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Talk this reply over with the on-device model")
+            .accessibilityLabel("Discuss this reply locally")
+        }
     }
 
     /// Read this one message aloud — or stop, if it's the one playing. Works
