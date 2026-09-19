@@ -58,6 +58,37 @@ internal struct SpokenTextTests {
         #expect(SpokenText.prepare("Hi <br/> there <span class=\"x\">friend</span>.") == "Hi\nthere friend.")
     }
 
+    @Test("bare JSON objects and arrays are dropped, but ordinary bracketed prose is kept")
+    internal func structuredData() {
+        #expect(SpokenText.prepare("The config is {\"name\": \"foo\", \"count\": 3} now.") == "The config is now.")
+        #expect(SpokenText.prepare("Nested {\"a\": {\"b\": [1, 2]}} done.") == "Nested done.")
+        #expect(SpokenText.prepare("Values: [10, 20, 30, 40, 50, 60, 70].") == "Values: .")
+        // Short or non-data brackets survive and read as their words.
+        #expect(SpokenText.prepare("Use the set {a, b, c} here.") == "Use the set {a, b, c} here.")
+        #expect(SpokenText.prepare("See [the appendix for the full details] for more.") == "See [the appendix for the full details] for more.")
+    }
+
+    @Test("an unbalanced brace — still streaming — is left alone, not swallowed to the end")
+    internal func openBrace() {
+        #expect(SpokenText.prepare("Here is the start {\"name\": \"foo\"") == "Here is the start {\"name\": \"foo\"")
+    }
+
+    @Test("hashes, UUIDs and 0x values are dropped; hex-looking words are still spoken")
+    internal func hashes() {
+        #expect(SpokenText.prepare("Commit a1b2c3d4e5f6 fixed it.") == "Commit fixed it.")
+        #expect(SpokenText.prepare("Address 0xDEADBEEF01 is set.") == "Address is set.")
+        #expect(SpokenText.prepare("Id 550e8400-e29b-41d4-a716-446655440000 ok.") == "Id ok.")
+        #expect(SpokenText.prepare("The facade of the decade.") == "The facade of the decade.")
+        // A plain decimal number is not a hash; it stays.
+        #expect(SpokenText.prepare("The file is 12345678 bytes.") == "The file is 12345678 bytes.")
+    }
+
+    @Test("scheme-less and non-http links also become 'link'")
+    internal func moreLinks() {
+        #expect(SpokenText.prepare("Visit www.example.com/path now.") == "Visit link now.")
+        #expect(SpokenText.prepare("Clone ftp://host/file.zip please.") == "Clone link please.")
+    }
+
     @Test("whitespace collapses; an input with nothing to say becomes empty")
     internal func whitespace() {
         #expect(SpokenText.prepare("  a   b \n\n\n c  ") == "a b\nc")

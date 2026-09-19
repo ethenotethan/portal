@@ -186,6 +186,18 @@ internal final class CurriculumViewModel {
             + "I scored \(quizScore)/\(quizTotal). Please help me understand what I got wrong:\n\n\(wrongList)"
     }
 
+    /// Prompt handed to chat for "Discuss this page" on a lesson. Carries the
+    /// course, module and the lesson text itself, so the conversation is about
+    /// exactly what's on screen rather than what the title hints at. Empty for
+    /// a quiz step (use `reviewPrompt` there) or when nothing is open.
+    internal var discussPrompt: String {
+        guard let activeStep, case .lesson(let markdown) = activeStep.kind else { return "" }
+        let moduleTitle = curriculum.module(containing: activeStep)?.title ?? curriculum.title
+        return "I'm working through the course \"\(curriculum.title)\" and I'm on the lesson "
+            + "\"\(activeStep.title)\" in the module \"\(moduleTitle)\". "
+            + "I'd like to talk through what I'm learning here. This is the lesson:\n\n\(markdown)"
+    }
+
     // MARK: - Course-level actions
 
     /// Clear all progress and return to the outline. Local-only by design:
