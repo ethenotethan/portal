@@ -45,6 +45,7 @@ enum GatewayEvent {
         case .activityUpdated: "activity.updated"
         case .reviewSummary: "review.summary"
         case .artifactChanged: "artifact.changed"
+        case .artifactQueryChanged: "artifact.query.changed"
         case .learningChanged: "learning.changed"
         }
     }
@@ -178,6 +179,10 @@ enum GatewayEvent {
     // Living artifacts (gateway store mutations — id + summary fields;
     // clients refetch content via artifact.get when they care)
     case artifactChanged(id: String, deleted: Bool)
+
+    // A subscribed artifact query's result changed server-side (etag-diffed);
+    // `status` is "ok" (re-fetch) or "unsupported" (slot dropped, `reason`).
+    case artifactQueryChanged(artifactID: String, queryID: String, status: String, reason: String)
 
     // Learning surface (course/deck/progress mutations — metadata only;
     // clients refetch via learning.course.get / learning.deck.get)
@@ -349,6 +354,14 @@ enum GatewayEvent {
             return .artifactChanged(
                 id: p["id"]?.stringValue ?? "",
                 deleted: p["deleted"]?.boolValue ?? false
+            )
+
+        case "artifact.query.changed":
+            return .artifactQueryChanged(
+                artifactID: p["artifact_id"]?.stringValue ?? "",
+                queryID: p["query_id"]?.stringValue ?? "",
+                status: p["status"]?.stringValue ?? "ok",
+                reason: p["reason"]?.stringValue ?? ""
             )
 
         case "learning.changed":

@@ -29,17 +29,23 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
     /// the content fence. Excluded from Codable (disk cache): repopulated
     /// from the gateway on next pull.
     internal var topLevelActions: [ArtifactAction] = []
+    /// The read side of `topLevelActions`: queries the artifact's page may run
+    /// against the gateway (`data-hermes-query`). Same lifecycle — gateway
+    /// record only, never the disk cache.
+    internal var queries: [ArtifactQuery] = []
 
     // Explicit memberwise init (required once we add CodingKeys for Codable).
     internal init(id: String, kind: String, title: String, content: String,
                   updatedAt: Date, updatedBy: String, rev: Int = 0,
                   gatewayID: UUID? = nil,
-                  topLevelActions: [ArtifactAction] = []) {
+                  topLevelActions: [ArtifactAction] = [],
+                  queries: [ArtifactQuery] = []) {
         self.id = id; self.kind = kind; self.title = title
         self.content = content; self.updatedAt = updatedAt
         self.updatedBy = updatedBy; self.rev = rev
         self.gatewayID = gatewayID
         self.topLevelActions = topLevelActions
+        self.queries = queries
     }
 
     // Custom Codable to exclude topLevelActions (ArtifactAction is not Codable;
@@ -128,7 +134,8 @@ struct LivingArtifact: Codable, Equatable, Identifiable {
             updatedAt: d["updated_at"]?.stringValue.flatMap(Self.parseISO) ?? Date(),
             updatedBy: d["updated_by"]?.stringValue ?? "",
             rev: d["rev"]?.intValue ?? 0,
-            topLevelActions: actions
+            topLevelActions: actions,
+            queries: ArtifactQuery.parse(d["queries"]?.foundationValue)
         )
     }
 

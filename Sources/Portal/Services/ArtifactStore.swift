@@ -177,6 +177,193 @@ final class ArtifactStore: ObservableObject {
         schedulePush(id: artifactID)
     }
 
+    // MARK: - Backend queries (the read side)
+
+    /// One element's worth of query: which artifact, which declared query, and
+    /// the page's exact `data-hermes-params` text — the key its result is
+    /// written back under.
+    internal struct QuerySlot: Hashable, Sendable {
+        internal let artifactID: String
+        internal let queryID: String
+        internal let rawParams: String
+    }
+
+    internal enum QueryState: Equatable {
+        case loading
+        /// `payload` is the JSON text the page reads out of its sink.
+        case ok(payload: String, etag: String)
+        case failed(reason: String)
+        case unsupported(reason: String)
+    }
+
+    /// Per-slot query results, projected onto the page by the HTML host.
+    @Published internal private(set) var queryStates: [QuerySlot: QueryState] = [:]
+    /// Gateway subscription handles for live slots, released with the view.
+    private var querySubscriptions: [QuerySlot: String] = [:]
+    private var queryTasks: [QuerySlot: Task<Void, Never>] = [:]
+
+    /// Run (or re-run) a declared query for one page element.
+    ///
+    /// The artifact's manifest is checked here first — unknown query, bound key
+    /// overridden, value out of range — so the page gets a readable reason
+    /// without a round trip; the gateway checks again and is authoritative. A
+    /// live query subscribes on first run, after which re-runs use the cheaper
+    /// invoke and the gateway's `artifact.query.changed` drives them.
+    internal func runQuery(artifactID: String, queryID: String, rawParams: String) {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams)
+        queryTasks[slot]?.cancel()
+        queryTasks[slot] = Task { [weak self] in
+            await self?.performQuery(slot)
+            self?.queryTasks[slot] = nil
+        }
+    }
+
+    /// Record that a slot can't run at all on this client (no gateway surface),
+    /// so the page hears `unsupported` instead of waiting.
+    internal func markQueryUnsupported(artifactID: String, queryID: String, rawParams: String, reason: String) {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams)
+        queryStates[slot] = .unsupported(reason: reason)
+    }
+
+    /// Every slot for one artifact, for the host to project onto its page.
+    internal func querySlots(artifactID: String) -> [(slot: QuerySlot, state: QueryState)] {
+        queryStates.compactMap { slot, state in
+            slot.artifactID == artifactID ? (slot, state) : nil
+        }
+    }
+
+    /// The page went away: stop following its queries and forget their results.
+    internal func releaseQueries(artifactID: String) {
+        for (slot, task) in queryTasks where slot.artifactID == artifactID {
+            task.cancel()
+            queryTasks[slot] = nil
+        }
+        let handles = querySubscriptions.filter { $0.key.artifactID == artifactID }
+        for (slot, handle) in handles {
+            querySubscriptions[slot] = nil
+            guard let client else { continue }
+            Task {
+                do {
+                    try await client.artifactQueryUnsubscribe(handle: handle)
+                } catch {
+                    // Best effort: the gateway also drops a slot whose subscriber
+                    // vanished, so a failed unsubscribe costs a few polls, not a leak.
+                    log.info("artifact query unsubscribe failed for \(handle, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+        queryStates = queryStates.filter { $0.key.artifactID != artifactID }
+    }
+
+    private func performQuery(_ slot: QuerySlot, retryingConflict: Bool = true) async {
+        guard let artifact = artifacts[slot.artifactID] else {
+            queryStates[slot] = .unsupported(reason: "This artifact isn't in the local store.")
+            return
+        }
+        guard let client, syncAvailable != false else {
+            queryStates[slot] = .unsupported(reason: "Not connected to a gateway.")
+            return
+        }
+        guard let declaration = artifact.queries.first(where: { $0.id == slot.queryID }) else {
+            queryStates[slot] = .unsupported(reason: "The artifact declares no query \(slot.queryID).")
+            return
+        }
+        let params: [String: AnyCodable]
+        do {
+            let request = HTMLArtifactQueryRequest(queryID: slot.queryID, rawParams: slot.rawParams)
+            params = try declaration.validate(try request.parameters())
+        } catch {
+            queryStates[slot] = .failed(reason: error.localizedDescription)
+            return
+        }
+        // Keep the previous data on screen while it refreshes: a slot that
+        // flashed empty on every poll would be worse than one that never moved.
+        if case .ok = queryStates[slot] {} else { queryStates[slot] = .loading }
+
+        do {
+            let result: ArtifactQueryResult?
+            if declaration.isLive, querySubscriptions[slot] == nil {
+                result = try await client.artifactQuerySubscribe(
+                    artifactID: slot.artifactID, artifactRev: artifact.rev,
+                    queryID: slot.queryID, params: params
+                )
+            } else {
+                result = try await client.artifactQueryInvoke(
+                    artifactID: slot.artifactID, artifactRev: artifact.rev,
+                    queryID: slot.queryID, params: params, cursor: nil
+                )
+            }
+            guard !Task.isCancelled else { return }
+            guard let result else {
+                queryStates[slot] = .unsupported(
+                    reason: "This gateway has no artifact.query surface — it's too old for queries."
+                )
+                return
+            }
+            if let handle = result.subscription { querySubscriptions[slot] = handle }
+            switch result.outcome {
+            case .ok(let data, let etag, _):
+                queryStates[slot] = .ok(payload: HTMLArtifactQueryBridge.payloadText(data), etag: etag)
+            case .failed(let reason):
+                queryStates[slot] = .failed(reason: reason)
+            case .unsupported(let reason):
+                queryStates[slot] = .unsupported(reason: reason)
+            case .conflict:
+                // The page rendered against a revision that has since moved on.
+                // Pull the current artifact and go once more with its rev — one
+                // retry, because a second conflict means the artifact is being
+                // rewritten under us and the next artifact.changed will re-run.
+                guard retryingConflict else {
+                    queryStates[slot] = .failed(reason: "The artifact changed while the query ran.")
+                    return
+                }
+                let fresh: LivingArtifact?
+                do {
+                    fresh = try await client.artifactGet(id: slot.artifactID)
+                } catch {
+                    queryStates[slot] = .failed(reason: error.localizedDescription)
+                    return
+                }
+                guard let fresh else {
+                    queryStates[slot] = .unsupported(reason: "The artifact is gone from the gateway.")
+                    return
+                }
+                var stamped = fresh
+                stamped.gatewayID = artifacts[slot.artifactID]?.gatewayID
+                artifacts[slot.artifactID] = stamped
+                await performQuery(slot, retryingConflict: false)
+            }
+        } catch {
+            guard !Task.isCancelled else { return }
+            queryStates[slot] = .failed(reason: error.localizedDescription)
+        }
+    }
+
+    /// The gateway says a subscribed slot's data changed (or that the slot can
+    /// no longer answer). Re-run every slot on that query.
+    private func applyQueryChange(artifactID: String, queryID: String, status: String, reason: String) {
+        let slots = queryStates.keys.filter { $0.artifactID == artifactID && $0.queryID == queryID }
+        for slot in slots {
+            if status == "unsupported" {
+                querySubscriptions[slot] = nil
+                queryStates[slot] = .unsupported(reason: reason.isEmpty ? "Query no longer available." : reason)
+            } else {
+                runQuery(artifactID: slot.artifactID, queryID: slot.queryID, rawParams: slot.rawParams)
+            }
+        }
+    }
+
+    /// An intent succeeded: the queries that declared it in `invalidated_by`
+    /// are stale, so re-run them without waiting for a poll.
+    private func invalidateQueries(artifactID: String, bindingID: String) {
+        guard !bindingID.isEmpty, let artifact = artifacts[artifactID] else { return }
+        let stale = Set(artifact.queries.filter { $0.invalidatedBy.contains(bindingID) }.map(\.id))
+        guard !stale.isEmpty else { return }
+        for slot in queryStates.keys where slot.artifactID == artifactID && stale.contains(slot.queryID) {
+            runQuery(artifactID: slot.artifactID, queryID: slot.queryID, rawParams: slot.rawParams)
+        }
+    }
+
     // MARK: - Backend intent invocation
 
     /// Invoke a backend intent declared by the artifact. The gateway resolves
@@ -341,6 +528,8 @@ final class ArtifactStore: ObservableObject {
             // (tombstone, field update, etc.). Do not imply the refresh is part
             // of the external action result — they are separate outcomes.
             refreshArtifact(id: artifactID)
+            // The write side telling the read side it is stale.
+            invalidateQueries(artifactID: artifactID, bindingID: bindingID)
         case .failed(let reason):
             intentStates[slot] = .failed(reason: reason)
         case .conflict:
@@ -512,10 +701,29 @@ final class ArtifactStore: ObservableObject {
         eventCancellable = client.eventStream
             .receive(on: RunLoop.main)
             .sink { [weak self] event, _ in
-                guard case .artifactChanged(let id, let deleted) = event else { return }
-                self?.applyRemoteChange(id: id, deleted: deleted)
+                self?.handleGatewayEvent(event)
             }
         Task { await pull() }
+    }
+
+    /// The two gateway events the store acts on. Everything else is another
+    /// store's concern.
+    private func handleGatewayEvent(_ event: GatewayEvent) {
+        switch event {
+        case .artifactChanged(let id, let deleted):
+            applyRemoteChange(id: id, deleted: deleted)
+        case .artifactQueryChanged(let artifactID, let queryID, let status, let reason):
+            applyQueryChange(artifactID: artifactID, queryID: queryID, status: status, reason: reason)
+        default:
+            break
+        }
+    }
+
+    /// Deliver a gateway event without a live subscription, for tests: the
+    /// Combine pipeline hops through the main run loop, which a test that
+    /// yields on the main actor never spins.
+    internal func applyGatewayEventForTesting(_ event: GatewayEvent) {
+        handleGatewayEvent(event)
     }
 
     private var eventCancellable: AnyCancellable?

@@ -360,7 +360,8 @@ internal struct ArtifactDetailView: View {
                 ArtifactKindRenderer(
                     kind: artifact.kind, content: artifact.content,
                     actionableArtifactID: artifact.id,
-                    topLevelActions: artifact.topLevelActions
+                    topLevelActions: artifact.topLevelActions,
+                    queries: artifact.queries
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -373,7 +374,8 @@ internal struct ArtifactDetailView: View {
                     ArtifactKindRenderer(
                         kind: artifact.kind, content: artifact.content,
                         actionableArtifactID: artifact.id,
-                        topLevelActions: artifact.topLevelActions
+                        topLevelActions: artifact.topLevelActions,
+                        queries: artifact.queries
                     )
                 }
                 .padding(16)

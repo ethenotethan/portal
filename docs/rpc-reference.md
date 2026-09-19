@@ -107,6 +107,21 @@ vs. database-format `session_key` (e.g. `20260501_112429_d91274`, used to resume
 | `activity.dismiss` | `activity_id` | Dismiss an item |
 | `activity.artifacts.get` | `artifact_id` | Fetch artifact content |
 
+### artifact.query.*
+
+The read side of artifact intents: an HTML artifact's page asks for data
+through inert `data-hermes-query` / `data-hermes-params` attributes; the
+client validates the parameters against the artifact's `queries` manifest and
+calls these. The caller never names a handler or sends query text — see the
+gateway contract in `harness/docs/api/artifact-queries.md`.
+
+| Method | Params | Description |
+|--------|--------|-------------|
+| `artifact.query.invoke` | `artifact_id`, `artifact_rev`, `query_id`, `params?` (object), `cursor?` | Run a declared query → `{status: ok|failed|conflict|unsupported, data, etag, params, next_cursor?}`. **-32601** on gateways without the surface (client shows `unsupported`) |
+| `artifact.query.subscribe` | `artifact_id`, `artifact_rev`, `query_id`, `params?` | Same result plus `subscription` (handle) and `interval_s`; the gateway re-runs the slot and emits `artifact.query.changed` only when the etag differs |
+| `artifact.query.unsubscribe` | `subscription` | Drop a handle; the slot stops being polled with its last subscriber |
+| `artifact.query.handlers` | — | Registered read handlers and their parameter schemas (what a manifest may declare against) |
+
 ### cron.*
 
 | Method | Params | Description |
@@ -297,6 +312,7 @@ streaming-turn events; `isSessionScopedRequestEvent` marks blocking user-input r
 | `activity.created` | `activityCreated(ActivityItem)` | New inbox item |
 | `activity.updated` / `activity.read` / `activity.dismissed` | `activityUpdated(ActivityItem)` | Inbox item modified (all three wire types decode to the same case) |
 | `artifact.changed` | `artifactChanged(id, deleted)` | Living-artifact store mutation — id + summary fields; clients refetch content via `artifact.get` |
+| `artifact.query.changed` | `artifactQueryChanged(artifactID, queryID, status, reason)` | A subscribed query's result changed (`status: "ok"` — re-fetch via `artifact.query.invoke`) or its slot was dropped server-side (`"unsupported"` + `reason`). Etag-diffed: identical data emits nothing |
 | `learning.changed` | `learningChanged(entity, id, rev, deleted)` | Learning store mutation (course/deck) — id + rev only; clients refetch via `learning.course.get` / `learning.deck.get` |
 | `review.summary` | `reviewSummary(text)` | Summary / review content |
 

@@ -2184,6 +2184,65 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
             .compactMap { $0.dictionaryValue }
     }
 
+    /// Run a query the artifact declares, with the page's parameters. The read
+    /// side of `artifactActionInvoke`: only the artifact ID, pinned revision,
+    /// `query_id` from the manifest, and typed parameter values travel — never a
+    /// handler name or query text. Returns nil on method-not-found (gateway
+    /// predates the query surface).
+    internal func artifactQueryInvoke(
+        artifactID: String,
+        artifactRev: Int,
+        queryID: String,
+        params: [String: AnyCodable],
+        cursor: String?
+    ) async throws -> ArtifactQueryResult? {
+        var rpcParams: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "artifact_rev": AnyCodable(artifactRev),
+            "query_id": AnyCodable(queryID),
+            "params": .dictionary(params),
+        ]
+        if let cursor { rpcParams["cursor"] = AnyCodable(cursor) }
+        let response = try await call("artifact.query.invoke", params: rpcParams)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactQueryResult.from(response.result?.dictionaryValue)
+    }
+
+    /// Follow a declared query: the gateway re-runs it on its declared cadence
+    /// and emits `artifact.query.changed` when the data differs. Returns the
+    /// current result plus the subscription handle.
+    internal func artifactQuerySubscribe(
+        artifactID: String,
+        artifactRev: Int,
+        queryID: String,
+        params: [String: AnyCodable]
+    ) async throws -> ArtifactQueryResult? {
+        let rpcParams: [String: AnyCodable] = [
+            "artifact_id": AnyCodable(artifactID),
+            "artifact_rev": AnyCodable(artifactRev),
+            "query_id": AnyCodable(queryID),
+            "params": .dictionary(params),
+        ]
+        let response = try await call("artifact.query.subscribe", params: rpcParams)
+        if let error = response.error {
+            if error.code == -32601 { return nil }
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+        return ArtifactQueryResult.from(response.result?.dictionaryValue)
+    }
+
+    internal func artifactQueryUnsubscribe(handle: String) async throws {
+        let response = try await call(
+            "artifact.query.unsubscribe", params: ["subscription": AnyCodable(handle)]
+        )
+        if let error = response.error, error.code != -32601 {
+            throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
+        }
+    }
+
     /// Confirm a pending backend intent (destructive actions require this
     /// second step). `challenge` comes from the invoke response — it is
     /// bound to actor, artifact revision, binding, resolved target, and expiry
