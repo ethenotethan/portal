@@ -23,10 +23,6 @@ struct JSONRPCError: Decodable, Equatable {
     }
 
     static let methodNotFound = JSONRPCError(code: -32601, message: "method not found")
-
-    // Hermes-specific error codes
-    static let sessionNotFound = JSONRPCError(code: 4001, message: "session not found")
-    static let sessionBusy = JSONRPCError(code: 4009, message: "session busy")
 }
 
 /// Inbound JSON-RPC event (server-initiated, no request id).
