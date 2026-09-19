@@ -84,6 +84,7 @@ internal struct SpeechSettingsSection: View {
                 .foregroundStyle(.secondary)
 
             Divider()
+            neuralVoiceControls
             voicePicker
             Divider()
             rateSlider
@@ -209,6 +210,48 @@ internal struct SpeechSettingsSection: View {
         }
     }
 
+    // MARK: - Neural voice
+
+    /// Opt-in to the on-device neural voice, with the load visible where the
+    /// choice is made. Only offered when this build links one; otherwise the
+    /// system voice picker below is the whole story.
+    @ViewBuilder
+    private var neuralVoiceControls: some View {
+        if speech.isNeuralVoiceAvailable {
+            Toggle("Neural voice", isOn: $speech.usesNeuralVoice)
+            Text("Speak with an on-device neural model (PocketTTS) instead of the system voice: "
+                 + "natural phrasing, and it starts talking a fraction of a second after a sentence "
+                 + "lands. English only. Downloads a few hundred megabytes once on first use; until "
+                 + "it has loaded, replies use the system voice below.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if speech.usesNeuralVoice {
+                neuralVoiceStatus
+            }
+            Divider()
+        }
+    }
+
+    @ViewBuilder
+    private var neuralVoiceStatus: some View {
+        switch speech.neuralState {
+        case .preparing:
+            Label("Loading the neural voice\u{2026}", systemImage: "arrow.down.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .ready:
+            Label("Neural voice ready", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .failed(let reason):
+            Label(reason, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(Theme.warning)
+        case .idle:
+            EmptyView()
+        }
+    }
+
     // MARK: - Voice
 
     private var languageCode: String {
@@ -241,7 +284,11 @@ internal struct SpeechSettingsSection: View {
             Toggle("Show voices for all languages", isOn: $showsAllLanguages)
                 .font(.caption)
 
-            if let voice = speech.resolvedVoice, voice.quality == .default {
+            if speech.speaksWithNeuralVoice {
+                Text("The system voice is used only if the neural voice is unavailable.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if let voice = speech.resolvedVoice, voice.quality == .default {
                 Label(
                     "\(voice.name) is a compact voice and will sound synthetic. Download an Enhanced or Premium voice "
                     + "in System Settings → Accessibility → Spoken Content → System Voice → Manage Voices, then pick it here.",
