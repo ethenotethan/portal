@@ -292,10 +292,15 @@ struct SankeyTests {
           {"from": "Eng", "to": "Salaries", "value": 0},
           {"from": "Eng", "to": "Cloud", "value": -3},
           {"from": "Eng", "to": "Salaries", "value": 320}
+        ], "nodes": [
+          {"name": "Revenue", "group": "income"},
+          {"name": "Eng", "group": "expense"},
+          {"name": "Salaries", "group": "expense"}
         ]}
         """)!
         #expect(spec.links.count == 2)
         #expect(spec.nodeOrder == ["Revenue", "Eng", "Salaries"])
+        #expect(spec.groupNames == ["income", "expense"])
         #expect(SankeySpec.parse("{\"links\": []}") == nil)
     }
 
@@ -311,6 +316,8 @@ struct SankeyTests {
         """)!
         let result = SankeyLayout.layout(spec)
         #expect(result.columnCount == 3)
+        #expect(result.nodes.map(\.id) == ["A", "B", "C", "D"])
+        #expect(result.ribbons.map(\.id) == ["A→B", "A→C", "B→D", "C→D"])
         let byName = Dictionary(uniqueKeysWithValues: result.nodes.map { ($0.name, $0) })
         #expect(byName["A"]!.column == 0)
         #expect(byName["B"]!.column == 1 && byName["C"]!.column == 1)
