@@ -1594,6 +1594,13 @@ struct InlineHTMLView: View {
     /// `data-hermes-status` in the isolated content world. Empty for
     /// transcript/preview HTML (no live intents).
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    /// Present only for a live HTML artifact that declares `queries`. The page
+    /// asks with `data-hermes-query`; native answers with data. Absent for
+    /// transcript/preview HTML, exactly like `onArtifactIntent`.
+    internal let onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
+    /// Current query results per page element, written into the page's sinks
+    /// in the isolated content world.
+    internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
     /// Expanded interactive canvases use the next trusted canvas click to
     /// acquire Pointer Lock. Ordinary inline HTML leaves this disabled.
     internal let capturesPointerInput: Bool
@@ -1610,6 +1617,8 @@ struct InlineHTMLView: View {
         html: String,
         onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
         statusMarks: [HTMLArtifactIntentBridge.StatusMark] = [],
+        onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)? = nil,
+        queryMarks: [HTMLArtifactQueryBridge.ResultMark] = [],
         capturesPointerInput: Bool = false,
         baseURL: URL? = nil,
         onPointerLockChange: ((Bool) -> Void)? = nil
@@ -1617,6 +1626,8 @@ struct InlineHTMLView: View {
         self.html = html
         self.onArtifactIntent = onArtifactIntent
         self.statusMarks = statusMarks
+        self.onArtifactQuery = onArtifactQuery
+        self.queryMarks = queryMarks
         self.capturesPointerInput = capturesPointerInput
         self.baseURL = baseURL
         self.onPointerLockChange = onPointerLockChange
@@ -1628,6 +1639,8 @@ struct InlineHTMLView: View {
             html: html,
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
+            onArtifactQuery: onArtifactQuery,
+            queryMarks: queryMarks,
             capturesPointerInput: capturesPointerInput,
             baseURL: baseURL,
             onPointerLockChange: onPointerLockChange
@@ -1638,6 +1651,8 @@ struct InlineHTMLView: View {
             html: html,
             onArtifactIntent: onArtifactIntent,
             statusMarks: statusMarks,
+            onArtifactQuery: onArtifactQuery,
+            queryMarks: queryMarks,
             capturesPointerInput: capturesPointerInput,
             baseURL: baseURL,
             onPointerLockChange: onPointerLockChange
@@ -1652,12 +1667,14 @@ struct InlineHTMLNSView: NSViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    internal let onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
+    internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
     internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
+        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -1670,6 +1687,16 @@ struct InlineHTMLNSView: NSViewRepresentable {
                 injectionTime: .atDocumentEnd,
                 forMainFrameOnly: true,
                 in: WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
+            ))
+        }
+        if onArtifactQuery != nil {
+            // The read side, in the same isolated world: watches the page's
+            // inert query attributes and asks over the same nonce'd scheme.
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLArtifactQueryBridge.userScriptSource(nonce: context.coordinator.nonce),
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: HTMLArtifactQueryBridge.contentWorldName)
             ))
         }
         if capturesPointerInput {
@@ -1710,6 +1737,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
+        context.coordinator.onArtifactQuery = onArtifactQuery
         context.coordinator.pointerLock.onLockChange = onPointerLockChange
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
@@ -1718,6 +1746,7 @@ struct InlineHTMLNSView: NSViewRepresentable {
             return
         }
         context.coordinator.applyStatusMarks(statusMarks, to: webView)
+        context.coordinator.applyQueryMarks(queryMarks, to: webView)
     }
 }
 
@@ -1744,6 +1773,8 @@ struct InlineHTMLUIView: UIViewRepresentable {
     let html: String
     internal let onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
     internal let statusMarks: [HTMLArtifactIntentBridge.StatusMark]
+    internal let onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
+    internal let queryMarks: [HTMLArtifactQueryBridge.ResultMark]
     internal let capturesPointerInput: Bool
     internal let baseURL: URL?
     /// Unused on iOS — WKWebView has no Pointer Lock; declared so
@@ -1751,7 +1782,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
     internal let onPointerLockChange: ((Bool) -> Void)?
 
     func makeCoordinator() -> HTMLNavigationDelegate {
-        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent)
+        HTMLNavigationDelegate(onArtifactIntent: onArtifactIntent, onArtifactQuery: onArtifactQuery)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -1764,6 +1795,16 @@ struct InlineHTMLUIView: UIViewRepresentable {
                 injectionTime: .atDocumentEnd,
                 forMainFrameOnly: true,
                 in: WKContentWorld.world(name: HTMLArtifactIntentBridge.contentWorldName)
+            ))
+        }
+        if onArtifactQuery != nil {
+            // The read side, in the same isolated world: watches the page's
+            // inert query attributes and asks over the same nonce'd scheme.
+            config.userContentController.addUserScript(WKUserScript(
+                source: HTMLArtifactQueryBridge.userScriptSource(nonce: context.coordinator.nonce),
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true,
+                in: WKContentWorld.world(name: HTMLArtifactQueryBridge.contentWorldName)
             ))
         }
         // Match macOS: embedded media plays inline instead of hijacking the
@@ -1783,6 +1824,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.onArtifactIntent = onArtifactIntent
+        context.coordinator.onArtifactQuery = onArtifactQuery
         if context.coordinator.lastLoadedHTML != html {
             context.coordinator.lastLoadedHTML = html
             webView.loadHTMLString(html, baseURL: baseURL)
@@ -1790,6 +1832,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
             return
         }
         context.coordinator.applyStatusMarks(statusMarks, to: webView)
+        context.coordinator.applyQueryMarks(queryMarks, to: webView)
     }
 }
 #endif
@@ -1798,6 +1841,7 @@ struct InlineHTMLUIView: UIViewRepresentable {
 final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     var lastLoadedHTML: String?
     internal var onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)?
+    internal var onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)?
     /// Per-webview capability known only to the isolated content world and
     /// the native navigation delegate. The page cannot auto-submit an action.
     internal let nonce = UUID().uuidString
@@ -1806,6 +1850,9 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     /// on change, and so `didFinish` can re-stamp after a (re)load rebuilds the
     /// DOM (the attribute would otherwise be lost).
     private var appliedMarks: [HTMLArtifactIntentBridge.StatusMark] = []
+    /// Query results currently written into the page, same diff/re-stamp
+    /// discipline as `appliedMarks`.
+    private var appliedQueryMarks: [HTMLArtifactQueryBridge.ResultMark] = []
     private weak var reflectionWebView: WKWebView?
 
     #if os(macOS)
@@ -1816,8 +1863,30 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
     internal lazy var pointerLock = ArtifactPointerLockDelegate()
     #endif
 
-    internal init(onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil) {
+    internal init(
+        onArtifactIntent: ((HTMLArtifactIntentRequest) -> Void)? = nil,
+        onArtifactQuery: ((HTMLArtifactQueryRequest) -> Void)? = nil
+    ) {
         self.onArtifactIntent = onArtifactIntent
+        self.onArtifactQuery = onArtifactQuery
+    }
+
+    /// Write query results into the page's sinks, diffing against what's
+    /// already there so a poll that changed nothing touches nothing. Runs in
+    /// the same isolated world as the observer script: the page can read the
+    /// sink and hear the event, but cannot observe or forge the write.
+    internal func applyQueryMarks(
+        _ marks: [HTMLArtifactQueryBridge.ResultMark],
+        to webView: WKWebView
+    ) {
+        reflectionWebView = webView
+        guard marks != appliedQueryMarks else { return }
+        let changed = marks.filter { !appliedQueryMarks.contains($0) }
+        appliedQueryMarks = marks
+        let world = WKContentWorld.world(name: HTMLArtifactQueryBridge.contentWorldName)
+        for mark in changed {
+            webView.evaluateJavaScript(HTMLArtifactQueryBridge.resultScript(mark), in: nil, in: world) { _ in }
+        }
     }
 
     /// Reflect `marks` onto the page's inert controls via `data-hermes-status`,
@@ -1854,6 +1923,9 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
         let marks = appliedMarks
         appliedMarks = []
         applyStatusMarks(marks, to: webView)
+        let queryMarks = appliedQueryMarks
+        appliedQueryMarks = []
+        applyQueryMarks(queryMarks, to: webView)
     }
 
     func webView(
@@ -1868,6 +1940,14 @@ final class HTMLNavigationDelegate: NSObject, WKNavigationDelegate {
             }
             // Always cancel the private navigation, including malformed
             // requests. It is a control message, never page navigation.
+            decisionHandler(.cancel)
+            return
+        }
+        if let url = navigationAction.request.url,
+           url.scheme?.lowercased() == HTMLArtifactQueryRequest.scheme {
+            if let request = HTMLArtifactQueryRequest(url: url, expectedNonce: nonce) {
+                onArtifactQuery?(request)
+            }
             decisionHandler(.cancel)
             return
         }

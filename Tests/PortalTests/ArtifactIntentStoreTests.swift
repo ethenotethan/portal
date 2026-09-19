@@ -47,6 +47,16 @@ private final class FakeArtifactGateway: ArtifactGateway {
         artifactID: String, bindingID: String?, limit: Int
     ) async throws -> [[String: AnyCodable]]? { nil }
 
+    func artifactQueryInvoke(
+        artifactID: String, artifactRev: Int, queryID: String,
+        params: [String: AnyCodable], cursor: String?
+    ) async throws -> ArtifactQueryResult? { nil }
+    func artifactQuerySubscribe(
+        artifactID: String, artifactRev: Int, queryID: String,
+        params: [String: AnyCodable]
+    ) async throws -> ArtifactQueryResult? { nil }
+    func artifactQueryUnsubscribe(handle: String) async throws {}
+
     func artifactGet(id: String) async throws -> LivingArtifact? { getArtifact }
     func artifactList() async throws -> [LivingArtifact]? { nil }
     func artifactSet(

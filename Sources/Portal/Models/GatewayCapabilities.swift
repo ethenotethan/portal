@@ -61,6 +61,15 @@ struct GatewayCapabilities: Equatable, Sendable {
         return "\(capabilityNames.count) advertised, artifact actions \(actions): \(detail)"
     }
 
+    /// Whether the gateway supports artifact.query.invoke / subscribe — the
+    /// read side of intents. Gates the page-side query bridge, so a dashboard
+    /// on an old gateway reports `unsupported` instead of waiting on nothing.
+    internal var supportsArtifactQueries: Bool {
+        capabilityNames.contains(where: {
+            $0.contains("artifact.query") || $0.contains("artifact_query")
+        })
+    }
+
     /// Whether the gateway supports artifact.action.log (ledger query).
     /// Present in gateways shipping §2 of the intents V2 spec; older
     /// gateways return method-not-found so the call is skipped entirely.

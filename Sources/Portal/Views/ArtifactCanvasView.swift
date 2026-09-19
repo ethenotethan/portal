@@ -618,7 +618,8 @@ private struct ArtifactPanelContent: View {
                     kind: artifact.kind,
                     content: store.artifacts[artifact.id]?.content ?? artifact.content,
                     actionableArtifactID: artifact.id,
-                    topLevelActions: artifact.topLevelActions
+                    topLevelActions: artifact.topLevelActions,
+                    queries: artifact.queries
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -627,7 +628,8 @@ private struct ArtifactPanelContent: View {
                         kind: artifact.kind,
                         content: store.artifacts[artifact.id]?.content ?? artifact.content,
                         actionableArtifactID: artifact.id,
-                        topLevelActions: artifact.topLevelActions
+                        topLevelActions: artifact.topLevelActions,
+                        queries: artifact.queries
                     )
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
