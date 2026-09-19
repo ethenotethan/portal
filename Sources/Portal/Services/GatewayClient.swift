@@ -1092,9 +1092,20 @@ final class GatewayClient: NSObject, ObservableObject, URLSessionWebSocketDelega
         return GatewayCapabilities.fallback(reason: lastError ?? "Capabilities RPC unsupported")
     }
 
+    /// Parameters for a Portal-owned agent session.
+    ///
+    /// The source is an explicit client-surface capability signal. Without it,
+    /// the gateway defaults to a TUI session and freezes the wrong tool schema.
+    internal static func sessionCreateParams(cols: Int) -> [String: AnyCodable] {
+        [
+            "cols": AnyCodable(cols),
+            "source": AnyCodable("desktop"),
+        ]
+    }
+
     /// Create a new agent session.
     func createSession(cols: Int = 120) async throws -> String {
-        let response = try await callWithRetry("session.create", params: ["cols": AnyCodable(cols)])
+        let response = try await callWithRetry("session.create", params: Self.sessionCreateParams(cols: cols))
         if let error = response.error {
             throw GatewayError.rpcError(JSONRPCError(code: error.code, message: error.message))
         }

@@ -535,6 +535,7 @@
 		9A11721FBD7635907429694B /* KanbanSpec.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC7E280843A5A93FBA01693 /* KanbanSpec.swift */; };
 		9B25A35D86417DF836A46E56 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4EE5AEE3206BD4B2D20FCFC /* SettingsView.swift */; };
 		9B3D3396CC8913B0E5E977B7 /* MermaidDiagramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1962C446F7909E19DABF27 /* MermaidDiagramView.swift */; };
+		9C7B3F578DFC38A757EB6632 /* GatewayClientSessionSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432BD086D5E5DFDC3A2E9D6B /* GatewayClientSessionSourceTests.swift */; };
 		9CCC0F2976F12A8405D77714 /* SpawnTreeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0139E6B3DC11D97AFE8261C2 /* SpawnTreeStore.swift */; };
 		9D021088FB5F7706524C337B /* TTSServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E284AA3C7BCAFBEC8FD51B4C /* TTSServiceTests.swift */; };
 		9D0A8C7563A6D96E07E79E43 /* DocumentTextExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A470AA4B538860FF1FB6DE /* DocumentTextExtractorTests.swift */; };
@@ -1077,6 +1078,7 @@
 		4172BACC2FD1AB8D6E8E6F32 /* CronDataflowExpandedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronDataflowExpandedView.swift; sourceTree = "<group>"; };
 		42741EA9DE970FA5E8293E90 /* GatewayClient+Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GatewayClient+Feed.swift"; sourceTree = "<group>"; };
 		4299E269AEBAF1B7C58F3090 /* CurriculumViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurriculumViewModel.swift; sourceTree = "<group>"; };
+		432BD086D5E5DFDC3A2E9D6B /* GatewayClientSessionSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClientSessionSourceTests.swift; sourceTree = "<group>"; };
 		43767D723416DF6B72C6CC56 /* WikiGraphControlsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiGraphControlsBar.swift; sourceTree = "<group>"; };
 		437F051D9AE2A5A9F53C5F29 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		4532702E01A34652A0065CAF /* ChecklistBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChecklistBlockView.swift; sourceTree = "<group>"; };
@@ -2180,6 +2182,7 @@
 				A52ED63BFBE4CE221CFB7E05 /* FinishThinkingTraceTests.swift */,
 				5C085BB893D7CD3AEA3E3B20 /* FormattingPromptTests.swift */,
 				7A87BD5EC7CDDFEC9C3FC586 /* GatewayCapabilitiesTests.swift */,
+				432BD086D5E5DFDC3A2E9D6B /* GatewayClientSessionSourceTests.swift */,
 				359BBBB83E96E7F9647653B2 /* GatewayEditReconnectGuardTests.swift */,
 				6EDA2632CA57A266F027D530 /* GatewayEventDecodingTests.swift */,
 				331F03820AA7EF768E091175 /* GatewayPersonaTests.swift */,
@@ -2960,6 +2963,7 @@
 				2111A42108481FA0821FD21A /* FinishThinkingTraceTests.swift in Sources */,
 				EE3C4ACCF2C63DC014C2C63C /* FormattingPromptTests.swift in Sources */,
 				939BE0A1C61BC896406672B2 /* GatewayCapabilitiesTests.swift in Sources */,
+				9C7B3F578DFC38A757EB6632 /* GatewayClientSessionSourceTests.swift in Sources */,
 				2C7751A135FC2DD748ADB15C /* GatewayEditReconnectGuardTests.swift in Sources */,
 				25E61B074235054D3C43E7A2 /* GatewayEventDecodingTests.swift in Sources */,
 				D36DF9589309932303B36277 /* GatewayPersonaTests.swift in Sources */,
