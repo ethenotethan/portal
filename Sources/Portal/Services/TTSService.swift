@@ -96,6 +96,26 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     @Published internal var voiceIdentifier: String? {
         didSet { defaults.set(voiceIdentifier, forKey: Keys.voice) }
     }
+    /// Speak with the on-device neural voice instead of the system one. Off by
+    /// default: it is a download, and the system voice needs none. Turning it
+    /// on starts the load right away, so the wait is spent watching a label in
+    /// Settings rather than mid-conversation. Until the model is ready — or if
+    /// it never is — speech falls back to the system voice rather than going
+    /// silent. No default value: with one, the wrapper would already exist
+    /// when `init` assigns the persisted choice and this `didSet` would run
+    /// then too, loading the model twice.
+    @Published internal var usesNeuralVoice: Bool {
+        didSet {
+            defaults.set(usesNeuralVoice, forKey: Keys.neuralVoice)
+            guard usesNeuralVoice != oldValue else { return }
+            // Whatever is queued was rendered for the other voice.
+            stop()
+            if usesNeuralVoice { neural?.prepare() }
+        }
+    }
+    /// Where the neural voice is in its load, mirrored from the engine so
+    /// Settings can observe it.
+    @Published internal private(set) var neuralState: NeuralSpeechState = .idle
 
     // MARK: Playback state
 
@@ -112,6 +132,10 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     // MARK: Internals
 
     private let synthesizer: any SpeechSynthesizing
+    /// The neural voice, when this build links one. nil in the SwiftPM test
+    /// build and on hardware that can't run it; the setting then has nothing
+    /// to switch to and the toggle is not offered.
+    private let neural: (any NeuralSpeechSynthesizing)?
     private let playback: any SpeechPlaybackSessioning
     private let defaults: UserDefaults
     private let delegateBridge = TTSDelegate()
@@ -122,9 +146,16 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     /// Messages that were (at least partly) voiced while streaming, so the
     /// `message.complete` hook flushes their tail instead of re-reading them.
     private var streamedMessageIDs: Set<UUID> = []
-    /// Utterances handed to the synthesizer and not yet finished, with what
-    /// they say and for which message.
-    private var inFlight: [ObjectIdentifier: (messageID: UUID?, sentence: String)] = [:]
+    /// One queued utterance, whichever engine holds it. The system synthesizer
+    /// only ever hands back the `AVSpeechUtterance` object, so its identity is
+    /// the key there; the neural engine is given, and reports, a UUID.
+    private enum UtteranceKey: Hashable {
+        case system(ObjectIdentifier)
+        case neural(UUID)
+    }
+    /// Utterances handed to an engine and not yet finished, with what they
+    /// say and for which message.
+    private var inFlight: [UtteranceKey: (messageID: UUID?, sentence: String)] = [:]
     /// Streamed sentences waiting to be spoken as one utterance. A synthesizer
     /// shapes intonation per utterance, so one-sentence utterances with a gap
     /// between each sound like a list being read; a few sentences at a time
@@ -143,17 +174,27 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         static let announceCode = "portal.tts.announcesCodeBlocks"
         static let rate = "portal.tts.rateMultiplier"
         static let voice = "portal.tts.voiceIdentifier"
+        static let neuralVoice = "portal.tts.neuralVoice"
     }
 
-    /// `playback` defaults to the system session; resolved inside the body
-    /// because a `@MainActor` type can't be built in a default-argument
-    /// expression (those are evaluated nonisolated).
+    /// Production wiring: the system synthesizer, the system playback session,
+    /// and the neural engine this build links (if any). A convenience so the
+    /// main-actor engine is built in a main-actor context — a default argument
+    /// is evaluated nonisolated and couldn't.
+    internal convenience init() {
+        self.init(synthesizer: AVSpeechSynthesizer(), neural: TTSService.defaultNeuralEngine())
+    }
+
+    /// Tests inject recorders here. `playback` defaults to the system session,
+    /// resolved inside the body for the same reason as above.
     internal init(
-        synthesizer: any SpeechSynthesizing = AVSpeechSynthesizer(),
+        synthesizer: any SpeechSynthesizing,
         playback: (any SpeechPlaybackSessioning)? = nil,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        neural: (any NeuralSpeechSynthesizing)? = nil
     ) {
         self.synthesizer = synthesizer
+        self.neural = neural
         self.playback = playback ?? SystemSpeechPlaybackSession()
         self.defaults = defaults
         isEnabled = defaults.bool(forKey: Keys.enabled)
@@ -161,11 +202,29 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         announcesCodeBlocks = defaults.object(forKey: Keys.announceCode) as? Bool ?? true
         rateMultiplier = defaults.object(forKey: Keys.rate) as? Double ?? 1.0
         voiceIdentifier = defaults.string(forKey: Keys.voice)
+        usesNeuralVoice = defaults.bool(forKey: Keys.neuralVoice)
         delegateBridge.service = self
         synthesizer.delegate = delegateBridge
         self.playback.onRemoteCommand = { [weak self] command in self?.handleRemote(command) }
-        log.info("TTS voice: \(self.resolvedVoice?.name ?? "system default")")
+        if let neural {
+            neuralState = neural.state
+            neural.onStateChange = { [weak self] state in self?.neuralState = state }
+            neural.onEvent = { [weak self] event in self?.handleNeuralEvent(event) }
+            // `didSet` doesn't run for the stored value, so a neural voice chosen
+            // last session starts loading here.
+            if usesNeuralVoice { neural.prepare() }
+        }
+        log.info("TTS voice: \(self.resolvedVoice?.name ?? "system default"), neural voice \(neural == nil ? "unavailable" : (self.usesNeuralVoice ? "on" : "off"))")
     }
+
+    // MARK: - Engines
+
+    /// Whether this build and machine have a neural voice to offer at all.
+    internal var isNeuralVoiceAvailable: Bool { neural != nil }
+
+    /// Whether the next utterance goes to the neural voice: chosen, linked, and
+    /// loaded. Anything short of that is the system voice.
+    internal var speaksWithNeuralVoice: Bool { usesNeuralVoice && neural?.state.isReady == true }
 
     // MARK: - Voices
 
@@ -268,10 +327,14 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
             chunker.reset()
             streamingMessageID = messageID
         }
+        // Batching exists to hide the system voice's per-utterance intonation
+        // reset. The neural voice phrases each sentence naturally and starts in
+        // tens of milliseconds, so it gets every sentence the moment it closes.
+        let batchLength = speaksWithNeuralVoice ? 0 : streamingBatchLength
         for sentence in chunker.push(text) {
             streamedMessageIDs.insert(messageID)
             streamBatch.append(sentence)
-            if streamBatch.joined(separator: " ").count >= streamingBatchLength {
+            if streamBatch.joined(separator: " ").count >= batchLength {
                 speakStreamBatch(messageID: messageID)
             }
         }
@@ -297,9 +360,19 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
 
     // MARK: - Transport
 
+    /// Which engine the current playback belongs to. Utterances all go to one
+    /// engine per run (`stop()` sits between any switch), so the first in
+    /// flight decides.
+    private var playingEngineIsNeural: Bool {
+        inFlight.keys.contains { if case .neural = $0 { return true } else { return false } }
+    }
+
     internal func pause() {
         guard isSpeaking, !isPaused else { return }
-        if synthesizer.pauseSpeaking(at: .word) {
+        let paused = playingEngineIsNeural
+            ? neural?.pause() ?? false
+            : synthesizer.pauseSpeaking(at: .word)
+        if paused {
             isPaused = true
             publishNowPlaying()
         }
@@ -307,7 +380,10 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
 
     internal func resume() {
         guard isPaused else { return }
-        if synthesizer.continueSpeaking() {
+        let resumed = playingEngineIsNeural
+            ? neural?.resume() ?? false
+            : synthesizer.continueSpeaking()
+        if resumed {
             isPaused = false
             publishNowPlaying()
         }
@@ -327,6 +403,12 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         if synthesizer.isSpeaking || synthesizer.isPaused || !inFlight.isEmpty {
             synthesizer.stopSpeaking(at: .immediate)
         }
+        if playingEngineIsNeural {
+            // Clear first: the engine reports each silenced utterance as
+            // finished, and those must not be mistaken for a queue draining.
+            inFlight.removeAll()
+            neural?.stop()
+        }
         chunker.reset()
         streamBatch.removeAll()
         streamingMessageID = nil
@@ -344,26 +426,33 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     private func enqueue(text: String, messageID: UUID?, chunk: Bool = true) {
         let pieces = chunk ? Self.utterances(from: text, targetLength: utteranceTargetLength) : [text]
         let options: SpokenText.Options = announcesCodeBlocks ? .default : .skippingCode
+        let useNeural = speaksWithNeuralVoice
         for piece in pieces {
             let spoken = SpokenText.prepare(piece, options: options)
             guard !spoken.isEmpty else { continue }
-            let utterance = AVSpeechUtterance(string: spoken)
-            utterance.voice = resolvedVoice
-            utterance.rate = Float(rateMultiplier) * AVSpeechUtteranceDefaultSpeechRate
-            utterance.pitchMultiplier = 1.0
-            utterance.volume = 1.0
-            // Consecutive utterances are one continuous reading, not a list:
-            // no synthesizer-inserted silence between them.
-            utterance.preUtteranceDelay = 0
-            utterance.postUtteranceDelay = 0
-            inFlight[ObjectIdentifier(utterance)] = (messageID, spoken)
             if !isSpeaking {
                 playback.activate()
                 isSpeaking = true
                 isPaused = false
                 speakingMessageID = messageID
             }
-            synthesizer.speak(utterance)
+            if useNeural, let neural {
+                let id = UUID()
+                inFlight[.neural(id)] = (messageID, spoken)
+                neural.speak(spoken, id: id, rate: rateMultiplier)
+            } else {
+                let utterance = AVSpeechUtterance(string: spoken)
+                utterance.voice = resolvedVoice
+                utterance.rate = Float(rateMultiplier) * AVSpeechUtteranceDefaultSpeechRate
+                utterance.pitchMultiplier = 1.0
+                utterance.volume = 1.0
+                // Consecutive utterances are one continuous reading, not a list:
+                // no synthesizer-inserted silence between them.
+                utterance.preUtteranceDelay = 0
+                utterance.postUtteranceDelay = 0
+                inFlight[.system(ObjectIdentifier(utterance))] = (messageID, spoken)
+                synthesizer.speak(utterance)
+            }
         }
     }
 
@@ -393,10 +482,32 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         return out
     }
 
-    // MARK: - Delegate callbacks (main actor)
+    // MARK: - Engine callbacks (main actor)
 
     fileprivate func utteranceDidStart(id: ObjectIdentifier) {
-        guard let entry = inFlight[id] else { return }
+        utteranceDidStart(key: .system(id))
+    }
+
+    fileprivate func utteranceDidEnd(id: ObjectIdentifier) {
+        utteranceDidEnd(key: .system(id))
+    }
+
+    private func handleNeuralEvent(_ event: NeuralSpeechEvent) {
+        switch event {
+        case .started(let id):
+            utteranceDidStart(key: .neural(id))
+        case .finished(let id):
+            utteranceDidEnd(key: .neural(id))
+        case .failed(let id, let reason):
+            // One sentence lost, not the whole reply: the rest of the queue
+            // still plays, and the failure is logged rather than shown.
+            log.error("Neural voice failed on an utterance: \(reason)")
+            utteranceDidEnd(key: .neural(id))
+        }
+    }
+
+    private func utteranceDidStart(key: UtteranceKey) {
+        guard let entry = inFlight[key] else { return }
         isSpeaking = true
         isPaused = false
         speakingMessageID = entry.messageID
@@ -404,8 +515,8 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         publishNowPlaying()
     }
 
-    fileprivate func utteranceDidEnd(id: ObjectIdentifier) {
-        inFlight.removeValue(forKey: id)
+    private func utteranceDidEnd(key: UtteranceKey) {
+        guard inFlight.removeValue(forKey: key) != nil else { return }
         if inFlight.isEmpty {
             settle()
         }
@@ -449,6 +560,21 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         case .stop: stop()
         }
     }
+}
+
+// MARK: - Default engine wiring
+
+extension TTSService {
+    #if canImport(FluidAudio)
+    /// PocketTTS, on Apple Silicon. On Intel the CoreML graphs would run on
+    /// the CPU far slower than real time, which is worse than the system voice.
+    internal static func defaultNeuralEngine() -> (any NeuralSpeechSynthesizing)? {
+        HardwareProfile.current().isAppleSilicon ? PocketTtsSpeechEngine() : nil
+    }
+    #else
+    /// No neural voice linked in this build.
+    internal static func defaultNeuralEngine() -> (any NeuralSpeechSynthesizing)? { nil }
+    #endif
 }
 
 // MARK: - Delegate
