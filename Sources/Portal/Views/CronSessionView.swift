@@ -215,7 +215,10 @@ internal struct CronSessionView: View {
                     .foregroundStyle(isUser ? Theme.secondary : Theme.accent)
                     .textCase(.uppercase)
 
-                Text(message.contentWithoutAttachments)
+                // Raw content while streaming: the stripMediaTags cache is only
+                // filled on completion, so contentWithoutAttachments would re-run
+                // its regex over the growing message on every redraw.
+                Text(message.isStreaming ? message.content : message.contentWithoutAttachments)
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.primary)
                     .textSelection(.enabled)
