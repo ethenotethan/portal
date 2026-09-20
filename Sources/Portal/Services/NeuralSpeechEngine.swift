@@ -10,18 +10,23 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Neural
 /// streamed 80 ms at a time from CoreML into an `AVAudioPlayerNode`.
 ///
 /// Chosen over the other backends in the package because it is the one built
-/// for a conversation: the first frame plays tens of milliseconds after the
-/// text arrives, and the rest streams behind it while the model is still
-/// generating. The system voice, by contrast, shapes intonation once per
-/// utterance and sounds like a paragraph being read — which is what made
-/// hands-free replies feel uncanny.
+/// for a conversation: it phrases each sentence naturally rather than shaping
+/// intonation once per paragraph, which is what made the system voice feel
+/// uncanny in hands-free replies.
 ///
-/// Each utterance is one `synthesizeStreaming` call, so its boundaries are
-/// exact: `started` fires as its first buffer renders, `finished` as its last
-/// buffer finishes playing. Utterances queue in order; the model runs ahead
-/// of playback (several times real time), so consecutive sentences are
-/// gapless. Speaking rate is applied with a time-pitch unit rather than by
-/// the model, which has no speed control.
+/// Each utterance is one `synthesizeStreaming` call. Rather than piping frames
+/// straight into the player as they arrive, the sentence is buffered in full
+/// and only then handed to the player as one contiguous run: PocketTTS's mimi
+/// decoder is CPU-only and does not reliably generate faster than it plays on
+/// every machine, so a player started on a thin pre-roll underruns — audibly
+/// stutters — the moment generation dips below real time. Buffering first
+/// trades a little onset latency (one short sentence's synthesis) for playback
+/// that cannot stutter mid-sentence. The next sentence is synthesized while
+/// this one plays and scheduled onto the still-running player, so a multi-
+/// sentence reply stays gapless when generation keeps up. `started` fires as
+/// the first buffer renders, `finished` as the last finishes playing. Speaking
+/// rate is applied with a time-pitch unit rather than by the model, which has
+/// no speed control.
 ///
 /// Compiled only when FluidAudio is linked (the app targets), like the
 /// transcriber in `LocalVoiceEngine.swift`; `TTSService`'s routing is what
@@ -89,22 +94,6 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     /// bump belongs to speech that was silenced, and is dropped.
     private var generation = 0
     private var isPaused = false
-    /// Audio scheduled for the current playback session but not yet started.
-    /// The player waits for this to cross `prerollFrames` before it begins, so
-    /// the model — slowest on its very first inference frames — builds a lead
-    /// over the playout cursor instead of starving it. Reset on `stop()`; only
-    /// consulted while the player is idle, so a stale value between sessions is
-    /// harmless.
-    private var scheduledUnplayedFrames: AVAudioFrameCount = 0
-    /// ~500 ms of pre-roll: a deeper cushion than the onset strictly needs, so
-    /// the player starts further ahead of the model and an early inference
-    /// hiccup (the model is slowest on its first frames, and shares the MLX
-    /// buffer pool with the local chat model) can't starve the very start of a
-    /// reply. Still a fraction of a second — not latency a listener clocks.
-    private static let prerollSeconds = 0.5
-    private var prerollFrames: AVAudioFrameCount {
-        AVAudioFrameCount(Double(PocketTtsConstants.audioSampleRate) * Self.prerollSeconds)
-    }
 
     internal init() {
         manager = PocketTtsManager()
@@ -178,39 +167,45 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         }
     }
 
-    /// Stream one utterance into the player. One buffer is held back so the
-    /// last one can carry the `finished` callback; the first carries `started`.
+    /// Synthesize one utterance in full, then schedule it as one contiguous run
+    /// and start the player. Buffering the whole sentence before playing any of
+    /// it is what stops the mid-sentence stutter: a CPU-only decoder that dips
+    /// below real time can't starve a player that already holds the entire
+    /// sentence. The first buffer carries `started`; the last carries
+    /// `finished`.
     private func render(_ utterance: Utterance) async {
         let myGeneration = generation
         // Pace instrumentation: how much audio the model generated versus the
-        // wall-clock time it took. Below ~1× real time the player can't be kept
-        // fed and the reply glitches — logging it makes an intermittent stall
-        // (e.g. MLX contention with the local chat model) visible instead of a
-        // guess. Only the total is logged, once per sentence, so it's cheap.
+        // wall-clock time it took. Below ~1× real time the model can't stream
+        // faster than it plays — the reason this path buffers rather than
+        // pipes. Logged once per sentence, so it's cheap.
         let startedAt = ContinuousClock.now
+        var buffers: [AVAudioPCMBuffer] = []
         var generatedFrames: AVAudioFrameCount = 0
         do {
             try startAudioIfNeeded()
             let stream = try await manager.synthesizeStreaming(text: utterance.text, voice: voice)
-            var pending: AVAudioPCMBuffer?
-            var announcedStart = false
             for try await frame in stream {
                 guard generation == myGeneration else { return }
                 guard let buffer = makeBuffer(frame.samples) else { continue }
                 generatedFrames += buffer.frameLength
-                if let held = pending {
-                    schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: false, generation: myGeneration)
-                    announcedStart = true
-                }
-                pending = buffer
+                buffers.append(buffer)
             }
             guard generation == myGeneration else { return }
             logSynthPace(frames: generatedFrames, since: startedAt)
-            if let held = pending {
-                schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: true, generation: myGeneration)
-            } else {
-                complete(utterance.id)
+            guard !buffers.isEmpty else { complete(utterance.id); return }
+            for (index, buffer) in buffers.enumerated() {
+                schedule(
+                    buffer,
+                    id: utterance.id,
+                    announcesStart: index == 0,
+                    isLast: index == buffers.count - 1,
+                    generation: myGeneration
+                )
             }
+            // Kick the player once. It stays running across sentences, so the
+            // next sentence's buffers simply extend the queue behind this one.
+            if !player.isPlaying, !isPaused { player.play() }
         } catch {
             guard generation == myGeneration else { return }
             log.error("PocketTTS synthesis failed: \(error.localizedDescription)")
@@ -233,16 +228,6 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             }
         } else {
             player.scheduleBuffer(buffer)
-        }
-        if !player.isPlaying, !isPaused {
-            scheduledUnplayedFrames += buffer.frameLength
-            // Hold playback until a pre-roll cushion has queued (or the
-            // utterance is already complete — a one-buffer reply can't
-            // pre-roll). This is what keeps the onset from stuttering while
-            // the model is still spinning up.
-            if isLast || scheduledUnplayedFrames >= prerollFrames {
-                player.play()
-            }
         }
     }
 
@@ -340,7 +325,6 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         worker?.cancel()
         worker = nil
         queue.removeAll()
-        scheduledUnplayedFrames = 0
         isPaused = false
         let silenced = inFlight
         inFlight.removeAll()
