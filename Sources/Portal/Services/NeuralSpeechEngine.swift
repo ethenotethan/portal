@@ -96,9 +96,12 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     /// consulted while the player is idle, so a stale value between sessions is
     /// harmless.
     private var scheduledUnplayedFrames: AVAudioFrameCount = 0
-    /// ~300 ms of pre-roll: enough to absorb the slow onset frames without
-    /// adding latency a listener would notice on a spoken reply.
-    private static let prerollSeconds = 0.3
+    /// ~500 ms of pre-roll: a deeper cushion than the onset strictly needs, so
+    /// the player starts further ahead of the model and an early inference
+    /// hiccup (the model is slowest on its first frames, and shares the MLX
+    /// buffer pool with the local chat model) can't starve the very start of a
+    /// reply. Still a fraction of a second — not latency a listener clocks.
+    private static let prerollSeconds = 0.5
     private var prerollFrames: AVAudioFrameCount {
         AVAudioFrameCount(Double(PocketTtsConstants.audioSampleRate) * Self.prerollSeconds)
     }
@@ -179,6 +182,13 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     /// last one can carry the `finished` callback; the first carries `started`.
     private func render(_ utterance: Utterance) async {
         let myGeneration = generation
+        // Pace instrumentation: how much audio the model generated versus the
+        // wall-clock time it took. Below ~1× real time the player can't be kept
+        // fed and the reply glitches — logging it makes an intermittent stall
+        // (e.g. MLX contention with the local chat model) visible instead of a
+        // guess. Only the total is logged, once per sentence, so it's cheap.
+        let startedAt = ContinuousClock.now
+        var generatedFrames: AVAudioFrameCount = 0
         do {
             try startAudioIfNeeded()
             let stream = try await manager.synthesizeStreaming(text: utterance.text, voice: voice)
@@ -187,6 +197,7 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             for try await frame in stream {
                 guard generation == myGeneration else { return }
                 guard let buffer = makeBuffer(frame.samples) else { continue }
+                generatedFrames += buffer.frameLength
                 if let held = pending {
                     schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: false, generation: myGeneration)
                     announcedStart = true
@@ -194,6 +205,7 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
                 pending = buffer
             }
             guard generation == myGeneration else { return }
+            logSynthPace(frames: generatedFrames, since: startedAt)
             if let held = pending {
                 schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: true, generation: myGeneration)
             } else {
@@ -237,6 +249,29 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     private func complete(_ id: UUID) {
         inFlight.removeAll { $0 == id }
         onEvent?(.finished(id))
+    }
+
+    /// Emit the just-finished utterance's generation pace. A comfortable stream
+    /// runs several times real time; a value near or below 1× is the reply
+    /// stuttering because the model couldn't stay ahead of playback — logged
+    /// loudly so a "choppy every now and then" report has a number behind it.
+    private func logSynthPace(frames: AVAudioFrameCount, since start: ContinuousClock.Instant) {
+        guard frames > 0 else { return }
+        let elapsed = ContinuousClock.now - start
+        let wallSeconds = Double(elapsed.components.seconds)
+            + Double(elapsed.components.attoseconds) / 1e18
+        guard wallSeconds > 0 else { return }
+        let audioSeconds = Double(frames) / Double(PocketTtsConstants.audioSampleRate)
+        let realtimeFactor = audioSeconds / wallSeconds
+        let detail = String(
+            format: "%.2f× real time (%.2fs audio in %.2fs)",
+            realtimeFactor, audioSeconds, wallSeconds
+        )
+        if realtimeFactor < 1.3 {
+            log.warning("PocketTTS pace \(detail, privacy: .public) — playback may glitch")
+        } else {
+            log.debug("PocketTTS pace \(detail, privacy: .public)")
+        }
     }
 
     private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer? {
