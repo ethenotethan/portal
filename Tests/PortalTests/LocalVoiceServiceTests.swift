@@ -33,6 +33,7 @@ private final class FakeMicrophone: MicrophoneCapturing {
     var stopped = false
     var startError: Error?
     var onAudioLevel: (@Sendable (Float) -> Void)?
+    var onRouteInterruption: (@Sendable () -> Void)?
 
     func start(feeding transcriber: any LocalSpeechTranscribing) throws {
         if let startError { throw startError }
@@ -42,6 +43,9 @@ private final class FakeMicrophone: MicrophoneCapturing {
 
     /// Fire the level sink the service wired up, as the real mic tap would.
     func emitLevel(_ value: Float) { onAudioLevel?(value) }
+
+    /// Simulate the engine re-arming after an audio-route change.
+    func emitRouteInterruption() { onRouteInterruption?() }
 }
 
 private struct MicFailure: Error {}

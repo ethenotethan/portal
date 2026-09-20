@@ -3,6 +3,9 @@ import AVFoundation
 import CoreML
 import FluidAudio
 import Foundation
+import os
+
+private let voiceEngineLog = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalVoiceEngine")
 
 /// FluidAudio-backed on-device transcriber: Parakeet EOU 120M streaming with
 /// 160 ms chunks (lowest-latency tier), English-only. Downloads its CoreML
@@ -25,7 +28,13 @@ internal final class FluidAudioTranscriber: LocalSpeechTranscribing {
     }
 
     internal func loadModels() async throws {
-        try await manager.loadModels()
+        do {
+            try await manager.loadModels()
+            voiceEngineLog.info("Parakeet EOU streaming models loaded")
+        } catch {
+            voiceEngineLog.error("Parakeet EOU model load failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     internal func onPartial(_ handler: @escaping @Sendable (String) -> Void) async {
@@ -44,6 +53,7 @@ internal final class FluidAudioTranscriber: LocalSpeechTranscribing {
             try await manager.processBufferedAudio()
         } catch {
             // A dropped buffer isn't fatal — the next one keeps the stream alive.
+            voiceEngineLog.error("appendAudio/process failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -69,6 +79,18 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
     /// loudness per buffer, driving the voice-reactive conversation orb.
     internal var onAudioLevel: (@Sendable (Float) -> Void)?
 
+    /// Fired on the main actor when the audio route changed out from under the
+    /// mic and capture was re-armed on the new device, so the UI can reassure
+    /// the user instead of sitting in dead silence.
+    internal var onRouteInterruption: (@Sendable () -> Void)?
+
+    /// Held so the tap can be reinstalled after a route change: the whole point
+    /// of re-arming is that the conversation survives the device switch.
+    private var feed: (any LocalSpeechTranscribing)?
+    /// Observes the engine's hardware-config changes (a route switch stops the
+    /// engine and invalidates the tap format). Removed on `stop`.
+    private var configObserver: NSObjectProtocol?
+
     internal func start(feeding transcriber: any LocalSpeechTranscribing) throws {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
@@ -79,6 +101,17 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
         )
         try session.setActive(true)
         #endif
+        feed = transcriber
+        armCapture(feeding: transcriber)
+        engine.prepare()
+        try engine.start()
+        observeRouteChanges()
+    }
+
+    /// Install (or reinstall) the tap on the current input route. Reads the
+    /// input format fresh each call so a re-arm after a device switch picks up
+    /// the new hardware's sample rate.
+    private func armCapture(feeding transcriber: any LocalSpeechTranscribing) {
         let input = engine.inputNode
         // Echo cancellation: with a hands-free conversation the mic stays open
         // while the reply is spoken aloud, so without this the assistant's own
@@ -92,6 +125,7 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
         }
         let format = input.outputFormat(forBus: 0)
         let onLevel = onAudioLevel
+        input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
             // The engine hands each callback a fresh buffer it will recycle, so
             // transferring it into the transcriber actor is safe; the sending
@@ -102,8 +136,36 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
             // hand-off into the actor needed the unsafe transfer above.
             if let onLevel { onLevel(Self.level(of: buffer)) }
         }
+    }
+
+    /// Watch for the engine stopping itself on a hardware-config change — a
+    /// Bluetooth speaker connecting, headphones (un)plugging, the default device
+    /// switching — and rebuild capture on the new route. Before this, such a
+    /// switch left the mic dead and the conversation silently one-sided.
+    private func observeRouteChanges() {
+        guard configObserver == nil else { return }
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.rearmAfterRouteChange() }
+        }
+    }
+
+    private func rearmAfterRouteChange() {
+        // The engine stops itself on a config change; if it's still running this
+        // notification isn't a route drop we need to recover from (and re-arming
+        // a live engine would loop), so ignore it.
+        guard !engine.isRunning, let feed else { return }
+        armCapture(feeding: feed)
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+            onRouteInterruption?()
+        } catch {
+            voiceEngineLog.error("Mic re-arm after route change failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// Normalized 0...1 loudness of a capture buffer: RMS mapped from a roughly
@@ -124,6 +186,11 @@ internal final class AVAudioEngineMicrophone: MicrophoneCapturing {
     }
 
     internal func stop() {
+        if let configObserver {
+            NotificationCenter.default.removeObserver(configObserver)
+            self.configObserver = nil
+        }
+        feed = nil
         engine.inputNode.removeTap(onBus: 0)
         if engine.isRunning { engine.stop() }
         #if os(iOS)

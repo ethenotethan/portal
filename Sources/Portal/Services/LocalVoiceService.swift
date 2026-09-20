@@ -1,6 +1,9 @@
 import AVFoundation
 import Combine
 import Foundation
+import os
+
+private let voiceLog = Logger(subsystem: "com.ethenotethan.Portal", category: "LocalVoiceService")
 
 /// Microphone capture seam. The real implementation (AVAudioEngine) lives in
 /// `LocalVoiceEngine.swift` behind `#if canImport(FluidAudio)`, so tests inject
@@ -16,6 +19,10 @@ internal protocol MicrophoneCapturing: AnyObject {
     /// normalized 0...1 microphone level per buffer so the UI can pulse with the
     /// user's voice. The real implementation snapshots it at `start`.
     var onAudioLevel: (@Sendable (Float) -> Void)? { get set }
+    /// Set by the service before `start`; fired on the main actor when the audio
+    /// route changed and capture was automatically re-armed on the new device,
+    /// so the UI can reassure the user rather than sit in dead silence.
+    var onRouteInterruption: (@Sendable () -> Void)? { get set }
 }
 
 /// On-device streaming ASR seam. The real implementation wraps FluidAudio's
@@ -150,6 +157,13 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
 
     @Published internal private(set) var isRunning: Bool = false
 
+    /// A brief, self-clearing reassurance shown when the audio route changed
+    /// mid-conversation (a Bluetooth speaker connecting, headphones un/plugging)
+    /// and capture was re-armed on the new device. `nil` when there's nothing to
+    /// say. The conversation card surfaces it.
+    @Published internal private(set) var routeNotice: String?
+    private var routeNoticeClear: Task<Void, Never>?
+
     /// Set by `ChatViewModel`; fired on the main actor when an utterance ends.
     internal var onFinalTranscript: ((String) -> Void)?
 
@@ -245,9 +259,13 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
                     self?.onAudioLevel?(level)
                 }
             }
+            microphone.onRouteInterruption = { [weak self] in
+                Task { @MainActor in self?.noteRouteChange() }
+            }
             try microphone.start(feeding: transcriber)
             isRunning = true
         } catch {
+            voiceLog.error("Local voice start failed: \(error.localizedDescription, privacy: .public)")
             isRunning = false
         }
     }
@@ -269,6 +287,27 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         await transcriber.reset()
         partialTranscript = ""
         inputLevel = 0
+        clearRouteNotice()
+    }
+
+    /// Surface a brief reassurance that the mic followed an audio-route change,
+    /// then clear it — capture has already been re-armed by the engine, so this
+    /// is purely to explain the momentary gap rather than prompt any action.
+    private func noteRouteChange() {
+        guard isRunning else { return }
+        routeNotice = "Audio device changed — still listening."
+        routeNoticeClear?.cancel()
+        routeNoticeClear = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            self?.routeNotice = nil
+        }
+    }
+
+    private func clearRouteNotice() {
+        routeNoticeClear?.cancel()
+        routeNoticeClear = nil
+        routeNotice = nil
     }
 
     /// End-of-utterance / manual-stop handler. In one-shot mode it tears down
@@ -282,6 +321,7 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
             isRunning = false
             microphone.stop()
             inputLevel = 0
+            clearRouteNotice()
         }
         let text: String
         do {
@@ -289,6 +329,7 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         } catch {
             // Fall back to the last partial if the flush fails — better a rough
             // transcript than a dropped utterance.
+            voiceLog.error("Local voice finish failed: \(error.localizedDescription, privacy: .public)")
             text = partialTranscript
         }
         await transcriber.reset()
