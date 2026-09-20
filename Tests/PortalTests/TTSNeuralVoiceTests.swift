@@ -24,6 +24,7 @@ private final class RecordingNeuralSynthesizer: NeuralSpeechSynthesizing {
     var inFlight: [UUID] = []
     var prepares = 0
     var stops = 0
+    var flushes = 0
     var isPaused = false
 
     /// Idempotent once loaded, like the real engine.
@@ -37,6 +38,8 @@ private final class RecordingNeuralSynthesizer: NeuralSpeechSynthesizing {
         spoken.append((id, text, rate))
         inFlight.append(id)
     }
+
+    func flush() { flushes += 1 }
 
     /// Like the real engine: everything silenced reports finished.
     func stop() {
@@ -261,8 +264,10 @@ internal struct TTSNeuralVoiceTests {
         #expect(r.neural.spoken.map(\.text) == ["One two."])
         r.service.streamDelta("four. Tail", messageID: id)
         #expect(r.neural.spoken.map(\.text) == ["One two.", "Three four."])
+        #expect(r.neural.flushes == 0, "mid-stream batches don't release the lead")
         r.service.finishStreaming(messageID: id)
         #expect(r.neural.spoken.map(\.text) == ["One two.", "Three four.", "Tail"])
+        #expect(r.neural.flushes == 1, "closing the stream releases the lead once")
         #expect(r.synth.spoken.isEmpty)
     }
 
@@ -319,6 +324,7 @@ internal struct TTSNeuralVoiceTests {
         let msg = message("One. Two.")
         r.service.speakMessage(msg)
         #expect(r.neural.spoken.map(\.text) == ["One.", "Two."])
+        #expect(r.neural.flushes == 1, "a whole reply is queued at once, so its lead releases immediately")
         #expect(r.service.isSpeaking)
         #expect(r.service.speakingMessageID == msg.id)
 

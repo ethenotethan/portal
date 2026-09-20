@@ -23,8 +23,12 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Neural
 /// trades a little onset latency (one short sentence's synthesis) for playback
 /// that cannot stutter mid-sentence. The next sentence is synthesized while
 /// this one plays and scheduled onto the still-running player, so a multi-
-/// sentence reply stays gapless when generation keeps up. `started` fires as
-/// the first buffer renders, `finished` as the last finishes playing. Speaking
+/// sentence reply stays gapless when generation keeps up. To hold that lead
+/// even when synthesis dips — the local chat model is often on the GPU at the
+/// same time — a reply's first audio waits until a short cushion of it is
+/// scheduled (`leadFrames`), released early by `flush()` when the reply is too
+/// short to fill it. `started` fires as the first buffer renders, `finished`
+/// as the last finishes playing. Speaking
 /// rate is applied with a time-pitch unit rather than by the model, which has
 /// no speed control.
 ///
@@ -95,8 +99,33 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     private var generation = 0
     private var isPaused = false
 
+    /// A cushion built before a reply's first audio plays. Buffering one full
+    /// sentence stops the *within*-sentence stutter; a lead across the first
+    /// sentences stops the *between*-sentence gap, because later sentences keep
+    /// synthesizing into the queue while this head start plays. The reply starts
+    /// once ~`leadSeconds` of audio is scheduled, or sooner if `flush()` says no
+    /// more sentences are coming — so a short reply doesn't wait for a lead it
+    /// can never fill. Costs a bounded bit of onset latency for gaplessness.
+    private static let leadSeconds = 1.0
+    private var leadFrames: AVAudioFrameCount {
+        AVAudioFrameCount(Self.leadSeconds * Double(PocketTtsConstants.audioSampleRate))
+    }
+    /// Audio scheduled for the current reply but not yet playing — the lead so
+    /// far. Zeroed the instant the player starts, so the gate only delays a
+    /// reply's very first audio, never anything mid-reply.
+    private var pendingLeadFrames: AVAudioFrameCount = 0
+    /// Set by `flush()`: the reply is done, so release the lead gate and let
+    /// whatever is buffered play even if it's under `leadFrames`. Reset when a
+    /// fresh reply begins.
+    private var flushRequested = false
+
     internal init() {
-        manager = PocketTtsManager()
+        // The int8 FlowLM (`flowlm_stepv2`) in place of the fp16 default: the
+        // autoregressive FlowLM loop is the synthesis bottleneck after the
+        // CPU-only mimi decoder, and the quantized weights cut its step cost, so
+        // more sentences finish ahead of playback. This is what keeps a spoken
+        // reply gapless while the local chat model is also on the GPU.
+        manager = PocketTtsManager(precision: .int8)
         format = AVAudioFormat(
             standardFormatWithSampleRate: Double(PocketTtsConstants.audioSampleRate),
             channels: 1
@@ -151,9 +180,27 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         player.volume = 1
         timePitch.rate = Float(min(max(rate, 0.5), 2.0))
         timePitch.pitch = pitch
+        // The first sentence of a fresh reply (nothing in flight, player idle)
+        // starts a new lead: rebuild the cushion and drop any prior flush.
+        if inFlight.isEmpty, !player.isPlaying {
+            pendingLeadFrames = 0
+            flushRequested = false
+        }
         inFlight.append(id)
         queue.append(Utterance(id: id, text: text))
         startWorkerIfNeeded()
+    }
+
+    internal func flush() {
+        flushRequested = true
+        // If the worker already buffered the whole (short) reply and parked
+        // under the lead, nothing is left to trip the gate in `render` — so
+        // release it here. If synthesis is still running, setting the flag is
+        // enough; the next `render` will start playback.
+        if !player.isPlaying, !isPaused, pendingLeadFrames > 0 {
+            player.play()
+            pendingLeadFrames = 0
+        }
     }
 
     private func startWorkerIfNeeded() {
@@ -203,9 +250,17 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
                     generation: myGeneration
                 )
             }
-            // Kick the player once. It stays running across sentences, so the
-            // next sentence's buffers simply extend the queue behind this one.
-            if !player.isPlaying, !isPaused { player.play() }
+            // Hold the reply's first audio until a lead has built up (or the
+            // reply is done), then kick the player once. It stays running across
+            // sentences, so once started, later sentences' buffers just extend
+            // the queue behind this one — the gate never delays them.
+            if !player.isPlaying, !isPaused {
+                pendingLeadFrames += generatedFrames
+                if flushRequested || pendingLeadFrames >= leadFrames {
+                    player.play()
+                    pendingLeadFrames = 0
+                }
+            }
         } catch {
             guard generation == myGeneration else { return }
             log.error("PocketTTS synthesis failed: \(error.localizedDescription)")
@@ -326,6 +381,8 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         worker = nil
         queue.removeAll()
         isPaused = false
+        pendingLeadFrames = 0
+        flushRequested = false
         let silenced = inFlight
         inFlight.removeAll()
         for id in silenced {

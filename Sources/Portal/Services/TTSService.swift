@@ -400,6 +400,10 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
             streamBatch.append(tail)
         }
         speakStreamBatch(messageID: messageID)
+        // No more sentences are coming, so release the neural engine's lead: a
+        // short reply, or the tail here, plays now rather than waiting for a
+        // cushion that will never fill.
+        if speaksWithNeuralVoice { neural?.flush() }
         // The stream is closed. If nothing is left playing — the last sentence
         // finished before the stream closed, so `utteranceDidEnd` deliberately
         // held the route open — settle now that no more sentences are coming.
@@ -504,6 +508,11 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
                 synthesizer.speak(utterance)
             }
         }
+        // A whole reply (not a mid-stream batch) is fully queued now, so let the
+        // neural engine release its lead and start speaking. Streamed batches
+        // pass `chunk: false` and are flushed by `finishStreaming` instead, so
+        // the lead can build across the reply's first sentences.
+        if useNeural, chunk { neural?.flush() }
     }
 
     /// Cut `text` into utterances: split at paragraph breaks, then merge each
