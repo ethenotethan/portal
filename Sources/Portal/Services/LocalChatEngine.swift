@@ -71,6 +71,9 @@ internal actor MLXLocalChatEngine: LocalChatGenerating {
     internal func endSession() async {
         session = nil
         sessionInstructions = nil
+        // The discussion is over; hand the buffer cache back to the system
+        // rather than leaving it parked at its ceiling until the next one.
+        MLXMemoryConfig.reclaim()
     }
 
     // MARK: - Generation
@@ -115,6 +118,10 @@ internal actor MLXLocalChatEngine: LocalChatGenerating {
 
     private func ensureContainer(for model: LocalChatModel) async throws {
         if container != nil, loadedModel == model { return }
+        // Cap MLX's buffer cache before the first allocation, so a long
+        // discussion can't let the reuse pool balloon into gigabytes of idle
+        // graphics memory. Idempotent.
+        MLXMemoryConfig.configureIfNeeded()
         if loadedModel != model {
             // Switching models invalidates the conversation: its KV cache belongs
             // to the old weights.

@@ -72,6 +72,9 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     internal func prepare() {
         guard state != .ready, prepareTask == nil else { return }
         state = .preparing
+        // Share the process-wide MLX cache cap with the local chat model; the
+        // TTS model streams through the same buffer pool.
+        MLXMemoryConfig.configureIfNeeded()
         let manager = self.manager
         prepareTask = Task { [weak self] in
             do {
