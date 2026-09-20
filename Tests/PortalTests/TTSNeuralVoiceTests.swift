@@ -220,6 +220,19 @@ internal struct TTSNeuralVoiceTests {
         #expect(neuralAgain.pitch == 250, "the restored warmth is applied at launch")
     }
 
+    @Test("the picker's voices come from the engine, and output level is smoothed for the orb")
+    internal func picksVoicesAndMetersOutput() {
+        let r = rig()
+        #expect(r.service.neuralVoices.map(\.id) == ["alba", "michael"])
+
+        // The engine reports live output loudness; the service smooths it (EMA)
+        // so the conversation orb pulses instead of strobing.
+        #expect(r.service.outputLevel == 0)
+        r.neural.onOutputLevel?(1.0)
+        #expect(r.service.outputLevel > 0)
+        #expect(r.service.outputLevel < 1.0, "a single sample is eased in, not snapped to full")
+    }
+
     // MARK: Routing
 
     @Test("while the model loads, speech falls back to the system voice; once ready it goes neural")

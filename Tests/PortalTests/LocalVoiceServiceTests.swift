@@ -193,6 +193,23 @@ internal struct LocalVoiceServiceTests {
         #expect(service.inputLevel == 0)
     }
 
+    @Test("an audio-route change surfaces a brief notice, cleared when capture ends")
+    internal func routeChangeSurfacesNoticeAndClears() async {
+        let (service, _, mic) = makeService()
+        await service.startConversation()
+        #expect(service.routeNotice == nil)
+
+        // The engine re-armed the mic after the route flipped (a Bluetooth
+        // speaker connecting): the service should reassure, not go silent.
+        mic.emitRouteInterruption()
+        await settle { service.routeNotice != nil }
+        #expect(service.routeNotice == "Audio device changed — still listening.")
+
+        // Ending the conversation clears the notice along with capture.
+        await service.cancel()
+        #expect(service.routeNotice == nil)
+    }
+
     @Test("a manual stop also emits the transcript")
     internal func stopEmitsTranscript() async {
         let (service, transcriber, mic) = makeService()

@@ -335,7 +335,11 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             for step in 1...steps {
                 if Task.isCancelled || self.generation != gen { return }
                 self.player.volume = start * Float(steps - step) / Float(steps)
-                try? await Task.sleep(for: .milliseconds(18))
+                do {
+                    try await Task.sleep(for: .milliseconds(18))
+                } catch {
+                    return  // cancelled — a new reply took over; it restores volume
+                }
             }
             if Task.isCancelled || self.generation != gen { return }
             self.teardownAudio()

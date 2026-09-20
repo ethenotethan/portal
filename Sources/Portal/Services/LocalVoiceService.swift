@@ -298,8 +298,11 @@ internal final class LocalVoiceService: ObservableObject, LocalVoiceControlling 
         routeNotice = "Audio device changed — still listening."
         routeNoticeClear?.cancel()
         routeNoticeClear = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(4))
-            guard !Task.isCancelled else { return }
+            do {
+                try await Task.sleep(for: .seconds(4))
+            } catch {
+                return  // cancelled by a newer notice or a stop — leave it be
+            }
             self?.routeNotice = nil
         }
     }
