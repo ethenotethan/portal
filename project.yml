@@ -14,6 +14,9 @@ packages:
   BeautifulMermaid:
     url: https://github.com/lukilabs/beautiful-mermaid-swift
     from: "1.0.0"
+  mlx-swift:
+    url: https://github.com/ml-explore/mlx-swift
+    from: "0.31.4"
   mlx-swift-lm:
     url: https://github.com/ml-explore/mlx-swift-lm
     from: "3.31.3"
@@ -44,6 +47,8 @@ targets:
         product: MLXLLM
       - package: mlx-swift-lm
         product: MLXLMCommon
+      - package: mlx-swift
+        product: MLX
       - package: swift-huggingface
         product: HuggingFace
       - package: swift-transformers
@@ -81,6 +86,8 @@ targets:
         product: MLXLLM
       - package: mlx-swift-lm
         product: MLXLMCommon
+      - package: mlx-swift
+        product: MLX
       - package: swift-huggingface
         product: HuggingFace
       - package: swift-transformers
