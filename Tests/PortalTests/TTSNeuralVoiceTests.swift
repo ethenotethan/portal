@@ -9,6 +9,13 @@ import Testing
 private final class RecordingNeuralSynthesizer: NeuralSpeechSynthesizing {
     var onStateChange: ((NeuralSpeechState) -> Void)?
     var onEvent: ((NeuralSpeechEvent) -> Void)?
+    var onOutputLevel: ((Float) -> Void)?
+    let availableVoices: [NeuralVoiceOption] = [
+        NeuralVoiceOption(id: "alba", name: "Alba"),
+        NeuralVoiceOption(id: "michael", name: "Michael")
+    ]
+    var voice = "alba"
+    var pitch: Float = 0
     var state: NeuralSpeechState = .idle {
         didSet { onStateChange?(state) }
     }
@@ -171,6 +178,59 @@ internal struct TTSNeuralVoiceTests {
         r.neural.state = .failed("no disk")
         #expect(r.service.neuralState == .failed("no disk"))
         #expect(!r.service.speaksWithNeuralVoice)
+    }
+
+    // MARK: Persona
+
+    @Test("the chosen voice is pushed to the engine, persists, and reloads next launch")
+    internal func voiceChoicePersists() {
+        let r = rig()
+        #expect(r.neural.voice == "alba", "the model's default until a choice is made")
+        r.service.neuralVoice = "michael"
+        #expect(r.neural.voice == "michael")
+
+        let neuralAgain = RecordingNeuralSynthesizer()
+        let reloaded = TTSService(synthesizer: BystanderSynthesizer(), playback: RecordingSpeechPlaybackSession(), defaults: r.defaults, neural: neuralAgain)
+        #expect(reloaded.neuralVoice == "michael")
+        #expect(neuralAgain.voice == "michael", "the restored voice is handed to the engine at launch")
+    }
+
+    @Test("switching voice mid-reply stops what was rendered for the old one")
+    internal func switchingVoiceStops() {
+        let r = rig()
+        r.service.speak("Old voice.")
+        #expect(r.neural.inFlight.count == 1)
+        r.service.neuralVoice = "george"
+        #expect(r.neural.stops == 1)
+        #expect(!r.service.isActive)
+    }
+
+    @Test("warmth maps to a pitch shift on the engine and persists")
+    internal func warmthMapsToPitch() {
+        let r = rig()
+        #expect(r.neural.pitch == 0)
+        r.service.warmth = 1.0
+        #expect(r.neural.pitch == -250, "warmest deepens the voice")
+        r.service.warmth = -1.0
+        #expect(r.neural.pitch == 250, "brightest raises it")
+
+        let neuralAgain = RecordingNeuralSynthesizer()
+        let reloaded = TTSService(synthesizer: BystanderSynthesizer(), playback: RecordingSpeechPlaybackSession(), defaults: r.defaults, neural: neuralAgain)
+        #expect(reloaded.warmth == -1.0)
+        #expect(neuralAgain.pitch == 250, "the restored warmth is applied at launch")
+    }
+
+    @Test("the picker's voices come from the engine, and output level is smoothed for the orb")
+    internal func picksVoicesAndMetersOutput() {
+        let r = rig()
+        #expect(r.service.neuralVoices.map(\.id) == ["alba", "michael"])
+
+        // The engine reports live output loudness; the service smooths it (EMA)
+        // so the conversation orb pulses instead of strobing.
+        #expect(r.service.outputLevel == 0)
+        r.neural.onOutputLevel?(1.0)
+        #expect(r.service.outputLevel > 0)
+        #expect(r.service.outputLevel < 1.0, "a single sample is eased in, not snapped to full")
     }
 
     // MARK: Routing

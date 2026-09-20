@@ -85,6 +85,7 @@ internal struct SpeechSettingsSection: View {
 
             Divider()
             neuralVoiceControls
+            neuralPersonaControls
             voicePicker
             Divider()
             rateSlider
@@ -230,6 +231,60 @@ internal struct SpeechSettingsSection: View {
             }
             Divider()
         }
+    }
+
+    /// Persona controls for the neural voice: who speaks, and how warm they
+    /// sound. Only shown when the neural voice is switched on and this build
+    /// links one — the system voice has its own picker below and ignores
+    /// warmth. Offered while the model is still loading so the choice is made
+    /// before the first reply, not after hearing the wrong voice.
+    @ViewBuilder
+    private var neuralPersonaControls: some View {
+        if speech.isNeuralVoiceAvailable, speech.usesNeuralVoice, !speech.neuralVoices.isEmpty {
+            Picker("Neural voice", selection: $speech.neuralVoice) {
+                ForEach(speech.neuralVoices) { option in
+                    Text(option.name).tag(option.id)
+                }
+            }
+            Text("Which on-device neural voice speaks. All ship together, so "
+                 + "switching is instant once the model has loaded.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Warmth")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Spacer()
+                    Text(warmthLabel)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(Theme.primary)
+                }
+                Slider(value: $speech.warmth, in: -1...1, step: 0.1) {
+                    Text("Warmth")
+                } minimumValueLabel: {
+                    Image(systemName: "sparkles").font(.caption2)
+                } maximumValueLabel: {
+                    Image(systemName: "flame").font(.caption2)
+                }
+            }
+            Text("Nudges the neural voice brighter or deeper. The system voice "
+                 + "ignores this.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Divider()
+        }
+    }
+
+    /// "Warm +0.4" / "Bright −0.6" / "Neutral" — a word for the direction plus
+    /// the value, so the slider reads as a persona choice, not a raw number.
+    private var warmthLabel: String {
+        let value = speech.warmth
+        if abs(value) < 0.05 { return "Neutral" }
+        let word = value > 0 ? "Warm" : "Bright"
+        return String(format: "%@ %+.1f", word, value)
     }
 
     @ViewBuilder

@@ -10,6 +10,13 @@ import SwiftUI
 /// speaking — reading state straight off `ChatViewModel`.
 internal struct VoiceConversationCard: View {
     @ObservedObject internal var chatViewModel: ChatViewModel
+    /// The shared voice service owns the transient audio-route notice (mirrors
+    /// how `SpeechSettingsSection` observes it), surfaced under the caption when
+    /// the mic follows a device change so the momentary gap reads as handled.
+    @ObservedObject private var localVoice = LocalVoiceService.shared
+    /// The speaker owns the live output loudness; while the assistant talks the
+    /// orb breathes with its voice rather than sitting on a canned animation.
+    @ObservedObject private var tts = TTSService.shared
 
     internal var body: some View {
         let phase = chatViewModel.conversationPhase
@@ -56,7 +63,15 @@ internal struct VoiceConversationCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
             }
+
+            if let notice = localVoice.routeNotice {
+                Label(notice, systemImage: "wave.3.right")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.tertiary)
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: localVoice.routeNotice)
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -70,10 +85,18 @@ internal struct VoiceConversationCard: View {
     }
 
     private func orb(for phase: ChatViewModel.ConversationPhase) -> some View {
-        ConversationOrb(
+        // Listening pulses with the user's mic; speaking with the assistant's
+        // own voice; thinking rests (no one is talking).
+        let level: Double
+        switch phase {
+        case .listening: level = Double(chatViewModel.voiceLevel)
+        case .speaking: level = Double(tts.outputLevel)
+        case .thinking: level = 0
+        }
+        return ConversationOrb(
             visual: chatViewModel.conversationVisual,
             phase: phase,
-            level: Double(chatViewModel.voiceLevel)
+            level: level
         )
     }
 
@@ -139,9 +162,10 @@ private struct ClaudeOrb: View {
     ])
 
     internal var body: some View {
-        // Voice only drives the orb while listening; a floor keeps it lively as
-        // the very first words come in.
-        let voice = phase == .listening ? max(0, min(1, level)) : 0
+        // The orb reacts to whoever is talking: the mic level while listening,
+        // the assistant's own output level while speaking (both supplied as
+        // `level`). Thinking has no speaker, so it rests on the canned motion.
+        let voice = phase == .thinking ? 0 : max(0, min(1, level))
         return TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             let breathe = 0.9 + 0.08 * (0.5 + 0.5 * sin(t * speed))
@@ -226,17 +250,17 @@ private struct OpenAIOrb: View {
     ])
 
     internal var body: some View {
-        let voice = phase == .listening ? max(0, min(1, level)) : 0
+        // Reacts to whoever is talking (mic while listening, the assistant's own
+        // output while speaking); thinking rests on the canned shimmer.
+        let voice = phase == .thinking ? 0 : max(0, min(1, level))
         return TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             let highlightSpeed: Double = phase == .speaking ? 3 : 0.6
             let highlightX = CGFloat(cos(t * highlightSpeed) * 8)
             let highlightY = CGFloat(sin(t * highlightSpeed) * 8)
-            // Core grows with the voice while listening; speaking keeps its own
-            // shimmer pulse.
-            let coreScale = 0.62 + (phase == .speaking
-                ? 0.05 * (0.5 + 0.5 * sin(t * 6))
-                : 0.22 * voice)
+            // Core grows with the live voice; a faint idle shimmer keeps it from
+            // sitting perfectly still between syllables.
+            let coreScale = 0.62 + 0.22 * voice + 0.03 * (0.5 + 0.5 * sin(t * 6))
             ZStack {
                 // Sonar rings — three staggered pulses expanding and fading.
                 ForEach(0..<3, id: \.self) { index in

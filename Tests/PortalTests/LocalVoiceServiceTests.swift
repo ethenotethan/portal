@@ -33,6 +33,7 @@ private final class FakeMicrophone: MicrophoneCapturing {
     var stopped = false
     var startError: Error?
     var onAudioLevel: (@Sendable (Float) -> Void)?
+    var onRouteInterruption: (@Sendable () -> Void)?
 
     func start(feeding transcriber: any LocalSpeechTranscribing) throws {
         if let startError { throw startError }
@@ -42,6 +43,9 @@ private final class FakeMicrophone: MicrophoneCapturing {
 
     /// Fire the level sink the service wired up, as the real mic tap would.
     func emitLevel(_ value: Float) { onAudioLevel?(value) }
+
+    /// Simulate the engine re-arming after an audio-route change.
+    func emitRouteInterruption() { onRouteInterruption?() }
 }
 
 private struct MicFailure: Error {}
@@ -187,6 +191,23 @@ internal struct LocalVoiceServiceTests {
         // Ending capture returns the level to silence so the orb settles.
         await service.cancel()
         #expect(service.inputLevel == 0)
+    }
+
+    @Test("an audio-route change surfaces a brief notice, cleared when capture ends")
+    internal func routeChangeSurfacesNoticeAndClears() async {
+        let (service, _, mic) = makeService()
+        await service.startConversation()
+        #expect(service.routeNotice == nil)
+
+        // The engine re-armed the mic after the route flipped (a Bluetooth
+        // speaker connecting): the service should reassure, not go silent.
+        mic.emitRouteInterruption()
+        await settle { service.routeNotice != nil }
+        #expect(service.routeNotice == "Audio device changed — still listening.")
+
+        // Ending the conversation clears the notice along with capture.
+        await service.cancel()
+        #expect(service.routeNotice == nil)
     }
 
     @Test("a manual stop also emits the transcript")

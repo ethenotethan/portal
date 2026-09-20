@@ -42,6 +42,9 @@ internal struct LocalDiscussionPane: View {
     /// The shared service, for the download/load state and error text. The
     /// injectable one on the view model drives behavior; this only reports.
     @ObservedObject private var localChat = LocalChatService.shared
+    /// Owns the live output loudness so the header orb breathes with the
+    /// spoken reply, matching the inline conversation card.
+    @ObservedObject private var tts = TTSService.shared
     @State private var draft: String = ""
     @State private var showsAnchor: Bool = false
     /// Open throttle window for following the thread as it grows.
@@ -144,12 +147,22 @@ internal struct LocalDiscussionPane: View {
 
     // MARK: Header
 
+    /// Mic level while listening, the assistant's output level while speaking,
+    /// at rest while thinking — so the header orb reacts to whoever is talking.
+    private var orbLevel: Double {
+        switch chatViewModel.conversationPhase {
+        case .listening: Double(chatViewModel.voiceLevel)
+        case .speaking: Double(tts.outputLevel)
+        case .thinking: 0
+        }
+    }
+
     private var header: some View {
         HStack(alignment: .center, spacing: 14) {
             ConversationOrb(
                 visual: chatViewModel.conversationVisual,
                 phase: chatViewModel.conversationPhase,
-                level: Double(chatViewModel.voiceLevel)
+                level: orbLevel
             )
             .frame(width: 44, height: 44)
 

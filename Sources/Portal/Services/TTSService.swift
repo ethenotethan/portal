@@ -96,6 +96,26 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
     @Published internal var voiceIdentifier: String? {
         didSet { defaults.set(voiceIdentifier, forKey: Keys.voice) }
     }
+    /// Which neural voice speaks, by the model's voice id (see the engine's
+    /// `availableVoices`). Only consulted when the neural voice is on. Changing
+    /// it stops what's queued — that audio was rendered in the other voice.
+    @Published internal var neuralVoice: String {
+        didSet {
+            defaults.set(neuralVoice, forKey: Keys.neuralVoiceID)
+            guard neuralVoice != oldValue else { return }
+            neural?.voice = neuralVoice
+            if isActive { stop() }
+        }
+    }
+    /// Persona "warmth", `-1 ... 1`: negative is brighter, positive deeper. Maps
+    /// to a pitch shift on the neural voice (system voices ignore it). Takes
+    /// effect on the next sentence, so a nudge mid-reply isn't jarring.
+    @Published internal var warmth: Double = 0 {
+        didSet {
+            defaults.set(warmth, forKey: Keys.warmth)
+            neural?.pitch = Self.pitchCents(forWarmth: warmth)
+        }
+    }
     /// Speak with the on-device neural voice instead of the system one. Off by
     /// default: it is a download, and the system voice needs none. Turning it
     /// on starts the load right away, so the wait is spent watching a label in
@@ -121,6 +141,10 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
 
     @Published internal var isSpeaking = false
     @Published internal private(set) var isPaused = false
+    /// Live 0...1 loudness of the neural voice as it plays, smoothed, so the
+    /// conversation orb can breathe with the assistant's own speech. Zero when
+    /// silent or when the system voice (which reports no samples) is speaking.
+    @Published internal private(set) var outputLevel: Float = 0
     /// The message whose sentences are queued or playing, so its bubble can
     /// show a speaking indicator and offer Stop instead of Speak.
     @Published internal private(set) var speakingMessageID: UUID?
@@ -175,6 +199,8 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         static let rate = "portal.tts.rateMultiplier"
         static let voice = "portal.tts.voiceIdentifier"
         static let neuralVoice = "portal.tts.neuralVoice"
+        static let neuralVoiceID = "portal.tts.neuralVoiceID"
+        static let warmth = "portal.tts.warmth"
     }
 
     /// Production wiring: the system synthesizer, the system playback session,
@@ -203,6 +229,9 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         rateMultiplier = defaults.object(forKey: Keys.rate) as? Double ?? 1.0
         voiceIdentifier = defaults.string(forKey: Keys.voice)
         usesNeuralVoice = defaults.bool(forKey: Keys.neuralVoice)
+        // "alba" is the model's own default voice; a stored choice overrides it.
+        neuralVoice = defaults.string(forKey: Keys.neuralVoiceID) ?? "alba"
+        warmth = defaults.object(forKey: Keys.warmth) as? Double ?? 0
         delegateBridge.service = self
         synthesizer.delegate = delegateBridge
         self.playback.onRemoteCommand = { [weak self] command in self?.handleRemote(command) }
@@ -210,6 +239,11 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
             neuralState = neural.state
             neural.onStateChange = { [weak self] state in self?.neuralState = state }
             neural.onEvent = { [weak self] event in self?.handleNeuralEvent(event) }
+            neural.onOutputLevel = { [weak self] level in self?.updateOutputLevel(level) }
+            // Property observers don't fire for values assigned in init, so push
+            // the restored persona (voice + warmth) into the engine by hand.
+            neural.voice = neuralVoice
+            neural.pitch = Self.pitchCents(forWarmth: warmth)
             // `didSet` doesn't run for the stored value, so a neural voice chosen
             // last session starts loading here.
             if usesNeuralVoice { neural.prepare() }
@@ -221,6 +255,16 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
 
     /// Whether this build and machine have a neural voice to offer at all.
     internal var isNeuralVoiceAvailable: Bool { neural != nil }
+
+    /// The neural voices offered in the picker; empty when no engine is linked.
+    internal var neuralVoices: [NeuralVoiceOption] { neural?.availableVoices ?? [] }
+
+    /// Map the `-1 ... 1` warmth control to a pitch shift in cents: positive
+    /// warmth deepens the voice. ±250 cents (≈2½ semitones) is a clear persona
+    /// shift without tipping into a caricature.
+    internal static func pitchCents(forWarmth warmth: Double) -> Float {
+        Float(-max(-1, min(1, warmth)) * 250)
+    }
 
     /// Whether the next utterance goes to the neural voice: chosen, linked, and
     /// loaded. Anything short of that is the system voice.
@@ -492,6 +536,15 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         utteranceDidEnd(key: .system(id))
     }
 
+    /// Fold each raw output-loudness sample into `outputLevel` with an
+    /// exponential moving average, taming the per-buffer jitter so the orb
+    /// pulses smoothly with the assistant's voice instead of strobing — the
+    /// same shaping `ChatViewModel` applies to the mic level.
+    private func updateOutputLevel(_ raw: Float) {
+        let clamped = max(0, min(1, raw))
+        outputLevel = outputLevel * 0.7 + clamped * 0.3
+    }
+
     private func handleNeuralEvent(_ event: NeuralSpeechEvent) {
         switch event {
         case .started(let id):
@@ -539,6 +592,7 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
         isPaused = false
         speakingMessageID = nil
         currentSentence = nil
+        outputLevel = 0
         if wasActive {
             playback.deactivate()
         }

@@ -30,6 +30,34 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Neural
 internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     internal var onStateChange: ((NeuralSpeechState) -> Void)?
     internal var onEvent: ((NeuralSpeechEvent) -> Void)?
+    internal var onOutputLevel: ((Float) -> Void)?
+
+    /// A curated shortlist of the pack's shipped voices. The English pack
+    /// carries ~two dozen `<voice>.safetensors`; these are the clearly-named,
+    /// distinct ones, so the picker is a choice rather than a wall. All ship in
+    /// the one pack download, so any of them resolves locally once loaded.
+    internal let availableVoices: [NeuralVoiceOption] = [
+        NeuralVoiceOption(id: "alba", name: "Alba"),
+        NeuralVoiceOption(id: "michael", name: "Michael"),
+        NeuralVoiceOption(id: "anna", name: "Anna"),
+        NeuralVoiceOption(id: "george", name: "George"),
+        NeuralVoiceOption(id: "eve", name: "Eve"),
+        NeuralVoiceOption(id: "jane", name: "Jane"),
+        NeuralVoiceOption(id: "giovanni", name: "Giovanni"),
+        NeuralVoiceOption(id: "rafael", name: "Rafael"),
+        NeuralVoiceOption(id: "vera", name: "Vera"),
+        NeuralVoiceOption(id: "charles", name: "Charles")
+    ]
+
+    /// The voice the next utterance is synthesized with. Defaults to the model's
+    /// own default; `TTSService` pushes the persisted choice in.
+    internal var voice: String = PocketTtsConstants.defaultVoice
+
+    /// Persona warmth as a pitch shift in cents, applied through the time-pitch
+    /// unit. Kept live so a change while speaking is heard on the next buffer.
+    internal var pitch: Float = 0 {
+        didSet { timePitch.pitch = pitch }
+    }
 
     internal private(set) var state: NeuralSpeechState = .idle {
         didSet { if state != oldValue { onStateChange?(state) } }
@@ -54,10 +82,26 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     private var inFlight: [UUID] = []
     private var worker: Task<Void, Never>?
     private var prepareTask: Task<Void, Never>?
+    /// The in-progress soft stop (see `beginFadeOut`). Cancelled the instant new
+    /// speech arrives so a reply landing mid-fade is heard at full volume.
+    private var fadeTask: Task<Void, Never>?
     /// Bumped by `stop()`. A render loop or a player callback from before the
     /// bump belongs to speech that was silenced, and is dropped.
     private var generation = 0
     private var isPaused = false
+    /// Audio scheduled for the current playback session but not yet started.
+    /// The player waits for this to cross `prerollFrames` before it begins, so
+    /// the model — slowest on its very first inference frames — builds a lead
+    /// over the playout cursor instead of starving it. Reset on `stop()`; only
+    /// consulted while the player is idle, so a stale value between sessions is
+    /// harmless.
+    private var scheduledUnplayedFrames: AVAudioFrameCount = 0
+    /// ~300 ms of pre-roll: enough to absorb the slow onset frames without
+    /// adding latency a listener would notice on a spoken reply.
+    private static let prerollSeconds = 0.3
+    private var prerollFrames: AVAudioFrameCount {
+        AVAudioFrameCount(Double(PocketTtsConstants.audioSampleRate) * Self.prerollSeconds)
+    }
 
     internal init() {
         manager = PocketTtsManager()
@@ -79,6 +123,18 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         prepareTask = Task { [weak self] in
             do {
                 try await manager.initialize()
+                // One throwaway synth before we report ready: the first
+                // inference is markedly slower than steady state (kernel
+                // compilation, ANE/GPU spin-up), and that slow onset is what
+                // starves the player at the start of the first real reply.
+                // Consume the frames, play none — so the cold pass is paid
+                // here, once, not on the user's first spoken turn.
+                do {
+                    let warmUp = try await manager.synthesizeStreaming(text: "Ready.")
+                    for try await _ in warmUp {}
+                } catch {
+                    log.debug("PocketTTS warm-up skipped: \(error.localizedDescription)")
+                }
                 self?.state = .ready
                 log.info("PocketTTS ready")
             } catch {
@@ -96,7 +152,13 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             onEvent?(.failed(id, "The neural voice isn't loaded."))
             return
         }
+        // A reply that arrives while a previous stop is still fading in cancels
+        // the fade and restores full volume, so it isn't heard through a dip.
+        fadeTask?.cancel()
+        fadeTask = nil
+        player.volume = 1
         timePitch.rate = Float(min(max(rate, 0.5), 2.0))
+        timePitch.pitch = pitch
         inFlight.append(id)
         queue.append(Utterance(id: id, text: text))
         startWorkerIfNeeded()
@@ -119,7 +181,7 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         let myGeneration = generation
         do {
             try startAudioIfNeeded()
-            let stream = try await manager.synthesizeStreaming(text: utterance.text)
+            let stream = try await manager.synthesizeStreaming(text: utterance.text, voice: voice)
             var pending: AVAudioPCMBuffer?
             var announcedStart = false
             for try await frame in stream {
@@ -161,7 +223,14 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             player.scheduleBuffer(buffer)
         }
         if !player.isPlaying, !isPaused {
-            player.play()
+            scheduledUnplayedFrames += buffer.frameLength
+            // Hold playback until a pre-roll cushion has queued (or the
+            // utterance is already complete — a one-buffer reply can't
+            // pre-roll). This is what keeps the onset from stuttering while
+            // the model is still spinning up.
+            if isLast || scheduledUnplayedFrames >= prerollFrames {
+                player.play()
+            }
         }
     }
 
@@ -187,6 +256,7 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
             engine.attach(timePitch)
             engine.connect(player, to: timePitch, format: format)
             engine.connect(timePitch, to: engine.mainMixerNode, format: format)
+            installOutputMeter()
             graphBuilt = true
         }
         if !engine.isRunning {
@@ -195,21 +265,94 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         }
     }
 
+    /// Meter the audio actually leaving the mixer so the orb breathes with the
+    /// assistant's voice in real time — read at the output rather than at
+    /// scheduling, so it's synced to what's heard, not to what the model has
+    /// generated ~300 ms ahead. Installed once with the graph; the tap is cheap
+    /// and idles at ~0 between utterances.
+    private func installOutputMeter() {
+        let mixer = engine.mainMixerNode
+        let onLevel = onOutputLevel
+        guard onLevel != nil else { return }
+        mixer.installTap(onBus: 0, bufferSize: 2048, format: mixer.outputFormat(forBus: 0)) { buffer, _ in
+            let level = Self.level(of: buffer)
+            Task { @MainActor [weak self] in self?.onOutputLevel?(level) }
+        }
+    }
+
+    /// RMS loudness of an output buffer, mapped from a ~-50…-10 dBFS window into
+    /// 0...1 — the same shaping the mic meter uses, so the orb reacts the same
+    /// whoever is talking.
+    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0] else { return 0 }
+        let count = Int(buffer.frameLength)
+        guard count > 0 else { return 0 }
+        var sumOfSquares: Float = 0
+        for index in 0..<count {
+            let sample = channel[index]
+            sumOfSquares += sample * sample
+        }
+        let rms = (sumOfSquares / Float(count)).squareRoot()
+        let decibels = 20 * log10(max(rms, 1e-7))
+        return max(0, min(1, (decibels + 50) / 40))
+    }
+
     // MARK: - Transport
 
     internal func stop() {
         generation += 1
+        let gen = generation
         worker?.cancel()
         worker = nil
         queue.removeAll()
-        player.stop()
+        scheduledUnplayedFrames = 0
         isPaused = false
-        if engine.isRunning { engine.stop() }
         let silenced = inFlight
         inFlight.removeAll()
         for id in silenced {
             onEvent?(.finished(id))
         }
+        // Soft stop: ramp the player down over ~150 ms rather than cutting it
+        // dead, so a barge-in or a tapped Stop ends on a breath instead of a
+        // click. The generation bump above already makes every in-flight render
+        // and scheduled callback bail, so nothing new queues behind the fade.
+        beginFadeOut(generation: gen)
+    }
+
+    /// Ramp the player to silence, then tear the engine down. Bails (leaving
+    /// `speak` to restore the volume) if a newer generation started meanwhile,
+    /// so a reply that lands mid-fade plays at full level.
+    private func beginFadeOut(generation gen: Int) {
+        fadeTask?.cancel()
+        guard player.isPlaying else {
+            teardownAudio()
+            return
+        }
+        fadeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let steps = 8
+            let start = self.player.volume
+            for step in 1...steps {
+                if Task.isCancelled || self.generation != gen { return }
+                self.player.volume = start * Float(steps - step) / Float(steps)
+                do {
+                    try await Task.sleep(for: .milliseconds(18))
+                } catch {
+                    return  // cancelled — a new reply took over; it restores volume
+                }
+            }
+            if Task.isCancelled || self.generation != gen { return }
+            self.teardownAudio()
+        }
+    }
+
+    private func teardownAudio() {
+        player.stop()
+        player.volume = 1
+        if engine.isRunning { engine.stop() }
+        // The output tap stops firing once the engine is down; leave the orb at
+        // rest rather than frozen at the last syllable's loudness.
+        onOutputLevel?(0)
     }
 
     @discardableResult
