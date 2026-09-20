@@ -135,21 +135,22 @@ internal struct SessionPDFExporterTests {
 #endif
 
 @Suite("Map Export Region")
-struct MapExportRegionTests {
+internal struct MapExportRegionTests {
 
     @Test("Model map views project to the same JSON the prerender pass keys on")
-    func projectionKeyStability() {
+    internal func projectionKeyStability() throws {
         let modelJSON = """
         {"entities": {"spots": {"key": "name", "items": [
            {"name": "A", "lat": 13.7, "lon": 100.5}, {"name": "B", "lat": 13.72, "lon": 100.54}]}},
          "views": [{"type": "map"}]}
         """
-        let spec = ModelSpec.parse(modelJSON)!
+        let spec = try #require(ModelSpec.parse(modelJSON))
         let first = ModelProjections.mapJSON(spec: spec, view: spec.views[0])
         let second = ModelProjections.mapJSON(spec: spec, view: spec.views[0])
         // sortedKeys serialization → deterministic string; the export view's
         // dictionary lookup depends on this.
-        #expect(first != nil && first == second)
-        #expect(MapSpec.parse(first!)?.markers.count == 2)
+        #expect(first == second)
+        let mapJSON = try #require(first)
+        #expect(MapSpec.parse(mapJSON)?.markers.count == 2)
     }
 }
