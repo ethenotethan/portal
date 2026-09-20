@@ -149,7 +149,15 @@ struct MessageBubbleView: View {
     private var assistantFullWidthBubble: some View {
         VStack(alignment: .leading, spacing: 4) {
             VStack(alignment: .leading, spacing: 8) {
-                let displayContent = message.contentWithoutAttachments
+                // While streaming, the `_contentWithoutAttachments` cache is nil
+                // (it's populated once, on completion — see ChatViewModel), so
+                // `contentWithoutAttachments` would re-run the stripMediaTags
+                // regex over the whole, growing message on every redraw. The
+                // pane auto-scrolls (and thus re-renders) several times a second
+                // during a spoken reply, so that scan compounds into a visible
+                // CPU spin. Use raw `content` while streaming — MEDIA: tags only
+                // matter once the turn is done, when the cached strip kicks in.
+                let displayContent = message.isStreaming ? message.content : message.contentWithoutAttachments
                 if !displayContent.isEmpty {
                     if message.isStreaming && message.content.hasSuffix("…") == false {
                         LongResponseView(text: displayContent, isStreaming: message.isStreaming)
