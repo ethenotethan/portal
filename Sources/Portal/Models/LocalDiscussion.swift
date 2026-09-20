@@ -58,6 +58,16 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// rather than only about the text in front of it.
     internal let briefing: LocalDiscussionBriefing
     internal var turns: [LocalDiscussionTurn]
+    /// The exchange the model can no longer remember on its own — everything said
+    /// before this discussion was set aside and picked up again.
+    ///
+    /// Continuity normally comes for free from the engine's live chat session, but
+    /// that session is dropped whenever the discussion closes or another one runs.
+    /// Resuming therefore has to re-state the exchange in the prompt, and it is
+    /// frozen at resume time rather than tracking `turns`, because `instructions()`
+    /// must stay byte-identical across the exchange for the KV cache to survive
+    /// from one turn to the next.
+    internal private(set) var recap: [LocalDiscussionTurn]
 
     /// How much of the anchor reply is handed to the model. A 1-4B model given
     /// 8k characters of context answers about the middle of it; the head is
@@ -70,7 +80,8 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
         draftText: String = "",
         options: [String] = [],
         briefing: LocalDiscussionBriefing = .empty,
-        turns: [LocalDiscussionTurn] = []
+        turns: [LocalDiscussionTurn] = [],
+        recap: [LocalDiscussionTurn] = []
     ) {
         self.id = anchorID
         self.anchorText = Self.trimAnchor(anchorText)
@@ -78,6 +89,7 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
         self.options = options
         self.briefing = briefing
         self.turns = turns
+        self.recap = recap
     }
 
     /// Whether this discussion is about a reply that already exists, as opposed
@@ -87,6 +99,27 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
     /// Whether there's anything worth handing back to the agent.
     internal var hasExchange: Bool {
         turns.contains { $0.role == .assistant && !$0.text.isEmpty }
+    }
+
+    /// Index in `turns` of the first thing said since this discussion was picked
+    /// up again, or nil when it is all one sitting.
+    ///
+    /// Purely for display: a resumed thread reads as one continuous exchange, which
+    /// is right for the model but hides from the user the seam where they left off
+    /// and came back. Nil while nothing new has been said yet, because a marker
+    /// pointing at the very end of the thread marks nothing.
+    internal var resumedAt: Int? {
+        guard !recap.isEmpty, turns.count > recap.count else { return nil }
+        return recap.count
+    }
+
+    /// This discussion, ready to be picked up where it left off: everything said
+    /// so far moves into the prompt, since the engine's own memory of it is gone.
+    internal func resuming() -> LocalDiscussion {
+        guard !turns.isEmpty else { return self }
+        var resumed = self
+        resumed.recap = turns
+        return resumed
     }
 
     /// Head of the anchor, cut on a paragraph boundary when one is close to the
@@ -186,6 +219,8 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
         you'd need to know instead of guessing at specifics.
         - Skip preamble, apologies, and flattery. Answer the question, then stop.
         - Take a position when asked for one. "Both are reasonable" is not an answer.
+        - This conversation has a destination: when they are satisfied, its conclusion \
+        is handed to the coding agent as an instruction. Help them converge on one.
         """
         prompt += purpose
 
@@ -230,6 +265,17 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
             \"\"\"
             """
         }
+
+        if !recap.isEmpty {
+            prompt += """
+
+
+            Earlier in this same conversation, before it was set aside:
+            \(transcript(of: recap))
+
+            Continue from there. Do not greet them again or restate what was already settled.
+            """
+        }
         return prompt
     }
 
@@ -261,27 +307,109 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
         """
     }
 
+    // MARK: - Drafting the ask
+
+    /// The sentinel the drafting pass emits when the conversation never landed on
+    /// anything to do. Cheaper than trying to detect a non-answer in prose, and it
+    /// lets the handoff fall back to the transcript rather than shipping a
+    /// confident instruction nobody agreed to.
+    internal static let noAskSentinel = "NOTHING SETTLED"
+
+    /// A drafted ask longer than this stopped being an instruction and started
+    /// being the model re-writing the conversation.
+    internal static let draftedAskBudget = 1_200
+
+    /// Instructions for the one-shot pass that turns the exchange into the actual
+    /// instruction for the agent.
+    ///
+    /// A separate prompt from `instructions()`, not a final question in the same
+    /// exchange, for two reasons: the discussion's rules are tuned for *speech* —
+    /// one to three sentences, no markdown — which is wrong for a written prompt,
+    /// and the differing text is what makes the engine build a clean session
+    /// instead of continuing in the voice it has been using all along.
+    internal func draftingInstructions() -> String {
+        """
+        You convert a side conversation into ONE written instruction for a coding agent.
+
+        Rules:
+        - Output the instruction and nothing else. No preamble, no sign-off, no \
+        markdown, no headings, no quotes around it, no options list.
+        - Address the agent directly, in the imperative. One to four sentences.
+        - Write only what the conversation actually settled on. Never invent file \
+        names, APIs, commands, or steps that were not discussed.
+        - Prefer the conversation's own words for anything specific.
+        - If the conversation reached no decision and no request, output exactly: \
+        \(Self.noAskSentinel)
+        """
+    }
+
+    /// The exchange, handed to the drafting pass with whatever grounding it had.
+    internal func draftingPrompt() -> String {
+        var prompt = ""
+        if isAnchored {
+            prompt += """
+            The reply we were discussing:
+            \"\"\"
+            \(anchorText)
+            \"\"\"
+
+
+            """
+        }
+        if !draftText.isEmpty {
+            prompt += """
+            What I had already drafted for the agent:
+            \"\"\"
+            \(draftText)
+            \"\"\"
+
+
+            """
+        }
+        // `turns` is the whole thread, recapped turns included — adding `recap` to it
+        // would hand the model the first sitting twice.
+        prompt += """
+        The conversation ("Me" is the engineer, "Local model" is you):
+        \(transcript(of: turns))
+
+
+        Write the single instruction the engineer wants the agent to carry out now.
+        """
+        return prompt
+    }
+
+    /// A drafted ask, or nil when the pass declined or ran away with itself.
+    internal static func usableAsk(_ raw: String) -> String? {
+        var text = LocalReplyText.clean(raw)
+        // Small models like to wrap the answer in quotes despite being told not to.
+        while let first = text.first, let last = text.last,
+              first == last, first == "\"" || first == "'", text.count > 2 {
+            text = String(text.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard !text.isEmpty, text.count <= draftedAskBudget else { return nil }
+        guard !text.uppercased().contains(noAskSentinel) else { return nil }
+        return text
+    }
+
+    // MARK: - Handoff
+
     /// The prompt that hands the discussion's conclusion back to the real agent.
     ///
     /// The point of the feature: talk it out locally for free, then spend one
-    /// gateway turn on the decision you actually reached. The local model's side
-    /// is included but labelled as a local model's, so the agent weighs it as
-    /// scratch thinking rather than as prior instruction from the user.
+    /// gateway turn on the decision you actually reached. So the drafted `ask`
+    /// leads — that is the output the whole conversation was for — and the
+    /// exchange follows as the reasoning behind it, labelled by speaker so the
+    /// agent weighs the local model's side as scratch thinking rather than as
+    /// prior instruction from the user.
+    ///
+    /// With no usable `ask` (the pass declined, or generation failed) the
+    /// transcript stands on its own, as it did before there was a drafting pass —
+    /// worse to read, but nothing is lost.
     ///
     /// A composer-started discussion carries the draft into the prompt, because
-    /// that prompt goes back into the composer the draft came from — leaving it
-    /// out would silently eat the design the user pasted there.
-    internal func handoffPrompt() -> String {
-        let transcript = turns
-            .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .map { turn in
-                switch turn.role {
-                case .user: return "Me: \(turn.text)"
-                case .assistant: return "Local model: \(turn.text)"
-                }
-            }
-            .joined(separator: "\n")
-
+    /// otherwise submitting the conversation would silently eat the design the
+    /// user had pasted there.
+    internal func handoffPrompt(ask: String? = nil) -> String {
         let opening = isAnchored
             ? "I talked your last reply over with a small on-device model."
             : "Before asking you for anything, I talked this through with a small on-device model."
@@ -296,14 +424,35 @@ internal struct LocalDiscussion: Identifiable, Equatable, Sendable {
             \"\"\"
             """
         }
-        return """
+        let context = """
         \(opening) That side conversation is below for context — treat my lines as what I \
         actually think and the local model's as unverified scratch thinking.\(draft)
 
-        \(transcript)
-
-        Pick this up from here.
+        \(transcript(of: turns))
         """
+
+        guard let ask, !ask.isEmpty else {
+            return context + "\n\nPick this up from here."
+        }
+        return """
+        \(ask)
+
+        \(context)
+        """
+    }
+
+    /// Turns, one per line, attributed. Shared by the resume grounding, the
+    /// drafting pass, and the handoff, which all need the same shape.
+    private func transcript(of turns: [LocalDiscussionTurn]) -> String {
+        turns
+            .filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map { turn in
+                switch turn.role {
+                case .user: return "Me: \(turn.text)"
+                case .assistant: return "Local model: \(turn.text)"
+                }
+            }
+            .joined(separator: "\n")
     }
 }
 

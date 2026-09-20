@@ -89,8 +89,8 @@ internal struct VoiceConversationCard: View {
 // MARK: - Orb selection
 
 /// The phase-animated orb, in whichever look Settings selected. Its own view so
-/// every spoken surface renders the same thing — the local-discussion card
-/// (`LocalDiscussionCard`) uses it too, and the two must not drift apart.
+/// every spoken surface renders the same thing — the local-discussion pane
+/// (`LocalDiscussionPane`) uses it too, and the two must not drift apart.
 internal struct ConversationOrb: View {
     internal let visual: ConversationVisual
     internal let phase: ChatViewModel.ConversationPhase

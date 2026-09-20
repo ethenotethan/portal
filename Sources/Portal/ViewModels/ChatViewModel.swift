@@ -373,9 +373,28 @@ final class ChatViewModel: ObservableObject {
     /// True while a local reply is being generated — the local twin of
     /// `isStreaming`, kept separate so nothing mistakes it for a gateway turn.
     @Published internal private(set) var isLocalStreaming: Bool = false
+    /// True while the local model is writing the instruction that the discussion
+    /// will be handed to the agent as. Distinct from `isLocalStreaming`: this reply
+    /// is never shown as a turn and never spoken aloud.
+    @Published internal private(set) var isDraftingHandoff: Bool = false
     /// The in-flight local generation, retained so barge-in and "end" can cancel
     /// it rather than talking over it.
     private var localReplyTask: Task<Void, Never>?
+    /// The in-flight write-up of the handoff prompt, retained so closing the card
+    /// can abandon it instead of waiting on it.
+    private var handoffDraftTask: Task<String?, Never>?
+    /// Discussions that have been closed but not forgotten, keyed by anchor id.
+    ///
+    /// Closing a discussion used to throw the exchange away, which made the
+    /// surface unusable for what it is actually for — talking a prompt into shape
+    /// over several sittings. They are held for the app's lifetime and rebuilt into
+    /// the prompt on resume (`LocalDiscussion.resuming()`), never persisted: these
+    /// turns are scratch space and were promised not to outlive the run.
+    private var setAsideDiscussions: [UUID: LocalDiscussion] = [:]
+    /// The id every composer-started discussion uses, so re-opening finds the one
+    /// that was set aside. A `UUID` per view model, which is what keeps it from
+    /// ever colliding with a message id.
+    private let composerDiscussionID = UUID()
 
     /// The three states the inline voice-conversation card animates between.
     internal enum ConversationPhase {
@@ -392,7 +411,7 @@ final class ChatViewModel: ObservableObject {
     /// speaking wins over thinking, and both win over the idle mic-open state.
     internal var conversationPhase: ConversationPhase {
         if speechStatus.isSpeaking { return .speaking }
-        if isStreaming || isLocalStreaming { return .thinking }
+        if isStreaming || isLocalStreaming || isDraftingHandoff { return .thinking }
         return .listening
     }
 
@@ -412,6 +431,34 @@ final class ChatViewModel: ObservableObject {
             return messages.last(where: { $0.role == .assistant })?.content
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
+    }
+
+    /// What the user is saying *right now* into an open discussion, before the
+    /// transcriber has finalized it.
+    ///
+    /// The live partial otherwise only exists in the composer at the far bottom of
+    /// the window and in the one-line caption under the orb, so the user's own half
+    /// of a spoken exchange was invisible until it had already been answered. The
+    /// discussion surface shows it as a provisional turn instead, which is what
+    /// makes the thread read as a conversation while it is happening.
+    internal var localDiscussionLiveUtterance: String? {
+        // Nothing said during the write-up is going anywhere (see
+        // `handleDiscussionUtterance`), so it is not shown as about to be.
+        guard localDiscussion != nil, isConversationActive, !isDraftingHandoff else { return nil }
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    /// Changes whenever the discussion thread's rendered content does — a new turn,
+    /// another delta into the streaming one, a word added to the live utterance.
+    /// The chat watches it to keep the growing thread in view; without that the
+    /// exchange scrolls off the bottom as it arrives, which is what made a
+    /// conversation that is all there feel like it was disappearing.
+    internal var localDiscussionRenderKey: String {
+        guard let discussion = localDiscussion else { return "" }
+        let tail = discussion.turns.last?.text.count ?? 0
+        let live = localDiscussionLiveUtterance?.count ?? 0
+        return "\(discussion.id)-\(discussion.turns.count)-\(tail)-\(live)-\(isDraftingHandoff)"
     }
 
     /// The look the conversation card should render, chosen in Settings.
@@ -2226,10 +2273,13 @@ client.eventStream
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard isStreaming || isLocalStreaming || speechStatus.isSpeaking else { return }
         isBargingIn = true
-        // In a local discussion there is no gateway turn to interrupt — the thing
-        // to stop is the on-device generation.
+        // In a local discussion there is no gateway turn to interrupt — the things
+        // to stop are the on-device generation and the voice reading it. The
+        // speaker is stopped explicitly because a finished reply is still being
+        // read long after there is any generation left to cancel.
         if localDiscussion != nil {
             cancelLocalReply()
+            conversationSpeaker.stop()
         } else {
             Task { await interrupt() }
         }
@@ -2259,7 +2309,7 @@ client.eventStream
         // An open local discussion is the sink for spoken input: the whole point
         // is that these turns cost nothing and never touch the session.
         if localDiscussion != nil {
-            await respondLocally(to: trimmed)
+            await handleDiscussionUtterance(trimmed)
             return
         }
         await submitPrompt()
@@ -2283,8 +2333,9 @@ client.eventStream
         voiceLevel = 0
         conversationSpeaker.stop()
         // A local discussion only exists as a spoken exchange, so closing the mic
-        // closes it too rather than leaving it open with no way to talk.
-        if localDiscussion != nil { await closeLocalDiscussion() }
+        // closes it too rather than leaving it open with no way to talk. It stays
+        // resumable — the mic going away is not the user disowning the exchange.
+        if localDiscussion != nil { await setAsideLocalDiscussion() }
         await localVoiceService.cancel()
     }
 
@@ -2307,8 +2358,8 @@ client.eventStream
         guard !anchor.isEmpty else { return }
 
         if localDiscussion?.id != message.id {
-            if localDiscussion != nil { await closeLocalDiscussion() }
-            localDiscussion = LocalDiscussion(
+            if localDiscussion != nil { await setAsideLocalDiscussion() }
+            localDiscussion = setAsideDiscussions[message.id]?.resuming() ?? LocalDiscussion(
                 anchorID: message.id,
                 anchorText: anchor,
                 options: LocalDiscussion.detectOptions(in: anchor),
@@ -2331,15 +2382,25 @@ client.eventStream
         guard localChatService.isEnabledAndAvailable else { return }
         // An anchored discussion is about something else entirely; don't quietly
         // fold the composer's draft into it.
-        if localDiscussion?.isAnchored == true { await closeLocalDiscussion() }
+        if localDiscussion?.isAnchored == true { await setAsideLocalDiscussion() }
         if localDiscussion == nil {
-            localDiscussion = LocalDiscussion(
-                anchorID: UUID(),
-                draftText: inputText.trimmingCharacters(in: .whitespacesAndNewlines),
+            let draft = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+            localDiscussion = resumableComposerDiscussion(draft: draft) ?? LocalDiscussion(
+                anchorID: composerDiscussionID,
+                draftText: draft,
                 briefing: currentBriefing()
             )
         }
         await openDiscussionSurface()
+    }
+
+    /// The set-aside composer discussion, when picking it back up is what the user
+    /// means. A composer whose text has changed since is a different ask, so that
+    /// starts fresh rather than answering about a draft that's no longer there.
+    private func resumableComposerDiscussion(draft: String) -> LocalDiscussion? {
+        guard let kept = setAsideDiscussions[composerDiscussionID], !kept.turns.isEmpty else { return nil }
+        guard draft.isEmpty || draft == kept.draftText else { return nil }
+        return kept.resuming()
     }
 
     /// Load the model and open the mic. Shared by both entry points.
@@ -2369,7 +2430,35 @@ client.eventStream
     internal func submitLocalDiscussionInput(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, localDiscussion != nil else { return }
-        await respondLocally(to: trimmed)
+        await handleDiscussionUtterance(trimmed)
+    }
+
+    /// Route one thing the user said inside an open discussion.
+    ///
+    /// "Okay, let's submit" is not a question for the local model — it is the end
+    /// of the conversation and the start of the real turn. Catching it here is what
+    /// lets a hands-free discussion finish hands-free, instead of asking the user to
+    /// stop talking and find a button at the exact moment they have decided what
+    /// they want. Anything else is another free local turn.
+    ///
+    /// Only once there is an exchange to hand over: before that, "go" is far more
+    /// likely to be the start of a thought than the end of one.
+    private func handleDiscussionUtterance(_ trimmed: String) async {
+        guard let discussion = localDiscussion else { return }
+        // The conversation is over once the write-up starts. Anything the mic hears
+        // now — the tail of the user's own sentence, the room — would otherwise
+        // start a second generation against the same engine while the prompt is
+        // being written, and the handoff would lose the race to it.
+        guard !isDraftingHandoff else {
+            inputText = ""
+            return
+        }
+        guard discussion.hasExchange, LocalDiscussionCloseOut.isCloseOut(trimmed) else {
+            await respondLocally(to: trimmed)
+            return
+        }
+        inputText = ""
+        await handLocalDiscussionToAgent()
     }
 
     /// Generate one local reply, streaming it into the discussion and out through
@@ -2446,41 +2535,122 @@ client.eventStream
         conversationSpeaker.stop()
     }
 
-    /// Take the discussion's conclusion forward to the real agent. The discussion
-    /// closes either way — its job is done.
+    /// Take the discussion's conclusion forward: the local model writes up the ask,
+    /// and that goes to the agent as a real turn.
     ///
-    /// Which "forward" depends on where the discussion started. Anchored to a
-    /// reply, it submits: one gateway turn carrying the exchange as context, with
-    /// a hands-free conversation left open so the answer is spoken and the next
-    /// question needs no tap. Started from the composer, it does NOT submit — the
-    /// whole point of talking first was to shape the prompt, so the prompt lands
-    /// in the composer for a read-through and an edit before it costs anything.
+    /// This is the output the conversation exists to produce. Both directions
+    /// submit — anchored to a reply and started from the composer alike — because
+    /// "okay, let's submit" has to actually continue the session; a prompt parked
+    /// in the composer waiting for a keystroke is not a conclusion. The exchange
+    /// travels with the ask as its reasoning.
+    ///
+    /// The hands-free conversation ends here rather than staying open for the
+    /// reply, for two reasons that are really one: this turn is *work*, not chat.
+    /// A conversation-mode turn is routed through the gateway's tool-less path
+    /// (`submitPrompt`), which would have the agent answer the ask instead of
+    /// carrying it out; and an open mic during an agentic turn treats the next
+    /// cough as a barge-in and interrupts the agent mid-task.
+    ///
+    /// The discussion is set aside rather than deleted, so the thread is still there
+    /// to pick up after the agent has replied.
     internal func handLocalDiscussionToAgent() async {
-        guard let discussion = localDiscussion, discussion.hasExchange else { return }
-        let prompt = discussion.handoffPrompt()
-        let submits = discussion.isAnchored
-        await closeLocalDiscussion()
-        inputText = prompt
-        if submits {
-            await submitPrompt()
-        } else {
-            // Nothing was sent, so nothing should be spoken at us either; hand the
-            // user their cursor and let them decide.
-            if isConversationActive { await endConversation() }
-            refocusInput += 1
+        guard localDiscussion?.hasExchange == true, !isDraftingHandoff else { return }
+        // Whatever the local model was still saying is now beside the point; the
+        // next thing to be read aloud is the agent's reply. Read the exchange back
+        // after cancelling, so a half-spoken reply is carried as far as it got.
+        cancelLocalReply()
+        guard let discussion = localDiscussion else { return }
+
+        isDraftingHandoff = true
+        let drafting = Task { [weak self] () -> String? in
+            guard let self else { return nil }
+            return await self.draftHandoffAsk(for: discussion)
         }
+        handoffDraftTask = drafting
+        let ask = await drafting.value
+        handoffDraftTask = nil
+        isDraftingHandoff = false
+        // The user closed the discussion while the write-up was running, which
+        // cancelled it. Their tap wins — nothing is submitted.
+        guard localDiscussion?.id == discussion.id else { return }
+
+        let prompt = discussion.handoffPrompt(ask: ask)
+        // Closing the conversation sets the discussion aside with it; without a mic
+        // there is only the discussion to put away.
+        if isConversationActive {
+            await endConversation()
+        } else {
+            await setAsideLocalDiscussion()
+        }
+        inputText = prompt
+        // The surface the user was talking into is gone; the cursor goes back to
+        // the composer for whatever comes after the agent's reply.
+        refocusInput += 1
+        await submitPrompt()
     }
 
-    /// Close the discussion and return the mic to the agent.
+    /// Ask the local model for the instruction the exchange arrived at, or nil when
+    /// it declined or the generation failed — in which case the handoff falls back
+    /// to the raw transcript rather than losing the conversation.
+    ///
+    /// Deliberately silent: the deltas go nowhere and no turn is appended. This is
+    /// the model writing rather than talking, and hearing the prompt read aloud
+    /// while the real turn is being submitted would be noise.
+    private func draftHandoffAsk(for discussion: LocalDiscussion) async -> String? {
+        let result = await localChatService.respond(
+            instructions: discussion.draftingInstructions(),
+            to: discussion.draftingPrompt(),
+            onDelta: { _ in }
+        )
+        guard case .success(let raw) = result else { return nil }
+        return LocalDiscussion.usableAsk(raw)
+    }
+
+    /// Abandon a write-up in progress. Without this, closing the card mid-write-up
+    /// would leave a generation running against a discussion nobody is having, and
+    /// the surface stuck reading "Writing the prompt…".
+    private func cancelHandoffDraft() {
+        guard let task = handoffDraftTask else { return }
+        handoffDraftTask = nil
+        task.cancel()
+        isDraftingHandoff = false
+    }
+
+    /// Close the discussion and return the mic to the agent. The exchange is kept:
+    /// re-opening picks it up where it stopped.
     internal func endLocalDiscussion() async {
-        await closeLocalDiscussion()
+        await setAsideLocalDiscussion()
         if isConversationActive { await endConversation() }
     }
 
-    /// Tear down the local exchange itself, without touching the mic — shared by
-    /// "end" and by re-anchoring onto a different message.
-    private func closeLocalDiscussion() async {
+    /// Throw the exchange away and start the same discussion over — the only way
+    /// out of a conversation that went somewhere the user doesn't want to resume.
+    internal func restartLocalDiscussion() async {
+        guard let discussion = localDiscussion else { return }
         cancelLocalReply()
+        cancelHandoffDraft()
+        setAsideDiscussions[discussion.id] = nil
+        localDiscussion = LocalDiscussion(
+            anchorID: discussion.id,
+            anchorText: discussion.anchorText,
+            draftText: discussion.draftText,
+            options: discussion.options,
+            briefing: discussion.briefing
+        )
+        await localChatService.endSession()
+    }
+
+    /// Put the open discussion away without forgetting it — shared by "close", by
+    /// re-anchoring onto a different message, and by the handoff.
+    ///
+    /// Dropping the engine's session here is safe precisely because `resuming()`
+    /// re-states the exchange in the prompt: what would otherwise be several
+    /// hundred megabytes of KV cache held for a conversation nobody is having.
+    private func setAsideLocalDiscussion() async {
+        cancelLocalReply()
+        cancelHandoffDraft()
+        guard let discussion = localDiscussion else { return }
+        setAsideDiscussions[discussion.id] = discussion
         localDiscussion = nil
         await localChatService.endSession()
     }

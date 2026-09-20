@@ -3,8 +3,10 @@ import Foundation
 import Testing
 @testable import Portal
 
+/// A backend that records what was submitted and how. Shared with the local
+/// discussion tests, which need to see that a handoff is a tool-enabled turn.
 @MainActor
-private final class VoiceBackendSpy: AgentBackend {
+internal final class VoiceBackendSpy: AgentBackend {
     private enum StubError: Error {
         case expected
     }
@@ -18,12 +20,12 @@ private final class VoiceBackendSpy: AgentBackend {
     internal var activeSessionID: String? = "voice-session"
     internal let capabilities = BackendCapabilities.hermes
 
-    private(set) var voiceActions: [String] = []
-    private(set) var recordActions: [String] = []
-    private(set) var submittedPrompts: [(sessionID: String, text: String)] = []
-    private(set) var submittedChatModes: [Bool] = []
-    var failVoiceToggle = false
-    var failVoiceRecord = false
+    internal private(set) var voiceActions: [String] = []
+    internal private(set) var recordActions: [String] = []
+    internal private(set) var submittedPrompts: [(sessionID: String, text: String)] = []
+    internal private(set) var submittedChatModes: [Bool] = []
+    internal var failVoiceToggle = false
+    internal var failVoiceRecord = false
 
     internal func createSession(cols: Int) async throws -> String { "voice-session" }
     internal func resumeSession(key: String) async throws -> (sessionID: String, messages: [[String: AnyCodable]]) {

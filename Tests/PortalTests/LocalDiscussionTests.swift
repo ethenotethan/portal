@@ -208,8 +208,8 @@ internal struct LocalDiscussionTests {
             LocalDiscussionTurn(role: .assistant, text: "two — the digest and the node surface")
         ]
         let prompt = discussion.handoffPrompt()
-        // This text goes back into the composer the draft came from, so leaving
-        // the draft out would silently eat what the user pasted there.
+        // Submitting the conversation replaces whatever was in the composer, so
+        // leaving the draft out would silently eat what the user pasted there.
         #expect(prompt.contains("Rework the cron digest so source files stay out of it."))
         #expect(prompt.contains("What I had drafted going in:"))
         #expect(prompt.contains("Before asking you for anything"))
@@ -224,6 +224,222 @@ internal struct LocalDiscussionTests {
         #expect(!discussion.hasExchange)
         discussion.turns.append(LocalDiscussionTurn(role: .assistant, text: "because"))
         #expect(discussion.hasExchange)
+    }
+
+    // MARK: - Resuming
+
+    @Test("resuming re-states the exchange, since the engine has forgotten it")
+    internal func resumingGroundsInTheExchange() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "why the actor?"),
+            LocalDiscussionTurn(role: .assistant, text: "because the session isn't Sendable")
+        ]
+
+        let resumed = discussion.resuming()
+        let prompt = resumed.instructions()
+        #expect(resumed.recap.count == 2)
+        #expect(prompt.contains("Earlier in this same conversation"))
+        #expect(prompt.contains("Me: why the actor?"))
+        #expect(prompt.contains("Local model: because the session isn't Sendable"))
+    }
+
+    @Test("the resume grounding is frozen, so the KV cache survives the next turn")
+    internal func recapDoesNotTrackNewTurns() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "why?"),
+            LocalDiscussionTurn(role: .assistant, text: "because")
+        ]
+        var resumed = discussion.resuming()
+        let first = resumed.instructions()
+
+        resumed.turns.append(LocalDiscussionTurn(role: .user, text: "and the cache?"))
+        resumed.turns.append(LocalDiscussionTurn(role: .assistant, text: "it stays warm"))
+        // Instructions that grew with the exchange would rebuild the engine's chat
+        // session on every single turn — the thing the recap snapshot exists to avoid.
+        #expect(resumed.instructions() == first)
+        #expect(resumed.recap.count == 2)
+    }
+
+    @Test("resuming an untouched discussion changes nothing")
+    internal func resumingEmptyIsANoop() {
+        let discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        #expect(discussion.resuming() == discussion)
+        #expect(!discussion.resuming().instructions().contains("Earlier in this same conversation"))
+    }
+
+    @Test("the seam is where the new sitting starts, and only once there is one")
+    internal func resumedAtMarksTheSecondSitting() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        // One sitting: nothing to mark.
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "why?"),
+            LocalDiscussionTurn(role: .assistant, text: "because")
+        ]
+        #expect(discussion.resumedAt == nil)
+
+        // Picked up, but nothing said yet — a marker at the very end marks nothing.
+        var resumed = discussion.resuming()
+        #expect(resumed.resumedAt == nil)
+
+        resumed.turns.append(LocalDiscussionTurn(role: .user, text: "and the cache?"))
+        #expect(resumed.resumedAt == 2)
+    }
+
+    // MARK: - Drafting the ask
+
+    @Test("the drafting pass gets the grounding and the whole exchange")
+    internal func draftingPromptCarriesEverything() {
+        var discussion = LocalDiscussion(
+            anchorID: UUID(),
+            anchorText: "Reply with A, B, or C.",
+            draftText: "Rework the digest."
+        )
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "which one?"),
+            LocalDiscussionTurn(role: .assistant, text: "B, it's the smallest change")
+        ]
+        discussion = discussion.resuming()
+        discussion.turns.append(LocalDiscussionTurn(role: .user, text: "ok"))
+
+        let prompt = discussion.draftingPrompt()
+        #expect(prompt.contains("Reply with A, B, or C."))
+        #expect(prompt.contains("Rework the digest."))
+        #expect(prompt.contains("Me: which one?"))
+        #expect(prompt.contains("Local model: B, it's the smallest change"))
+        // Turns from before a resume are part of the conversation too, and appear
+        // once rather than twice.
+        #expect(prompt.components(separatedBy: "Me: which one?").count == 2)
+    }
+
+    @Test("the drafting instructions are not the spoken ones")
+    internal func draftingInstructionsDifferFromTheDiscussion() {
+        let discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        let drafting = discussion.draftingInstructions()
+        // Different text is also what makes the engine build a clean session rather
+        // than keep writing in the voice it used for speech.
+        #expect(drafting != discussion.instructions())
+        #expect(!drafting.contains("speech synthesizer"))
+        #expect(drafting.contains(LocalDiscussion.noAskSentinel))
+    }
+
+    @Test("a drafted ask is unwrapped and accepted")
+    internal func usableAskCleansTheDraft() {
+        #expect(LocalDiscussion.usableAsk("  \"Move the digest behind a flag.\"  ")
+                == "Move the digest behind a flag.")
+        #expect(LocalDiscussion.usableAsk("<think>hmm</think>Move it.") == "Move it.")
+    }
+
+    @Test("a declined, empty, or runaway draft is rejected")
+    internal func usableAskRejectsNonAnswers() {
+        #expect(LocalDiscussion.usableAsk(LocalDiscussion.noAskSentinel) == nil)
+        #expect(LocalDiscussion.usableAsk("nothing settled here") == nil)
+        #expect(LocalDiscussion.usableAsk("   ") == nil)
+        #expect(LocalDiscussion.usableAsk("<think>only reasoning") == nil)
+        let runaway = String(repeating: "x", count: LocalDiscussion.draftedAskBudget + 1)
+        #expect(LocalDiscussion.usableAsk(runaway) == nil)
+    }
+
+    @Test("the drafted ask leads the handoff, with the exchange behind it")
+    internal func handoffLeadsWithTheAsk() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "which one?"),
+            LocalDiscussionTurn(role: .assistant, text: "B")
+        ]
+        let prompt = discussion.handoffPrompt(ask: "Take option B and keep the actor.")
+        // The instruction is the output the conversation was for, so it comes first
+        // and the reasoning follows as context.
+        #expect(prompt.hasPrefix("Take option B and keep the actor."))
+        #expect(prompt.contains("Me: which one?"))
+        #expect(!prompt.contains("Pick this up from here."))
+    }
+
+    @Test("with no usable ask the transcript still stands on its own")
+    internal func handoffFallsBackToTheTranscript() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "which one?"),
+            LocalDiscussionTurn(role: .assistant, text: "B")
+        ]
+        // A failed write-up must not lose the conversation.
+        #expect(discussion.handoffPrompt(ask: nil).contains("Pick this up from here."))
+        #expect(discussion.handoffPrompt(ask: "").contains("Me: which one?"))
+    }
+
+    @Test("a resumed discussion hands over the whole thread, not just the last sitting")
+    internal func handoffIncludesTheRecap() {
+        var discussion = LocalDiscussion(anchorID: UUID(), anchorText: "Anchor")
+        discussion.turns = [
+            LocalDiscussionTurn(role: .user, text: "first question"),
+            LocalDiscussionTurn(role: .assistant, text: "first answer")
+        ]
+        var resumed = discussion.resuming()
+        resumed.turns.append(LocalDiscussionTurn(role: .user, text: "second question"))
+        resumed.turns.append(LocalDiscussionTurn(role: .assistant, text: "second answer"))
+
+        let prompt = resumed.handoffPrompt(ask: "Do the thing.")
+        #expect(prompt.contains("Me: first question"))
+        #expect(prompt.contains("Me: second question"))
+        #expect(prompt.components(separatedBy: "Me: first question").count == 2)
+    }
+}
+
+@Suite("Local discussion close-out")
+internal struct LocalDiscussionCloseOutTests {
+
+    @Test("the ways people say they're done", arguments: [
+        "submit",
+        "Okay, let's submit.",
+        "ok cool, so let's just submit this",
+        "send it",
+        "send it over to Claude, please",
+        "go ahead",
+        "go for it",
+        "alright, continue",
+        "yep, do it",
+        "ship it",
+        "run with it",
+        "hand it over",
+        "take it from here",
+        "that's it",
+        "please submit that now",
+        "OK GO",
+        // Chained: what people actually say when they mean it.
+        "let's continue",
+        "okay, let's continue and send it",
+        "go ahead and submit that",
+        "can you go ahead and submit that now",
+        "continue the session",
+        "send the prompt over",
+        "alright, submit it and continue"
+    ])
+    internal func recognizesCloseOuts(_ utterance: String) {
+        #expect(LocalDiscussionCloseOut.isCloseOut(utterance))
+    }
+
+    @Test("questions and asides are not close-outs", arguments: [
+        "why the actor?",
+        "go on",
+        "keep going",
+        "go ahead and explain why B is cheaper",
+        "should we send it to the agent or rethink it",
+        "what do you think",
+        "yes",
+        "no",
+        "hold on",
+        "what are we working on today?",
+        "so does that mean we run it twice",
+        "",
+        "   ",
+        "start over",
+        "let's talk about the cache instead"
+    ])
+    internal func rejectsEverythingElse(_ utterance: String) {
+        // A false positive spends a gateway turn on a half-finished thought, so this
+        // is the side of the line that has to be right.
+        #expect(!LocalDiscussionCloseOut.isCloseOut(utterance))
     }
 }
 
