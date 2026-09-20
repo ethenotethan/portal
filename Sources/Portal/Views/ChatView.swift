@@ -320,6 +320,12 @@ struct ChatView: View {
             }
             #endif
         }
+        // The local side-discussion breaks away over the whole chat — toolbar,
+        // transcript and composer dimmed behind it — and collapses when it has
+        // handed its conclusion to the composer. Animated on the view model's
+        // open/closed state so the collapse and the prompt landing read as one
+        // motion.
+        .overlay(localDiscussionOverlay)
         #if os(macOS)
         .frame(minWidth: 600, minHeight: 400)
         .background(
@@ -444,6 +450,20 @@ struct ChatView: View {
         .navigationTitle(chatViewModel.sessionTitle)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+    }
+
+    /// The local side-discussion, broken away over the whole chat — toolbar,
+    /// transcript and composer dimmed behind it — and gone once it has handed its
+    /// conclusion to the composer. Animated on the open/closed state so the
+    /// collapse and the prompt landing read as one motion.
+    private var localDiscussionOverlay: some View {
+        ZStack {
+            if chatViewModel.localDiscussion != nil {
+                LocalDiscussionPane(chatViewModel: chatViewModel)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.22), value: chatViewModel.localDiscussion != nil)
     }
 
     /// Zero-height marker pinned to the bottom of the transcript content. It
@@ -914,14 +934,11 @@ struct ChatView: View {
                             // panel with the inline conversation card: it's a
                             // tool-less chat, so there's no tool timeline to
                             // show — just the orb, phase and live caption.
-                            if chatViewModel.localDiscussion != nil {
-                                // A local side-discussion takes the same slot: it
-                                // is a conversation about the reply above it, and
-                                // no gateway turn is running to report on.
-                                LocalDiscussionCard(chatViewModel: chatViewModel)
-                                    .id("local-discussion-card")
-                                    .transition(.opacity)
-                            } else if chatViewModel.isConversationActive {
+                            // A local side-discussion is not in the stream at
+                            // all: it opens as a pane over the chat
+                            // (`LocalDiscussionPane`), and its mic is its own, so
+                            // the voice card must not appear behind it.
+                            if chatViewModel.isConversationActive, chatViewModel.localDiscussion == nil {
                                 VoiceConversationCard(chatViewModel: chatViewModel)
                                     .id("voice-conversation-card")
                                     .transition(.opacity)

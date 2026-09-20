@@ -34,6 +34,8 @@ private final class FakeLocalChat: LocalChatControlling {
     var deltas: [String] = ["Because ", "the session isn't Sendable."]
     /// When set, `respond` never finishes on its own — it waits to be cancelled.
     var hangs = false
+    /// When set, `respond` fails instead of answering.
+    var failure: Error?
     var prepareCount = 0
     private(set) var instructions: [String] = []
     private(set) var prompts: [String] = []
@@ -48,6 +50,7 @@ private final class FakeLocalChat: LocalChatControlling {
     ) async -> Result<String, Error> {
         self.instructions.append(instructions)
         prompts.append(prompt)
+        if let failure { return .failure(failure) }
         for delta in deltas { onDelta(delta) }
         if hangs {
             while !Task.isCancelled { await Task.yield() }
@@ -323,18 +326,311 @@ internal struct ChatLocalDiscussionTests {
         let (vm, chat, voice, _) = makeViewModel()
         await vm.startLocalDiscussion(about: anchor())
         await vm.submitLocalDiscussionInput("why the actor?")
+        chat.deltas = ["Keep the session in an actor."]
 
         await vm.handLocalDiscussionToAgent()
-        // The mic stays open: the agent's answer is spoken and the next question
-        // needs no tap.
-        #expect(vm.isConversationActive)
-        #expect(!voice.cancelCalled)
+        // The conversation is over: the mic closes so the turn goes out as work
+        // rather than chat, and nothing overheard can interrupt the agent.
+        #expect(!vm.isConversationActive)
+        #expect(voice.cancelCalled)
+        #expect(vm.refocusInput == 1)
         // With no gateway wired the prompt stays in the composer, which is what
-        // proves the handoff text is what gets submitted.
+        // proves the handoff text is what gets submitted. The local model's
+        // write-up leads it; the exchange follows as the reasoning.
+        #expect(vm.inputText.hasPrefix("Keep the session in an actor."))
         #expect(vm.inputText.contains("Me: why the actor?"))
         #expect(vm.inputText.contains("Local model: Because the session isn't Sendable."))
         #expect(vm.localDiscussion == nil)
         #expect(chat.endSessionCount == 1)
+        #expect(!vm.isDraftingHandoff)
+    }
+
+    @Test("the write-up is a separate pass, and is not spoken or shown as a turn")
+    internal func draftingIsSilentAndSeparate() async {
+        let (vm, chat, _, speaker) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor("Use an actor."))
+        await vm.submitLocalDiscussionInput("why the actor?")
+        let spokenAfterDiscussion = speaker.spoken.count
+
+        await vm.handLocalDiscussionToAgent()
+        #expect(chat.prompts.count == 2)
+        // Its own grounding, not another question in the spoken exchange — so the
+        // engine builds a clean session instead of writing in the spoken voice.
+        #expect(chat.instructions[1] != chat.instructions[0])
+        #expect(chat.instructions[1].contains(LocalDiscussion.noAskSentinel))
+        #expect(chat.prompts[1].contains("Me: why the actor?"))
+        // Nothing new was read aloud: the next voice is the agent's.
+        #expect(speaker.spoken.count == spokenAfterDiscussion)
+        #expect(speaker.spokenWhole.isEmpty)
+    }
+
+    @Test("a declined write-up still hands over the conversation")
+    internal func handoffFallsBackWhenTheWriteUpDeclines() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        chat.deltas = [LocalDiscussion.noAskSentinel]
+
+        await vm.handLocalDiscussionToAgent()
+        // Worse to read than a drafted ask, but nothing is lost.
+        #expect(!vm.inputText.contains(LocalDiscussion.noAskSentinel))
+        #expect(vm.inputText.contains("Me: why the actor?"))
+        #expect(vm.inputText.contains("Pick this up from here."))
+    }
+
+    @Test("a write-up that fails outright still hands over the conversation")
+    internal func handoffFallsBackWhenTheWriteUpFails() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        chat.failure = LocalChatError.emptyResponse
+
+        await vm.handLocalDiscussionToAgent()
+        #expect(vm.inputText.contains("Me: why the actor?"))
+        #expect(vm.inputText.contains("Pick this up from here."))
+        #expect(!vm.isDraftingHandoff)
+    }
+
+    @Test("closing the card mid-write-up abandons it and sends nothing")
+    internal func closingDuringTheWriteUpCancelsIt() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        chat.hangs = true
+
+        let handing = Task { await vm.handLocalDiscussionToAgent() }
+        await settle { vm.isDraftingHandoff }
+        #expect(vm.conversationPhase == .thinking)
+
+        await vm.endLocalDiscussion()
+        _ = await handing.value
+        // The tap wins: no gateway turn, and the surface isn't left claiming to be
+        // writing a prompt for a discussion that's gone.
+        #expect(!vm.isDraftingHandoff)
+        #expect(vm.inputText.isEmpty)
+        #expect(vm.localDiscussion == nil)
+    }
+
+    @Test("the handoff is a tool-enabled turn, not a chat-mode one")
+    internal func handoffIsWork() async {
+        let backend = VoiceBackendSpy()
+        let (vm, chat, _, _) = makeViewModel()
+        vm.setGatewayClient(backend)
+        _ = vm.beginSwitchToSession(key: "voice-session")
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        chat.deltas = ["Keep the session in an actor."]
+        #expect(vm.isConversationActive)
+
+        await vm.handLocalDiscussionToAgent()
+        // A conversation-mode turn is routed through the gateway's tool-less path,
+        // which would have the agent *answer* the ask instead of carrying it out —
+        // the exact "it doesn't go" the handoff exists to fix.
+        #expect(backend.submittedChatModes == [false])
+        #expect(backend.submittedPrompts.first?.text.hasPrefix("Keep the session in an actor.") == true)
+        #expect(backend.submittedPrompts.first?.text.contains("Me: why the actor?") == true)
+        #expect(!vm.isConversationActive)
+    }
+
+    @Test("nothing overheard during the write-up starts another local reply")
+    internal func writeUpIgnoresTheMic() async {
+        let (vm, chat, voice, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        chat.hangs = true
+
+        let handing = Task { await vm.handLocalDiscussionToAgent() }
+        await settle { vm.isDraftingHandoff }
+        // The tail of the user's own sentence, or the room. Either would have
+        // started a second generation against the same engine while the prompt was
+        // being written, and the handoff would lose the race to it.
+        voice.onPartialTranscript?("and also the cache")
+        await settle { vm.inputText == "and also the cache" }
+        #expect(vm.localDiscussionLiveUtterance == nil)
+        await vm.submitLocalVoiceTranscript("and also the cache")
+        #expect(chat.prompts.count == 2)
+        #expect(vm.localDiscussion?.turns.count == 2)
+        #expect(vm.inputText.isEmpty)
+
+        await vm.endLocalDiscussion()
+        _ = await handing.value
+    }
+
+    @Test("talking over a spoken local reply silences it")
+    internal func bargeInSilencesTheReply() async {
+        let (vm, _, voice, speaker) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+        // Generation is done; the synthesizer is still reading the reply out.
+        speaker.isSpeaking = true
+        let stopsBefore = speaker.stopCount
+
+        voice.onPartialTranscript?("okay")
+        await settle { speaker.stopCount > stopsBefore }
+        // Without this the reply talks over the user's "okay, submit" — there was
+        // no generation left to cancel, and cancelling is all barge-in used to do.
+        #expect(speaker.stopCount == stopsBefore + 1)
+    }
+
+    // MARK: - Watching the thread as it happens
+
+    @Test("what the user is saying shows up in the thread before it's final")
+    internal func liveUtteranceJoinsTheThread() async {
+        let (vm, _, voice, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+
+        voice.onPartialTranscript?("so what about the cache")
+        await settle { vm.localDiscussionLiveUtterance != nil }
+        // Their own half of the exchange used to exist only in the composer at the
+        // bottom of the window, so it was invisible until it had been answered.
+        #expect(vm.localDiscussionLiveUtterance == "so what about the cache")
+
+        await vm.submitLocalVoiceTranscript("so what about the cache?")
+        // Once it's a turn, it isn't provisional any more.
+        #expect(vm.localDiscussionLiveUtterance == nil)
+        #expect(vm.localDiscussion?.turns.first?.text == "so what about the cache?")
+    }
+
+    @Test("there is no live utterance without a discussion or without speech")
+    internal func liveUtteranceNeedsBoth() async {
+        let (vm, _, voice, _) = makeViewModel()
+        vm.inputText = "typing at the gateway"
+        #expect(vm.localDiscussionLiveUtterance == nil)
+
+        await vm.startLocalDiscussion(about: anchor())
+        // Opening the mic clears the composer, so there is nothing to show yet.
+        #expect(vm.localDiscussionLiveUtterance == nil)
+        voice.onPartialTranscript?("   ")
+        await settle { vm.inputText == "   " }
+        #expect(vm.localDiscussionLiveUtterance == nil)
+    }
+
+    @Test("the thread's render key moves with everything the user can see")
+    internal func renderKeyTracksTheThread() async {
+        let (vm, chat, voice, _) = makeViewModel()
+        #expect(vm.localDiscussionRenderKey.isEmpty)
+
+        await vm.startLocalDiscussion(about: anchor())
+        let opened = vm.localDiscussionRenderKey
+        #expect(!opened.isEmpty)
+
+        // A word added to the live utterance is a visible change, and so is a turn
+        // arriving — the chat scrolls on this key, so anything it misses is a line
+        // the user has to go hunting for.
+        voice.onPartialTranscript?("why")
+        await settle { vm.localDiscussionRenderKey != opened }
+        let speaking = vm.localDiscussionRenderKey
+        #expect(speaking != opened)
+
+        chat.deltas = ["Because ", "the session isn't Sendable."]
+        await vm.submitLocalDiscussionInput("why the actor?")
+        #expect(vm.localDiscussionRenderKey != speaking)
+    }
+
+    // MARK: - Saying you're done
+
+    @Test("saying \"okay, let's submit\" ends the discussion and sends it")
+    internal func spokenCloseOutHandsOver() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalVoiceTranscript("why the actor?")
+        chat.deltas = ["Keep the session in an actor."]
+
+        await vm.submitLocalVoiceTranscript("okay, let's submit")
+        // Finishing a hands-free conversation must not require finding a button.
+        #expect(vm.localDiscussion == nil)
+        #expect(vm.inputText.hasPrefix("Keep the session in an actor."))
+        // The close-out itself is not a question, so it never reached the model as
+        // one, and it is not in the handoff either.
+        #expect(chat.prompts.count == 2)
+        #expect(!vm.inputText.contains("Me: okay, let's submit"))
+    }
+
+    @Test("a close-out phrase typed into the card works the same way")
+    internal func typedCloseOutHandsOver() async {
+        let (vm, _, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+
+        await vm.submitLocalDiscussionInput("send it")
+        #expect(vm.localDiscussion == nil)
+        #expect(vm.inputText.contains("Me: why the actor?"))
+    }
+
+    @Test("a question that only sounds like a close-out is still a question")
+    internal func questionsAreNotCloseOuts() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+        await vm.submitLocalDiscussionInput("why the actor?")
+
+        await vm.submitLocalDiscussionInput("go on")
+        #expect(vm.localDiscussion?.turns.count == 4)
+        #expect(chat.prompts == ["why the actor?", "go on"])
+        #expect(vm.inputText.isEmpty)
+    }
+
+    @Test("a close-out before anything has been said is just another question")
+    internal func closeOutNeedsAnExchange() async {
+        let (vm, chat, _, _) = makeViewModel()
+        await vm.startLocalDiscussion(about: anchor())
+
+        await vm.submitLocalDiscussionInput("go ahead")
+        // "go" opens far more conversations than it closes.
+        #expect(vm.localDiscussion != nil)
+        #expect(chat.prompts == ["go ahead"])
+    }
+
+    // MARK: - Picking a discussion back up
+
+    @Test("closing keeps the exchange, and re-opening picks it up")
+    internal func closingKeepsTheExchange() async {
+        let (vm, chat, _, _) = makeViewModel()
+        let message = anchor("Use an actor.")
+        await vm.startLocalDiscussion(about: message)
+        await vm.submitLocalDiscussionInput("why?")
+
+        await vm.endLocalDiscussion()
+        #expect(vm.localDiscussion == nil)
+
+        await vm.startLocalDiscussion(about: message)
+        #expect(vm.localDiscussion?.turns.count == 2)
+        // The engine's own memory of it is gone, so the exchange is re-stated in
+        // the prompt rather than silently forgotten.
+        await vm.submitLocalDiscussionInput("and the cache?")
+        #expect(chat.instructions.last?.contains("Me: why?") == true)
+        #expect(vm.localDiscussion?.turns.count == 4)
+    }
+
+    @Test("a discussion handed to the agent is still there to pick up")
+    internal func handoffKeepsTheThread() async {
+        let (vm, _, _, _) = makeViewModel()
+        let message = anchor("Use an actor.")
+        await vm.startLocalDiscussion(about: message)
+        await vm.submitLocalDiscussionInput("why?")
+        await vm.handLocalDiscussionToAgent()
+
+        await vm.startLocalDiscussion(about: message)
+        #expect(vm.localDiscussion?.turns.count == 2)
+    }
+
+    @Test("starting over is the way to throw an exchange away")
+    internal func startingOverClearsTheThread() async {
+        let (vm, chat, _, _) = makeViewModel()
+        let message = anchor("Use an actor.")
+        await vm.startLocalDiscussion(about: message)
+        await vm.submitLocalDiscussionInput("why?")
+
+        await vm.restartLocalDiscussion()
+        #expect(vm.localDiscussion?.turns.isEmpty == true)
+        #expect(vm.localDiscussion?.id == message.id)
+        // Same anchor, so the discussion is still about the same reply.
+        #expect(vm.localDiscussion?.anchorText == "Use an actor.")
+        #expect(chat.endSessionCount == 1)
+
+        // And it does not come back on the next open.
+        await vm.endLocalDiscussion()
+        await vm.startLocalDiscussion(about: message)
+        #expect(vm.localDiscussion?.turns.isEmpty == true)
     }
 
     // MARK: - Started from the composer
@@ -397,33 +693,65 @@ internal struct ChatLocalDiscussionTests {
         #expect(chat.endSessionCount == 0)
 
         // A discussion about a reply is about something else; the composer button
-        // starts a new one rather than quietly re-pointing that one.
+        // does not quietly re-point that one...
         await vm.startLocalDiscussion(about: anchor("Use an actor."))
         #expect(vm.localDiscussion?.isAnchored == true)
-        await vm.startLocalDiscussion()
-        #expect(vm.localDiscussion?.isAnchored == false)
         #expect(vm.localDiscussion?.turns.isEmpty == true)
+        // ...and coming back to the composer returns to the thread it left, rather
+        // than to a blank one.
+        await vm.startLocalDiscussion()
+        #expect(vm.localDiscussion?.id == id)
+        #expect(vm.localDiscussion?.turns.count == 2)
         #expect(chat.endSessionCount == 2)
     }
 
-    @Test("a pre-send conclusion lands in the composer instead of being submitted")
-    internal func composerHandoffDoesNotSubmit() async {
+    @Test("a composer discussion started with a new draft does not resume the old one")
+    internal func composerDiscussionRestartsOnANewDraft() async {
+        let (vm, _, _, _) = makeViewModel()
+        vm.inputText = "Rework the cron digest."
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("one change or two?")
+        await vm.endLocalDiscussion()
+
+        // Different text in the composer is a different ask; answering it against
+        // the old draft would be answering about something that isn't there.
+        vm.inputText = "Pin the forkdiff base instead."
+        await vm.startLocalDiscussion()
+        #expect(vm.localDiscussion?.draftText == "Pin the forkdiff base instead.")
+        #expect(vm.localDiscussion?.turns.isEmpty == true)
+    }
+
+    @Test("a pre-send conclusion is submitted too, so the session continues")
+    internal func composerHandoffSubmits() async {
         let (vm, chat, voice, _) = makeViewModel()
         vm.inputText = "Rework the cron digest."
         await vm.startLocalDiscussion()
         await vm.submitLocalDiscussionInput("one change or two?")
+        chat.deltas = ["Split the digest change from the node surface."]
 
         await vm.handLocalDiscussionToAgent()
-        // The point of talking first was to shape the prompt, so it is handed back
-        // for a read-through — not spent on a gateway turn behind the user's back.
+        // "Let's submit" has to actually continue the session — a prompt parked in
+        // the composer waiting for a keystroke is not a conclusion.
+        #expect(vm.inputText.hasPrefix("Split the digest change from the node surface."))
         #expect(vm.inputText.contains("Rework the cron digest."))
         #expect(vm.inputText.contains("Me: one change or two?"))
-        #expect(vm.refocusInput == 1)
-        // Nothing was sent, so nothing should be read aloud at us either.
+        // The mic closes, exactly as on the anchored path.
         #expect(!vm.isConversationActive)
         #expect(voice.cancelCalled)
         #expect(vm.localDiscussion == nil)
         #expect(chat.endSessionCount == 1)
+    }
+
+    @Test("with no mic, the handoff gives the cursor back")
+    internal func handoffRefocusesWhenTyping() async {
+        let (vm, _, voice, _) = makeViewModel()
+        voice.isEnabledAndAvailable = false
+        await vm.startLocalDiscussion()
+        await vm.submitLocalDiscussionInput("one change or two?")
+
+        await vm.handLocalDiscussionToAgent()
+        #expect(!vm.isConversationActive)
+        #expect(vm.refocusInput == 1)
     }
 
     @Test("with no sessions to draw on, a discussion still opens")
