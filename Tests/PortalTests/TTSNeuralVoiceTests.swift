@@ -266,6 +266,36 @@ internal struct TTSNeuralVoiceTests {
         #expect(r.synth.spoken.isEmpty)
     }
 
+    @Test("a sentence finishing mid-stream keeps the route warm; settling waits for the stream to close")
+    internal func routeStaysWarmBetweenStreamedSentences() {
+        let r = rig()
+        r.service.streamingBatchLength = 1000
+        let id = UUID()
+        // First sentence closes and is handed to the neural voice.
+        r.service.streamDelta("One. ", messageID: id)
+        #expect(r.neural.spoken.map(\.text) == ["One."])
+        r.neural.fireStart(0)
+        // It finishes playing before the model has closed the next sentence —
+        // the reply is not over, so the route must not be torn down.
+        r.neural.fireFinish(0)
+        #expect(r.service.isSpeaking, "still streaming: route stays warm between sentences")
+        #expect(r.playback.deactivations == 0)
+
+        // The next sentence arrives and plays without a re-activation.
+        r.service.streamDelta("Two. ", messageID: id)
+        #expect(r.neural.spoken.map(\.text) == ["One.", "Two."])
+        #expect(r.playback.activations == 1, "no route churn across the boundary")
+        r.neural.fireStart(1)
+        r.neural.fireFinish(1)
+        #expect(r.service.isSpeaking, "stream still open even though the queue drained")
+        #expect(r.playback.deactivations == 0)
+
+        // Closing the stream with nothing left playing settles exactly once.
+        r.service.finishStreaming(messageID: id)
+        #expect(!r.service.isSpeaking)
+        #expect(r.playback.deactivations == 1)
+    }
+
     @Test("with the neural voice off, batching and the system voice behave as before")
     internal func systemPathUnchanged() {
         let r = rig(neuralOn: false)

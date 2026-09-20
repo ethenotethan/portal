@@ -400,6 +400,12 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
             streamBatch.append(tail)
         }
         speakStreamBatch(messageID: messageID)
+        // The stream is closed. If nothing is left playing — the last sentence
+        // finished before the stream closed, so `utteranceDidEnd` deliberately
+        // held the route open — settle now that no more sentences are coming.
+        if inFlight.isEmpty {
+            settle()
+        }
     }
 
     // MARK: - Transport
@@ -570,7 +576,15 @@ internal final class TTSService: ObservableObject, ConversationSpeaking {
 
     private func utteranceDidEnd(key: UtteranceKey) {
         guard inFlight.removeValue(forKey: key) != nil else { return }
-        if inFlight.isEmpty {
+        // Don't tear the route down between sentences of a still-streaming
+        // reply. The queue empties in the gap between one sentence finishing
+        // and the next being closed by the model, but the reply isn't over —
+        // deactivating and reactivating the audio route across that gap adds
+        // latency of its own and blanks the orb. Stay live until the stream
+        // has closed (`finishStreaming` clears `streamingMessageID`) and the
+        // queue has truly drained; `finishStreaming` settles the case where
+        // the last sentence finished before the stream closed.
+        if inFlight.isEmpty, streamingMessageID == nil {
             settle()
         }
     }
