@@ -195,24 +195,38 @@ internal struct ConversationPanel: View {
         // body, so a per-row scan made rendering quadratic in the message count.
         let lastInGroup = ChatView.lastInGroupIDs(msgs)
         ForEach(msgs) { message in
-            VStack(alignment: .leading, spacing: 4) {
-                let showTimestamp = lastInGroup.contains(message.id)
-                let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
-                skinProvider.messageBubble(message: prepared, persona: persona)
-                // Peel affordance + any blocks already peeled into the scroll
-                // for this turn — layered directly under the bubble so they
-                // travel with the turn as you scroll. The live turn's tools come
-                // from `activeToolCalls`, not from the message, which the view
-                // model only stamps at message.complete.
-                let withTools = Self.mergingLiveToolCalls(
-                    into: message,
-                    activeToolCalls: chatViewModel.activeToolCalls
-                )
-                peelBar(for: withTools)
-                peeledCards(for: withTools)
-                // The live turn shows a streaming-status line under its reply;
-                // settled turns show nothing extra.
-                streamingStatusUnder(message)
+            Group {
+                // Mirror ChatView's transcript dispatch: a gateway async-delegation
+                // batch that lands as a *session* turn has to render as its
+                // interstitial notice or per-task cards here too — otherwise the
+                // raw `--- TASK n/m ---` block is pushed through the prose bubble
+                // as one unformatted wall (the very thing DelegationBatchMessage
+                // parsing exists to prevent).
+                if let noticeLabel = message.delegationBatchNoticeLabel {
+                    DelegationBatchNoticeView(label: noticeLabel)
+                } else if let batch = message.asyncDelegationBatch {
+                    AsyncDelegationBatchView(batch: batch)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        let showTimestamp = lastInGroup.contains(message.id)
+                        let prepared = bubbleMessage(message, showTimestamp: showTimestamp)
+                        skinProvider.messageBubble(message: prepared, persona: persona)
+                        // Peel affordance + any blocks already peeled into the scroll
+                        // for this turn — layered directly under the bubble so they
+                        // travel with the turn as you scroll. The live turn's tools come
+                        // from `activeToolCalls`, not from the message, which the view
+                        // model only stamps at message.complete.
+                        let withTools = Self.mergingLiveToolCalls(
+                            into: message,
+                            activeToolCalls: chatViewModel.activeToolCalls
+                        )
+                        peelBar(for: withTools)
+                        peeledCards(for: withTools)
+                        // The live turn shows a streaming-status line under its reply;
+                        // settled turns show nothing extra.
+                        streamingStatusUnder(message)
+                    }
+                }
             }
             .id(message.id)
         }
