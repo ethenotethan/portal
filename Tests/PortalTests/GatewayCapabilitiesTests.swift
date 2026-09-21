@@ -99,6 +99,27 @@ internal struct GatewayCapabilitiesTests {
         #expect(!invokeOnly.supportsActionLog)
     }
 
+    @Test("artifact-query support recognizes both advertised wire spellings")
+    internal func artifactQueryCapabilityVariants() {
+        for name in ["artifact.query.invoke", "artifact_query_subscribe"] {
+            let capabilities = GatewayCapabilities(
+                gatewayVersion: nil, agentVersion: nil,
+                capabilityNames: [name],
+                hasImageInput: false, hasACPImagePrompts: false,
+                source: .gateway(method: "gateway.capabilities")
+            )
+            #expect(capabilities.supportsArtifactQueries, "\(name) should enable artifact queries")
+        }
+
+        let actionsOnly = GatewayCapabilities(
+            gatewayVersion: nil, agentVersion: nil,
+            capabilityNames: ["artifact.action.invoke"],
+            hasImageInput: false, hasACPImagePrompts: false,
+            source: .gateway(method: "gateway.capabilities")
+        )
+        #expect(!actionsOnly.supportsArtifactQueries)
+    }
+
     @Test("wiki glossary capability gates the editor")
     internal func detectsWikiGlossaryCapability() {
         let supported = GatewayCapabilities(
