@@ -891,19 +891,18 @@ struct ChatView: View {
                                 EmptyTranscriptStateView()
                             }
                             ForEach(renderedMessages, id: \.element.id) { index, message in
-                                if let noticeLabel = message.delegationBatchNoticeLabel {
-                                    // A gateway async-delegation batch marker —
-                                    // render as a centered interstitial rule, not
-                                    // a prose bubble (the raw marker reads as a
-                                    // broken response otherwise).
-                                    DelegationBatchNoticeView(label: noticeLabel)
-                                        .id(message.id)
-                                } else if let batch = message.asyncDelegationBatch {
+                                if let batch = message.asyncDelegationBatch {
                                     // A full delegation-batch report — render each
                                     // subagent as its own card instead of pushing
                                     // the raw `--- TASK n/m ---` block through the
                                     // markdown bubble as one wall of text.
                                     AsyncDelegationBatchView(batch: batch)
+                                        .id(message.id)
+                                } else if let notice = message.delegationBatchNotice {
+                                    // Gateway async-delegation envelopes that do
+                                    // not match the rich per-task report grammar
+                                    // still preserve their returned Markdown.
+                                    DelegationBatchNoticeView(notice: notice)
                                         .id(message.id)
                                 } else {
                                     // `index` is the message's position in the
