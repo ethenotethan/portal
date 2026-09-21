@@ -293,7 +293,7 @@ internal struct DashboardLayoutTests {
         #expect(flame != nil)
     }
 
-    @Test("Seeded cron dashboard is dataflow-first: graph + summary + volume")
+    @Test("Seeded cron dashboard is summary over volume; dataflow lives in Graphs")
     internal func seededCronDashboardFitsBounds() {
         let bounds = CGSize(width: 1200, height: 800)
         let layout = DashboardLayout.seededCronDashboard(for: bounds)
@@ -306,26 +306,21 @@ internal struct DashboardLayoutTests {
             #expect(panel.frame.width >= DashboardPanel.minSize.width)
             #expect(panel.frame.height >= DashboardPanel.minSize.height)
         }
-        // Only the three seeded lenses — jobs/timeline/per-job stay addable but
-        // are no longer part of the default (dataflow is now the centerpiece).
+        // Summary + volume only. Jobs/timeline/per-job stay addable; the dataflow
+        // graph is no longer a cron-activity panel (it lives on the Graphs page).
         let kinds = Set(layout.panels.map(\.kind))
-        #expect(kinds == [.cronGraph, .cronSummary, .cronVolume])
-        #expect(layout.panels.count == 3)
+        #expect(kinds == [.cronSummary, .cronVolume])
+        #expect(layout.panels.count == 2)
 
-        // The dataflow graph is the dominant panel: widest, and taller than the
-        // stacked right column's two panels.
-        let graph = layout.panels.first { $0.kind == .cronGraph }
         let summary = layout.panels.first { $0.kind == .cronSummary }
         let volume = layout.panels.first { $0.kind == .cronVolume }
-        #expect(graph != nil)
         #expect(summary != nil)
         #expect(volume != nil)
-        if let graph, let summary, let volume {
-            #expect(graph.frame.width > summary.frame.width)
-            // Summary sits above volume in the right column, no overlap.
+        if let summary, let volume {
+            // Summary sits above volume, no overlap; both span the full width.
             #expect(summary.frame.maxY <= volume.frame.minY + 0.5)
-            // The two right-column panels share the graph's right edge.
-            #expect(summary.frame.minX > graph.frame.maxX - 0.5)
+            #expect(volume.frame.width >= summary.frame.width - 0.5)
+            #expect(volume.frame.height > summary.frame.height)
         }
     }
 

@@ -15,7 +15,6 @@ internal struct CronDashboardCanvas: View {
     @ObservedObject private var store = CronRunHistoryStore.shared
 
     @State private var cronListVM = CronListViewModel()
-    @StateObject private var cronGraphVM = CronGraphViewModel()
     @State private var timeHorizon: CronTimeHorizon = .day
 
     @State private var layout = DashboardLayout()
@@ -24,10 +23,6 @@ internal struct CronDashboardCanvas: View {
     @State private var isEditing = false
     @State private var showsTitleBars = true
     @State private var showAddPalette = false
-    /// Whether the Dataflow panel is taken full screen. Presented as an in-place
-    /// edge-to-edge overlay so it reads as the same surface zooming open, not a
-    /// modal sheet over it.
-    @State private var isGraphExpanded = false
     @AppStorage("cronDashboardToolbarCollapsed") private var toolbarCollapsed = false
 
     private let registry = CronDashboardCanvas.makeRegistry()
@@ -68,17 +63,6 @@ internal struct CronDashboardCanvas: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
-        .overlay {
-            if isGraphExpanded {
-                CronDataflowExpandedView(
-                    graphVM: cronGraphVM,
-                    listVM: cronListVM,
-                    onDismiss: { withAnimation(.easeInOut(duration: 0.18)) { isGraphExpanded = false } }
-                )
-                .environmentObject(gatewayClientWrapper)
-                .transition(.opacity)
-            }
-        }
         .task { await refreshData() }
     }
 
@@ -219,26 +203,13 @@ internal struct CronDashboardCanvas: View {
             return AnyView(CronVolumeView(records: records, horizon: timeHorizon))
         case .cronJobs:
             // showsTitle: false — the panel chrome above already reads "Jobs".
-            // A dataflow chip tap highlights the matching node in the Dataflow panel.
             return AnyView(ScrollView {
-                CronJobsView(
-                    vm: cronListVM,
-                    showsTitle: false,
-                    onSelectEndpoint: { cronGraphVM.selectNode(withID: $0.id) }
-                )
+                CronJobsView(vm: cronListVM, showsTitle: false)
             })
         case .cronTimeline:
             return AnyView(ScrollView { CronTimelineView(records: records, horizon: timeHorizon) })
         case .cronBreakdown:
             return AnyView(ScrollView { CronBreakdownView(records: records) })
-        case .cronGraph:
-            return AnyView(
-                CronInterflowGraphView(
-                    viewModel: cronGraphVM,
-                    onExpand: { withAnimation(.easeInOut(duration: 0.18)) { isGraphExpanded = true } }
-                )
-                .environmentObject(gatewayClientWrapper)
-            )
         default:
             return AnyView(PanelEmptyState(
                 icon: "questionmark.square.dashed",
@@ -289,8 +260,12 @@ internal struct CronDashboardCanvas: View {
     private func loadLayoutIfNeeded(bounds: CGSize) {
         guard !didLoadLayout, bounds.width > 0, bounds.height > 0 else { return }
         didLoadLayout = true
-        let loaded = DashboardLayout.loadStored(key: DashboardLayout.cronDashboardKey)
+        var loaded = DashboardLayout.loadStored(key: DashboardLayout.cronDashboardKey)
             ?? DashboardLayout.seededCronDashboard(for: bounds)
+        // Migrate away a Dataflow panel a previously-stored layout may still hold:
+        // it's no longer rendered here (moved to Graphs), so drop it rather than
+        // leave a dead "Unknown panel" tile.
+        loaded.panels.removeAll { $0.kind == .cronGraph }
         layout = loaded.clamped(to: bounds)
     }
 
@@ -325,7 +300,8 @@ internal struct CronDashboardCanvas: View {
         registry.register(PanelDescriptor(kind: .cronJobs,      title: "Jobs",      icon: "clock.arrow.circlepath", singleton: true, build: nil))
         registry.register(PanelDescriptor(kind: .cronTimeline,  title: "Timeline",  icon: "timeline.selection",  singleton: true, build: nil))
         registry.register(PanelDescriptor(kind: .cronBreakdown, title: "Per-Job",   icon: "chart.bar.doc.horizontal", singleton: true, build: nil))
-        registry.register(PanelDescriptor(kind: .cronGraph,     title: "Dataflow",  icon: "point.3.connected.trianglepath.dotted", singleton: true, build: nil))
+        // The Dataflow (interflow graph) panel lives on the dedicated Graphs page,
+        // not here — so it's neither seeded nor addable on the Cron Activity canvas.
         return registry
     }
 }
