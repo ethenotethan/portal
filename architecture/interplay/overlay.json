@@ -33,6 +33,16 @@
       ]
     },
     {
+      "id": "on_device_model:MLXLocalChatEngine:container",
+      "kind": "on_device_model",
+      "owner_type": "MLXLocalChatEngine",
+      "label": "container",
+      "prose": "A third on-device MLX model container, the one that holds a spoken conversation about a chat answer behind LocalChatService's LocalChatGenerating seam. Unlike the two summarizers it is owned by an actor rather than a @MainActor class: the actor's executor is a background thread, so loads through LLMModelFactory.loadContainer and every generation run off the main thread without Task.detached, and generations serialize instead of racing. The container is keyed by the selected LocalChatModel so a Settings change reloads the weights, and a ChatSession is retained alongside it for turn-to-turn continuity. Compiled only behind the MLXLLM/MLXLMCommon/HuggingFace/Tokenizers canImport gate on macOS.",
+      "sources": [
+        "Sources/Portal/Services/LocalChatEngine.swift:29"
+      ]
+    },
+    {
       "id": "speech_synth:TTSService:AVSpeechSynthesizer",
       "kind": "speech_synth",
       "owner_type": "TTSService",
