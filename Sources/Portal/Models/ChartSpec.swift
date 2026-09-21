@@ -177,7 +177,7 @@ struct ChartSpec: Decodable {
         }
         let distribution = chartType == .histogram || chartType == .boxplot
         series = try raw.enumerated().map { index, s in
-            let name = (s.name?.isEmpty == false) ? s.name! : "Series \(index + 1)"
+            let name = s.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Series \(index + 1)"
             if distribution {
                 // Accept `values`, or degrade points to their y values so a
                 // model that emitted points anyway still renders.
@@ -309,6 +309,7 @@ enum ChartDistribution {
     static func fiveNumber(for values: [Double]) -> FiveNumber? {
         guard !values.isEmpty else { return nil }
         let sorted = values.sorted()
+        guard let minimum = sorted.first, let maximum = sorted.last else { return nil }
         func quantile(_ q: Double) -> Double {
             let pos = q * Double(sorted.count - 1)
             let lower = Int(pos.rounded(.down))
@@ -317,15 +318,14 @@ enum ChartDistribution {
             return sorted[lower] * (1 - frac) + sorted[upper] * frac
         }
         return FiveNumber(
-            min: sorted.first!,
+            min: minimum,
             q1: quantile(0.25),
             median: quantile(0.5),
             q3: quantile(0.75),
-            max: sorted.last!
+            max: maximum
         )
     }
 }
-
 
 // MARK: - Waterfall computation
 
