@@ -245,4 +245,20 @@ struct WikiEventTimelineGatingTests {
         let hermes: any WikiSource = GatewayClient()
         #expect(hermes is (any WikiEventLogSource))
     }
+
+    /// The WikiSource conformance forwards to the wiki RPCs. Unconnected, the
+    /// RPC layer throws `.notConnected` immediately (no socket), so this drives
+    /// both forwarders through their bodies without needing a live gateway.
+    @Test("WikiSource fetch methods forward to the wiki RPCs")
+    internal func gatewaySourceForwardsToRPCs() async {
+        let source: any WikiSource = GatewayClient()
+        do {
+            _ = try await source.fetchGraph()
+            Issue.record("expected fetchGraph to throw when not connected")
+        } catch { /* .notConnected is the expected offline outcome */ }
+        do {
+            _ = try await source.fetchPage(path: "wiki:topic:glossary-mcp")
+            Issue.record("expected fetchPage to throw when not connected")
+        } catch { /* expected */ }
+    }
 }

@@ -298,6 +298,7 @@
 		5673A2B80927F3ACF973F3F4 /* CronCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0697099F689730431AFE3573 /* CronCategory.swift */; };
 		56ABAFC750B80C9ED62E4507 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C74FA52D4C0E8DA1CA779AF /* ChatView.swift */; };
 		56B0E5AD2BC3FE10F3154E73 /* MLXMemoryConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E57FC3C0AC88F0C0B9B9A45 /* MLXMemoryConfig.swift */; };
+		56CCB37D674E67672983DBF7 /* SkillsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7878F3EC092F6C7A85BB26C7 /* SkillsViewModelTests.swift */; };
 		5778C344AF7DD92D3A536FE6 /* CelebrationBeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44F51853EA8A4B702D64A94 /* CelebrationBeat.swift */; };
 		57AC0ECB53E313755EC7267C /* WikiGraph3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A85E0F1911D146301A8B05D /* WikiGraph3DView.swift */; };
 		57EECDF7AD5614F95BB7D064 /* SpeechSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568E38FC2B3653CF9ED9CAF9 /* SpeechSettingsSection.swift */; };
@@ -1201,6 +1202,7 @@
 		7792D9E2DC57229B4906B037 /* CronSessionNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronSessionNavigation.swift; sourceTree = "<group>"; };
 		779E85EE39689E3891CC1F43 /* SkillStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillStore.swift; sourceTree = "<group>"; };
 		77DF29D74D5D721EF473D0D3 /* TurnSkillsLens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnSkillsLens.swift; sourceTree = "<group>"; };
+		7878F3EC092F6C7A85BB26C7 /* SkillsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsViewModelTests.swift; sourceTree = "<group>"; };
 		78FA2A665949614A12ECD37F /* ArtifactPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactPanel.swift; sourceTree = "<group>"; };
 		795E88577BB78058311CDC5C /* RenderMemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderMemo.swift; sourceTree = "<group>"; };
 		79F03A3919DBBDF2E95C23A0 /* IOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSApp.swift; sourceTree = "<group>"; };
@@ -2247,6 +2249,7 @@
 				A9E6D4451DB81A371FC2ADDD /* SkillCategoryTests.swift */,
 				F79BEF7DA6150B8F6C9F0AEA /* SkillsFilterStateTests.swift */,
 				6E5360AD25D5B74D44B66CC6 /* SkillStorePersistenceTests.swift */,
+				7878F3EC092F6C7A85BB26C7 /* SkillsViewModelTests.swift */,
 				FEEE68099D400B4874FE6079 /* SkillTests.swift */,
 				8D6CF5857397F278B5ED3D63 /* SpawnTreeModelsTests.swift */,
 				76317C26EA2B3EA6A492D66F /* SpokenTextTests.swift */,
@@ -3045,6 +3048,7 @@
 				50DCDBEEF5B551B45DC7CF9F /* SkillStorePersistenceTests.swift in Sources */,
 				5F23AC298E3A539F38841072 /* SkillTests.swift in Sources */,
 				BE5BE3147E14DF930DD4780C /* SkillsFilterStateTests.swift in Sources */,
+				56CCB37D674E67672983DBF7 /* SkillsViewModelTests.swift in Sources */,
 				7971A1846D4BCDD2545703C8 /* SpawnTreeModelsTests.swift in Sources */,
 				19F35B859CBEFC0E0AC02EDC /* SpokenTextTests.swift in Sources */,
 				5C397A8DB6BA38D588EFA02C /* StuckStreamRecoveryTests.swift in Sources */,

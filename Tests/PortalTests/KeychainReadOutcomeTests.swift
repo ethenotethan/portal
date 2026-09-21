@@ -99,6 +99,24 @@ internal struct KeychainReadOutcomeTests {
         #expect(!outcome.isUnreadable)
     }
 
+    @Test("entries saved for a retired backend platform are dropped at decode")
+    internal func retiredKindEntriesAreDropped() throws {
+        // A blob mixing a harness entry with one saved under a retired `kind`
+        // (Centaur / Hermes Standard). `SavedGateway` only reads `kind`, never
+        // writes it, so the retired entry is hand-authored JSON.
+        let blob = Data("""
+        [
+          {"id":"\(UUID().uuidString)","name":"Harness","url":"ws://h.example.com:8642/v1/ws","apiKey":"k1"},
+          {"id":"\(UUID().uuidString)","name":"Old Centaur","url":"https://c.example.com","apiKey":"k2","kind":"centaur"}
+        ]
+        """.utf8)
+        let outcome = KeychainStore.decodeGateways(.found(blob))
+        // Only the harness survives; the retired entry is filtered, not dialed.
+        #expect(outcome.value?.count == 1)
+        #expect(outcome.value?.first?.name == "Harness")
+        #expect(!outcome.isUnreadable)
+    }
+
     @Test("a corrupt harness blob is .failed so it is never overwritten")
     internal func corruptBlobIsPreserved() {
         let outcome = KeychainStore.decodeGateways(.found(Data("{not json".utf8)))

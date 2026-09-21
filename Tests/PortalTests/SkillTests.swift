@@ -151,4 +151,12 @@ struct SkillsViewModelTests {
         vm.installStatus["my-skill"] = "installed"
         #expect(vm.installStatus["my-skill"] == "installed")
     }
+
+    @Test("errorMessage forwards to the shared SkillStore")
+    func errorMessageForwardsToStore() {
+        // The Standard HTTP path is gone; error state now mirrors the WebSocket
+        // harness SkillStore rather than a per-view-model field.
+        let vm = SkillsViewModel()
+        #expect(vm.errorMessage == SkillStore.shared.errorMessage)
+    }
 }

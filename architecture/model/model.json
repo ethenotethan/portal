@@ -8608,11 +8608,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1023,
+          "line": 1022,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-aa0aebd30502",
+        "id": "task-site-846fb41a2e23",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8624,11 +8624,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1257,
+          "line": 1256,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-0cb4467798d8",
+        "id": "task-site-ec874091b9bb",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8640,11 +8640,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1264,
+          "line": 1263,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ca1aac72640a",
+        "id": "task-site-9b72295c2609",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8656,11 +8656,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1315,
+          "line": 1314,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8a9316ba1f06",
+        "id": "task-site-290e506d45a6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8672,11 +8672,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1335,
+          "line": 1334,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-085e43a3622a",
+        "id": "task-site-ec046c1aa886",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8688,11 +8688,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1374,
+          "line": 1373,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2f281b2b75e2",
+        "id": "task-site-364d7910028e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8704,11 +8704,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1458,
+          "line": 1457,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-943f9ab91518",
+        "id": "task-site-67880b268991",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8720,11 +8720,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1530,
+          "line": 1529,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6ef7864d29f3",
+        "id": "task-site-2b81fd00cfee",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8736,11 +8736,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await createAndSwitchToNewSession() }",
-          "line": 1596,
+          "line": 1595,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1bbc1b1ceb66",
+        "id": "task-site-2272196e517d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8752,11 +8752,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { @MainActor in",
-          "line": 1601,
+          "line": 1600,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-fa8fff55ea54",
+        "id": "task-site-a5fa5ca66752",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8768,11 +8768,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task { await xAuth.handleCallback(code: code, state: state) }",
-          "line": 1609,
+          "line": 1608,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-466d493ed49e",
+        "id": "task-site-a14faf829c03",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8784,11 +8784,11 @@
         "enclosing_type": "ContentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1649,
+          "line": 1648,
           "path": "Sources/Portal/Views/ContentView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-98d18d6369ef",
+        "id": "task-site-aa7d6f54b5df",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10400,11 +10400,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await loadGraph(wiki: wiki, generation: generation) }",
-          "line": 114,
+          "line": 115,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-e63b068de6a6",
+        "id": "task-site-96f4b998a2b4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10416,11 +10416,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await attemptInitialLoad() }",
-          "line": 144,
+          "line": 145,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-243842dab818",
+        "id": "task-site-4d19421088b6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10432,11 +10432,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await attemptInitialLoad() }",
-          "line": 156,
+          "line": 157,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8b209131862c",
+        "id": "task-site-c288a8bbf73d",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10448,11 +10448,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "onRefresh: { Task { await loadGraph(wiki: viewModel.selectedWikiPath) } }",
-          "line": 369,
+          "line": 370,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-ebb839314011",
+        "id": "task-site-892f50c9aedf",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10464,11 +10464,11 @@
         "enclosing_type": "WikiGraphView",
         "evidence": {
           "excerpt": "Task { await loadGraph(wiki: viewModel.selectedWikiPath) }",
-          "line": 435,
+          "line": 436,
           "path": "Sources/Portal/Views/Wiki/WikiGraphView.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c0ae3b4d6ecd",
+        "id": "task-site-5ade52af9e09",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -10704,7 +10704,7 @@
       "id": "app-shell",
       "label": "App shell",
       "layer": "experience",
-      "line_count": 4110
+      "line_count": 4109
     },
     {
       "declaration_count": 74,
@@ -11100,7 +11100,7 @@
       "id": "wiki-ui",
       "label": "Wiki",
       "layer": "experience",
-      "line_count": 5020
+      "line_count": 5021
     },
     {
       "declaration_count": 120,
@@ -11765,7 +11765,7 @@
       "id": "wiki-sources",
       "label": "Wiki source contract",
       "layer": "integration",
-      "line_count": 93
+      "line_count": 92
     },
     {
       "declaration_count": 106,
@@ -15220,7 +15220,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 6 declaration(s) owned by operations-state.",
+      "description": "References 7 declaration(s) owned by operations-state.",
       "evidence": [
         "Sources/Portal/Views/CelebrationSettingsSection.swift",
         "Sources/Portal/Views/CelebrationStage.swift",
@@ -15234,6 +15234,7 @@
       "symbols": [
         "CelebrationEvent",
         "CelebrationManager",
+        "CodeGraphSource",
         "CronGraphViewModel",
         "CronListViewModel",
         "GatewayRestartController",
@@ -15241,7 +15242,7 @@
       ],
       "target": "operations-state",
       "type": "references",
-      "weight": 13
+      "weight": 14
     },
     {
       "authority": "observed",
@@ -15704,6 +15705,21 @@
       "target": "local-services",
       "type": "references",
       "weight": 5
+    },
+    {
+      "authority": "observed",
+      "description": "References 1 declaration(s) owned by operations-state.",
+      "evidence": [
+        "Sources/Portal/ViewModels/WikiGraphViewModel+EventTypes.swift",
+        "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
+      ],
+      "source": "wiki-state",
+      "symbols": [
+        "CodeGraphSource"
+      ],
+      "target": "operations-state",
+      "type": "references",
+      "weight": 3
     },
     {
       "authority": "observed",
@@ -18148,7 +18164,7 @@
     "assigned_files": 367,
     "declarations": 1080,
     "swift_files": 367,
-    "swift_lines": 107160,
+    "swift_lines": 107159,
     "unassigned_files": []
   },
   "layers": [
@@ -18180,6 +18196,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "7979b20aec12e3b75def8c234a6ae6b40d74d73b4afd745b04652032a0abc44f",
+  "source_tree_sha256": "f405417aee4cd3ec58e6f85c555c7f5c28b5dda741054bddfaa067d4ef81e75b",
   "title": "Portal Architecture"
 }
