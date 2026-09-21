@@ -89,9 +89,11 @@ Implementation task: {implementation_task_id}
 Resolve and pin the exact PR head SHA before doing anything. Review the diff and CI.
 If the review is clean, replace the PR and Issue lifecycle label with `state:validation`
 before launching the app. Then build and run the application from that exact revision.
-For user-visible changes, use computer_use/cua-driver against the running macOS or
-Simulator application and exercise the changed flow; source inspection or unit tests
-alone are not validation.
+For user-visible changes, determine the platform where the behavior was reported and
+validate that exact application target. A build or screenshot from another platform is
+supplementary evidence only and must never substitute for the reported target. Use
+computer_use/cua-driver against the running application and exercise the changed flow;
+source inspection or unit tests alone are not validation.
 
 Capture clear PNG screenshots showing the expected UI state and any important before/
 after or interaction states. Keep the PR head immutable. Publish evidence on the

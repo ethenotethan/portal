@@ -70,6 +70,8 @@ class ProductFactoryDispatcherTests(unittest.TestCase):
         self.assertEqual(captured["parents"], ["t_impl"])
         self.assertIn("exact PR head SHA", captured["body"])
         self.assertIn("computer_use", captured["body"])
+        self.assertIn("reported target", captured["body"])
+        self.assertIn("must never substitute", captured["body"])
         self.assertIn("PNG", captured["body"])
         self.assertIn("factory/evidence", captured["body"])
         self.assertIn("inline Markdown images", captured["body"])
