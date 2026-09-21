@@ -245,7 +245,8 @@ struct ChatView: View {
                 kind: kind,
                 content: live?.content ?? artifact.content,
                 actionableArtifactID: artifactID,
-                topLevelActions: live?.topLevelActions ?? []
+                topLevelActions: live?.topLevelActions ?? [],
+                queries: live?.queries ?? []
             )
         }
     }

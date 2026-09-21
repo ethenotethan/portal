@@ -11,6 +11,19 @@ import Testing
 @Suite("HTML artifact query bridge")
 internal struct ArtifactQueryBridgeTests {
 
+    private static let sourcesRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent() // PortalTests
+        .deletingLastPathComponent() // Tests
+        .deletingLastPathComponent() // repo root
+        .appendingPathComponent("Sources/Portal")
+
+    private static func source(_ relativePath: String) throws -> String {
+        try String(
+            contentsOf: sourcesRoot.appendingPathComponent(relativePath),
+            encoding: .utf8
+        )
+    }
+
     // MARK: - Request URL
 
     @Test("decodes only the narrow request URL contract")
@@ -92,6 +105,21 @@ internal struct ArtifactQueryBridgeTests {
         ])
         #expect(artifact?.queries.map(\.id) == ["rows"])
         #expect(artifact?.queries.first?.bind["source"] == .string("orders"))
+    }
+
+    @Test("every live artifact surface passes its query manifest to the renderer")
+    internal func liveSurfacesCarryQueries() throws {
+        // A live HTML page without this argument gets no observer script at all:
+        // its static "Connecting…" copy then remains forever even though the
+        // store record carries a valid query declaration.
+        let chat = try Self.source("Views/ChatView.swift")
+        #expect(chat.contains("queries: live?.queries ?? []"))
+
+        let macPanel = try Self.source("Views/Blocks/ArtifactPanel.swift")
+        #expect(macPanel.contains("queries: live?.queries ?? []"))
+
+        let graphPanel = try Self.source("Views/ThoughtGraph/ArtifactsPanel.swift")
+        #expect(graphPanel.components(separatedBy: "queries: artifact.queries").count - 1 == 2)
     }
 
     // MARK: - Validation
