@@ -12321,7 +12321,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 15988,
+      "line_count": 15960,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -13940,8 +13940,7 @@
         "Sources/Portal/Models/KanbanSpec.swift",
         "Sources/Portal/Models/Learning/Curriculum.swift",
         "Sources/Portal/Models/ModelCatalog.swift",
-        "Sources/Portal/Models/PersonaImage.swift",
-        "Sources/Portal/Models/SessionTimelineEvent.swift"
+        "Sources/Portal/Models/PersonaImage.swift"
       ],
       "source": "domain-models",
       "symbols": [
@@ -13952,7 +13951,7 @@
       ],
       "target": "chat-ui",
       "type": "references",
-      "weight": 10
+      "weight": 9
     },
     {
       "authority": "observed",
@@ -18164,7 +18163,7 @@
     "assigned_files": 367,
     "declarations": 1080,
     "swift_files": 367,
-    "swift_lines": 107185,
+    "swift_lines": 107157,
     "unassigned_files": []
   },
   "layers": [
@@ -18196,6 +18195,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "356100382fb9b692462a240c724ea53d31293f3d4b5789620ada7616a7cf5f8a",
+  "source_tree_sha256": "66c7b0ae1d07c9a641dd153d41eee52a75b1f7009d4ebb766c1890b06ca8c1d0",
   "title": "Portal Architecture"
 }
