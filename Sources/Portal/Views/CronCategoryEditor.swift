@@ -11,8 +11,6 @@ import SwiftUI
 ///
 /// Shared by the compact `CronJobCard` and the full `CronJobDetailView` so the
 /// normalization preview and the disabled-Save rules can't drift between them.
-/// Gateway-only: Standard's dashboard API has no update endpoint, so callers gate
-/// this on `supportsRemoveAndEdit`.
 internal struct CronCategoryEditor: View {
     /// The job's current full name (path included).
     internal let name: String

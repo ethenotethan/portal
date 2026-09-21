@@ -48,7 +48,6 @@ internal struct TestProcessDataIsolationTests {
         // Keychain tests scope themselves to generated accounts; the guard must
         // not break them, or it would cost real Keychain coverage.
         #expect(KeychainStore.mayWrite(account: "portal-test-abc123", isTestProcess: true))
-        #expect(KeychainStore.mayWrite(account: "centaur-api-key", isTestProcess: true))
     }
 
     @Test("the guard names exactly the irreplaceable accounts")

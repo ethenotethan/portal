@@ -452,7 +452,7 @@ internal struct SiteCapture {
     ///   fake one.
     /// - `.task` never runs under `ImageRenderer`, so any view that loads its
     ///   own content captures its spinner unless the state is pre-seeded.
-    @Test("wiki events and knowledge accrued")
+    @Test("wiki events")
     internal func wiki() throws {
         // Relative to now, like the cron and activity fixtures: the plot's
         // domain and the feed's "1h ago" are both read against the live clock.
@@ -570,79 +570,6 @@ internal struct SiteCapture {
         .padding(22)
 
         try write(eventsPage, "wikievents", CGSize(width: 1040, height: 300))
-
-        // The output side: page-edit volume per day, the same series the input
-        // events above were scaled from.
-        var buckets: [WikiRevisionsTimeline.Bucket] = []
-        for day in 0..<10 {
-            let start: Date = calendar.startOfDay(for: ago(Double(9 - day) * 86_400))
-            buckets.append(WikiRevisionsTimeline.Bucket(bucket: start, count: dailyEdits[day]))
-        }
-        let totalInWindow = dailyEdits.reduce(0, +)
-        // The window ends at the END of today, not `now`: a day-unit `BarMark`
-        // spans its whole bucket, so a domain stopping mid-day clips the newest
-        // bar in half against the plot edge.
-        let windowEnd: Date = today.addingTimeInterval(86_400)
-        let revisions = WikiRevisionsTimeline(
-            unit: "day",
-            since: ago(windowSeconds), until: windowEnd,
-            // Pre-window total. Kept the same order of magnitude as the window's
-            // own edits — a baseline ten times the window flattens the accrued
-            // curve into a straight line, which is true to the view but says
-            // nothing about it.
-            baseline: 612,
-            totalInWindow: totalInWindow,
-            buckets: buckets
-        )
-        let window: ClosedRange<Date> = ago(windowSeconds)...windowEnd
-
-        // The knowledge-accrued pane, assembled from the views
-        // `WikiEventsKnowledgePane` composes: it can't be captured whole because
-        // it carries a segmented Picker and a list of borderless rows. The tiles
-        // read off the same timeline the charts plot, the way the pane's own
-        // `statTiles` does, so no figure value can disagree with the plot beside
-        // it. Only "Pages touched" is a literal — it comes from a separate
-        // `/wiki/changes` response.
-        func compact(_ value: Int) -> String { value.formatted(.number.notation(.compactName)) }
-        let accrued = VStack(alignment: .leading, spacing: 14) {
-            WikiEventsSectionLabel(
-                "Knowledge accrued",
-                detail: "\(revisions.totalInWindow) page edits in window · \(revisions.baseline) before"
-            )
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 130, maximum: 220), spacing: 8, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: 8
-            ) {
-                WikiEventsStatTile(
-                    label: "Total revisions",
-                    value: compact(revisions.totalAllTime),
-                    detail: "all time"
-                )
-                WikiEventsStatTile(
-                    label: "This window",
-                    value: compact(revisions.totalInWindow),
-                    detail: "\(plotted.count) input events"
-                )
-                WikiEventsStatTile(
-                    label: "Busiest day",
-                    value: (revisions.busiestBucket?.count).map(compact) ?? "—",
-                    detail: revisions.busiestBucket?.bucket?
-                        .formatted(date: .abbreviated, time: .omitted) ?? "no edits"
-                )
-                WikiEventsStatTile(
-                    label: "Pages touched",
-                    value: "63",
-                    detail: "38 concept · 17 entity · 8 topic"
-                )
-            }
-            WikiRevisionsChart(timeline: revisions, window: window, showCumulative: true)
-            Divider().overlay(Theme.border)
-            WikiEventsInputOutputChart(events: plotted, revisions: revisions, window: window)
-        }
-        .padding(22)
-
-        try write(accrued, "wikiaccrued", CGSize(width: 900, height: 636))
     }
 
     @Test("learning dashboard")

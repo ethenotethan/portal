@@ -7,7 +7,7 @@ import Foundation
 /// sources that conform — a protocol check, not a backend-kind check, so a
 /// future source grows the drawer by conforming here.
 ///
-/// Lives in its own file (not CentaurWikiClient.swift, where WikiSource is
+/// Lives in its own file (where WikiSource is
 /// declared) so capability growth doesn't churn the shared protocol file.
 @MainActor
 internal protocol WikiChangesetSource: WikiSource {}

@@ -42,8 +42,8 @@ internal enum PeeledBlockKind: String, CaseIterable, Hashable {
 
 internal struct ConversationPanel: View {
     @ObservedObject internal var chatViewModel: ChatViewModel
-    /// The identity the chat presents (harness persona for Centaur, else the
-    /// user's Hermes persona) — passed in so this panel doesn't re-derive it.
+    /// The identity the chat presents (the harness persona) — passed in so
+    /// this panel doesn't re-derive it.
     internal let persona: Persona
     /// The active skin, resolved by the host so bubbles match the rest of chat.
     internal let skinProvider: ChatSkinProviding

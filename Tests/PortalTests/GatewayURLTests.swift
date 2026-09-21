@@ -36,12 +36,6 @@ internal struct GatewayURLTests {
         #expect(url.absoluteString == "ws://100.94.3.17:8642/v1/ws")
     }
 
-    @Test("the Standard sidecar path is left alone")
-    internal func preservesStandardSidecarPath() throws {
-        let url = try #require(GatewayURL.normalize("http://100.94.3.17:8080/api/ws"))
-        #expect(url.absoluteString == "ws://100.94.3.17:8080/api/ws")
-    }
-
     // MARK: - Scheme inference
 
     @Test("a public host with no scheme gets TLS, a private one does not")
@@ -125,25 +119,6 @@ internal struct GatewayURLTests {
         #expect(!GatewayURL.isPrivateHost("nots.net"))
     }
 
-    // MARK: - HTTP origin (Standard / Centaur)
-
-    @Test("an HTTP origin keeps host and port and drops the socket path")
-    internal func buildsHTTPOrigin() throws {
-        let bare = try #require(GatewayURL.httpOrigin("100.94.3.17:8080"))
-        #expect(bare.absoluteString == "http://100.94.3.17:8080")
-
-        let publicHost = try #require(GatewayURL.httpOrigin("dash.example.com"))
-        #expect(publicHost.absoluteString == "https://dash.example.com")
-
-        // A ws endpoint pasted into an HTTP field still names the right origin.
-        let fromWS = try #require(GatewayURL.httpOrigin("ws://100.94.3.17:8642/v1/ws"))
-        #expect(fromWS.absoluteString == "http://100.94.3.17:8642")
-
-        // "/api/ws" is longer than "/v1/ws" — stripped by suffix, not by length.
-        let fromSidecar = try #require(GatewayURL.httpOrigin("http://box.ts.net:8080/api/ws"))
-        #expect(fromSidecar.absoluteString == "http://box.ts.net:8080")
-    }
-
     // MARK: - What the settings layer derives from it
 
     /// Deliberately NOT written by instantiating `SettingsViewModel` and assigning
@@ -167,23 +142,5 @@ internal struct GatewayURLTests {
         }
         let publicHost = try #require(GatewayURL.normalize("wss://gateway.example.com/v1/ws")?.host)
         #expect(!GatewayURL.isPrivateHost(publicHost))
-    }
-
-    /// `SavedGateway` is a plain value type that touches no Keychain, so this one
-    /// is safe to construct directly — unlike `SettingsViewModel` above.
-    @Test("a Standard entry on a tailnet still yields a chat sidecar URL")
-    internal func standardChatURLOnTailnet() throws {
-        let entry = SavedGateway(
-            name: "box",
-            url: "100.94.3.17:8080",
-            apiKey: "token123",
-            kind: .hermesStandard
-        )
-        let url = try #require(entry.hermesStandardChatURL)
-        #expect(url.scheme == "ws")
-        #expect(url.host == "100.94.3.17")
-        #expect(url.port == 8080)
-        #expect(url.path == "/api/ws")
-        #expect(url.query?.contains("token=token123") == true)
     }
 }

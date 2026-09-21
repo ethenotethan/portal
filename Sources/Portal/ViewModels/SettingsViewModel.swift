@@ -85,32 +85,10 @@ internal final class SettingsViewModel: ObservableObject {
     }
     private static let activeGatewayIDKey = "portal.activeGatewayID"
 
-    /// Focused session-scoped backend (Centaur), nil = the active Hermes
-    /// entry is focused. Focus is the user-facing selection: the toolbar
-    /// badge, switcher checkmark, and New Session default all follow it.
-    /// It does NOT move the app-level connection — the Hermes WebSocket
-    /// (session list, wiki, skills, cron) stays wired underneath, because
-    /// session-scoped backends cannot serve those surfaces. This is what
-    /// makes Centaur selectable in the switcher like any Hermes entry
-    /// instead of a silent no-op.
-    @Published private(set) var focusedBackendID: UUID? {
-        didSet {
-            if didCompleteInit {
-                UserDefaults.standard.set(focusedBackendID?.uuidString, forKey: Self.focusedBackendIDKey)
-            }
-        }
-    }
-    private static let focusedBackendIDKey = "portal.focusedBackendID"
-
-    /// The saved entry the UI should present as selected: the focused
-    /// session-scoped backend when one is focused, else the active Hermes
-    /// entry.
-    var focusedGateway: SavedGateway? {
-        if let id = focusedBackendID,
-           let entry = savedGateways.first(where: { $0.id == id }) {
-            return entry
-        }
-        return savedGateways.first { $0.id == activeGatewayID }
+    /// The saved entry the app is connected to — the one whose URL/API key are
+    /// mirrored into `gatewayURL`/`apiKey`.
+    internal var activeGateway: SavedGateway? {
+        savedGateways.first { $0.id == activeGatewayID }
     }
     @Published var responseCompleteNotificationsEnabled: Bool {
         didSet {
@@ -238,23 +216,6 @@ internal final class SettingsViewModel: ObservableObject {
     var needsCFAuth: Bool {
         guard let host = buildWebSocketURL()?.host else { return false }
         return !GatewayURL.isPrivateHost(host)
-    }
-
-    // MARK: - Session-Scoped Backends
-
-    /// Backends that host individual sessions (chosen at session create),
-    /// never the app-level active gateway — the ambient services (session
-    /// list, wiki, skills, cron) always ride the active Hermes entry.
-    var sessionScopedBackends: [SavedGateway] {
-        savedGateways.filter { $0.kind.isSessionScoped }
-    }
-
-    internal var managementScopedBackends: [SavedGateway] {
-        savedGateways.filter { $0.kind.isManagementScoped }
-    }
-
-    var hermesBackends: [SavedGateway] {
-        savedGateways.filter { $0.kind == .hermes }
     }
 
     /// The captured CF_Authorization cookie (not persisted — re-auth on app launch).
@@ -399,14 +360,6 @@ internal final class SettingsViewModel: ObservableObject {
             }
         }
 
-        // Restore session-scoped focus; drop it if the entry no longer
-        // exists or is no longer session-scoped (kind edited).
-        self.focusedBackendID = UserDefaults.standard.string(forKey: Self.focusedBackendIDKey)
-            .flatMap(UUID.init(uuidString:))
-            .flatMap { id in
-                loadedGateways.first { $0.id == id && $0.kind.isFocusScoped }?.id
-            }
-
         didCompleteInit = true
         // Heal a divergent active entry: mirror the live URL/key back into it
         // (no-op when they already agree). Covers entries left stale by
@@ -422,45 +375,19 @@ internal final class SettingsViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Multi-Gateway Management
+    // MARK: - Harness Management
 
-    /// Whether the given gateway is the currently-active one.
+    /// Whether the given harness is the currently-active one.
     func isActive(_ gateway: SavedGateway) -> Bool {
         gateway.id == activeGatewayID
     }
 
-    /// Whether the given gateway is the one the UI presents as selected —
-    /// the focused Centaur entry, or the active Hermes entry when no
-    /// session-scoped backend is focused.
-    func isFocused(_ gateway: SavedGateway) -> Bool {
-        if let focused = focusedBackendID { return gateway.id == focused }
-        return gateway.id == activeGatewayID
-    }
-
-    /// Switch the active gateway. Writes the chosen gateway's URL/API key into
+    /// Switch the active harness. Writes the chosen entry's URL/API key into
     /// the active settings (which triggers the existing reconnect path observed
     /// in ContentView) and clears the in-memory CF Access cookie so a CF-gated
-    /// gateway re-auths. No-op if already active.
-    ///
-    /// Session-scoped backends (Centaur) FOCUS instead of activating: the
-    /// selection is honored in the UI (badge, checkmark, New Session
-    /// default) while the Hermes WebSocket stays connected underneath —
-    /// those backends cannot serve the ambient surfaces (session list,
-    /// wiki, skills, cron), so tearing the socket down would gut the app.
-    /// Previously this was a silent `return`, which read as "clicking
-    /// Centaur does nothing and Hermes stays selected".
+    /// harness re-auths. No-op if already active.
     func selectGateway(_ gateway: SavedGateway) {
         guard savedGateways.contains(where: { $0.id == gateway.id }) else { return }
-
-        if gateway.kind.isFocusScoped {
-            focusedBackendID = gateway.id
-            return
-        }
-
-        // Selecting a Hermes entry always clears session-scoped focus —
-        // even when it's already the active connection (the click means
-        // "take me back to Hermes").
-        focusedBackendID = nil
         guard gateway.id != activeGatewayID else { return }
 
         activeGatewayID = gateway.id
@@ -474,17 +401,17 @@ internal final class SettingsViewModel: ObservableObject {
         gatewayURL = gateway.url
     }
 
-    /// Add a new saved gateway. Returns the created entry.
+    /// Add a new saved harness. Returns the created entry.
     @discardableResult
-    func addGateway(name: String, url: String, apiKey: String, kind: BackendKind = .hermes, makeActive: Bool = true) -> SavedGateway {
+    internal func addGateway(name: String, url: String, apiKey: String, makeActive: Bool = true) -> SavedGateway {
         // Adding a harness is the user deliberately supplying the value the
         // Keychain wouldn't give us, so it lifts the read-only posture. Without
         // this, an unreadable Keychain would silently swallow the add.
         acknowledgeUnreadableHarness()
-        let gateway = SavedGateway(name: name, url: url, apiKey: apiKey, kind: kind)
+        let gateway = SavedGateway(name: name, url: url, apiKey: apiKey)
         savedGateways.append(gateway)
         persistGateways()
-        if makeActive && kind == .hermes { selectGateway(gateway) }
+        if makeActive { selectGateway(gateway) }
         return gateway
     }
 
@@ -507,11 +434,8 @@ internal final class SettingsViewModel: ObservableObject {
     func removeGateway(_ gateway: SavedGateway) {
         savedGateways.removeAll { $0.id == gateway.id }
         persistGateways()
-        if gateway.id == focusedBackendID {
-            focusedBackendID = nil
-        }
         if gateway.id == activeGatewayID {
-            if let next = savedGateways.first(where: { $0.kind == .hermes }) {
+            if let next = savedGateways.first {
                 activeGatewayID = nil  // force selectGateway to run
                 selectGateway(next)
             } else {

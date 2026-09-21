@@ -292,7 +292,6 @@ internal struct CronDataflowExpandedView: View {
             onUpdatePrompt: { prompt in Task { await listVM.updatePrompt(id: job.id, newPrompt: prompt) } },
             onRename: { name in Task { await listVM.renameJob(id: job.id, newName: name) } },
             siblingJobs: listVM.jobs,
-            supportsRemoveAndEdit: listVM.supportsRemoveAndEdit,
             showsCategoryPath: true,
             dataflow: listVM.dataflow(for: job.id),
             onSelectEndpoint: { graphVM.selectNode(withID: $0.id) }

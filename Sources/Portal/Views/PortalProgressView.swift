@@ -29,7 +29,7 @@ struct PortalProgressView: View {
                 //
                 // This is also the form the other four `repeatForever` sites in
                 // the app already use (FeedView, SessionListView,
-                // CentaurWorkflowsView) — this was the odd one out.
+                // this was the odd one out.
                 .animation(
                     .linear(duration: 0.8).repeatForever(autoreverses: false),
                     value: isSpinning

@@ -36,11 +36,10 @@ enum WikiEventKind: String, CaseIterable, Hashable {
 /// A changeset this event caused — the event→page edge of provenance.
 ///
 /// The reverse direction already exists: `WikiChangeset.provenance` lists the
-/// event keys that caused a change. Hermes' `wiki.events` reports the join in
-/// both directions off one index read, so a surface can walk event → changeset
-/// → page without a second round-trip. Centaur's wiki-api has no equivalent
-/// field, so its events carry an empty array and the affordance simply doesn't
-/// render.
+/// event keys that caused a change. The harness's `wiki.events` reports the
+/// join in both directions off one index read, so a surface can walk event →
+/// changeset → page without a second round-trip. An event with no recorded
+/// changesets carries an empty array and the affordance simply doesn't render.
 internal struct WikiEventChangesetRef: Identifiable, Hashable {
     internal let id: String
     /// Wiki-relative page path — what the changeset edited.
@@ -60,20 +59,18 @@ internal struct WikiEventChangesetRef: Identifiable, Hashable {
 
 // MARK: - WikiTimelineEvent
 
-/// One raw INPUT event that flowed into a knowledge base.
+/// One raw INPUT event that flowed into a knowledge base — a raw source file
+/// under `raw/`, as reported by the harness's `wiki.events`.
 ///
-/// Shared by both backends so the plot and the feed have a single row type:
-/// Centaur fills it from wiki-api `GET /wiki/timeline`, Hermes from
-/// `wiki.events` (a raw source file under `raw/`). Fields the other side
-/// doesn't have stay nil/empty rather than being faked — directive attribution
-/// is Centaur-only, `changesets` is Hermes-only, and every view that shows
-/// either checks first.
+/// One row type for the plot and the feed. Fields a source doesn't carry stay
+/// nil/empty rather than being faked — directive attribution is only present
+/// for directive kinds — and every view that shows them checks first.
 struct WikiTimelineEvent: Identifiable, Hashable {
     let sourceKey: String
     /// Wire kind string. The presentation layer resolves this through the
     /// wiki's `type: event-type` pages (`WikiEventTypeRegistry`) and only falls
-    /// back to `WikiEventKind`'s built-in palette for Centaur, whose kinds are
-    /// fixed by its pipeline rather than declared by the wiki.
+    /// back to `WikiEventKind`'s built-in palette for kinds the wiki hasn't
+    /// declared.
     let kindRaw: String
     let label: String
     /// May be empty — not every source has a canonical link.
@@ -95,10 +92,10 @@ struct WikiTimelineEvent: Identifiable, Hashable {
     let directiveStatus: String?
     let resultingRevisionIDs: [Int64]?
 
-    /// Changesets this event caused (Hermes; empty on Centaur). The
-    /// event → changeset → page navigation edge.
+    /// Changesets this event caused. The event → changeset → page navigation
+    /// edge.
     internal var changesets: [WikiEventChangesetRef] = []
-    /// Content hash of the raw source (Hermes; empty on Centaur).
+    /// Content hash of the raw source.
     internal var sha256: String = ""
 
     var id: String { sourceKey }
@@ -108,10 +105,10 @@ struct WikiTimelineEvent: Identifiable, Hashable {
     var isDirective: Bool { kind == .directive }
 }
 
-// MARK: - WikiEventTimeline (GET /wiki/timeline)
+// MARK: - WikiEventTimeline
 
-/// Response of wiki-api `GET /wiki/timeline`: every ingested source as an
-/// event on a single event-time axis, plus per-kind counts for the legend.
+/// The ingestion event log over a window: every ingested source as an event on
+/// a single event-time axis, plus per-kind counts for the legend.
 struct WikiEventTimeline {
     let since: Date?
     let until: Date?
@@ -134,7 +131,7 @@ struct WikiEventTimeline {
     /// `chartXScale` clips to its domain.
     ///
     /// The window the client asked for and the events the server returned can
-    /// disagree: Hermes filters `since`/`until` by *string* comparison against
+    /// disagree: the harness filters `since`/`until` by *string* comparison against
     /// whatever `ingested` holds, so a differently-formatted timestamp passes the
     /// filter and still lands off-domain. Counting them is what turns "the plot
     /// is empty" into "these events sit outside this window".
@@ -146,90 +143,18 @@ struct WikiEventTimeline {
     }
 }
 
-// MARK: - WikiRevisionsTimeline (GET /wiki/revisions-timeline)
-
-/// Response of wiki-api `GET /wiki/revisions-timeline`: page-edit volume
-/// bucketed over time — the stateful OUTPUT counterpart to the raw input
-/// events. `baseline` is the cumulative revision count BEFORE the window,
-/// so a cumulative "knowledge accrued" curve seeds at the right height.
-struct WikiRevisionsTimeline {
-    /// date_trunc unit the server chose for the window: hour/day/week/month.
-    let unit: String
-    let since: Date?
-    let until: Date?
-    let baseline: Int
-    let totalInWindow: Int
-    let buckets: [Bucket]
-
-    struct Bucket: Identifiable, Hashable {
-        let bucket: Date?
-        let count: Int
-        var id: Date { bucket ?? .distantPast }
-    }
-
-    /// Buckets annotated with the running cumulative total (baseline-seeded),
-    /// ready for the "knowledge accrued" curve.
-    var cumulativePoints: [(bucket: Date, total: Int)] {
-        var running = baseline
-        return buckets.compactMap { b in
-            guard let date = b.bucket else { return nil }
-            running += b.count
-            return (date, running)
-        }
-    }
-
-    /// All-time revision count as of the window's end: what the cumulative
-    /// curve tops out at. This is the headline "knowledge accrued" number.
-    var totalAllTime: Int { baseline + totalInWindow }
-
-    /// The bucket with the most edits in the window (nil when empty) — the
-    /// "busiest \(unit)" stat tile. Ties break to the most recent bucket.
-    var busiestBucket: Bucket? {
-        buckets.filter { $0.bucket != nil && $0.count >= 1 }
-            .max { ($0.count, $0.bucket ?? .distantPast) < ($1.count, $1.bucket ?? .distantPast) }
-    }
-}
-
-// MARK: - WikiChangesSummary (GET /wiki/changes)
-
-/// Page-level slice of wiki-api `GET /wiki/changes`: which wiki pages were
-/// created/updated in the window (anchored on EVENT time, per the handler's
-/// backfill-alignment comment), plus per-type counts. The response also
-/// carries a `sources` array, but that duplicates `/wiki/timeline` with less
-/// enrichment — the feed uses the timeline; this summary feeds the
-/// "knowledge accrued" pane (pages touched + updated-page links).
-struct WikiChangesSummary {
-    let since: Date?
-    let until: Date?
-    let pageCount: Int
-    /// Page type ("topic", "entity", …) → count in window.
-    let pagesByType: [String: Int]
-    let pages: [PageChange]
-
-    struct PageChange: Identifiable, Hashable {
-        /// Document id ("wiki:topic:glossary-mcp") — doubles as the wiki
-        /// page path for the shared selection plane.
-        let id: String
-        let title: String
-        let type: String
-        let url: String
-        let updatedAt: Date?
-    }
-}
-
 // MARK: - Decoding
 
-/// The wiki-api serializes timestamps as RFC3339 strings and encodes a null
-/// time as `""` (its `iso()` helper `unwrap_or_default`s). Decode is manual
-/// dictionary mapping — consistent with CentaurWikiClient's other endpoints
-/// and testable against captured payload shapes.
+/// Timestamps arrive as RFC3339 strings, with a null time encoded as `""`.
+/// Decode is manual dictionary mapping so it can be tested against captured
+/// payload shapes.
 enum WikiTimelineDecoding {
 
     /// RFC3339 parsing, tolerant of the shapes a wiki actually contains; empty
     /// string → nil.
     ///
-    /// wiki-api emits strict RFC3339, but Hermes event times come from a raw
-    /// source's `ingested` frontmatter — hand-written or written by whatever
+    /// Event times come from a raw source's `ingested` frontmatter — hand-written
+    /// or written by whatever
     /// ingested it, so in practice a bare `datetime.isoformat()`
     /// (`2026-08-04T16:55:58.077734`), a space separator, or a plain date all
     /// show up. `ISO8601DateFormatter` rejects every one of those for want of a
@@ -313,47 +238,6 @@ enum WikiTimelineDecoding {
             directiveStatus: e["directive_status"] as? String,
             resultingRevisionIDs: (e["resulting_revision_ids"] as? [Any])?
                 .compactMap { ($0 as? NSNumber)?.int64Value }
-        )
-    }
-
-    static func mapChangesSummary(_ obj: [String: Any]) -> WikiChangesSummary {
-        let rawPages = (obj["pages"] as? [[String: Any]]) ?? []
-        let pages: [WikiChangesSummary.PageChange] = rawPages.compactMap { p in
-            guard let id = p["id"] as? String else { return nil }
-            return WikiChangesSummary.PageChange(
-                id: id,
-                title: p["title"] as? String ?? id,
-                type: p["type"] as? String ?? "topic",
-                url: p["url"] as? String ?? "",
-                updatedAt: parseDate(p["updated_at"])
-            )
-        }
-        let byType = (obj["pages_by_type"] as? [String: Any])?
-            .compactMapValues { ($0 as? NSNumber)?.intValue } ?? [:]
-        return WikiChangesSummary(
-            since: parseDate(obj["since"]),
-            until: parseDate(obj["until"]),
-            pageCount: (obj["page_count"] as? NSNumber)?.intValue ?? pages.count,
-            pagesByType: byType,
-            pages: pages
-        )
-    }
-
-    static func mapRevisionsTimeline(_ obj: [String: Any]) -> WikiRevisionsTimeline {
-        let rawBuckets = (obj["buckets"] as? [[String: Any]]) ?? []
-        let buckets = rawBuckets.map { b in
-            WikiRevisionsTimeline.Bucket(
-                bucket: parseDate(b["bucket"]),
-                count: (b["count"] as? NSNumber)?.intValue ?? 0
-            )
-        }
-        return WikiRevisionsTimeline(
-            unit: obj["unit"] as? String ?? "day",
-            since: parseDate(obj["since"]),
-            until: parseDate(obj["until"]),
-            baseline: (obj["baseline"] as? NSNumber)?.intValue ?? 0,
-            totalInWindow: (obj["total_in_window"] as? NSNumber)?.intValue ?? 0,
-            buckets: buckets
         )
     }
 }

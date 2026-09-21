@@ -18,7 +18,6 @@ internal final class VoiceBackendSpy: AgentBackend {
     internal var onReconnected: (() async -> Void)?
     internal let apiKey = ""
     internal var activeSessionID: String? = "voice-session"
-    internal let capabilities = BackendCapabilities.hermes
 
     internal private(set) var voiceActions: [String] = []
     internal private(set) var recordActions: [String] = []

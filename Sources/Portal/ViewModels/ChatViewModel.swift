@@ -303,9 +303,6 @@ final class ChatViewModel: ObservableObject {
     /// property so existing views and `if pendingApproval != nil` layout checks
     /// keep working unchanged.
     @Published internal private(set) var pendingApproval: ApprovalPayload?
-    /// Active backend's feature flags — views hide affordances the backend
-    /// can't serve (attachments/skills pickers on Centaur sessions).
-    @Published private(set) var backendCapabilities: BackendCapabilities = .hermes
     /// Blocking clarify question awaiting an answer (clarify.request).
     @Published var pendingClarify: ClarifyPayload?
     @Published var activeToolCalls: [String: ToolCallRecord] = [:] // tool_id → record
@@ -747,7 +744,6 @@ final class ChatViewModel: ObservableObject {
         pendingVisibleEventFlush?.cancel()
         pendingVisibleEventFlush = nil
         gatewayClient = client
-        backendCapabilities = client.capabilities
 
         // Subscribe to gateway events. Events are multiplexed over one app-level
         // WebSocket, so only apply events whose session_id matches this chat's
@@ -1452,37 +1448,16 @@ client.eventStream
     }
 
     private func applyEphemeralPrompt(for sessionID: String, using client: any AgentBackend) async {
-        guard client.capabilities.supportsResponseStyles else { return }
         let prompt = Self.appFormattingPrompt + "\n\n" + responseStyle.preamble
         try? await client.setEphemeralPrompt(sessionID: sessionID, prompt: prompt)
     }
 
-    /// Sessions that already received the formatting prompt inline (backends
-    /// with no system-prompt channel). In-memory: harness threads have
-    /// conversational memory, so once per session per launch is enough — a
-    /// re-send after app restart is redundant but harmless.
-    private var inlineFormattingPromptSent: Set<String> = []
-
-    /// The formatting contract for backends that can't take an ephemeral
-    /// system prompt (Centaur): folded into the FIRST user message of the
-    /// session instead. Without this the harness model never learns the
-    /// app's native fences (```chart/graph/stats/tree, typeset math, diff
-    /// rendering) and answers in plain markdown — "Centaur doesn't support
-    /// the pretty viz" was exactly this gap, not a renderer limitation.
-    private func inlineFormattingPreamble(for sessionID: String) -> String {
-        guard !backendCapabilities.supportsResponseStyles,
-              !inlineFormattingPromptSent.contains(sessionID) else { return "" }
-        inlineFormattingPromptSent.insert(sessionID)
-        return Self.appFormattingPrompt + "\n\n---\n\n"
-    }
-
     /// Route a newly created session to the user's last-picked model. No-op
-    /// when the user never picked one (gateway default stays in charge) or
-    /// the backend can't switch models. Best-effort like the ephemeral
-    /// prompt: session.info remains the source of truth for the badge.
+    /// when the user never picked one (harness default stays in charge).
+    /// Best-effort like the ephemeral prompt: session.info remains the source
+    /// of truth for the badge.
     private func applyDefaultModel(for sessionID: String, using client: any AgentBackend) async {
-        guard backendCapabilities.supportsModelSwitching,
-              let model = AgentModel.storedDefaultID else { return }
+        guard let model = AgentModel.storedDefaultID else { return }
         try? await client.setConfig(key: "model", value: model, sessionID: sessionID)
     }
 
@@ -1550,14 +1525,6 @@ client.eventStream
     /// Call this whenever `inputText` changes to update slash suggestions.
     func updateSlashSuggestions() {
         let text = inputText
-        // Skills are Hermes gateway state; offering them on a harness
-        // backend would attach nothing (setSessionSkills is a no-op there).
-        guard backendCapabilities.supportsSkills else {
-            slashMode = false
-            slashSuggestions = []
-            slashSelectedIndex = 0
-            return
-        }
         guard text.hasPrefix("/") else {
             slashMode = false
             slashSuggestions = []
@@ -2165,7 +2132,7 @@ client.eventStream
             }
 
             log.info("Submitting prompt with \(attachments.count) attachments, text length: \(promptText.count)")
-            let promptWithSkills = inlineFormattingPreamble(for: sid) + skillPreamble() + promptText
+            let promptWithSkills = skillPreamble() + promptText
             // A spoken back-and-forth is a conversation, not an action request:
             // route conversation-mode turns through the tool-less chat path
             // (plain completion, no tool loop) so replies come back fast. Typed
@@ -2189,7 +2156,6 @@ client.eventStream
     internal func startVoiceRecording() async {
         if await startLocalVoiceRecordingIfEnabled() { return }
         guard let client = gatewayClient else { return }
-        guard backendCapabilities.supportsVoice else { return }
         guard !isVoiceRecording else { return }
         do {
             _ = try await client.voiceToggle(action: "on")
@@ -2787,6 +2753,9 @@ client.eventStream
             if messages[idx].content.isEmpty && status == "interrupted" {
                 messages[idx].content = "_Interrupted_"
             }
+            // Content is final here (streamed text, or the interrupted stub) —
+            // prime the cache so the settled bubble stops re-scanning per render.
+            messages[idx].primeStrippedContentCache()
         }
         activeToolCalls = [:]
         isStreaming = false
@@ -2923,7 +2892,6 @@ client.eventStream
     /// confirm_required, published as `pendingModelConfirmation` for the UI
     /// to show; confirming resends with the confirmation flag.
     func switchModel(_ model: String, provider: String? = nil, confirmed: Bool = false) async {
-        guard backendCapabilities.supportsModelSwitching else { return }
         // Record the pick as the new-session default BEFORE any early return.
         // If no session is wired yet (picker used from a fresh chat before
         // session.create lands), the guard below bails — the pick must still
@@ -2971,8 +2939,7 @@ client.eventStream
     /// returning early on the next session left every session after the first
     /// showing "No model" forever.
     func refreshModelCatalog(force: Bool = false) async {
-        guard backendCapabilities.supportsModelSwitching,
-              let client = gatewayClient else { return }
+        guard let client = gatewayClient else { return }
         let isStaleForSession = modelCatalogSessionID != sessionID
         if let catalog = modelCatalog, !force, !isStaleForSession {
             adoptCatalogModelIfBadgeEmpty(catalog)
@@ -3015,7 +2982,6 @@ client.eventStream
     /// when the picker first appeared.
     private func fillModelBadgeIfEmpty() {
         guard currentModel.isEmpty,
-              backendCapabilities.supportsModelSwitching,
               gatewayClient != nil else { return }
         Task { await refreshModelCatalog() }
     }
@@ -3760,7 +3726,7 @@ client.eventStream
             state.messages[idx].usage = payload.usage
             state.messages[idx].status = payload.status
             state.messages[idx].attachments = attachments(from: payload.text)
-            state.messages[idx]._contentWithoutAttachments = MediaParser.stripMediaTags(from: payload.text)
+            state.messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &state.messages[idx], finalReasoning: payload.reasoning)
             state.messages[idx].toolCalls = Array(state.activeToolCalls.values)
             // Reconcile the compaction counter BEFORE snapshotting so an
@@ -3912,6 +3878,7 @@ client.eventStream
                let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
                 state.messages[idx].isStreaming = false
                 state.messages[idx].status = "error"
+                state.messages[idx].primeStrippedContentCache()
                 state.streamingMessageID = nil
             }
             state.activeToolCalls = [:]
@@ -4214,6 +4181,10 @@ client.eventStream
             messages[idx].isStreaming = false
             messages[idx].usage = payload.usage
             messages[idx].status = payload.status
+            // Prime the stripped-content cache now the content is final, so the
+            // bubble (read aloud + auto-scrolling) doesn't re-run stripMediaTags
+            // on every redraw. The session-routed path does the same at complete.
+            messages[idx].primeStrippedContentCache()
             finishThinkingTrace(on: &messages[idx], finalReasoning: payload.reasoning)
             // Merge any accumulated tool calls into the message
             messages[idx].toolCalls = Array(activeToolCalls.values)

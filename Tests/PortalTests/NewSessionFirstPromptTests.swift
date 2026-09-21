@@ -32,7 +32,6 @@ private final class FirstPromptBackendSpy: AgentBackend {
     internal var onReconnected: (() async -> Void)?
     internal let apiKey = ""
     internal var activeSessionID: String?
-    internal let capabilities = BackendCapabilities.hermes
 
     /// Short runtime hex `session.create` hands back — exactly the shape a
     /// fresh session is keyed by before any `session.title` event.

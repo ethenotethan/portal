@@ -47,7 +47,7 @@ enum SessionExportSupport {
         let metadata = SessionExporter.Metadata(
             title: title,
             sessionID: chatViewModel.currentSessionID,
-            gatewayName: settings.focusedGateway?.displayName,
+            gatewayName: settings.activeGateway?.displayName,
             model: chatViewModel.currentModel.isEmpty ? nil : chatViewModel.currentModel,
             usage: usage,
             assistantName: assistantName

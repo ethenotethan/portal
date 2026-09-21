@@ -50,6 +50,20 @@ struct ChatMessage: Identifiable, Codable {
 /// Cached value — set eagerly to avoid repeated regex scanning during renders.
     var _contentWithoutAttachments: String?
 
+    /// Populate `_contentWithoutAttachments` from the current `content`.
+    ///
+    /// The cache is derived, not persisted (it is deliberately absent from
+    /// `CodingKeys`), so every path that produces a *finished* message has to
+    /// prime it: decode/restore, and each completion path. Miss one and that
+    /// message's bubble re-runs `stripMediaTags` over the whole content on
+    /// every `body` evaluation — and the transcript re-renders many times a
+    /// second while a reply is read aloud or the pane scrolls, so an unprimed
+    /// message (a restored session, or a just-finished foreground turn) spins
+    /// the main thread. Call once, when the content is final.
+    internal mutating func primeStrippedContentCache() {
+        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, role, content, isStreaming, toolCalls, reasoning, thinkingTrace
         case usage, status, attachments, userAttachments, graphSnapshot, skills
@@ -70,6 +84,10 @@ struct ChatMessage: Identifiable, Codable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         attachments = try container.decodeIfPresent([FileAttachment].self, forKey: .attachments) ?? []
         userAttachments = try container.decodeIfPresent([MediaAttachment].self, forKey: .userAttachments) ?? []
+        // The stripped-content cache is not part of the wire format, so decoded
+        // history would otherwise re-scan every bubble on every render. Prime it
+        // once here so a restored/resumed transcript renders cheaply.
+        _contentWithoutAttachments = MediaParser.stripMediaTags(from: content)
     }
 
     enum Role: String, Equatable, Codable {

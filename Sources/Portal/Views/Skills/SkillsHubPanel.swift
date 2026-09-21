@@ -11,19 +11,10 @@ internal struct SkillsHubPanel: View {
     internal let viewModel: SkillsViewModel
 
     internal var body: some View {
-        Group {
-            if viewModel.isStandardMode {
-                PanelEmptyState(
-                    icon: "lock",
-                    message: "The Skills Hub needs a Gateway harness — a Standard backend manages a fixed local set"
-                )
-            } else {
-                VStack(spacing: 0) {
-                    searchRow
-                    Divider().overlay(Theme.border.opacity(0.5))
-                    results
-                }
-            }
+        VStack(spacing: 0) {
+            searchRow
+            Divider().overlay(Theme.border.opacity(0.5))
+            results
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)

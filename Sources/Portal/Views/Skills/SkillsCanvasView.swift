@@ -64,48 +64,23 @@ internal struct SkillsCanvasView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background)
         .environmentObject(filterState)
-        .task(id: settings.focusedGateway?.id) { await connectAndLoad() }
+        .task { await connectAndLoad() }
     }
 
     // MARK: - Backend wiring
 
-    /// Same dual-mode routing as `SkillsView`: a focused Standard backend is
-    /// HTTP-only and goes through the dashboard API; everything else uses the
-    /// WebSocket Gateway.
     private func connectAndLoad() async {
-        if let standard = settings.focusedGateway, standard.kind == .hermesStandard,
-           let client = Self.standardClient(for: standard) {
-            viewModel.setStandardClient(client)
-            await viewModel.refreshStandard()
-        } else {
-            viewModel.setGatewayClient(gatewayClientWrapper.client)
-            // Warm the local summarization model (downloads on first use) so the
-            // detail panel has a summary ready by the time a skill is selected.
-            SkillSummaryService.shared.warmUp()
-            if gatewayClientWrapper.isConnected {
-                await viewModel.refreshIfNeeded()
-            }
-        }
-    }
-
-    /// Build an upstream Hermes dashboard client for a focused Standard gateway.
-    private static func standardClient(for gateway: SavedGateway) -> HermesStandardClient? {
-        // GatewayURL, not URL(string:) — a bare "host:8080" parses as a host-less
-        // URL and yields no client at all.
-        guard let baseURL = GatewayURL.httpOrigin(gateway.url) else { return nil }
-        do {
-            return try HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
-        } catch {
-            return nil
+        viewModel.setGatewayClient(gatewayClientWrapper.client)
+        // Warm the local summarization model (downloads on first use) so the
+        // detail panel has a summary ready by the time a skill is selected.
+        SkillSummaryService.shared.warmUp()
+        if gatewayClientWrapper.isConnected {
+            await viewModel.refreshIfNeeded()
         }
     }
 
     private func refresh() async {
-        if viewModel.isStandardMode {
-            await viewModel.refreshStandard()
-        } else {
-            await viewModel.reload()
-        }
+        await viewModel.reload()
     }
 
     // MARK: - Canvas bar (row 1)
@@ -202,7 +177,7 @@ internal struct SkillsCanvasView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
                     .lineLimit(1)
-            } else if !viewModel.isStandardMode && !gatewayClientWrapper.isConnected {
+            } else if !gatewayClientWrapper.isConnected {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.warning)

@@ -370,7 +370,6 @@ private final class LiveSwitchBackendSpy: AgentBackend {
     internal var onReconnected: (() async -> Void)?
     internal let apiKey = ""
     internal var activeSessionID: String?
-    internal let capabilities = BackendCapabilities.hermes
 
     internal var historyBySession: [String: [[String: AnyCodable]]] = [:]
     /// A turn the gateway reports still running when this client resumes —

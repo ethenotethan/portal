@@ -5,7 +5,7 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "CronSo
 
 /// The two reads the explorer needs from the gateway's file browser. A protocol
 /// so the view model never names the concrete client and a test can hand it a
-/// stub — the same split `HermesStandardCronManaging` gives the cron list.
+/// stub for tests.
 @MainActor
 internal protocol CronSourceFileReading: AnyObject {
     func readFile(root: String, path: String) async throws -> FileContent

@@ -23,7 +23,7 @@ extension WikiGraphViewModel {
     /// declaring it, and not worth failing the surface over.
     ///
     /// Fetched serially rather than in a task group: `WikiSource` is a
-    /// non-`Sendable` class (the Centaur client and the gateway are both
+    /// non-`Sendable` class (CodeGraphSource and the gateway are both
     /// main-actor bound), so handing it to concurrent child tasks is a data
     /// race the compiler correctly rejects. The cost is bounded by
     /// `eventTypePageLimit` round-trips off the critical path, since the graph

@@ -50,7 +50,6 @@ internal struct ContentView: View {
     /// Course to jump straight into when Learning opens — set when the agent
     /// generates one, cleared once Learning has consumed it.
     @State private var pendingCurriculumID: String?
-    @State private var showCentaurWorkflows = false
     @State private var showArtifactsPane = false
     @State private var showFiles = false
     @State private var selectedTab = 0
@@ -135,10 +134,6 @@ internal struct ContentView: View {
                 // until the user taps something that reconnects.
                 await gatewayClientWrapper.connectWithRetry(using: settings)
                 wireUpClient()
-                // Focus persists across launches: if a Standard backend was
-                // focused when the app quit, route chat to its /api/ws sidecar
-                // now (the change-only onChange above never fires on launch).
-                applyFocusedChatBackend()
                 if gatewayClientWrapper.isConnected {
                     await sessionList.refreshSessions()
                     await capabilitiesStore.refresh(using: gatewayClientWrapper.client)
@@ -161,8 +156,7 @@ internal struct ContentView: View {
                 // Warm the wiki graph now, at connect, so the surface is already
                 // populated the first time it's opened instead of scanning on
                 // .onAppear and showing a blank "Loading…" until the round-trip
-                // returns. Home gateway only (override/Centaur sources load per
-                // session); guarded on an empty graph so a live graph is never
+                // returns. Guarded on an empty graph so a live graph is never
                 // re-fetched, and it's a no-op when nothing opens the wiki.
                 if wikiViewModel.graph.pages.isEmpty {
                     Task { await wikiViewModel.load(client: gatewayClientWrapper.client) }
@@ -216,17 +210,6 @@ internal struct ContentView: View {
             // Same in-place-edit hole as the URL above: a corrected key never
             // reached the wire without a restart.
             scheduleSettingsReconnect()
-        }
-        .onChange(of: settings.focusedBackendID) { _, focused in
-            // Propagate the focused gateway to the artifact store so it can
-            // scope sortedArtifacts and stamp new artifacts with the right owner.
-            updateArtifactGatewayScope(focusedID: focused)
-            // The focused gateway is who the user is now messaging — adopt its
-            // persona (name + avatar) so the chat chrome follows the selection.
-            refreshPersona()
-            // Route the chat pipeline: a focused Standard backend chats over its
-            // own /api/ws sidecar; anything else falls back to the home gateway.
-            applyFocusedChatBackend()
         }
         .onChange(of: settings.savedGateways) { _, _ in
             // A gateway was renamed or had its avatar changed in Settings —
@@ -378,20 +361,14 @@ internal struct ContentView: View {
         }
     }
 
-    /// Root content for the Sessions tab: the management dashboard when a
-    /// Standard backend is focused, otherwise the session list. Extracted so
-    /// the NavigationStack modifier chain type-checks in reasonable time.
+    /// Root content for the Sessions tab: the session list. Extracted so the
+    /// NavigationStack modifier chain type-checks in reasonable time.
     @ViewBuilder
     private var iOSRootContent: some View {
         SessionListView(
             currentSessionID: chatViewModel.currentSessionID,
             onCreateSession: {
-                let focused = settings.focusedGateway
-                Task {
-                    await createAndSwitchToNewSession(
-                        on: focused?.kind.isSessionScoped == true ? focused : nil
-                    )
-                }
+                Task { await createAndSwitchToNewSession() }
             },
             onOpenPanel: {
                 showCronSheet = true
@@ -504,9 +481,6 @@ internal struct ContentView: View {
             .presentationDetents([.large])
         }
         .sheet(isPresented: $showLiveSessions) {
-            // The dashboard reads from `sessionList`, which follows the Standard
-            // sidecar when a Standard backend is focused — real Standard
-            // sessions, no bespoke pane.
             SessionsDashboard(onOpenSession: { sessionID in
                 showLiveSessions = false
                 selectedTab = 0
@@ -559,8 +533,8 @@ internal struct ContentView: View {
             // presents it is too); give iOS an inert branch so the shared
             // modifier chain compiles on both platforms.
             #if os(macOS)
-            AddGatewaySheet { name, url, key, kind in
-                settings.addGateway(name: name, url: url, apiKey: key, kind: kind)
+            AddGatewaySheet { name, url, key in
+                settings.addGateway(name: name, url: url, apiKey: key)
                 showAddGateway = false
             } onCancel: {
                 showAddGateway = false
@@ -606,14 +580,13 @@ internal struct ContentView: View {
 
     private var isOverlayActive: Bool {
         showCronDashboard || showLiveSessions || showActivitySheet
-            || showFeedSheet || showSkills || showGraphs || showLearning || showCentaurWorkflows
+            || showFeedSheet || showSkills || showGraphs || showLearning
             || showArtifactsPane || showFiles || showSettingsOverlay
     }
 
     private var overlayTitle: String {
         if showSettingsOverlay { return "Settings" }
         if showGraphs { return "Graphs" }
-        if showCentaurWorkflows { return "Workflows" }
         if showArtifactsPane { return "Artifacts" }
         if showFiles { return "Files" }
         if showFeedSheet { return "Feed" }
@@ -732,79 +705,11 @@ internal struct ContentView: View {
         showActivitySheet = false
         showSkills = false
         showGraphs = false
-        showCentaurWorkflows = false
         showArtifactsPane = false
         showFiles = false
         showFeedSheet = false
         showLearning = false
         showSettingsOverlay = false
-    }
-
-    /// A management-scoped Standard backend changes only management surfaces;
-    /// the app-level Gateway connection and its chat session list stay intact.
-    private var focusedHermesStandardGateway: SavedGateway? {
-        guard let focused = settings.focusedGateway,
-              focused.kind == .hermesStandard else {
-            return nil
-        }
-        return focused
-    }
-
-    /// The `GatewayClient` that should drive the session list, chat, and
-    /// create/resume RPC right now. A focused Hermes Standard backend routes
-    /// everything session-related to its `/api/ws` sidecar (wire-compatible
-    /// with the gateway, so the same `session.*` RPC works); every other focus
-    /// uses the app-level home client. Cron/Skills are unaffected — they stay
-    /// on their own HTTP path regardless.
-    ///
-    /// Returns the home client if a focused Standard backend has no usable
-    /// sidecar URL, so callers always get a live client to talk to.
-    private var effectiveSessionsClient: GatewayClient {
-        if let standard = focusedHermesStandardGateway,
-           let sidecar = gatewayClientWrapper.standardChatClient(for: standard) {
-            return sidecar
-        }
-        return gatewayClientWrapper.client
-    }
-
-    /// Point the chat pipeline AND the session list at whatever backend the
-    /// focused gateway implies. A focused Hermes Standard backend serves both
-    /// over its own `/api/ws` sidecar (a second WebSocket, wire-compatible with
-    /// the gateway); every other focus falls back to the app-level home client.
-    /// Chat state is dropped on the swap so a Standard turn never renders on top
-    /// of a Hermes transcript.
-    @MainActor
-    private func applyFocusedChatBackend() {
-        let target = effectiveSessionsClient
-        guard !chatViewModel.isDriven(by: target) else { return }
-        chatViewModel.saveHistory()
-        chatViewModel.resetForGatewaySwitch()
-        chatViewModel.setGatewayClient(target)
-        // The sidebar must list the sessions the user can actually open in the
-        // chat now on screen, so it follows the same client. Cron/Skills VMs
-        // keep their independent HTTP source — untouched here.
-        sessionList.resetForGatewaySwitch()
-        sessionList.setGatewayClient(target)
-        Task { await sessionList.refreshSessions() }
-    }
-
-    /// Poll a client's connection state until it reports `.connected` or the
-    /// timeout elapses. Used for the Standard chat sidecar, which connects
-    /// asynchronously and has no wrapper-managed wait like the home client.
-    @MainActor
-    private func waitForConnection(of client: GatewayClient, timeout seconds: TimeInterval) async -> Bool {
-        let deadline = Date().addingTimeInterval(seconds)
-        while Date() < deadline {
-            if case .connected = client.connectionState { return true }
-            do {
-                try await Task.sleep(nanoseconds: 100_000_000)
-            } catch {
-                // Cancellation (the only error Task.sleep throws) ends the wait.
-                return false
-            }
-        }
-        if case .connected = client.connectionState { return true }
-        return false
     }
 
     private var overlayHeaderBar: some View {
@@ -842,10 +747,9 @@ internal struct ContentView: View {
     }
 
 
-    /// Identity the chat chrome presents — an adopted gateway persona wins, else
-    /// the harness-fixed identity for session-scoped backends (Centaur).
+    /// Identity the chat chrome presents: the adopted harness persona.
     private var displayPersona: Persona {
-        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
+        personaManager.activePersona
     }
 
     private var chatToolbarPills: some View {
@@ -900,77 +804,11 @@ internal struct ContentView: View {
         .background(.quaternary, in: Capsule())
     }
 
-    /// Wiki source for the visible chat's backend: a Centaur session gets a
-    /// wiki-api client against its deployment's base URL; Hermes sessions
-    /// return nil (WikiGraphView then uses the home gateway's wiki.* RPCs).
-    /// Built fresh per access — the view model retains the one it loads
-    /// from (WikiGraphViewModel.loadedSource must stay strong for exactly
-    /// this reason).
-    private var centaurWikiSource: (any WikiSource)? {
-        guard let sid = chatViewModel.currentSessionID,
-              let backendID = SessionBackendRegistry.shared.backendID(for: sid),
-              let entry = settings.savedGateways.first(where: { $0.id == backendID }),
-              entry.kind == .centaur,
-              let url = URL(string: entry.url.trimmingCharacters(in: .whitespaces)) else {
-            return nil
-        }
-        return CentaurWikiClient(baseURL: url, apiKey: entry.apiKey)
-    }
-
-
-    /// Workflows panel for the backend serving the visible chat. The client
-    /// resolves through the same registry/wrapper path the chat uses, so the
-    /// panel always talks to the deployment on screen; a non-Centaur state
-    /// (stale flag after switching away) shows a quiet notice.
-    @ViewBuilder
-    private var centaurWorkflowsOverlay: some View {
-        if let sid = chatViewModel.currentSessionID,
-           let backendID = SessionBackendRegistry.shared.backendID(for: sid),
-           let entry = settings.savedGateways.first(where: { $0.id == backendID }),
-           let client = gatewayClientWrapper.sessionScopedBackend(for: entry) as? CentaurClient {
-            CentaurWorkflowsView(client: client) {
-                showCentaurWorkflows = false
-            }
-        } else {
-            VStack(spacing: 8) {
-                Text("No Centaur session is active")
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Theme.secondary)
-                Button("Close") { showCentaurWorkflows = false }
-                    .portalButton()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-
     #if os(macOS)
-    /// Switcher selection = "take me there", not just a checkmark move.
-    /// Hermes entries focus + reconnect via selectGateway as before. For a
-    /// session-scoped backend (Centaur), focus it AND put its chat on
-    /// screen: resume the most recent session recorded on that entry, or
-    /// create the first one — the switcher alone is enough to start
-    /// interacting, no detour through the New Session menu.
+    /// Switcher selection = "take me there": activate the harness, which
+    /// reconnects the transport and reloads every surface onto it.
     private func switchToGateway(_ gateway: SavedGateway) {
         settings.selectGateway(gateway)
-        guard gateway.kind.isSessionScoped else { return }
-
-        let known = SessionBackendRegistry.shared.sessionIDs(on: gateway.id)
-        // Rank by the session list's recency where known; registry order
-        // is meaningless.
-        let mostRecent = sessionList.sessions
-            .filter { known.contains($0.id) }
-            .max { lhs, rhs in
-                let l = lhs.lastActive ?? lhs.startedAt ?? .distantPast
-                let r = rhs.lastActive ?? rhs.startedAt ?? .distantPast
-                return l < r
-            }?.id ?? known.first
-
-        if let sessionID = mostRecent {
-            sessionList.selectSession(id: sessionID)
-        } else {
-            Task { await createAndSwitchToNewSession(on: gateway) }
-        }
     }
 
     /// Menu contents for switching harnesses — the list of saved harnesses plus
@@ -983,13 +821,10 @@ internal struct ContentView: View {
             Button {
                 switchToGateway(gateway)
             } label: {
-                // Checkmark follows FOCUS (what the user selected), not
-                // the underlying connection — selecting Centaur checks
-                // Centaur even though the Hermes socket stays up.
-                if settings.isFocused(gateway) {
+                if settings.isActive(gateway) {
                     Label(gateway.displayName, systemImage: "checkmark")
                 } else {
-                    Label(gateway.displayName, systemImage: gateway.kind.iconName)
+                    Label(gateway.displayName, systemImage: "server.rack")
                 }
             }
         }
@@ -1071,108 +906,94 @@ internal struct ContentView: View {
             .keyboardShortcut("l", modifiers: .command)
             .accessibilityLabel("Sessions")
 
-            // Hermes gateway services — hidden while a harness-backed
-            // session (Centaur) is front and center: cron/activity/feed/
-            // learning are home-gateway ontology, not part of the harness's
-            // presentation. Settings and Sessions stay — they're app chrome.
-            if chatViewModel.backendCapabilities.supportsGatewayServices {
-                Button {
-                    closeAllOverlays()
-                    showCronDashboard = true
-                    CronRunHistoryStore.shared.markAllCronRunsRead()
-                } label: {
-                    Label("Cron", systemImage: "clock.badge.checkmark")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.cron)
-                .overlay(alignment: .topTrailing) {
-                    if cronRunStore.unreadCronRunCount > 0 {
-                        Text("\(cronRunStore.unreadCronRunCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Circle().fill(.red))
-                            .offset(x: 6, y: -4)
-                    }
-                }
-                .keyboardShortcut("k", modifiers: .command)
-                .accessibilityLabel("Cron Dashboard")
-
-                Button {
-                    closeAllOverlays()
-                    showActivitySheet = true
-                } label: {
-                    Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.activity)
-                .accessibilityLabel("Activity")
-                .accessibilityIdentifier("activityInboxButton")
+            Button {
+                closeAllOverlays()
+                showCronDashboard = true
+                CronRunHistoryStore.shared.markAllCronRunsRead()
+            } label: {
+                Label("Cron", systemImage: "clock.badge.checkmark")
+                    .labelStyle(.iconOnly)
             }
-
-            if chatViewModel.backendCapabilities.supportsSkills {
-                Button {
-                    closeAllOverlays()
-                    showSkills = true
-                } label: {
-                    Label("Skills", systemImage: "sparkles")
-                        .labelStyle(.iconOnly)
+            .toolbarIcon(.cron)
+            .overlay(alignment: .topTrailing) {
+                if cronRunStore.unreadCronRunCount > 0 {
+                    Text("\(cronRunStore.unreadCronRunCount)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Circle().fill(.red))
+                        .offset(x: 6, y: -4)
                 }
-                .toolbarIcon(.skills)
-                .keyboardShortcut("j", modifiers: .command)
-                .accessibilityLabel("Skills")
             }
+            .keyboardShortcut("k", modifiers: .command)
+            .accessibilityLabel("Cron Dashboard")
 
-            if chatViewModel.backendCapabilities.supportsGatewayServices {
-                Button {
-                    closeAllOverlays()
-                    showFeedSheet = true
-                } label: {
-                    Label("Feed", systemImage: "newspaper")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.feed)
-                .keyboardShortcut("f", modifiers: .command)
-                .accessibilityLabel("Feed")
-
-                Button {
-                    closeAllOverlays()
-                    showLearning = true
-                } label: {
-                    Label("Learning", systemImage: "books.vertical.fill")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.learning)
-                .keyboardShortcut("e", modifiers: .command)
-                .accessibilityLabel("Learning")
+            Button {
+                closeAllOverlays()
+                showActivitySheet = true
+            } label: {
+                Label("Activity", systemImage: activityInbox.unreadCount > 0 ? "bell.badge.fill" : "bell")
+                    .labelStyle(.iconOnly)
             }
+            .toolbarIcon(.activity)
+            .accessibilityLabel("Activity")
+            .accessibilityIdentifier("activityInboxButton")
 
-            if chatViewModel.backendCapabilities.supportsWiki {
-                Button {
-                    closeAllOverlays()
-                    showGraphs = true
-                } label: {
-                    Label("Graphs", systemImage: "network")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.wiki)
-                .keyboardShortcut("w", modifiers: .command)
-                .accessibilityLabel("Graphs")
+            Button {
+                closeAllOverlays()
+                showSkills = true
+            } label: {
+                Label("Skills", systemImage: "sparkles")
+                    .labelStyle(.iconOnly)
             }
+            .toolbarIcon(.skills)
+            .keyboardShortcut("j", modifiers: .command)
+            .accessibilityLabel("Skills")
 
-            if chatViewModel.backendCapabilities.supportsGatewayServices {
-                Button {
-                    closeAllOverlays()
-                    showFiles = true
-                } label: {
-                    Label("Files", systemImage: "folder")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.files)
-                .keyboardShortcut("b", modifiers: .command)
-                .accessibilityLabel("Files")
+            Button {
+                closeAllOverlays()
+                showFeedSheet = true
+            } label: {
+                Label("Feed", systemImage: "newspaper")
+                    .labelStyle(.iconOnly)
             }
+            .toolbarIcon(.feed)
+            .keyboardShortcut("f", modifiers: .command)
+            .accessibilityLabel("Feed")
+
+            Button {
+                closeAllOverlays()
+                showLearning = true
+            } label: {
+                Label("Learning", systemImage: "books.vertical.fill")
+                    .labelStyle(.iconOnly)
+            }
+            .toolbarIcon(.learning)
+            .keyboardShortcut("e", modifiers: .command)
+            .accessibilityLabel("Learning")
+
+            Button {
+                closeAllOverlays()
+                showGraphs = true
+            } label: {
+                Label("Graphs", systemImage: "network")
+                    .labelStyle(.iconOnly)
+            }
+            .toolbarIcon(.wiki)
+            .keyboardShortcut("w", modifiers: .command)
+            .accessibilityLabel("Graphs")
+
+            Button {
+                closeAllOverlays()
+                showFiles = true
+            } label: {
+                Label("Files", systemImage: "folder")
+                    .labelStyle(.iconOnly)
+            }
+            .toolbarIcon(.files)
+            .keyboardShortcut("b", modifiers: .command)
+            .accessibilityLabel("Files")
 
             // Living artifacts — named models any writer maintains (chat,
             // cron, workflows), rendered live. Cross-backend surface.
@@ -1186,22 +1007,6 @@ internal struct ContentView: View {
             .toolbarIcon(.artifacts)
             .keyboardShortcut("d", modifiers: .command)
             .accessibilityLabel("Artifacts")
-
-            // Centaur workflow introspection — fills the chrome slot the
-            // Hermes cron button vacates when a Centaur session is front and
-            // center (same Cmd-K muscle memory).
-            if chatViewModel.backendCapabilities.supportsWorkflows {
-                Button {
-                    closeAllOverlays()
-                    showCentaurWorkflows = true
-                } label: {
-                    Label("Workflows", systemImage: "point.3.connected.trianglepath.dotted")
-                        .labelStyle(.iconOnly)
-                }
-                .toolbarIcon(.workflows)
-                .keyboardShortcut("k", modifiers: .command)
-                .accessibilityLabel("Centaur Workflows")
-            }
         }
         .foregroundStyle(Theme.primary)
     }
@@ -1214,12 +1019,7 @@ internal struct ContentView: View {
                     SessionListView(
                         currentSessionID: chatViewModel.currentSessionID,
                         onCreateSession: {
-                            let focused = settings.focusedGateway
-                            Task {
-                                await createAndSwitchToNewSession(
-                                    on: focused?.kind.isSessionScoped == true ? focused : nil
-                                )
-                            }
+                            Task { await createAndSwitchToNewSession() }
                         },
                         onOpenPanel: {
                             closeAllOverlays()
@@ -1273,9 +1073,6 @@ internal struct ContentView: View {
 
             if showLiveSessions {
                 #if os(macOS)
-                // The dashboard reads from `sessionList`, which follows the
-                // Standard sidecar when a Standard backend is focused — so it
-                // shows real Standard sessions without a bespoke pane.
                 SessionsDashboardCanvas(onOpenSession: { sessionID in
                     showLiveSessions = false
                     sessionList.selectSession(id: sessionID)
@@ -1378,19 +1175,13 @@ internal struct ContentView: View {
             }
 
             if showGraphs {
-                GraphsView(wikiViewModel: wikiViewModel, overrideSource: centaurWikiSource)
+                GraphsView(wikiViewModel: wikiViewModel)
                     .environmentObject(gatewayClientWrapper)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Theme.background)
                     .transition(.opacity)
             }
 
-            if showCentaurWorkflows {
-                centaurWorkflowsOverlay
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Theme.background)
-                    .transition(.opacity)
-            }
 
             if showFiles {
                 FilesBrowserView()
@@ -1496,48 +1287,9 @@ internal struct ContentView: View {
         guard let session = sessionList.sessions.first(where: { $0.id == newID }) else { return }
         let rpcID = session.rpcID
 
-        // Route the chat pipeline to the backend this session lives on.
-        // Session-scoped sessions swap ChatViewModel's client to the entry's
-        // backend client; everything else (re)wires the home Hermes gateway
-        // (setGatewayClient is identity-guarded, so re-setting the same
-        // client is a no-op).
-        if let backendID = SessionBackendRegistry.shared.backendID(for: newID),
-           let entry = settings.savedGateways.first(where: { $0.id == backendID }),
-           entry.kind.isSessionScoped {
-            // Keep the switcher in sync with the session actually on screen:
-            // opening a Centaur session focuses its entry, so the badge names
-            // the backend serving the visible chat.
-            settings.selectGateway(entry)
-            // Same create-race sentinel as the hermes branch: registering the
-            // freshly created session flips the list selection, and this
-            // handler must not re-resume (re-POST + re-subscribe SSE) on top
-            // of the in-flight creation.
-            if pendingCreatedSessionID == newID || pendingCreatedSessionID == "__creating__" {
-                return
-            }
-            pendingCreatedSessionID = nil
-            if let backend = gatewayClientWrapper.sessionScopedBackend(for: entry) {
-                chatViewModel.setGatewayClient(backend)
-                pushOwnedSessionOnIOS(newID)
-                let generation = chatViewModel.beginSwitchToSession(key: newID)
-                Task {
-                    _ = await chatViewModel.resumeSession(key: newID, generation: generation)
-                }
-            } else {
-                sessionCreationError = "Backend for this session is gone (removed in Settings?)"
-            }
-            return
-        }
-        // A focused Standard backend serves its sessions over the sidecar:
-        // keep the focus (don't fall back to the home badge) and drive chat
-        // from the same client the session list uses. Otherwise this is a home
-        // Hermes session — clear any session-scoped focus so the badge names
-        // the gateway serving the visible chat again.
-        if focusedHermesStandardGateway == nil,
-           let active = settings.savedGateways.first(where: { settings.isActive($0) }) {
-            settings.selectGateway(active)
-        }
-        chatViewModel.setGatewayClient(effectiveSessionsClient)
+        // (Re)wire the chat pipeline to the harness. setGatewayClient is
+        // identity-guarded, so re-setting the same client is a no-op.
+        chatViewModel.setGatewayClient(gatewayClientWrapper.client)
 
         if session.isOwned {
             // Don't resume the session we just finished creating — the sentinel
@@ -1632,36 +1384,9 @@ internal struct ContentView: View {
         }
     }
 
-    /// Create a new session on a session-scoped backend instead of the
-    /// Hermes gateway. Session lists/mission-control stay on the Hermes
-    /// path; only the chat pipeline switches backends.
+    /// Create a session on the active harness.
     @MainActor
-    private func createSessionOnScopedBackend(_ backend: any AgentBackend, entry: SavedGateway) async {
-        // Creating on a scoped backend focuses it — badge and New Session
-        // default follow the backend the user is now working on.
-        settings.selectGateway(entry)
-        chatViewModel.setGatewayClient(backend)
-        await chatViewModel.createSession()
-        if let error = chatViewModel.error {
-            sessionCreationError = "\(entry.displayName) session failed: \(error)"
-            return
-        }
-        if let sid = chatViewModel.currentSessionID {
-            log.info("created session \(sid) on \(entry.displayName)")
-            pendingCreatedSessionID = sid
-            SessionBackendRegistry.shared.bind(sessionID: sid, backendID: entry.id)
-            // Register in the sidebar so the session is selectable; the
-            // hermes session.list poll won't know it, so mark it owned.
-            sessionList.registerOwnedSession(shortHexID: sid)
-            sessionList.selectSession(id: sid)
-            pushOwnedSessionOnIOS(sid)
-        }
-    }
-
-    /// Create a session on a specific saved backend entry (nil = home
-    /// Hermes gateway). Session-scoped entries skip the WebSocket entirely.
-    @MainActor
-    private func createAndSwitchToNewSession(on backendEntry: SavedGateway? = nil) async {
+    private func createAndSwitchToNewSession() async {
         guard !isCreatingSession else { return }
         isCreatingSession = true
         sessionCreationError = nil
@@ -1672,64 +1397,6 @@ internal struct ContentView: View {
         // button that made yet another session.
         chatViewModel.error = nil
         defer { isCreatingSession = false }
-
-        if let entry = backendEntry, entry.kind.isSessionScoped {
-            if let backend = gatewayClientWrapper.sessionScopedBackend(for: entry) {
-                pendingCreatedSessionID = "__creating__"
-                await createSessionOnScopedBackend(backend, entry: entry)
-                // Any create that didn't produce a real session ID must
-                // release the sentinel (failed RPC, cancellation, or a create
-                // that returned no ID), or it swallows every subsequent
-                // session selection (app looks frozen) (#178).
-                if pendingCreatedSessionID == "__creating__" {
-                    pendingCreatedSessionID = nil
-                }
-            } else {
-                sessionCreationError = "Backend '\(entry.displayName)' has an invalid URL"
-            }
-            return
-        }
-
-        // A focused Hermes Standard backend creates over its /api/ws sidecar,
-        // which speaks the same session.create RPC as the gateway. The sidecar
-        // connects asynchronously, so wait for it before creating; a closed
-        // socket (embedded chat disabled server-side) surfaces as a timeout.
-        if let standard = focusedHermesStandardGateway {
-            guard let sidecar = gatewayClientWrapper.standardChatClient(for: standard) else {
-                sessionCreationError = "\(standard.displayName) has an invalid chat URL"
-                return
-            }
-            guard await waitForConnection(of: sidecar, timeout: 12) else {
-                sessionCreationError = "\(standard.displayName) chat is unavailable "
-                    + "(the dashboard may have embedded chat disabled)"
-                return
-            }
-            if !chatViewModel.isDriven(by: sidecar) {
-                chatViewModel.setGatewayClient(sidecar)
-                sessionList.setGatewayClient(sidecar)
-            }
-            shouldSuppressNextCreateGenerationPush = true
-            pendingCreatedSessionID = "__creating__"
-            await chatViewModel.createSession()
-            if let error = chatViewModel.error {
-                shouldSuppressNextCreateGenerationPush = false
-                pendingCreatedSessionID = nil
-                sessionCreationError = error
-                return
-            }
-            guard let sid = chatViewModel.currentSessionID else {
-                shouldSuppressNextCreateGenerationPush = false
-                pendingCreatedSessionID = nil
-                sessionCreationError = "Session create returned no session ID"
-                return
-            }
-            pendingCreatedSessionID = sid
-            sessionList.registerOwnedSession(shortHexID: sid)
-            sessionList.setRunState(.queued, for: sid)
-            sessionList.selectSession(id: sid)
-            pushOwnedSessionOnIOS(sid)
-            return
-        }
 
         // connectWithRetry, not a single connectIfNeeded: on iOS the socket
         // dies on every backgrounding, and the first reconnect attempt after
@@ -1784,26 +1451,18 @@ internal struct ContentView: View {
     /// are saved.
     @ViewBuilder
     private var newSessionControl: some View {
-        // Plain button — no backend dropdown. The gateway switcher is the
-        // single place to choose a backend; New Session always targets the
-        // focused one. The old per-backend menu duplicated the switcher and
-        // made Centaur reachable only from here, which read as the switcher
-        // being broken.
+        // Plain button: New Session always targets the active harness; the
+        // harness switcher is the single place to change which that is.
         Button("New Session") {
-            let focused = settings.focusedGateway
-            Task {
-                await createAndSwitchToNewSession(
-                    on: focused?.kind.isSessionScoped == true ? focused : nil
-                )
-            }
+            Task { await createAndSwitchToNewSession() }
         }
         .portalButton(prominent: true)
         .help(newSessionHelp)
     }
 
     private var newSessionHelp: String {
-        guard let focused = settings.focusedGateway else { return "Create a new session" }
-        return "Create a new session on \(focused.displayName)"
+        guard let active = settings.activeGateway else { return "Create a new session" }
+        return "Create a new session on \(active.displayName)"
     }
 
     private func wireUpClient(_ client: GatewayClient? = nil) {
@@ -1817,33 +1476,18 @@ internal struct ContentView: View {
         observeChatRunState()
 spawnTreeStore.subscribe(to: client)
         cronPoller.setGatewayClient(client)
-        updateArtifactGatewayScope(focusedID: settings.focusedBackendID)
         refreshPersona()
     }
 
-    /// Adopt the persona of the currently-focused gateway so all chat chrome
-    /// (header badge, composer placeholder, menu bar) presents that gateway by
-    /// name and picture. The gateway's name *is* the persona name; a gateway
-    /// with no uploaded avatar gets a stable identicon. Called whenever the
-    /// focused/active gateway changes.
+    /// Adopt the persona of the active harness so all chat chrome (header
+    /// badge, composer placeholder, menu bar) presents that harness by name and
+    /// picture. The harness's name *is* the persona name; a harness with no
+    /// uploaded avatar gets a stable identicon. Called whenever the active
+    /// harness changes.
     @MainActor
     private func refreshPersona() {
-        guard let gateway = settings.focusedGateway else { return }
+        guard let gateway = settings.activeGateway else { return }
         personaManager.adoptGatewayPersona(gateway)
-    }
-
-    /// Scope the artifact store to the currently-focused gateway so the UI only
-    /// shows artifacts that belong to the selected backend. Session-scoped
-    /// (Centaur) gateways get their own artifact namespace; Hermes (nil focus)
-    /// shows legacy/unscoped artifacts.
-    private func updateArtifactGatewayScope(focusedID: UUID?) {
-        guard let focusedID,
-              let entry = settings.savedGateways.first(where: { $0.id == focusedID }),
-              entry.kind.isSessionScoped else {
-            ArtifactStore.shared.focusedGatewayID = nil
-            return
-        }
-        ArtifactStore.shared.focusedGatewayID = focusedID
     }
 
     /// Keep the sidebar's live dots in step with every session that has a turn
