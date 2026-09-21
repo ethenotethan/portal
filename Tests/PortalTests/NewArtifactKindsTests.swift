@@ -228,6 +228,19 @@ private struct NewKindActionTests {
         #expect(KanbanSpec.parse(moved)?.cards.first?.column == "Done")
     }
 
+    @Test("Calendar updates an event lacking an id by its title")
+    private func calendarUpdateByTitle() throws {
+        let content = "{\"events\": [{\"date\": \"2026-08-01\", \"title\": \"Release\"}]}"
+        let updated = try #require(
+            ArtifactActionEngine.setField(in: content, kind: "calendar",
+                                          entryKey: "Release", field: "date", value: "2026-08-02")
+        )
+        #expect(
+            CalendarSpec.parse(updated)?.events.first?.date
+                == TimelineSpec.parseDate("2026-08-02")
+        )
+    }
+
     @Test("Unknown entry key returns nil (no mutation)")
     private func missingEntry() {
         let content = "{\"items\": [{\"id\": \"dns\", \"label\": \"DNS\"}]}"
