@@ -257,4 +257,50 @@ private struct ArtifactQueryStoreTests {
             return
         }
     }
+
+    @Test("gateway.ready after a drop re-subscribes live slots and keeps the last payload on screen")
+    internal func gatewayReadyResubscribesLiveSlots() async {
+        let (store, fake) = makeStore()
+        fake.subscribeResult = okResult("e1", subscription: "dash/rows/h1")
+        store.runQuery(artifactID: "dash", queryID: "rows", rawParams: "")
+        await settle { self.finished(store, self.slot()) }
+        #expect(fake.subscribeCalls.count == 1)
+
+        // Watch for an empty flash: the slot must never fall back to .loading.
+        final class Seen { var loadingAfterOK = false }
+        let seen = Seen()
+        let watcher = store.$queryStates.sink { states in
+            if states[self.slot()] == .loading { seen.loadingAfterOK = true }
+        }
+        defer { watcher.cancel() }
+
+        // The gateway restarted and forgot the subscription; the socket came back.
+        fake.subscribeResult = okResult("e2", subscription: "dash/rows/h2")
+        store.applyGatewayEventForTesting(.gatewayReady(skin: "default"))
+        await settle { fake.subscribeCalls.count == 2 && fake.unsubscribed.contains("dash/rows/h1") }
+
+        #expect(fake.subscribeCalls.count == 2, "a fresh subscribe, not a plain invoke against a dead handle")
+        #expect(fake.invokeCalls.isEmpty)
+        #expect(fake.unsubscribed == ["dash/rows/h1"], "the stale handle is released best-effort")
+        #expect(!seen.loadingAfterOK, "last-known-good data stays on screen through the reconnect")
+        guard case .ok(_, let etag)? = store.queryStates[slot()] else {
+            Issue.record("slot not ok")
+            return
+        }
+        #expect(etag == "e2")
+
+        // Release unsubscribes the new handle only.
+        store.releaseQueries(artifactID: "dash")
+        await settle { fake.unsubscribed.count == 2 }
+        #expect(fake.unsubscribed == ["dash/rows/h1", "dash/rows/h2"])
+    }
+
+    @Test("gateway.ready with no live handles (first connect) does nothing")
+    internal func gatewayReadyWithoutHandlesIsNoop() async {
+        let (store, fake) = makeStore()
+        store.applyGatewayEventForTesting(.gatewayReady(skin: "default"))
+        await settle { false }
+        #expect(fake.subscribeCalls.isEmpty && fake.invokeCalls.isEmpty && fake.unsubscribed.isEmpty)
+        #expect(store.queryStates.isEmpty)
+    }
 }

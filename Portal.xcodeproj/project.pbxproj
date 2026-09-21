@@ -427,6 +427,7 @@
 		7B943E979117919DDA3AF8BA /* ConversationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3838A7851F34062B8D401249 /* ConversationPanel.swift */; };
 		7BBC14BF82328E82153F7464 /* WriterRefTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CE5937B5B14121625B3DEFD /* WriterRefTests.swift */; };
 		7C0449B6FE73DC595660A734 /* WikiPageReaderBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F784842A1B4EAFDF79893A2 /* WikiPageReaderBody.swift */; };
+		7C15726F04391FEDE5E79E36 /* ArtifactQueryLiveProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C38268EAD44A267B6890CA /* ArtifactQueryLiveProbeTests.swift */; };
 		7C18E2BD3F1DBAEC922A0238 /* FeedTweetModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6025651F55CDBA530BF0CD2F /* FeedTweetModelTests.swift */; };
 		7C5910F518EA1FD40505483D /* PanelResizeMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06978D532A89D7EC02AC9581 /* PanelResizeMath.swift */; };
 		7D05E964CBBB7E79C3511682 /* LivingArtifactCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753E282310FD326FD063B49D /* LivingArtifactCapture.swift */; };
@@ -960,9 +961,9 @@
 		02361C8CFEB835C4EE815ECF /* MediaAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaAttachment.swift; sourceTree = "<group>"; };
 		0298148377BB74D6B73C19B7 /* GatewayDebugPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayDebugPanelView.swift; sourceTree = "<group>"; };
 		02A03A31FB30590CC62D9B32 /* DashboardLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardLayout.swift; sourceTree = "<group>"; };
-		04096B720BF84A671AC5E21B /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		04685EB35016333FE4EE6EEE /* NetworkGraphSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkGraphSpec.swift; sourceTree = "<group>"; };
 		04BDE5BBF7A7F990E84B1F78 /* SessionExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExporter.swift; sourceTree = "<group>"; };
+		04C38268EAD44A267B6890CA /* ArtifactQueryLiveProbeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactQueryLiveProbeTests.swift; sourceTree = "<group>"; };
 		054EA87213F72FA39BED81CB /* PortalUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PortalUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		06165A80DCC66F54C5175547 /* SessionPDFExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPDFExporterTests.swift; sourceTree = "<group>"; };
 		065153606F5A316A339DCD71 /* SessionFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFolder.swift; sourceTree = "<group>"; };
@@ -1439,6 +1440,7 @@
 		ED2EE0ECBF324FCB40A2E1B2 /* SessionTimelineEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTimelineEvent.swift; sourceTree = "<group>"; };
 		ED4EB0DFFC78682EEAB2515C /* WikiChangesetSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiChangesetSource.swift; sourceTree = "<group>"; };
 		ED56145A63A7D6485CAE546F /* ChatVoiceRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatVoiceRoutingTests.swift; sourceTree = "<group>"; };
+		EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		EF4E9A8218A97D62F42FD6CD /* MainThreadHangGateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainThreadHangGateUITests.swift; sourceTree = "<group>"; };
 		EF5662456BA937D53902E2D2 /* SankeyBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SankeyBlockView.swift; sourceTree = "<group>"; };
 		EFA4EB9807531D0D23815A0E /* WikiPathPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikiPathPickerSheet.swift; sourceTree = "<group>"; };
@@ -1570,8 +1572,8 @@
 			isa = PBXGroup;
 			children = (
 				9F79BDEC8F95449BD40FE345 /* App */,
-				EC420DB82F3343AB7A53C0A7 /* portal */,
 				61851216B4FFCF80111C87E3 /* Portal */,
+				B1438DF0B92F1B5F3AEBDCC8 /* portal-query-live */,
 				6CAC9983C0313333A70B780D /* PortalMacUITests */,
 				DC477657E808FF8E15CAA556 /* PortalTests */,
 				B166989F9AB9F4E8C3BDF340 /* PortalUITests */,
@@ -2089,6 +2091,15 @@
 			path = Learning;
 			sourceTree = "<group>";
 		};
+		B1438DF0B92F1B5F3AEBDCC8 /* portal-query-live */ = {
+			isa = PBXGroup;
+			children = (
+				EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */,
+			);
+			name = "portal-query-live";
+			path = .;
+			sourceTree = "<group>";
+		};
 		B166989F9AB9F4E8C3BDF340 /* PortalUITests */ = {
 			isa = PBXGroup;
 			children = (
@@ -2140,6 +2151,7 @@
 				6123B6778763CDA474BCCD51 /* ArtifactIntentContractTests.swift */,
 				2B5D62361169F6B40127A7EA /* ArtifactIntentStoreTests.swift */,
 				244CA3A89979D1E0985DE3DE /* ArtifactQueryBridgeTests.swift */,
+				04C38268EAD44A267B6890CA /* ArtifactQueryLiveProbeTests.swift */,
 				E81EA3FBBC90317185968A75 /* ArtifactQueryStoreTests.swift */,
 				3D8B1319CCE257066419871B /* ArtifactsPaneLayoutTests.swift */,
 				F38B54CB474D3BA2E1C1E831 /* ArtifactStatusReflectionTests.swift */,
@@ -2293,15 +2305,6 @@
 				79F6FDC920B05016AE1743D3 /* JSONRPCResponse.swift */,
 			);
 			path = JSONRPC;
-			sourceTree = "<group>";
-		};
-		EC420DB82F3343AB7A53C0A7 /* portal */ = {
-			isa = PBXGroup;
-			children = (
-				04096B720BF84A671AC5E21B /* Local.xcconfig */,
-			);
-			name = portal;
-			path = .;
 			sourceTree = "<group>";
 		};
 		FB6E90D116D900F079442E44 /* Diagram */ = {
@@ -2938,6 +2941,7 @@
 				1E826FA35F7907FDE5219175 /* ArtifactIntentContractTests.swift in Sources */,
 				CFBB8870B76CCFFC26E4334C /* ArtifactIntentStoreTests.swift in Sources */,
 				91BD2F64533FD6D76DC7BC4F /* ArtifactQueryBridgeTests.swift in Sources */,
+				7C15726F04391FEDE5E79E36 /* ArtifactQueryLiveProbeTests.swift in Sources */,
 				636FE355098869AAAB27DCCA /* ArtifactQueryStoreTests.swift in Sources */,
 				A00E8A06137A0415A10B6C44 /* ArtifactStatusReflectionTests.swift in Sources */,
 				8D7D14ADFBBDA34404202076 /* ArtifactsPaneLayoutTests.swift in Sources */,
@@ -3497,7 +3501,7 @@
 		};
 		36853E6FD92CB67D512D5E9F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -3520,7 +3524,7 @@
 		};
 		3B363B3A63B1F77C35029682 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Portal.entitlements;
@@ -3606,7 +3610,7 @@
 		};
 		5854552819C32F9C669C7C0A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
@@ -3669,7 +3673,7 @@
 		};
 		A21EB6E50C87E13F78B98E46 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04096B720BF84A671AC5E21B /* Local.xcconfig */;
+			baseConfigurationReference = EE5BFDF30EB17A7B6B6D72C6 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "Portal-iOS.entitlements";
