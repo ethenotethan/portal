@@ -65,6 +65,24 @@ internal struct ConceptLinkerTests {
         #expect(links.isEmpty)
     }
 
+    @Test("agent nodes are not treated as tool calls")
+    internal func excludesAgentNodes() {
+        let agent = ThoughtGraphNode(
+            id: "a1",
+            name: "researcher",
+            context: "Inspecting GatewayClient.swift",
+            isComplete: true,
+            startedAt: Date(),
+            agentID: "researcher-1"
+        )
+        let links = ConceptLinker.link(nodes: [
+            beat("r1", "Reviewing GatewayClient.swift"),
+            agent,
+        ])
+
+        #expect(links.isEmpty)
+    }
+
     /// When a beat and tool share MORE than one salient token, the link is
     /// deterministic: it picks the smallest (alphabetically first) shared
     /// concept so two runs over the same nodes always draw the same edge.
