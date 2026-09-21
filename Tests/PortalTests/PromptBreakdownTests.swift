@@ -53,6 +53,18 @@ internal struct PromptBreakdownTests {
         #expect(makeSection(id: "invalid", contentLength: 0, colorHex: "not-a-color").color == .accentColor)
     }
 
+    @Test("Mock fallback preserves the requested session and stable accounting")
+    internal func mockFallback() {
+        let requested = PromptBreakdown.mock(sessionID: "session-42")
+
+        #expect(requested.sessionID == "session-42")
+        #expect(requested.totalUsedTokens == 10_400)
+        #expect(requested.sections.map(\.id) == [
+            "persona", "memory", "user-profile", "ephemeral-prompt", "active-skills",
+        ])
+        #expect(PromptBreakdown.mock.sessionID == "mock-session-001")
+    }
+
     private func makeBreakdown(
         contextLimit: Int = 1_000,
         systemTokens: Int = 0,
