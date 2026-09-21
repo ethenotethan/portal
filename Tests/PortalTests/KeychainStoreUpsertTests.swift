@@ -95,13 +95,13 @@ internal struct KeychainStoreUpsertTests {
 
     @Test("a growing harness list survives a rewrite")
     internal func harnessListGrowsAcrossWrites() throws {
-        // The user-facing scenario: add a Hermes Standard entry alongside an
-        // existing Gateway entry, then re-read as a fresh launch would.
+        // The user-facing scenario: add a second harness entry alongside an
+        // existing one, then re-read as a fresh launch would.
         let existing = [
-            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1", kind: .hermes),
+            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1"),
         ]
         let grown = existing + [
-            SavedGateway(name: "Standard", url: "https://dash.example.com", apiKey: "k2", kind: .hermesStandard),
+            SavedGateway(name: "Second", url: "https://dash.example.com", apiKey: "k2"),
         ]
 
         try withTemporaryItem("upsert-harness-list-test") { account in
@@ -114,7 +114,7 @@ internal struct KeychainStoreUpsertTests {
             let reread = try #require(rawRead(account).map { Data($0.utf8) })
             let decoded = try JSONDecoder().decode([SavedGateway].self, from: reread)
             #expect(decoded.count == 2)
-            #expect(decoded.contains { $0.kind == .hermesStandard })
+            #expect(decoded.contains { $0.displayName == "Second" })
         }
     }
 }

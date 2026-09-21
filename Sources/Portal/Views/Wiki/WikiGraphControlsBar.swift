@@ -16,7 +16,7 @@ internal struct WikiGraphControlsBar: View {
     /// capability against the *effective* source, which for the home gateway is
     /// the shared client and not any injected override. Handing this bar an
     /// override that is nil in the normal case is what previously left the
-    /// Events entry unrenderable on Hermes.
+    /// Events entry unrenderable on the harness.
     internal let hasEventsSurface: Bool
     internal let onRefresh: () -> Void
 

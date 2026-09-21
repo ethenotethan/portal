@@ -22,8 +22,8 @@ import Foundation
 /// string surgery.
 internal enum GatewayURL {
     /// Paths that already name a WebSocket endpoint, so normalization leaves
-    /// them alone. `/api/ws` is the Hermes Standard dashboard's chat sidecar.
-    private static let wsPaths = ["/v1/ws", "/api/ws"]
+    /// them alone.
+    private static let wsPaths = ["/v1/ws"]
 
     /// The WebSocket URL for a typed harness address, or nil when there is no
     /// host to dial or the scheme isn't one we speak.
@@ -42,33 +42,6 @@ internal enum GatewayURL {
         while path.hasSuffix("/") { path.removeLast() }
         if !wsPaths.contains(where: path.hasSuffix) {
             path += Constants.wsPath
-        }
-        comps.path = path
-        return comps.url
-    }
-
-    /// The HTTP(S) base URL for a typed harness address, for the backends that
-    /// speak REST rather than WebSocket (Hermes Standard, Centaur).
-    ///
-    /// Same inference as `normalize`, minus the `/v1/ws` path: these callers were
-    /// handing a raw `URL(string:)` result to clients that require a non-nil host
-    /// and an http/https scheme, so a bare `100.94.3.17:8080` produced a nil
-    /// client and the feature just showed up empty.
-    internal static func httpOrigin(_ raw: String) -> URL? {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              let schemed = applyingScheme(to: trimmed),
-              var comps = URLComponents(string: schemed),
-              let host = comps.host, !host.isEmpty else { return nil }
-        // applyingScheme normalizes to ws/wss; these callers want http/https.
-        comps.scheme = comps.scheme == "wss" ? "https" : "http"
-        var path = comps.path
-        while path.hasSuffix("/") { path.removeLast() }
-        // A ws endpoint pasted into an HTTP-backend field is still naming the
-        // same origin — keep the host, drop the socket path. Matched per-suffix
-        // because the two differ in length ("/v1/ws" vs "/api/ws").
-        if let wsPath = wsPaths.first(where: path.hasSuffix) {
-            path = String(path.dropLast(wsPath.count))
         }
         comps.path = path
         return comps.url

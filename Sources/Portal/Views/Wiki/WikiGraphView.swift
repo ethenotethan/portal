@@ -20,9 +20,9 @@ import SwiftUI
 /// Selection stays synced across every surface via the view model's shared
 /// selection plane.
 internal struct WikiGraphView: View {
-    /// Knowledge-base source override. nil = the Hermes home gateway
-    /// (existing behavior); a Centaur session passes its wiki-api client so
-    /// the same graph/reader/sidebar UI renders the Darkbloom KB.
+    /// Knowledge-base source override. nil = the harness home gateway
+    /// (existing behavior); CodeGraphSource passes a service's code graph so
+    /// the same graph/reader/sidebar UI renders it.
     internal var overrideSource: (any WikiSource)?
 
     /// Set when this graph is hosted by the **Graphs** section, which swaps the
@@ -45,7 +45,7 @@ internal struct WikiGraphView: View {
         self.surfaceSelection = surfaceSelection
     }
 
-    /// Hermes-only chrome (wiki picker, taxonomy from wiki.list) hides when
+    /// Harness-only chrome (wiki picker, taxonomy from wiki.list) hides when
     /// browsing an override source — those RPCs don't exist there.
     private var isOverride: Bool { overrideSource != nil }
 
@@ -56,10 +56,11 @@ internal struct WikiGraphView: View {
         return true // home gateway conforms
     }
 
-    /// Events-page capability. Both backends have an ingestion log — Hermes via
-    /// `wiki.events`, Centaur via `/wiki/timeline` — so this resolves to the
-    /// home gateway when there's no override. nil hides the affordance and
-    /// keeps `showEventsPage` inert.
+    /// Events-page capability. The harness serves an ingestion log via
+    /// `wiki.events`, so this resolves to the home gateway when there's no
+    /// override; an override supplies one only if it conforms to
+    /// `WikiEventLogSource`. nil hides the affordance and keeps
+    /// `showEventsPage` inert.
     private var eventLogSource: (any WikiEventLogSource)? {
         if let overrideSource { return overrideSource as? (any WikiEventLogSource) }
         return gatewayClientWrapper.client
@@ -93,7 +94,7 @@ internal struct WikiGraphView: View {
     #endif
 
     /// Load through the override source when present, else the home gateway.
-    /// `wiki` (multi-wiki selection) is Hermes-only and ignored on overrides.
+    /// `wiki` (multi-wiki selection) is harness-only and ignored on overrides.
     private func loadGraph(wiki: String?, generation: Int? = nil) async {
         if let overrideSource {
             await viewModel.load(source: overrideSource, generation: generation)
@@ -157,7 +158,7 @@ internal struct WikiGraphView: View {
             }
     }
 
-    /// Whether the graph still needs fetching. For override sources (Centaur),
+    /// Whether the graph still needs fetching. For override sources (CodeGraphSource),
     /// always — the source changes per session and the VM is shared from
     /// ContentView. For the home gateway, skip if the graph is already
     /// populated: ContentView warms it at connect (see the isConnected

@@ -18,23 +18,6 @@ struct SessionListView: View {
     @State private var otherSessionsCollapsed = false
     @AppStorage("chatSkin") private var activeSkin: ChatSkin = .tui
 
-    /// When a gateway is focused, filter the displayed sessions to only those
-    /// that belong to it. Session-scoped (Centaur) gateways use the backend
-    /// registry. The Hermes home gateway shows sessions with no registered
-    /// backend (nil) plus any sessions explicitly mapped to its ID.
-    private func gatewayFilter(_ session: Session) -> Bool {
-        guard let focused = settings.focusedGateway else { return true }
-        let backendID = SessionBackendRegistry.shared.backendID(for: session.id)
-        if focused.kind.isSessionScoped {
-            // Session-scoped gateway: show only its sessions
-            return backendID == focused.id
-        } else {
-            // Hermes gateway: show sessions with no backend registration
-            // (legacy / natively created) or mapped to this specific entry
-            return backendID == nil || backendID == focused.id
-        }
-    }
-
     /// Whether this row is the session open in the chat pane. `currentSessionID`
     /// is the RUNTIME gateway ID while rows are keyed by the stable database ID,
     /// so comparing only `session.id` left the open session unmarked (no bold
@@ -51,12 +34,11 @@ struct SessionListView: View {
     /// re-sorting the whole session list. Every one of them is read three times
     /// per `body` — for the header count, for the emptiness check, and for the
     /// `ForEach` — so a single sidebar render ran **twelve** filter+sort passes,
-    /// each doing a `SessionBackendRegistry` dictionary probe and a
-    /// `source?.lowercased()` allocation per session. The sidebar observes
-    /// `sessionList`, which republishes on every gateway event, so this was
-    /// per-event work proportional to the session count: the watchdog caught it
-    /// as a 99%-busy main-thread storm with `SessionListView.otherSessions` and
-    /// `SessionBackendRegistry.backendID(for:)` in the stack.
+    /// each doing a `source?.lowercased()` allocation per session. The sidebar
+    /// observes `sessionList`, which republishes on every gateway event, so this
+    /// was per-event work proportional to the session count: the watchdog caught
+    /// it as a 99%-busy main-thread storm with `SessionListView.otherSessions` in
+    /// the stack.
     internal struct SidebarSections {
         internal var mine: [Session] = []
         internal var archived: [Session] = []
@@ -96,7 +78,7 @@ struct SessionListView: View {
     private var sidebarSections: SidebarSections {
         Self.partition(
             sessionList.sessions,
-            includes: gatewayFilter,
+            includes: { _ in true },
             sort: sessionList.sortedForSidebar
         )
     }

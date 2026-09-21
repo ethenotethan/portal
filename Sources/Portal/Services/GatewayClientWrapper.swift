@@ -33,9 +33,9 @@ final class GatewayClientWrapper: ObservableObject {
     /// show live latency.
     @Published private(set) var lastPingRTT: TimeInterval?
     /// The live transport. Published: the client is REPLACED (not mutated) on
-    /// every gateway switch, and views resolving the current backend through
-    /// `liveClient(for:)` must re-render on the swap — otherwise a harness's
-    /// status row keeps reading the previous gateway's client.
+    /// every harness switch, and views reading the active harness's status
+    /// through it must re-render on the swap — otherwise a harness's status
+    /// row keeps reading the previous harness's client.
     @Published internal private(set) var client: GatewayClient
 
     /// How long to wait for a socket to open before treating the attempt as
@@ -77,106 +77,6 @@ final class GatewayClientWrapper: ObservableObject {
     private var connectionCancellable: AnyCancellable?
     private var connectTask: Task<Void, Never>?
     private var currentSignature: ConnectionSignature?
-
-    /// Lazily-created session-scoped clients, keyed by backend entry ID.
-    /// Independent of the WebSocket lifecycle above — these backends are
-    /// stateless until a session opens its stream. Rebuilt when the entry's
-    /// url/key change.
-    private var scopedClients: [UUID: (signature: String, client: any AgentBackend)] = [:]
-
-    /// Returns the client for a saved session-scoped backend entry, or nil
-    /// when the entry isn't session-scoped or has an invalid URL. Dispatches
-    /// on kind — the only place that maps kinds to client types.
-    func sessionScopedBackend(for entry: SavedGateway) -> (any AgentBackend)? {
-        // httpOrigin, not URL(string:): the old check passed anything with a
-        // scheme, and a bare "host:8080" satisfies that with the HOST as the
-        // scheme — producing a client dialing nowhere.
-        guard entry.kind.isSessionScoped,
-              let url = GatewayURL.httpOrigin(entry.url) else {
-            return nil
-        }
-        let signature = "\(url.absoluteString)|\(entry.apiKey)"
-        if let existing = scopedClients[entry.id], existing.signature == signature {
-            return existing.client
-        }
-        let client: any AgentBackend
-        switch entry.kind {
-        case .hermes, .hermesStandard:
-            return nil  // management/app backends are never session-scoped
-        case .centaur:
-            client = CentaurClient(baseURL: url, apiKey: entry.apiKey)
-        }
-        scopedClients[entry.id] = (signature, client)
-        appendLog("Session backend: \(entry.displayName) (\(url.absoluteString))")
-        return client
-    }
-
-    /// Live chat clients for focused Hermes Standard backends, keyed by entry
-    /// ID. A Standard chat client is a *second*, independent WebSocket to the
-    /// dashboard's `/api/ws` sidecar — the app-level Hermes socket above stays
-    /// connected underneath so ambient services (HTTP cron/skills, the home
-    /// session list) keep working while chat targets Standard. Rebuilt when the
-    /// entry's URL/token change.
-    private var standardChatClients: [UUID: (signature: String, client: GatewayClient)] = [:]
-
-    /// Returns a connected `GatewayClient` for a focused Hermes Standard
-    /// backend's chat sidecar, or nil when the entry isn't Standard or its URL
-    /// can't form a `/api/ws` endpoint. The upstream sidecar is wire-compatible
-    /// with the Hermes gateway (newline-delimited JSON-RPC), so a plain
-    /// `GatewayClient` drives it — no bespoke backend needed. Auth rides as the
-    /// `?token=` query item built into the URL.
-    ///
-    /// Note: the server gates `/api/ws` behind an embedded-chat opt-in and
-    /// closes with 4403 when it's off (4401 on a bad token). The returned
-    /// client surfaces that as a connection error like any other WS failure.
-    internal func standardChatClient(for entry: SavedGateway) -> GatewayClient? {
-        guard entry.kind == .hermesStandard, let wsURL = entry.hermesStandardChatURL else {
-            return nil
-        }
-        let signature = wsURL.absoluteString
-        if let existing = standardChatClients[entry.id], existing.signature == signature {
-            return existing.client
-        }
-        // URL/token changed — tear down the stale socket before replacing it.
-        standardChatClients[entry.id]?.client.disconnect()
-        // The token travels in the URL query, so the client's apiKey stays empty
-        // (an empty Bearer header would otherwise be sent and ignored).
-        let client = GatewayClient(gatewayURL: wsURL, apiKey: "")
-        standardChatClients[entry.id] = (signature, client)
-        client.connect()
-        appendLog("Standard chat: \(entry.displayName) (\(wsURL.absoluteString))")
-        return client
-    }
-
-    /// Tear down every Standard chat socket (e.g. when leaving all Standard
-    /// focus). Idempotent; the app-level Hermes socket is unaffected.
-    internal func disconnectStandardChatClients() {
-        for (_, entry) in standardChatClients {
-            entry.client.disconnect()
-        }
-        standardChatClients.removeAll()
-    }
-
-    /// The live backend currently serving this entry, for status/diagnostics
-    /// display — or nil when nothing is connected on its behalf. Read-only:
-    /// unlike `standardChatClient(for:)`/`sessionScopedBackend(for:)`, this
-    /// never builds or connects a client, so a settings pane can show "offline"
-    /// without spinning up a socket. Resolution mirrors where each kind's
-    /// transport lives:
-    /// - `.hermes` — the app-level socket, but only while this entry is the
-    ///   active home gateway (`isActive`); other Hermes entries aren't dialed.
-    /// - `.hermesStandard` — its `/api/ws` chat sidecar, once focused.
-    /// - session-scoped — its lazily-built client, once a session has opened.
-    internal func liveClient(for entry: SavedGateway, isActive: Bool) -> (any AgentBackend)? {
-        switch entry.kind {
-        case .hermes:
-            return isActive ? client : nil
-        case .hermesStandard:
-            return standardChatClients[entry.id]?.client
-        case .centaur:
-            return scopedClients[entry.id]?.client
-        }
-    }
 
     struct LogEntry: Identifiable {
         let id = UUID()

@@ -175,7 +175,6 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
     case learning
     case wiki
     case artifacts
-    case workflows
     case files
 
     internal var id: String { rawValue }
@@ -193,7 +192,6 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
         // keeps its name while the door it opens is now the Graphs section.
         case .wiki: return "Graphs"
         case .artifacts: return "Artifacts"
-        case .workflows: return "Workflows"
         case .files: return "Files"
         }
     }
@@ -212,7 +210,6 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
         case .learning: return "books.vertical.fill"
         case .wiki: return "network"
         case .artifacts: return "internaldrive"
-        case .workflows: return "point.3.connected.trianglepath.dotted"
         case .files: return "folder"
         }
     }
@@ -232,8 +229,7 @@ internal enum ToolbarIconSlot: String, CaseIterable, Codable, Sendable, Identifi
         case .learning: return "Learning — courses, quizzes, and flashcards"
         case .wiki: return "Graphs — wiki knowledge and cron runtime"
         case .artifacts: return "Living artifacts"
-        case .workflows: return "Workflow runs"
-        case .files: return "Browse Hermes files"
+        case .files: return "Browse harness files"
         }
     }
 }

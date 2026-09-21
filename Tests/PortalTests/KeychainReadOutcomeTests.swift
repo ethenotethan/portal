@@ -91,7 +91,7 @@ internal struct KeychainReadOutcomeTests {
     @Test("a valid harness blob decodes to .found")
     internal func validBlobDecodes() throws {
         let saved = [
-            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1", kind: .hermes),
+            SavedGateway(name: "Eigen VDI", url: "http://10.0.2.47:8642", apiKey: "k1"),
         ]
         let outcome = KeychainStore.decodeGateways(.found(try JSONEncoder().encode(saved)))
         #expect(outcome.value?.count == 1)

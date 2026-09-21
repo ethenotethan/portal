@@ -30,8 +30,8 @@
       "id": "operations-ui",
       "label": "Operations",
       "layer": "experience",
-      "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only Hermes file browser.",
-      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/CentaurWorkflow*.swift", "Views/Files/**"]
+      "description": "Sessions, cron, activity, skills, learning, mission-control, and the read-only harness file browser.",
+      "patterns": ["Views/Cron*.swift", "Views/Session*.swift", "Views/Activity*.swift", "Views/Feed*.swift", "Views/Skills*.swift", "Views/Skill*.swift", "Views/Learning/**", "Views/Quiz/**", "Views/MissionControl/**", "Views/Files/**"]
     },
     {
       "id": "wiki-ui",
@@ -79,22 +79,15 @@
       "id": "backend-contract",
       "label": "Backend contract",
       "layer": "integration",
-      "description": "Backend-neutral chat protocol, capability model, registry, and event normalization seam.",
-      "patterns": ["Services/AgentBackend.swift", "Services/SessionBackendRegistry.swift", "Models/GatewayEvent.swift", "Models/Backend*.swift"]
+      "description": "Chat backend protocol and event normalization seam for the harness gateway.",
+      "patterns": ["Services/AgentBackend.swift", "Models/GatewayEvent.swift"]
     },
     {
       "id": "hermes-services",
-      "label": "Hermes services",
+      "label": "Harness services",
       "layer": "integration",
-      "description": "Hermes WebSocket JSON-RPC transport and Hermes Standard HTTP/SSE management APIs.",
-      "patterns": ["Services/GatewayClient*.swift", "Services/HermesStandard*.swift", "Services/CronPoller.swift", "Services/PushRegistration*.swift"]
-    },
-    {
-      "id": "centaur-services",
-      "label": "Centaur services",
-      "layer": "integration",
-      "description": "Centaur REST/SSE chat, workflows, wiki, and event adaptation.",
-      "patterns": ["Services/Centaur*.swift", "Models/Centaur*.swift"]
+      "description": "Harness WebSocket JSON-RPC transport, cron polling, and push registration.",
+      "patterns": ["Services/GatewayClient*.swift", "Services/CronPoller.swift", "Services/PushRegistration*.swift"]
     },
     {
       "id": "artifact-intents",
@@ -107,7 +100,7 @@
       "id": "wiki-sources",
       "label": "Wiki source contract",
       "layer": "integration",
-      "description": "Capability markers for knowledge backends: which source records an edit history, and which can report the ingestion events behind a page. Wiki surfaces gate their affordances on conformance rather than on backend identity. WikiSource and the Centaur-only timeline rollups are declared with the Centaur client and stay under centaur-services.",
+      "description": "Capability markers for knowledge sources: which source records an edit history, and which can report the ingestion events behind a page. Wiki surfaces gate their affordances on conformance rather than on backend identity.",
       "patterns": ["Services/WikiChangesetSource.swift", "Services/WikiEventLogSource.swift"]
     },
     {
@@ -140,23 +133,9 @@
     },
     {
       "id": "hermes-gateway",
-      "label": "Hermes Gateway",
+      "label": "Harness gateway",
       "layer": "external",
       "description": "Ethen-managed WebSocket JSON-RPC agent gateway and full runtime surface.",
-      "external": true
-    },
-    {
-      "id": "hermes-standard",
-      "label": "Hermes Standard",
-      "layer": "external",
-      "description": "Upstream HTTP/SSE management surface for sessions, cron, notifications, skills, and settings.",
-      "external": true
-    },
-    {
-      "id": "centaur-api",
-      "label": "Centaur API",
-      "layer": "external",
-      "description": "REST/SSE harness platform and workflow runtime.",
       "external": true
     },
     {
@@ -173,14 +152,10 @@
     {"source": "operations-ui", "target": "operations-state", "type": "observes", "description": "Operational surfaces render dedicated observable state.", "evidence": ["Sources/Portal/Views/CronListView.swift", "Sources/Portal/ViewModels/CronListViewModel.swift"]},
     {"source": "wiki-ui", "target": "wiki-state", "type": "observes", "description": "Wiki views use graph and timeline view models.", "evidence": ["Sources/Portal/Views/Wiki/WikiGraphView.swift", "Sources/Portal/ViewModels/WikiGraphViewModel.swift"]},
     {"source": "wiki-ui", "target": "wiki-sources", "type": "depends_on", "description": "Wiki surfaces test the source for capability conformance to decide what to offer: the changeset drawer requires an edit history, the events plot and feed require an ingestion log. A missing affordance means the backend has nothing to show.", "evidence": ["Sources/Portal/Views/Wiki/WikiGraphView.swift", "Sources/Portal/Views/Wiki/WikiEventsPageView.swift"]},
-    {"source": "wiki-sources", "target": "hermes-services", "type": "implemented_by", "description": "The gateway serves the wiki graph, pages, changeset history and an event log whose entries carry the changesets they caused.", "evidence": ["Sources/Portal/Services/WikiChangesetSource.swift", "Sources/Portal/Services/GatewayClient+Wiki.swift"]},
-    {"source": "wiki-sources", "target": "centaur-services", "type": "implemented_by", "description": "The REST wiki-api serves the event log with directive attribution, plus the bucketed revision volume and baseline the knowledge-accrued pane needs.", "evidence": ["Sources/Portal/Services/WikiEventLogSource.swift", "Sources/Portal/Services/CentaurWikiClient+Timeline.swift"]},
-    {"source": "chat-state", "target": "backend-contract", "type": "depends_on", "description": "Conversation orchestration consumes the backend-neutral AgentBackend interface.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
-    {"source": "backend-contract", "target": "hermes-services", "type": "implemented_by", "description": "GatewayClient implements the AgentBackend protocol for Hermes.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/Services/GatewayClient.swift"]},
-    {"source": "backend-contract", "target": "centaur-services", "type": "implemented_by", "description": "Centaur adapts REST/SSE behavior to the backend-neutral conversation surface.", "evidence": ["Sources/Portal/Services/CentaurClient.swift", "Sources/Portal/Services/AgentBackend.swift"]},
-    {"source": "hermes-services", "target": "hermes-gateway", "type": "connects_to", "description": "GatewayClient connects to the Hermes WebSocket JSON-RPC gateway.", "evidence": ["Sources/Portal/Services/GatewayClient.swift"]},
-    {"source": "hermes-services", "target": "hermes-standard", "type": "connects_to", "description": "HermesStandardClient uses upstream management APIs.", "evidence": ["Sources/Portal/Services/HermesStandardClient.swift"]},
-    {"source": "centaur-services", "target": "centaur-api", "type": "connects_to", "description": "Centaur clients use REST and SSE APIs.", "evidence": ["Sources/Portal/Services/CentaurClient.swift"]},
+    {"source": "wiki-sources", "target": "hermes-services", "type": "implemented_by", "description": "The gateway serves the wiki graph, pages, changeset history and an event log whose entries carry the changesets they caused.", "evidence": ["Sources/Portal/Services/WikiChangesetSource.swift", "Sources/Portal/Services/GatewayClient+Wiki.swift", "Sources/Portal/Services/WikiEventLogSource.swift"]},
+    {"source": "chat-state", "target": "backend-contract", "type": "depends_on", "description": "Conversation orchestration consumes the AgentBackend interface.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/ViewModels/ChatViewModel.swift"]},
+    {"source": "backend-contract", "target": "hermes-services", "type": "implemented_by", "description": "GatewayClient implements the AgentBackend protocol for the harness.", "evidence": ["Sources/Portal/Services/AgentBackend.swift", "Sources/Portal/Services/GatewayClient.swift"]},
+    {"source": "hermes-services", "target": "hermes-gateway", "type": "connects_to", "description": "GatewayClient connects to the harness WebSocket JSON-RPC gateway.", "evidence": ["Sources/Portal/Services/GatewayClient.swift"]},
     {"source": "local-services", "target": "device-services", "type": "connects_to", "description": "Local services integrate with platform persistence, files, media, and notifications.", "evidence": ["Sources/Portal/Services/KeychainStore.swift", "Sources/Portal/Services/NotificationService.swift"]},
     {"source": "artifact-ui", "target": "domain-models", "type": "renders", "description": "Artifact blocks render typed artifact and message models.", "evidence": ["Sources/Portal/Views/Blocks/ArtifactPanel.swift"]},
     {"source": "artifact-ui", "target": "artifact-intents", "type": "depends_on", "description": "Artifact surfaces — including the generated 3D world hosted in its own window — render declared actions and dispatch clicks through the intent contract rather than acting on artifact content directly.", "evidence": ["Sources/Portal/Views/ArtifactFullscreenWindow.swift", "Sources/Portal/Models/HTMLArtifactIntentBridge.swift"]},

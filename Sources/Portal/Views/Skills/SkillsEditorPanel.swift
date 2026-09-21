@@ -115,7 +115,7 @@ internal struct SkillsEditorPanel: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(hasChanges ? Theme.accent : Theme.tertiary)
-            .disabled(!hasChanges || isSaving || viewModel.isStandardMode)
+            .disabled(!hasChanges || isSaving)
         }
         .padding(.horizontal, 10)
         .frame(height: 28)
@@ -163,12 +163,7 @@ internal struct SkillsEditorPanel: View {
 
     @ViewBuilder
     private var editorBody: some View {
-        if viewModel.isStandardMode {
-            PanelEmptyState(
-                icon: "lock",
-                message: "Editing SKILL.md needs a Gateway harness — a Standard backend has no write endpoint"
-            )
-        } else if pinnedSkill == nil {
+        if pinnedSkill == nil {
             PanelEmptyState(icon: "doc.text", message: "Select a skill to edit its SKILL.md")
         } else if isLoading {
             PortalProgressView(label: "Loading markdown…")

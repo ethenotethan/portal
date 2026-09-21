@@ -1,6 +1,6 @@
 # System architecture
 
-Portal is a native macOS and iOS client that presents one product surface over multiple agent backends. The application is organized around the dependency direction documented in `docs/architecture-rules.md`:
+Portal is a native macOS and iOS client for a single agent backend, the harness. The application is organized around the dependency direction documented in `docs/architecture-rules.md`:
 
 **Models → Services → ViewModels → Views**
 
@@ -8,17 +8,13 @@ Dependencies point toward models and service contracts. Views render observable 
 
 ## Runtime actors
 
-- **Portal application** owns presentation, local state, persistence, and backend selection.
-- **Hermes Gateway** exposes the Ethen-managed WebSocket JSON-RPC runtime and full agent surface.
-- **Hermes Standard** exposes upstream HTTP/SSE management APIs.
-- **Centaur API** exposes REST/SSE chat and workflow behavior through a separate harness platform.
+- **Portal application** owns presentation, local state, and persistence.
+- **Harness gateway** exposes the Ethen-managed WebSocket JSON-RPC runtime and full agent surface.
 - **Device services** provide Keychain, files, notifications, media, and platform frameworks.
 
 ## Backend seam
 
-`AgentBackend` is the backend-neutral interface consumed by chat orchestration. Concrete backends normalize their events into `GatewayEvent` and expose capabilities so unsupported behavior is hidden rather than failing at runtime.
-
-Hermes and Centaur are distinct platforms behind this seam. A capability is evidence of supported behavior; it is not a request for the UI to emulate behavior the backend does not provide.
+`AgentBackend` is the interface consumed by chat orchestration. The harness gateway normalizes its events into `GatewayEvent`, so chat orchestration renders one event stream rather than a transport.
 
 ## Presentation domains
 
@@ -32,7 +28,7 @@ Sessions author and revise artifacts; crons maintain them on a schedule. `artifa
 
 ## Wiki source seam
 
-The wiki reads from knowledge backends whose capabilities are lopsided in both directions: one records edit history, the other reports page-edit volume, and both report an ingestion event log. `wiki-sources` holds the capability markers those surfaces gate on, so a wiki affordance appears because the source conforms rather than because the code recognized a backend. See `architecture/specifications/wiki.md`.
+The wiki reads from knowledge sources whose capabilities differ: a source may record an edit history and may report the ingestion event log behind a page. `wiki-sources` holds the capability markers those surfaces gate on, so a wiki affordance appears because the source conforms rather than because the code recognized a backend. See `architecture/specifications/wiki.md`.
 
 ## Graph semantics
 

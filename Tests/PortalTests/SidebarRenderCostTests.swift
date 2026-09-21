@@ -168,28 +168,4 @@ internal struct SidebarRenderCostTests {
         #expect(store.localSessionIDs().contains(id))
         #expect(store.hasLocalMessages(forSession: id))
     }
-
-    // MARK: - The backend probe
-
-    @MainActor
-    @Test("With nothing bound, the backend probe short-circuits to nil")
-    internal func emptyRegistryReportsNoBackend() {
-        // The sidebar asks this once per session per render, and the keys are
-        // UserDefaults-bridged NSStrings whose hashing is slow.
-        #expect(SessionBackendRegistry.shared.backendID(for: "never-bound-\(UUID().uuidString)") == nil)
-    }
-
-    @MainActor
-    @Test("A bound session still resolves to its backend, and forgetting clears it")
-    internal func boundSessionResolves() {
-        let registry = SessionBackendRegistry.shared
-        let id = "bound-\(UUID().uuidString)"
-        let backend = UUID()
-        registry.bind(sessionID: id, backendID: backend)
-        #expect(registry.backendID(for: id) == backend)
-        #expect(registry.backendID(for: "other-\(UUID().uuidString)") == nil)
-
-        registry.forget(sessionID: id)
-        #expect(registry.backendID(for: id) == nil)
-    }
 }

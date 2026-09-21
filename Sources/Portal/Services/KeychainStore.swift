@@ -213,7 +213,16 @@ final class KeychainStore: Sendable {
         case .failed(let status): return .failed(status)
         case .found(let data):
             do {
-                return .found(try JSONDecoder().decode([SavedGateway].self, from: data))
+                let decoded = try JSONDecoder().decode([SavedGateway].self, from: data)
+                // Entries saved for a retired backend platform are dropped here,
+                // not dialed: a Centaur or Hermes Standard origin is not a
+                // harness, and presenting it as one would only ever read
+                // "Offline". Logged so a missing entry has an explanation.
+                let harnesses = decoded.filter(\.speaksHarness)
+                if harnesses.count != decoded.count {
+                    log.notice("dropped \(decoded.count - harnesses.count) saved entr(ies) for retired backend kinds")
+                }
+                return .found(harnesses)
             } catch {
                 // Logged, not swallowed: this is the only record of *why* the
                 // blob is being preserved rather than replaced, and the reason
@@ -246,39 +255,6 @@ final class KeychainStore: Sendable {
     }
 
 
-    // MARK: - Centaur API Key
-
-    @discardableResult
-    func saveCentaurAPIKey(_ key: String) -> Bool {
-        guard let data = key.data(using: .utf8) else { return false }
-        return upsert(account: "centaur-api-key", data: data)
-    }
-
-    func loadCentaurAPIKey() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "centaur-api-key",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    @discardableResult
-    func deleteCentaurAPIKey() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: "centaur-api-key",
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
-
     // MARK: - Gateway URL
 
     @discardableResult
@@ -297,7 +273,7 @@ final class KeychainStore: Sendable {
     }
 
 
-    // MARK: - Saved Gateways (multi-gateway switching)
+    // MARK: - Saved Harnesses
 
     /// The list of saved gateways is stored as a single JSON blob under its own
     /// Keychain account, separate from the active `gateway-url`/`api-key` items

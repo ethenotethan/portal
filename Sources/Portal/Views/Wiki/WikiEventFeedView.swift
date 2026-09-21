@@ -314,7 +314,7 @@ internal struct WikiEventFeedRow: View {
             if !event.sha256.isEmpty {
                 detailRow(icon: "number", title: "Digest", value: String(event.sha256.prefix(12)))
             }
-            // The raw source path IS the event's identity on Hermes; showing it
+            // The raw source path IS the event's identity on the harness; showing it
             // makes the provenance chips on changeset rows recognizable as
             // pointing at this row.
             detailRow(icon: "doc.text", title: "Source", value: event.sourceKey)

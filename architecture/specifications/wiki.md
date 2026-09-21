@@ -12,29 +12,20 @@ The rendering choice — a 2D canvas or a SceneKit 3D layout — is a toggle on 
 
 ## Capability markers, not backend checks
 
-Two knowledge backends sit behind the same UI: the Hermes gateway's `wiki.*` RPCs and a REST wiki-api. They do not serve the same things, and the difference is expressed as protocol conformance rather than a backend-kind branch:
+The wiki reads from the harness gateway's `wiki.*` RPCs. A wiki surface still gates its affordances on protocol conformance rather than on a hard-coded assumption, so the seam survives a source that serves less:
 
-- **`WikiSource`** is the floor — fetch the graph, fetch a page. Every backend has it.
-- **`WikiChangesetSource`** marks a backend that records edit history. The timeline drawer with its git-style inline diffs shows only for sources that conform; today that is the gateway alone.
-- **`WikiEventLogSource`** marks a backend that can say what flowed *in*. The event plot and feed gate on this, and both backends have it.
-- **`WikiEventTimelineProviding`** marks a backend that also serves bucketed page-edit volume, a pre-window revision baseline and a pages-touched summary. Only the REST backend has these, so the "knowledge accrued" pane is enrichment that appears when the source supports it.
+- **`WikiSource`** is the floor — fetch the graph, fetch a page.
+- **`WikiChangesetSource`** marks a source that records edit history. The timeline drawer with its git-style inline diffs shows only for sources that conform.
+- **`WikiEventLogSource`** marks a source that can say what flowed *in*. The event plot and feed gate on this.
 
-The capabilities are genuinely lopsided in both directions — the gateway has the edit history the REST backend lacks, the REST backend has the volume rollups the gateway lacks — which is precisely why none of this can be a backend-kind branch. There is no "richer" backend to privilege.
-
-The distinction between the last two markers is the load-bearing one, and it is why they are separate protocols rather than one: splitting the event log out is what lets the plot and feed serve both backends while the accrued pane stays optional. A surface that gated on the wider protocol would have hidden the event log from a backend that has one.
-
-This is the same principle as the `AgentBackend` seam for chat: a capability is evidence of supported behavior, never a request to emulate what a backend cannot do. A view asks whether the source conforms; it never asks which backend it is talking to.
+This is the same principle as the `AgentBackend` seam for chat: a capability is evidence of supported behavior, never a request to emulate what a source cannot do. A view asks whether the source conforms; it never asks which source it is talking to.
 
 ## Fields that are absent, not faked
 
-Both backends fill one row type, and each side leaves the other's enrichment nil or empty rather than inventing it. Directive attribution — who asked for a change, in what words — is REST-only. The event → changeset → page edge is gateway-only, reported off one index read so provenance can be walked without a second round trip. Every view that shows either checks first, so a missing affordance means the backend has nothing to show rather than a bug.
+The event log fills one row type, and a field with no value is left nil or empty rather than invented. The event → changeset → page edge is reported off one index read so provenance can be walked without a second round trip. Every view that shows an enrichment checks first, so a missing affordance means the source has nothing to show rather than a bug.
 
 The same honesty applies to time. An event carries both an event time and an ingest time, and a flag for the case where the pipeline only ever knew the latter. Those events are still real — the feed lists them and the legend counts them — but a plot has no x for them, so the surface counts what it left out instead of quietly dropping it. An event whose timestamp falls outside the requested window is counted too: the client's window and the server's filtering can disagree, and saying so is what turns "the plot is empty" into "these events sit outside this window".
 
-## Input against output
-
-Ingestion volume and page-edit volume are different measures, so they are never dual-axed onto one plot. They are drawn as separate charts sharing one time domain, bucketed to the same unit the server chose, and the shared x-axis carries the correlation. The cumulative curve seeds from the pre-window revision count so its height is true rather than restarting at zero for the window being viewed.
-
 ## Architectural consequence
 
-The wiki spans presentation (`wiki-ui`), its own orchestration state (`wiki-state`), and fetch surfaces that live with each transport. What the graph cannot show is that the capability protocols — not the backend identity — are the seam. Adding a third knowledge backend means conforming to the markers it can honor, and the surfaces it grows follow from that alone.
+The wiki spans presentation (`wiki-ui`), its own orchestration state (`wiki-state`), and fetch surfaces that live with the transport. What the graph cannot show is that the capability protocols — not a backend identity — are the seam. A source that grows or loses a capability changes only which markers it conforms to, and the surfaces follow from that alone.

@@ -9,26 +9,20 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "WikiEv
 /// The adaptive host (WikiGraphView) swaps the graph surface for this view
 /// when `viewModel.showEventsPage` is on; "← Wiki" returns to the graph.
 ///
-/// Three panes:
-/// - the event plot (dots by kind on an event-time axis),
+/// Two panes:
+/// - the event plot (dots by kind on an event-time axis), and
 /// - the Event Feed — the same events as a chronological list,
 ///   selection-synced with the plot (tap a dot → the feed scrolls to
 ///   and highlights the row; tap a row → the dot lights up), every row with
-///   a non-empty URL opening its source, and
-/// - the expanded "knowledge accrued" pane (stat tiles, accrued curve,
-///   input→output chart, pages touched from `/wiki/changes`).
+///   a non-empty URL opening its source.
 ///
 /// Layout: macOS splits charts (left) from the feed (right); iOS stacks the
 /// chart as a header over the scrolling feed.
 ///
-/// Serves both backends off `WikiEventLogSource` (the plot + feed). The
-/// "knowledge accrued" pane needs wiki-api's revisions/changes endpoints, which
-/// Hermes has no counterpart for, so it renders only when the same source also
-/// conforms to `WikiEventTimelineProviding` — present for Centaur, absent for
-/// Hermes. Two capabilities rather than one is what lets the shared parts stay
-/// shared instead of being forked per backend.
+/// Reads the log off `WikiEventLogSource`, the capability the graph gates the
+/// Events door on.
 internal struct WikiEventsPageView: View {
-    /// The event log — every backend that reaches this surface has one.
+    /// The event log — every source that reaches this surface has one.
     internal let source: any WikiEventLogSource
     /// Shared wiki selection plane: page chips/rows navigate through it and
     /// return the surface to the graph/reader (openPageLeavingEvents).
@@ -36,8 +30,6 @@ internal struct WikiEventsPageView: View {
 
     @State private var windowDays: Int = 30
     @State private var eventTimeline: WikiEventTimeline?
-    @State private var revisionsTimeline: WikiRevisionsTimeline?
-    @State private var changesSummary: WikiChangesSummary?
     /// Selection plane shared by the dot plot and the feed (event id ==
     /// source_key). Either surface writes it; both react.
     @State private var selectedEventID: String?
@@ -56,14 +48,8 @@ internal struct WikiEventsPageView: View {
         days >= 365 ? "1y" : "\(days)d"
     }
 
-    /// The wiki-api-only enrichment provider, when this source has one.
-    private var knowledgeProvider: (any WikiEventTimelineProviding)? {
-        source as? (any WikiEventTimelineProviding)
-    }
-
-    /// Kind colors/labels/lanes from the wiki's own `type: event-type` pages.
-    /// Empty for Centaur, whose kinds come from its pipeline and keep the
-    /// built-in palette.
+    /// Kind colors/labels/lanes from the wiki's own `type: event-type` pages;
+    /// undeclared kinds keep the built-in palette.
     private var presentation: WikiEventPresentation {
         WikiEventPresentation(registry: viewModel.eventTypes)
     }
@@ -207,7 +193,7 @@ internal struct WikiEventsPageView: View {
         } else if let loadError, eventTimeline == nil {
             errorState(loadError)
         } else if let timeline = eventTimeline {
-            if timeline.events.isEmpty && (revisionsTimeline?.buckets.isEmpty ?? true) {
+            if timeline.events.isEmpty {
                 emptyState
             } else {
                 adaptiveBody(timeline)
@@ -218,14 +204,12 @@ internal struct WikiEventsPageView: View {
     // MARK: Adaptive layout
 
     #if os(macOS)
-    /// macOS: charts + knowledge pane (left, scrolling) | Event Feed (right).
+    /// macOS: chart (left, scrolling) | Event Feed (right).
     private func adaptiveBody(_ timeline: WikiEventTimeline) -> some View {
         HStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     plotSection(timeline)
-                    Divider().padding(.vertical, 2)
-                    knowledgeSection
                 }
                 .padding(14)
             }
@@ -244,7 +228,7 @@ internal struct WikiEventsPageView: View {
         }
     }
     #else
-    /// iOS: one scroll — plot as the header, feed beneath, knowledge last.
+    /// iOS: one scroll — plot as the header, feed beneath.
     private func adaptiveBody(_ timeline: WikiEventTimeline) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -258,8 +242,6 @@ internal struct WikiEventsPageView: View {
                         presentation: presentation,
                         onOpenChangeset: openChangeset
                     )
-                    Divider().padding(.vertical, 2)
-                    knowledgeSection
                 }
                 .padding(14)
             }
@@ -334,22 +316,6 @@ internal struct WikiEventsPageView: View {
         return "\(total) \(noun) not plotted: " + clauses.joined(separator: ", ")
     }
 
-    /// Centaur-only: needs the revisions/changes endpoints. Rendering an empty
-    /// shell on Hermes would read as "no knowledge accrued" rather than "this
-    /// backend doesn't report it".
-    @ViewBuilder
-    private var knowledgeSection: some View {
-        if knowledgeProvider != nil {
-            WikiEventsKnowledgePane(
-                eventTimeline: eventTimeline,
-                revisionsTimeline: revisionsTimeline,
-                changesSummary: changesSummary,
-                window: window,
-                onOpenPage: { viewModel.openPageLeavingEvents($0) }
-            )
-        }
-    }
-
     /// Open the change this event caused. Leaves the events page for the graph
     /// surface, selects the page, and opens the changeset drawer scoped to it —
     /// the drawer filters by `selectedPagePath`, so landing on the page IS
@@ -415,26 +381,6 @@ internal struct WikiEventsPageView: View {
         } catch {
             loadError = error.localizedDescription
             return
-        }
-        // The knowledge panes are wiki-api enrichment: absent on Hermes, and on
-        // Centaur a failure (older deployment without an endpoint) hides the
-        // pane rather than erroring a page whose spine already loaded. Logged
-        // rather than swallowed — "the pane is missing" and "the pane's endpoint
-        // is broken" look identical on screen otherwise.
-        guard let knowledgeProvider else { return }
-        do {
-            revisionsTimeline = try await knowledgeProvider.fetchRevisionsTimeline(
-                days: Double(windowDays), since: nil, until: nil
-            )
-        } catch {
-            log.warning("revisions timeline unavailable: \(error.localizedDescription, privacy: .public)")
-        }
-        do {
-            changesSummary = try await knowledgeProvider.fetchChangesSummary(
-                days: Double(windowDays), since: nil, until: nil
-            )
-        } catch {
-            log.warning("changes summary unavailable: \(error.localizedDescription, privacy: .public)")
         }
     }
 

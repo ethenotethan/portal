@@ -105,7 +105,7 @@ internal struct WikiDockedReader: View {
 
     @ViewBuilder
     private func focusControls(page: WikiPage?) -> some View {
-        // Edit this page in place (wiki.update) — Hermes wikis only; Centaur
+        // Edit this page in place (wiki.update) — harness wikis only; override
         // sources are read-only. Enabled once the body has loaded so the
         // editor opens against real content.
         if let path = viewModel.selectedPath, page != nil,

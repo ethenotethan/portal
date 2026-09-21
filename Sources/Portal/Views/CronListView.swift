@@ -63,11 +63,8 @@ struct CronListView: View {
         .navigationDestination(for: CronJob.self) { job in
             CronJobDetailView(
                 job: job,
-                supportsRemoveAndEdit: cronViewModel.supportsRemoveAndEdit,
-                supportsTrigger: cronViewModel.supportsTrigger,
                 onPause: { Task { await cronViewModel.pauseJob(id: job.id) } },
                 onResume: { Task { await cronViewModel.resumeJob(id: job.id) } },
-                onTrigger: { Task { await cronViewModel.triggerJob(id: job.id) } },
                 onRemove: { Task { await cronViewModel.removeJob(id: job.id) } },
                 onUpdatePrompt: { newPrompt in
                     Task { await cronViewModel.updatePrompt(id: job.id, newPrompt: newPrompt) }
@@ -103,15 +100,8 @@ struct CronListView: View {
                   !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
             filterState.expandAll(in: grouping)
         }
-        .task(id: settings.focusedGateway?.id) {
-            // A focused Standard backend is HTTP-only: route cron through its
-            // dashboard API. Otherwise use the WebSocket Gateway as before.
-            if let standard = settings.focusedGateway, standard.kind == .hermesStandard,
-               let client = Self.standardClient(for: standard) {
-                cronViewModel.setStandardClient(client)
-            } else {
-                cronViewModel.setGatewayClient(gatewayClientWrapper.client)
-            }
+        .task {
+            cronViewModel.setGatewayClient(gatewayClientWrapper.client)
             await cronViewModel.refreshJobs()
         }
     }
@@ -188,23 +178,11 @@ struct CronListView: View {
 
     @ViewBuilder
     private func cronActions(for job: CronJob) -> some View {
-        if cronViewModel.supportsTrigger {
-            Button {
-                Task { await cronViewModel.triggerJob(id: job.id) }
-            } label: {
-                Label("Run now", systemImage: "play.circle")
-            }
-            Divider()
-        }
         pauseResumeButton(for: job)
-        // Standard's dashboard API has no remove-job endpoint; only the
-        // WebSocket Gateway offers it.
-        if cronViewModel.supportsRemoveAndEdit {
-            Divider()
-            moveMenu(for: job)
-            Divider()
-            removeButton(for: job)
-        }
+        Divider()
+        moveMenu(for: job)
+        Divider()
+        removeButton(for: job)
     }
 
     /// Move a job straight from the list. The full editor lives in the detail
@@ -278,24 +256,6 @@ struct CronListView: View {
         .background(Color.orange.opacity(0.1))
     }
 
-
-    /// Build an upstream Hermes dashboard client for a focused Standard gateway,
-    /// or nil if its URL/token is unusable. Reads route through this instead of
-    /// the WebSocket Gateway (Standard is HTTP-only).
-    private static func standardClient(for gateway: SavedGateway) -> HermesStandardClient? {
-        // GatewayURL, not URL(string:) — the latter accepts a bare
-        // "host:8080" as a scheme-only URL with no host, which
-        // HermesStandardClient then rejects, silently emptying this view.
-        guard let baseURL = GatewayURL.httpOrigin(gateway.url) else {
-            return nil
-        }
-        do {
-            return try HermesStandardClient(baseURL: baseURL, sessionToken: gateway.apiKey)
-        } catch {
-            return nil
-        }
-    }
-
     @ViewBuilder
     private func pauseResumeButton(for job: CronJob) -> some View {
         if job.state == "paused" || !job.enabled {
@@ -332,14 +292,8 @@ struct CronListView: View {
 
 struct CronJobDetailView: View {
     let job: CronJob
-    /// Standard's dashboard API has no remove-job or edit-prompt endpoint, so
-    /// those affordances hide when the source is a Standard backend.
-    internal var supportsRemoveAndEdit = true
-    /// Standard-only one-shot "Run now"; the WebSocket Gateway has no trigger.
-    internal var supportsTrigger = false
     let onPause: () -> Void
     let onResume: () -> Void
-    internal var onTrigger: () -> Void = {}
     let onRemove: () -> Void
     let onUpdatePrompt: (String) -> Void
     /// Rename the job — also the recategorize action, since `CronCategory`
@@ -368,16 +322,13 @@ struct CronJobDetailView: View {
                     statsStrip
                     healthBar
                 }
-                // Renaming IS recategorizing — see CronCategoryEditor. Gateway
-                // only: Standard's dashboard API has no update endpoint.
-                if supportsRemoveAndEdit {
-                    CronCategoryEditor(
-                        name: job.name,
-                        isCompact: false,
-                        siblingJobs: siblingJobs,
-                        onRename: onRename
-                    )
-                }
+                // Renaming IS recategorizing — see CronCategoryEditor.
+                CronCategoryEditor(
+                    name: job.name,
+                    isCompact: false,
+                    siblingJobs: siblingJobs,
+                    onRename: onRename
+                )
                 detailCard
                 if !runRecords.isEmpty {
                     runHistoryCard
@@ -629,7 +580,7 @@ struct CronJobDetailView: View {
                     .foregroundStyle(Theme.primary)
                 Spacer()
 
-                if supportsRemoveAndEdit && !isEditingPrompt {
+                if !isEditingPrompt {
                     Button {
                         editedPrompt = promptText
                         isEditingPrompt = true
@@ -695,7 +646,7 @@ struct CronJobDetailView: View {
 
     private var promptDisplay: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if supportsRemoveAndEdit && job.isPromptTruncated {
+            if job.isPromptTruncated {
                 HStack(spacing: 4) {
                     Image(systemName: "info.circle")
                         .font(.caption2)
@@ -750,24 +701,13 @@ struct CronJobDetailView: View {
                 .portalButton()
             }
 
-            if supportsTrigger {
-                Button {
-                    onTrigger()
-                } label: {
-                    Label("Run now", systemImage: "play.circle")
-                }
-                .portalButton()
+            Button(role: .destructive) {
+                onRemove()
+                dismiss()
+            } label: {
+                Label("Remove", systemImage: "trash")
             }
-
-            if supportsRemoveAndEdit {
-                Button(role: .destructive) {
-                    onRemove()
-                    dismiss()
-                } label: {
-                    Label("Remove", systemImage: "trash")
-                }
-                .portalButton(tint: .red)
-            }
+            .portalButton(tint: .red)
         }
     }
 

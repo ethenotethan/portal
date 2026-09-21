@@ -66,7 +66,7 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_backend_contract_keeps_key_seam(self) -> None:
         backend = next(item for item in self.model["components"] if item["id"] == "backend-contract")
         self.assertIn("AgentBackend", backend["declarations"])
-        self.assertIn("BackendCapabilities", backend["declarations"])
+        self.assertIn("GatewayEvent", backend["declarations"])
 
     def test_extracts_main_actor_and_actor_execution_domains(self) -> None:
         source = """@MainActor

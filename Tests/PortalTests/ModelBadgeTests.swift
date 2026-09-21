@@ -105,7 +105,6 @@ private final class ModelBadgeBackendSpy: AgentBackend {
     internal var onReconnected: (() async -> Void)?
     internal let apiKey = ""
     internal var activeSessionID: String?
-    internal let capabilities = BackendCapabilities.hermes
 
     /// Catalog the gateway answers with, keyed by the session asked about.
     internal var catalogBySession: [String: ModelCatalog] = [:]

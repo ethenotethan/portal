@@ -80,8 +80,8 @@ internal struct GraphSurfaceMenu: View {
 internal struct GraphsView: View {
     @ObservedObject internal var wikiViewModel: WikiGraphViewModel
 
-    /// Knowledge-base source override for the wiki graph — a Centaur session
-    /// passes its wiki-api client. The runtime graph is Hermes-only, so an
+    /// Knowledge-base source override for the wiki graph — e.g. CodeGraphSource
+    /// passes a service's code graph. The runtime graph is harness-only, so an
     /// override also means the switcher has nothing to switch to.
     internal var overrideSource: (any WikiSource)?
 
@@ -100,7 +100,7 @@ internal struct GraphsView: View {
         self.overrideSource = overrideSource
     }
 
-    /// A Centaur wiki override has no cron dataflow behind it, so the section
+    /// A code-graph override has no cron dataflow behind it, so the section
     /// collapses back to the plain wiki graph rather than offering a switch that
     /// would land on an empty canvas.
     private var offersSwitcher: Bool { overrideSource == nil }

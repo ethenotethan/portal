@@ -88,14 +88,13 @@ internal struct HarnessConnectionSection: View {
     @State private var showLog = false
 
     private var backend: (any AgentBackend)? {
-        gatewayClientWrapper.liveClient(for: gateway, isActive: settings.isActive(gateway))
+        settings.isActive(gateway) ? gatewayClientWrapper.client : nil
     }
 
-    /// RTT is only meaningful for the active home gateway — that's the one the
-    /// wrapper keeps a live keepalive reading for. Sidecars surface theirs in
-    /// the full connection log instead.
+    /// RTT is only meaningful for the active harness — that's the one the
+    /// wrapper keeps a live keepalive reading for.
     private var showsRTT: Bool {
-        gateway.kind == .hermes && settings.isActive(gateway)
+        settings.isActive(gateway)
     }
 
     internal var body: some View {
@@ -155,17 +154,10 @@ internal struct HarnessConnectionSection: View {
     private var offlineLabel: String { "Offline" }
 
     /// Explains why an entry with no live client is offline and how to connect
-    /// it — the transport for each kind only comes up under a specific trigger.
+    /// it — only the active harness holds a live socket.
     private var offlineHint: String? {
         guard backend == nil else { return nil }
-        switch gateway.kind {
-        case .hermes:
-            return "Make this harness active to connect its gateway socket."
-        case .hermesStandard:
-            return "Focus this harness to connect its chat sidecar."
-        case .centaur:
-            return "Connects when a session opens on this harness."
-        }
+        return "Make this harness active to connect its gateway socket."
     }
 }
 #endif

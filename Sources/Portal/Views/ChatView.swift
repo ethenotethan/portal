@@ -83,11 +83,9 @@ struct ChatView: View {
         activeSkin.makeProvider()
     }
 
-    /// The identity all chat chrome presents. An adopted gateway persona wins;
-    /// the backend's harness-fixed identity (Centaur) is the fallback while none
-    /// has been adopted. See `PersonaManager.chromePersona(harness:)`.
+    /// The identity all chat chrome presents: the adopted harness persona.
     private var displayPersona: Persona {
-        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
+        personaManager.activePersona
     }
 
     // MARK: - Thought Graph Helpers
@@ -580,17 +578,15 @@ struct ChatView: View {
             .help(ttsService.isEnabled ? "Text-to-speech enabled" : "Text-to-speech disabled")
 
             // Response style (deep map / balanced / direct)
-            if chatViewModel.backendCapabilities.supportsResponseStyles {
-                Menu {
-                    responseStyleMenuItems
-                } label: {
-                    Image(systemName: chatViewModel.responseStyle.icon)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.plain)
+            Menu {
+                responseStyleMenuItems
+            } label: {
+                Image(systemName: chatViewModel.responseStyle.icon)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
             }
+            .buttonStyle(.plain)
 
             Spacer()
 
@@ -722,13 +718,11 @@ struct ChatView: View {
                     Label("Chat Style: \(activeSkin.displayName)", systemImage: activeSkin.icon)
                 }
 
-                if chatViewModel.backendCapabilities.supportsResponseStyles {
-                    Menu {
-                        responseStyleMenuItems
-                    } label: {
-                        Label("Response Style: \(chatViewModel.responseStyle.label)",
-                              systemImage: chatViewModel.responseStyle.icon)
-                    }
+                Menu {
+                    responseStyleMenuItems
+                } label: {
+                    Label("Response Style: \(chatViewModel.responseStyle.label)",
+                          systemImage: chatViewModel.responseStyle.icon)
                 }
 
                 Button {
@@ -1356,10 +1350,9 @@ struct ChatInputBar: View {
     /// and available, and which one, for the tooltip.
     @ObservedObject private var localChat = LocalChatService.shared
 
-    /// The identity the composer placeholder names — an adopted gateway persona
-    /// wins, else the backend's harness-fixed identity (Centaur).
+    /// The identity the composer placeholder names: the adopted harness persona.
     private var displayPersona: Persona {
-        personaManager.chromePersona(harness: chatViewModel.backendCapabilities.harnessPersona)
+        personaManager.activePersona
     }
 
     /// On macOS, the focus binding is owned by ChatView so that clicks
@@ -1401,9 +1394,7 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                if chatViewModel.backendCapabilities.supportsAttachments {
-                    attachButton
-                }
+                attachButton
                 inputField
                     .frame(maxWidth: .infinity, alignment: .leading)
                 discussButton
@@ -1436,9 +1427,7 @@ struct ChatInputBar: View {
                 Divider().overlay(Theme.border)
             }
             HStack(alignment: .bottom, spacing: 10) {
-                if chatViewModel.backendCapabilities.supportsAttachments {
-                    attachButton
-                }
+                attachButton
                 inputField
                 discussButton
                 voiceButton
@@ -1700,10 +1689,6 @@ struct ChatInputBar: View {
     /// on-device voice enabled, the mic transcribes locally instead — so the
     /// button is available whenever either path is, independent of the gateway.
     private var voiceButton: some View {
-        guard chatViewModel.backendCapabilities.supportsVoice
-                || chatViewModel.localVoiceService.isEnabledAndAvailable else {
-            return AnyView(EmptyView())
-        }
         let isRecording = chatViewModel.isVoiceRecording
         let isConversation = chatViewModel.isConversationActive
         let isIdle = !chatViewModel.isStreaming && !isRecording && !isConversation

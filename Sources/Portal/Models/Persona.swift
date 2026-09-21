@@ -34,9 +34,9 @@ struct Persona: Codable, Identifiable, Equatable, Sendable {
 
     /// The plain avatar glyph, unadorned. Resolution order:
     /// 1. uploaded image (`imagePath`) — the user's own picture,
-    /// 2. deterministic identicon seeded from `id` — for gateway personas that
-    ///    have no uploaded picture (a stable, unique face per gateway),
-    /// 3. the SF Symbol — built-in personas (Portal, Centaur) keep their glyph.
+    /// 2. deterministic identicon seeded from `id` — for harness personas that
+    ///    have no uploaded picture (a stable, unique face per harness),
+    /// 3. the SF Symbol — the built-in Portal persona keeps its glyph.
     @ViewBuilder
     var avatar: some View {
         if hasCustomImage, let path = imagePath, let image = PersonaImage.load(path: path) {
@@ -50,8 +50,8 @@ struct Persona: Codable, Identifiable, Equatable, Sendable {
         }
     }
 
-    /// Gateway-derived personas (not the built-in Portal/Centaur glyphs) show an
-    /// identicon when they have no uploaded image, so every gateway reads as a
+    /// Harness-derived personas (not the built-in Portal glyph) show an
+    /// identicon when they have no uploaded image, so every harness reads as a
     /// distinct face rather than a shared `sparkles` symbol.
     private var usesIdenticon: Bool { !isBuiltIn }
 
@@ -81,15 +81,6 @@ struct Persona: Codable, Identifiable, Equatable, Sendable {
     static let defaultPersona = Persona(
         id: "portal", name: "Portal", tagline: "Your AI agent",
         symbolName: "sparkles", accentColorHex: "#007AFF",
-        isBuiltIn: true
-    )
-
-    /// Fixed identity for Centaur-backed sessions. Centaur has no persona
-    /// sync (no config RPCs), so its presentation never comes from
-    /// PersonaManager — it is a different harness, not a Hermes persona.
-    static let centaurPersona = Persona(
-        id: "centaur", name: "Centaur", tagline: "Sandboxed harness",
-        symbolName: "shippingbox", accentColorHex: "#FF9500",
         isBuiltIn: true
     )
 }

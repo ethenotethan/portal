@@ -126,7 +126,6 @@ internal struct CronJobsView: View {
             onUpdatePrompt: { prompt in Task { await vm.updatePrompt(id: job.id, newPrompt: prompt) } },
             onRename: { name in Task { await vm.renameJob(id: job.id, newName: name) } },
             siblingJobs: vm.jobs,
-            supportsRemoveAndEdit: vm.supportsRemoveAndEdit,
             showsCategoryPath: !underCategory,
             dataflow: vm.dataflow(for: job.id),
             onSelectEndpoint: onSelectEndpoint
