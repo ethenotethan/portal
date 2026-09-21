@@ -353,6 +353,27 @@ final class ArtifactStore: ObservableObject {
         }
     }
 
+    /// The socket came (back) up — `gateway.ready` is sent on every connect.
+    /// Live subscriptions exist only in gateway memory, so a gateway restart
+    /// forgot ours while the handles here still look valid, and a slot that
+    /// holds a handle never subscribes again: the page would keep its last
+    /// payload and never move. Drop the handles and re-run every live slot;
+    /// `performQuery` keeps the last good payload on screen (no empty flash)
+    /// and subscribes afresh. The old handle is released best-effort first so
+    /// a gateway that merely blipped doesn't count the same key twice. Nothing
+    /// to do on the first connect: no handles yet.
+    private func resubscribeLiveQueries() {
+        guard !querySubscriptions.isEmpty else { return }
+        let stale = querySubscriptions
+        querySubscriptions = [:]
+        for (slot, handle) in stale {
+            if let client {
+                Task { try? await client.artifactQueryUnsubscribe(handle: handle) }
+            }
+            runQuery(artifactID: slot.artifactID, queryID: slot.queryID, rawParams: slot.rawParams)
+        }
+    }
+
     /// An intent succeeded: the queries that declared it in `invalidated_by`
     /// are stale, so re-run them without waiting for a poll.
     private func invalidateQueries(artifactID: String, bindingID: String) {
@@ -706,7 +727,7 @@ final class ArtifactStore: ObservableObject {
         Task { await pull() }
     }
 
-    /// The two gateway events the store acts on. Everything else is another
+    /// The gateway events the store acts on. Everything else is another
     /// store's concern.
     private func handleGatewayEvent(_ event: GatewayEvent) {
         switch event {
@@ -714,6 +735,8 @@ final class ArtifactStore: ObservableObject {
             applyRemoteChange(id: id, deleted: deleted)
         case .artifactQueryChanged(let artifactID, let queryID, let status, let reason):
             applyQueryChange(artifactID: artifactID, queryID: queryID, status: status, reason: reason)
+        case .gatewayReady:
+            resubscribeLiveQueries()
         default:
             break
         }
