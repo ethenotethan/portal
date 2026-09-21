@@ -53,7 +53,13 @@ internal actor MLXLocalChatEngine: LocalChatGenerating {
         model: LocalChatModel
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            let task = Task {
+            // Generate at `.utility`, a notch below default. This engine only
+            // ever feeds the spoken discussion, where PocketTTS is synthesizing
+            // at the same time — and its final stage (the mimi decoder) is
+            // CPU-only. Yielding CPU to that decoder is what keeps speech from
+            // gapping between sentences; token generation is GPU-bound, so it
+            // barely notices the lower thread QoS.
+            let task = Task(priority: .utility) {
                 await self.generate(
                     instructions: instructions,
                     prompt: prompt,

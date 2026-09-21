@@ -74,6 +74,12 @@ internal protocol NeuralSpeechSynthesizing: AnyObject {
     /// Queue `text` behind whatever is already speaking. `rate` is a multiple
     /// of the natural speaking rate (`0.5 ... 2.0`).
     func speak(_ text: String, id: UUID, rate: Double)
+    /// The reply is complete — no more sentences are coming. The engine may hold
+    /// a small lead before it starts a reply (a cushion that absorbs synthesis
+    /// dips between sentences); this releases that hold so a short reply, or the
+    /// tail of a streamed one, still starts promptly instead of waiting for a
+    /// lead that will never fill. A no-op when nothing is waiting to play.
+    func flush()
     /// Silence everything queued and playing. Every utterance still in flight
     /// reports `.finished`.
     func stop()

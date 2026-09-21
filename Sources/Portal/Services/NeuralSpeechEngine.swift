@@ -10,18 +10,27 @@ private let log = Logger(subsystem: "com.ethenotethan.Portal", category: "Neural
 /// streamed 80 ms at a time from CoreML into an `AVAudioPlayerNode`.
 ///
 /// Chosen over the other backends in the package because it is the one built
-/// for a conversation: the first frame plays tens of milliseconds after the
-/// text arrives, and the rest streams behind it while the model is still
-/// generating. The system voice, by contrast, shapes intonation once per
-/// utterance and sounds like a paragraph being read — which is what made
-/// hands-free replies feel uncanny.
+/// for a conversation: it phrases each sentence naturally rather than shaping
+/// intonation once per paragraph, which is what made the system voice feel
+/// uncanny in hands-free replies.
 ///
-/// Each utterance is one `synthesizeStreaming` call, so its boundaries are
-/// exact: `started` fires as its first buffer renders, `finished` as its last
-/// buffer finishes playing. Utterances queue in order; the model runs ahead
-/// of playback (several times real time), so consecutive sentences are
-/// gapless. Speaking rate is applied with a time-pitch unit rather than by
-/// the model, which has no speed control.
+/// Each utterance is one `synthesizeStreaming` call. Rather than piping frames
+/// straight into the player as they arrive, the sentence is buffered in full
+/// and only then handed to the player as one contiguous run: PocketTTS's mimi
+/// decoder is CPU-only and does not reliably generate faster than it plays on
+/// every machine, so a player started on a thin pre-roll underruns — audibly
+/// stutters — the moment generation dips below real time. Buffering first
+/// trades a little onset latency (one short sentence's synthesis) for playback
+/// that cannot stutter mid-sentence. The next sentence is synthesized while
+/// this one plays and scheduled onto the still-running player, so a multi-
+/// sentence reply stays gapless when generation keeps up. To hold that lead
+/// even when synthesis dips — the local chat model is often on the GPU at the
+/// same time — a reply's first audio waits until a short cushion of it is
+/// scheduled (`leadFrames`), released early by `flush()` when the reply is too
+/// short to fill it. `started` fires as the first buffer renders, `finished`
+/// as the last finishes playing. Speaking
+/// rate is applied with a time-pitch unit rather than by the model, which has
+/// no speed control.
 ///
 /// Compiled only when FluidAudio is linked (the app targets), like the
 /// transcriber in `LocalVoiceEngine.swift`; `TTSService`'s routing is what
@@ -89,22 +98,34 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
     /// bump belongs to speech that was silenced, and is dropped.
     private var generation = 0
     private var isPaused = false
-    /// Audio scheduled for the current playback session but not yet started.
-    /// The player waits for this to cross `prerollFrames` before it begins, so
-    /// the model — slowest on its very first inference frames — builds a lead
-    /// over the playout cursor instead of starving it. Reset on `stop()`; only
-    /// consulted while the player is idle, so a stale value between sessions is
-    /// harmless.
-    private var scheduledUnplayedFrames: AVAudioFrameCount = 0
-    /// ~300 ms of pre-roll: enough to absorb the slow onset frames without
-    /// adding latency a listener would notice on a spoken reply.
-    private static let prerollSeconds = 0.3
-    private var prerollFrames: AVAudioFrameCount {
-        AVAudioFrameCount(Double(PocketTtsConstants.audioSampleRate) * Self.prerollSeconds)
+
+    /// A cushion built before a reply's first audio plays. Buffering one full
+    /// sentence stops the *within*-sentence stutter; a lead across the first
+    /// sentences stops the *between*-sentence gap, because later sentences keep
+    /// synthesizing into the queue while this head start plays. The reply starts
+    /// once ~`leadSeconds` of audio is scheduled, or sooner if `flush()` says no
+    /// more sentences are coming — so a short reply doesn't wait for a lead it
+    /// can never fill. Costs a bounded bit of onset latency for gaplessness.
+    private static let leadSeconds = 1.0
+    private var leadFrames: AVAudioFrameCount {
+        AVAudioFrameCount(Self.leadSeconds * Double(PocketTtsConstants.audioSampleRate))
     }
+    /// Audio scheduled for the current reply but not yet playing — the lead so
+    /// far. Zeroed the instant the player starts, so the gate only delays a
+    /// reply's very first audio, never anything mid-reply.
+    private var pendingLeadFrames: AVAudioFrameCount = 0
+    /// Set by `flush()`: the reply is done, so release the lead gate and let
+    /// whatever is buffered play even if it's under `leadFrames`. Reset when a
+    /// fresh reply begins.
+    private var flushRequested = false
 
     internal init() {
-        manager = PocketTtsManager()
+        // The int8 FlowLM (`flowlm_stepv2`) in place of the fp16 default: the
+        // autoregressive FlowLM loop is the synthesis bottleneck after the
+        // CPU-only mimi decoder, and the quantized weights cut its step cost, so
+        // more sentences finish ahead of playback. This is what keeps a spoken
+        // reply gapless while the local chat model is also on the GPU.
+        manager = PocketTtsManager(precision: .int8)
         format = AVAudioFormat(
             standardFormatWithSampleRate: Double(PocketTtsConstants.audioSampleRate),
             channels: 1
@@ -159,9 +180,27 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         player.volume = 1
         timePitch.rate = Float(min(max(rate, 0.5), 2.0))
         timePitch.pitch = pitch
+        // The first sentence of a fresh reply (nothing in flight, player idle)
+        // starts a new lead: rebuild the cushion and drop any prior flush.
+        if inFlight.isEmpty, !player.isPlaying {
+            pendingLeadFrames = 0
+            flushRequested = false
+        }
         inFlight.append(id)
         queue.append(Utterance(id: id, text: text))
         startWorkerIfNeeded()
+    }
+
+    internal func flush() {
+        flushRequested = true
+        // If the worker already buffered the whole (short) reply and parked
+        // under the lead, nothing is left to trip the gate in `render` — so
+        // release it here. If synthesis is still running, setting the flag is
+        // enough; the next `render` will start playback.
+        if !player.isPlaying, !isPaused, pendingLeadFrames > 0 {
+            player.play()
+            pendingLeadFrames = 0
+        }
     }
 
     private func startWorkerIfNeeded() {
@@ -175,29 +214,52 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         }
     }
 
-    /// Stream one utterance into the player. One buffer is held back so the
-    /// last one can carry the `finished` callback; the first carries `started`.
+    /// Synthesize one utterance in full, then schedule it as one contiguous run
+    /// and start the player. Buffering the whole sentence before playing any of
+    /// it is what stops the mid-sentence stutter: a CPU-only decoder that dips
+    /// below real time can't starve a player that already holds the entire
+    /// sentence. The first buffer carries `started`; the last carries
+    /// `finished`.
     private func render(_ utterance: Utterance) async {
         let myGeneration = generation
+        // Pace instrumentation: how much audio the model generated versus the
+        // wall-clock time it took. Below ~1× real time the model can't stream
+        // faster than it plays — the reason this path buffers rather than
+        // pipes. Logged once per sentence, so it's cheap.
+        let startedAt = ContinuousClock.now
+        var buffers: [AVAudioPCMBuffer] = []
+        var generatedFrames: AVAudioFrameCount = 0
         do {
             try startAudioIfNeeded()
             let stream = try await manager.synthesizeStreaming(text: utterance.text, voice: voice)
-            var pending: AVAudioPCMBuffer?
-            var announcedStart = false
             for try await frame in stream {
                 guard generation == myGeneration else { return }
                 guard let buffer = makeBuffer(frame.samples) else { continue }
-                if let held = pending {
-                    schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: false, generation: myGeneration)
-                    announcedStart = true
-                }
-                pending = buffer
+                generatedFrames += buffer.frameLength
+                buffers.append(buffer)
             }
             guard generation == myGeneration else { return }
-            if let held = pending {
-                schedule(held, id: utterance.id, announcesStart: !announcedStart, isLast: true, generation: myGeneration)
-            } else {
-                complete(utterance.id)
+            logSynthPace(frames: generatedFrames, since: startedAt)
+            guard !buffers.isEmpty else { complete(utterance.id); return }
+            for (index, buffer) in buffers.enumerated() {
+                schedule(
+                    buffer,
+                    id: utterance.id,
+                    announcesStart: index == 0,
+                    isLast: index == buffers.count - 1,
+                    generation: myGeneration
+                )
+            }
+            // Hold the reply's first audio until a lead has built up (or the
+            // reply is done), then kick the player once. It stays running across
+            // sentences, so once started, later sentences' buffers just extend
+            // the queue behind this one — the gate never delays them.
+            if !player.isPlaying, !isPaused {
+                pendingLeadFrames += generatedFrames
+                if flushRequested || pendingLeadFrames >= leadFrames {
+                    player.play()
+                    pendingLeadFrames = 0
+                }
             }
         } catch {
             guard generation == myGeneration else { return }
@@ -222,21 +284,34 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         } else {
             player.scheduleBuffer(buffer)
         }
-        if !player.isPlaying, !isPaused {
-            scheduledUnplayedFrames += buffer.frameLength
-            // Hold playback until a pre-roll cushion has queued (or the
-            // utterance is already complete — a one-buffer reply can't
-            // pre-roll). This is what keeps the onset from stuttering while
-            // the model is still spinning up.
-            if isLast || scheduledUnplayedFrames >= prerollFrames {
-                player.play()
-            }
-        }
     }
 
     private func complete(_ id: UUID) {
         inFlight.removeAll { $0 == id }
         onEvent?(.finished(id))
+    }
+
+    /// Emit the just-finished utterance's generation pace. A comfortable stream
+    /// runs several times real time; a value near or below 1× is the reply
+    /// stuttering because the model couldn't stay ahead of playback — logged
+    /// loudly so a "choppy every now and then" report has a number behind it.
+    private func logSynthPace(frames: AVAudioFrameCount, since start: ContinuousClock.Instant) {
+        guard frames > 0 else { return }
+        let elapsed = ContinuousClock.now - start
+        let wallSeconds = Double(elapsed.components.seconds)
+            + Double(elapsed.components.attoseconds) / 1e18
+        guard wallSeconds > 0 else { return }
+        let audioSeconds = Double(frames) / Double(PocketTtsConstants.audioSampleRate)
+        let realtimeFactor = audioSeconds / wallSeconds
+        let detail = String(
+            format: "%.2f× real time (%.2fs audio in %.2fs)",
+            realtimeFactor, audioSeconds, wallSeconds
+        )
+        if realtimeFactor < 1.3 {
+            log.warning("PocketTTS pace \(detail, privacy: .public) — playback may glitch")
+        } else {
+            log.debug("PocketTTS pace \(detail, privacy: .public)")
+        }
     }
 
     private func makeBuffer(_ samples: [Float]) -> AVAudioPCMBuffer? {
@@ -305,8 +380,9 @@ internal final class PocketTtsSpeechEngine: NeuralSpeechSynthesizing {
         worker?.cancel()
         worker = nil
         queue.removeAll()
-        scheduledUnplayedFrames = 0
         isPaused = false
+        pendingLeadFrames = 0
+        flushRequested = false
         let silenced = inFlight
         inFlight.removeAll()
         for id in silenced {
