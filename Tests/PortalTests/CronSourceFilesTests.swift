@@ -152,9 +152,10 @@ internal struct CronSourceFilesTests {
         #expect(file("/a", role: "browsed").roleRank == file("/a", role: "declared").roleRank)
     }
 
-    @Test("display helpers read leaf and folder off the path")
+    @Test("display helpers read identity, leaf and folder off the path")
     internal func displayHelpers() {
         let script = file("/h/scripts/sub/w.sh", role: "script", root: "hermes", rel: "scripts/sub/w.sh")
+        #expect(script.id == "/h/scripts/sub/w.sh")
         #expect(script.fileName == "w.sh")
         #expect(script.relativeDirectory == "scripts/sub")
 
