@@ -1,0 +1,10 @@
+cua-driver 0.14.2 on darwin — degraded
+binary: /Users/inference2/.local/bin/cua-driver
+platform: macOS 26.5.2 (arm64)
+session_active: yes
+bundle_identifier: com.trycua.driver
+Accessibility: NOT granted
+Screen Recording: NOT granted
+AX capability: not trusted
+
+Required action: grant Accessibility and Screen Recording to CuaDriver.app in System Settings → Privacy & Security, then restart cua-driver.

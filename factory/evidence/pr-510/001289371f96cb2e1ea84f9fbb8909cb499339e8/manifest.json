@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "pr": 514,
+  "issue": 510,
+  "task_id": "t_b621867a",
+  "pr_head_sha": "001289371f96cb2e1ea84f9fbb8909cb499339e8",
+  "captured_at_utc": "2026-09-21T12:03:41Z",
+  "verdict": "BLOCKED",
+  "summary": "The exact PR revision built and launched successfully in an iPhone 17 Pro simulator, but interactive validation of the changed delegation-result flow could not be completed because cua-driver lacks macOS Accessibility and Screen Recording grants.",
+  "review": {
+    "diff_files": 5,
+    "diff_summary": "193 insertions, 62 deletions",
+    "targeted_tests": "swift test --disable-sandbox --filter DelegationBatchNoticeTests: PASS, 12 tests",
+    "related_flaky_probe": "swift test --disable-sandbox --filter GatewayTransportLeakTests: PASS, 4 tests",
+    "ci": "All checks passed except the initial Measure (build + test) run, whose unrelated GatewayTransportLeak test failed once; a failed-job rerun was in progress when validation became blocked on CUA permissions."
+  },
+  "commands": [
+    "git checkout --detach 001289371f96cb2e1ea84f9fbb8909cb499339e8",
+    "swift test --disable-sandbox --filter DelegationBatchNoticeTests",
+    "make build",
+    "xcodebuild -project Portal.xcodeproj -scheme Portal-iOS -destination 'platform=iOS Simulator,id=32D826A4-D247-41D3-AB2C-D321B603C14A' -derivedDataPath /tmp/portal-pr514-derived build",
+    "xcrun simctl install 32D826A4-D247-41D3-AB2C-D321B603C14A /tmp/portal-pr514-derived/Build/Products/Debug-iphonesimulator/Portal-iOS.app",
+    "xcrun simctl launch 32D826A4-D247-41D3-AB2C-D321B603C14A com.ethenotethan.Portal.iOS",
+    "xcrun simctl io 32D826A4-D247-41D3-AB2C-D321B603C14A screenshot launch.png",
+    "hermes computer-use doctor"
+  ],
+  "scenario_steps": [
+    "Resolved and pinned PR #514 to the exact head SHA before review or execution.",
+    "Reviewed the five-file diff and ran the focused parser regression suite.",
+    "Moved PR #514 and issue #510 from state:review to state:validation.",
+    "Built the macOS app and the iOS simulator app from the pinned revision.",
+    "Installed and launched Portal-iOS on an iPhone 17 Pro simulator.",
+    "Attempted multiple cua-driver captures against Portal and Simulator; every capture returned a 0x0 frame.",
+    "Ran hermes computer-use doctor, which confirmed missing Accessibility and Screen Recording grants for com.trycua.driver.",
+    "Stopped without claiming the changed flow passed; lifecycle is returned to state:blocked."
+  ],
+  "screenshots": [
+    {
+      "file": "launch.png",
+      "sha256": "3276a264bb1ed40b9021444262c148b2ee0c7c38c873633fc1c37a45e2311372",
+      "capture": "xcrun simctl io screenshot",
+      "observed_result": "Portal-iOS launched and displayed its Connect to your harness screen without a crash or system error. This screenshot proves launch only; it does not prove the delegation-result rendering flow."
+    }
+  ],
+  "blocker": {
+    "component": "cua-driver 0.14.2",
+    "diagnostic": "Accessibility is NOT granted; Screen Recording is NOT granted; AX capability is not trusted.",
+    "required_operator_action": "Grant Accessibility and Screen Recording to CuaDriver.app (bundle com.trycua.driver) in System Settings, restart cua-driver, then rerun this validation task."
+  }
+}
