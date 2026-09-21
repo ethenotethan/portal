@@ -905,12 +905,11 @@ struct ChatView: View {
                                 EmptyTranscriptStateView()
                             }
                             ForEach(renderedMessages, id: \.element.id) { index, message in
-                                if let noticeLabel = message.delegationBatchNoticeLabel {
-                                    // A gateway async-delegation batch marker —
-                                    // render as a centered interstitial rule, not
-                                    // a prose bubble (the raw marker reads as a
-                                    // broken response otherwise).
-                                    DelegationBatchNoticeView(label: noticeLabel)
+                                if let notice = message.delegationBatchNotice {
+                                    // Gateway async-delegation envelopes render
+                                    // as structured result cards; bare markers
+                                    // remain lightweight interstitial rules.
+                                    DelegationBatchNoticeView(notice: notice)
                                         .id(message.id)
                                 } else {
                                     // `index` is the message's position in the
