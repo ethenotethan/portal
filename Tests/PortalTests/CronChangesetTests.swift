@@ -118,6 +118,22 @@ internal struct CronChangesetDecodingTests {
         #expect(CronChangesetActor(raw: "user").isRecorded)
     }
 
+    @Test("every recorded actor has an explicit attribution label and icon")
+    internal func actorPresentationDistinguishesRecordedSources() {
+        let cases: [(CronChangesetActor, String, String)] = [
+            (.human, "a person", "person"),
+            (.agent, "an agent", "sparkles"),
+            (.scheduler, "the scheduler", "clock"),
+            (.other("automation"), "automation", "questionmark.circle"),
+            (.unknown, "not recorded", "questionmark.circle"),
+        ]
+
+        for (actor, label, icon) in cases {
+            #expect(actor.label == label)
+            #expect(actor.icon == icon)
+        }
+    }
+
     @Test("provenance is unknown for absent, null, and empty alike")
     internal func provenanceCollapsesEveryEmptyShape() {
         #expect(CronChangesetProvenance.decode(nil) == .unknown)
