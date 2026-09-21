@@ -1,5 +1,8 @@
 import Testing
 import Foundation
+#if os(macOS)
+import AppKit
+#endif
 @testable import Portal
 
 @Suite("MediaAttachment")
@@ -70,6 +73,37 @@ internal struct MediaAttachmentTests {
             .path
 
         #expect(MediaAttachment.generateThumbnail(for: missingPath) == nil)
+    }
+
+    @Test("Thumbnail generation returns a 120-square PNG")
+    internal func thumbnailGenerationResizesAndEncodes() throws {
+        #if os(macOS)
+        let source = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 2,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ))
+        source.setColor(NSColor(deviceRed: 0, green: 0, blue: 1, alpha: 1), atX: 0, y: 0)
+        source.setColor(NSColor(deviceRed: 0, green: 1, blue: 0, alpha: 1), atX: 1, y: 0)
+        let sourceData = try #require(source.representation(using: .png, properties: [:]))
+        let sourceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("portal-thumbnail-\(UUID().uuidString).png")
+        try sourceData.write(to: sourceURL)
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let thumbnailData = try #require(MediaAttachment.generateThumbnail(for: sourceURL.path))
+        let thumbnail = try #require(NSBitmapImageRep(data: thumbnailData))
+        #expect(thumbnail.pixelsWide == 120)
+        #expect(thumbnail.pixelsHigh == 120)
+        #expect(thumbnailData.starts(with: [0x89, 0x50, 0x4E, 0x47]))
+        #endif
     }
 
     @Test("Mixed image and document types are distinct")
