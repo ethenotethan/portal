@@ -7,11 +7,12 @@ import Foundation
 @Suite("Session Model")
 struct SessionTests {
 
-    @Test("Sessions with same ID are equal")
+    @Test("Sessions with same ID are equal and share hash identity")
     func equalityByID() {
         let a = Session(id: "abc", messageCount: 5, isRunning: false)
         let b = Session(id: "abc", title: "Different", messageCount: 10, isRunning: true)
         #expect(a == b)
+        #expect(Set([a, b]).count == 1)
     }
 
     @Test("Sessions with different IDs are not equal")
