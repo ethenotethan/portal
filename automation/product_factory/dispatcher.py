@@ -131,7 +131,7 @@ def create_validation_task_on_board(
     issue_number: int,
     pr_url: str,
     implementation_task_id: str,
-    assignee: str = "pr-review-bot",
+    assignee: str = "default",
     project_id: str = "portal",
     board: str = "portal-product-factory",
 ) -> str:
