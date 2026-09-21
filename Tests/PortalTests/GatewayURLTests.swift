@@ -47,6 +47,13 @@ internal struct GatewayURLTests {
         #expect(try #require(GatewayURL.normalize("gateway.example.com")).scheme == "wss")
     }
 
+    @Test("scheme inference ignores userinfo and classifies the host")
+    internal func infersSchemeAfterUserinfo() throws {
+        let url = try #require(GatewayURL.normalize("operator@my-box.ts.net:8642"))
+        #expect(url.absoluteString == "ws://operator@my-box.ts.net:8642/v1/ws")
+        #expect(url.host == "my-box.ts.net")
+    }
+
     @Test("http and https map onto ws and wss")
     internal func canonicalizesHTTPSchemes() throws {
         #expect(try #require(GatewayURL.normalize("https://g.example.com/v1/ws")).scheme == "wss")
