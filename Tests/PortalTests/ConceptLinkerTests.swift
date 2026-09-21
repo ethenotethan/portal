@@ -130,6 +130,22 @@ internal struct ConceptLinkerTests {
         #expect(tokens.contains("refactoring"))
     }
 
+    @Test("salientTokens includes concepts carried only by the node summary")
+    internal func salientTokensFromSummary() {
+        let node = ThoughtGraphNode(
+            id: "r1",
+            name: "reasoning",
+            context: nil,
+            summary: "Inspecting SessionManager",
+            isComplete: true,
+            startedAt: Date()
+        )
+
+        let tokens = ConceptLinker.salientTokens(in: node)
+        #expect(tokens.contains("sessionmanager"))
+        #expect(tokens.contains("inspecting"))
+    }
+
     @Test("salientTokens returns no concepts when context and summary are absent")
     internal func salientTokensOnEmptyNode() {
         let node = ThoughtGraphNode(
