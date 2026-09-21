@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethen.me/schemas/portal-product-factory-policy-v1.json",
+  "title": "Portal Product Factory Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "repository", "rollout_stage", "authorities", "trusted_actors", "capacity", "decomposition", "attempts", "labels", "merge_profiles"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+    "rollout_stage": {"enum": ["observe", "plan", "produce", "close-loop"]},
+    "authorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mutate_github", "dispatch_agents", "merge_pull_requests", "close_issues"],
+      "properties": {
+        "mutate_github": {"type": "boolean"},
+        "dispatch_agents": {"type": "boolean"},
+        "merge_pull_requests": {"type": "boolean"},
+        "close_issues": {"type": "boolean"}
+      }
+    },
+    "trusted_actors": {"type": "object"},
+    "capacity": {
+      "type": "object",
+      "required": ["ordinary_active", "reserved_regression", "active_states"],
+      "properties": {
+        "ordinary_active": {"type": "integer", "minimum": 1},
+        "reserved_regression": {"type": "integer", "minimum": 1},
+        "active_states": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "decomposition": {"type": "object"},
+    "attempts": {"type": "object"},
+    "labels": {"type": "object"},
+    "merge_profiles": {"type": "object"}
+  }
+}

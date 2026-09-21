@@ -1,0 +1,77 @@
+# Portal Product Factory
+
+This directory contains the versioned, fail-closed control plane for Portal's
+Issue-driven autonomous workflow. It is separate from the verifier-ratchet lane.
+
+## Current activation
+
+`policy.v1.json` is intentionally set to **Observe**. The reconciler reads live
+GitHub Issues, mirrors them into a local SQLite Case ledger, validates control
+labels, binds accepted-intent digests, and emits proposed actions. It cannot
+mutate GitHub, dispatch workers, merge PRs, or close Issues in this stage.
+
+```bash
+make product-factory-test
+python3 -m automation.product_factory.cli reconcile \
+  --db /tmp/portal-product-factory.db
+python3 -m automation.product_factory.cli project \
+  --db /tmp/portal-product-factory.db
+```
+
+The `project` command emits a complete Portal `model` artifact specification. It
+uses the existing model/Kanban/table renderers, so v1 requires no new Swift UI.
+
+## Files
+
+- `policy.v1.json` — rollout authority, capacity, attempts, labels, and split merge profiles.
+- `policy.schema.json` — contract schema.
+- `labels.v1.json` — complete GitHub label manifest with descriptions and colors.
+- `policy.py` — exclusive dimensions, admission, actor authority, transitions, and intent digest.
+- `github.py` — read-only paginated GitHub Issue source.
+- `reconciler.py` — idempotent Issue → Case mirror and proposed transition repair.
+- `planner.py` — P0–P3 deterministic WIP planner with a reserved regression slot.
+- `dispatcher.py` — idempotent, separate-generation Kanban task adapter.
+- `merge_policy.py` — independent review, exact-SHA CI/CUA, ratchet, and closure gates.
+- `attempts.py` — two-correction substantive retry budget; transient failures are free.
+- `projection.py` — existing Portal model artifact projection.
+- `cli.py` — observe-stage reconcile and projection commands.
+
+## Event ingestion
+
+There is no specialized durable GitHub gateway in the installed Hermes tree.
+The shipped generic webhook adapter deduplicates delivery IDs in memory, which
+is useful for low latency but is not restart-durable. Therefore reconciliation
+is the completeness mechanism. A gateway route may feed a normalized Issue
+snapshot to `reconcile --input-json`; the periodic full GitHub read repairs any
+missed event through the same fingerprinted idempotent core.
+
+Do not create a second webhook service. The existing durable polling pattern is
+`~/.hermes/scripts/darkbloom-pr-poller.py`, whose pending/ack ledger survives
+failed agent runs. Product Factory activation should call this repository's
+reconciler from that single ingestion path after merge.
+
+## Campaign dispatch
+
+The planner emits at most two ordinary implementation-through-validation Cases
+plus one reserved regression Case. `dispatcher.py` uses Kanban's public
+`create_task()` path with an idempotency key and a task-owned worktree. A
+production deployment should prefer the authenticated Kanban dashboard REST API
+(`/api/plugins/kanban`) when process/version boundaries differ; the direct
+Python adapter is for the same-host, version-pinned install.
+
+Never write directly to the Kanban SQLite tables. Lifecycle transitions perform
+cleanup, dependency promotion, event emission, and hooks that direct SQL would
+bypass.
+
+## Rollout promotion
+
+Promotion is a reviewed contract change, not a runtime flag flip:
+
+1. **Observe** — current stage; read, mirror, validate, propose.
+2. **Plan** — permit label/comment/sub-issue mutation only.
+3. **Produce** — permit bounded agent dispatch and PR creation; human merge.
+4. **Close loop** — permit policy-gated merge and evidence-backed Issue closure.
+
+Before each promotion, add tests for the newly granted authority, update the
+policy schema/contract together, run an observe reconciliation against live
+GitHub, and independently review the immutable candidate revision.

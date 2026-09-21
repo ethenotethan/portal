@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "labels": [
+    {"name": "factory:product", "color": "1D76DB", "description": "Issue-driven Product Factory lane"},
+    {"name": "factory:ratchet", "color": "5319E7", "description": "Repository-driven Verifier Ratchet lane"},
+    {"name": "factory:ready", "color": "0E8A16", "description": "Human/bot admission request for executable work"},
+    {"name": "factory:design-approved", "color": "006B75", "description": "Maintainer-only product/design approval"},
+    {"name": "state:intake", "color": "D4C5F9", "description": "Mirrored; not yet triaged"},
+    {"name": "state:triage", "color": "FBCA04", "description": "Acceptance and routing under review"},
+    {"name": "state:design", "color": "BFDADC", "description": "Awaiting product/design approval"},
+    {"name": "state:ready", "color": "0E8A16", "description": "Validated and eligible for capacity"},
+    {"name": "state:implementing", "color": "0052CC", "description": "Implementation generation active"},
+    {"name": "state:review", "color": "1D76DB", "description": "Independent semantic review active"},
+    {"name": "state:validation", "color": "006B75", "description": "Exact-revision behavior validation active"},
+    {"name": "state:merge-ready", "color": "0E8A16", "description": "All pre-merge policy predicates satisfied"},
+    {"name": "state:post-merge-validation", "color": "5319E7", "description": "Validating accepted main before closure"},
+    {"name": "state:blocked", "color": "B60205", "description": "Human intervention or rescope required"},
+    {"name": "state:regressed", "color": "D73A4A", "description": "Post-merge behavior failed; remediation reserved"},
+    {"name": "validation:interactive", "color": "006B75", "description": "Requires independent cua-driver reproduction"},
+    {"name": "validation:noninteractive", "color": "C2E0C6", "description": "Policy-confirmed noninteractive exemption"},
+    {"name": "risk:bounded", "color": "C2E0C6", "description": "Autonomous bounded bug/change"},
+    {"name": "risk:human-approval", "color": "B60205", "description": "Feature/high-risk change requiring maintainer approval"},
+    {"name": "work:parent", "color": "D4C5F9", "description": "Non-executable parent intent Issue"},
+    {"name": "work:child", "color": "BFD4F2", "description": "Executable depth-1 child Issue"},
+    {"name": "priority:P0", "color": "B60205", "description": "Maintainer-owned emergency priority"},
+    {"name": "priority:P1", "color": "D93F0B", "description": "Maintainer-owned high priority"},
+    {"name": "priority:P2", "color": "FBCA04", "description": "Maintainer-owned normal priority"},
+    {"name": "priority:P3", "color": "C2E0C6", "description": "Maintainer-owned low priority"}
+  ]
+}

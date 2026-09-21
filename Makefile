@@ -11,7 +11,7 @@ SCHEME_MAC := Portal
 CONFIG := Debug
 DERIVED := $(HOME)/Library/Developer/Xcode/DerivedData
 
-.PHONY: generate build installer installer-test run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
+.PHONY: generate build installer installer-test product-factory-test run kill lint lint-fix lint-baseline lint-baseline-guard test check clean diagnose-hang metrics-ratchet metrics-baseline perf-ratchet perf-baseline architecture architecture-check architecture-serve site-check site-serve
 
 # Regenerate the Xcode project from project.yml (needed after adding files).
 generate:
@@ -111,7 +111,10 @@ secret-scan-guard:
 installer-test:
 	python3 -m unittest discover -s Tests/InstallerTests -p 'test_*.py' -v
 
-test: installer-test
+product-factory-test:
+	python3 -m unittest discover -s Tests/ProductFactoryTests -p 'test_*.py' -v
+
+test: installer-test product-factory-test
 	swift build --build-tests
 	swift test --disable-sandbox
 

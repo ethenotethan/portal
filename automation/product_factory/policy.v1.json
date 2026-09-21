@@ -1,0 +1,56 @@
+{
+  "$schema": "./policy.schema.json",
+  "version": 1,
+  "repository": "ethenotethan/portal",
+  "rollout_stage": "produce",
+  "authorities": {
+    "mutate_github": true,
+    "dispatch_agents": true,
+    "merge_pull_requests": false,
+    "close_issues": false
+  },
+  "trusted_actors": {
+    "maintainers": ["ethenotethan"],
+    "factory_bot": "hankbobtheresearchoor",
+    "human_only_labels": ["factory:design-approved"]
+  },
+  "capacity": {
+    "ordinary_active": 2,
+    "reserved_regression": 1,
+    "active_states": ["implementing", "review", "validation", "merge-ready", "post-merge-validation"]
+  },
+  "decomposition": {
+    "max_depth": 1,
+    "max_active_children": 5
+  },
+  "attempts": {
+    "max_corrective": 2,
+    "transient_failures_consume_budget": false
+  },
+  "labels": {
+    "admission": ["factory:ready"],
+    "approval": ["factory:design-approved"],
+    "factory": ["factory:product", "factory:ratchet"],
+    "state": ["state:intake", "state:triage", "state:design", "state:ready", "state:implementing", "state:review", "state:validation", "state:merge-ready", "state:post-merge-validation", "state:blocked", "state:regressed"],
+    "validation": ["validation:interactive", "validation:noninteractive"],
+    "risk": ["risk:bounded", "risk:human-approval"],
+    "work": ["work:parent", "work:child"],
+    "priority": ["priority:P0", "priority:P1", "priority:P2", "priority:P3"]
+  },
+  "merge_profiles": {
+    "product": {
+      "requires_linked_issue": true,
+      "requires_intent_digest": true,
+      "requires_independent_review": true,
+      "requires_validation_evidence": true,
+      "requires_green_ci": true,
+      "automatic_issue_closure": false
+    },
+    "ratchet": {
+      "requires_linked_issue": false,
+      "requires_committed_metric": true,
+      "requires_positive_delta": true,
+      "requires_green_ci": true
+    }
+  }
+}

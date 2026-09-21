@@ -24,6 +24,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Product Factory policy/control-plane tests ──────────────────────────────
+  product-factory:
+    name: Product Factory control plane
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test label policy, reconciliation, capacity, and evidence gates
+        run: python3 -m unittest discover -s Tests/ProductFactoryTests -p 'test_*.py' -v
+
   # ── SwiftLint ───────────────────────────────────────────────────────────────
   # Strict lint gated on the frozen baseline: only NEWLY introduced violations
   # fail. The floor that the baseline can't be grown to silence one is a separate
