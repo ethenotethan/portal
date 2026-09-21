@@ -85,6 +85,33 @@ class ProductFactoryFollowupTests(unittest.TestCase):
             ("validation", "validate-510", "queued"),
         ])
 
+    def test_task_state_loader_falls_back_to_completed_run_summary(self) -> None:
+        board = sqlite3.connect(":memory:")
+        board.row_factory = sqlite3.Row
+        board.executescript(
+            """
+            CREATE TABLE tasks (id TEXT PRIMARY KEY, status TEXT, result TEXT);
+            CREATE TABLE task_runs (
+                id INTEGER PRIMARY KEY,
+                task_id TEXT,
+                status TEXT,
+                outcome TEXT,
+                summary TEXT
+            );
+            INSERT INTO tasks VALUES ('impl-510', 'done', NULL);
+            INSERT INTO task_runs VALUES (
+                1, 'impl-510', 'done', 'completed',
+                'Opened https://github.com/ethenotethan/portal/pull/514'
+            );
+            """
+        )
+
+        states = followup.load_task_states(board)
+
+        self.assertEqual(states["impl-510"]["status"], "done")
+        self.assertIn("/pull/514", states["impl-510"]["result"])
+        board.close()
+
     def test_missing_pr_url_does_not_dispatch_validation(self) -> None:
         candidates = followup.plan_validation_dispatches(
             self.conn,

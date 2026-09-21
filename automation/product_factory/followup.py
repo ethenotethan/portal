@@ -31,6 +31,39 @@ def _generation_id(case_id: str, pr_url: str) -> str:
     return hashlib.sha256(f"{case_id}:validation:{pr_url}".encode("utf-8")).hexdigest()[:24]
 
 
+def load_task_states(conn: sqlite3.Connection) -> dict[str, dict[str, Any]]:
+    """Read Kanban state, falling back to the latest completed run summary.
+
+    Goal-mode workers can complete with ``tasks.result`` unset while persisting the
+    useful completion text in ``task_runs.summary``. Treat that summary as the
+    canonical result fallback so follow-up stages are not silently dropped.
+    """
+    rows = conn.execute(
+        """
+        SELECT
+            t.id,
+            t.status,
+            COALESCE(
+                NULLIF(t.result, ''),
+                (
+                    SELECT NULLIF(r.summary, '')
+                    FROM task_runs r
+                    WHERE r.task_id = t.id
+                      AND r.outcome = 'completed'
+                    ORDER BY r.id DESC
+                    LIMIT 1
+                ),
+                ''
+            ) AS result
+        FROM tasks t
+        """
+    ).fetchall()
+    return {
+        str(row["id"]): {"status": str(row["status"]), "result": str(row["result"] or "")}
+        for row in rows
+    }
+
+
 def plan_validation_dispatches(
     conn: sqlite3.Connection,
     *,
