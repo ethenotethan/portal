@@ -106,6 +106,15 @@ internal struct GatewayDebugSnapshotIdentityTests {
 
         #expect(reason.id == "ended session")
     }
+
+    @Test("pending request count follows request identities")
+    internal func pendingRequestCountFollowsIDs() {
+        var snapshot = GatewayDebugSnapshot()
+        #expect(snapshot.pendingRequestCount == 0)
+
+        snapshot.pendingRequestIDs = [7, 42]
+        #expect(snapshot.pendingRequestCount == 2)
+    }
 }
 
 @Suite("Gateway Restart Phase")
