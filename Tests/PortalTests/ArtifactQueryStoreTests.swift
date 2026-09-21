@@ -17,6 +17,8 @@ private final class FakeQueryGateway: ArtifactGateway {
     var invokeError: Error?
     /// Returned by artifactGet — what a conflict retry re-reads.
     var refreshed: LivingArtifact?
+    /// Returned by artifactList — used to exercise the cold-cache pull path.
+    var listed: [LivingArtifact]?
 
     private(set) var invokeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable])] = []
     private(set) var subscribeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable])] = []
@@ -50,7 +52,7 @@ private final class FakeQueryGateway: ArtifactGateway {
     func artifactActionConfirm(artifactID: String, challenge: String) async throws -> ArtifactActionInvokeResult? { nil }
     func artifactActionLog(artifactID: String, bindingID: String?, limit: Int) async throws -> [[String: AnyCodable]]? { nil }
     func artifactGet(id: String) async throws -> LivingArtifact? { refreshed }
-    func artifactList() async throws -> [LivingArtifact]? { nil }
+    func artifactList() async throws -> [LivingArtifact]? { listed }
     func artifactSet(id: String, kind: String, content: String, title: String?, replace: Bool) async throws -> LivingArtifact? { nil }
     func artifactDelete(id: String) async throws {}
 }
@@ -92,6 +94,31 @@ private struct ArtifactQueryStoreTests {
         ArtifactQueryResult(
             outcome: .ok(data: .dictionary(["rows": .array([.dictionary(["id": .string("o1")])])]), etag: etag, nextCursor: nil),
             subscription: subscription)
+    }
+
+    @Test("pull restores query manifests omitted from an equal-revision disk cache")
+    internal func pullRestoresQueriesAtEqualRevision() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("artifact-query-cache-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fileURL = dir.appendingPathComponent("artifacts.json")
+        let remote = LivingArtifact(
+            id: "dash", kind: "html", title: "Dash", content: "<html/>",
+            updatedAt: Date(timeIntervalSince1970: 0), updatedBy: "test", rev: 9,
+            queries: Self.queries)
+
+        // LivingArtifact intentionally excludes manifests from Codable. This
+        // reproduces a real app restart with an otherwise-current rev-9 cache.
+        try JSONEncoder().encode([remote.id: remote]).write(to: fileURL)
+        let store = ArtifactStore(fileURL: fileURL)
+        #expect(store.artifacts[remote.id]?.queries.isEmpty == true)
+
+        let fake = FakeQueryGateway()
+        fake.listed = [remote]
+        store.injectClientForTesting(fake)
+        await store.pull()
+
+        #expect(store.artifacts[remote.id]?.queries.map(\.id) == ["rows", "once"])
     }
 
     private func settle(_ predicate: @escaping () -> Bool) async {
