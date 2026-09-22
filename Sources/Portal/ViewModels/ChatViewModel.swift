@@ -766,29 +766,7 @@ client.eventStream
         client.connectionStatePublisher
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
-                switch state {
-                case .connected:
-                    self?.error = nil
-                case .reconnecting:
-                    self?.error = nil
-                    self?.needsGatewayResume = true
-                    // Do not mark the active turn as stopped during a transient
-                    // reconnect. The gateway agent may still be running, and
-                    // clearing isStreaming makes later frames look stale.
-                    if self?.isStreaming == true {
-                        self?.avatarState = .thinking
-                    }
-                case .error(let msg):
-                    self?.error = msg
-                    if self?.sessionID == nil {
-                        self?.isSessionReady = false
-                    }
-                    if self?.isStreaming == true {
-                        self?.avatarState = .error
-                    }
-                default:
-                    break
-                }
+                self?.handleConnectionState(state)
             }
             .store(in: &cancellables)
 
@@ -804,29 +782,95 @@ client.eventStream
         // reconnect should not implicitly create an invisible chat that races with
         // the New Session button and leaves the list empty on compact iOS.
         client.onReconnected = { [weak self] in
-            guard let self else { return }
-            if let resumedID = self.gatewayClient?.activeSessionID, self.sessionID != resumedID {
-                self.sessionID = resumedID
-                self.createGeneration += 1
-                self.isSessionReady = true
-                self.error = nil
-} else if let sid = self.sessionID, self.isSessionReady,
-                       self.gatewayClient?.activeSessionID == nil {
-                // Gateway didn't auto-resume — explicitly re-resume so the
-                // session is re-registered and streaming events will flow.
-                let displayID = self.displaySessionID(for: sid)
-                Task {
-                    let _ = try? await self.gatewayClient?.resumeSession(key: displayID)
-                    if let resumedID = self.gatewayClient?.activeSessionID,
-                       self.sessionID != resumedID {
-                        self.sessionID = resumedID
-                    }
-                    self.isSessionReady = true
-                    self.error = nil
-                    self.needsGatewayResume = false
-                }
-            }
+            self?.handleGatewayReconnected()
         }
+    }
+
+    /// React to a gateway connection-state transition. Extracted from the
+    /// `connectionStatePublisher` sink so it can be exercised directly.
+    private func handleConnectionState(_ state: GatewayClient.ConnectionState) {
+        switch state {
+        case .connected:
+            error = nil
+        case .reconnecting:
+            error = nil
+            needsGatewayResume = true
+            // Do not mark the active turn as stopped during a transient
+            // reconnect. The gateway agent may still be running, and
+            // clearing isStreaming makes later frames look stale.
+            if isStreaming {
+                avatarState = .thinking
+            }
+        case .error(let msg):
+            error = msg
+            if sessionID == nil {
+                isSessionReady = false
+            }
+            // Terminal failure: the socket is dead and reconnect is
+            // exhausted, so no turn can still be live and no terminal
+            // frame will ever arrive to settle one. Finalize every
+            // wedged turn — visible and background — so `isStreaming`
+            // clears, the spinner stops, and `submitPrompt`'s
+            // `guard !isStreaming` no longer bars the session. A late
+            // live frame can still re-open a stream (resumesLiveTurn),
+            // so this force-settle is safe. Settle first, THEN paint the
+            // error avatar: finalize routes the visible turn through
+            // `finishStreaming`, which resets the avatar to `.idle`, so
+            // an earlier `.error` assignment would be clobbered. Only paint
+            // it when a turn was actually in flight — an idle session should
+            // not sprout an error face on a background reconnect failure.
+            let hadLiveTurn = isStreaming
+            finalizeAllStuckStreamingTurns(status: "error")
+            if hadLiveTurn {
+                avatarState = .error
+            }
+        default:
+            break
+        }
+    }
+
+    /// Reconcile local state with the gateway after a reconnect. Session
+    /// creation is explicit from the Sessions UI; reconnect should not
+    /// implicitly create an invisible chat that races with the New Session
+    /// button and leaves the list empty on compact iOS. Extracted from the
+    /// `onReconnected` closure so it can be exercised directly.
+    private func handleGatewayReconnected() {
+        // The gateway may auto-resume into a (possibly renamed) runtime id.
+        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
+            sessionID = resumedID
+            createGeneration += 1
+            isSessionReady = true
+            error = nil
+        }
+        // Reconcile the visible session's turn against the gateway. A socket
+        // that dropped mid-turn took the live event stream with it, so the
+        // turn's terminal `message.complete` was emitted into a dead socket
+        // and is never redelivered. `resumeSession` re-seeds the shell if the
+        // turn is genuinely still running and settles it — clearing the
+        // spinner, restoring usage/model metadata — if the gateway reports it
+        // finished. The old code only re-resumed when the gateway had NOT
+        // auto-resumed; a turn streaming at drop time on an auto-resumed
+        // session was left spinning forever, with `submitPrompt`'s
+        // `guard !isStreaming` then wedging the session for good.
+        guard let sid = sessionID, isSessionReady else {
+            needsGatewayResume = false
+            return
+        }
+        Task { await reconcileTurnAfterReconnect(displayID: displaySessionID(for: sid)) }
+    }
+
+    /// Re-resume the visible session after a reconnect so its turn is either
+    /// re-seeded (still live on the gateway) or settled (finished during the
+    /// gap, its terminal frame lost with the dead socket). Split out of
+    /// `handleGatewayReconnected` so the async reconcile is awaitable in tests.
+    private func reconcileTurnAfterReconnect(displayID: String) async {
+        let resumed = await resumeSession(key: displayID)
+        if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
+            sessionID = resumedID
+        }
+        isSessionReady = true
+        error = nil
+        if resumed { needsGatewayResume = false }
     }
 
     /// The session ID currently active in this chat view.
@@ -917,6 +961,32 @@ client.eventStream
 
     internal var streamingSessionIDsForTesting: Set<String> {
         Set(sessionStates.filter { $0.value.isStreaming }.keys)
+    }
+
+    /// Drive a connection-state transition exactly as the
+    /// `connectionStatePublisher` sink does.
+    internal func handleConnectionStateForTesting(_ state: GatewayClient.ConnectionState) {
+        handleConnectionState(state)
+    }
+
+    /// Run the synchronous reconnect reconciliation (id adoption + guard).
+    internal func handleGatewayReconnectedForTesting() {
+        handleGatewayReconnected()
+    }
+
+    /// Await the async post-reconnect turn reconcile directly.
+    internal func reconcileTurnAfterReconnectForTesting(displayID: String) async {
+        await reconcileTurnAfterReconnect(displayID: displayID)
+    }
+
+    /// Force-settle a single background session's wedged turn.
+    internal func finalizeStuckStreamingTurnForTesting(sessionID: String, status: String) {
+        finalizeStuckStreamingTurn(displayID: displaySessionID(for: sessionID), status: status)
+    }
+
+    /// Force-settle every wedged turn — visible and background.
+    internal func finalizeAllStuckStreamingTurnsForTesting(status: String) {
+        finalizeAllStuckStreamingTurns(status: status)
     }
 
     /// Link the active short-lived gateway ID with the stable database ID shown
@@ -1415,6 +1485,14 @@ client.eventStream
             // opened session shows the row but nothing streaming in.
             if let inflight = result.inflight, inflight.isStreaming {
                 seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
+            } else if sessionStates[key]?.isStreaming == true {
+                // Resumed into a session local state still believes is
+                // streaming, but the gateway reports no in-flight turn: the turn
+                // finished or its live event stream was lost across a disconnect,
+                // and its terminal `message.complete` will never arrive. Settle
+                // it here so the spinner clears and the usage/model metadata can
+                // refresh — otherwise the turn hangs and blocks the session.
+                finalizeStuckStreamingTurn(displayID: key, status: "interrupted")
             }
 
             if !restoreSessionState(displayID: key, runtimeID: result.sessionID) {
@@ -2779,6 +2857,56 @@ client.eventStream
 
         // Text-to-speech summary
         TTSService.shared.speakLastAssistantMessage(messages)
+    }
+
+    /// Force-settle a session whose turn is wedged on `isStreaming` with no way
+    /// left to receive its terminal `message.complete`. When the socket dies
+    /// mid-turn (the resource-timeout boundary, a dropped or half-open socket
+    /// that `verifyLivenessOrReconnect` replaces) the live event stream is lost,
+    /// and the completion is emitted into a socket that no longer exists — it is
+    /// never redelivered. The turn then spins forever: the sidebar live-dot
+    /// stays lit, `SessionUsageBadge` stays blocked behind its `guard
+    /// !isStreaming` so no usage/model metadata ever refreshes, and
+    /// `submitPrompt`'s own `guard !isStreaming` blocks any new prompt on the
+    /// session — it is wedged until relaunch. Settling is safe and
+    /// self-correcting: if the turn is in fact still running, the next live
+    /// frame re-opens the stream via `GatewayEvent.resumesLiveTurn`.
+    ///
+    /// Operates on the CACHED state for a background session; the visible
+    /// session settles through `finishStreaming`, which drives the published
+    /// properties. A no-op unless the cached turn is actually streaming.
+    private func finalizeStuckStreamingTurn(displayID: String, status: String) {
+        guard var state = sessionStates[displayID], state.isStreaming else { return }
+        if let msgID = state.streamingMessageID,
+           let idx = state.messages.firstIndex(where: { $0.id == msgID }) {
+            state.messages[idx].isStreaming = false
+            if state.messages[idx].status == nil {
+                state.messages[idx].status = status
+            }
+            state.messages[idx].primeStrippedContentCache()
+        }
+        state.isStreaming = false
+        state.isRemoteTurn = false
+        state.streamingMessageID = nil
+        state.activeToolCalls = [:]
+        state.avatarState = .idle
+        sessionStates[displayID] = state
+        publishStreamingSessions()
+    }
+
+    /// Settle every wedged streaming turn — the visible session and any
+    /// background ones — when the connection has terminally failed and no
+    /// further events can arrive. See `finalizeStuckStreamingTurn`.
+    private func finalizeAllStuckStreamingTurns(status: String) {
+        if isStreaming {
+            // completedTurn:false — a turn killed by a dead connection did not
+            // "complete", so fire no celebration and read nothing aloud.
+            finishStreaming(status: status, completedTurn: false)
+        }
+        let visible = sessionID.map { displaySessionID(for: $0) }
+        for displayID in Array(sessionStates.keys) where displayID != visible {
+            finalizeStuckStreamingTurn(displayID: displayID, status: status)
+        }
     }
 
     // MARK: - Remote Attachment Downloads
