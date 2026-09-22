@@ -15,6 +15,13 @@ class ProductFactoryMergeQueueContractTests(unittest.TestCase):
         self.assertIn('state:merge-ready', text)
         self.assertIn('PRODUCT_FACTORY', text)
 
+    def test_blocked_label_is_an_unconditional_merge_veto(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('state:blocked', text)
+        self.assertIn('BLOCKED_LABEL', text)
+        self.assertLess(text.index('BLOCKED_LABEL'), text.index('# Skip drafts'))
+
 
 if __name__ == "__main__":
     unittest.main()
