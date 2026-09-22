@@ -67,6 +67,57 @@ def create_dispatch_task(
     )
 
 
+def create_remediation_task(
+    *,
+    case_id: str,
+    repo: str,
+    issue_number: int,
+    pr_url: str,
+    validation_task_id: str,
+    blocker: str,
+    generation_id: str,
+    create_task: CreateTask,
+    assignee: str,
+    project_id: str,
+) -> str:
+    """Create one bounded task that repairs the existing PR in place."""
+    body = f"""Repair a blocked Product Factory PR in place.
+
+GitHub Issue: https://github.com/{repo}/issues/{issue_number}
+Existing PR: {pr_url}
+Case: {case_id}
+Blocked validation task: {validation_task_id}
+
+Blocking evidence:
+{blocker}
+
+Read the full live PR, comments, reviews, checks, and exact current head SHA before editing.
+Use the task-owned worktree, but base the repair on that exact PR head. Update the existing PR
+on the same head branch. Reproduce the blocker, retain regression coverage where applicable,
+make the smallest in-scope fix, and run focused plus canonical verification. Re-read the remote
+head immediately before publishing; if it moved, reconcile instead of overwriting it. Push a
+normal fast-forward commit to the same head branch; you must not force-push, open a replacement
+PR, merge, or weaken any gate. Return the PR URL, exact new head SHA, changed paths, commands,
+and real results. Independent exact-head validation will run again after this task completes.
+"""
+    return create_task(
+        title=f"[remediation] #{issue_number} repair blocked PR",
+        body=body,
+        assignee=assignee,
+        created_by="portal-product-factory",
+        workspace_kind="worktree",
+        project_id=project_id,
+        parents=[validation_task_id],
+        idempotency_key=f"product-factory:remediation:{generation_id}",
+        skills=["test-driven-development", "github-pr-workflow", "verification-evidence"],
+        max_retries=2,
+        goal_mode=True,
+        goal_max_turns=8,
+        initial_status="running",
+        board="portal-product-factory",
+    )
+
+
 def create_validation_task(
     *,
     case_id: str,
@@ -74,6 +125,7 @@ def create_validation_task(
     issue_number: int,
     pr_url: str,
     implementation_task_id: str,
+    generation_id: str,
     create_task: CreateTask,
     assignee: str,
     project_id: str,
@@ -116,7 +168,7 @@ application execution and at least one attached screenshot for interactive valid
         workspace_kind="worktree",
         project_id=project_id,
         parents=[implementation_task_id],
-        idempotency_key=f"product-factory:validation:{case_id}:{pr_url}",
+        idempotency_key=f"product-factory:validation:{generation_id}",
         skills=["github-code-review", "macos-computer-use", "verification-evidence"],
         max_retries=2,
         goal_mode=True,
@@ -126,6 +178,41 @@ application execution and at least one attached screenshot for interactive valid
     )
 
 
+def create_remediation_task_on_board(
+    *,
+    case_id: str,
+    repo: str,
+    issue_number: int,
+    pr_url: str,
+    validation_task_id: str,
+    blocker: str,
+    generation_id: str,
+    assignee: str = "default",
+    project_id: str = "portal",
+    board: str = "portal-product-factory",
+) -> str:
+    """Production adapter for a blocked-PR remediation worker."""
+    from hermes_cli import kanban_db
+
+    with kanban_db.connect_closing(board=board) as conn:
+        def create_task(**kwargs: Any) -> str:
+            kwargs["board"] = board
+            return kanban_db.create_task(conn, **kwargs)
+
+        return create_remediation_task(
+            case_id=case_id,
+            repo=repo,
+            issue_number=issue_number,
+            pr_url=pr_url,
+            validation_task_id=validation_task_id,
+            blocker=blocker,
+            generation_id=generation_id,
+            create_task=create_task,
+            assignee=assignee,
+            project_id=project_id,
+        )
+
+
 def create_validation_task_on_board(
     *,
     case_id: str,
@@ -133,6 +220,7 @@ def create_validation_task_on_board(
     issue_number: int,
     pr_url: str,
     implementation_task_id: str,
+    generation_id: str,
     assignee: str = "default",
     project_id: str = "portal",
     board: str = "portal-product-factory",
@@ -151,6 +239,7 @@ def create_validation_task_on_board(
             issue_number=issue_number,
             pr_url=pr_url,
             implementation_task_id=implementation_task_id,
+            generation_id=generation_id,
             create_task=create_task,
             assignee=assignee,
             project_id=project_id,

@@ -61,6 +61,7 @@ class ProductFactoryDispatcherTests(unittest.TestCase):
             issue_number=510,
             pr_url="https://github.com/ethenotethan/portal/pull/511",
             implementation_task_id="t_impl",
+            generation_id="validation-generation-510",
             create_task=create_task,
             assignee="default",
             project_id="portal",
@@ -68,6 +69,10 @@ class ProductFactoryDispatcherTests(unittest.TestCase):
 
         self.assertEqual(task_id, "validation-510")
         self.assertEqual(captured["parents"], ["t_impl"])
+        self.assertEqual(
+            captured["idempotency_key"],
+            "product-factory:validation:validation-generation-510",
+        )
         self.assertIn("exact PR head SHA", captured["body"])
         self.assertIn("computer_use", captured["body"])
         self.assertIn("reported target", captured["body"])
@@ -78,6 +83,38 @@ class ProductFactoryDispatcherTests(unittest.TestCase):
         self.assertIn("state:merge-ready", captured["body"])
         self.assertIn("macos-computer-use", captured["skills"])
         self.assertTrue(captured["goal_mode"])
+
+    def test_remediation_task_updates_existing_pr_then_returns_to_validation(self) -> None:
+        captured = {}
+
+        def create_task(**kwargs):
+            captured.update(kwargs)
+            return "remediation-510"
+
+        task_id = dispatcher.create_remediation_task(
+            case_id="github:ethenotethan/portal#510",
+            repo="ethenotethan/portal",
+            issue_number=510,
+            pr_url="https://github.com/ethenotethan/portal/pull/511",
+            validation_task_id="validate-510",
+            blocker="Generated Xcode project leaked a worktree name.",
+            generation_id="remediation-generation-510",
+            create_task=create_task,
+            assignee="default",
+            project_id="portal",
+        )
+
+        self.assertEqual(task_id, "remediation-510")
+        self.assertEqual(captured["parents"], ["validate-510"])
+        self.assertEqual(
+            captured["idempotency_key"],
+            "product-factory:remediation:remediation-generation-510",
+        )
+        self.assertIn("existing PR", captured["body"])
+        self.assertIn("same head branch", captured["body"])
+        self.assertIn("must not force-push", captured["body"])
+        self.assertIn("Generated Xcode project", captured["body"])
+        self.assertIn("exact new head SHA", captured["body"])
 
     def test_production_adapter_addresses_board_by_keyword(self) -> None:
         spec = planner.DispatchSpec(
