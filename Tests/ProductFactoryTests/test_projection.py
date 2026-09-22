@@ -97,6 +97,16 @@ class ProductFactoryProjectionTests(unittest.TestCase):
         self.assertEqual(kanban_views[0]["entities"], ["product_cases"])
         self.assertEqual(kanban_views[1]["entities"], ["ratchet_work"])
         self.assertIn("table", [view["type"] for view in model["views"]])
+        self.assertTrue(model["relations"])
+        endpoints = {
+            f"{set_name}/{item[entity_set['key']]}"
+            for set_name, entity_set in model["entities"].items()
+            for item in entity_set["items"]
+        }
+        for relation in model["relations"]:
+            self.assertIn(relation["from"], endpoints)
+            self.assertIn(relation["to"], endpoints)
+            self.assertTrue(relation["type"])
         conn.close()
 
 

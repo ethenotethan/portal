@@ -16,6 +16,7 @@ from typing import Any
 from .github import fetch_issues
 from .projection import build_model
 from .reconciler import initialize, reconcile_issue
+from .topology import cron_updates, load_topology
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -110,6 +111,16 @@ def project_command(args: argparse.Namespace) -> dict[str, Any]:
         )
 
 
+def topology_command(args: argparse.Namespace) -> dict[str, Any]:
+    """Emit the versioned topology and supported cron.update payloads."""
+    del args
+    topology = load_topology()
+    return {
+        "version": topology["version"],
+        "cron_updates": cron_updates(topology),
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Portal Product Factory control plane")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -124,6 +135,11 @@ def build_parser() -> argparse.ArgumentParser:
     project.add_argument("--merge-queue", type=Path, default=DEFAULT_MERGE_QUEUE)
     project.add_argument("--ratchet-state", type=Path, default=DEFAULT_RATCHET_STATE)
     project.set_defaults(handler=project_command)
+    topology = subparsers.add_parser(
+        "topology",
+        help="emit canonical cron.update payloads without applying them",
+    )
+    topology.set_defaults(handler=topology_command)
     return parser
 
 

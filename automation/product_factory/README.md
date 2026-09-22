@@ -16,6 +16,7 @@ python3 -m automation.product_factory.cli reconcile \
   --db /tmp/portal-product-factory.db
 python3 -m automation.product_factory.cli project \
   --db /tmp/portal-product-factory.db
+python3 -m automation.product_factory.cli topology
 ```
 
 The `project` command emits a complete Portal `model` artifact specification. It
@@ -34,7 +35,17 @@ uses the existing model/Kanban/table renderers, so v1 requires no new Swift UI.
 - `merge_policy.py` — independent review, exact-SHA CI/CUA, ratchet, and closure gates.
 - `attempts.py` — two-correction substantive retry budget; transient failures are free.
 - `projection.py` — existing Portal model artifact projection.
+- `topology.v1.json` — canonical cron dataflow and explicit authority relationships.
+- `topology.py` — validates that topology, derives model edges, and emits `cron.update` payloads.
 - `cli.py` — observe-stage reconcile and projection commands.
+
+The `topology` command is read-only. Its `cron_updates` array uses the supported
+cron contract fields (`inputs`, `outputs`, `side_effects`, and `source_files`)
+and can be applied by the deployment owner. The model graph is built from those
+same declarations: `inputs` become `reads`, `outputs` become `writes`, and
+`side_effects` become `delivers`. Scheduler and human-governance edges are
+separately marked as explicit relationships, so they cannot be mistaken for
+data movement or cron-to-cron calls.
 
 ## Event ingestion
 

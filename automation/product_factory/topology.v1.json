@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "product-factory-controller",
+      "cron_id": "886118871558",
+      "name": "Portal Software Factories Controller",
+      "role": "Mirrors product issues, dispatches bounded implementation and validation work, and refreshes the control center.",
+      "inputs": [
+        "https:api.github.com/repos/ethenotethan/portal/issues",
+        "file:/Users/inference2/.hermes/state/portal-product-factory-triage.json",
+        "file:/Users/inference2/.hermes/kanban/boards/portal-product-factory/kanban.db"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/state/portal-product-factory.db",
+        "file:/Users/inference2/.hermes/kanban/boards/portal-product-factory/kanban.db"
+      ],
+      "side_effects": [
+        "github:ethenotethan/portal/issues"
+      ],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-software-factories-observe.py",
+        "/Users/inference2/.hermes/scripts/portal-pr-kanban-sync.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/dispatcher.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/followup.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/github.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/planner.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/projection.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/reconciler.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/topology.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/topology.v1.json",
+        "/Users/inference2/Projects/portal/automation/product_factory/triage.py"
+      ]
+    },
+    {
+      "id": "quality-classifier",
+      "cron_id": "88bc6606d5f1",
+      "name": "portal_repo/Portal Quality Ratchet",
+      "role": "Classifies one bounded quality packet from accepted source, committed metrics, and queue capacity.",
+      "inputs": [
+        "file:/Users/inference2/Projects/portal/.git/refs/remotes/origin/main",
+        "file:/Users/inference2/Projects/portal/metrics-baseline.json",
+        "https:api.github.com/repos/ethenotethan/portal/pulls",
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/state/portal-quality-ratchet.json"
+      ],
+      "side_effects": [],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-quality-candidates.py",
+        "/Users/inference2/.hermes/scripts/portal-merge-tracker.py"
+      ]
+    },
+    {
+      "id": "quality-worker",
+      "cron_id": "6bfcef8dfe35",
+      "name": "portal_repo/Portal Quality Escalation",
+      "role": "Consumes classifier handoffs and prepares one independently reviewable quality candidate.",
+      "inputs": [
+        "cron-output:88bc6606d5f1",
+        "file:/Users/inference2/.hermes/state/portal-quality-ratchet.json",
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json",
+        "https:api.github.com/repos/ethenotethan/portal/pulls"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/state/portal-quality-escalations.json",
+        "file:/Users/inference2/.hermes/worktrees/portal-quality-escalation"
+      ],
+      "side_effects": [
+        "github:ethenotethan/portal/pulls"
+      ],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-quality-escalation.py",
+        "/Users/inference2/.hermes/scripts/portal-merge-tracker.py"
+      ]
+    },
+    {
+      "id": "ci-recovery",
+      "cron_id": "cf0906b442ac",
+      "name": "portal_repo/Portal Idle-Pocket CI Recovery",
+      "role": "Repairs one stale, conflicting, or failing candidate without changing its accepted intent.",
+      "inputs": [
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json",
+        "https:api.github.com/repos/ethenotethan/portal/pulls",
+        "https:api.github.com/repos/ethenotethan/portal/check-runs"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json",
+        "file:/Users/inference2/.hermes/worktrees/portal-ci-recovery"
+      ],
+      "side_effects": [
+        "github:ethenotethan/portal/pulls"
+      ],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-ci-pocket.py",
+        "/Users/inference2/.hermes/scripts/portal-merge-tracker.py"
+      ]
+    },
+    {
+      "id": "architecture-worker",
+      "cron_id": "583169d041fb",
+      "name": "portal_repo/Portal Architecture Documentation Worker",
+      "role": "Reconciles accepted source changes into generated architecture documentation through a bounded candidate.",
+      "inputs": [
+        "file:/Users/inference2/Projects/portal/.git/refs/remotes/origin/main",
+        "https:api.github.com/repos/ethenotethan/portal/pulls"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/worktrees/portal-documentation"
+      ],
+      "side_effects": [
+        "github:ethenotethan/portal/pulls"
+      ],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-documentation-candidates.py",
+        "/Users/inference2/Projects/portal/scripts/build_architecture.py",
+        "/Users/inference2/Projects/portal/scripts/test_architecture.py"
+      ]
+    },
+    {
+      "id": "control-center-sync",
+      "cron_id": "750f88d33aa5",
+      "name": "portal_repo/Portal PR Kanban Sync",
+      "role": "Projects durable factory state, GitHub state, and lane handoffs into the Portal artifact while preserving human overrides.",
+      "inputs": [
+        "file:/Users/inference2/.hermes/state/portal-product-factory.db",
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json",
+        "file:/Users/inference2/.hermes/state/portal-quality-ratchet.json",
+        "cron-output:6bfcef8dfe35",
+        "cron-output:583169d041fb",
+        "cron-output:cf0906b442ac",
+        "https:api.github.com/repos/ethenotethan/portal/pulls",
+        "https:api.github.com/repos/ethenotethan/portal/check-runs"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/artifacts/index.json"
+      ],
+      "side_effects": [],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-pr-kanban-tick.sh",
+        "/Users/inference2/.hermes/scripts/portal-pr-kanban-sync.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/projection.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/topology.py",
+        "/Users/inference2/Projects/portal/automation/product_factory/topology.v1.json"
+      ]
+    },
+    {
+      "id": "merge-queue",
+      "cron_id": "6281d5165fbd",
+      "name": "portal_repo/Portal Merge Queue",
+      "role": "Applies the deterministic acceptance policy to current pull-request and check state.",
+      "inputs": [
+        "https:api.github.com/repos/ethenotethan/portal/pulls",
+        "https:api.github.com/repos/ethenotethan/portal/check-runs",
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json"
+      ],
+      "outputs": [
+        "file:/Users/inference2/.hermes/state/portal-merge-queue.json"
+      ],
+      "side_effects": [
+        "github:ethenotethan/portal"
+      ],
+      "source_files": [
+        "/Users/inference2/.hermes/scripts/portal-merge-queue.sh",
+        "/Users/inference2/.hermes/scripts/portal-merge-tracker.py"
+      ]
+    }
+  ],
+  "authorities": [
+    {
+      "id": "human-governance",
+      "title": "Ethen / human governance",
+      "role": "Owns product intent, manual card-column overrides, and exceptional stop or approval decisions."
+    },
+    {
+      "id": "cron-scheduler",
+      "title": "Hermes cron scheduler",
+      "role": "Owns timing only and cannot qualify or accept worker output."
+    }
+  ],
+  "relationships": [
+    {
+      "from": "factory_authorities/human-governance",
+      "to": "factory_jobs/product-factory-controller",
+      "type": "governs"
+    },
+    {
+      "from": "factory_authorities/human-governance",
+      "to": "factory_jobs/merge-queue",
+      "type": "bounds_authority"
+    },
+    {
+      "from": "factory_authorities/human-governance",
+      "to": "factory_resources/file:/Users/inference2/.hermes/artifacts/index.json",
+      "type": "overrides_columns"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/product-factory-controller",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/quality-classifier",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/quality-worker",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/ci-recovery",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/architecture-worker",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/control-center-sync",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_authorities/cron-scheduler",
+      "to": "factory_jobs/merge-queue",
+      "type": "triggers"
+    },
+    {
+      "from": "factory_jobs/merge-queue",
+      "to": "factory_resources/file:/Users/inference2/Projects/portal/.git/refs/remotes/origin/main",
+      "type": "advances_main"
+    }
+  ],
+  "resource_labels": {
+    "file:/Users/inference2/Projects/portal/.git/refs/remotes/origin/main": "origin/main",
+    "file:/Users/inference2/.hermes/artifacts/index.json": "artifact:portal-pr-automation",
+    "https:api.github.com/repos/ethenotethan/portal/pulls": "GitHub PR state",
+    "https:api.github.com/repos/ethenotethan/portal/check-runs": "GitHub check state"
+  }
+}

@@ -7,6 +7,8 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from .topology import model_projection
+
 
 PRODUCT_COLUMNS = [
     "intake",
@@ -160,6 +162,7 @@ def build_model(
     ratchet_items = _ratchet_items(merge_queue, ratchet_state)
     product_summary = _summary(product_items, PRODUCT_COLUMNS, "No mirrored product Cases.")
     ratchet_summary = _summary(ratchet_items, RATCHET_COLUMNS, "No ratchet work visible.")
+    architecture = model_projection()
 
     return {
         "id": "portal-software-factories",
@@ -167,8 +170,9 @@ def build_model(
         "entities": {
             "product_cases": {"key": "case_id", "items": product_items},
             "ratchet_work": {"key": "work_id", "items": ratchet_items},
+            **architecture["entities"],
         },
-        "relations": [],
+        "relations": architecture["relations"],
         "views": [
             {
                 "type": "markdown",
@@ -216,6 +220,18 @@ def build_model(
                 "type": "table",
                 "entities": ["ratchet_work"],
                 "columns": ["title", "kind", "status", "pr_number", "target", "branch"],
+            },
+            {
+                "type": "markdown",
+                "text": (
+                    "## Multi-agent architecture\n\n"
+                    "Dataflow edges come from the versioned cron declarations. "
+                    "Governance and scheduler boundaries are explicit relationship edges."
+                ),
+            },
+            {
+                "type": "graph",
+                "entities": ["factory_jobs", "factory_resources", "factory_authorities"],
             },
         ],
     }

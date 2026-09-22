@@ -12,6 +12,23 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ProductFactoryCLITests(unittest.TestCase):
+    def test_topology_emits_supported_cron_update_payloads(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-m", "automation.product_factory.cli", "topology"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        document = json.loads(result.stdout)
+        self.assertEqual(document["version"], 1)
+        self.assertTrue(document["cron_updates"])
+        self.assertTrue(
+            all(update["action"] == "update" for update in document["cron_updates"])
+        )
+
     def test_produce_reconciliation_persists_cases_but_cli_applies_no_actions(self) -> None:
         issue = {
             "repo": "ethenotethan/portal",
