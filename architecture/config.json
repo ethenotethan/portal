@@ -169,5 +169,169 @@
     {"id": "artifact-intents", "title": "Intent-based artifacts", "path": "architecture/specifications/artifact-intents.md"},
     {"id": "wiki", "title": "The wiki as a knowledge system", "path": "architecture/specifications/wiki.md"},
     {"id": "maintenance", "title": "Continuous maintenance", "path": "architecture/specifications/continuous-maintenance.md"}
+  ],
+  "external_systems": [
+    {
+      "id": "harness-gateway",
+      "label": "Harness gateway",
+      "category": "backend",
+      "component": "hermes-gateway",
+      "protocol": "WebSocket JSON-RPC over URLSession (/v1/ws)",
+      "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
+      "signatures": [
+        "\\bURLSessionWebSocketTask\\b",
+        "\\bwebSocketTask\\s*\\(",
+        {
+          "pattern": "/v1/ws\\b",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "cloudflare-access",
+      "label": "Cloudflare Access",
+      "category": "network",
+      "protocol": "CF_Authorization cookie on the gateway origin",
+      "description": "Zero-trust front door in front of a remotely hosted gateway; the client carries the Access cookie on WebSocket and HTTP requests.",
+      "signatures": [
+        {
+          "pattern": "CF_Authorization|cloudflareaccess\\.com",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "apple-mlx",
+      "label": "Apple MLX",
+      "category": "ml-runtime",
+      "component": "device-services",
+      "protocol": "In-process Swift framework (MLX, MLXLLM, MLXLMCommon)",
+      "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
+      "signatures": [
+        "(?m)^\\s*import\\s+MLX\\w*",
+        "\\bModelContainer\\b",
+        "\\bloadContainer\\s*\\("
+      ]
+    },
+    {
+      "id": "hugging-face-hub",
+      "label": "Hugging Face Hub",
+      "category": "third-party-api",
+      "protocol": "HTTPS model downloads through the MLX model factory",
+      "description": "Source of on-device model weights (mlx-community repositories); downloaded into the local model inventory.",
+      "signatures": [
+        {
+          "pattern": "^mlx-community/|huggingface",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "apns",
+      "label": "Apple Push Notification service",
+      "category": "platform-service",
+      "component": "device-services",
+      "protocol": "Remote-notification registration; device token forwarded to the gateway",
+      "description": "Delivers gateway push notifications to the device when the app is not connected.",
+      "signatures": [
+        "\\bregisterForRemoteNotifications\\b",
+        "\\bdidRegisterForRemoteNotifications\\w*",
+        "\\bdeviceToken\\b"
+      ]
+    },
+    {
+      "id": "user-notifications",
+      "label": "User Notifications",
+      "category": "platform-service",
+      "component": "device-services",
+      "protocol": "UNUserNotificationCenter",
+      "description": "Local notification presentation, authorization, and notification-tap routing back into the app.",
+      "signatures": [
+        "\\bUNUserNotificationCenter\\b"
+      ]
+    },
+    {
+      "id": "keychain",
+      "label": "Keychain",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "Security framework SecItem* calls",
+      "description": "Secure storage for gateway API keys, OAuth tokens, and Access cookies.",
+      "signatures": [
+        "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+      ]
+    },
+    {
+      "id": "file-system",
+      "label": "Application Support files",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "FileManager JSON documents and directories",
+      "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
+      "signatures": [
+        "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+      ]
+    },
+    {
+      "id": "user-defaults",
+      "label": "UserDefaults",
+      "category": "platform-storage",
+      "component": "device-services",
+      "protocol": "UserDefaults.standard and @AppStorage",
+      "description": "Preferences, small state flags, and migration markers.",
+      "signatures": [
+        "\\bUserDefaults\\.standard\\b",
+        "@AppStorage\\b"
+      ]
+    },
+    {
+      "id": "x-api",
+      "label": "X API",
+      "category": "third-party-api",
+      "protocol": "HTTPS REST v2 with OAuth 2.0 PKCE",
+      "description": "Reads posts for the feed surface; authenticated per user through the X OAuth flow.",
+      "signatures": [
+        {
+          "pattern": "api\\.x\\.com|api\\.twitter\\.com",
+          "scope": "strings"
+        }
+      ]
+    },
+    {
+      "id": "webkit",
+      "label": "WebKit",
+      "category": "platform-framework",
+      "component": "device-services",
+      "protocol": "WKWebView with an isolated content world",
+      "description": "Renders HTML artifacts and rich content; the only bridge from untrusted markup to native intents.",
+      "signatures": [
+        "\\bWKWebView\\b"
+      ]
+    },
+    {
+      "id": "scenekit",
+      "label": "SceneKit",
+      "category": "platform-framework",
+      "component": "device-services",
+      "protocol": "SCNView (macOS)",
+      "description": "3D layout of the wiki knowledge graph.",
+      "signatures": [
+        "\\bSCNView\\b",
+        "(?m)^\\s*import\\s+SceneKit\\b"
+      ]
+    },
+    {
+      "id": "speech-synthesis",
+      "label": "On-device speech",
+      "category": "on-device-engine",
+      "component": "device-services",
+      "protocol": "AVSpeechSynthesizer and FluidAudio / PocketTTS neural voices",
+      "description": "Speaks assistant replies locally; no audio leaves the device.",
+      "signatures": [
+        "\\bAVSpeechSynthesizer\\b",
+        "\\bFluidAudio\\b",
+        "\\bPocketTTS\\w*"
+      ]
+    }
   ]
 }

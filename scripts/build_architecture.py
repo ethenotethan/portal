@@ -71,6 +71,43 @@ STATIC_SOURCE_LIMITATIONS = [
     "Regex and lexical rules identify mechanically visible declarations and operations; dynamic aliases and interprocedural flows remain unresolved.",
 ]
 
+# Boundary plane: external systems declared in architecture/config.json and
+# matched by source signatures, plus data stores recognised by type-name
+# convention with the persistence mechanism observed inside the type body.
+BOUNDARY_RULES = {
+    "swift.boundary.external_signature": (
+        "A configured external-system signature (import, framework type, API family, or endpoint token) "
+        "present in Swift code; string-scoped signatures match inside string literals only"
+    ),
+    "swift.store.declaration": "A class, struct, actor, or enum whose name ends in Store, Cache, Inventory, or Ledger",
+    "swift.store.mechanism.file": "applicationSupportDirectory, cachesDirectory, or documentDirectory referenced inside the store type body, a same-file extension of it, or a same-file helper type named after it",
+    "swift.store.mechanism.defaults": "UserDefaults or @AppStorage referenced inside the store type body, a same-file extension of it, or a same-file helper type named after it",
+    "swift.store.mechanism.keychain": "A SecItem* call inside the store type body, a same-file extension of it, or a same-file helper type named after it",
+    "swift.store.artifact_literal": "A string literal in the store type body, a same-file extension, or a same-file namesake helper that names a file, or a folder passed with isDirectory: true",
+}
+BOUNDARY_LIMITATIONS = [
+    "External-system usage is attributed per configured signature; a system reached only through an unlisted API, or through a wrapper in another file, is not attributed to the caller.",
+    "Store persistence mechanisms are observed inside the declaring type body, its same-file extensions, and same-file helper types whose name starts with the store name; persistence performed elsewhere is reported as unobserved.",
+    "Swift raw string literals (#\"…\"#) are not lexed specially; a string-scoped signature or artifact name inside one may be missed or mis-scoped.",
+]
+EXTERNAL_CATEGORIES = {
+    "backend", "network", "ml-runtime", "on-device-engine", "platform-service",
+    "platform-storage", "platform-framework", "third-party-api",
+}
+STORE_DECLARATION_RE = re.compile(
+    r"(?m)^[ \t]*(?:(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)\n]*\))?|public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
+    r"(class|struct|actor|enum)\s+([A-Z][A-Za-z0-9_]*(?:Store|Cache|Inventory|Ledger))\b[^\n{]*\{"
+)
+STORE_MECHANISM_RULES = [
+    ("file", "swift.store.mechanism.file",
+     re.compile(r"\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\b")),
+    ("defaults", "swift.store.mechanism.defaults", re.compile(r"\bUserDefaults\b|@AppStorage\b")),
+    ("keychain", "swift.store.mechanism.keychain", re.compile(r"\bSecItem(?:Add|CopyMatching|Update|Delete)\s*\(")),
+]
+ARTIFACT_FILE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:json|jsonl|log|db|sqlite|plist|txt|md)$")
+ARTIFACT_DIRECTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+TYPE_BLOCK_RE = re.compile(r"\b(class|struct|actor|enum|extension)\s+([A-Z][A-Za-z0-9_]*)[^\n{]*\{")
+
 # Interplay graph taxonomy: which extracted resource/operation kinds feed the
 # verbose connection-pool ⋈ on-device-LLM graph, and the seam protocol both
 # network transports conform to.
@@ -666,6 +703,320 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
             "resources": resources, "operations": operations}
 
 
+def balanced_block_end(code: str, open_brace_end: int) -> int:
+    """Return the offset just past the `}` that closes the block opened before open_brace_end."""
+    depth = 1
+    cursor = open_brace_end
+    while cursor < len(code) and depth:
+        if code[cursor] == "{":
+            depth += 1
+        elif code[cursor] == "}":
+            depth -= 1
+        cursor += 1
+    return cursor if depth == 0 else len(code)
+
+
+def swift_string_literals(text: str) -> list[tuple[int, int, str]]:
+    """Return (content_start, content_end, content) for every string literal in code.
+
+    Follows the same lexical states as strip_swift_noncode—literals inside comments
+    are not reported, comment markers inside literals do not end them, and an
+    unterminated single-line literal ends at the newline—but advances by token
+    rather than by character.
+    """
+    token_re = re.compile(r'//|/\*|"""|"')
+    block_re = re.compile(r"/\*|\*/")
+    body_re = re.compile(r'(?:[^"\\\n]|\\.)*')
+    literals: list[tuple[int, int, str]] = []
+    length = len(text)
+    index = 0
+    while index < length:
+        token = token_re.search(text, index)
+        if token is None:
+            break
+        position = token.end()
+        kind = token.group(0)
+        if kind == "//":
+            newline = text.find("\n", position)
+            index = length if newline == -1 else newline
+        elif kind == "/*":
+            depth = 1
+            while depth:
+                marker = block_re.search(text, position)
+                if marker is None:
+                    position = length
+                    break
+                depth += 1 if marker.group(0) == "/*" else -1
+                position = marker.end()
+            index = position
+        elif kind == '"""':
+            close = text.find('"""', position)
+            content_end = length if close == -1 else close
+            literals.append((position, content_end, text[position:content_end]))
+            index = length if close == -1 else close + 3
+        else:
+            body = body_re.match(text, position)
+            content_end = body.end() if body else position
+            if content_end < length and text[content_end] == '"':
+                literals.append((position, content_end, text[position:content_end]))
+                index = content_end + 1
+            else:
+                index = content_end
+    return literals
+
+
+def normalize_signature(signature: Any) -> tuple[str, str]:
+    """Return (pattern, scope) for a configured external-system signature."""
+    if isinstance(signature, str) and signature:
+        return signature, "code"
+    if isinstance(signature, dict) and isinstance(signature.get("pattern"), str) and signature["pattern"]:
+        scope = signature.get("scope", "code")
+        if scope in {"code", "strings"}:
+            return signature["pattern"], str(scope)
+    raise ArchitectureError(f"invalid external-system signature: {signature!r}")
+
+
+def validate_external_systems(config: dict[str, Any]) -> None:
+    systems = config.get("external_systems", [])
+    if not isinstance(systems, list):
+        raise ArchitectureError("config external_systems must be an array")
+    components = {str(item["id"]): item for item in config["components"]}
+    seen: set[str] = set()
+    for system in systems:
+        if not isinstance(system, dict):
+            raise ArchitectureError("external system entries must be objects")
+        for key in ("id", "label", "category", "description"):
+            if not isinstance(system.get(key), str) or not system[key]:
+                raise ArchitectureError(f"external system {system.get('id')!r} needs a non-empty {key}")
+        if system["id"] in seen:
+            raise ArchitectureError(f"duplicate external system id {system['id']}")
+        seen.add(system["id"])
+        if system["category"] not in EXTERNAL_CATEGORIES:
+            raise ArchitectureError(f"external system {system['id']} has unknown category {system['category']}")
+        component = system.get("component")
+        if component is not None and not components.get(component, {}).get("external"):
+            raise ArchitectureError(f"external system {system['id']} maps to a non-external component {component!r}")
+        signatures = system.get("signatures")
+        if not isinstance(signatures, list) or not signatures:
+            raise ArchitectureError(f"external system {system['id']} needs at least one signature")
+        for signature in signatures:
+            pattern, _ = normalize_signature(signature)
+            try:
+                re.compile(pattern, re.MULTILINE)
+            except re.error as error:
+                raise ArchitectureError(f"external system {system['id']} has an invalid signature {pattern!r}: {error}") from error
+
+
+def masked_code(source: dict[str, Any]) -> str:
+    """Comment/string-masked code for a read_sources() entry, computed once per file."""
+    if "_code" not in source:
+        source["_code"] = strip_swift_noncode(source["_text"])
+    return source["_code"]
+
+
+def compiled_signature_scans(systems: list[dict[str, Any]]) -> list[tuple[str, str, str, re.Pattern[str]]]:
+    """Return (system_id, pattern, scope, compiled regex) for every configured signature."""
+    scans: list[tuple[str, str, str, re.Pattern[str]]] = []
+    for system in systems:
+        for signature in system["signatures"]:
+            pattern, scope = normalize_signature(signature)
+            scans.append((str(system["id"]), pattern, scope, re.compile(pattern, re.MULTILINE)))
+    return scans
+
+
+def extract_external_usage(path: str, text: str, component: str | None,
+                           systems: list[dict[str, Any]], code: str | None = None,
+                           scans: list[tuple[str, str, str, re.Pattern[str]]] | None = None
+                           ) -> list[dict[str, Any]]:
+    """Match every configured external-system signature against one source file."""
+    code = strip_swift_noncode(text) if code is None else code
+    scans = compiled_signature_scans(systems) if scans is None else scans
+    literals: list[tuple[int, int, str]] | None = None
+    hits: list[dict[str, Any]] = []
+    for system_id, pattern, scope, regex in scans:
+        if scope == "code":
+            for match in regex.finditer(code):
+                hits.append(observed_item(
+                    "external-usage", "signature", match.group(0).strip(), component,
+                    "swift.boundary.external_signature", path, text, match.start(),
+                    system=system_id, signature=pattern, scope=scope,
+                ))
+            continue
+        if literals is None:
+            literals = swift_string_literals(text)
+        for start, _, content in literals:
+            for match in regex.finditer(content):
+                hits.append(observed_item(
+                    "external-usage", "signature", match.group(0).strip(), component,
+                    "swift.boundary.external_signature", path, text, start + match.start(),
+                    system=system_id, signature=pattern, scope=scope,
+                ))
+    hits.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["system"], item["id"]))
+    return hits
+
+
+def build_externals_model(files: list[dict[str, Any]], config: dict[str, Any]) -> dict[str, Any]:
+    configured = config.get("external_systems", [])
+    scans = compiled_signature_scans(configured)
+    usage: list[dict[str, Any]] = []
+    for source in files:
+        usage.extend(extract_external_usage(
+            source["path"], source["_text"], source["component"], configured,
+            code=masked_code(source), scans=scans,
+        ))
+    by_system: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for hit in usage:
+        by_system[hit["system"]].append(hit)
+
+    systems: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+    for entry in configured:
+        system_id = str(entry["id"])
+        hits = by_system.get(system_id, [])
+        if not hits:
+            raise ArchitectureError(
+                f"external system {system_id} matched no source signature; fix its signatures or remove it"
+            )
+        per_component: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for hit in hits:
+            per_component[hit["component"] or "unassigned"].append(hit)
+        usage_summary: list[dict[str, Any]] = []
+        for component_id, items in sorted(per_component.items()):
+            paths = sorted({item["evidence"]["path"] for item in items})
+            usage_summary.append({
+                "component": component_id,
+                "hit_count": len(items),
+                "files": paths[:12],
+                "evidence": [
+                    {**item["evidence"], "rule_id": item["rule_id"], "signature": item["signature"], "scope": item["scope"]}
+                    for item in items[:8]
+                ],
+            })
+            if component_id != "unassigned":
+                edges.append({
+                    "source": component_id,
+                    "target": system_id,
+                    "type": "uses",
+                    "authority": "observed",
+                    "description": f"{len(items)} signature hit(s) across {len(paths)} file(s).",
+                    "evidence": paths[:12],
+                    "weight": len(items),
+                })
+        systems.append({
+            "id": system_id,
+            "label": str(entry["label"]),
+            "category": str(entry["category"]),
+            "description": str(entry["description"]),
+            "description_authority": "specified",
+            "protocol": entry.get("protocol"),
+            "component": entry.get("component"),
+            "signatures": [
+                {"pattern": pattern, "scope": scope}
+                for pattern, scope in (normalize_signature(item) for item in entry["signatures"])
+            ],
+            "hit_count": len(hits),
+            "file_count": len({hit["evidence"]["path"] for hit in hits}),
+            "component_ids": sorted(key for key in per_component if key != "unassigned"),
+            "usage": usage_summary,
+            "authority": "observed",
+            "evidence_class": "static_source",
+        })
+    return {"systems": systems, "edges": edges}
+
+
+def extract_store_declarations(path: str, text: str, component: str | None,
+                               code: str | None = None) -> list[dict[str, Any]]:
+    """Recognise store/cache types and observe how each persists.
+
+    Mechanisms and artifact names are looked for in the declaring type body, in
+    same-file `extension <Name>` bodies, and in same-file helper types whose
+    name starts with the store name (e.g. `SkillStoreDisk` for `SkillStore`).
+    """
+    code = strip_swift_noncode(text) if code is None else code
+    declarations = list(STORE_DECLARATION_RE.finditer(code))
+    if not declarations:
+        return []
+    literals = swift_string_literals(text)
+    blocks = [
+        (match.group(1), match.group(2), match.end(), balanced_block_end(code, match.end()))
+        for match in TYPE_BLOCK_RE.finditer(code)
+    ]
+    stores: list[dict[str, Any]] = []
+    for match in declarations:
+        declaration_kind, name = match.group(1), match.group(2)
+        body_start = match.end()
+        body_end = balanced_block_end(code, body_start)
+        ranges: list[tuple[int, int, str | None]] = [(body_start, body_end, None)]
+        for block_kind, block_name, block_start, block_end in blocks:
+            if block_start == body_start:
+                continue
+            if block_kind == "extension" and block_name == name:
+                ranges.append((block_start, block_end, f"extension {name}"))
+            elif block_kind != "extension" and block_name != name and block_name.startswith(name):
+                ranges.append((block_start, block_end, f"helper {block_name}"))
+
+        mechanisms: dict[str, dict[str, Any]] = {}
+        artifacts: dict[str, dict[str, Any]] = {}
+        for range_start, range_end, via in ranges:
+            body = code[range_start:range_end]
+            for mechanism_kind, rule_id, pattern in STORE_MECHANISM_RULES:
+                for hit in pattern.finditer(body):
+                    item = observed_item(
+                        "store-mechanism", mechanism_kind, hit.group(0).strip(), component,
+                        rule_id, path, text, range_start + hit.start(), store=name, via=via,
+                    )
+                    mechanisms.setdefault(item["id"], item)
+            for start, end, content in literals:
+                if start < range_start or end > range_end:
+                    continue
+                if ARTIFACT_FILE_RE.match(content):
+                    artifact_kind = "file"
+                elif ARTIFACT_DIRECTORY_RE.match(content) and re.match(
+                    r"\s*,\s*isDirectory\s*:\s*true", code[end + 1:end + 40]
+                ):
+                    artifact_kind = "directory"
+                else:
+                    continue
+                item = observed_item(
+                    "store-artifact", artifact_kind, content, component,
+                    "swift.store.artifact_literal", path, text, start - 1, store=name, via=via,
+                )
+                artifacts.setdefault(item["id"], item)
+
+        mechanism_items = sorted(mechanisms.values(), key=lambda item: (item["evidence"]["line"], item["kind"], item["id"]))
+        artifact_items = sorted(artifacts.values(), key=lambda item: (item["evidence"]["line"], item["label"], item["id"]))
+        persistence = sorted({item["kind"] for item in mechanism_items}) or ["unobserved"]
+        stores.append({
+            **observed_item("store", declaration_kind, name, component,
+                            "swift.store.declaration", path, text, match.start(1)),
+            "type_name": name,
+            "persistence": persistence,
+            "mechanisms": mechanism_items,
+            "artifacts": artifact_items,
+            "scanned": [via or f"{declaration_kind} {name}" for _, _, via in ranges],
+            "derivation": (
+                "Persistence APIs and artifact names are observed in the declaring type body, its same-file "
+                "extensions, and same-file helper types named after it; 'unobserved' means none of those contain "
+                "a supported persistence API (in-memory, or delegated elsewhere)."
+            ),
+        })
+    return stores
+
+
+def build_stores_model(files: list[dict[str, Any]]) -> dict[str, Any]:
+    items: list[dict[str, Any]] = []
+    for source in files:
+        items.extend(extract_store_declarations(
+            source["path"], source["_text"], source["component"], code=masked_code(source)
+        ))
+    items.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
+    by_persistence: dict[str, int] = defaultdict(int)
+    for item in items:
+        for kind in item["persistence"]:
+            by_persistence[kind] += 1
+    return {"items": items, "count": len(items), "by_persistence": dict(sorted(by_persistence.items()))}
+
+
 def validate_config(config: dict[str, Any]) -> None:
     if config.get("schema_version") != "1.0.0":
         raise ArchitectureError("architecture/config.json must use schema_version 1.0.0")
@@ -694,6 +1045,7 @@ def validate_config(config: dict[str, Any]) -> None:
         if edge.get("source") not in known_components or edge.get("target") not in known_components:
             raise ArchitectureError(f"edge has unknown endpoint: {edge}")
         validate_evidence(edge.get("evidence", []), f"edge {edge.get('source')} → {edge.get('target')}")
+    validate_external_systems(config)
 
 
 def validate_evidence(evidence: Any, owner: str) -> list[str]:
@@ -1563,6 +1915,8 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     behavior = build_behavior_model(files)
     interplay = build_interplay_graph(files, behavior)
     validate_interplay(interplay, load_json(INTERPLAY_OVERLAY_PATH))
+    externals = build_externals_model(files, config)
+    stores = build_stores_model(files)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -1573,10 +1927,13 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
         "evidence_metadata": {
             "class": "static_source",
             "rules": dict(sorted(BEHAVIOR_RULES.items())),
-            "limitations": STATIC_SOURCE_LIMITATIONS,
+            "boundary_rules": dict(sorted(BOUNDARY_RULES.items())),
+            "limitations": STATIC_SOURCE_LIMITATIONS + BOUNDARY_LIMITATIONS,
         },
         "behavior": behavior,
         "interplay": interplay,
+        "externals": externals,
+        "stores": stores,
         "layers": sorted(config["layers"], key=lambda item: item["order"]),
         "components": components,
         "edges": specified_edges + reference_edges,

@@ -325,5 +325,106 @@ actor MessagePump {}
         self.assertEqual({"model.json", "data.js"}, set(first_hashes))
 
 
+    def test_external_systems_are_declared_observed_and_evidenced(self) -> None:
+        externals = self.model["externals"]
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            [item["id"] for item in config["external_systems"]],
+            [item["id"] for item in externals["systems"]],
+        )
+        component_ids = {item["id"] for item in self.model["components"]}
+        for system in externals["systems"]:
+            self.assertEqual("specified", system["description_authority"])
+            self.assertEqual("observed", system["authority"])
+            self.assertGreater(system["hit_count"], 0, system["id"])
+            self.assertTrue(system["component_ids"], system["id"])
+            for usage in system["usage"]:
+                for evidence in usage["evidence"]:
+                    self.assertTrue((ROOT / evidence["path"]).is_file(), evidence["path"])
+                    self.assertGreater(evidence["line"], 0)
+                    self.assertEqual("swift.boundary.external_signature", evidence["rule_id"])
+        for edge in externals["edges"]:
+            self.assertIn(edge["source"], component_ids)
+            self.assertEqual("observed", edge["authority"])
+            self.assertTrue(edge["evidence"])
+        mlx = next(item for item in externals["systems"] if item["id"] == "apple-mlx")
+        self.assertEqual(["local-services"], mlx["component_ids"])
+        self.assertIn("swift.boundary.external_signature", self.model["evidence_metadata"]["boundary_rules"])
+        self.assertIn("swift.store.declaration", self.model["evidence_metadata"]["boundary_rules"])
+
+    def test_external_signatures_ignore_comments_and_respect_string_scope(self) -> None:
+        systems = [{
+            "id": "svc",
+            "signatures": ["\\bWKWebView\\b", {"pattern": "api\\.example\\.com", "scope": "strings"}],
+        }]
+        snippet = (
+            "import WebKit\n"
+            "// WKWebView mentioned in a comment, api.example.com too\n"
+            "let host = \"api.example.com\" // api.example.com\n"
+            "final class A { let view: WKWebView; let note = \"WKWebView in a string\" }\n"
+        )
+        hits = architecture.extract_external_usage("Sources/Portal/A.swift", snippet, "chat-ui", systems)
+        self.assertEqual(
+            [("WKWebView", 4), ("api.example.com", 3)],
+            sorted((hit["label"], hit["evidence"]["line"]) for hit in hits),
+        )
+        self.assertTrue(all(hit["system"] == "svc" and hit["component"] == "chat-ui" for hit in hits))
+
+    def test_store_extraction_observes_body_extensions_and_namesake_helpers(self) -> None:
+        snippet = (
+            "import Foundation\n"
+            "// enum CommentStore { UserDefaults.standard }\n"
+            "enum DemoStoreDisk {\n"
+            "    static let file = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!\n"
+            "        .appendingPathComponent(\"portal\", isDirectory: true)\n"
+            "        .appendingPathComponent(\"demo-store.json\")\n"
+            "}\n"
+            "@MainActor\n"
+            "final class DemoStore: ObservableObject {\n"
+            "    let note = \"applicationSupportDirectory inside a string\"\n"
+            "    func load() -> [Int] { [] }\n"
+            "}\n"
+            "extension DemoStore {\n"
+            "    func flag() -> Bool { UserDefaults.standard.bool(forKey: \"x\") }\n"
+            "}\n"
+            "struct MemoryOnlyCache { var items: [String: Int] = [:] }\n"
+        )
+        stores = architecture.extract_store_declarations("Sources/Portal/Demo.swift", snippet, "local-services")
+        by_name = {item["type_name"]: item for item in stores}
+        self.assertEqual({"DemoStore", "MemoryOnlyCache"}, set(by_name))
+        demo = by_name["DemoStore"]
+        self.assertEqual(["defaults", "file"], demo["persistence"])
+        self.assertEqual({"portal", "demo-store.json"}, {item["label"] for item in demo["artifacts"]})
+        self.assertEqual(
+            {"helper DemoStoreDisk", "extension DemoStore"},
+            {item["via"] for item in demo["mechanisms"]},
+        )
+        self.assertEqual(["unobserved"], by_name["MemoryOnlyCache"]["persistence"])
+        self.assertEqual(9, demo["evidence"]["line"])
+
+    def test_compiled_stores_are_owned_and_persistence_is_attributed(self) -> None:
+        items = {item["type_name"]: item for item in self.model["stores"]["items"]}
+        self.assertGreaterEqual(len(items), 20)
+        self.assertTrue(all(item["component"] for item in items.values()))
+        self.assertIn("file", items["SkillStore"]["persistence"])
+        self.assertIn("skill-store.json", [artifact["label"] for artifact in items["SkillStore"]["artifacts"]])
+        self.assertEqual(["keychain"], items["KeychainStore"]["persistence"])
+        for item in items.values():
+            self.assertTrue((ROOT / item["evidence"]["path"]).is_file())
+            self.assertEqual("swift.store.declaration", item["rule_id"])
+
+    def test_boundary_site_views_and_renderers_exist(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        for view in ("externals", "stores"):
+            self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
+            self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
+            self.assertRegex(index, rf'id="{view}-content"')
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for renderer in ("renderExternals", "renderStores"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertIn("External systems used", app)
+        self.assertIn("Data stores owned", app)
+
+
 if __name__ == "__main__":
     unittest.main()

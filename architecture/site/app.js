@@ -65,6 +65,18 @@
   };
   const INTERPLAY_SHARED_GROUP = "Shared core";
   const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
+  const externals = model.externals || { systems: [], edges: [] };
+  const stores = model.stores || { items: [] };
+  const EXTERNAL_CATEGORY_LABELS = {
+    backend: "Backend",
+    network: "Network edge",
+    "ml-runtime": "ML runtime",
+    "on-device-engine": "On-device engine",
+    "platform-service": "Platform service",
+    "platform-storage": "Platform storage",
+    "platform-framework": "Platform framework",
+    "third-party-api": "Third-party API"
+  };
   const specifications = payload.specifications || [];
   const componentById = new Map(model.components.map((component) => [component.id, component]));
   const layerById = new Map(model.layers.map((layer) => [layer.id, layer]));
@@ -93,6 +105,8 @@
   renderInterplay();
   renderExecution();
   renderConnections();
+  renderExternals();
+  renderStores();
   renderScenarios();
   renderSpecifications();
   renderInventory();
@@ -304,6 +318,18 @@
 
     if (component.semantic?.responsibilities?.length) {
       inspector.append(chipSection("Synthesized responsibilities", component.semantic.responsibilities));
+    }
+    const usedSystems = externals.systems.filter((system) => (system.component_ids || []).includes(component.id));
+    if (usedSystems.length) {
+      inspector.append(chipSection("External systems used", usedSystems.map((system) => system.label)));
+    }
+    const hostedSystems = externals.systems.filter((system) => system.component === component.id);
+    if (hostedSystems.length) {
+      inspector.append(chipSection("Systems on this node", hostedSystems.map((system) => system.label)));
+    }
+    const ownedStores = stores.items.filter((item) => item.component === component.id);
+    if (ownedStores.length) {
+      inspector.append(chipSection("Data stores owned", ownedStores.map((item) => `${item.type_name} · ${item.persistence.join("/")}`)));
     }
     if (component.declarations.length) {
       inspector.append(chipSection("Declarations", component.declarations.slice(0, 24)));
@@ -1243,6 +1269,105 @@
       return card;
     });
     container.replaceChildren(...cards);
+  }
+
+  function boundaryComponentLabel(componentId) {
+    return componentById.get(componentId)?.label || componentId || "unassigned";
+  }
+
+  function renderExternals() {
+    const container = document.getElementById("externals-content");
+    const systems = [...externals.systems].sort((left, right) =>
+      String(left.category).localeCompare(String(right.category)) || String(left.label).localeCompare(String(right.label))
+    );
+    if (!systems.length) {
+      container.replaceChildren(emptyState("No external systems are declared in architecture/config.json."));
+      return;
+    }
+    const grouped = new Map();
+    systems.forEach((system) => {
+      if (!grouped.has(system.category)) grouped.set(system.category, []);
+      grouped.get(system.category).push(system);
+    });
+    const sections = [...grouped.entries()].map(([category, items]) => {
+      const section = behaviorGroup(EXTERNAL_CATEGORY_LABELS[category] || category, `${items.length} system(s)`);
+      const list = element("div", "behavior-list");
+      items.forEach((system) => list.append(externalCard(system)));
+      section.append(list);
+      return section;
+    });
+    container.replaceChildren(...sections);
+  }
+
+  function externalCard(system) {
+    const card = element("article", "behavior-row");
+    card.append(element("h4", "", system.label));
+    const meta = element("p", "behavior-meta");
+    meta.textContent = [
+      system.protocol,
+      `${system.hit_count} hit(s) in ${system.file_count} file(s)`,
+      system.component && `graph node ${boundaryComponentLabel(system.component)}`,
+      "swift.boundary.external_signature"
+    ].filter(Boolean).join(" · ");
+    card.append(meta);
+    card.append(element("p", "derivation", `${system.description} Description is specified in config; usage below is observed.`));
+    const used = element("div", "chip-list");
+    (system.usage || []).forEach((usage) => {
+      used.append(element("span", "chip", `${boundaryComponentLabel(usage.component)} · ${usage.hit_count}`));
+    });
+    card.append(used);
+    const list = element("ul", "evidence-list");
+    (system.usage || []).flatMap((usage) => (usage.evidence || []).slice(0, 3)).slice(0, 12).forEach((evidence) => {
+      const item = document.createElement("li");
+      item.append(sourceLink(evidence), element("span", "", ` ${evidence.excerpt || ""}`));
+      list.append(item);
+    });
+    card.append(list);
+    return card;
+  }
+
+  function renderStores() {
+    const container = document.getElementById("stores-content");
+    const items = [...stores.items].sort((left, right) =>
+      String(left.component || "").localeCompare(String(right.component || "")) || sourceSort(left, right)
+    );
+    if (!items.length) {
+      container.replaceChildren(emptyState("No store, cache, inventory, or ledger types matched the deterministic rules."));
+      return;
+    }
+    const grouped = new Map();
+    items.forEach((item) => {
+      const key = item.component || "unassigned";
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(item);
+    });
+    const sections = [...grouped.entries()].map(([componentId, records]) => {
+      const section = behaviorGroup(boundaryComponentLabel(componentId), `${records.length} store type(s)`);
+      const list = element("div", "behavior-list");
+      records.forEach((record) => {
+        const artifacts = (record.artifacts || []).map((artifact) => artifact.label);
+        const row = recordRow(record, [
+          `persistence ${(record.persistence || []).join(", ")}`,
+          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null
+        ].filter(Boolean));
+        const mechanisms = record.mechanisms || [];
+        if (mechanisms.length) {
+          const block = element("ul", "evidence-list");
+          mechanisms.slice(0, 6).forEach((mechanism) => {
+            const item = document.createElement("li");
+            item.append(element("span", "", `${mechanism.kind}${mechanism.via ? ` via ${mechanism.via}` : ""} · `), sourceLink(mechanism.evidence));
+            block.append(item);
+          });
+          row.append(block);
+        } else {
+          row.append(element("p", "derivation", record.derivation || "No persistence API observed."));
+        }
+        list.append(row);
+      });
+      section.append(list);
+      return section;
+    });
+    container.replaceChildren(...sections);
   }
 
   function renderScenarios() {

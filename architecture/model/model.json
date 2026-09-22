@@ -11286,7 +11286,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11862,
+      "line_count": 11858,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -15960,10 +15960,21 @@
     }
   ],
   "evidence_metadata": {
+    "boundary_rules": {
+      "swift.boundary.external_signature": "A configured external-system signature (import, framework type, API family, or endpoint token) present in Swift code; string-scoped signatures match inside string literals only",
+      "swift.store.artifact_literal": "A string literal in the store type body, a same-file extension, or a same-file namesake helper that names a file, or a folder passed with isDirectory: true",
+      "swift.store.declaration": "A class, struct, actor, or enum whose name ends in Store, Cache, Inventory, or Ledger",
+      "swift.store.mechanism.defaults": "UserDefaults or @AppStorage referenced inside the store type body, a same-file extension of it, or a same-file helper type named after it",
+      "swift.store.mechanism.file": "applicationSupportDirectory, cachesDirectory, or documentDirectory referenced inside the store type body, a same-file extension of it, or a same-file helper type named after it",
+      "swift.store.mechanism.keychain": "A SecItem* call inside the store type body, a same-file extension of it, or a same-file helper type named after it"
+    },
     "class": "static_source",
     "limitations": [
       "Static source evidence does not prove runtime overlap, scheduling order, OS thread use, or live resource counts.",
-      "Regex and lexical rules identify mechanically visible declarations and operations; dynamic aliases and interprocedural flows remain unresolved."
+      "Regex and lexical rules identify mechanically visible declarations and operations; dynamic aliases and interprocedural flows remain unresolved.",
+      "External-system usage is attributed per configured signature; a system reached only through an unlisted API, or through a wrapper in another file, is not attributed to the caller.",
+      "Store persistence mechanisms are observed inside the declaring type body, its same-file extensions, and same-file helper types whose name starts with the store name; persistence performed elsewhere is reported as unobserved.",
+      "Swift raw string literals (#\"…\"#) are not lexed specially; a string-scoped signature or artifact name inside one may be missed or mis-scoped."
     ],
     "rules": {
       "swift.execution.actor": "Swift actor declaration",
@@ -16003,6 +16014,2546 @@
       "swift.task.stored_handle": "Stored property whose declared type is Task",
       "swift.task.structured": "Task initializer with closure"
     }
+  },
+  "externals": {
+    "edges": [
+      {
+        "authority": "observed",
+        "description": "2 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/OnboardingView.swift"
+        ],
+        "source": "app-shell",
+        "target": "harness-gateway",
+        "type": "uses",
+        "weight": 2
+      },
+      {
+        "authority": "observed",
+        "description": "9 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/GatewayClient.swift",
+          "Sources/Portal/Services/GatewayClientWrapper.swift"
+        ],
+        "source": "hermes-services",
+        "target": "harness-gateway",
+        "type": "uses",
+        "weight": 9
+      },
+      {
+        "authority": "observed",
+        "description": "4 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Utilities/Constants.swift",
+          "Sources/Portal/Utilities/GatewayURL.swift"
+        ],
+        "source": "utilities",
+        "target": "harness-gateway",
+        "type": "uses",
+        "weight": 4
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/CFAuthView.swift"
+        ],
+        "source": "shared-ui",
+        "target": "cloudflare-access",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "7 signature hit(s) across 4 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/LocalChatEngine.swift",
+          "Sources/Portal/Services/MLXMemoryConfig.swift",
+          "Sources/Portal/Services/ReasoningSummarizer.swift",
+          "Sources/Portal/Services/SkillSummaryService.swift"
+        ],
+        "source": "local-services",
+        "target": "apple-mlx",
+        "type": "uses",
+        "weight": 7
+      },
+      {
+        "authority": "observed",
+        "description": "8 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/LocalChatService.swift",
+          "Sources/Portal/Services/LocalModelInventory.swift"
+        ],
+        "source": "local-services",
+        "target": "hugging-face-hub",
+        "type": "uses",
+        "weight": 8
+      },
+      {
+        "authority": "observed",
+        "description": "4 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/PushRegistrationService.swift"
+        ],
+        "source": "hermes-services",
+        "target": "apns",
+        "type": "uses",
+        "weight": 4
+      },
+      {
+        "authority": "observed",
+        "description": "6 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/NotificationService.swift"
+        ],
+        "source": "local-services",
+        "target": "user-notifications",
+        "type": "uses",
+        "weight": 6
+      },
+      {
+        "authority": "observed",
+        "description": "7 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/KeychainStore.swift",
+          "Sources/Portal/Services/XAuthService.swift"
+        ],
+        "source": "local-services",
+        "target": "keychain",
+        "type": "uses",
+        "weight": 7
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/ArtifactStore.swift"
+        ],
+        "source": "artifact-intents",
+        "target": "file-system",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/ViewModels/ChatViewModel.swift"
+        ],
+        "source": "chat-state",
+        "target": "file-system",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "7 signature hit(s) across 7 file(s).",
+        "evidence": [
+          "Sources/Portal/Models/ActivityStore.swift",
+          "Sources/Portal/Models/ChatMessage.swift",
+          "Sources/Portal/Models/CronGraphRevisionStore.swift",
+          "Sources/Portal/Models/CronRunHistory.swift",
+          "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+          "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
+          "Sources/Portal/Models/SessionRunEvent.swift"
+        ],
+        "source": "domain-models",
+        "target": "file-system",
+        "type": "uses",
+        "weight": 7
+      },
+      {
+        "authority": "observed",
+        "description": "9 signature hit(s) across 9 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/ChatHistoryStore.swift",
+          "Sources/Portal/Services/CurriculumStore.swift",
+          "Sources/Portal/Services/LocalModelInventory.swift",
+          "Sources/Portal/Services/QuizStore.swift",
+          "Sources/Portal/Services/SRSStore.swift",
+          "Sources/Portal/Services/SkillStore.swift",
+          "Sources/Portal/Services/SkillSummaryService.swift",
+          "Sources/Portal/Services/VideoCache.swift",
+          "Sources/Portal/Services/WikiGraphCache.swift"
+        ],
+        "source": "local-services",
+        "target": "file-system",
+        "type": "uses",
+        "weight": 9
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Utilities/PerfInstrumentation.swift"
+        ],
+        "source": "utilities",
+        "target": "file-system",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "14 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ContentView.swift",
+          "Sources/Portal/Views/Theme.swift"
+        ],
+        "source": "app-shell",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 14
+      },
+      {
+        "authority": "observed",
+        "description": "5 signature hit(s) across 3 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ArtifactCanvasView.swift",
+          "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+          "Sources/Portal/Views/ArtifactFullscreenWindow.swift"
+        ],
+        "source": "artifact-ui",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 5
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/ViewModels/ChatViewModel.swift"
+        ],
+        "source": "chat-state",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "2 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ChatView.swift"
+        ],
+        "source": "chat-ui",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 2
+      },
+      {
+        "authority": "observed",
+        "description": "23 signature hit(s) across 7 file(s).",
+        "evidence": [
+          "Sources/Portal/Models/ActivityStore.swift",
+          "Sources/Portal/Models/AgentModel.swift",
+          "Sources/Portal/Models/CronRunHistory.swift",
+          "Sources/Portal/Models/DashboardLayout.swift",
+          "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+          "Sources/Portal/Models/ResponseStyle.swift",
+          "Sources/Portal/Models/SessionRunEvent.swift"
+        ],
+        "source": "domain-models",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 23
+      },
+      {
+        "authority": "observed",
+        "description": "27 signature hit(s) across 6 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/LocalVoiceService.swift",
+          "Sources/Portal/Services/NotificationService.swift",
+          "Sources/Portal/Services/SessionMetaSyncService.swift",
+          "Sources/Portal/Services/SkillCache.swift",
+          "Sources/Portal/Services/SkillStore.swift",
+          "Sources/Portal/Services/XAuthService.swift"
+        ],
+        "source": "local-services",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 27
+      },
+      {
+        "authority": "observed",
+        "description": "23 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/ViewModels/SessionListViewModel.swift",
+          "Sources/Portal/ViewModels/SettingsViewModel.swift"
+        ],
+        "source": "operations-state",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 23
+      },
+      {
+        "authority": "observed",
+        "description": "7 signature hit(s) across 6 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/CronInterflowGraphView.swift",
+          "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
+          "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
+          "Sources/Portal/Views/MissionControl/SessionsFilterState.swift",
+          "Sources/Portal/Views/SessionListView.swift",
+          "Sources/Portal/Views/Skills/SkillsCanvasView.swift"
+        ],
+        "source": "operations-ui",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 7
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/GraphsView.swift"
+        ],
+        "source": "shared-ui",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "4 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+          "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+        ],
+        "source": "thought-graph-ui",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 4
+      },
+      {
+        "authority": "observed",
+        "description": "1 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Utilities/MainThreadWatchdog.swift"
+        ],
+        "source": "utilities",
+        "target": "user-defaults",
+        "type": "uses",
+        "weight": 1
+      },
+      {
+        "authority": "observed",
+        "description": "3 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/XAPIClient.swift",
+          "Sources/Portal/Services/XAuthService.swift"
+        ],
+        "source": "local-services",
+        "target": "x-api",
+        "type": "uses",
+        "weight": 3
+      },
+      {
+        "authority": "observed",
+        "description": "16 signature hit(s) across 3 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+          "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+          "Sources/Portal/Views/MermaidDiagramView.swift"
+        ],
+        "source": "artifact-ui",
+        "target": "webkit",
+        "type": "uses",
+        "weight": 16
+      },
+      {
+        "authority": "observed",
+        "description": "17 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/AttachmentChipView.swift",
+          "Sources/Portal/Views/MarkdownContentView.swift"
+        ],
+        "source": "chat-ui",
+        "target": "webkit",
+        "type": "uses",
+        "weight": 17
+      },
+      {
+        "authority": "observed",
+        "description": "6 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/ActivityInboxView.swift"
+        ],
+        "source": "operations-ui",
+        "target": "webkit",
+        "type": "uses",
+        "weight": 6
+      },
+      {
+        "authority": "observed",
+        "description": "24 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/CFAuthView.swift",
+          "Sources/Portal/Views/InAppBrowserView.swift"
+        ],
+        "source": "shared-ui",
+        "target": "webkit",
+        "type": "uses",
+        "weight": 24
+      },
+      {
+        "authority": "observed",
+        "description": "8 signature hit(s) across 2 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/MonkeyCelebrationView.swift",
+          "Sources/Portal/Views/MonkeyScene.swift"
+        ],
+        "source": "shared-ui",
+        "target": "scenekit",
+        "type": "uses",
+        "weight": 8
+      },
+      {
+        "authority": "observed",
+        "description": "15 signature hit(s) across 1 file(s).",
+        "evidence": [
+          "Sources/Portal/Views/Wiki/WikiGraph3DView.swift"
+        ],
+        "source": "wiki-ui",
+        "target": "scenekit",
+        "type": "uses",
+        "weight": 15
+      },
+      {
+        "authority": "observed",
+        "description": "13 signature hit(s) across 4 file(s).",
+        "evidence": [
+          "Sources/Portal/Services/LocalVoiceEngine.swift",
+          "Sources/Portal/Services/LocalVoiceService.swift",
+          "Sources/Portal/Services/NeuralSpeechEngine.swift",
+          "Sources/Portal/Services/TTSService.swift"
+        ],
+        "source": "local-services",
+        "target": "speech-synthesis",
+        "type": "uses",
+        "weight": 13
+      }
+    ],
+    "systems": [
+      {
+        "authority": "observed",
+        "category": "backend",
+        "component": "hermes-gateway",
+        "component_ids": [
+          "app-shell",
+          "hermes-services",
+          "utilities"
+        ],
+        "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 5,
+        "hit_count": 15,
+        "id": "harness-gateway",
+        "label": "Harness gateway",
+        "protocol": "WebSocket JSON-RPC over URLSession (/v1/ws)",
+        "signatures": [
+          {
+            "pattern": "\\bURLSessionWebSocketTask\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bwebSocketTask\\s*\\(",
+            "scope": "code"
+          },
+          {
+            "pattern": "/v1/ws\\b",
+            "scope": "strings"
+          }
+        ],
+        "usage": [
+          {
+            "component": "app-shell",
+            "evidence": [
+              {
+                "excerpt": "Text(\"wss://your-harness.example.com/v1/ws\").foregroundStyle(.tertiary)",
+                "line": 44,
+                "path": "Sources/Portal/Views/OnboardingView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "TextField(\"ws://192.168.1.x:8642/v1/ws\", text: $settings.gatewayURL)",
+                "line": 164,
+                "path": "Sources/Portal/Views/OnboardingView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/OnboardingView.swift"
+            ],
+            "hit_count": 2
+          },
+          {
+            "component": "hermes-services",
+            "evidence": [
+              {
+                "excerpt": "private var webSocketTask: URLSessionWebSocketTask?",
+                "line": 219,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bURLSessionWebSocketTask\\b"
+              },
+              {
+                "excerpt": "self.gatewayURL = URL(string: Constants.defaultGatewayURL) ?? URL(string: \"ws://localhost:8642/v1/ws\")!",
+                "line": 286,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "let task = newSession.webSocketTask(with: request)",
+                "line": 695,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bwebSocketTask\\s*\\("
+              },
+              {
+                "excerpt": "nonisolated private func teardownTransport(session: URLSession?, task: URLSessionWebSocketTask?) {",
+                "line": 770,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bURLSessionWebSocketTask\\b"
+              },
+              {
+                "excerpt": "of: \"/v1/ws\", with: \"\"",
+                "line": 1696,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "webSocketTask: URLSessionWebSocketTask,",
+                "line": 2559,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bURLSessionWebSocketTask\\b"
+              },
+              {
+                "excerpt": "webSocketTask: URLSessionWebSocketTask,",
+                "line": 2581,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bURLSessionWebSocketTask\\b"
+              },
+              {
+                "excerpt": "didCloseWith code: URLSessionWebSocketTask.CloseCode,",
+                "line": 2582,
+                "path": "Sources/Portal/Services/GatewayClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bURLSessionWebSocketTask\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/GatewayClient.swift",
+              "Sources/Portal/Services/GatewayClientWrapper.swift"
+            ],
+            "hit_count": 9
+          },
+          {
+            "component": "utilities",
+            "evidence": [
+              {
+                "excerpt": "static let defaultGatewayURL = \"ws://127.0.0.1:8642/v1/ws\"",
+                "line": 4,
+                "path": "Sources/Portal/Utilities/Constants.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "static let productionGatewayURL = ProcessInfo.processInfo.environment[\"HERMES_GATEWAY_URL\"] ?? \"wss://GATEWAY_HOST/v1/ws\"",
+                "line": 5,
+                "path": "Sources/Portal/Utilities/Constants.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "static let wsPath = \"/v1/ws\"",
+                "line": 7,
+                "path": "Sources/Portal/Utilities/Constants.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              },
+              {
+                "excerpt": "private static let wsPaths = [\"/v1/ws\"]",
+                "line": 26,
+                "path": "Sources/Portal/Utilities/GatewayURL.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "/v1/ws\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Utilities/Constants.swift",
+              "Sources/Portal/Utilities/GatewayURL.swift"
+            ],
+            "hit_count": 4
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "network",
+        "component": null,
+        "component_ids": [
+          "shared-ui"
+        ],
+        "description": "Zero-trust front door in front of a remotely hosted gateway; the client carries the Access cookie on WebSocket and HTTP requests.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 1,
+        "hit_count": 1,
+        "id": "cloudflare-access",
+        "label": "Cloudflare Access",
+        "protocol": "CF_Authorization cookie on the gateway origin",
+        "signatures": [
+          {
+            "pattern": "CF_Authorization|cloudflareaccess\\.com",
+            "scope": "strings"
+          }
+        ],
+        "usage": [
+          {
+            "component": "shared-ui",
+            "evidence": [
+              {
+                "excerpt": "if let cfCookie = cookies.first(where: { $0.name == \"CF_Authorization\" }) {",
+                "line": 148,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "CF_Authorization|cloudflareaccess\\.com"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/CFAuthView.swift"
+            ],
+            "hit_count": 1
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "ml-runtime",
+        "component": "device-services",
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 4,
+        "hit_count": 7,
+        "id": "apple-mlx",
+        "label": "Apple MLX",
+        "protocol": "In-process Swift framework (MLX, MLXLLM, MLXLMCommon)",
+        "signatures": [
+          {
+            "pattern": "(?m)^\\s*import\\s+MLX\\w*",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bModelContainer\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bloadContainer\\s*\\(",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "private var container: ModelContainer?",
+                "line": 29,
+                "path": "Sources/Portal/Services/LocalChatEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bModelContainer\\b"
+              },
+              {
+                "excerpt": "let loaded = try await LLMModelFactory.shared.loadContainer(",
+                "line": 137,
+                "path": "Sources/Portal/Services/LocalChatEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bloadContainer\\s*\\("
+              },
+              {
+                "excerpt": "import MLX",
+                "line": 2,
+                "path": "Sources/Portal/Services/MLXMemoryConfig.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "(?m)^\\s*import\\s+MLX\\w*"
+              },
+              {
+                "excerpt": "private var container: ModelContainer?",
+                "line": 597,
+                "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bModelContainer\\b"
+              },
+              {
+                "excerpt": "try await LLMModelFactory.shared.loadContainer(",
+                "line": 683,
+                "path": "Sources/Portal/Services/ReasoningSummarizer.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bloadContainer\\s*\\("
+              },
+              {
+                "excerpt": "private var container: ModelContainer?",
+                "line": 200,
+                "path": "Sources/Portal/Services/SkillSummaryService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bModelContainer\\b"
+              },
+              {
+                "excerpt": "try await LLMModelFactory.shared.loadContainer(",
+                "line": 284,
+                "path": "Sources/Portal/Services/SkillSummaryService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bloadContainer\\s*\\("
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/LocalChatEngine.swift",
+              "Sources/Portal/Services/MLXMemoryConfig.swift",
+              "Sources/Portal/Services/ReasoningSummarizer.swift",
+              "Sources/Portal/Services/SkillSummaryService.swift"
+            ],
+            "hit_count": 7
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "third-party-api",
+        "component": null,
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "Source of on-device model weights (mlx-community repositories); downloaded into the local model inventory.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 2,
+        "hit_count": 8,
+        "id": "hugging-face-hub",
+        "label": "Hugging Face Hub",
+        "protocol": "HTTPS model downloads through the MLX model factory",
+        "signatures": [
+          {
+            "pattern": "^mlx-community/|huggingface",
+            "scope": "strings"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "case .gemma3_1b: return \"mlx-community/gemma-3-1b-it-qat-4bit\"",
+                "line": 50,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": "case .qwen3_1_7b: return \"mlx-community/Qwen3-1.7B-4bit\"",
+                "line": 51,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": "case .qwen3_4b: return \"mlx-community/Qwen3-4B-4bit\"",
+                "line": 52,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": "case .lfm2_8b_a1b: return \"mlx-community/LFM2-8B-A1B-3bit-MLX\"",
+                "line": 53,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": "case .qwen3_8b: return \"mlx-community/Qwen3-8B-4bit\"",
+                "line": 54,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": "case .qwen3_30b_a3b: return \"mlx-community/Qwen3-30B-A3B-4bit\"",
+                "line": 55,
+                "path": "Sources/Portal/Services/LocalChatService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": ".appendingPathComponent(\"huggingface\")",
+                "line": 122,
+                "path": "Sources/Portal/Services/LocalModelInventory.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              },
+              {
+                "excerpt": ".appendingPathComponent(\"huggingface\")",
+                "line": 127,
+                "path": "Sources/Portal/Services/LocalModelInventory.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "^mlx-community/|huggingface"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/LocalChatService.swift",
+              "Sources/Portal/Services/LocalModelInventory.swift"
+            ],
+            "hit_count": 8
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-service",
+        "component": "device-services",
+        "component_ids": [
+          "hermes-services"
+        ],
+        "description": "Delivers gateway push notifications to the device when the app is not connected.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 1,
+        "hit_count": 4,
+        "id": "apns",
+        "label": "Apple Push Notification service",
+        "protocol": "Remote-notification registration; device token forwarded to the gateway",
+        "signatures": [
+          {
+            "pattern": "\\bregisterForRemoteNotifications\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bdidRegisterForRemoteNotifications\\w*",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bdeviceToken\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "hermes-services",
+            "evidence": [
+              {
+                "excerpt": "NSApplication.shared.registerForRemoteNotifications()",
+                "line": 42,
+                "path": "Sources/Portal/Services/PushRegistrationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bregisterForRemoteNotifications\\b"
+              },
+              {
+                "excerpt": "UIApplication.shared.registerForRemoteNotifications()",
+                "line": 44,
+                "path": "Sources/Portal/Services/PushRegistrationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bregisterForRemoteNotifications\\b"
+              },
+              {
+                "excerpt": "func store(deviceToken: Data) {",
+                "line": 49,
+                "path": "Sources/Portal/Services/PushRegistrationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bdeviceToken\\b"
+              },
+              {
+                "excerpt": "let hex = deviceToken.map { String(format: \"%02x\", $0) }.joined()",
+                "line": 50,
+                "path": "Sources/Portal/Services/PushRegistrationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bdeviceToken\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/PushRegistrationService.swift"
+            ],
+            "hit_count": 4
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-service",
+        "component": "device-services",
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "Local notification presentation, authorization, and notification-tap routing back into the app.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 1,
+        "hit_count": 6,
+        "id": "user-notifications",
+        "label": "User Notifications",
+        "protocol": "UNUserNotificationCenter",
+        "signatures": [
+          {
+            "pattern": "\\bUNUserNotificationCenter\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "UNUserNotificationCenter.current().delegate = self",
+                "line": 40,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              },
+              {
+                "excerpt": "return try await UNUserNotificationCenter.current()",
+                "line": 47,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              },
+              {
+                "excerpt": "try await UNUserNotificationCenter.current().add(request)",
+                "line": 201,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              },
+              {
+                "excerpt": "let center = UNUserNotificationCenter.current()",
+                "line": 209,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              },
+              {
+                "excerpt": "_ center: UNUserNotificationCenter,",
+                "line": 229,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              },
+              {
+                "excerpt": "_ center: UNUserNotificationCenter,",
+                "line": 254,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUNUserNotificationCenter\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/NotificationService.swift"
+            ],
+            "hit_count": 6
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-storage",
+        "component": "device-services",
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "Secure storage for gateway API keys, OAuth tokens, and Access cookies.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 2,
+        "hit_count": 7,
+        "id": "keychain",
+        "label": "Keychain",
+        "protocol": "Security framework SecItem* calls",
+        "signatures": [
+          {
+            "pattern": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\(",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "let updateStatus = SecItemUpdate(",
+                "line": 79,
+                "path": "Sources/Portal/Services/KeychainStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "let addStatus = SecItemAdd(addQuery as CFDictionary, nil)",
+                "line": 89,
+                "path": "Sources/Portal/Services/KeychainStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "let retry = SecItemUpdate(",
+                "line": 93,
+                "path": "Sources/Portal/Services/KeychainStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "let status = SecItemCopyMatching(query as CFDictionary, &result)",
+                "line": 172,
+                "path": "Sources/Portal/Services/KeychainStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "SecItemAdd(query as CFDictionary, nil)",
+                "line": 269,
+                "path": "Sources/Portal/Services/XAuthService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,",
+                "line": 281,
+                "path": "Sources/Portal/Services/XAuthService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              },
+              {
+                "excerpt": "SecItemDelete(query as CFDictionary)",
+                "line": 297,
+                "path": "Sources/Portal/Services/XAuthService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSecItem(?:Add|CopyMatching|Update|Delete)\\s*\\("
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/KeychainStore.swift",
+              "Sources/Portal/Services/XAuthService.swift"
+            ],
+            "hit_count": 7
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-storage",
+        "component": "device-services",
+        "component_ids": [
+          "artifact-intents",
+          "chat-state",
+          "domain-models",
+          "local-services",
+          "utilities"
+        ],
+        "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 19,
+        "hit_count": 19,
+        "id": "file-system",
+        "label": "Application Support files",
+        "protocol": "FileManager JSON documents and directories",
+        "signatures": [
+          {
+            "pattern": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "artifact-intents",
+            "evidence": [
+              {
+                "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
+                "line": 90,
+                "path": "Sources/Portal/Services/ArtifactStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/ArtifactStore.swift"
+            ],
+            "hit_count": 1
+          },
+          {
+            "component": "chat-state",
+            "evidence": [
+              {
+                "excerpt": "let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
+                "line": 683,
+                "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/ViewModels/ChatViewModel.swift"
+            ],
+            "hit_count": 1
+          },
+          {
+            "component": "domain-models",
+            "evidence": [
+              {
+                "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 19,
+                "path": "Sources/Portal/Models/ActivityStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!",
+                "line": 549,
+                "path": "Sources/Portal/Models/ChatMessage.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 49,
+                "path": "Sources/Portal/Models/CronGraphRevisionStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 41,
+                "path": "Sources/Portal/Models/CronRunHistory.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 34,
+                "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?",
+                "line": 25,
+                "path": "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 64,
+                "path": "Sources/Portal/Models/SessionRunEvent.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Models/ActivityStore.swift",
+              "Sources/Portal/Models/ChatMessage.swift",
+              "Sources/Portal/Models/CronGraphRevisionStore.swift",
+              "Sources/Portal/Models/CronRunHistory.swift",
+              "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+              "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
+              "Sources/Portal/Models/SessionRunEvent.swift"
+            ],
+            "hit_count": 7
+          },
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 59,
+                "path": "Sources/Portal/Services/ChatHistoryStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 37,
+                "path": "Sources/Portal/Services/CurriculumStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "cachesDirectory: URL = .cachesDirectory",
+                "line": 107,
+                "path": "Sources/Portal/Services/LocalModelInventory.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "for: .applicationSupportDirectory, in: .userDomainMask).first {",
+                "line": 22,
+                "path": "Sources/Portal/Services/QuizStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "for: .applicationSupportDirectory, in: .userDomainMask).first {",
+                "line": 23,
+                "path": "Sources/Portal/Services/SRSStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+                "line": 33,
+                "path": "Sources/Portal/Services/SkillStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
+                "line": 83,
+                "path": "Sources/Portal/Services/SkillSummaryService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              },
+              {
+                "excerpt": "let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first",
+                "line": 45,
+                "path": "Sources/Portal/Services/VideoCache.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/ChatHistoryStore.swift",
+              "Sources/Portal/Services/CurriculumStore.swift",
+              "Sources/Portal/Services/LocalModelInventory.swift",
+              "Sources/Portal/Services/QuizStore.swift",
+              "Sources/Portal/Services/SRSStore.swift",
+              "Sources/Portal/Services/SkillStore.swift",
+              "Sources/Portal/Services/SkillSummaryService.swift",
+              "Sources/Portal/Services/VideoCache.swift",
+              "Sources/Portal/Services/WikiGraphCache.swift"
+            ],
+            "hit_count": 9
+          },
+          {
+            "component": "utilities",
+            "evidence": [
+              {
+                "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }",
+                "line": 164,
+                "path": "Sources/Portal/Utilities/PerfInstrumentation.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\.(?:applicationSupportDirectory|cachesDirectory|documentDirectory)\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Utilities/PerfInstrumentation.swift"
+            ],
+            "hit_count": 1
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-storage",
+        "component": "device-services",
+        "component_ids": [
+          "app-shell",
+          "artifact-ui",
+          "chat-state",
+          "chat-ui",
+          "domain-models",
+          "local-services",
+          "operations-state",
+          "operations-ui",
+          "shared-ui",
+          "thought-graph-ui",
+          "utilities"
+        ],
+        "description": "Preferences, small state flags, and migration markers.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 32,
+        "hit_count": 108,
+        "id": "user-defaults",
+        "label": "UserDefaults",
+        "protocol": "UserDefaults.standard and @AppStorage",
+        "signatures": [
+          {
+            "pattern": "\\bUserDefaults\\.standard\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "@AppStorage\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "app-shell",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"macTopChromeCollapsed\") private var isMacTopChromeCollapsed = false",
+                "line": 39,
+                "path": "Sources/Portal/Views/ContentView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"chatSkin\") private var activeSkin: ChatSkin = .tui",
+                "line": 59,
+                "path": "Sources/Portal/Views/ContentView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(current.id, forKey: Self.storageKey)",
+                "line": 208,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(buttonTheme.rawValue, forKey: Self.buttonStorageKey)",
+                "line": 220,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(appFont.rawValue, forKey: Self.fontStorageKey)",
+                "line": 229,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(toolbarIconTheme.rawValue, forKey: Self.toolbarIconStorageKey)",
+                "line": 239,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(toolbarIconTint.rawValue, forKey: Self.toolbarIconTintStorageKey)",
+                "line": 248,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(",
+                "line": 257,
+                "path": "Sources/Portal/Views/Theme.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ContentView.swift",
+              "Sources/Portal/Views/Theme.swift"
+            ],
+            "hit_count": 14
+          },
+          {
+            "component": "artifact-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"artifactViewMode\") private var viewMode: ViewMode = .list",
+                "line": 26,
+                "path": "Sources/Portal/Views/ArtifactCanvasView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"artifactCellMode\") private var cellMode: CellMode = .preview",
+                "line": 30,
+                "path": "Sources/Portal/Views/ArtifactCanvasView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"artifactExpandedShowsTitleBar\") private var showsTitleBar = true",
+                "line": 16,
+                "path": "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"artifactExpandedShowsMaintenance\") private var showsMaintenance = true",
+                "line": 17,
+                "path": "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.bool(forKey: \"HermesPointerLockTrace\")",
+                "line": 112,
+                "path": "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ArtifactCanvasView.swift",
+              "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+              "Sources/Portal/Views/ArtifactFullscreenWindow.swift"
+            ],
+            "hit_count": 5
+          },
+          {
+            "component": "chat-state",
+            "evidence": [
+              {
+                "excerpt": "if UserDefaults.standard.bool(forKey: \"portal.mlxReasoningEnabled\") {",
+                "line": 583,
+                "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/ViewModels/ChatViewModel.swift"
+            ],
+            "hit_count": 1
+          },
+          {
+            "component": "chat-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"chatSkin\") private var activeSkin: ChatSkin = .tui",
+                "line": 79,
+                "path": "Sources/Portal/Views/ChatView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"composerStyle\") private var composerStyle: ComposerStyle = .card",
+                "line": 1346,
+                "path": "Sources/Portal/Views/ChatView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ChatView.swift"
+            ],
+            "hit_count": 2
+          },
+          {
+            "component": "domain-models",
+            "evidence": [
+              {
+                "excerpt": "private let defaults = UserDefaults.standard",
+                "line": 10,
+                "path": "Sources/Portal/Models/ActivityStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+                "line": 104,
+                "path": "Sources/Portal/Models/ActivityStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
+                "line": 108,
+                "path": "Sources/Portal/Models/ActivityStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.removeObject(forKey: saveKey)",
+                "line": 131,
+                "path": "Sources/Portal/Models/ActivityStore.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "let value = UserDefaults.standard.string(forKey: userDefaultsKey)",
+                "line": 63,
+                "path": "Sources/Portal/Models/AgentModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(newValue, forKey: userDefaultsKey)",
+                "line": 68,
+                "path": "Sources/Portal/Models/AgentModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.removeObject(forKey: userDefaultsKey)",
+                "line": 70,
+                "path": "Sources/Portal/Models/AgentModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+                "line": 212,
+                "path": "Sources/Portal/Models/CronRunHistory.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Models/ActivityStore.swift",
+              "Sources/Portal/Models/AgentModel.swift",
+              "Sources/Portal/Models/CronRunHistory.swift",
+              "Sources/Portal/Models/DashboardLayout.swift",
+              "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+              "Sources/Portal/Models/ResponseStyle.swift",
+              "Sources/Portal/Models/SessionRunEvent.swift"
+            ],
+            "hit_count": 23
+          },
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }",
+                "line": 135,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "didSet { UserDefaults.standard.set(conversationMode, forKey: Self.conversationKey) }",
+                "line": 142,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "didSet { UserDefaults.standard.set(conversationVisual.rawValue, forKey: Self.conversationVisualKey) }",
+                "line": 148,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)",
+                "line": 212,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "self.conversationMode = UserDefaults.standard.bool(forKey: Self.conversationKey)",
+                "line": 213,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "self.conversationVisual = UserDefaults.standard.string(forKey: Self.conversationVisualKey)",
+                "line": 214,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "didSet { UserDefaults.standard.set(activeSessionID, forKey: \"portal.notificationActiveSessionID\") }",
+                "line": 29,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "didSet { UserDefaults.standard.set(isForegrounded, forKey: \"portal.notificationIsForegrounded\") }",
+                "line": 34,
+                "path": "Sources/Portal/Services/NotificationService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/LocalVoiceService.swift",
+              "Sources/Portal/Services/NotificationService.swift",
+              "Sources/Portal/Services/SessionMetaSyncService.swift",
+              "Sources/Portal/Services/SkillCache.swift",
+              "Sources/Portal/Services/SkillStore.swift",
+              "Sources/Portal/Services/XAuthService.swift"
+            ],
+            "hit_count": 27
+          },
+          {
+            "component": "operations-state",
+            "evidence": [
+              {
+                "excerpt": "_gatewayIDMap = (UserDefaults.standard.dictionary(forKey: Self.gatewayIDMapKey) as? [String: String]) ?? [:]",
+                "line": 107,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "_localTitles = (UserDefaults.standard.dictionary(forKey: Self.titlesKey) as? [String: String]) ?? [:]",
+                "line": 108,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "_archivedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.archivedIDsKey) ?? [])",
+                "line": 109,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "_pinnedIDs = Set(UserDefaults.standard.stringArray(forKey: Self.pinnedIDsKey) ?? [])",
+                "line": 110,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "_sessionTags = (UserDefaults.standard.dictionary(forKey: Self.tagsKey) as? [String: [String]]) ?? [:]",
+                "line": 111,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "if let stamps = UserDefaults.standard.dictionary(forKey: Self.metaUpdatedAtKey) as? [String: Double] {",
+                "line": 112,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(_gatewayIDMap, forKey: Self.gatewayIDMapKey)",
+                "line": 132,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(_localTitles, forKey: Self.titlesKey)",
+                "line": 133,
+                "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/ViewModels/SessionListViewModel.swift",
+              "Sources/Portal/ViewModels/SettingsViewModel.swift"
+            ],
+            "hit_count": 23
+          },
+          {
+            "component": "operations-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"cronGraphLegendExpanded\") private var isLegendExpanded = true",
+                "line": 42,
+                "path": "Sources/Portal/Views/CronInterflowGraphView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"cronDashboardToolbarCollapsed\") private var toolbarCollapsed = false",
+                "line": 26,
+                "path": "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"sessionsDashboardToolbarCollapsed\") private var toolbarCollapsed = false",
+                "line": 27,
+                "path": "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "if let data = UserDefaults.standard.data(forKey: Self.presetsKey) {",
+                "line": 19,
+                "path": "Sources/Portal/Views/MissionControl/SessionsFilterState.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "UserDefaults.standard.set(data, forKey: Self.presetsKey)",
+                "line": 135,
+                "path": "Sources/Portal/Views/MissionControl/SessionsFilterState.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"chatSkin\") private var activeSkin: ChatSkin = .tui",
+                "line": 19,
+                "path": "Sources/Portal/Views/SessionListView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"skillsDashboardToolbarCollapsed\") private var toolbarCollapsed = false",
+                "line": 30,
+                "path": "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/CronInterflowGraphView.swift",
+              "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
+              "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
+              "Sources/Portal/Views/MissionControl/SessionsFilterState.swift",
+              "Sources/Portal/Views/SessionListView.swift",
+              "Sources/Portal/Views/Skills/SkillsCanvasView.swift"
+            ],
+            "hit_count": 7
+          },
+          {
+            "component": "shared-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"graphs.surface\") private var storedSurface = GraphSurface.wiki.rawValue",
+                "line": 91,
+                "path": "Sources/Portal/Views/GraphsView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/GraphsView.swift"
+            ],
+            "hit_count": 1
+          },
+          {
+            "component": "thought-graph-ui",
+            "evidence": [
+              {
+                "excerpt": "@AppStorage(\"sessionChatCanvasShowsTitleBars\") private var showsTitleBars = false",
+                "line": 69,
+                "path": "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"sessionChatCanvasToolbarCollapsed\") private var toolbarCollapsed = true",
+                "line": 75,
+                "path": "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"composerStyle\") private var composerStyle: ComposerStyle = .card",
+                "line": 78,
+                "path": "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              },
+              {
+                "excerpt": "@AppStorage(\"thoughtGraphLegendExpanded\") private var legendExpanded = false",
+                "line": 139,
+                "path": "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "@AppStorage\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+              "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+            ],
+            "hit_count": 4
+          },
+          {
+            "component": "utilities",
+            "evidence": [
+              {
+                "excerpt": "return UserDefaults.standard.bool(forKey: \"PortalDiagnostics.hangWatchdog\")",
+                "line": 91,
+                "path": "Sources/Portal/Utilities/MainThreadWatchdog.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bUserDefaults\\.standard\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Utilities/MainThreadWatchdog.swift"
+            ],
+            "hit_count": 1
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "third-party-api",
+        "component": null,
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "Reads posts for the feed surface; authenticated per user through the X OAuth flow.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 2,
+        "hit_count": 3,
+        "id": "x-api",
+        "label": "X API",
+        "protocol": "HTTPS REST v2 with OAuth 2.0 PKCE",
+        "signatures": [
+          {
+            "pattern": "api\\.x\\.com|api\\.twitter\\.com",
+            "scope": "strings"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "var components = URLComponents(string: \"https://api.x.com/2/tweets/\\(id)\")",
+                "line": 47,
+                "path": "Sources/Portal/Services/XAPIClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "api\\.x\\.com|api\\.twitter\\.com"
+              },
+              {
+                "excerpt": "var components = URLComponents(string: \"https://api.x.com/2/tweets/search/recent\")",
+                "line": 65,
+                "path": "Sources/Portal/Services/XAPIClient.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "api\\.x\\.com|api\\.twitter\\.com"
+              },
+              {
+                "excerpt": "private static let tokenEndpoint = \"https://api.x.com/2/oauth2/token\"",
+                "line": 43,
+                "path": "Sources/Portal/Services/XAuthService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "strings",
+                "signature": "api\\.x\\.com|api\\.twitter\\.com"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/XAPIClient.swift",
+              "Sources/Portal/Services/XAuthService.swift"
+            ],
+            "hit_count": 3
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-framework",
+        "component": "device-services",
+        "component_ids": [
+          "artifact-ui",
+          "chat-ui",
+          "operations-ui",
+          "shared-ui"
+        ],
+        "description": "Renders HTML artifacts and rich content; the only bridge from untrusted markup to native intents.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 8,
+        "hit_count": 63,
+        "id": "webkit",
+        "label": "WebKit",
+        "protocol": "WKWebView with an isolated content world",
+        "signatures": [
+          {
+            "pattern": "\\bWKWebView\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "artifact-ui",
+            "evidence": [
+              {
+                "excerpt": "_ webView: WKWebView,",
+                "line": 204,
+                "path": "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "internal func webViewDidLosePointerLock(_ webView: WKWebView) {",
+                "line": 215,
+                "path": "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "internal func makeNSView(context: Context) -> WKWebView {",
+                "line": 56,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 61,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "internal func updateNSView(_ webView: WKWebView, context: Context) {",
+                "line": 68,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "internal func makeUIView(context: Context) -> WKWebView {",
+                "line": 85,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 90,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "internal func updateUIView(_ webView: WKWebView, context: Context) {",
+                "line": 99,
+                "path": "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+              "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+              "Sources/Portal/Views/MermaidDiagramView.swift"
+            ],
+            "hit_count": 16
+          },
+          {
+            "component": "chat-ui",
+            "evidence": [
+              {
+                "excerpt": "func makeNSView(context: Context) -> WKWebView {",
+                "line": 578,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 581,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func updateNSView(_ webView: WKWebView, context: Context) {",
+                "line": 586,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func makeUIView(context: Context) -> WKWebView {",
+                "line": 606,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 608,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func updateUIView(_ webView: WKWebView, context: Context) {",
+                "line": 615,
+                "path": "Sources/Portal/Views/AttachmentChipView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func makeNSView(context: Context) -> WKWebView {",
+                "line": 1680,
+                "path": "Sources/Portal/Views/MarkdownContentView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func updateNSView(_ webView: WKWebView, context: Context) {",
+                "line": 1738,
+                "path": "Sources/Portal/Views/MarkdownContentView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/AttachmentChipView.swift",
+              "Sources/Portal/Views/MarkdownContentView.swift"
+            ],
+            "hit_count": 17
+          },
+          {
+            "component": "operations-ui",
+            "evidence": [
+              {
+                "excerpt": "func makeNSView(context: Context) -> WKWebView { makeWebView() }",
+                "line": 348,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func updateNSView(_ webView: WKWebView, context: Context) {",
+                "line": 349,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func makeUIView(context: Context) -> WKWebView { makeWebView() }",
+                "line": 359,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func updateUIView(_ webView: WKWebView, context: Context) {",
+                "line": 360,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "private func makeWebView() -> WKWebView {",
+                "line": 376,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 379,
+                "path": "Sources/Portal/Views/ActivityInboxView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/ActivityInboxView.swift"
+            ],
+            "hit_count": 6
+          },
+          {
+            "component": "shared-ui",
+            "evidence": [
+              {
+                "excerpt": "private(set) var webView: WKWebView?",
+                "line": 96,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func attachWebView(_ webView: WKWebView) {",
+                "line": 105,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {",
+                "line": 171,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {",
+                "line": 175,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {",
+                "line": 183,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {",
+                "line": 189,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "func makeNSView(context: Context) -> WKWebView {",
+                "line": 230,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              },
+              {
+                "excerpt": "let webView = WKWebView(frame: .zero, configuration: config)",
+                "line": 233,
+                "path": "Sources/Portal/Views/CFAuthView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bWKWebView\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/CFAuthView.swift",
+              "Sources/Portal/Views/InAppBrowserView.swift"
+            ],
+            "hit_count": 24
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "platform-framework",
+        "component": "device-services",
+        "component_ids": [
+          "shared-ui",
+          "wiki-ui"
+        ],
+        "description": "3D layout of the wiki knowledge graph.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 3,
+        "hit_count": 23,
+        "id": "scenekit",
+        "label": "SceneKit",
+        "protocol": "SCNView (macOS)",
+        "signatures": [
+          {
+            "pattern": "\\bSCNView\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "(?m)^\\s*import\\s+SceneKit\\b",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "shared-ui",
+            "evidence": [
+              {
+                "excerpt": "import SceneKit",
+                "line": 1,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "(?m)^\\s*import\\s+SceneKit\\b"
+              },
+              {
+                "excerpt": "internal func makeNSView(context: Context) -> SCNView {",
+                "line": 84,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "internal func updateNSView(_ view: SCNView, context: Context) {}",
+                "line": 88,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "internal func makeUIView(context: Context) -> SCNView {",
+                "line": 92,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "internal func updateUIView(_ view: SCNView, context: Context) {}",
+                "line": 96,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "fileprivate func makeView() -> SCNView {",
+                "line": 105,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "let view = SCNView()",
+                "line": 106,
+                "path": "Sources/Portal/Views/MonkeyCelebrationView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "import SceneKit",
+                "line": 1,
+                "path": "Sources/Portal/Views/MonkeyScene.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "(?m)^\\s*import\\s+SceneKit\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/MonkeyCelebrationView.swift",
+              "Sources/Portal/Views/MonkeyScene.swift"
+            ],
+            "hit_count": 8
+          },
+          {
+            "component": "wiki-ui",
+            "evidence": [
+              {
+                "excerpt": "import SceneKit",
+                "line": 2,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "(?m)^\\s*import\\s+SceneKit\\b"
+              },
+              {
+                "excerpt": "func makeNSView(context: Context) -> SCNView {",
+                "line": 27,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "func updateNSView(_ scnView: SCNView, context: Context) {",
+                "line": 31,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "func makeUIView(context: Context) -> SCNView {",
+                "line": 41,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "func updateUIView(_ scnView: SCNView, context: Context) {",
+                "line": 45,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "private func makeSceneView(context: Any) -> SCNView {",
+                "line": 58,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "let scnView = SCNView()",
+                "line": 59,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              },
+              {
+                "excerpt": "func sync(from vm: WikiGraphViewModel, in scnView: SCNView) {",
+                "line": 135,
+                "path": "Sources/Portal/Views/Wiki/WikiGraph3DView.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bSCNView\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Views/Wiki/WikiGraph3DView.swift"
+            ],
+            "hit_count": 15
+          }
+        ]
+      },
+      {
+        "authority": "observed",
+        "category": "on-device-engine",
+        "component": "device-services",
+        "component_ids": [
+          "local-services"
+        ],
+        "description": "Speaks assistant replies locally; no audio leaves the device.",
+        "description_authority": "specified",
+        "evidence_class": "static_source",
+        "file_count": 4,
+        "hit_count": 13,
+        "id": "speech-synthesis",
+        "label": "On-device speech",
+        "protocol": "AVSpeechSynthesizer and FluidAudio / PocketTTS neural voices",
+        "signatures": [
+          {
+            "pattern": "\\bAVSpeechSynthesizer\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bFluidAudio\\b",
+            "scope": "code"
+          },
+          {
+            "pattern": "\\bPocketTTS\\w*",
+            "scope": "code"
+          }
+        ],
+        "usage": [
+          {
+            "component": "local-services",
+            "evidence": [
+              {
+                "excerpt": "#if canImport(FluidAudio)",
+                "line": 1,
+                "path": "Sources/Portal/Services/LocalVoiceEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              },
+              {
+                "excerpt": "import FluidAudio",
+                "line": 4,
+                "path": "Sources/Portal/Services/LocalVoiceEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              },
+              {
+                "excerpt": "#if canImport(FluidAudio)",
+                "line": 350,
+                "path": "Sources/Portal/Services/LocalVoiceService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              },
+              {
+                "excerpt": "#if canImport(FluidAudio)",
+                "line": 1,
+                "path": "Sources/Portal/Services/NeuralSpeechEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              },
+              {
+                "excerpt": "import FluidAudio",
+                "line": 3,
+                "path": "Sources/Portal/Services/NeuralSpeechEngine.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              },
+              {
+                "excerpt": "extension AVSpeechSynthesizer: SpeechSynthesizing {}",
+                "line": 20,
+                "path": "Sources/Portal/Services/TTSService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bAVSpeechSynthesizer\\b"
+              },
+              {
+                "excerpt": "self.init(synthesizer: AVSpeechSynthesizer(), neural: TTSService.defaultNeuralEngine())",
+                "line": 211,
+                "path": "Sources/Portal/Services/TTSService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bAVSpeechSynthesizer\\b"
+              },
+              {
+                "excerpt": "#if canImport(FluidAudio)",
+                "line": 645,
+                "path": "Sources/Portal/Services/TTSService.swift",
+                "rule_id": "swift.boundary.external_signature",
+                "scope": "code",
+                "signature": "\\bFluidAudio\\b"
+              }
+            ],
+            "files": [
+              "Sources/Portal/Services/LocalVoiceEngine.swift",
+              "Sources/Portal/Services/LocalVoiceService.swift",
+              "Sources/Portal/Services/NeuralSpeechEngine.swift",
+              "Sources/Portal/Services/TTSService.swift"
+            ],
+            "hit_count": 13
+          }
+        ]
+      }
+    ]
   },
   "interplay": {
     "clusters": [
@@ -18184,7 +20735,7 @@
     "assigned_files": 367,
     "declarations": 1085,
     "swift_files": 367,
-    "swift_lines": 107437,
+    "swift_lines": 107369,
     "unassigned_files": []
   },
   "layers": [
@@ -18216,6 +20767,1544 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "75139e16664d05c245e1dddea7e289b209bb8ef6e7ab686d7fc997879460a21b",
+  "source_tree_sha256": "8c6d12db63c2256dee3482fcbdb18f5662d7b5a61907fc6857e742b06dd8c842",
+  "stores": {
+    "by_persistence": {
+      "defaults": 6,
+      "file": 13,
+      "keychain": 1,
+      "unobserved": 6
+    },
+    "count": 21,
+    "items": [
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 22,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-b8956d94d56d",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"activity-items.json\") }",
+              "line": 24,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-1bd243c377b8",
+            "kind": "file",
+            "label": "activity-items.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "ActivityStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "domain-models",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class ActivityStore {",
+          "line": 7,
+          "path": "Sources/Portal/Models/ActivityStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-0536da30ec67",
+        "kind": "class",
+        "label": "ActivityStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private let defaults = UserDefaults.standard",
+              "line": 10,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-5bf7e4ffa32e",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 19,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-9004ede8f0c6",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+              "line": 104,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-364add1e8753",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
+              "line": 108,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-62bdf8b3a888",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "ActivityStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.removeObject(forKey: saveKey)",
+              "line": 131,
+              "path": "Sources/Portal/Models/ActivityStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-5d28058cd1ee",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "ActivityStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "defaults",
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class ActivityStore"
+        ],
+        "type_name": "ActivityStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 52,
+              "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-dd011b13dbdd",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "CronGraphRevisionStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"cron-graph-revisions.json\") }",
+              "line": 54,
+              "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-cd67e0fcbd07",
+            "kind": "file",
+            "label": "cron-graph-revisions.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "CronGraphRevisionStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "domain-models",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class CronGraphRevisionStore: ObservableObject {",
+          "line": 23,
+          "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-fc68d18ea125",
+        "kind": "class",
+        "label": "CronGraphRevisionStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 49,
+              "path": "Sources/Portal/Models/CronGraphRevisionStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-763e6729e799",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "CronGraphRevisionStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class CronGraphRevisionStore"
+        ],
+        "type_name": "CronGraphRevisionStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 44,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-f67f45044b1f",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"cron-run-history.json\") }",
+              "line": 46,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-538917e0a3e6",
+            "kind": "file",
+            "label": "cron-run-history.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "CronRunHistoryStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "domain-models",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class CronRunHistoryStore: ObservableObject {",
+          "line": 26,
+          "path": "Sources/Portal/Models/CronRunHistory.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-fda8bbbb09a0",
+        "kind": "class",
+        "label": "CronRunHistoryStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 41,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-0106709b5b87",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+              "line": 212,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-33d4762ea6b7",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
+              "line": 220,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-0b45722de075",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }",
+              "line": 238,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-3cc37f4a92e0",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "CronRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.removeObject(forKey: Self.storageKey)",
+              "line": 242,
+              "path": "Sources/Portal/Models/CronRunHistory.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-460850c60d1c",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "CronRunHistoryStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "defaults",
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class CronRunHistoryStore"
+        ],
+        "type_name": "CronRunHistoryStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 37,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-20664986c877",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"delegation-batch-history.json\") }",
+              "line": 39,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-c7174fcf2eac",
+            "kind": "file",
+            "label": "delegation-batch-history.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "domain-models",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class DelegationBatchHistoryStore: ObservableObject {",
+          "line": 18,
+          "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-090c5ec5ab6c",
+        "kind": "class",
+        "label": "DelegationBatchHistoryStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 34,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-422564fb5776",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+              "line": 117,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-9b8f38520062",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
+              "line": 121,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-df0f28a16795",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }",
+              "line": 139,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-c4a9d49dda26",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.removeObject(forKey: Self.storageKey)",
+              "line": 143,
+              "path": "Sources/Portal/Models/DelegationBatchHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-5405977b4b6f",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "DelegationBatchHistoryStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "defaults",
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class DelegationBatchHistoryStore"
+        ],
+        "type_name": "DelegationBatchHistoryStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 67,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-369329b5f93e",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "private var storeFile: URL { storageDir.appendingPathComponent(\"session-run-history.json\") }",
+              "line": 69,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-3c759c8f2e8e",
+            "kind": "file",
+            "label": "session-run-history.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "domain-models",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class SessionRunHistoryStore: ObservableObject {",
+          "line": 52,
+          "path": "Sources/Portal/Models/SessionRunEvent.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-59fc9ce6ab48",
+        "kind": "class",
+        "label": "SessionRunHistoryStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 64,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-42674ef4a37e",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)",
+              "line": 138,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-c055bd4428cb",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {",
+              "line": 142,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-7ca9be2f612e",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "guard let data = UserDefaults.standard.data(forKey: Self.storageKey) else { return }",
+              "line": 160,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-44c203c9625e",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "domain-models",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.removeObject(forKey: Self.storageKey)",
+              "line": 164,
+              "path": "Sources/Portal/Models/SessionRunEvent.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-b1f79d0b85cb",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SessionRunHistoryStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "defaults",
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class SessionRunHistoryStore"
+        ],
+        "type_name": "SessionRunHistoryStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "artifact-intents",
+            "evidence": {
+              "excerpt": "let folder = dir.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 92,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-497708f84205",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "ArtifactStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "artifact-intents",
+            "evidence": {
+              "excerpt": "self.init(fileURL: folder.appendingPathComponent(\"artifacts.json\"))",
+              "line": 94,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-18daeec35c78",
+            "kind": "file",
+            "label": "artifacts.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "ArtifactStore",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "artifact-intents",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class ArtifactStore: ObservableObject {",
+          "line": 18,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-b1db02cb1a3f",
+        "kind": "class",
+        "label": "ArtifactStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "artifact-intents",
+            "evidence": {
+              "excerpt": "let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
+              "line": 90,
+              "path": "Sources/Portal/Services/ArtifactStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-a4f1e86d4689",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "ArtifactStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class ArtifactStore"
+        ],
+        "type_name": "ArtifactStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class ChatHistoryStore {",
+          "line": 10,
+          "path": "Sources/Portal/Services/ChatHistoryStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-fd43f447269b",
+        "kind": "class",
+        "label": "ChatHistoryStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 59,
+              "path": "Sources/Portal/Services/ChatHistoryStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-03660dbba772",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "ChatHistoryStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class ChatHistoryStore"
+        ],
+        "type_name": "ChatHistoryStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class CurriculumStore {",
+          "line": 17,
+          "path": "Sources/Portal/Services/CurriculumStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-2f027d935c35",
+        "kind": "class",
+        "label": "CurriculumStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": ".urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 37,
+              "path": "Sources/Portal/Services/CurriculumStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-b0824a1291ac",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "CurriculumStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class CurriculumStore"
+        ],
+        "type_name": "CurriculumStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class KeychainStore: Sendable {",
+          "line": 10,
+          "path": "Sources/Portal/Services/KeychainStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-c2fe6b3a4855",
+        "kind": "class",
+        "label": "KeychainStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let updateStatus = SecItemUpdate(",
+              "line": 79,
+              "path": "Sources/Portal/Services/KeychainStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-0a7e49c1a38a",
+            "kind": "keychain",
+            "label": "SecItemUpdate(",
+            "rule_id": "swift.store.mechanism.keychain",
+            "store": "KeychainStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let addStatus = SecItemAdd(addQuery as CFDictionary, nil)",
+              "line": 89,
+              "path": "Sources/Portal/Services/KeychainStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-93cfcbfb2465",
+            "kind": "keychain",
+            "label": "SecItemAdd(",
+            "rule_id": "swift.store.mechanism.keychain",
+            "store": "KeychainStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let retry = SecItemUpdate(",
+              "line": 93,
+              "path": "Sources/Portal/Services/KeychainStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-6714e11a9fa9",
+            "kind": "keychain",
+            "label": "SecItemUpdate(",
+            "rule_id": "swift.store.mechanism.keychain",
+            "store": "KeychainStore",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let status = SecItemCopyMatching(query as CFDictionary, &result)",
+              "line": 172,
+              "path": "Sources/Portal/Services/KeychainStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-fa0ba0d413c4",
+            "kind": "keychain",
+            "label": "SecItemCopyMatching(",
+            "rule_id": "swift.store.mechanism.keychain",
+            "store": "KeychainStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "keychain"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class KeychainStore"
+        ],
+        "type_name": "KeychainStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class LearningStore: ObservableObject {",
+          "line": 30,
+          "path": "Sources/Portal/Services/LearningStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-0bdd06efdd1e",
+        "kind": "class",
+        "label": "LearningStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class LearningStore"
+        ],
+        "type_name": "LearningStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal struct LocalModelInventory: Sendable, Equatable {",
+          "line": 28,
+          "path": "Sources/Portal/Services/LocalModelInventory.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-41056b252104",
+        "kind": "struct",
+        "label": "LocalModelInventory",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "struct LocalModelInventory"
+        ],
+        "type_name": "LocalModelInventory"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class QuizStore {",
+          "line": 9,
+          "path": "Sources/Portal/Services/QuizStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-9589469aeb61",
+        "kind": "class",
+        "label": "QuizStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "for: .applicationSupportDirectory, in: .userDomainMask).first {",
+              "line": 22,
+              "path": "Sources/Portal/Services/QuizStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-e8a219ac1e92",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "QuizStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class QuizStore"
+        ],
+        "type_name": "QuizStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class SRSStore {",
+          "line": 10,
+          "path": "Sources/Portal/Services/SRSStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-b21325ad4761",
+        "kind": "class",
+        "label": "SRSStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "for: .applicationSupportDirectory, in: .userDomainMask).first {",
+              "line": 23,
+              "path": "Sources/Portal/Services/SRSStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-0a458e9e0f39",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "SRSStore",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class SRSStore"
+        ],
+        "type_name": "SRSStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class SkillCache {",
+          "line": 100,
+          "path": "Sources/Portal/Services/SkillCache.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-86ccb54f77a3",
+        "kind": "class",
+        "label": "SkillCache",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(data, forKey: key)",
+              "line": 55,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-682411b9227c",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)",
+              "line": 56,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-a641dbfaf0e9",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "guard let data = UserDefaults.standard.data(forKey: key) else { return nil }",
+              "line": 63,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-a65e0cc6d641",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "guard let ts = UserDefaults.standard.object(forKey: timestampKey) as? TimeInterval else { return nil }",
+              "line": 89,
+              "path": "Sources/Portal/Services/SkillCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-8bc2fca9572e",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillCache",
+            "via": "helper SkillCacheDisk"
+          }
+        ],
+        "persistence": [
+          "defaults"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class SkillCache",
+          "helper SkillCacheDisk"
+        ],
+        "type_name": "SkillCache"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "return appSupport.appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 36,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-8560743d39df",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "nonisolated private static var skillStoreFile: URL { storageDir.appendingPathComponent(\"skill-store.json\") }",
+              "line": 38,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-f5305c329e9c",
+            "kind": "file",
+            "label": "skill-store.json",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          }
+        ],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal final class SkillStore {",
+          "line": 189,
+          "path": "Sources/Portal/Services/SkillStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-172acd6a9116",
+        "kind": "class",
+        "label": "SkillStore",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {",
+              "line": 33,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-7915b9f43df0",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: timestampKey)",
+              "line": 102,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-fa851c48bde9",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(currentVersion, forKey: versionKey)",
+              "line": 103,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-38f8b1839f39",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.set(true, forKey: fileStorageKey)",
+              "line": 104,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-73cf947427df",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "if UserDefaults.standard.bool(forKey: fileStorageKey) {",
+              "line": 112,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-b3d97ffc9e63",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let version = UserDefaults.standard.integer(forKey: versionKey)",
+              "line": 145,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-bf4b5a373b95",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "guard let data = UserDefaults.standard.data(forKey: key) else { return nil }",
+              "line": 150,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-fb1407374244",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "UserDefaults.standard.removeObject(forKey: key)",
+              "line": 170,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-4cddf2f9ecc3",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "guard let ts = UserDefaults.standard.object(forKey: timestampKey) as? TimeInterval else { return nil }",
+              "line": 180,
+              "path": "Sources/Portal/Services/SkillStore.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-77d2c2e0eaa4",
+            "kind": "defaults",
+            "label": "UserDefaults",
+            "rule_id": "swift.store.mechanism.defaults",
+            "store": "SkillStore",
+            "via": "helper SkillStoreDisk"
+          }
+        ],
+        "persistence": [
+          "defaults",
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class SkillStore",
+          "helper SkillStoreDisk"
+        ],
+        "type_name": "SkillStore"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let dir = base.appendingPathComponent(\"hermes-videos\", isDirectory: true)",
+              "line": 47,
+              "path": "Sources/Portal/Services/VideoCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-cfb96ab9b899",
+            "kind": "directory",
+            "label": "hermes-videos",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "VideoCache",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class VideoCache {",
+          "line": 17,
+          "path": "Sources/Portal/Services/VideoCache.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-f6b6274078ef",
+        "kind": "class",
+        "label": "VideoCache",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first",
+              "line": 45,
+              "path": "Sources/Portal/Services/VideoCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-01521fbd2991",
+            "kind": "file",
+            "label": ".cachesDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "VideoCache",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class VideoCache"
+        ],
+        "type_name": "VideoCache"
+      },
+      {
+        "artifacts": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": ".appendingPathComponent(\"portal\", isDirectory: true)",
+              "line": 28,
+              "path": "Sources/Portal/Services/WikiGraphCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-47ae255306ad",
+            "kind": "directory",
+            "label": "portal",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "WikiGraphCache",
+            "via": null
+          },
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": ".appendingPathComponent(\"wiki-graph-cache\", isDirectory: true)",
+              "line": 29,
+              "path": "Sources/Portal/Services/WikiGraphCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-artifact-937bab886ba6",
+            "kind": "directory",
+            "label": "wiki-graph-cache",
+            "rule_id": "swift.store.artifact_literal",
+            "store": "WikiGraphCache",
+            "via": null
+          }
+        ],
+        "authority": "observed",
+        "component": "local-services",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "internal struct WikiGraphCache {",
+          "line": 15,
+          "path": "Sources/Portal/Services/WikiGraphCache.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-f4f934d16ca8",
+        "kind": "struct",
+        "label": "WikiGraphCache",
+        "mechanisms": [
+          {
+            "authority": "observed",
+            "component": "local-services",
+            "evidence": {
+              "excerpt": "let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first",
+              "line": 25,
+              "path": "Sources/Portal/Services/WikiGraphCache.swift"
+            },
+            "evidence_class": "static_source",
+            "id": "store-mechanism-58d941103e83",
+            "kind": "file",
+            "label": ".applicationSupportDirectory",
+            "rule_id": "swift.store.mechanism.file",
+            "store": "WikiGraphCache",
+            "via": null
+          }
+        ],
+        "persistence": [
+          "file"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "struct WikiGraphCache"
+        ],
+        "type_name": "WikiGraphCache"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "chat-state",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class GatewayCapabilitiesStore: ObservableObject {",
+          "line": 7,
+          "path": "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-6d78e745059b",
+        "kind": "class",
+        "label": "GatewayCapabilitiesStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class GatewayCapabilitiesStore"
+        ],
+        "type_name": "GatewayCapabilitiesStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "chat-state",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class SpawnTreeStore: ObservableObject {",
+          "line": 7,
+          "path": "Sources/Portal/ViewModels/SpawnTreeStore.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-73b52100b658",
+        "kind": "class",
+        "label": "SpawnTreeStore",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class SpawnTreeStore"
+        ],
+        "type_name": "SpawnTreeStore"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "chat-ui",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class LongResponseDocumentCache: @unchecked Sendable {",
+          "line": 315,
+          "path": "Sources/Portal/Views/LongResponseView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-302c3a85ec3c",
+        "kind": "class",
+        "label": "LongResponseDocumentCache",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class LongResponseDocumentCache"
+        ],
+        "type_name": "LongResponseDocumentCache"
+      },
+      {
+        "artifacts": [],
+        "authority": "observed",
+        "component": "chat-ui",
+        "derivation": "Persistence APIs and artifact names are observed in the declaring type body, its same-file extensions, and same-file helper types named after it; 'unobserved' means none of those contain a supported persistence API (in-memory, or delegated elsewhere).",
+        "evidence": {
+          "excerpt": "final class MarkdownParseCache: @unchecked Sendable {",
+          "line": 125,
+          "path": "Sources/Portal/Views/MarkdownContentView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "store-c8e62d2b83b6",
+        "kind": "class",
+        "label": "MarkdownParseCache",
+        "mechanisms": [],
+        "persistence": [
+          "unobserved"
+        ],
+        "rule_id": "swift.store.declaration",
+        "scanned": [
+          "class MarkdownParseCache"
+        ],
+        "type_name": "MarkdownParseCache"
+      }
+    ]
+  },
   "title": "Portal Architecture"
 }

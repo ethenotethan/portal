@@ -42,6 +42,15 @@ Static lexical evidence does **not** establish:
 
 Regex recognition proves only that a supported source form is present at the cited location. Runtime telemetry would be a separate future evidence class with its own collection, provenance, retention, and authority rules; it must not be inferred from static records.
 
+## Boundary plane: external systems and data stores
+
+Two further deterministic node kinds sit beside the structural and behavioral planes:
+
+- **External systems** are declared in `architecture/config.json` under `external_systems`. Each entry carries a human-written `description` (specified authority) and one or more `signatures`: regular expressions matched against comment- and string-masked Swift code, or, with `"scope": "strings"`, against string-literal contents only (for hostnames and endpoint paths). Every match is an observed item with file/line provenance and is attributed to the owning component; the compiler fails if a declared system matches nothing, so stale declarations cannot linger. An optional `component` links the system to an external graph node such as `device-services`.
+- **Data stores** are recognised by type-name convention (`…Store`, `…Cache`, `…Inventory`, `…Ledger`). For each, the compiler observes the persistence mechanism (`file`, `defaults`, `keychain`) and any file or `isDirectory: true` folder literals inside the declaring type body, its same-file extensions, and same-file helper types whose name starts with the store name. A store with none of these is reported as `unobserved`, which means in-memory or delegated elsewhere, never "not persisted".
+
+Both appear in the site as the **External systems** and **Data stores** views and as chips on the component inspector. System flows and the purpose of a relationship remain human-authored in `specifications/`; the boundary plane only records what the source mechanically shows.
+
 ## Local development
 
 ```bash
