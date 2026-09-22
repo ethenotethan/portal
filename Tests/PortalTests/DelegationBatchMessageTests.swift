@@ -123,6 +123,29 @@ private struct DelegationBatchMessageTests {
         #expect(batch.batchError == "The batch did not complete successfully: gateway crashed")
     }
 
+    @Test("missing optional task metadata leaves a usable result card")
+    private func missingOptionalTaskMetadata() throws {
+        let content = """
+        [ASYNC DELEGATION BATCH COMPLETE]
+        A background fan-out finished.
+
+        Total duration: unavailable
+
+        --- ✓ TASK 1/1  (status=completed) ---
+        Result remains available.
+        Full live transcript unavailable
+        """
+
+        let batch = try #require(DelegationBatchMessage.parse(content))
+        let task = try #require(batch.tasks.first)
+        #expect(task.id == 1)
+        #expect(task.goal == nil)
+        #expect(task.durationSeconds == nil)
+        #expect(task.liveTranscript == nil)
+        #expect(task.body == "Result remains available.")
+        #expect(batch.totalDurationSeconds == nil)
+    }
+
     @Test("non-batch content and the bare marker both fall through to nil")
     private func fallsThrough() {
         // Ordinary prose — never hijacks the markdown path.
