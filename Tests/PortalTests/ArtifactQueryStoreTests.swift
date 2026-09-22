@@ -23,6 +23,8 @@ private final class FakeQueryGateway: ArtifactGateway {
     private(set) var invokeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable], cursor: String?)] = []
     private(set) var subscribeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable])] = []
     private(set) var unsubscribed: [String] = []
+    private(set) var setCalls: [(title: String?, replace: Bool)] = []
+    private(set) var actionLogCalls: [(bindingID: String?, limit: Int)] = []
 
     func artifactQueryInvoke(
         artifactID: String, artifactRev: Int, queryID: String,
@@ -50,16 +52,39 @@ private final class FakeQueryGateway: ArtifactGateway {
         .init(outcome: .succeeded(message: nil, sessionID: nil))
     }
     func artifactActionConfirm(artifactID: String, challenge: String) async throws -> ArtifactActionInvokeResult? { nil }
-    func artifactActionLog(artifactID: String, bindingID: String?, limit: Int) async throws -> [[String: AnyCodable]]? { nil }
+    func artifactActionLog(artifactID: String, bindingID: String?, limit: Int) async throws -> [[String: AnyCodable]]? {
+        actionLogCalls.append((bindingID, limit))
+        return nil
+    }
     func artifactGet(id: String) async throws -> LivingArtifact? { refreshed }
     func artifactList() async throws -> [LivingArtifact]? { listed }
-    func artifactSet(id: String, kind: String, content: String, title: String?, replace: Bool) async throws -> LivingArtifact? { nil }
+    func artifactSet(
+        id: String, kind: String, content: String, title: String?, replace: Bool
+    ) async throws -> LivingArtifact? {
+        setCalls.append((title, replace))
+        return nil
+    }
     func artifactDelete(id: String) async throws {}
 }
 
 @Suite("Artifact query slots")
 @MainActor
 private struct ArtifactQueryStoreTests {
+
+    @Test("artifact gateway convenience calls preserve their defaults")
+    internal func gatewayConvenienceDefaults() async throws {
+        let gateway = FakeQueryGateway()
+
+        _ = try await gateway.artifactSet(id: "dash", kind: "html", content: "<html/>")
+        _ = try await gateway.artifactActionLog(artifactID: "dash")
+
+        #expect(gateway.setCalls.count == 1)
+        #expect(gateway.setCalls.first?.title == nil)
+        #expect(gateway.setCalls.first?.replace == false)
+        #expect(gateway.actionLogCalls.count == 1)
+        #expect(gateway.actionLogCalls.first?.bindingID == nil)
+        #expect(gateway.actionLogCalls.first?.limit == 50)
+    }
 
     private static let queries = ArtifactQuery.parse([
         [
