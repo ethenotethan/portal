@@ -62,6 +62,25 @@ internal struct GatewayCapabilitiesTests {
         #expect(agent.source == .gateway(method: "hermes.version"))
     }
 
+    @Test("normalizes string feature flags and numeric versions")
+    internal func parsesStringFlagsAndNumericVersions() {
+        let capabilities = GatewayCapabilities.from(
+            value: .dictionary([
+                "gateway_version": .int(7),
+                "agent_version": .double(3.5),
+                "has_image_input": .string("  ENABLED\n"),
+                "supported": .int(1),
+            ]),
+            method: "gateway.capabilities"
+        )
+
+        #expect(capabilities.gatewayVersion == "7")
+        #expect(capabilities.agentVersion == "3.5")
+        #expect(capabilities.supportsImagePrompts)
+        #expect(capabilities.source.label == "gateway.capabilities")
+        #expect(GatewayCapabilities.conservativeDefaults.source.label == "conservative defaults")
+    }
+
     @Test("a nil reported result stays distinct from a transport fallback")
     internal func nilResultUsesGatewaySource() {
         let capabilities = GatewayCapabilities.from(
