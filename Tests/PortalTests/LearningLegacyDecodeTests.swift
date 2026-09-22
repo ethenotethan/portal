@@ -129,6 +129,32 @@ internal struct LearningLegacyDecodeTests {
 
     // MARK: - Round-trip (modern format)
 
+    @Test("a modern quiz session round-trips object-encoded answers unchanged")
+    internal func modernQuizSessionRoundTrips() throws {
+        let question = QuizQuestion(
+            q: "Q?",
+            options: ["A) a", "B) b", "C) c", "D) d"],
+            correct: "A",
+            explanation: "",
+            id: "question-1"
+        )
+        let session = PersistedQuizSession(
+            questions: [question],
+            topic: "Modern Quiz",
+            selectedAnswers: [question.id: "B"],
+            score: 0,
+            sourceSessionID: "session-1"
+        )
+
+        let data = try encoder.encode(session)
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["selectedAnswers"] is [String: String])
+
+        let decoded = try decoder.decode(PersistedQuizSession.self, from: data)
+        #expect(decoded == session)
+        #expect(decoded.selectedAnswers[question.id] == "B")
+    }
+
     @Test("a modern course round-trips through Codable unchanged")
     internal func modernCourseRoundTrips() throws {
         var course = Curriculum(
