@@ -67,7 +67,7 @@ private struct ModelCard: View {
     private static func minHeight(for kind: ModelSpec.View.Kind) -> CGFloat? {
         switch kind {
         case .map:      return 180
-        case .graph:    return 200
+        case .graph:    return 240
         case .chart:    return 120
         case .stats:    return 80
         case .table, .markdown, .kanban: return nil
@@ -77,7 +77,7 @@ private struct ModelCard: View {
     private static func defaultHeight(for kind: ModelSpec.View.Kind) -> CGFloat? {
         switch kind {
         case .map:      return 280
-        case .graph:    return 260
+        case .graph:    return 360
         case .chart:    return 200
         case .stats:    return 100
         case .table, .markdown, .kanban: return nil
@@ -105,7 +105,7 @@ private struct ModelCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -197,18 +197,15 @@ private struct ModelCard: View {
             }
         case .graph:
             if let json = projection(view, ModelProjections.graphJSON(spec: spec, view: view)) {
-                // Graph node ids are "set/key" — the bus's ref encoding —
-                // so translation is a straight parse, no set resolution.
-                // The layout scales to the pane's height, so the whole graph
-                // is visible at whatever size the pane is dragged to — no
-                // inner scroll viewport hiding half the nodes.
-                NetworkGraphView(
-                    json: json, isStreaming: false,
+                // Graph node ids are "set/key" — the bus's ref encoding — so
+                // the interactive explorer can share selection directly with
+                // the table and map projections.
+                GraphExplorerBlockView(
+                    json: json,
                     externalSelection: Binding(
                         get: { selectedRef.map { "\($0.set)/\($0.key)" } },
                         set: { selectedRef = $0.flatMap(ModelSpec.EntityRef.init) }
-                    ),
-                    fitHeight: height(for: view)
+                    )
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -339,6 +336,48 @@ private struct ModelCard: View {
 
 // MARK: - Entity table (one per set in a table view)
 
+internal enum ModelTableLayout {
+    internal enum CellAlignment: Equatable { case leading, center }
+
+    internal static let spacing: CGFloat = 8
+    internal static let horizontalPadding: CGFloat = 10
+    internal static let actionWidth: CGFloat = 120
+
+    internal static func alignment(for field: String) -> CellAlignment {
+        let semanticTextFields: Set<String> = [
+            "description", "detail", "label", "name", "note", "path", "summary", "title",
+        ]
+        return semanticTextFields.contains(field.lowercased()) ? .leading : .center
+    }
+
+    internal static func columnWidths(
+        fields: [String],
+        items: [[String: String]],
+        keyField: String
+    ) -> [CGFloat] {
+        fields.map { field in
+            let values = [field.replacingOccurrences(of: "_", with: " ")] + items.map { $0[field] ?? "" }
+            let longest = values.map(\.count).max() ?? 0
+            let contentWidth = CGFloat(longest) * 7 + 20
+            let minimum: CGFloat
+            if alignment(for: field) == .leading {
+                minimum = 220
+            } else if field == keyField {
+                minimum = 110
+            } else {
+                minimum = 96
+            }
+            return min(max(contentWidth, minimum), 320)
+        }
+    }
+
+    internal static func tableWidth(widths: [CGFloat], showsActions: Bool) -> CGFloat {
+        let columnCount = widths.count + (showsActions ? 1 : 0)
+        let content = widths.reduce(0, +) + (showsActions ? actionWidth : 0)
+        return content + CGFloat(max(0, columnCount - 1)) * spacing + horizontalPadding * 2
+    }
+}
+
 /// Sortable table over one entity set: key + columns + declared action
 /// controls per row, selection wired to the model's bus.
 private struct ModelEntityTable: View {
@@ -365,6 +404,12 @@ private struct ModelEntityTable: View {
 
     private var actions: [ArtifactAction] { spec.actions[set.name] ?? [] }
 
+    private var columnWidths: [CGFloat] {
+        ModelTableLayout.columnWidths(fields: displayColumns, items: set.items, keyField: set.key)
+    }
+
+    private var showsActions: Bool { !actions.isEmpty && actionableArtifactID != nil }
+
     private var sortedItems: [[String: String]] {
         guard let field = sortField else { return set.items }
         return set.items.sorted { a, b in
@@ -380,18 +425,25 @@ private struct ModelEntityTable: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(set.name)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-            headerRow
-            Divider().overlay(Theme.border)
-            ForEach(sortedItems.indices, id: \.self) { index in
-                row(sortedItems[index])
+        let widths = columnWidths
+        let width = ModelTableLayout.tableWidth(widths: widths, showsActions: showsActions)
+        return ScrollView(.horizontal, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(set.name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.secondary)
+                    .padding(.horizontal, ModelTableLayout.horizontalPadding)
+                    .padding(.vertical, 6)
+                headerRow(widths: widths)
                 Divider().overlay(Theme.border.opacity(0.4))
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(sortedItems.indices, id: \.self) { index in
+                        row(sortedItems[index], widths: widths)
+                        Divider().overlay(Theme.border.opacity(0.4))
+                    }
+                }
             }
+            .frame(width: width, alignment: .leading)
         }
         .background(Theme.background.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
         .overlay(
@@ -400,9 +452,9 @@ private struct ModelEntityTable: View {
         )
     }
 
-    private var headerRow: some View {
+    private func headerRow(widths: [CGFloat]) -> some View {
         HStack(spacing: 8) {
-            ForEach(displayColumns, id: \.self) { field in
+            ForEach(Array(displayColumns.enumerated()), id: \.element) { index, field in
                 Button {
                     if sortField == field {
                         sortAscending.toggle()
@@ -423,29 +475,32 @@ private struct ModelEntityTable: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .frame(minWidth: field == set.key ? 110 : 60,
-                       maxWidth: field == set.key ? .infinity : nil, alignment: .leading)
+                .frame(width: widths[index], alignment: .center)
             }
-            if !actions.isEmpty && actionableArtifactID != nil {
-                Text("").frame(minWidth: 90)
+            if showsActions {
+                Text("").frame(width: ModelTableLayout.actionWidth)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, ModelTableLayout.horizontalPadding)
         .padding(.vertical, 5)
     }
 
-    private func row(_ item: [String: String]) -> some View {
+    private func row(_ item: [String: String], widths: [CGFloat]) -> some View {
         let keyValue = item[set.key] ?? ""
         let ref = ModelSpec.EntityRef(set: set.name, key: keyValue)
         let isSelected = selectedRef == ref
         return HStack(spacing: 8) {
-            ForEach(displayColumns, id: \.self) { field in
+            ForEach(Array(displayColumns.enumerated()), id: \.element) { index, field in
+                let alignment = ModelTableLayout.alignment(for: field)
                 Text(item[field] ?? "")
                     .font(.system(size: 11, weight: field == set.key ? .medium : .regular))
                     .foregroundStyle(field == set.key ? Theme.primary : Theme.secondary)
-                    .lineLimit(1)
-                    .frame(minWidth: field == set.key ? 110 : 60,
-                           maxWidth: field == set.key ? .infinity : nil, alignment: .leading)
+                    .lineLimit(alignment == .leading ? 2 : 1)
+                    .multilineTextAlignment(alignment == .leading ? .leading : .center)
+                    .frame(
+                        width: widths[index],
+                        alignment: alignment == .leading ? .leading : .center
+                    )
             }
             if !actions.isEmpty, let artifactID = actionableArtifactID {
                 ArtifactActionControls(
@@ -454,10 +509,10 @@ private struct ModelEntityTable: View {
                     fieldValue: { item[$0] },
                     artifactID: artifactID
                 )
-                .frame(minWidth: 90, alignment: .trailing)
+                .frame(width: ModelTableLayout.actionWidth, alignment: .trailing)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, ModelTableLayout.horizontalPadding)
         .padding(.vertical, 5)
         .background(isSelected ? Theme.accent.opacity(0.10) : Color.clear)
         .contentShape(Rectangle())

@@ -28,6 +28,24 @@ internal struct KanbanBlockView: View {
     }
 }
 
+/// Keeps large boards navigable by rendering a short per-column preview until
+/// the user explicitly expands that lane. This is deliberately presentation
+/// state: the artifact content and card ordering are never mutated.
+internal enum KanbanDisplayPolicy {
+    internal static let collapsedCardLimit = 8
+
+    internal static func cardsToRender(
+        _ cards: [KanbanSpec.Card],
+        expanded: Bool
+    ) -> ArraySlice<KanbanSpec.Card> {
+        cards.prefix(expanded ? cards.count : collapsedCardLimit)
+    }
+
+    internal static func hiddenCount(cardCount: Int, expanded: Bool) -> Int {
+        expanded ? 0 : max(0, cardCount - collapsedCardLimit)
+    }
+}
+
 private struct KanbanCard: View {
     let spec: KanbanSpec
     let artifactID: String?
@@ -36,6 +54,9 @@ private struct KanbanCard: View {
     /// Cards the user has expanded, by card id. Local view state — expansion is
     /// a display concern, never written back to the artifact.
     @State private var expanded: Set<String> = []
+    /// Lanes whose full card inventory is visible. Large lanes start bounded
+    /// so one board cannot make the entire artifact thousands of points tall.
+    @State private var expandedColumns: Set<String> = []
     /// Column currently under a drag, for drop-target highlight. Nil = none.
     @State private var dropTarget: String?
 
@@ -68,6 +89,9 @@ private struct KanbanCard: View {
     private func columnView(_ column: String) -> some View {
         let cards = spec.cards(in: column)
         let isTarget = dropTarget == column
+        let isColumnExpanded = expandedColumns.contains(column)
+        let visibleCards = KanbanDisplayPolicy.cardsToRender(cards, expanded: isColumnExpanded)
+        let hiddenCount = KanbanDisplayPolicy.hiddenCount(cardCount: cards.count, expanded: isColumnExpanded)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Text(column)
@@ -78,8 +102,34 @@ private struct KanbanCard: View {
                     .foregroundStyle(Theme.tertiary)
                     .monospacedDigit()
             }
-            ForEach(cards) { card in
-                cardView(card)
+            LazyVStack(alignment: .leading, spacing: 6) {
+                ForEach(visibleCards) { card in
+                    cardView(card)
+                }
+            }
+            if hiddenCount > 0 || isColumnExpanded && cards.count > KanbanDisplayPolicy.collapsedCardLimit {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        if isColumnExpanded {
+                            expandedColumns.remove(column)
+                        } else {
+                            expandedColumns.insert(column)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(isColumnExpanded ? "Show fewer" : "+ \(hiddenCount) more")
+                        Image(systemName: isColumnExpanded ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 5)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    isColumnExpanded ? "Collapse \(column) column" : "Show all cards in \(column) column"
+                )
             }
             if cards.isEmpty {
                 Text(isTarget ? "Drop here" : "—")

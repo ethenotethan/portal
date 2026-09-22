@@ -307,6 +307,7 @@ internal enum NetworkGraphCanvasSizing {
 /// under an unbounded ScrollView height proposal.
 internal struct GraphExplorerBlockView: View {
     internal let json: String
+    internal var externalSelection: Binding<String?>?
 
     internal var body: some View {
         if let spec = NetworkGraphSpec.parse(json) {
@@ -316,8 +317,9 @@ internal struct GraphExplorerBlockView: View {
                         .font(.headline)
                         .foregroundStyle(Theme.primary)
                 }
-                InteractiveGraphView(graph: spec.wikiGraph)
-                    .frame(minHeight: 340)
+                InteractiveGraphView(graph: spec.wikiGraph, externalSelection: externalSelection)
+                    .frame(minHeight: externalSelection == nil ? 340 : 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
