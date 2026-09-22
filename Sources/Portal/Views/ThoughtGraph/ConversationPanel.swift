@@ -202,10 +202,10 @@ internal struct ConversationPanel: View {
                 // raw `--- TASK n/m ---` block is pushed through the prose bubble
                 // as one unformatted wall (the very thing DelegationBatchMessage
                 // parsing exists to prevent).
-                if let noticeLabel = message.delegationBatchNoticeLabel {
-                    DelegationBatchNoticeView(label: noticeLabel)
-                } else if let batch = message.asyncDelegationBatch {
+                if let batch = message.asyncDelegationBatch {
                     AsyncDelegationBatchView(batch: batch)
+                } else if let notice = message.delegationBatchNotice {
+                    DelegationBatchNoticeView(notice: notice)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         let showTimestamp = lastInGroup.contains(message.id)

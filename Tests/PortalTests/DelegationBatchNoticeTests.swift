@@ -2,13 +2,9 @@ import Testing
 import Foundation
 @testable import Portal
 
-/// Guards `ChatMessage.delegationBatchNoticeLabel` — the classifier that pulls
-/// gateway async-delegation batch markers (e.g. `[ASYNC DELEGATION BATCH
-/// COMPLETE]`) out of the prose-bubble render path and into a centered
-/// interstitial chip. The detector is deliberately strict (whole trimmed
-/// content must be a single bare bracketed marker) so it can never swallow real
-/// model output; these tests pin both halves — it fires on the marker, and
-/// stays nil on anything that could be genuine prose.
+/// Guards the classifier that pulls gateway async-delegation envelopes out of
+/// the prose-bubble path. Bare markers become interstitials; completed envelopes
+/// retain their returned results for the structured markdown result card.
 @Suite("Delegation batch notice")
 private struct DelegationBatchNoticeTests {
 
@@ -19,6 +15,68 @@ private struct DelegationBatchNoticeTests {
     @Test("fires on the canonical marker and humanizes the label")
     private func canonicalMarker() {
         #expect(assistant("[ASYNC DELEGATION BATCH COMPLETE]").delegationBatchNoticeLabel == "delegation batch complete")
+    }
+
+    @Test("captures a completed batch envelope without losing its returned results")
+    private func completedBatchEnvelope() {
+        let content = """
+        [ASYNC DELEGATION BATCH COMPLETE — deleg_e34c954c]
+        A background fan-out of 1 subagent(s) you dispatched earlier has finished.
+
+        --- ✓ TASK 1/1: Build the shell (status=completed, api_calls=21, 251.24s) ---
+        - Implemented the local-only foundation.
+        """
+
+        let notice = assistant(content).delegationBatchNotice
+
+        #expect(notice?.label == "delegation batch complete")
+        #expect(notice?.batchID == "deleg_e34c954c")
+        #expect(notice?.details == """
+        A background fan-out of 1 subagent(s) you dispatched earlier has finished.
+
+        --- ✓ TASK 1/1: Build the shell (status=completed, api_calls=21, 251.24s) ---
+        - Implemented the local-only foundation.
+        """)
+    }
+
+    @Test("captures the legacy completion header when its opening bracket is missing")
+    private func legacyHeaderWithoutOpeningBracket() {
+        let content = """
+        ASYNC DELEGATION BATCH COMPLETE — deleg_e34c954c]
+        A background fan-out has finished.
+        """
+
+        let notice = assistant(content).delegationBatchNotice
+
+        #expect(notice?.batchID == "deleg_e34c954c")
+        #expect(notice?.details == "A background fan-out has finished.")
+    }
+
+    @Test("does not reclassify ordinary multiline prose as a completed batch")
+    private func multilineProsePreserved() {
+        let content = """
+        [delegation batch recommendations]
+        This is ordinary assistant prose.
+        """
+
+        #expect(assistant(content).delegationBatchNotice == nil)
+    }
+
+    @Test("preserves leading markdown indentation in returned details")
+    private func markdownIndentationPreserved() {
+        let content = "[ASYNC DELEGATION BATCH COMPLETE — deleg_1]\n    let answer = 42\nDone.\n"
+
+        #expect(assistant(content).delegationBatchNotice?.details == "    let answer = 42\nDone.")
+    }
+
+    @Test("accepts CRLF line endings from persisted transcripts")
+    private func windowsLineEndings() {
+        let content = "[ASYNC DELEGATION BATCH COMPLETE — deleg_1]\r\nResults returned.\r\n"
+
+        let notice = assistant(content).delegationBatchNotice
+
+        #expect(notice?.batchID == "deleg_1")
+        #expect(notice?.details == "Results returned.")
     }
 
     @Test("tolerates surrounding whitespace and trailing space in the marker")
@@ -37,7 +95,7 @@ private struct DelegationBatchNoticeTests {
         #expect(assistant("[1] first, [2] second — a batch of delegation ideas").delegationBatchNoticeLabel == nil)
     }
 
-    @Test("nil when the marker has real output appended after the closing bracket")
+    @Test("nil when prose is appended on the marker line")
     private func trailingOutputPreserved() {
         #expect(assistant("[ASYNC DELEGATION BATCH COMPLETE] Here are the results:").delegationBatchNoticeLabel == nil)
     }
