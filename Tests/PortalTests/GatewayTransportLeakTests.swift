@@ -48,7 +48,7 @@ import Testing
 /// connection when merely released — it retains itself and its delegate until
 /// invalidated — which is why an un-invalidated session is a second, distinct leak
 /// that pins the entire client graph while `leaks` reports nothing.
-@Suite("Gateway transport leak")
+@Suite("Gateway transport leak", .serialized)
 internal struct GatewayTransportLeakTests {
 
     @Test("replacing a transport closes the socket it replaced")
