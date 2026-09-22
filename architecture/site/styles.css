@@ -291,7 +291,9 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-group-label { fill: var(--faint); font: 700 11px var(--mono); letter-spacing: .14em; opacity: .65; text-transform: uppercase; }
 .interplay-group.shared .interplay-group-rect { fill: rgba(160, 160, 200, .07); stroke-dasharray: 6 4; }
 .interplay-group.shared .interplay-group-label { opacity: .8; }
-.interplay-group.external .interplay-group-rect { fill: rgba(224, 112, 79, .05); stroke-dasharray: 2 4; }
+/* The application boundary: the outermost hull around every code group. */
+.interplay-group.app .interplay-group-rect { fill: rgba(139, 131, 255, .03); stroke: var(--line-strong); stroke-width: 1.25; stroke-dasharray: none; }
+.interplay-group.app .interplay-group-label { opacity: .9; fill: var(--muted); }
 .interplay-edge.active { stroke: var(--ink); opacity: .95; stroke-width: 2.25; }
 .interplay-edge.dimmed { opacity: .07; }
 .interplay-node { cursor: grab; transition: opacity .18s ease; }
@@ -305,15 +307,28 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node rect.pipe { fill: rgba(224, 112, 79, .07); stroke: #e0704f; stroke-width: 1.5; stroke-dasharray: none; }
 .interplay-node[data-pipe="true"] .node-title { font: 700 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 #interplay-scroll { position: relative; }
-/* Compact legend pinned to the canvas corner; never steals layout from the graph. */
+/* Compact legend pinned to the canvas corner; collapses to a chip. */
 .legend-overlay {
   position: absolute; right: 14px; bottom: 14px; z-index: 2;
-  display: grid; grid-template-columns: auto auto; gap: 5px 14px; padding: 9px 12px;
-  max-width: 380px; font-size: 9px; color: var(--muted);
+  padding: 8px 12px; max-width: 380px; color: var(--muted);
   background: rgba(17, 17, 18, .88); border: 1px solid var(--line); border-radius: 8px;
-  pointer-events: none;
 }
-.interplay-container-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-width: 1; stroke-dasharray: 2 4; }
+.legend-toggle {
+  display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none;
+  color: var(--muted); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+}
+.legend-toggle::after { content: "▾"; font-size: 10px; opacity: .7; }
+.legend-overlay.collapsed .legend-toggle::after { content: "▸"; }
+.legend-items { display: grid; grid-template-columns: auto auto; gap: 5px 14px; margin-top: 8px; padding: 0; font-size: 9px; }
+.legend-overlay.collapsed .legend-items { display: none; }
+/* A gateway boundary hull: same schema as the group hulls, nested in External systems. */
+.interplay-group.gateway .interplay-group-rect { fill: rgba(224, 112, 79, .05); stroke: #e0704f; stroke-width: 1.25; stroke-dasharray: 2 4; }
+.interplay-node rect.hull-label { fill: transparent; stroke: none; }
+.interplay-node[data-pipe="true"] { cursor: pointer; }
+.interplay-node[data-pipe="true"] .node-kicker { font: 700 9px var(--mono); letter-spacing: .14em; }
+.interplay-node[data-pipe="true"] .node-title { font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; fill: var(--muted); }
+.interplay-node[data-pipe="true"]:hover rect, .interplay-node[data-pipe="true"]:focus rect { fill: rgba(224, 112, 79, .12); stroke: none; }
+.interplay-node[data-pipe="true"].selected rect { fill: rgba(224, 112, 79, .16); stroke: none; }
 /* Queried RPC namespaces / REST endpoints tile into a compact grid, so their
    labels use the tighter mono face and their meta line shrinks to fit. */
 .interplay-node rect.endpoint { fill: var(--bg); }

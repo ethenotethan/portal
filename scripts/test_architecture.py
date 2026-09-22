@@ -477,14 +477,16 @@ actor MessagePump {}
         self.assertIn("External systems used", app)
         self.assertIn("Data stores owned", app)
         self.assertIn("INTERPLAY_EXTERNAL_GROUP", app)
+        self.assertIn("INTERPLAY_APP_GROUP", app)
         self.assertIn('["boundary", "#e0704f"', app)
         self.assertRegex(app, r"function\s+isInterplayBar\s*\(")
         # The legend lives in the empty inspector; the strip and the placeholder prose are gone.
-        self.assertIn('class="legend legend-overlay" id="interplay-legend"', index)
+        self.assertIn('id="interplay-legend-toggle"', index)
+        self.assertIn('id="interplay-legend-items"', index)
         self.assertNotIn("Select a node", index)
         self.assertNotIn("Select a node", app)
-        self.assertIn("interplay-container-rect", app)
-        self.assertIn('drawn as containment', app)
+        self.assertIn('"data-pipe"', app)
+        self.assertIn("drawn as containment", app)
 
 
 if __name__ == "__main__":
