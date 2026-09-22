@@ -1305,6 +1305,20 @@
       },
       {
         "authority": "observed",
+        "component": "artifact-ui",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 69,
+          "path": "Sources/Portal/Views/Diagram/DiagramExplorerView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-3c4af7ff59f3",
+        "kind": "main_actor",
+        "label": "InteractiveGraphSelection",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
         "component": "shared-ui",
         "evidence": {
           "excerpt": "@MainActor",
@@ -4752,11 +4766,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "queryTasks[slot] = Task { [weak self] in",
-          "line": 215,
+          "line": 221,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f497c9896db1",
+        "id": "task-site-5d7d1a9dcb7e",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4768,11 +4782,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task {",
-          "line": 245,
+          "line": 251,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-453defcbbeaa",
+        "id": "task-site-9dcdb45efd31",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4784,11 +4798,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 477,
+          "line": 488,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-da03abe95b4d",
+        "id": "task-site-822e22895eb9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4800,11 +4814,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 558,
+          "line": 569,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c787bbaddf7f",
+        "id": "task-site-171e40f1462f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4816,11 +4830,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in try? await self?.client?.artifactDelete(id: id) }",
-          "line": 645,
+          "line": 656,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f35f86949236",
+        "id": "task-site-b235b99263a9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4832,11 +4846,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task.detached(priority: .background) {",
-          "line": 661,
+          "line": 672,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-b8864c981e47",
+        "id": "task-site-8857940bfde5",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -4848,11 +4862,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { await pull() }",
-          "line": 706,
+          "line": 717,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8b9e5c045f69",
+        "id": "task-site-93ffa276e137",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4864,11 +4878,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 740,
+          "line": 751,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-1a4209484bdf",
+        "id": "task-site-9af445b93b31",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -4880,11 +4894,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask?.cancel()",
-          "line": 824,
+          "line": 835,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-64721021d349",
+        "id": "task-site-b643cd0f22c2",
         "kind": "task_cancellation",
         "label": "pushTask",
         "rule_id": "swift.task.cancel"
@@ -4896,11 +4910,11 @@
         "enclosing_type": "ArtifactStore",
         "evidence": {
           "excerpt": "pushTask = Task { [weak self] in",
-          "line": 825,
+          "line": 836,
           "path": "Sources/Portal/Services/ArtifactStore.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c0f733f1e350",
+        "id": "task-site-32ac164148e1",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -7984,11 +7998,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 245,
+          "line": 246,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2b0cfd219409",
+        "id": "task-site-ccaa0fedebf9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -8000,11 +8014,11 @@
         "enclosing_type": "ArtifactHTMLIntentView",
         "evidence": {
           "excerpt": "Task {",
-          "line": 286,
+          "line": 287,
           "path": "Sources/Portal/Views/ArtifactKindRenderer.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-441d888fc28f",
+        "id": "task-site-d8f4409dfa40",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -11103,7 +11117,7 @@
       "line_count": 5021
     },
     {
-      "declaration_count": 120,
+      "declaration_count": 124,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -11137,6 +11151,7 @@
         "BlueprintParseError",
         "CalendarBlockView",
         "CalendarCard",
+        "CellAlignment",
         "CellMode",
         "ChartCard",
         "ChartErrorCard",
@@ -11167,9 +11182,11 @@
         "HSplitViewCompat",
         "IntentButton",
         "InteractiveArtifactWeb",
+        "InteractiveGraphSelection",
         "InteractiveGraphView",
         "KanbanBlockView",
         "KanbanCard",
+        "KanbanDisplayPolicy",
         "Kind",
         "LayoutMode",
         "LegendChip",
@@ -11197,6 +11214,7 @@
         "ModelBlockView",
         "ModelCard",
         "ModelEntityTable",
+        "ModelTableLayout",
         "MouseState",
         "NativeChartView",
         "NativeMermaidRenderer",
@@ -11268,7 +11286,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11719,
+      "line_count": 11862,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -11717,7 +11735,7 @@
       "id": "artifact-intents",
       "label": "Artifact intents",
       "layer": "integration",
-      "line_count": 1688,
+      "line_count": 1699,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -12322,7 +12340,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 16001,
+      "line_count": 16054,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -18164,9 +18182,9 @@
   },
   "inventory": {
     "assigned_files": 367,
-    "declarations": 1081,
+    "declarations": 1085,
     "swift_files": 367,
-    "swift_lines": 107230,
+    "swift_lines": 107437,
     "unassigned_files": []
   },
   "layers": [
@@ -18198,6 +18216,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "0fb603f1d193972f847203952dfd45943b26c3e0213679e94a7a4fed3af284b5",
+  "source_tree_sha256": "75139e16664d05c245e1dddea7e289b209bb8ef6e7ab686d7fc997879460a21b",
   "title": "Portal Architecture"
 }
