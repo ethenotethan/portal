@@ -864,7 +864,12 @@ client.eventStream
     /// gap, its terminal frame lost with the dead socket). Split out of
     /// `handleGatewayReconnected` so the async reconcile is awaitable in tests.
     private func reconcileTurnAfterReconnect(displayID: String) async {
-        let resumed = await resumeSession(key: displayID)
+        let generation = beginSwitchToSession(key: displayID)
+        let resumed = await resumeSession(
+            key: displayID,
+            generation: generation,
+            finalizeMissingInflight: true
+        )
         if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
             sessionID = resumedID
         }
@@ -1365,7 +1370,11 @@ client.eventStream
     }
 
     @discardableResult
-    func resumeSession(key: String, generation: Int) async -> Bool {
+    internal func resumeSession(
+        key: String,
+        generation: Int,
+        finalizeMissingInflight: Bool = false
+    ) async -> Bool {
         guard let client = gatewayClient else {
             if generation == sessionSwitchGeneration {
                 self.error = "No harness client"
@@ -1485,13 +1494,18 @@ client.eventStream
             // opened session shows the row but nothing streaming in.
             if let inflight = result.inflight, inflight.isStreaming {
                 seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
-            } else if sessionStates[key]?.isStreaming == true {
+            } else if finalizeMissingInflight, sessionStates[key]?.isStreaming == true {
                 // Resumed into a session local state still believes is
                 // streaming, but the gateway reports no in-flight turn: the turn
                 // finished or its live event stream was lost across a disconnect,
                 // and its terminal `message.complete` will never arrive. Settle
                 // it here so the spinner clears and the usage/model metadata can
                 // refresh — otherwise the turn hangs and blocks the session.
+                // Only reconnect reconciliation may make this inference. A normal
+                // switch-back also resumes persisted history, whose missing
+                // in-flight snapshot does not prove that a locally observed turn
+                // stopped; settling there destroys its live shell and drops all
+                // later deltas and the terminal frame.
                 finalizeStuckStreamingTurn(displayID: key, status: "interrupted")
             }
 
