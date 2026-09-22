@@ -42,6 +42,68 @@ class ProductFactoryTopologyTests(unittest.TestCase):
         self.assertIn("origin/main", resource_titles)
         self.assertIn("artifact:portal-pr-automation", resource_titles)
 
+    def test_model_edges_match_cron_graph_wire_semantics(self) -> None:
+        projection = topology.model_projection()
+        relations = {
+            (
+                relation["from"],
+                relation["to"],
+                relation["type"],
+                relation["declared_by"],
+            )
+            for relation in projection["relations"]
+        }
+
+        self.assertIn(
+            (
+                "factory_jobs/quality-classifier",
+                "factory_jobs/quality-worker",
+                "feeds",
+                "inputs",
+            ),
+            relations,
+        )
+        self.assertIn(
+            (
+                "factory_jobs/quality-worker",
+                "factory_resources/github:ethenotethan/portal/pulls",
+                "github",
+                "side_effects",
+            ),
+            relations,
+        )
+        resource_ids = {
+            item["id"]
+            for item in projection["entities"]["factory_resources"]["items"]
+        }
+        self.assertNotIn("cron-output:88bc6606d5f1", resource_ids)
+
+    def test_runtime_scripts_are_repository_owned_and_use_canonical_projection(self) -> None:
+        document = topology.load_topology()
+        jobs = {job["id"]: job for job in document["jobs"]}
+        repository_root = Path(__file__).resolve().parents[2]
+
+        synchronizer = jobs["control-center-sync"]
+        self.assertEqual(
+            synchronizer["script"],
+            "/Users/inference2/Projects/portal/scripts/portal-pr-kanban-tick.sh",
+        )
+        sync_source = repository_root / "scripts" / "portal-pr-kanban-sync.py"
+        deployed_sync_source = str(sync_source).replace(
+            str(repository_root),
+            "/Users/inference2/Projects/portal",
+        )
+        self.assertIn(deployed_sync_source, synchronizer["source_files"])
+        text = sync_source.read_text()
+        self.assertIn("from automation.product_factory.topology import model_projection", text)
+        self.assertNotIn("ARCHITECTURE_RELATIONS", text)
+
+        merge_queue = jobs["merge-queue"]
+        self.assertEqual(
+            merge_queue["script"],
+            "/Users/inference2/Projects/portal/scripts/portal-merge-queue.sh",
+        )
+
     def test_rejects_relationship_with_missing_endpoint(self) -> None:
         document = {
             "version": 1,

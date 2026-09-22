@@ -123,6 +123,7 @@
       "cron_id": "750f88d33aa5",
       "name": "portal_repo/Portal PR Kanban Sync",
       "role": "Projects durable factory state, GitHub state, and lane handoffs into the Portal artifact while preserving human overrides.",
+      "script": "/Users/inference2/Projects/portal/scripts/portal-pr-kanban-tick.sh",
       "inputs": [
         "file:/Users/inference2/.hermes/state/portal-product-factory.db",
         "file:/Users/inference2/.hermes/state/portal-merge-queue.json",
@@ -138,8 +139,8 @@
       ],
       "side_effects": [],
       "source_files": [
-        "/Users/inference2/.hermes/scripts/portal-pr-kanban-tick.sh",
-        "/Users/inference2/.hermes/scripts/portal-pr-kanban-sync.py",
+        "/Users/inference2/Projects/portal/scripts/portal-pr-kanban-tick.sh",
+        "/Users/inference2/Projects/portal/scripts/portal-pr-kanban-sync.py",
         "/Users/inference2/Projects/portal/automation/product_factory/projection.py",
         "/Users/inference2/Projects/portal/automation/product_factory/topology.py",
         "/Users/inference2/Projects/portal/automation/product_factory/topology.v1.json"
@@ -150,6 +151,7 @@
       "cron_id": "6281d5165fbd",
       "name": "portal_repo/Portal Merge Queue",
       "role": "Applies the deterministic acceptance policy to current pull-request and check state.",
+      "script": "/Users/inference2/Projects/portal/scripts/portal-merge-queue.sh",
       "inputs": [
         "https:api.github.com/repos/ethenotethan/portal/pulls",
         "https:api.github.com/repos/ethenotethan/portal/check-runs",
@@ -162,7 +164,7 @@
         "github:ethenotethan/portal"
       ],
       "source_files": [
-        "/Users/inference2/.hermes/scripts/portal-merge-queue.sh",
+        "/Users/inference2/Projects/portal/scripts/portal-merge-queue.sh",
         "/Users/inference2/.hermes/scripts/portal-merge-tracker.py"
       ]
     }

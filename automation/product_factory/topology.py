@@ -33,6 +33,17 @@ def load_topology(path: Path = TOPOLOGY_PATH) -> dict[str, Any]:
             values = job.get(field)
             if not isinstance(values, list) or any(not isinstance(item, str) or not item for item in values):
                 raise ValueError(f"{job['id']}.{field} must be a list of non-empty strings")
+        script = job.get("script")
+        if script is not None and (not isinstance(script, str) or not script):
+            raise ValueError(f"{job['id']}.script must be a non-empty string")
+    cron_ids = {job["cron_id"] for job in jobs}
+    for job in jobs:
+        for ref in job["inputs"]:
+            if (
+                ref.startswith("cron-output:")
+                and ref.removeprefix("cron-output:") not in cron_ids
+            ):
+                raise ValueError(f"{job['id']}.inputs references unknown cron output: {ref}")
     authorities = value.get("authorities", [])
     if not isinstance(authorities, list):
         raise ValueError("Product Factory authorities must be a list")
@@ -44,6 +55,7 @@ def load_topology(path: Path = TOPOLOGY_PATH) -> dict[str, Any]:
         for job in jobs
         for field in DATAFLOW_FIELDS
         for ref in job[field]
+        if not ref.startswith("cron-output:")
     }
     endpoints = (
         {f"factory_jobs/{job_id}" for job_id in job_ids}
@@ -82,6 +94,7 @@ def model_projection(topology: dict[str, Any] | None = None) -> dict[str, Any]:
     """Derive model entities and typed relations from cron declarations."""
     topology = topology or load_topology()
     jobs = topology["jobs"]
+    job_by_cron_id = {job["cron_id"]: job["id"] for job in jobs}
     resource_labels = topology.get("resource_labels", {})
     refs = sorted(
         {
@@ -89,6 +102,7 @@ def model_projection(topology: dict[str, Any] | None = None) -> dict[str, Any]:
             for job in jobs
             for field in DATAFLOW_FIELDS
             for ref in job[field]
+            if not ref.startswith("cron-output:")
         }
     )
     relations: list[dict[str, str]] = []
@@ -96,6 +110,18 @@ def model_projection(topology: dict[str, Any] | None = None) -> dict[str, Any]:
         job_ref = f"factory_jobs/{job['id']}"
         for field, (relation_type, direction) in DATAFLOW_FIELDS.items():
             for ref in job[field]:
+                if field == "inputs" and ref.startswith("cron-output:"):
+                    upstream_id = job_by_cron_id[ref.removeprefix("cron-output:")]
+                    relations.append(
+                        {
+                            "from": f"factory_jobs/{upstream_id}",
+                            "to": job_ref,
+                            "type": "feeds",
+                            "kind": "dataflow",
+                            "declared_by": field,
+                        }
+                    )
+                    continue
                 resource_ref = f"factory_resources/{ref}"
                 source, target = (
                     (resource_ref, job_ref)
@@ -106,7 +132,11 @@ def model_projection(topology: dict[str, Any] | None = None) -> dict[str, Any]:
                     {
                         "from": source,
                         "to": target,
-                        "type": relation_type,
+                        "type": (
+                            ref.partition(":")[0]
+                            if field == "side_effects"
+                            else relation_type
+                        ),
                         "kind": "dataflow",
                         "declared_by": field,
                     }
@@ -138,8 +168,9 @@ def model_projection(topology: dict[str, Any] | None = None) -> dict[str, Any]:
 def cron_updates(topology: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Return supported cron.update payloads from the same declarations."""
     topology = topology or load_topology()
-    return [
-        {
+    updates = []
+    for job in topology["jobs"]:
+        update = {
             "action": "update",
             "job_id": job["cron_id"],
             "inputs": job["inputs"],
@@ -147,5 +178,7 @@ def cron_updates(topology: dict[str, Any] | None = None) -> list[dict[str, Any]]
             "side_effects": job["side_effects"],
             "source_files": job["source_files"],
         }
-        for job in topology["jobs"]
-    ]
+        if "script" in job:
+            update["script"] = job["script"]
+        updates.append(update)
+    return updates

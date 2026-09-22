@@ -42,10 +42,16 @@ uses the existing model/Kanban/table renderers, so v1 requires no new Swift UI.
 The `topology` command is read-only. Its `cron_updates` array uses the supported
 cron contract fields (`inputs`, `outputs`, `side_effects`, and `source_files`)
 and can be applied by the deployment owner. The model graph is built from those
-same declarations: `inputs` become `reads`, `outputs` become `writes`, and
-`side_effects` become `delivers`. Scheduler and human-governance edges are
-separately marked as explicit relationships, so they cannot be mistaken for
-data movement or cron-to-cron calls.
+same declarations with the `cron.graph` wire semantics: ordinary `inputs`
+become `reads`, `cron-output:<id>` inputs become direct job-to-job `feeds`,
+`outputs` become `writes`, and each side effect uses its scheme as the edge
+type. Scheduler and human-governance edges are separately marked as explicit
+relationships, so they cannot be mistaken for data movement or delivery.
+
+The synchronizer and merge queue are repository-owned scripts under `scripts/`.
+Their topology entries include `script`, so applying the emitted updates moves
+the scheduled jobs onto the reviewed implementations instead of retaining a
+parallel copy under `~/.hermes/scripts`.
 
 ## Event ingestion
 

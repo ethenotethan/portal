@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path.home() / ".hermes" / "scripts" / "portal-merge-queue.sh"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = REPOSITORY_ROOT / "scripts" / "portal-merge-queue.sh"
 
 
 class ProductFactoryMergeQueueContractTests(unittest.TestCase):
