@@ -194,6 +194,30 @@ internal struct ArtifactQueryBridgeTests {
         }
     }
 
+    @Test("alternate scalar forms and handler-defined parameters remain supported")
+    internal func alternateScalarFormsAndHandlerParameters() throws {
+        let typed = ArtifactQuery.parse([[
+            "id": "typed", "query": "h",
+            "params": [
+                "flag": ["type": "bool"],
+                "ratio": ["type": "number"],
+                "name": ["type": "string"],
+            ],
+        ]])[0]
+
+        #expect(try typed.validate(["flag": "0", "ratio": 2.5, "name": "ok"])
+                == ["flag": .bool(false), "ratio": .double(2.5), "name": .string("ok")])
+        #expect(throws: ArtifactQueryError.badParameter("name", "expected a string")) {
+            try typed.validate(["name": 7])
+        }
+
+        let handlerDefined = ArtifactQuery.parse([[
+            "id": "open", "query": "h",
+        ]])[0]
+        #expect(try handlerDefined.validate(["limit": 25, "include_archived": false])
+                == ["limit": .int(25), "include_archived": .bool(false)])
+    }
+
     // MARK: - Scripts
 
     @Test("the observer script asks over the nonce'd scheme and nothing else")
