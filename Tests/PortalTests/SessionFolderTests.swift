@@ -22,4 +22,19 @@ internal struct SessionFolderTests {
         #expect(folder.name == "Archive")
         #expect(folder.createdAt == createdAt)
     }
+
+    @Test("folder metadata survives its persisted representation")
+    internal func codableRoundTrip() throws {
+        let original = SessionFolder(
+            id: "folder-1",
+            name: "Research & Review",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000.125)
+        )
+
+        let data = try JSONEncoder().encode(original)
+        let restored = try JSONDecoder().decode(SessionFolder.self, from: data)
+
+        #expect(restored == original)
+        #expect(restored.hashValue == original.hashValue)
+    }
 }
