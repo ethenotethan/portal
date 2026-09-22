@@ -176,19 +176,20 @@ private struct ArtifactHTMLIntentView: View {
             switch entry.state {
             case .loading:
                 return HTMLArtifactQueryBridge.ResultMark(
-                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams, status: .loading)
-            case .ok(let payload, _):
+                    queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
+                    rawCursor: entry.slot.rawCursor, status: .loading)
+            case .ok(let payload, _, let nextCursor):
                 return HTMLArtifactQueryBridge.ResultMark(
                     queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
-                    status: .ok, payload: payload)
+                    rawCursor: entry.slot.rawCursor, status: .ok, payload: payload, nextCursor: nextCursor)
             case .failed(let reason):
                 return HTMLArtifactQueryBridge.ResultMark(
                     queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
-                    status: .failed, error: reason)
+                    rawCursor: entry.slot.rawCursor, status: .failed, error: reason)
             case .unsupported(let reason):
                 return HTMLArtifactQueryBridge.ResultMark(
                     queryID: entry.slot.queryID, rawParams: entry.slot.rawParams,
-                    status: .unsupported, error: reason)
+                    rawCursor: entry.slot.rawCursor, status: .unsupported, error: reason)
             }
         }
     }
@@ -320,10 +321,13 @@ private struct ArtifactHTMLIntentView: View {
             """)
             store.markQueryUnsupported(
                 artifactID: artifactID, queryID: request.queryID, rawParams: request.rawParams,
+                rawCursor: request.rawCursor,
                 reason: "This gateway has no artifact.query surface — it's too old for queries.")
             return
         }
-        store.runQuery(artifactID: artifactID, queryID: request.queryID, rawParams: request.rawParams)
+        store.runQuery(
+            artifactID: artifactID, queryID: request.queryID,
+            rawParams: request.rawParams, rawCursor: request.rawCursor)
     }
 
     @ViewBuilder
