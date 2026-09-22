@@ -1305,6 +1305,20 @@
       },
       {
         "authority": "observed",
+        "component": "artifact-ui",
+        "evidence": {
+          "excerpt": "@MainActor",
+          "line": 69,
+          "path": "Sources/Portal/Views/Diagram/DiagramExplorerView.swift"
+        },
+        "evidence_class": "static_source",
+        "id": "execution-domain-3c4af7ff59f3",
+        "kind": "main_actor",
+        "label": "InteractiveGraphSelection",
+        "rule_id": "swift.execution.main_actor"
+      },
+      {
+        "authority": "observed",
         "component": "shared-ui",
         "evidence": {
           "excerpt": "@MainActor",
@@ -11103,7 +11117,7 @@
       "line_count": 5021
     },
     {
-      "declaration_count": 120,
+      "declaration_count": 124,
       "declarations": [
         "Artifact",
         "ArtifactActionControls",
@@ -11137,6 +11151,7 @@
         "BlueprintParseError",
         "CalendarBlockView",
         "CalendarCard",
+        "CellAlignment",
         "CellMode",
         "ChartCard",
         "ChartErrorCard",
@@ -11167,9 +11182,11 @@
         "HSplitViewCompat",
         "IntentButton",
         "InteractiveArtifactWeb",
+        "InteractiveGraphSelection",
         "InteractiveGraphView",
         "KanbanBlockView",
         "KanbanCard",
+        "KanbanDisplayPolicy",
         "Kind",
         "LayoutMode",
         "LegendChip",
@@ -11197,6 +11214,7 @@
         "ModelBlockView",
         "ModelCard",
         "ModelEntityTable",
+        "ModelTableLayout",
         "MouseState",
         "NativeChartView",
         "NativeMermaidRenderer",
@@ -11268,7 +11286,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11719,
+      "line_count": 11858,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -18164,9 +18182,9 @@
   },
   "inventory": {
     "assigned_files": 367,
-    "declarations": 1081,
+    "declarations": 1085,
     "swift_files": 367,
-    "swift_lines": 107230,
+    "swift_lines": 107369,
     "unassigned_files": []
   },
   "layers": [
@@ -18198,6 +18216,6 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "0fb603f1d193972f847203952dfd45943b26c3e0213679e94a7a4fed3af284b5",
+  "source_tree_sha256": "8c6d12db63c2256dee3482fcbdb18f5662d7b5a61907fc6857e742b06dd8c842",
   "title": "Portal Architecture"
 }
