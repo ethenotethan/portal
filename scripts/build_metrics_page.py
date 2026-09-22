@@ -106,101 +106,74 @@ GATES = [
     {
         "id": "warnings",
         "title": "Compiler warnings",
-        "source": "metrics-baseline.json · scripts/check-metrics-ratchet.py",
-        "measures": "Every site the Swift compiler emits a warning, tallied per "
-                    "category. The build is the source of truth; the baseline "
-                    "freezes what pre-existed.",
-        "floor": "Per-category warning counts in the current build may not exceed "
-                 "the base branch's counts. Per-category, not just the total, so "
-                 "fixing one kind while adding another can't net out flat.",
-        "patch": "No warning may land on a line this PR added (right-side lines of "
-                 "the diff). Old debt pays down gradually under the floor; new "
-                 "code carries zero new warnings.",
+        "source": "metrics-baseline.json",
+        "measures": "Swift compiler warning sites, per category. Build is the "
+                    "source of truth; the baseline freezes pre-existing debt.",
+        "floor": "No category exceeds base.",
+        "patch": "No warning on a line the PR added.",
     },
     {
         "id": "coverage",
         "title": "Test coverage",
-        "source": "metrics-baseline.json · scripts/check-metrics-ratchet.py",
-        "measures": "Line coverage from `swift test`, scoped to the testable "
-                    "layers — Models, Services, Utilities, ViewModels. Views are "
-                    "excluded entirely: they are unreachable by the unit suite, so "
-                    "counting them would only dilute the number.",
-        "floor": f"Aggregate testable-layer coverage may not fall more than "
-                 f"{COVERAGE_FLOOR_TOLERANCE} of a point below the base branch.",
-        "patch": f"Of the executable lines a PR adds in testable-layer files, at "
-                 f"least {int(COVERAGE_PATCH_THRESHOLD * 100)}% must be covered — "
-                 f"not 100%, since defensive branches are legitimately hard to "
-                 f"reach. The check is skipped below {COVERAGE_PATCH_MIN_LINES} "
-                 f"added executable lines, where the ratio is too noisy to judge.",
+        "source": "metrics-baseline.json",
+        "measures": "Line coverage from `swift test`, testable layers only "
+                    "(Models, Services, Utilities, ViewModels). Views excluded — "
+                    "unreachable by the unit suite.",
+        "floor": f"Aggregate drops ≤ {COVERAGE_FLOOR_TOLERANCE} pt vs base.",
+        "patch": f"≥ {int(COVERAGE_PATCH_THRESHOLD * 100)}% of added executable "
+                 f"lines covered; skipped under {COVERAGE_PATCH_MIN_LINES} lines.",
     },
     {
         "id": "skipped",
         "title": "Skipped tests",
-        "source": "metrics-baseline.json · scripts/check-metrics-ratchet.py",
-        "measures": "Tests that are disabled or parked behind a known-issue marker "
-                    "— coverage that looks present but never runs.",
-        "floor": "The count of skipped tests may not exceed the base branch's. A "
-                 "quarantined test is a debt to pay back down, not to accumulate.",
-        "patch": "No test skip may be introduced on a line this PR added: new "
-                 "tests ship runnable.",
+        "source": "metrics-baseline.json",
+        "measures": "Disabled or known-issue tests — coverage that never runs.",
+        "floor": "Count ≤ base.",
+        "patch": "No new skip on an added line.",
     },
     {
         "id": "deadcode",
         "title": "Dead code",
-        "source": "metrics-baseline.json · scripts/check-metrics-ratchet.py",
-        "measures": "Unused declarations reported by Periphery — unreferenced "
-                    "symbols, assign-only properties, redundant protocols and "
-                    "conformances, redundant public accessibility.",
-        "floor": "Per-category dead-code counts may not exceed the base branch's, "
-                 "so the tree trends toward less unused code, never more.",
-        "patch": "No dead-code finding may sit on a line this PR added: you don't "
-                 "get to write new code that is already unreachable.",
+        "source": "metrics-baseline.json",
+        "measures": "Unused declarations from Periphery: unreferenced symbols, "
+                    "assign-only properties, redundant protocols, conformances, "
+                    "and accessibility.",
+        "floor": "No category exceeds base.",
+        "patch": "No finding on a line the PR added.",
     },
     {
         "id": "perf",
         "title": "Performance op-counts",
-        "source": "perf-baseline.json · scripts/check-perf-ratchet.py",
-        "measures": "Algorithmic WORK COUNTS — not wall-clock time — for the hot "
-                    "pure layout paths. A harness drives fixed-size fixtures under "
-                    "-DPERF_COUNTERS and tallies operations, so every count is "
-                    "identical on any machine and an O(n)→O(n²) regression "
-                    "changes it by orders of magnitude.",
-        "floor": "Every counter in the current snapshot must be ≤ the base "
-                 "branch's. The ceiling is read from base via `git show`, so "
-                 "bumping the baseline in the same PR can't wave a regression "
-                 "through. Fewer ops always passes and locks in as the new floor.",
+        "source": "perf-baseline.json",
+        "measures": "Algorithmic op-counts (not time) for hot pure layout paths, "
+                    "over fixed fixtures under -DPERF_COUNTERS. Deterministic "
+                    "across machines.",
+        "floor": "Every counter ≤ base; ceiling read from base via `git show`.",
         "patch": None,  # floor-only: op counts aren't attributable to added lines
     },
     {
         "id": "lint",
         "title": "Lint baseline",
-        "source": ".swiftlint-baseline · scripts/check-baseline-growth.py",
-        "measures": "Pre-existing SwiftLint debt, frozen per rule. CI runs "
-                    "`swiftlint --baseline`, so anything already recorded is "
-                    "excluded and only NEW violations fail a build.",
-        "floor": "An already-tracked rule's frozen count may not grow. Regenerating "
-                 "the baseline to freeze a fresh violation instead of fixing it is "
-                 "exactly the escape hatch this closes; only paydown (a shrinking "
-                 "count) or a brand-new rule's initial freeze is allowed.",
+        "source": ".swiftlint-baseline",
+        "measures": "Pre-existing SwiftLint debt, frozen per rule via "
+                    "`swiftlint --baseline`; only new violations fail.",
+        "floor": "A tracked rule's count may not grow; paydown or a new rule's "
+                 "initial freeze only.",
         "patch": None,  # the guard is a per-rule growth check, not a diff gate
     },
     {
         "id": "secrets",
         "title": "Secret ignore-list",
-        "source": ".gitleaksignore · scripts/check-secret-baseline-growth.py",
-        "measures": "Accepted gitleaks findings — fingerprints of matches reviewed "
-                    "and judged not real secrets (test dummies, example tokens, "
-                    "public hashes the allowlist missed).",
-        "floor": "The fingerprint count may not grow silently. A genuine "
-                 "false-positive can be accepted, but the growth fails CI until "
-                 "the PR justifies each added fingerprint — so a real leaked "
-                 "credential can't be pasted in to turn the scan green.",
+        "source": ".gitleaksignore",
+        "measures": "Accepted gitleaks fingerprints — matches reviewed and judged "
+                    "not real secrets.",
+        "floor": "Count may not grow silently; each addition justified in the PR.",
         "patch": None,  # count-growth guard, not a diff gate
     },
 ]
 
-# Headline stats for the hero strip: (label, value-fn, suffix). value-fn takes
-# the extracted state and returns the number to display.
+# Compact metric strip: (label, value-fn, suffix). value-fn takes the extracted
+# state and returns the number to display.
 HERO = [
     ("Testable coverage", lambda s: f"{s['coverage']['testable_pct']:.1f}", "%"),
     ("Compiler warnings", lambda s: f"{s['warnings']['total']:,}", ""),
@@ -222,44 +195,48 @@ def bar(pct: float) -> str:
             f'style="width:{width:.1f}%"></span></div>')
 
 
-def render_gate_card(gate: dict, state: dict) -> str:
+def gate_current(gate: dict, state: dict) -> str:
+    """One-line current-state summary for a gate, from extracted numbers."""
     st = state[gate["id"]]
-    # One-line current-state summary per gate, from extracted numbers.
     if gate["id"] == "coverage":
-        current = (f"{st['testable_pct']:.2f}% "
-                   f"({st['testable_covered']:,} / {st['testable_count']:,} lines)")
-    elif gate["id"] == "perf":
-        current = f"{len(st['counts'])} instrumented counters"
-    elif gate["id"] == "lint":
-        current = f"{st['total']:,} violations across {len(st['by_rule'])} rules"
-    elif gate["id"] == "secrets":
+        return (f"{st['testable_pct']:.2f}% "
+                f"({st['testable_covered']:,} / {st['testable_count']:,})")
+    if gate["id"] == "perf":
+        return f"{len(st['counts'])} counters"
+    if gate["id"] == "lint":
+        return f"{st['total']:,} in {len(st['by_rule'])} rules"
+    if gate["id"] == "secrets":
         n = st["fingerprints"]
-        current = "clean — 0 accepted findings" if n == 0 else f"{n:,} accepted findings"
-    elif gate["id"] == "deadcode":
-        current = f"{st['total']:,} findings across {st['sites']:,} sites"
-    else:  # warnings, skipped
-        current = "clean — 0" if st["total"] == 0 else f"{st['total']:,}"
+        return "0" if n == 0 else f"{n:,}"
+    if gate["id"] == "deadcode":
+        return f"{st['total']:,} in {st['sites']:,} sites"
+    return f"{st['total']:,}"  # warnings, skipped
 
-    rows = [
-        f'      <p class="mgate-current"><span class="mgate-k">Current</span>'
-        f'<span class="mgate-v">{esc(current)}</span></p>',
-        f'      <p class="mgate-desc">{esc(gate["measures"])}</p>',
-        f'      <dl class="mgate-rules">',
-        f'        <dt>Floor</dt><dd>{esc(gate["floor"])}</dd>',
-    ]
-    if gate["patch"]:
-        rows.append(f'        <dt>Patch</dt><dd>{esc(gate["patch"])}</dd>')
-    else:
-        rows.append('        <dt>Patch</dt><dd class="mgate-na">Floor-only — '
-                    'this gate has no per-diff half.</dd>')
-    rows.append("      </dl>")
-    rows.append(f'      <p class="mgate-src">{esc(gate["source"])}</p>')
 
+def render_gates_table(state: dict) -> str:
+    rows = []
+    for gate in GATES:
+        patch = esc(gate["patch"]) if gate["patch"] else '<span class="na">floor-only</span>'
+        rows.append(
+            f'          <tr id="gate-{gate["id"]}">\n'
+            f'            <th scope="row"><span class="gname">{esc(gate["title"])}</span>'
+            f'<span class="gsrc">{esc(gate["source"])}</span>'
+            f'<span class="gdesc">{esc(gate["measures"])}</span></th>\n'
+            f'            <td class="num gcur">{esc(gate_current(gate, state))}</td>\n'
+            f'            <td class="grule">{esc(gate["floor"])}</td>\n'
+            f'            <td class="grule">{patch}</td>\n'
+            f'          </tr>'
+        )
     return (
-        f'    <article class="card mgate" id="gate-{gate["id"]}">\n'
-        f'      <h4>{esc(gate["title"])}</h4>\n'
-        + "\n".join(rows) + "\n"
-        f'    </article>'
+        '      <table class="mtable gates">\n'
+        '        <thead><tr>'
+        '<th scope="col">Gate</th>'
+        '<th scope="col" class="num">Current</th>'
+        '<th scope="col">Floor (whole tree vs base)</th>'
+        '<th scope="col">Patch (added lines)</th>'
+        '</tr></thead>\n'
+        '        <tbody>\n' + "\n".join(rows) + "\n        </tbody>\n"
+        '      </table>'
     )
 
 
@@ -305,38 +282,47 @@ def render_kv_table(title_cols, pairs, total=None) -> str:
 
 
 PAGE_STYLE = """  <style>
-    /* Scoped to this page — the shared stylesheet has no table/bar primitives. */
-    .mgrid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));}
-    .mgate h4{margin:0 0 .5rem;}
-    .mgate-current{display:flex;flex-wrap:wrap;gap:.5rem;align-items:baseline;margin:.25rem 0 .75rem;}
-    .mgate-k{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6;}
-    .mgate-v{font-weight:650;font-variant-numeric:tabular-nums;}
-    .mgate-desc{margin:.25rem 0 .75rem;}
-    .mgate-rules{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.35rem .75rem;}
-    .mgate-rules dt{font-weight:650;opacity:.85;}
-    .mgate-rules dd{margin:0;opacity:.9;}
-    .mgate-na{opacity:.6;font-style:italic;}
-    .mgate-src{margin:.9rem 0 0;font-size:.75rem;opacity:.55;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
-    .mtable{width:100%;border-collapse:collapse;margin:.5rem 0 0;font-variant-numeric:tabular-nums;}
-    .mtable th,.mtable td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid rgba(128,128,128,.18);}
-    .mtable thead th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;opacity:.6;}
-    .mtable td.num{text-align:right;font-weight:600;}
-    .mtable tfoot th,.mtable tfoot td{border-bottom:none;border-top:2px solid rgba(128,128,128,.35);font-weight:700;}
-    .mtable td.barcell{width:34%;}
-    .mbar{position:relative;height:.5rem;border-radius:999px;background:rgba(128,128,128,.18);overflow:hidden;}
+    /* Scoped to this page — a dense analytics view, not a marketing page.
+       The shared stylesheet has no table/bar/metric primitives. */
+    .msummary{margin:1.5rem 0 .5rem;}
+    .msummary p{max-width:64ch;opacity:.85;margin:.35rem 0 0;font-size:.92rem;}
+    .mstrip{display:flex;flex-wrap:wrap;gap:.4rem 2rem;list-style:none;padding:0;margin:1.1rem 0 0;
+            border:1px solid rgba(128,128,128,.2);border-radius:.6rem;padding:.85rem 1.1rem;}
+    .mstrip li{display:flex;flex-direction:column;}
+    .mstrip .mval{font-size:1.35rem;font-weight:680;font-variant-numeric:tabular-nums;line-height:1.1;}
+    .mstrip .mlbl{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;opacity:.6;}
+    .msection{margin:2rem 0 0;}
+    .msection h3{margin:0;font-size:1.05rem;}
+    .msection .mprovenance{margin:.3rem 0 .1rem;}
+    .mprovenance{font-size:.82rem;opacity:.7;max-width:72ch;}
+    .mtable{width:100%;border-collapse:collapse;margin:.6rem 0 0;font-variant-numeric:tabular-nums;font-size:.9rem;}
+    .mtable th,.mtable td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid rgba(128,128,128,.16);vertical-align:top;}
+    .mtable thead th{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;opacity:.6;font-weight:650;}
+    .mtable td.num,.mtable th.num{text-align:right;}
+    .mtable td.num{font-weight:650;}
+    .mtable tfoot th,.mtable tfoot td{border-bottom:none;border-top:2px solid rgba(128,128,128,.32);font-weight:700;}
+    .mtable td.barcell{width:32%;}
+    /* Gates table: name + provenance + one-line description stacked in col 1. */
+    .gates .gname{display:block;font-weight:650;}
+    .gates .gsrc{display:block;font-size:.72rem;opacity:.5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:.1rem;}
+    .gates .gdesc{display:block;font-size:.82rem;opacity:.78;margin-top:.25rem;max-width:52ch;}
+    .gates .gcur{white-space:nowrap;}
+    .gates .grule{font-size:.85rem;opacity:.9;}
+    .gates .na{opacity:.45;font-style:italic;}
+    .mbar{position:relative;height:.45rem;border-radius:999px;background:rgba(128,128,128,.18);overflow:hidden;}
     .mbar-fill{position:absolute;inset:0 auto 0 0;border-radius:999px;background:linear-gradient(90deg,var(--grad-a,#6ea8fe),var(--grad-b,#a06bff));}
-    .mprovenance{font-size:.8rem;opacity:.7;}
   </style>"""
 
 
 def render_page(state: dict) -> str:
-    hero_items = "\n".join(
-        f'        <li><strong>{esc(fn(state))}{esc(suffix)}</strong>'
-        f'<span>{esc(label)}</span></li>'
+    strip_items = "\n".join(
+        f'        <li><span class="mval">{esc(fn(state))}{esc(suffix)}</span>'
+        f'<span class="mlbl">{esc(label)}</span></li>'
         for label, fn, suffix in HERO
     )
-    gate_cards = "\n".join(render_gate_card(g, state) for g in GATES)
+    gates_table = render_gates_table(state)
 
+    cov = state["coverage"]
     dc = state["deadcode"]
     perf = state["perf"]["counts"]
 
@@ -345,8 +331,8 @@ def render_page(state: dict) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Portal's quantification gates — the metric ratchets and baseline guards that keep code health from regressing, with each gate's current recorded state.">
-  <title>Portal — Quality gates &amp; ratchets</title>
+  <meta name="description" content="Portal ratchet analytics — current recorded state of every code-health gate, extracted from the committed baselines CI enforces.">
+  <title>Portal — Ratchet analytics</title>
   <link rel="stylesheet" href="styles.css">
 {PAGE_STYLE}
 </head>
@@ -358,7 +344,7 @@ def render_page(state: dict) -> str:
       <span class="brand-mark" aria-hidden="true">P</span>
       <div>
         <div class="eyebrow">ETHENOTETHAN / PORTAL</div>
-        <h1>Quality gates</h1>
+        <h1>Ratchet analytics</h1>
       </div>
     </div>
     <nav class="topnav" aria-label="Sections">
@@ -371,141 +357,58 @@ def render_page(state: dict) -> str:
 
   <main id="main">
 
-    <section class="hero" id="overview">
-      <div class="hero-glow" aria-hidden="true"></div>
-      <div class="hero-copy" data-reveal>
-        <p class="badge"><span class="badge-dot" aria-hidden="true"></span> Enforced in CI · every number below is measured, not aspirational</p>
-        <h2>Code health that can<br>only <span class="grad">go one way.</span></h2>
-        <p class="lede">
-          Portal gates every pull request on a set of <strong>ratchets</strong>:
-          quantified code-health metrics that may improve freely but can never
-          regress. Each gate runs two checks — a <strong>floor</strong> that
-          forbids the whole tree from getting worse than the base branch, and,
-          where it makes sense, a <strong>patch</strong> check that holds the
-          lines a PR actually touched to a higher standard. The state files are
-          committed, so the bar is always visible and always exact.
-        </p>
-      </div>
-      <ul class="hero-stats" aria-label="Current gate states" data-reveal>
-{hero_items}
+    <section class="msummary" id="overview">
+      <p>Current recorded state of every code-health gate, extracted directly
+      from the committed baselines CI enforces. Each gate runs a
+      <strong>floor</strong> (whole tree, never worse than base) and, where
+      applicable, a <strong>patch</strong> check (lines a PR added, held
+      stricter). Numbers are read from the state files — not measured here — so
+      the page can't drift from what CI compares against.</p>
+      <ul class="mstrip" aria-label="Current gate states">
+{strip_items}
       </ul>
     </section>
 
-    <section class="band" id="model">
-      <div class="band-head">
-        <p class="eyebrow">HOW THE GATES WORK</p>
-        <h3>Floor and patch</h3>
-      </div>
-      <div class="card-grid">
-        <article class="card">
-          <h4>Floor — never regress</h4>
-          <p>The current build is compared, per category, against the baseline
-          committed on the base branch. Nothing may exceed what was there before.
-          Per-category rather than per-total on purpose: paying down one kind of
-          debt while quietly adding another nets flat but is exactly the
-          regression worth catching.</p>
-        </article>
-        <article class="card">
-          <h4>Patch — leave it cleaner</h4>
-          <p>The lines a PR adds (the right side of <code>git diff</code>) are held
-          to a stricter bar: zero new warnings, no new skips or dead code, and a
-          minimum coverage ratio on new executable lines. Old debt pays down
-          gradually under the floor; new code ships clean.</p>
-        </article>
-        <article class="card">
-          <h4>Improvements lock in</h4>
-          <p>A better number always passes. Regenerating the baseline
-          (<code>make metrics-baseline</code>, <code>make perf-baseline</code>)
-          records the gain so it becomes the new floor for later PRs. The base
-          ceiling is read from the base branch, so bumping a baseline in the same
-          PR can't wave a regression through.</p>
-        </article>
-      </div>
+    <section class="msection" id="gates">
+      <h3>Gates</h3>
+      <p class="mprovenance">Sources: <code>metrics-baseline.json</code>,
+      <code>perf-baseline.json</code>, <code>.swiftlint-baseline</code>,
+      <code>.gitleaksignore</code>. Floor-only gates have no per-diff check
+      (op-counts and count-growth guards aren't attributable to added lines).</p>
+{gates_table}
     </section>
 
-    <section class="band" id="gates">
-      <div class="band-head">
-        <p class="eyebrow">THE GATES</p>
-        <h3>What is quantified today</h3>
-      </div>
-      <div class="mgrid">
-{gate_cards}
-      </div>
-    </section>
-
-    <section class="band" id="coverage-detail">
-      <div class="band-head">
-        <p class="eyebrow">MEASURED STATE</p>
-        <h3>Coverage by testable layer</h3>
-      </div>
-      <p class="mprovenance">Views are excluded — the unit suite can't reach them.
-      Aggregate: <strong>{state['coverage']['testable_pct']:.2f}%</strong>
-      ({state['coverage']['testable_covered']:,} of
-      {state['coverage']['testable_count']:,} executable lines);
-      {state['coverage']['uncovered_files']:,} files still carry uncovered lines.</p>
+    <section class="msection" id="coverage-detail">
+      <h3>Coverage by testable layer</h3>
+      <p class="mprovenance">Aggregate {cov['testable_pct']:.2f}%
+      ({cov['testable_covered']:,} / {cov['testable_count']:,} executable lines);
+      {cov['uncovered_files']:,} files carry uncovered lines. Views excluded —
+      unreachable by the unit suite.</p>
 {render_coverage_table(state)}
     </section>
 
-    <section class="band" id="deadcode-detail">
-      <div class="band-head">
-        <p class="eyebrow">MEASURED STATE</p>
-        <h3>Dead code by kind</h3>
-      </div>
-      <p class="mprovenance">{dc['total']:,} findings across {dc['sites']:,} sites,
-      reported by Periphery and frozen as the ceiling to ratchet down.</p>
+    <section class="msection" id="deadcode-detail">
+      <h3>Dead code by kind</h3>
+      <p class="mprovenance">{dc['total']:,} findings across {dc['sites']:,} sites (Periphery).</p>
 {render_kv_table(("Kind", "Findings"), list(dc['counts'].items()), total=dc['total'])}
     </section>
 
-    <section class="band" id="lint-detail">
-      <div class="band-head">
-        <p class="eyebrow">MEASURED STATE</p>
-        <h3>Frozen lint debt by rule</h3>
-      </div>
-      <p class="mprovenance">{state['lint']['total']:,} pre-existing violations
-      excluded via <code>swiftlint --baseline</code>; only new violations fail.
-      Each rule's count is a ceiling that may shrink, never grow.</p>
+    <section class="msection" id="lint-detail">
+      <h3>Frozen lint debt by rule</h3>
+      <p class="mprovenance">{state['lint']['total']:,} pre-existing violations excluded via <code>swiftlint --baseline</code>; each count is a ceiling.</p>
 {render_kv_table(("Rule", "Frozen"), list(state['lint']['by_rule'].items()), total=state['lint']['total'])}
     </section>
 
-    <section class="band" id="perf-detail">
-      <div class="band-head">
-        <p class="eyebrow">MEASURED STATE</p>
-        <h3>Performance op-count ceilings</h3>
-      </div>
-      <p class="mprovenance">Deterministic operation tallies over fixed-size
-      fixtures. A count may fall (and re-baseline lower); it may never rise.</p>
+    <section class="msection" id="perf-detail">
+      <h3>Performance op-count ceilings</h3>
+      <p class="mprovenance">Deterministic op tallies over fixed fixtures; a count may fall, never rise.</p>
 {render_kv_table(("Counter", "Operations"), list(perf.items()))}
-    </section>
-
-    <section class="band" id="provenance">
-      <div class="band-head">
-        <p class="eyebrow">HOW THIS PAGE IS BUILT</p>
-        <h3>Measured, then described</h3>
-      </div>
-      <div class="card-grid">
-        <article class="card">
-          <h4>Deterministic extraction</h4>
-          <p>Every figure above is read directly from a committed state file —
-          <code>metrics-baseline.json</code>, <code>perf-baseline.json</code>,
-          <code>.swiftlint-baseline</code>, <code>.gitleaksignore</code> — by
-          <code>scripts/build_metrics_page.py</code>. No build and no estimate:
-          the numbers are exactly what CI ratchets against. <code>--check</code>
-          fails if this page drifts from the baselines.</p>
-        </article>
-        <article class="card">
-          <h4>Authored synthesis</h4>
-          <p>The prose — what each gate measures, its floor and patch semantics,
-          and why it exists — is written into the generator, because baselines
-          record numbers, not intent. That is the half a state file can't
-          produce on its own.</p>
-        </article>
-      </div>
     </section>
 
   </main>
 
   <footer>
-    <p><strong>Portal</strong> — MIT licensed. Quality gates enforced by the Ratchet and Pages workflows.</p>
+    <p class="mprovenance">Generated by <code>scripts/build_metrics_page.py</code> from the committed baselines; <code>--check</code> fails if this page drifts from them. Enforced by the Ratchet and Pages workflows.</p>
     <p>
       <a href="index.html">Home</a> ·
       <a href="architecture/">Architecture Observatory</a> ·
