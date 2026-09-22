@@ -163,13 +163,6 @@
     {"source": "artifact-intents", "target": "operations-state", "type": "depends_on", "description": "Declared maintainer references resolve against cron state, so the product can distinguish an artifact a job actively tends from one that is merely mutable.", "evidence": ["Sources/Portal/Models/MaintainerRef.swift", "Sources/Portal/ViewModels/CronListViewModel.swift"]},
     {"source": "artifact-intents", "target": "app-shell", "type": "navigates", "description": "When an intent runs as a contained agent session, native code posts the session switch; the untrusted artifact page is never handed a session ID or navigation capability.", "evidence": ["Sources/Portal/Models/ArtifactIntentSessionLink.swift", "Sources/Portal/Views/ContentView.swift"]}
   ],
-  "specifications": [
-    {"id": "system", "title": "System architecture", "path": "architecture/specifications/system.md"},
-    {"id": "boundaries", "title": "Boundaries and authority", "path": "architecture/specifications/boundaries.md"},
-    {"id": "artifact-intents", "title": "Intent-based artifacts", "path": "architecture/specifications/artifact-intents.md"},
-    {"id": "wiki", "title": "The wiki as a knowledge system", "path": "architecture/specifications/wiki.md"},
-    {"id": "maintenance", "title": "Continuous maintenance", "path": "architecture/specifications/continuous-maintenance.md"}
-  ],
   "external_systems": [
     {
       "id": "harness-gateway",
@@ -336,5 +329,23 @@
         "\\bPocketTTS\\w*"
       ]
     }
-  ]
+  ],
+  "pages": {
+    "shell": ["ContentView"],
+    "items": [
+      {"id": "chat", "label": "Main chat view", "roots": ["ChatView", "SessionListView", "CronSessionView"],
+       "namespaces": ["prompt", "messages", "model", "clarify", "approval", "execute", "image", "interrupt", "voice"],
+       "components": ["chat-ui", "chat-state", "thought-graph-ui"]},
+      {"id": "settings", "label": "Settings", "roots": ["SettingsView"], "namespaces": ["config", "gateway"], "components": ["app-shell"]},
+      {"id": "sessions", "label": "Sessions", "roots": ["SessionsDashboard"], "namespaces": ["session"]},
+      {"id": "cron", "label": "Cron", "roots": ["CronDashboardView", "CronListView"], "namespaces": ["cron"]},
+      {"id": "activity", "label": "Activity", "roots": ["ActivityInboxView"], "namespaces": ["activity"]},
+      {"id": "skills", "label": "Skills", "roots": ["SkillsCanvasView", "SkillsView"], "namespaces": ["commands", "skills"]},
+      {"id": "feed", "label": "Feed", "roots": ["FeedView"], "namespaces": ["feed"]},
+      {"id": "learning", "label": "Learning", "roots": ["LearningDashboardView"], "namespaces": ["learning"]},
+      {"id": "graphs", "label": "Graphs", "roots": ["GraphsView"], "namespaces": ["wiki", "code"], "components": ["wiki-ui", "wiki-state", "wiki-sources"]},
+      {"id": "files", "label": "Files", "roots": ["FilesBrowserView"], "namespaces": ["files"]},
+      {"id": "artifacts", "label": "Artifacts", "roots": ["ArtifactCanvasView"], "namespaces": ["artifact"], "components": ["artifact-intents", "artifact-ui"]}
+    ]
+  }
 }

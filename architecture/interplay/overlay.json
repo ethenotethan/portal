@@ -51,6 +51,16 @@
       "sources": [
         "Sources/Portal/Services/TTSService.swift:129"
       ]
+    },
+    {
+      "id": "rpc_pool:FileDownloadManager:continuations",
+      "kind": "rpc_pool",
+      "owner_type": "FileDownloadManager",
+      "label": "continuations",
+      "prose": "The in-flight attachment download pool. fetch(url:token:attachmentID:) registers a CheckedContinuation under the attachment's UUID and starts a URLSessionDownloadTask on the manager's own URLSession; the URLSessionDownloadDelegate callbacks resolve and remove it when the file lands or the task fails. Unlike the gateway pool it is not lock-guarded: the manager is @MainActor and the delegate hops back to it, so registration and resolution are serialised by the actor, not by a lock. It is a download pool, not an RPC pool, and never touches the gateway.",
+      "sources": [
+        "Sources/Portal/Services/FileDownloadManager.swift:26"
+      ]
     }
   ]
 }

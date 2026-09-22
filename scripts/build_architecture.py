@@ -20,6 +20,7 @@ MODEL_PATH = ROOT / "architecture/model/model.json"
 SITE_DATA_PATH = ROOT / "architecture/site/data.js"
 SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
 INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
+INTERPLAY_INVARIANTS_PATH = ROOT / "architecture/interplay/invariants.json"
 
 DECLARATION_RE = re.compile(
     r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
@@ -28,9 +29,6 @@ DECLARATION_RE = re.compile(
 IDENTIFIER_RE = re.compile(r"\b[A-Z][A-Za-z0-9_]{3,}\b")
 
 BEHAVIOR_RULES = {
-    "swift.execution.main_actor": "@MainActor applied to a declaration or extension",
-    "swift.execution.actor": "Swift actor declaration",
-    "swift.execution.dispatch_queue": "Stored property initialized with DispatchQueue(label:)",
     "swift.task.structured": "Task initializer with closure",
     "swift.task.detached": "Task.detached closure",
     "swift.task.stored_handle": "Stored property whose declared type is Task",
@@ -49,6 +47,9 @@ BEHAVIOR_RULES = {
     "swift.lifecycle.model_infer": "A ChatSession built over an on-device model container to run inference",
     "swift.lifecycle.pool_register": "A pending continuation registered into a CheckedContinuation pool before a request is sent",
     "swift.lifecycle.pool_resolve": "resume(...) invoked to settle a pending continuation from a CheckedContinuation pool",
+    "swift.lifecycle.pool_remove": "removeValue(forKey:) or removeAll() invoked on a CheckedContinuation pool",
+    "swift.resource.bus_subscription": "A binding to the seam's event bus, recording its collect(.byTimeOrCount) batching window or receive(on:) scheduler when present",
+    "swift.trigger.surface_call": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -117,7 +118,7 @@ INTERPLAY_SUPPORT_KINDS = {"lock"}
 INTERPLAY_RESOURCE_KINDS = (
     INTERPLAY_TRANSPORT_KINDS | INTERPLAY_ENGINE_KINDS | INTERPLAY_SUPPORT_KINDS
 )
-INTERPLAY_OP_KINDS = {"model_load", "model_infer", "pool_register", "pool_resolve"}
+INTERPLAY_OP_KINDS = {"model_load", "model_infer", "pool_register", "pool_resolve", "pool_remove"}
 SEAM_PROTOCOL = "AgentBackend"
 # The load-bearing resources the curated overlay must explain: the connection
 # pool and every on-device engine. Adding one of these to Swift source without a
@@ -272,27 +273,95 @@ def observed_item(category: str, kind: str, label: str, owner: str | None,
     }
 
 
+def balanced_block_end(code: str, open_brace_end: int) -> int:
+    """Return the offset just past the `}` that closes the block opened before open_brace_end."""
+    depth = 1
+    cursor = open_brace_end
+    while cursor < len(code) and depth:
+        if code[cursor] == "{":
+            depth += 1
+        elif code[cursor] == "}":
+            depth -= 1
+        cursor += 1
+    return cursor if depth == 0 else len(code)
+
+
+def header_open_brace(code: str, index: int) -> int | None:
+    """Return the offset of the `{` that opens a declaration whose header starts at index.
+
+    Skips a generic clause and a balanced parameter list, then any return-type,
+    effects or inheritance text, so a signature that spans several lines still
+    resolves. Gives up at a blank line or a `;` (a body-less requirement) so a
+    declaration without a body never swallows the next one's brace.
+    """
+    length = len(code)
+    cursor = index
+    while cursor < length and code[cursor] in " \t":
+        cursor += 1
+    if cursor < length and code[cursor] == "<":
+        depth = 0
+        while cursor < length:
+            if code[cursor] == "<":
+                depth += 1
+            elif code[cursor] == ">":
+                depth -= 1
+                if depth == 0:
+                    cursor += 1
+                    break
+            cursor += 1
+    while cursor < length and code[cursor] in " \t":
+        cursor += 1
+    if cursor < length and code[cursor] == "(":
+        depth = 0
+        while cursor < length:
+            if code[cursor] == "(":
+                depth += 1
+            elif code[cursor] == ")":
+                depth -= 1
+                if depth == 0:
+                    cursor += 1
+                    break
+            cursor += 1
+    newlines = 0
+    while cursor < length:
+        char = code[cursor]
+        if char == "{":
+            return cursor
+        if char == ";":
+            return None
+        if char == "\n":
+            newlines += 1
+            if newlines > 1 and code[index:cursor].rstrip(" \t").endswith("\n"):
+                return None
+        elif not char.isspace():
+            newlines = 0
+        cursor += 1
+    return None
+
+
+DECLARATION_HEADER_RE = re.compile(r"\b(class|struct|enum|actor|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def declaration_blocks(code: str) -> list[tuple[int, int, str, str]]:
+    """Every declaration with a body: (start, end, kind, name), bracket-aware headers."""
+    blocks: list[tuple[int, int, str, str]] = []
+    for match in DECLARATION_HEADER_RE.finditer(code):
+        open_brace = header_open_brace(code, match.end())
+        if open_brace is None:
+            continue
+        blocks.append((match.start(), balanced_block_end(code, open_brace + 1), match.group(1), match.group(2)))
+    return blocks
+
+
 def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:
     """Return cheaply-derived enclosing type/function using balanced source braces."""
-    candidates: list[tuple[int, int, str, str]] = []
-    declaration_re = re.compile(
-        r"\b(class|struct|enum|actor|extension|func)\s+([A-Za-z_][A-Za-z0-9_]*)[^\n{]*\{"
-    )
-    for match in declaration_re.finditer(code, 0, offset + 1):
-        depth = 1
-        cursor = match.end()
-        while cursor < len(code) and depth:
-            if code[cursor] == "{":
-                depth += 1
-            elif code[cursor] == "}":
-                depth -= 1
-            cursor += 1
-        end = cursor if depth == 0 else len(code)
-        if match.start() <= offset < end:
-            candidates.append((match.start(), end, match.group(1), match.group(2)))
     enclosing_type = None
     enclosing_function = None
-    for _, _, declaration_kind, name in sorted(candidates):
+    for start, end, declaration_kind, name in declaration_blocks(code):
+        if start > offset:
+            break
+        if not (start <= offset < end):
+            continue
         if declaration_kind == "func":
             enclosing_function = name
         else:
@@ -302,63 +371,17 @@ def enclosing_context(code: str, offset: int) -> tuple[str | None, str | None]:
 
 def enclosing_function_range(code: str, offset: int) -> tuple[int, int] | None:
     """Return the byte range of the innermost `func` body enclosing offset."""
-    declaration_re = re.compile(r"\bfunc\s+[A-Za-z_][A-Za-z0-9_]*[^\n{]*\{")
     best: tuple[int, int] | None = None
-    for match in declaration_re.finditer(code, 0, offset + 1):
-        depth = 1
-        cursor = match.end()
-        while cursor < len(code) and depth:
-            if code[cursor] == "{":
-                depth += 1
-            elif code[cursor] == "}":
-                depth -= 1
-            cursor += 1
-        end = cursor if depth == 0 else len(code)
-        if match.start() <= offset < end and (best is None or match.start() > best[0]):
-            best = (match.start(), end)
+    for start, end, declaration_kind, _ in declaration_blocks(code):
+        if start > offset:
+            break
+        if declaration_kind == "func" and start <= offset < end and (best is None or start > best[0]):
+            best = (start, end)
     return best
 
 
 def extract_behavioral_source(path: str, text: str, component: str | None) -> dict[str, list[dict[str, Any]]]:
     code = strip_swift_noncode(text)
-    domains: list[dict[str, Any]] = []
-    main_actor_re = re.compile(
-        r"@MainActor\s+(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
-        r"(?:class|struct|enum|protocol|actor|extension)\s+([A-Z][A-Za-z0-9_]*)"
-    )
-    for match in main_actor_re.finditer(code):
-        domains.append(observed_item(
-            "execution-domain", "main_actor", match.group(1), component,
-            "swift.execution.main_actor", path, text, match.start()
-        ))
-    main_actor_names = {item["label"] for item in domains}
-    actor_re = re.compile(
-        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|nonisolated)\s+)*"
-        r"actor\s+([A-Z][A-Za-z0-9_]*)\b"
-    )
-    for match in actor_re.finditer(code):
-        if match.group(1) not in main_actor_names:
-            domains.append(observed_item(
-                "execution-domain", "actor", match.group(1), component,
-                "swift.execution.actor", path, text, match.start()
-            ))
-    queue_re = re.compile(
-        r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate)\s+)*"
-        r"(?:var|let)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*DispatchQueue\s*\(\s*label\s*:"
-    )
-    source_lines = text.splitlines()
-    for match in queue_re.finditer(code):
-        evidence = source_evidence(path, text, match.start())
-        original_line = source_lines[evidence["line"] - 1]
-        label_match = re.search(r"label\s*:\s*\"([^\"]+)\"", original_line)
-        runtime_label = label_match.group(1) if label_match else "unresolved"
-        owner_type, _ = enclosing_context(code, match.start())
-        domains.append(observed_item(
-            "execution-domain", "dispatch_queue", match.group(1), component,
-            "swift.execution.dispatch_queue", path, text, match.start(),
-            owner_type=owner_type, runtime_label=runtime_label,
-        ))
-    domains.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
 
     task_sites: list[dict[str, Any]] = []
     task_patterns = [
@@ -679,6 +702,15 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
                 resource_id=resource["id"], resource_label=resource["label"],
                 owner_type=owner_type, enclosing_function=enclosing_function,
             ))
+        remove_re = re.compile(rf"\b{re.escape(resource['label'])}\s*\.\s*(removeValue|removeAll)\s*\(")
+        for match in remove_re.finditer(code):
+            owner_type, enclosing_function = enclosing_context(code, match.start())
+            operations.append(observed_item(
+                "lifecycle-operation", "pool_remove", f"{resource['label']}.{match.group(1)}", component,
+                "swift.lifecycle.pool_remove", path, text, match.start(),
+                resource_id=resource["id"], resource_label=resource["label"],
+                owner_type=owner_type, enclosing_function=enclosing_function,
+            ))
         # A `.resume(` is a pool resolve only when it settles a continuation
         # drawn from this pool — approximated deterministically as a resume whose
         # innermost enclosing function also references the pool field. This
@@ -699,21 +731,8 @@ def extract_behavioral_source(path: str, text: str, component: str | None) -> di
 
     resources.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
     operations.sort(key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]))
-    return {"execution_domains": domains, "task_sites": task_sites,
+    return {"task_sites": task_sites,
             "resources": resources, "operations": operations}
-
-
-def balanced_block_end(code: str, open_brace_end: int) -> int:
-    """Return the offset just past the `}` that closes the block opened before open_brace_end."""
-    depth = 1
-    cursor = open_brace_end
-    while cursor < len(code) and depth:
-        if code[cursor] == "{":
-            depth += 1
-        elif code[cursor] == "}":
-            depth -= 1
-        cursor += 1
-    return cursor if depth == 0 else len(code)
 
 
 def swift_string_literals(text: str) -> list[tuple[int, int, str]]:
@@ -830,6 +849,338 @@ def compiled_signature_scans(systems: list[dict[str, Any]]) -> list[tuple[str, s
             pattern, scope = normalize_signature(signature)
             scans.append((str(system["id"]), pattern, scope, re.compile(pattern, re.MULTILINE)))
     return scans
+
+
+def validate_pages(config: dict[str, Any]) -> None:
+    pages = config.get("pages")
+    if pages is None:
+        return
+    if not isinstance(pages, dict) or not isinstance(pages.get("items"), list):
+        raise ArchitectureError("config pages must be an object with an items array")
+    shell = pages.get("shell", [])
+    if not isinstance(shell, list) or not all(isinstance(item, str) and item for item in shell):
+        raise ArchitectureError("config pages.shell must be an array of type names")
+    seen: set[str] = set()
+    for page in pages["items"]:
+        if not isinstance(page, dict):
+            raise ArchitectureError("page entries must be objects")
+        for key in ("id", "label"):
+            if not isinstance(page.get(key), str) or not page[key]:
+                raise ArchitectureError(f"page {page.get('id')!r} needs a non-empty {key}")
+        if page["id"] in seen:
+            raise ArchitectureError(f"duplicate page id {page['id']}")
+        seen.add(page["id"])
+        roots = page.get("roots")
+        if not isinstance(roots, list) or not roots or not all(isinstance(r, str) and r for r in roots):
+            raise ArchitectureError(f"page {page['id']} needs at least one root type name")
+        known_components = {str(item["id"]) for item in config["components"]}
+        for key in ("namespaces", "components"):
+            values = page.get(key, [])
+            if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values):
+                raise ArchitectureError(f"page {page['id']} {key} must be an array of names")
+            if key == "components" and not set(values) <= known_components:
+                raise ArchitectureError(f"page {page['id']} names unknown components: {sorted(set(values) - known_components)}")
+
+
+def assign_pages(files: list[dict[str, Any]], config: dict[str, Any]
+                 ) -> tuple[dict[str, str], list[dict[str, Any]], dict[str, list[str]]]:
+    """Map declared types to the navigation page whose view tree reaches them.
+
+    Pages and their root view types are declared in config. From each page's
+    roots, walk same-file identifier references between declared types, never
+    entering another page's roots or the shell types. A type reached by exactly
+    one page at the shortest distance belongs to that page; a type two pages reach
+    at the same shortest distance is `shared`; a type a root references directly that at
+    least half of all pages reach within one more hop is `shared` infrastructure; an
+    unreached type is absent.
+    """
+    pages_cfg = config.get("pages") or {}
+    items = pages_cfg.get("items", [])
+    if not items:
+        return {}, [], {}
+    shell = set(pages_cfg.get("shell", []))
+    declared: dict[str, dict[str, Any]] = {}
+    for source in files:
+        for name in source["declarations"]:
+            current = declared.get(name)
+            if current is None or source["path"] < current["path"]:
+                declared[name] = source
+    all_roots = {root for page in items for root in page["roots"]}
+    missing = sorted(root for root in all_roots if root not in declared)
+    if missing:
+        raise ArchitectureError(f"page roots are not declared types: {', '.join(missing)}")
+
+    depth_by_type: dict[str, dict[str, int]] = defaultdict(dict)
+    for page in items:
+        own_roots = set(page["roots"])
+        stops = (all_roots - own_roots) | shell
+        frontier = sorted(own_roots)
+        depth = 0
+        seen: set[str] = set()
+        while frontier:
+            next_frontier: set[str] = set()
+            for name in frontier:
+                if name in seen:
+                    continue
+                seen.add(name)
+                depth_by_type[name][page["id"]] = depth
+                source = declared.get(name)
+                if source is None:
+                    continue
+                for identifier in source["identifiers"]:
+                    if identifier in declared and identifier not in seen and identifier not in stops:
+                        next_frontier.add(identifier)
+            frontier = sorted(next_frontier)
+            depth += 1
+
+    page_of: dict[str, str] = {}
+    ties: dict[str, list[str]] = {}
+    for name, depths in depth_by_type.items():
+        best = min(depths.values())
+        winners = sorted(page for page, value in depths.items() if value == best)
+        # Infrastructure guard: a type one root view references directly, and that
+        # at least half of all pages reach within one more hop, is shared plumbing
+        # (the transport, the seam) — not the property of the page that happens to
+        # name it first.
+        near = sum(1 for value in depths.values() if value <= best + 1)
+        if best <= 1 and near >= 2 and near * 2 >= len(items):
+            page_of[name] = "shared"
+            # Still resolvable by declared ownership (namespaces, components); the
+            # candidates are every page within one hop of the closest.
+            ties[name] = sorted(page for page, value in depths.items() if value <= best + 1)
+        elif len(winners) == 1:
+            page_of[name] = winners[0]
+        else:
+            page_of[name] = "shared"
+            ties[name] = winners
+    summary = [
+        {
+            "id": page["id"],
+            "label": page["label"],
+            "roots": list(page["roots"]),
+            "namespaces": sorted(page.get("namespaces", [])),
+            "components": sorted(page.get("components", [])),
+            "type_count": sum(1 for value in page_of.values() if value == page["id"]),
+        }
+        for page in items
+    ]
+    return page_of, summary, ties
+
+
+def attach_stores_to_interplay(interplay: dict[str, Any], stores: dict[str, Any],
+                               files: list[dict[str, Any]] | None = None) -> None:
+    """Every recognised store is a construction on the map, with its relations.
+
+    A store whose type already appears (a calling surface, a subscriber, an owner,
+    the hub) is annotated in place; any other store becomes a `store` node with
+    its observed persistence and artifact names. A calling surface, hub or
+    subscriber whose declaring file names a store type gets a `uses` edge to it
+    (same-file identifier evidence, the rule that places engines).
+    """
+    by_label: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for node in interplay["nodes"]:
+        if node["kind"] in {"caller", "subscriber", "owner", "hub"}:
+            by_label[node["label"]].append(node)
+    for item in stores["items"]:
+        summary = {
+            "persistence": item["persistence"],
+            "artifacts": [artifact["label"] for artifact in item["artifacts"]],
+            "mechanism_count": len(item["mechanisms"]),
+            "path": item["evidence"]["path"], "line": item["evidence"]["line"],
+        }
+        if item["type_name"] in by_label:
+            for node in by_label[item["type_name"]]:
+                node["store"] = summary
+            continue
+        node_id = f"store:{item['component'] or 'unassigned'}:{item['type_name']}"
+        digest = hashlib.sha256("\0".join(["store", item["component"] or "unassigned", item["type_name"]]).encode("utf-8")).hexdigest()[:12]
+        cluster_id = f"interplay-cluster-{digest}"
+        interplay["nodes"].append({
+            "id": node_id, "kind": "store", "sub_kind": item["kind"],
+            "label": item["type_name"], "component": item["component"], "owner_type": None,
+            "store": summary, "path": item["evidence"]["path"], "line": item["evidence"]["line"],
+            "cluster": cluster_id,
+        })
+        interplay["clusters"].append({"id": cluster_id, "component": item["component"], "owner_type": "Data stores", "node_ids": [node_id]})
+    # Relations: who reads or writes each store.
+    if files:
+        file_by_type: dict[str, dict[str, Any]] = {}
+        for source in sorted(files, key=lambda item: item["path"]):
+            for name in source["declarations"]:
+                file_by_type.setdefault(name, source)
+        store_nodes = [node for node in interplay["nodes"] if node.get("store")]
+        existing = {(edge["source"], edge["target"], edge["relation"]) for edge in interplay["edges"]}
+        for node in interplay["nodes"]:
+            if node["kind"] not in {"caller", "hub", "subscriber"}:
+                continue
+            source = file_by_type.get(node["label"])
+            if source is None:
+                continue
+            identifiers = set(source["identifiers"])
+            for store in store_nodes:
+                if store["label"] == node["label"] or store["label"] not in identifiers:
+                    continue
+                key = (node["id"], store["id"], "uses")
+                if key not in existing:
+                    existing.add(key)
+                    interplay["edges"].append({"source": node["id"], "target": store["id"], "class": "usage", "relation": "uses"})
+        interplay["edges"].sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    interplay["nodes"].sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+    interplay["clusters"].sort(key=lambda item: item["id"])
+
+
+def attach_triggers_to_interplay(interplay: dict[str, Any], files: list[dict[str, Any]]) -> None:
+    """Triggers: the first hop from a view into the map.
+
+    A SwiftUI action or lifecycle hook whose closure calls a method on a same-file
+    property typed as a surface on the map (calling surface, subscriber, store,
+    hub, engine owner) is a trigger of that surface; for calling surfaces the
+    method resolves to the namespaces it reaches. Receiver-qualified, so
+    `vm.refresh()` counts only when `vm` is declared with a surface type. Triggers
+    that touch only local state are counted, not attributed. An action that only calls a same-file helper is followed one
+    level into that helper.
+    """
+    surface_types = {node["label"] for node in interplay["nodes"] if node["kind"] in {"caller", "subscriber", "hub", "owner", "store"}}
+    methods_by_type = {node["label"]: node.get("methods", {}) for node in interplay["nodes"] if node["kind"] == "caller"}
+    triggers: list[dict[str, Any]] = []
+    unattributed = 0
+    for source in sorted(files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        if "Button" not in code and ".on" not in code and ".task" not in code:
+            continue
+        var_types: dict[str, str] = {}
+        for match in TRIGGER_PROPERTY_RE.finditer(code):
+            type_name = match.group("annot") or match.group("init")
+            if type_name in surface_types:
+                var_types[match.group("name")] = type_name
+        if not var_types:
+            continue
+        # Same-file helper functions: an action body that only calls `refresh()` is
+        # followed one level into `func refresh()` in the same file, since that is
+        # where the surface call usually lives. One level, no recursion.
+        helper_bodies: dict[str, str] = {}
+        for start, end, declaration_kind, name in declaration_blocks(code):
+            if declaration_kind == "func" and name not in helper_bodies:
+                helper_bodies[name] = code[start:end]
+        for kind, api, pattern in TRIGGER_PATTERNS:
+            for match in pattern.finditer(code):
+                open_brace = code.find("{", match.end(), match.end() + 240)
+                if open_brace == -1:
+                    continue
+                body = code[open_brace + 1:balanced_block_end(code, open_brace + 1) - 1]
+                view_type, _ = enclosing_context(code, match.start())
+                scan = [body]
+                for helper in TRIGGER_HELPER_CALL_RE.finditer(body):
+                    helper_body = helper_bodies.get(helper.group(1))
+                    if helper_body:
+                        scan.append(helper_body)
+                hits: dict[tuple[str, str], None] = {}
+                for text_chunk in scan:
+                    for call in TRIGGER_CALL_RE.finditer(text_chunk):
+                        surface = var_types.get(call.group(1))
+                        if surface:
+                            hits.setdefault((surface, call.group(2)), None)
+                if not hits:
+                    unattributed += 1
+                    continue
+                line = code.count("\n", 0, match.start()) + 1
+                for surface, method in hits:
+                    triggers.append({
+                        "id": stable_behavior_id("trigger", source["path"], line, f"{api}:{surface}.{method}"),
+                        "kind": kind, "api": api, "view": view_type, "surface": surface, "method": method,
+                        "namespaces": sorted(methods_by_type.get(surface, {}).get(method, [])),
+                        "path": source["path"], "line": line,
+                        "authority": "observed", "evidence_class": "static_source",
+                        "rule_id": "swift.trigger.surface_call",
+                    })
+    triggers.sort(key=lambda item: (item["path"], item["line"], item["surface"], item["method"]))
+    counts: dict[str, dict[str, int]] = defaultdict(lambda: {"user_action": 0, "lifecycle": 0})
+    for trigger in triggers:
+        counts[trigger["surface"]][trigger["kind"]] += 1
+    for node in interplay["nodes"]:
+        if node["label"] in surface_types and node["kind"] in {"caller", "subscriber", "hub", "owner", "store"}:
+            node["triggers"] = dict(counts.get(node["label"], {"user_action": 0, "lifecycle": 0}))
+    interplay["triggers"] = triggers
+    interplay["unattributed_triggers"] = unattributed
+
+
+def attach_pages_to_interplay(interplay: dict[str, Any], page_of: dict[str, str],
+                              pages: list[dict[str, Any]], ties: dict[str, list[str]],
+                              config: dict[str, Any], files: list[dict[str, Any]]) -> None:
+    """Tag type-labelled interplay nodes with the navigation page that owns them.
+
+    Reachability decides first. A type two pages reach at the same distance, or
+    that no page's view tree reaches (a background service the shell starts), is
+    resolved by what the pages declare they own: first the RPC namespaces the type
+    invokes, then the component its file belongs to. Each node records which rule
+    placed it in `page_resolution`.
+    """
+    interplay["pages"] = pages
+    items = (config.get("pages") or {}).get("items", [])
+    page_namespaces = {page["id"]: set(page.get("namespaces", [])) for page in items}
+    page_components = {page["id"]: set(page.get("components", [])) for page in items}
+    all_pages = [page["id"] for page in items]
+
+    type_component: dict[str, str | None] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        for name in source["declarations"]:
+            type_component.setdefault(name, source["component"])
+
+    labelled = [node for node in interplay["nodes"] if node["kind"] in {"caller", "hub", "subscriber", "owner", "seam", "store"}]
+    invoked: dict[str, set[str]] = defaultdict(set)
+    for node in labelled:
+        for namespace in node.get("namespaces") or []:
+            invoked[node["label"]].add(namespace)
+
+    resolved: dict[str, tuple[str | None, str]] = {}
+    for node in labelled:
+        label = node["label"]
+        if label in resolved:
+            continue
+        page = page_of.get(label)
+        if page not in (None, "shared"):
+            resolved[label] = (page, "reachability")
+            continue
+        candidates = ties.get(label) if page == "shared" else (all_pages if page is None else [])
+        if not candidates:
+            resolved[label] = (page, "shared" if page == "shared" else "unreached")
+            continue
+        by_namespace = sorted(p for p in candidates if page_namespaces[p] & invoked.get(label, set()))
+        if len(by_namespace) == 1:
+            resolved[label] = (by_namespace[0], "namespace")
+            continue
+        component = type_component.get(label)
+        by_component = sorted(p for p in candidates if component and component in page_components[p])
+        if len(by_component) == 1:
+            resolved[label] = (by_component[0], "component")
+            continue
+        resolved[label] = (page, "shared" if page == "shared" else "unreached")
+
+    # Reference tie-break: a type still shared or unreached takes the single page of
+    # the surfaces whose files reference it (`uses` edges), if there is exactly one.
+    by_id = {node["id"]: node for node in interplay["nodes"]}
+    referencing_pages: dict[str, set[str]] = defaultdict(set)
+    for edge in interplay["edges"]:
+        if edge["relation"] != "uses":
+            continue
+        source = by_id.get(edge["source"])
+        target = by_id.get(edge["target"])
+        if source is None or target is None:
+            continue
+        page, _ = resolved.get(source["label"], (None, ""))
+        if page not in (None, "shared"):
+            referencing_pages[target["label"]].add(page)
+    for label, (page, rule) in list(resolved.items()):
+        if page in (None, "shared") and len(referencing_pages.get(label, set())) == 1:
+            resolved[label] = (next(iter(referencing_pages[label])), "reference")
+    for node in labelled:
+        page, rule = resolved[node["label"]]
+        node["page"] = page
+        node["page_resolution"] = rule
+    # A trigger belongs to the page whose view tree reaches the view it sits in.
+    for trigger in interplay.get("triggers", []):
+        view_page = page_of.get(trigger.get("view") or "")
+        trigger["page"] = view_page if view_page not in (None, "shared") else None
 
 
 def extract_external_usage(path: str, text: str, component: str | None,
@@ -1056,6 +1407,7 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ArchitectureError(f"edge has unknown endpoint: {edge}")
         validate_evidence(edge.get("evidence", []), f"edge {edge.get('source')} → {edge.get('target')}")
     validate_external_systems(config)
+    validate_pages(config)
 
 
 def validate_evidence(evidence: Any, owner: str) -> list[str]:
@@ -1203,27 +1555,9 @@ def normalized_strings(value: Any) -> list[str]:
     return sorted(set(item.strip() for item in value if item.strip()))
 
 
-def load_specifications(config: dict[str, Any]) -> list[dict[str, str]]:
-    specs: list[dict[str, str]] = []
-    for spec in config.get("specifications", []):
-        path = ROOT / str(spec["path"])
-        if not path.is_file():
-            raise ArchitectureError(f"missing specification: {spec['path']}")
-        specs.append(
-            {
-                "id": str(spec["id"]),
-                "title": str(spec["title"]),
-                "path": str(spec["path"]),
-                "markdown": path.read_text(encoding="utf-8").strip(),
-                "authority": "specified",
-            }
-        )
-    return specs
-
-
 def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
     collections: dict[str, list[dict[str, Any]]] = {
-        "execution_domains": [], "task_sites": [], "resources": [], "operations": []
+        "task_sites": [], "resources": [], "operations": []
     }
     for source in files:
         extracted = extract_behavioral_source(
@@ -1287,27 +1621,7 @@ def build_behavior_model(files: list[dict[str, Any]]) -> dict[str, Any]:
         if pocket["resource_ids"] or pocket["task_handle_ids"]:
             pockets.append(pocket)
 
-    operation_by_id = {item["id"]: item for item in collections["operations"]}
-    scenarios = []
-    for pocket in pockets:
-        operations = sorted(
-            (operation_by_id[item_id] for item_id in pocket["operation_ids"]),
-            key=lambda item: (item["evidence"]["path"], item["evidence"]["line"], item["id"]),
-        )
-        if not operations:
-            continue
-        scenarios.append({
-            "id": pocket["id"].replace("connectivity-pocket", "scenario"),
-            "pocket_id": pocket["id"],
-            "component": pocket["component"],
-            "owner_type": pocket["owner_type"],
-            "operation_ids": [item["id"] for item in operations],
-            "authority": "observed",
-            "derivation": (
-                "Evidence-backed source order within one static pocket; not a claim of runtime order."
-            ),
-        })
-    return {**collections, "pockets": pockets, "scenarios": scenarios}
+    return {**collections, "pockets": pockets}
 
 
 def build_interplay_graph(
@@ -1376,7 +1690,15 @@ def build_interplay_graph(
         and SEAM_PROTOCOL in source["identifiers"]
     }
     transport_owner_types = {owner_type for _, owner_type in transport_owners}
-    included_owner_keys = transport_owners | engine_owners
+    # An owner of a continuation pool that does not conform to the seam (a download
+    # manager, say) is still an in-memory construction with shared mutable state;
+    # it enters the graph with the `pool` role rather than `transport`.
+    pool_owners = {
+        (item["component"], item["owner_type"])
+        for item in resources
+        if item["kind"] == "rpc_pool" and (item["component"], item["owner_type"]) not in transport_owners
+    }
+    included_owner_keys = transport_owners | engine_owners | pool_owners
 
     def resource_included(item: dict[str, Any]) -> bool:
         return (item["component"], item["owner_type"]) in included_owner_keys
@@ -1418,9 +1740,15 @@ def build_interplay_graph(
             return "transport"
         return "support"
 
+    def role_for(component: str | None, owner_type: str, kind: str) -> str:
+        role = role_for_kind(kind)
+        if role == "transport" and (component, owner_type) in pool_owners:
+            return "pool"
+        return role
+
     resource_node_by_id: dict[str, str] = {}
     for resource in resources:
-        add_owner(resource["component"], resource["owner_type"], role_for_kind(resource["kind"]))
+        add_owner(resource["component"], resource["owner_type"], role_for(resource["component"], resource["owner_type"], resource["kind"]))
         node_id = f"resource:{resource['id']}"
         nodes[node_id] = {
             "id": node_id,
@@ -1435,7 +1763,62 @@ def build_interplay_graph(
         resource_node_by_id[resource["id"]] = node_id
         edges.add((owner_node_id(resource["component"], resource["owner_type"]), node_id, "structure", "owns"))
 
+    # Critical sections: for every function on an included owner that acquires a
+    # lock, the ordered operations in that function become one `section` node
+    # (lock → register → unlock → send …). Steps between an acquire and the next
+    # release are `guarded`. Only operation kinds the extractor already recognises
+    # participate; the raw pool operations a section covers are not drawn twice.
+    sectioned_operation_ids: set[str] = set()
+    grouped: dict[tuple[str | None, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for op in behavior["operations"]:
+        if (op["component"], op.get("owner_type")) not in included_owner_keys or not op.get("enclosing_function"):
+            continue
+        grouped[(op["component"], op["owner_type"], op["enclosing_function"])].append(op)
+    for (component, owner_type, function), ops in sorted(grouped.items(), key=lambda kv: (kv[0][0] or "", kv[0][1], kv[0][2])):
+        ops.sort(key=lambda op: (op["evidence"]["line"], op["id"]))
+        if not any(op["kind"] == "acquire" for op in ops):
+            continue
+        held: set[str] = set()
+        steps: list[dict[str, Any]] = []
+        lock_labels: set[str] = set()
+        guarded_resources: set[str] = set()
+        for op in ops:
+            resource = op.get("resource_label")
+            if op["kind"] == "acquire" and resource:
+                held.add(resource)
+                lock_labels.add(resource)
+            guarded = bool(held) and op["kind"] not in {"acquire", "release"}
+            if guarded and resource:
+                guarded_resources.add(resource)
+            steps.append({
+                "kind": op["kind"], "label": op["label"], "line": op["evidence"]["line"],
+                "resource_label": resource, "guarded": guarded,
+            })
+            if op["kind"] == "release" and resource:
+                held.discard(resource)
+            if op["kind"] in INTERPLAY_OP_KINDS:
+                sectioned_operation_ids.add(op["id"])
+        section_id = f"section:{component or 'unassigned'}:{owner_type}:{function}"
+        add_owner(component, owner_type, "support")
+        nodes[section_id] = {
+            "id": section_id, "kind": "section", "sub_kind": "critical_section",
+            "label": function, "component": component, "owner_type": owner_type,
+            "lock_labels": sorted(lock_labels), "guarded_resources": sorted(guarded_resources),
+            "steps": steps, "path": ops[0]["evidence"]["path"], "line": ops[0]["evidence"]["line"],
+        }
+        edges.add((owner_node_id(component, owner_type), section_id, "lifecycle", "operates"))
+        for op in ops:
+            target = resource_node_by_id.get(op.get("resource_id"))
+            if target is None:
+                continue
+            if op["kind"] == "acquire":
+                edges.add((section_id, target, "lifecycle", "locks"))
+            elif op["kind"] != "release":
+                edges.add((section_id, target, "lifecycle", op["kind"]))
+
     for operation in operations:
+        if operation["id"] in sectioned_operation_ids:
+            continue
         node_id = f"operation:{operation['id']}"
         nodes[node_id] = {
             "id": node_id,
@@ -1451,7 +1834,7 @@ def build_interplay_graph(
         }
         owner_type = operation.get("owner_type")
         if owner_type:
-            role = "engine" if operation["kind"] in {"model_load", "model_infer"} else "transport"
+            role = "engine" if operation["kind"] in {"model_load", "model_infer"} else role_for(operation["component"], owner_type, "rpc_pool")
             add_owner(operation["component"], owner_type, role)
             edges.add((owner_node_id(operation["component"], owner_type), node_id, "lifecycle", "operates"))
         target_resource = resource_node_by_id.get(operation.get("resource_id"))
@@ -1587,13 +1970,25 @@ def build_interplay_graph(
                 code = strip_swift_noncode(source["_text"])
                 for match in re.finditer(r"\.\s*eventStream\b", code):
                     owner_type, _ = enclosing_context(code, match.start())
-                    if not owner_type or owner_type in transport_owner_by_type or owner_type in special_types:
+                    if not owner_type or owner_type in transport_owner_by_type:
+                        continue
+                    subscription = parse_bus_subscription(code, match.end())
+                    subscription["path"] = source["path"]
+                    subscription["line"] = code.count("\n", 0, match.start()) + 1
+                    if owner_type in special_types:
+                        # A hub that binds the bus is notified like any subscriber; it keeps
+                        # its hub node rather than gaining a second box.
+                        hub_id = f"hub:{owner_type}"
+                        if hub_id in nodes:
+                            edges.add((bus_node_id, hub_id, "interplay", "notifies"))
+                            nodes[hub_id].setdefault("subscription", subscription)
                         continue
                     if owner_type not in subscriber_types:
                         decl = decl_index.get(owner_type)
                         subscriber_types[owner_type] = {
                             "path": decl["path"] if decl else source["path"],
                             "line": decl["line"] if decl else code.count("\n", 0, match.start()) + 1,
+                            "subscription": subscription,
                         }
             for sub_type in sorted(subscriber_types):
                 info = subscriber_types[sub_type]
@@ -1601,6 +1996,7 @@ def build_interplay_graph(
                 nodes[sub_id] = {
                     "id": sub_id, "kind": "subscriber", "label": sub_type,
                     "component": None, "owner_type": "Event subscribers",
+                    "subscription": info["subscription"],
                     "path": info["path"], "line": info["line"],
                 }
                 edges.add((bus_node_id, sub_id, "interplay", "notifies"))
@@ -1672,9 +2068,11 @@ def build_interplay_graph(
         # one implemented in `GatewayClient+Wiki.swift` goes through a `client`
         # node for that file, which the core transport `extends`.
         core_path = file_by_type[owner_type]["path"] if owner_type in file_by_type else None
+        # The core transport dispatches every namespace it serves, whichever file
+        # hosts the wrapper: one object owns the pool and the socket the call rides.
+        edges.add((owner_node_id(component, owner_type), ep_id, "structure", "dispatches"))
         for path, line in sorted(group["files"].items()):
             if path == core_path:
-                edges.add((owner_node_id(component, owner_type), ep_id, "structure", "calls"))
                 continue
             stem = Path(path).stem
             client_id = f"client:{component or 'unassigned'}:{stem}"
@@ -1687,7 +2085,9 @@ def build_interplay_graph(
                 }
             client["line"] = min(client["line"], line)
             client["namespaces"].add(namespace)
-            edges.add((owner_node_id(component, owner_type), client_id, "structure", "extends"))
+            client.setdefault("endpoint_ids", set()).add(ep_id)
+            # An extension file is a facade: its wrappers route through the core.
+            edges.add((client_id, owner_node_id(component, owner_type), "structure", "routes-through"))
             edges.add((client_id, ep_id, "structure", "implements"))
         for pool in resources:
             if pool["kind"] == "rpc_pool" and pool["owner_type"] == owner_type and pool["component"] == component:
@@ -1719,16 +2119,21 @@ def build_interplay_graph(
     def record_caller(caller_type: str | None, source: dict[str, Any], namespace: str, offset: int) -> None:
         if not caller_type or caller_type in transport_owner_types:
             return
+        code = masked_code(source)
         entry = caller_namespaces.setdefault(
             caller_type,
             {
                 "component": source["component"],
                 "namespaces": set(),
+                "methods": defaultdict(set),
                 "path": source["path"],
-                "line": strip_swift_noncode(source["_text"]).count("\n", 0, offset) + 1,
+                "line": code.count("\n", 0, offset) + 1,
             },
         )
         entry["namespaces"].add(namespace)
+        _, method = enclosing_context(code, offset)
+        if method:
+            entry["methods"][method].add(namespace)
 
     for source in sorted(files, key=lambda item: item["path"]):
         code = strip_swift_noncode(source["_text"])
@@ -1762,12 +2167,46 @@ def build_interplay_graph(
         nodes[caller_id] = {
             "id": caller_id, "kind": "caller", "sub_kind": "page",
             "label": caller_type, "component": info["component"], "namespaces": namespaces,
+            "methods": {method: sorted(ns) for method, ns in sorted(info["methods"].items())},
             "path": decl["path"] if decl else info["path"],
             "line": decl["line"] if decl else info["line"],
         }
         for namespace in namespaces:
             for ep_id in endpoint_ids_by_namespace[namespace]:
                 edges.add((caller_id, ep_id, "usage", "invokes"))
+        # The surface calls the extension file whose wrappers cover the namespace.
+        for namespace in namespaces:
+            for client in nodes.values():
+                if client["kind"] == "client" and namespace in client["namespaces"]:
+                    edges.add((caller_id, client["id"], "usage", "calls"))
+        # The surface holds a reference to the one shared client (or to the seam it
+        # is typed against): every page competes for the same pool and socket.
+        caller_source = file_by_type.get(caller_type)
+        caller_identifiers = set(caller_source["identifiers"]) if caller_source else set()
+        for owner_type, component in sorted(transport_owner_by_type.items()):
+            if owner_type in caller_identifiers:
+                edges.add((caller_id, owner_node_id(component, owner_type), "usage", "holds"))
+        if seam_node_id is not None and SEAM_PROTOCOL in caller_identifiers:
+            edges.add((caller_id, seam_node_id, "usage", "holds"))
+
+    # Owner references: which callers, hubs, and subscribers name a non-transport
+    # owner type (an on-device engine, a speech engine, a support owner) in their
+    # declaring file. Same-file identifier evidence only. The site uses these
+    # `uses` edges to place a single-feature engine — and the resources and
+    # operations it owns — inside that feature's zone instead of the shared core.
+    owner_nodes = [node for node in nodes.values() if node["kind"] == "owner"]
+    for node in list(nodes.values()):
+        if node["kind"] not in {"caller", "hub", "subscriber"}:
+            continue
+        source = file_by_type.get(node["label"])
+        if source is None:
+            continue
+        identifiers = set(source["identifiers"])
+        for owner in owner_nodes:
+            if owner["label"] in transport_owner_types or owner["label"] == node["label"]:
+                continue
+            if owner["label"] in identifiers:
+                edges.add((node["id"], owner["id"], "usage", "uses"))
 
     # SSE replay cursor: the REST/SSE transport's "where was I" construction — the
     # push-leg analog of the pool+socket, feeding replayed events back to the bus.
@@ -1832,6 +2271,7 @@ def build_interplay_graph(
             node["roles"] = sorted(node["roles"])
         if node["kind"] == "client":
             node["namespaces"] = sorted(node["namespaces"])
+            node["endpoint_ids"] = sorted(node.get("endpoint_ids", set()))
     for cluster in clusters.values():
         cluster["node_ids"] = sorted(set(cluster["node_ids"]))
 
@@ -1904,7 +2344,7 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
     storage_system = {system["persistence"]: system["id"] for system in systems if system.get("persistence")}
     store_by_type = {item["type_name"]: item for item in stores["items"]}
     for node in nodes:
-        if node["kind"] not in {"subscriber", "owner", "hub"}:
+        if node["kind"] not in {"subscriber", "owner", "hub", "store", "caller"}:
             continue
         store = store_by_type.get(node["label"])
         if store is None:
@@ -1957,6 +2397,227 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
     interplay["edges"].sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
     nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
     interplay["clusters"].sort(key=lambda item: item["id"])
+
+
+INVARIANT_KINDS = {
+    "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
+    "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
+    "stores_mapped", "triggers_observed",
+}
+
+
+def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str, Any],
+                                  invariants: dict[str, Any], stores: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Check the declared constructions the interplay graph assumes against the extracted model.
+
+    Each invariant names the shape a rendering relies on (one transport, every
+    surface holding it, pool mutations under the lock, resolves outside it, …).
+    A violation fails the build with the invariant's id, the evidence, and the
+    declared reason, so a source change that drifts from the assumption is
+    caught here rather than silently degrading the graph.
+    """
+    if invariants.get("schema_version") != "1.0.0" or not isinstance(invariants.get("entries", invariants.get("invariants")), list):
+        raise ArchitectureError("architecture/interplay/invariants.json has an unsupported schema")
+    entries = invariants.get("invariants", [])
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    by_id = {node["id"]: node for node in nodes}
+    violations: list[str] = []
+    results: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    def owners_with_role(role: str) -> list[dict[str, Any]]:
+        return [node for node in nodes if node["kind"] == "owner" and role in node.get("roles", [])]
+
+    def resource(owner: str, label: str) -> dict[str, Any] | None:
+        return next((n for n in nodes if n["kind"] == "resource" and n.get("owner_type") == owner and n["label"] == label), None)
+
+    def site(op: dict[str, Any]) -> str:
+        return f"{op['evidence']['path']}:{op['evidence']['line']}"
+
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("id"), str) or entry.get("kind") not in INVARIANT_KINDS:
+            raise ArchitectureError(f"interplay invariant has an invalid id/kind: {entry!r}")
+        if entry["id"] in seen_ids:
+            raise ArchitectureError(f"duplicate interplay invariant id {entry['id']}")
+        seen_ids.add(entry["id"])
+        if not isinstance(entry.get("why"), str) or not entry["why"].strip():
+            raise ArchitectureError(f"interplay invariant {entry['id']} needs a why")
+        kind = entry["kind"]
+        problems: list[str] = []
+        checked = 0
+
+        if kind == "single_transport":
+            transports = sorted(node["label"] for node in owners_with_role("transport"))
+            checked = len(transports)
+            if transports != sorted(entry.get("transports", [])):
+                problems.append(f"transport owners are {transports}, declared {sorted(entry.get('transports', []))}")
+            if not any(node["kind"] == "seam" and node["label"] == entry.get("seam") for node in nodes):
+                problems.append(f"seam {entry.get('seam')!r} not found")
+
+        elif kind == "surfaces_hold_transport":
+            transport = next((n for n in owners_with_role("transport") if n["label"] == entry.get("transport")), None)
+            seam_ids = {n["id"] for n in nodes if n["kind"] == "seam"}
+            if transport is None:
+                problems.append(f"transport {entry.get('transport')!r} not found")
+            else:
+                holds = {e["source"] for e in edges if e["relation"] == "holds" and (e["target"] == transport["id"] or e["target"] in seam_ids)}
+                callers = [n for n in nodes if n["kind"] == "caller"]
+                checked = len(callers)
+                missing = sorted(n["label"] for n in callers if n["id"] not in holds)
+                if missing:
+                    problems.append(f"surfaces without a reference to the core or the seam: {missing}")
+
+        elif kind == "pool_guarded_by_lock":
+            owner, pool, lock = entry.get("owner"), entry.get("pool"), entry.get("lock")
+            if resource(owner, pool) is None or resource(owner, lock) is None:
+                problems.append(f"pool {pool!r} or lock {lock!r} not observed on {owner!r}")
+            else:
+                sections = {n["label"]: n for n in nodes if n["kind"] == "section" and n.get("owner_type") == owner}
+                pool_ops = [op for op in behavior["operations"] if op.get("owner_type") == owner and op.get("resource_label") == pool]
+                checked = len(pool_ops)
+
+                def step_for(op: dict[str, Any]) -> dict[str, Any] | None:
+                    section = sections.get(op.get("enclosing_function") or "")
+                    if section is None:
+                        return None
+                    return next((st for st in section["steps"] if st["line"] == op["evidence"]["line"] and st["kind"] == op["kind"]), None)
+
+                for op in pool_ops:
+                    step = step_for(op)
+                    if op["kind"] in {"pool_register", "pool_remove"}:
+                        section = sections.get(op.get("enclosing_function") or "")
+                        if step is None or not step["guarded"] or section is None or lock not in section["lock_labels"]:
+                            problems.append(f"pool mutation {op['kind']} outside {lock} at {site(op)}")
+                    elif op["kind"] == "pool_resolve" and entry.get("resolve_outside_lock", True):
+                        if step is not None and step["guarded"]:
+                            problems.append(f"continuation resumed while holding {lock} at {site(op)}")
+                if entry.get("send_outside_lock", True):
+                    registering = {op.get("enclosing_function") for op in pool_ops if op["kind"] == "pool_register"}
+                    for op in behavior["operations"]:
+                        if op.get("owner_type") == owner and op["kind"] == "send" and op.get("enclosing_function") in registering:
+                            step = step_for(op)
+                            if step is not None and step["guarded"]:
+                                problems.append(f"socket write while holding {lock} at {site(op)}")
+
+        elif kind == "pool_lifecycle_observed":
+            owner, pool = entry.get("owner"), entry.get("pool")
+            counts: dict[str, int] = defaultdict(int)
+            for op in behavior["operations"]:
+                if op.get("owner_type") == owner and op.get("resource_label") == pool:
+                    counts[op["kind"]] += 1
+            checked = sum(counts.values())
+            for op_kind, minimum in (entry.get("min") or {}).items():
+                if counts.get(op_kind, 0) < int(minimum):
+                    problems.append(f"{op_kind} observed {counts.get(op_kind, 0)}× on {owner}.{pool}, need ≥ {minimum}")
+
+        elif kind == "operations_resolve_scope":
+            unresolved = [op for op in behavior["operations"] if not op.get("enclosing_function")]
+            checked = len(behavior["operations"])
+            if unresolved:
+                problems.append("operations with no enclosing function: " + ", ".join(site(op) for op in unresolved[:6]))
+
+        elif kind == "endpoints_dispatched_by_transport":
+            transport_ids = {n["id"] for n in owners_with_role("transport")}
+            dispatched = {e["target"] for e in edges if e["relation"] == "dispatches" and e["source"] in transport_ids}
+            endpoints = [n for n in nodes if n["kind"] == "endpoint"]
+            checked = len(endpoints)
+            missing = sorted(n["label"] for n in endpoints if n["id"] not in dispatched)
+            if missing:
+                problems.append(f"namespaces not dispatched by a transport core: {missing}")
+
+        elif kind == "stores_mapped":
+            labels = {node["label"] for node in nodes}
+            items = (stores or {}).get("items", [])
+            checked = len(items)
+            missing = sorted(item["type_name"] for item in items if item["type_name"] not in labels)
+            if missing:
+                problems.append(f"stores extracted but absent from the map: {missing}")
+
+        elif kind == "triggers_observed":
+            allow_empty = set(entry.get("allow_empty", []))
+            pages = interplay.get("pages", [])
+            triggered: dict[str, int] = defaultdict(int)
+            for trigger in interplay.get("triggers", []):
+                if trigger.get("page"):
+                    triggered[trigger["page"]] += 1
+            checked = len(interplay.get("triggers", []))
+            silent = sorted(p["id"] for p in pages if triggered.get(p["id"], 0) == 0 and p["id"] not in allow_empty)
+            if silent:
+                problems.append(f"pages whose views trigger no surface: {silent}")
+            if checked < int(entry.get("min", 1)):
+                problems.append(f"only {checked} attributed trigger(s) observed, need ≥ {entry.get('min', 1)}")
+
+        elif kind == "pages_populated":
+            allow_empty = set(entry.get("allow_empty", []))
+            owned: dict[str, int] = defaultdict(int)
+            for node in nodes:
+                if node.get("page"):
+                    owned[node["page"]] += 1
+            pages = interplay.get("pages", [])
+            checked = len(pages)
+            empty = sorted(p["id"] for p in pages if owned.get(p["id"], 0) == 0 and p["id"] not in allow_empty)
+            if empty:
+                problems.append(f"pages that own no construct: {empty}")
+
+        results.append({"id": entry["id"], "kind": kind, "status": "violated" if problems else "holds",
+                        "checked": checked, "why": entry["why"]})
+        for problem in problems:
+            violations.append(f"{entry['id']}: {problem} (why: {entry['why']})")
+
+    if violations:
+        raise ArchitectureError("interplay invariants violated:\n - " + "\n - ".join(violations))
+    return results
+
+
+TRIGGER_PROPERTY_RE = re.compile(
+    r"@(?:StateObject|ObservedObject|EnvironmentObject|Bindable|State)\s+(?:(?:private|internal|fileprivate)\s+)?"
+    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*(?::\s*(?P<annot>[A-Z][A-Za-z0-9_]*))?(?:\s*=\s*(?P<init>[A-Z][A-Za-z0-9_]*)\s*(?:\(|\.))?"
+)
+TRIGGER_PATTERNS = [
+    ("user_action", "Button", re.compile(r"\bButton\s*(?:\(|\{)")),
+    ("user_action", "onTapGesture", re.compile(r"\.onTapGesture\b")),
+    ("user_action", "keyboardShortcut", re.compile(r"\.keyboardShortcut\s*\(")),
+    ("user_action", "onSubmit", re.compile(r"\.onSubmit\b")),
+    ("user_action", "swipeActions", re.compile(r"\.swipeActions\b")),
+    ("user_action", "refreshable", re.compile(r"\.refreshable\b")),
+    ("user_action", "Toggle", re.compile(r"\bToggle\s*\(")),
+    ("user_action", "Picker", re.compile(r"\bPicker\s*\(")),
+    ("lifecycle", "onAppear", re.compile(r"\.onAppear\b")),
+    ("lifecycle", "task", re.compile(r"\.task\s*(?:\(|\{)")),
+    ("lifecycle", "onChange", re.compile(r"\.onChange\s*\(")),
+    ("lifecycle", "onReceive", re.compile(r"\.onReceive\s*\(")),
+    ("lifecycle", "onDisappear", re.compile(r"\.onDisappear\b")),
+]
+TRIGGER_CALL_RE = re.compile(r"\b([a-z_][A-Za-z0-9_]*)\s*[?!]?\s*\.\s*([a-z_][A-Za-z0-9_]*)\s*\(")
+# A bare call to a same-file function from inside an action body: `refresh()`, `await confirmDelete()`.
+TRIGGER_HELPER_CALL_RE = re.compile(r"(?<![.\w])([a-z_][A-Za-z0-9_]*)\s*\(")
+
+BUS_BATCH_RE = re.compile(
+    r"\.\s*collect\s*\(\s*\.byTimeOrCount\s*\(\s*([A-Za-z_.]+)\s*,\s*\.milliseconds\s*\(\s*(\d+)\s*\)\s*,\s*(\d+)\s*\)"
+)
+BUS_RECEIVE_RE = re.compile(r"\.\s*receive\s*\(\s*on\s*:\s*([A-Za-z_.]+)")
+
+
+def parse_bus_subscription(code: str, offset: int) -> dict[str, Any]:
+    """Describe how a `.eventStream` binding is scheduled, from the operators that follow it.
+
+    Looks at the operator chain immediately after the binding (up to the sink or
+    the next statement) for a `collect(.byTimeOrCount(scheduler, .milliseconds(N), M))`
+    batching window or a `receive(on:)` scheduler. Absent both, the delivery is
+    direct on the publishing thread.
+    """
+    window = code[offset:offset + 400]
+    cut = re.search(r"\.\s*sink\b|\n\s*\n|;", window)
+    chain = window[:cut.end()] if cut else window
+    batch = BUS_BATCH_RE.search(chain)
+    if batch:
+        return {"mode": "batched", "scheduler": batch.group(1), "batch_ms": int(batch.group(2)),
+                "batch_count": int(batch.group(3)), "rule_id": "swift.resource.bus_subscription"}
+    receive = BUS_RECEIVE_RE.search(chain)
+    if receive:
+        return {"mode": "direct", "scheduler": receive.group(1), "rule_id": "swift.resource.bus_subscription"}
+    return {"mode": "direct", "scheduler": None, "rule_id": "swift.resource.bus_subscription"}
 
 
 def interplay_overlay_key(kind: str, owner_type: str | None, label: str) -> str:
@@ -2073,7 +2734,12 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     validate_interplay(interplay, load_json(INTERPLAY_OVERLAY_PATH))
     externals = build_externals_model(files, config)
     stores = build_stores_model(files)
+    attach_stores_to_interplay(interplay, stores, files)
     attach_externals_to_interplay(interplay, externals, stores)
+    attach_triggers_to_interplay(interplay, files)
+    page_of_type, pages, page_ties = assign_pages(files, config)
+    attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
+    interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -2102,7 +2768,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
             "unassigned_files": unassigned,
         },
     }
-    site_data = {"model": model, "specifications": load_specifications(config)}
+    site_data = {"model": model}
     return model, site_data
 
 

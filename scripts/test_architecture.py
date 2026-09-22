@@ -57,33 +57,10 @@ class ArchitectureCompilerTests(unittest.TestCase):
             json.dumps(second_site_data, sort_keys=True),
         )
 
-    def test_specifications_are_human_authoritative(self) -> None:
-        self.assertGreaterEqual(len(self.site_data["specifications"]), 3)
-        self.assertTrue(
-            all(item["authority"] == "specified" for item in self.site_data["specifications"])
-        )
-
     def test_backend_contract_keeps_key_seam(self) -> None:
         backend = next(item for item in self.model["components"] if item["id"] == "backend-contract")
         self.assertIn("AgentBackend", backend["declarations"])
         self.assertIn("GatewayEvent", backend["declarations"])
-
-    def test_extracts_main_actor_and_actor_execution_domains(self) -> None:
-        source = """@MainActor
-final class ScreenModel {}
-
-actor MessagePump {}
-"""
-        behavior = architecture.extract_behavioral_source(
-            "Sources/Portal/Fixture.swift", source, "orchestration"
-        )
-
-        self.assertEqual(
-            [("main_actor", "ScreenModel", 1), ("actor", "MessagePump", 4)],
-            [(item["kind"], item["label"], item["evidence"]["line"]) for item in behavior["execution_domains"]],
-        )
-        self.assertTrue(all(item["authority"] == "observed" for item in behavior["execution_domains"]))
-        self.assertTrue(all(item["rule_id"].startswith("swift.execution.") for item in behavior["execution_domains"]))
 
     def test_extracts_task_sites_handles_and_cancellation(self) -> None:
         source = """final class Loader {
@@ -171,10 +148,8 @@ actor MessagePump {}
             "Sources/Portal/EventBuffer.swift", source, "event-pipeline"
         )
 
-        self.assertEqual(["dispatch_queue"], [item["kind"] for item in behavior["execution_domains"]])
         self.assertEqual(["combine_subject"], [item["kind"] for item in behavior["resources"]])
         self.assertEqual(["publish", "batch", "hop"], [item["kind"] for item in behavior["operations"]])
-        self.assertEqual("events", behavior["execution_domains"][0]["runtime_label"])
 
     def test_ignores_behavior_tokens_in_comments_and_strings(self) -> None:
         source = '''final class Harmless {
@@ -189,7 +164,6 @@ actor MessagePump {}
             "Sources/Portal/Harmless.swift", source, "shared-ui"
         )
 
-        self.assertEqual([], behavior["execution_domains"])
         self.assertEqual([], behavior["task_sites"])
         self.assertEqual([], behavior["resources"])
         self.assertEqual([], behavior["operations"])
@@ -199,12 +173,11 @@ actor MessagePump {}
         self.assertEqual("static_source", self.model["evidence_metadata"]["class"])
         self.assertTrue(self.model["evidence_metadata"]["limitations"])
         self.assertEqual(sorted(architecture.BEHAVIOR_RULES), sorted(self.model["evidence_metadata"]["rules"]))
-        self.assertTrue(behavior["execution_domains"])
         self.assertTrue(behavior["task_sites"])
         self.assertTrue(behavior["resources"])
         self.assertTrue(behavior["pockets"])
         self.assertTrue(all("static ownership/lifecycle cluster" in item["derivation"] for item in behavior["pockets"]))
-        for collection in ("execution_domains", "task_sites", "resources", "operations"):
+        for collection in ("task_sites", "resources", "operations"):
             evidence = [
                 (item["evidence"]["path"], item["evidence"]["line"], item["id"])
                 for item in behavior[collection]
@@ -272,14 +245,14 @@ actor MessagePump {}
 
     def test_behavior_site_has_navigation_and_semantic_view_sections(self) -> None:
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
-        for view in ("execution", "connections", "scenarios"):
+        for view in ("connections",):
             self.assertRegex(index, rf'<button[^>]+data-view="{view}"')
             self.assertRegex(index, rf'<section[^>]+id="{view}-view"')
             self.assertRegex(index, rf'id="{view}-content"')
 
     def test_behavior_site_has_deterministic_renderers_and_line_provenance(self) -> None:
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        for renderer in ("renderExecution", "renderConnections", "renderScenarios"):
+        for renderer in ("renderConnections",):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         self.assertRegex(app, r"function\s+sourceLink\s*\(")
         self.assertIn("#L${evidence.line}", app)
@@ -296,19 +269,52 @@ actor MessagePump {}
         self.assertIn('"architecture/semantic/components.json"', semantic_assignment.group(1))
         self.assertNotIn("model.behavior", agent)
 
-    def test_inspector_references_portal_code_graph_for_services(self) -> None:
+    def test_system_map_is_the_interplay_graph_with_an_invariants_dropdown(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
-        # The service code graph lives in the Portal app; the static site
-        # references it (deep-link fallback) rather than embedding a graph,
-        # keeping the generated outputs dependency-free and byte-deterministic.
-        self.assertRegex(app, r"function\s+codeGraphReference\s*\(")
-        self.assertIn("codeGraphReference(component)", app)
-        # Gated to integration-layer (service) components only.
-        self.assertIn('component.layer === "integration"', app)
-        # Reference text builds via textContent (element()), never innerHTML —
-        # the XSS invariant test guards `innerHTML = item.` globally; assert the
-        # reference does not regress the safe-DOM idiom.
-        self.assertIn("View code graph", app)
+        # The layered component map is gone; the interplay graph is the System map.
+        self.assertNotIn('id="graph-view"', index)
+        self.assertNotIn('data-view="graph"', index)
+        self.assertRegex(index, r'<button[^>]+data-view="systemmap"[^>]*>System map</button>')
+        self.assertRegex(index, r'<section class="view active" id="systemmap-view"')
+        self.assertIn('replace(/^(graph|interplay)$/, "systemmap")', app)
+        for removed in ("renderGraph", "selectComponent", "applyGraphState", "codeGraphReference", "renderStats"):
+            self.assertNotRegex(app, rf"function\s+{removed}\s*\(")
+        # Invariants are selectable from a dropdown that opens a plain description
+        # panel; the selection never touches the graph.
+        self.assertIn('id="invariant-select"', index)
+        self.assertIn('id="invariant-detail"', index)
+        for renderer in ("renderInvariantSelect", "renderInvariantDetail"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertNotIn("invariantFocus", app)
+        kinds = {item["kind"] for item in self.model["interplay"]["invariants"]}
+        for kind in kinds:
+            self.assertIn(f"{kind}:", app)
+        # Live objects holding stored resources have their own hull.
+        self.assertIn('INTERPLAY_MEMORY_GROUP = "In-memory constructions"', app)
+        # Stores, pool owners and page→surface trigger edges are drawn.
+        self.assertIn('["trigger", "#9fd18b"', app)
+        for renderer in ("drawTriggerEdges", "triggerProvenance", "surfaceNodeFor"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertIn('rect.setAttribute("class", "store")', app)
+        # Directed edges with highlight-only relation labels, request-path highlighting, closable side inspector.
+        self.assertIn('"marker-end": `url(#arrow-${edgeClass})`', app)
+        self.assertIn('class: "interplay-edge-label"', app)
+        for renderer in ("flowEdgeKeys", "interplayLinkMidpoint"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        self.assertIn('close.className = "inspector-close"', app)
+        self.assertIn('workspace.classList.toggle("has-inspector"', app)
+        # Radial layout: in-memory constructions in the centre, pages ringed around them.
+        self.assertIn('const sideOrder = ["top", "right", "bottom", "left"];', app)
+        self.assertIn("INTERPLAY_MEMORY_GROUP, kind: \"memory\"", app)
+        # The transport is one construction with two legs: a collapsible core and the event stream.
+        self.assertIn('TRANSPORT_NODE_ID = "transport:core"', app)
+        self.assertIn("const expandedOwners = new Set()", app)
+        self.assertIn("REQUEST LEG · TRANSPORT CORE", app)
+        self.assertIn("PUSH LEG · EVENT STREAM", app)
+        self.assertNotIn("INTERPLAY_BUS_GROUP", app)
+        self.assertIn('["push", "#d16f86"', app)
+        self.assertRegex(app, r"function\s+subscriptionLabel\s*\(")
 
     def test_serialized_generated_outputs_are_byte_deterministic(self) -> None:
         first = architecture.expected_outputs()
@@ -444,6 +450,261 @@ actor MessagePump {}
             self.assertEqual("External systems", clusters[node["cluster"]]["owner_type"])
             self.assertEqual("specified", node["description_authority"])
 
+    def test_interplay_tags_nodes_with_the_navigation_page_that_reaches_them(self) -> None:
+        interplay = self.model["interplay"]
+        config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
+        self.assertEqual([p["id"] for p in config["pages"]["items"]], [p["id"] for p in interplay["pages"]])
+        page_by_label = {n["label"]: n.get("page") for n in interplay["nodes"] if n["kind"] in {"caller", "hub", "owner", "subscriber"}}
+        self.assertEqual("chat", page_by_label["ChatViewModel"])
+        self.assertEqual("graphs", page_by_label["CronGraphViewModel"])
+        self.assertEqual("graphs", page_by_label["WikiGraphViewModel"])
+        # Reached at the same distance by several roots; resolved by the namespaces
+        # and components the pages declare they own.
+        self.assertEqual("cron", page_by_label["CronListViewModel"])
+        self.assertEqual("sessions", page_by_label["SessionListViewModel"])
+        self.assertEqual("artifacts", page_by_label["ArtifactStore"])
+        self.assertEqual("skills", page_by_label["SkillStore"])
+        # Started by the shell, reached by no page's view tree: placed by the namespace it invokes.
+        self.assertEqual("cron", page_by_label["CronPoller"])
+        resolutions = {n["label"]: n.get("page_resolution") for n in interplay["nodes"] if "page_resolution" in n}
+        self.assertEqual("reachability", resolutions["ChatViewModel"])
+        self.assertEqual("namespace", resolutions["CronListViewModel"])
+        self.assertEqual("component", resolutions["ArtifactStore"])
+        self.assertEqual("skills", page_by_label["SkillSummaryService"])
+        self.assertEqual("feed", page_by_label["FeedViewModel"])
+        self.assertEqual("files", page_by_label["FilesBrowserViewModel"])
+        # The transport is reached from everywhere and never owned by a page.
+        self.assertIn(page_by_label["GatewayClient"], {"shared", None})
+        page_ids = {p["id"] for p in interplay["pages"]} | {"shared", None}
+        for node in interplay["nodes"]:
+            if "page" in node:
+                self.assertIn(node["page"], page_ids)
+
+    def test_page_assignment_prefers_the_closest_page_and_shares_ties(self) -> None:
+        files = [
+            {"path": "a/ChatView.swift", "declarations": ["ChatView"], "identifiers": ["ChatView", "ChatViewModel", "Shared"]},
+            {"path": "a/ChatViewModel.swift", "declarations": ["ChatViewModel"], "identifiers": ["ChatViewModel", "Engine"]},
+            {"path": "a/Engine.swift", "declarations": ["Engine"], "identifiers": ["Engine"]},
+            {"path": "a/CronView.swift", "declarations": ["CronView"], "identifiers": ["CronView", "Shared", "ChatView"]},
+            {"path": "a/Shared.swift", "declarations": ["Shared"], "identifiers": ["Shared"]},
+            {"path": "a/ContentView.swift", "declarations": ["ContentView"], "identifiers": ["ContentView", "ChatView", "CronView", "Engine"]},
+        ]
+        config = {"pages": {"shell": ["ContentView"], "items": [
+            {"id": "chat", "label": "Chat", "roots": ["ChatView"]},
+            {"id": "cron", "label": "Cron", "roots": ["CronView"]},
+        ]}}
+        page_of, pages, ties = architecture.assign_pages(files, config)
+        self.assertEqual({"Shared": ["chat", "cron"]}, ties)
+        self.assertEqual("chat", page_of["ChatViewModel"])
+        self.assertEqual("chat", page_of["Engine"])          # reached through ChatViewModel only
+        self.assertEqual("shared", page_of["Shared"])        # both roots reach it at depth 1
+        self.assertEqual("cron", page_of["CronView"])
+        self.assertNotIn("ContentView", page_of)             # shell is never entered
+        self.assertEqual("chat", page_of["ChatView"])        # another page's root is a boundary, not a member
+        self.assertEqual([("chat", 3), ("cron", 1)], [(p["id"], p["type_count"]) for p in pages])
+
+    def test_scope_resolution_handles_multi_line_signatures(self) -> None:
+        snippet = (
+            "final class Client {\n"
+            "    internal func call(\n"
+            "        _ method: String,\n"
+            "        params: [String: Int]? = nil\n"
+            "    ) async throws -> Int {\n"
+            "        lock.lock()\n"
+            "        return 1\n"
+            "    }\n"
+            "    func other() -> Bool { true }\n"
+            "}\n"
+            "protocol P { func requirement() -> Int; func again() }\n"
+        )
+        offset = snippet.index("lock.lock()")
+        self.assertEqual(("Client", "call"), architecture.enclosing_context(snippet, offset))
+        offset_other = snippet.index("true")
+        self.assertEqual(("Client", "other"), architecture.enclosing_context(snippet, offset_other))
+        # Body-less protocol requirements never swallow a later brace.
+        blocks = {name: kind for _, _, kind, name in architecture.declaration_blocks(snippet)}
+        self.assertNotIn("requirement", blocks)
+        self.assertNotIn("again", blocks)
+
+    def test_interplay_assembles_lock_guarded_critical_sections_and_holds_edges(self) -> None:
+        interplay = self.model["interplay"]
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        sections = {node["label"]: node for node in interplay["nodes"] if node["kind"] == "section" and node["owner_type"] == "GatewayClient"}
+        self.assertIn("call", sections)
+        self.assertIn("fulfillRequest", sections)
+        call = sections["call"]
+        kinds = [step["kind"] for step in call["steps"]]
+        self.assertEqual(["acquire", "pool_register", "release"], kinds[:3])
+        self.assertIn("send", kinds)
+        self.assertLess(kinds.index("release"), kinds.index("send"))  # the lock is not held across the socket write
+        self.assertEqual(["pendingRequestsLock"], call["lock_labels"])
+        self.assertEqual(["pendingRequests"], call["guarded_resources"])
+        # Resolution happens outside the lock; the pool mutation happens inside it.
+        fulfill = [step["kind"] for step in sections["fulfillRequest"]["steps"]]
+        self.assertEqual(["acquire", "pool_remove", "release", "pool_resolve"], fulfill)
+        self.assertEqual(["pendingRequests"], sections["fulfillRequest"]["guarded_resources"])
+        self.assertIn("swift.lifecycle.pool_remove", self.model["evidence_metadata"]["rules"])
+        self.assertTrue(call["steps"][1]["guarded"])
+        self.assertFalse(call["steps"][kinds.index("send")]["guarded"])
+        relations = {(e["relation"], by_id[e["target"]]["label"]) for e in interplay["edges"] if e["source"] == call["id"]}
+        self.assertIn(("locks", "pendingRequestsLock"), relations)
+        self.assertIn(("pool_register", "pendingRequests"), relations)
+        self.assertIn(("send", "webSocketTask"), relations)
+        # Every calling surface holds the one shared client.
+        callers = {node["id"] for node in interplay["nodes"] if node["kind"] == "caller"}
+        holders = {e["source"] for e in interplay["edges"] if e["relation"] == "holds" and by_id[e["target"]]["label"] == "GatewayClient"}
+        self.assertEqual(callers, holders)
+        # Covered pool operations are not drawn twice.
+        self.assertFalse([n for n in interplay["nodes"] if n["kind"] == "operation" and n.get("owner_type") == "GatewayClient" and n["sub_kind"] in {"pool_register", "pool_resolve"}])
+
+    def test_interplay_invariants_hold_and_are_published(self) -> None:
+        results = self.model["interplay"]["invariants"]
+        declared = json.loads((ROOT / "architecture/interplay/invariants.json").read_text(encoding="utf-8"))["invariants"]
+        self.assertEqual([d["id"] for d in declared], [r["id"] for r in results])
+        self.assertTrue(all(r["status"] == "holds" for r in results), results)
+        self.assertTrue(all(r["why"] for r in results))
+
+    def test_interplay_invariants_fail_when_the_construction_drifts(self) -> None:
+        def graph(*, guarded: bool, holds: bool) -> tuple[dict, dict]:
+            ev = {"path": "Sources/Portal/Services/GatewayClient.swift", "line": 10}
+            nodes = [
+                {"id": "owner:c:GatewayClient", "kind": "owner", "label": "GatewayClient", "component": "c", "roles": ["transport"], "page": "shared"},
+                {"id": "seam:AgentBackend", "kind": "seam", "label": "AgentBackend", "component": "c"},
+                {"id": "resource:pool", "kind": "resource", "sub_kind": "rpc_pool", "label": "pendingRequests", "owner_type": "GatewayClient"},
+                {"id": "resource:lock", "kind": "resource", "sub_kind": "lock", "label": "pendingRequestsLock", "owner_type": "GatewayClient"},
+                {"id": "caller:c:Page", "kind": "caller", "label": "Page", "component": "c", "page": "chat", "namespaces": ["wiki"]},
+                {"id": "endpoint:1", "kind": "endpoint", "label": "wiki", "component": "c", "owner_type": "GatewayClient"},
+                {"id": "section:c:GatewayClient:call", "kind": "section", "label": "call", "owner_type": "GatewayClient",
+                 "lock_labels": ["pendingRequestsLock"], "steps": [
+                     {"kind": "acquire", "line": 9, "guarded": False},
+                     {"kind": "pool_register", "line": 10, "guarded": guarded},
+                     {"kind": "release", "line": 11, "guarded": False}]},
+            ]
+            edges = [{"source": "owner:c:GatewayClient", "target": "endpoint:1", "class": "structure", "relation": "dispatches"}]
+            if holds:
+                edges.append({"source": "caller:c:Page", "target": "owner:c:GatewayClient", "class": "usage", "relation": "holds"})
+            interplay = {"nodes": nodes, "edges": edges, "pages": [{"id": "chat", "label": "Chat"}]}
+            behavior = {"operations": [
+                {"kind": "pool_register", "owner_type": "GatewayClient", "resource_label": "pendingRequests", "enclosing_function": "call", "evidence": ev},
+                {"kind": "pool_resolve", "owner_type": "GatewayClient", "resource_label": "pendingRequests", "enclosing_function": "fulfill", "evidence": {**ev, "line": 20}},
+                {"kind": "pool_remove", "owner_type": "GatewayClient", "resource_label": "pendingRequests", "enclosing_function": "fulfill", "evidence": {**ev, "line": 19}},
+            ]}
+            return interplay, behavior
+        invariants = json.loads((ROOT / "architecture/interplay/invariants.json").read_text(encoding="utf-8"))
+        interplay, behavior = graph(guarded=True, holds=True)
+        # The synthetic fulfil path has no section, so its remove is unguarded: that alone must be reported.
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_interplay_invariants(interplay, behavior, invariants)
+        self.assertIn("pool-guarded: pool mutation pool_remove outside pendingRequestsLock", str(caught.exception))
+        # Drop the surface's reference to the core: a second, independent violation.
+        interplay, behavior = graph(guarded=False, holds=False)
+        with self.assertRaises(architecture.ArchitectureError) as caught:
+            architecture.validate_interplay_invariants(interplay, behavior, invariants)
+        message = str(caught.exception)
+        self.assertIn("surfaces-hold-core: surfaces without a reference", message)
+        self.assertIn("pool mutation pool_register outside pendingRequestsLock", message)
+        self.assertIn("why:", message)
+
+    def test_event_bus_subscriptions_record_batching_and_notify_the_hub(self) -> None:
+        interplay = self.model["interplay"]
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        bus = next(node for node in interplay["nodes"] if node.get("sub_kind") == "event_bus")
+        notified = {by_id[e["target"]]["label"]: by_id[e["target"]] for e in interplay["edges"] if e["source"] == bus["id"] and e["relation"] == "notifies"}
+        self.assertIn("ChatViewModel", notified)          # the hub is notified, without a second box
+        self.assertEqual("hub", notified["ChatViewModel"]["kind"])
+        chat = notified["ChatViewModel"]["subscription"]
+        self.assertEqual(("batched", 32, 30), (chat["mode"], chat["batch_ms"], chat["batch_count"]))
+        spawn = notified["SpawnTreeStore"]["subscription"]
+        self.assertEqual(("batched", 32, 30, "DispatchQueue.main"), (spawn["mode"], spawn["batch_ms"], spawn["batch_count"], spawn["scheduler"]))
+        activity = notified["ActivityInboxViewModel"]["subscription"]
+        self.assertEqual(("direct", "RunLoop.main"), (activity["mode"], activity["scheduler"]))
+        for node in notified.values():
+            self.assertTrue((ROOT / node["subscription"]["path"]).is_file())
+            self.assertEqual("swift.resource.bus_subscription", node["subscription"]["rule_id"])
+        self.assertIn("swift.resource.bus_subscription", self.model["evidence_metadata"]["rules"])
+
+    def test_parse_bus_subscription_reads_the_operator_chain(self) -> None:
+        code = "        client.eventStream\n            .collect(.byTimeOrCount(RunLoop.main, .milliseconds(32), 30))\n            .sink { batch in }\n        other.receive(on: DispatchQueue.main)\n"
+        sub = architecture.parse_bus_subscription(code, code.index("eventStream") + len("eventStream"))
+        self.assertEqual({"mode": "batched", "scheduler": "RunLoop.main", "batch_ms": 32, "batch_count": 30, "rule_id": "swift.resource.bus_subscription"}, sub)
+        code = "        client.eventStream\n            .sink { event in }\n            .receive(on: RunLoop.main)\n"
+        sub = architecture.parse_bus_subscription(code, code.index("eventStream") + len("eventStream"))
+        self.assertEqual("direct", sub["mode"])
+        self.assertIsNone(sub["scheduler"])  # the receive(on:) after the sink is not part of this binding
+
+    def test_every_extracted_store_is_on_the_map_and_pool_owners_are_admitted(self) -> None:
+        interplay = self.model["interplay"]
+        labels = {node["label"] for node in interplay["nodes"]}
+        for item in self.model["stores"]["items"]:
+            self.assertIn(item["type_name"], labels, item["type_name"])
+        by_label = {node["label"]: node for node in interplay["nodes"] if node["kind"] == "store"}
+        self.assertIn("MarkdownParseCache", by_label)
+        self.assertEqual(["unobserved"], by_label["MarkdownParseCache"]["store"]["persistence"])
+        self.assertIn("ActivityStore", by_label)
+        self.assertEqual("activity", by_label["ActivityStore"]["page"])
+        # Stores that already appear as surfaces are annotated, not duplicated.
+        annotated = [n for n in interplay["nodes"] if n["label"] == "ArtifactStore"]
+        self.assertEqual(1, len(annotated))
+        self.assertEqual("subscriber", annotated[0]["kind"])
+        self.assertIn("file", annotated[0]["store"]["persistence"])
+        owners = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "owner"}
+        self.assertIn("FileDownloadManager", owners)
+        self.assertEqual(["pool"], owners["FileDownloadManager"]["roles"])
+        self.assertNotIn("transport", owners["FileDownloadManager"]["roles"])
+
+    def test_triggers_are_receiver_qualified_and_resolve_to_namespaces(self) -> None:
+        interplay = self.model["interplay"]
+        triggers = interplay["triggers"]
+        self.assertGreaterEqual(len(triggers), 20)
+        self.assertGreater(interplay["unattributed_triggers"], 0)  # local-state-only actions are counted, not attributed
+        for trigger in triggers:
+            self.assertIn(trigger["kind"], {"user_action", "lifecycle"})
+            self.assertTrue((ROOT / trigger["path"]).is_file())
+            self.assertEqual("swift.trigger.surface_call", trigger["rule_id"])
+        refresh = [t for t in triggers if t["surface"] == "ActivityInboxViewModel" and t["method"] == "refresh"]
+        self.assertTrue(refresh)
+        self.assertEqual(["activity"], refresh[0]["namespaces"])
+        self.assertEqual("activity", refresh[0]["page"])
+        learning = [t for t in triggers if t["surface"] == "LearningStore"]
+        self.assertTrue(learning)   # a singleton-initialised store property is still a surface
+        surfaces = {n["label"]: n for n in interplay["nodes"] if n.get("triggers")}
+        self.assertGreater(surfaces["ChatViewModel"]["triggers"]["user_action"], 0)
+        self.assertIn("swift.trigger.surface_call", self.model["evidence_metadata"]["rules"])
+
+    def test_trigger_property_matcher_accepts_annotations_initialisers_and_singletons(self) -> None:
+        code = (
+            "    @EnvironmentObject var chatViewModel: ChatViewModel\n"
+            "    @StateObject private var quizVM = QuizViewModel()\n"
+            "    @ObservedObject private var learningStore = LearningStore.shared\n"
+            "    @State private var count: Int = 0\n"
+        )
+        found = {m.group("name"): (m.group("annot") or m.group("init")) for m in architecture.TRIGGER_PROPERTY_RE.finditer(code)}
+        self.assertEqual({"chatViewModel": "ChatViewModel", "quizVM": "QuizViewModel", "learningStore": "LearningStore", "count": "Int"}, found)
+
+    def test_stores_have_reference_edges_and_reference_tie_break(self) -> None:
+        interplay = self.model["interplay"]
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        uses = {(by_id[e["source"]]["label"], by_id[e["target"]]["label"]) for e in interplay["edges"]
+                if e["relation"] == "uses" and by_id[e["target"]].get("store")}
+        self.assertIn(("ChatViewModel", "ChatHistoryStore"), uses)
+        self.assertIn(("ActivityInboxViewModel", "ActivityStore"), uses)
+        self.assertGreaterEqual(len(uses), 12)
+        resolutions = {n["label"]: (n.get("page"), n.get("page_resolution")) for n in interplay["nodes"] if n.get("store")}
+        self.assertEqual(("chat", "reference"), resolutions["DelegationBatchHistoryStore"])
+        # Referenced from two pages: stays shared rather than guessing.
+        self.assertEqual("shared", resolutions["CronRunHistoryStore"][0])
+
+    def test_interplay_records_owner_references_for_zone_placement(self) -> None:
+        interplay = self.model["interplay"]
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        uses = {(by_id[e["source"]]["label"], by_id[e["target"]]["label"])
+                for e in interplay["edges"] if e["relation"] == "uses"}
+        self.assertIn(("SkillStore", "SkillSummaryService"), uses)
+        self.assertIn(("ChatViewModel", "TTSService"), uses)
+        # Transports are never `uses` targets: they are shared by construction.
+        transports = {node["label"] for node in interplay["nodes"] if node["kind"] == "owner" and "transport" in node.get("roles", [])}
+        self.assertFalse({target for _, target in uses} & transports)
+
     def test_interplay_routes_namespaces_through_client_extension_files(self) -> None:
         interplay = self.model["interplay"]
         clients = [node for node in interplay["nodes"] if node["kind"] == "client"]
@@ -454,12 +715,21 @@ actor MessagePump {}
             self.assertTrue(client["namespaces"], client["id"])
             self.assertTrue((ROOT / client["path"]).is_file())
         endpoint_ids = {node["id"] for node in interplay["nodes"] if node["kind"] == "endpoint"}
-        implements = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "implements"}
-        calls = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "calls"}
-        # Every namespace box reaches the core transport: directly, or through the file that implements it.
-        self.assertEqual(endpoint_ids, implements | calls)
-        extends = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "extends"}
-        self.assertEqual({client["id"] for client in clients}, extends)
+        # The one core dispatches every namespace, whichever file hosts the wrapper.
+        dispatched = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "dispatches"}
+        self.assertEqual(endpoint_ids, dispatched)
+        # Every extension file routes through the core, and records what it implements.
+        routed = {edge["source"] for edge in interplay["edges"] if edge["relation"] == "routes-through"}
+        self.assertEqual({client["id"] for client in clients}, routed)
+        implements = {edge["source"] for edge in interplay["edges"] if edge["relation"] == "implements"}
+        self.assertEqual({client["id"] for client in clients}, implements)
+        # A surface that invokes a namespace calls the extension file wrapping it.
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        for edge in interplay["edges"]:
+            if edge["relation"] == "calls":
+                self.assertEqual("caller", by_id[edge["source"]]["kind"])
+                self.assertEqual("client", by_id[edge["target"]]["kind"])
+                self.assertTrue(set(by_id[edge["source"]]["namespaces"]) & set(by_id[edge["target"]]["namespaces"]))
         for node in interplay["nodes"]:
             if node["kind"] == "endpoint":
                 for entry in node["methods"]:
@@ -474,10 +744,10 @@ actor MessagePump {}
         app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
         for renderer in ("renderExternals", "renderStores"):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
-        self.assertIn("External systems used", app)
-        self.assertIn("Data stores owned", app)
         self.assertIn("INTERPLAY_EXTERNAL_GROUP", app)
         self.assertIn("INTERPLAY_APP_GROUP", app)
+        self.assertIn("interplay.pages", app)
+        self.assertNotIn("INTERPLAY_FEATURE_NAMES", app)
         self.assertIn('["boundary", "#e0704f"', app)
         self.assertRegex(app, r"function\s+isInterplayBar\s*\(")
         # The legend lives in the empty inspector; the strip and the placeholder prose are gone.
