@@ -550,6 +550,16 @@ struct ArtifactActionTests {
         #expect(out.contains("\"reached_out\":true"))
     }
 
+    @Test("Action mutation rejects malformed content and unknown artifact kinds")
+    internal func mutationRejectsInvalidInputs() {
+        #expect(ArtifactActionEngine.setField(
+            in: "{not json", kind: "dataset", entryKey: "row", field: "status", value: "done"
+        ) == nil)
+        #expect(ArtifactActionEngine.markDeleted(
+            in: "{\"rows\":[]}", kind: "timeline", entryKey: "event"
+        ) == nil)
+    }
+
     @Test("markDeleted tombstones; spec parsers hide tombstoned entries")
     func tombstone() {
         let content = """
