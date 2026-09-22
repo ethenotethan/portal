@@ -131,10 +131,17 @@ architecture-check:
 architecture-serve: architecture
 	python3 -m http.server 4173 --directory architecture/site
 
-# The product site has no build step, so the only thing to check is that its
-# relative asset references (screenshots, stylesheet) actually resolve.
+# (Re)generate the product-site quality-gates page from the committed
+# baselines. Deterministic: numbers come straight from the state files.
+metrics-page:
+	python3 scripts/build_metrics_page.py
+
+# The product site has no build step, so the checks are that its relative asset
+# references (screenshots, stylesheet) resolve and that the generated
+# quality-gates page still matches the committed baselines.
 site-check:
 	python3 scripts/check_site_assets.py
+	python3 scripts/build_metrics_page.py --check
 
 # Preview the DEPLOYED layout — product site at /, observatory at
 # /architecture/ — by assembling the same tree the Pages workflow does. Serving
