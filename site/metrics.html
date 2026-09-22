@@ -71,7 +71,7 @@
         <li><strong>0</strong><span>Compiler warnings</span></li>
         <li><strong>0</strong><span>Skipped tests</span></li>
         <li><strong>483</strong><span>Dead-code findings</span></li>
-        <li><strong>3,289</strong><span>Frozen lint debt</span></li>
+        <li><strong>3,007</strong><span>Frozen lint debt</span></li>
       </ul>
     </section>
 
@@ -165,7 +165,7 @@
     </article>
     <article class="card mgate" id="gate-lint">
       <h4>Lint baseline</h4>
-      <p class="mgate-current"><span class="mgate-k">Current</span><span class="mgate-v">3,289 violations across 10 rules</span></p>
+      <p class="mgate-current"><span class="mgate-k">Current</span><span class="mgate-v">3,007 violations across 8 rules</span></p>
       <p class="mgate-desc">Pre-existing SwiftLint debt, frozen per rule. CI runs `swiftlint --baseline`, so anything already recorded is excluded and only NEW violations fail a build.</p>
       <dl class="mgate-rules">
         <dt>Floor</dt><dd>An already-tracked rule&#x27;s frozen count may not grow. Regenerating the baseline to freeze a fresh violation instead of fixing it is exactly the escape hatch this closes; only paydown (a shrinking count) or a brand-new rule&#x27;s initial freeze is allowed.</dd>
@@ -232,24 +232,22 @@
         <p class="eyebrow">MEASURED STATE</p>
         <h3>Frozen lint debt by rule</h3>
       </div>
-      <p class="mprovenance">3,289 pre-existing violations
+      <p class="mprovenance">3,007 pre-existing violations
       excluded via <code>swiftlint --baseline</code>; only new violations fail.
       Each rule's count is a ceiling that may shrink, never grow.</p>
       <table class="mtable">
         <thead><tr><th scope="col">Rule</th><th scope="col">Frozen</th></tr></thead>
         <tbody>
-        <tr><th scope="row">explicit_acl</th><td class="num">2,990</td></tr>
-        <tr><th scope="row">no_swallowed_try</th><td class="num">146</td></tr>
-        <tr><th scope="row">force_unwrapping</th><td class="num">102</td></tr>
-        <tr><th scope="row">legacy_swiftui_aspect_ratio</th><td class="num">14</td></tr>
+        <tr><th scope="row">explicit_acl</th><td class="num">2,744</td></tr>
+        <tr><th scope="row">no_swallowed_try</th><td class="num">133</td></tr>
+        <tr><th scope="row">force_unwrapping</th><td class="num">98</td></tr>
         <tr><th scope="row">force_cast</th><td class="num">8</td></tr>
         <tr><th scope="row">implicitly_unwrapped_optional</th><td class="num">8</td></tr>
         <tr><th scope="row">discouraged_optional_boolean</th><td class="num">7</td></tr>
-        <tr><th scope="row">force_try</th><td class="num">7</td></tr>
-        <tr><th scope="row">redundant_type_annotation</th><td class="num">4</td></tr>
+        <tr><th scope="row">force_try</th><td class="num">6</td></tr>
         <tr><th scope="row">no_sync_io_on_main</th><td class="num">3</td></tr>
         </tbody>
-        <tfoot><tr><th scope="row">Total</th><td class="num">3,289</td></tr></tfoot>
+        <tfoot><tr><th scope="row">Total</th><td class="num">3,007</td></tr></tfoot>
       </table>
     </section>
 
