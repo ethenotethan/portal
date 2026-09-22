@@ -69,6 +69,7 @@ internal struct GatewayURLTests {
         #expect(GatewayURL.normalize("   ") == nil)
         #expect(GatewayURL.normalize("ftp://example.com") == nil)
         #expect(GatewayURL.normalize("ws://") == nil)
+        #expect(GatewayURL.normalize("[fe80::1234") == nil)
     }
 
     // MARK: - Private-network classification
