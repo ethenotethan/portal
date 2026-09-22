@@ -20,7 +20,7 @@ private final class FakeQueryGateway: ArtifactGateway {
     /// Returned by artifactList — used to exercise the cold-cache pull path.
     var listed: [LivingArtifact]?
 
-    private(set) var invokeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable])] = []
+    private(set) var invokeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable], cursor: String?)] = []
     private(set) var subscribeCalls: [(rev: Int, queryID: String, params: [String: AnyCodable])] = []
     private(set) var unsubscribed: [String] = []
 
@@ -28,7 +28,7 @@ private final class FakeQueryGateway: ArtifactGateway {
         artifactID: String, artifactRev: Int, queryID: String,
         params: [String: AnyCodable], cursor: String?
     ) async throws -> ArtifactQueryResult? {
-        invokeCalls.append((artifactRev, queryID, params))
+        invokeCalls.append((artifactRev, queryID, params, cursor))
         if let invokeError { throw invokeError }
         return invokeResult
     }
@@ -86,13 +86,18 @@ private struct ArtifactQueryStoreTests {
         return (store, fake)
     }
 
-    private func slot(_ queryID: String = "rows", _ rawParams: String = "") -> ArtifactStore.QuerySlot {
-        ArtifactStore.QuerySlot(artifactID: "dash", queryID: queryID, rawParams: rawParams)
+    private func slot(
+        _ queryID: String = "rows", _ rawParams: String = "", cursor: String = ""
+    ) -> ArtifactStore.QuerySlot {
+        ArtifactStore.QuerySlot(artifactID: "dash", queryID: queryID, rawParams: rawParams, rawCursor: cursor)
     }
 
-    private func okResult(_ etag: String, subscription: String? = nil) -> ArtifactQueryResult {
+    private func okResult(
+        _ etag: String, subscription: String? = nil, nextCursor: String? = nil
+    ) -> ArtifactQueryResult {
         ArtifactQueryResult(
-            outcome: .ok(data: .dictionary(["rows": .array([.dictionary(["id": .string("o1")])])]), etag: etag, nextCursor: nil),
+            outcome: .ok(data: .dictionary(["rows": .array([.dictionary(["id": .string("o1")])])]),
+                         etag: etag, nextCursor: nextCursor),
             subscription: subscription)
     }
 
@@ -145,7 +150,7 @@ private struct ArtifactQueryStoreTests {
         #expect(fake.subscribeCalls[0].rev == 3)
         #expect(fake.subscribeCalls[0].params == ["source": .string("orders"), "limit": .int(5)])
         #expect(store.queryStates[slot("rows", "{\"limit\": 5}")]
-                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e1"))
+                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e1", nextCursor: nil))
     }
 
     @Test("a one-shot query invokes, never subscribes")
@@ -202,7 +207,7 @@ private struct ArtifactQueryStoreTests {
         store.applyGatewayEventForTesting(
             .artifactQueryChanged(artifactID: "dash", queryID: "rows", status: "ok", reason: ""))
         await settle { fake.invokeCalls.count == 1 }
-        await settle { store.queryStates[self.slot()] == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e2") }
+        await settle { store.queryStates[self.slot()] == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e2", nextCursor: nil) }
         #expect(fake.subscribeCalls.count == 1)
 
         // The gateway dropped the slot: the page hears why, and nothing re-runs.
@@ -238,6 +243,51 @@ private struct ArtifactQueryStoreTests {
         store.releaseQueries(artifactID: "dash")
         await settle { fake.unsubscribed == ["dash/rows/h"] }
         #expect(store.querySlots(artifactID: "dash").isEmpty)
+    }
+
+    @Test("a live query surfaces its next_cursor for paging")
+    internal func liveQueryKeepsNextCursor() async {
+        let (store, fake) = makeStore()
+        fake.subscribeResult = okResult("e1", subscription: "h1", nextCursor: "10")
+        store.runQuery(artifactID: "dash", queryID: "rows", rawParams: "")
+        await settle { self.finished(store, self.slot()) }
+        #expect(store.queryStates[slot()]
+                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e1", nextCursor: "10"))
+    }
+
+    @Test("a cursored request invokes with the cursor and never subscribes")
+    internal func cursoredRequestInvokesWithCursor() async {
+        let (store, fake) = makeStore()
+        // `rows` is a LIVE query — but a cursored read must still invoke, not
+        // subscribe: a "page N" slot has no live identity.
+        fake.invokeResult = okResult("e2", nextCursor: "20")
+        store.runQuery(artifactID: "dash", queryID: "rows", rawParams: "", rawCursor: "10")
+        await settle { self.finished(store, self.slot("rows", "", cursor: "10")) }
+
+        #expect(fake.subscribeCalls.isEmpty)
+        #expect(fake.invokeCalls.count == 1)
+        #expect(fake.invokeCalls[0].cursor == "10")
+        #expect(store.queryStates[slot("rows", "", cursor: "10")]
+                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "e2", nextCursor: "20"))
+    }
+
+    @Test("different cursors are independent slots that don't clobber each other")
+    internal func cursorsAreIndependentSlots() async {
+        let (store, fake) = makeStore()
+        fake.invokeResult = okResult("p1", nextCursor: "10")
+        store.runQuery(artifactID: "dash", queryID: "once", rawParams: "")
+        await settle { self.finished(store, self.slot("once")) }
+
+        fake.invokeResult = okResult("p2", nextCursor: nil)
+        store.runQuery(artifactID: "dash", queryID: "once", rawParams: "", rawCursor: "10")
+        await settle { self.finished(store, self.slot("once", "", cursor: "10")) }
+
+        // Both pages coexist, each with its own etag and next_cursor.
+        #expect(store.queryStates[slot("once")]
+                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "p1", nextCursor: "10"))
+        #expect(store.queryStates[slot("once", "", cursor: "10")]
+                == .ok(payload: "{\"rows\":[{\"id\":\"o1\"}]}", etag: "p2", nextCursor: nil))
+        #expect(fake.invokeCalls.map(\.cursor) == [nil, "10"])
     }
 
     @Test("a gateway without the surface, or a failing call, says so on the slot")
