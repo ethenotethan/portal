@@ -284,13 +284,24 @@ internal struct HTMLArtifactQueryRequest: Equatable, Sendable {
     internal static let scheme = "hermes-artifact-query"
     internal static let host = "request"
     internal static let maxParamsBytes = 2_048
+    /// Mirrors the gateway's `MAX_CURSOR` (`tui_gateway/artifact_queries.py`):
+    /// an over-long cursor is refused here so the page hears why without a round
+    /// trip. A cursor is opaque paging state minted by the handler, never
+    /// authored by the page as data.
+    internal static let maxCursorBytes = 512
 
     internal let queryID: String
     internal let rawParams: String
+    /// The page's `data-hermes-cursor`, forwarded verbatim as the invoke
+    /// `cursor` argument. Empty means the first page. Kept distinct from
+    /// `rawParams` so paging state never perturbs the base query's subscription
+    /// key or etag.
+    internal let rawCursor: String
 
-    internal init(queryID: String, rawParams: String = "") {
+    internal init(queryID: String, rawParams: String = "", rawCursor: String = "") {
         self.queryID = queryID
         self.rawParams = rawParams
+        self.rawCursor = rawCursor
     }
 
     internal init?(url: URL, expectedNonce: String) {
@@ -300,7 +311,7 @@ internal struct HTMLArtifactQueryRequest: Equatable, Sendable {
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return nil
         }
-        let allowedNames = Set(["query_id", "params", "nonce"])
+        let allowedNames = Set(["query_id", "params", "cursor", "nonce"])
         var values: [String: String] = [:]
         for item in components.queryItems ?? [] {
             guard allowedNames.contains(item.name), let value = item.value, values[item.name] == nil else {
@@ -317,7 +328,12 @@ internal struct HTMLArtifactQueryRequest: Equatable, Sendable {
               !rawParams.unicodeScalars.contains(where: { $0.value < 32 && $0 != "\t" && $0 != "\n" }) else {
             return nil
         }
-        self.init(queryID: queryID, rawParams: rawParams)
+        let rawCursor = values["cursor"] ?? ""
+        guard rawCursor.utf8.count <= Self.maxCursorBytes,
+              !rawCursor.unicodeScalars.contains(where: { $0.value < 32 && $0 != "\t" && $0 != "\n" }) else {
+            return nil
+        }
+        self.init(queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
     }
 
     /// The page's parameters as a JSON object, or an error the page can read.
@@ -374,21 +390,30 @@ internal enum HTMLArtifactQueryBridge {
     internal struct ResultMark: Equatable, Sendable {
         internal let queryID: String
         internal let rawParams: String
+        /// The `data-hermes-cursor` this result answers. Matched on write so a
+        /// page that advanced its cursor doesn't receive a stale page's data.
+        internal let rawCursor: String
         internal let status: StatusToken
         /// JSON text for the sink; nil leaves whatever the page had.
         internal let payload: String?
         /// Reason for `failed` / `unsupported`, bounded and control-free.
         internal let error: String?
+        /// The handler's `next_cursor`, stamped onto `data-hermes-query-next-cursor`
+        /// so the page can request the following page. nil clears the attribute
+        /// (no more pages).
+        internal let nextCursor: String?
 
         internal init(
-            queryID: String, rawParams: String, status: StatusToken,
-            payload: String? = nil, error: String? = nil
+            queryID: String, rawParams: String, rawCursor: String = "", status: StatusToken,
+            payload: String? = nil, error: String? = nil, nextCursor: String? = nil
         ) {
             self.queryID = queryID
             self.rawParams = rawParams
+            self.rawCursor = rawCursor
             self.status = status
             self.payload = payload
             self.error = error.map(HTMLArtifactQueryBridge.boundedReason)
+            self.nextCursor = nextCursor.map(HTMLArtifactQueryBridge.boundedCursor)
         }
     }
 
@@ -402,6 +427,15 @@ internal enum HTMLArtifactQueryBridge {
         return String(String(clean).prefix(maxReasonLength))
     }
 
+    /// A `next_cursor` is gateway-minted opaque text that lands only as an inert
+    /// attribute value, but it is still stripped of control characters and
+    /// bounded to the same limit the request side enforces, so nothing
+    /// unexpected can ride along and a well-behaved handler round-trips intact.
+    internal static func boundedCursor(_ cursor: String) -> String {
+        let clean = cursor.unicodeScalars.filter { $0.value >= 32 }.map(Character.init)
+        return String(String(clean).prefix(HTMLArtifactQueryRequest.maxCursorBytes))
+    }
+
     internal static func userScriptSource(nonce: String) -> String {
         let nonceLiteral = jsStringLiteral(nonce)
         return #"""
@@ -410,6 +444,7 @@ internal enum HTMLArtifactQueryBridge {
       const nonce = \#(nonceLiteral);
       const prefix = '\#(HTMLArtifactQueryRequest.scheme)://\#(HTMLArtifactQueryRequest.host)?';
       const maxParams = \#(HTMLArtifactQueryRequest.maxParamsBytes);
+      const maxCursor = \#(HTMLArtifactQueryRequest.maxCursorBytes);
       const last = new WeakMap();
       const queue = [];
       let scheduled = false;
@@ -435,11 +470,17 @@ internal enum HTMLArtifactQueryBridge {
         if (!/^[A-Za-z0-9._:-]{1,128}$/.test(id)) return;
         const params = node.getAttribute('data-hermes-params') || '';
         if (new TextEncoder().encode(params).length > maxParams) return;
-        const key = id + ' ' + params;
+        // Opaque paging state minted by the handler's previous next_cursor;
+        // empty is the first page. Distinct from params so advancing the page
+        // re-fires without touching the base query's identity.
+        const cursor = node.getAttribute('data-hermes-cursor') || '';
+        if (new TextEncoder().encode(cursor).length > maxCursor) return;
+        const key = id + ' ' + params + ' ' + cursor;
         if (last.get(node) === key) return;
         last.set(node, key);
         const query = new URLSearchParams({ query_id: id, nonce: nonce });
         if (params) query.set('params', params);
+        if (cursor) query.set('cursor', cursor);
         enqueue(prefix + query.toString());
       }
 
@@ -456,7 +497,7 @@ internal enum HTMLArtifactQueryBridge {
         }
       }).observe(document.documentElement, {
         subtree: true, childList: true, attributes: true,
-        attributeFilter: ['data-hermes-query', 'data-hermes-params'],
+        attributeFilter: ['data-hermes-query', 'data-hermes-params', 'data-hermes-cursor'],
       });
       scan(document.documentElement);
     })();
@@ -472,25 +513,37 @@ internal enum HTMLArtifactQueryBridge {
     internal static func resultScript(_ mark: ResultMark) -> String {
         let id = jsStringLiteral(mark.queryID)
         let params = jsStringLiteral(mark.rawParams)
+        let cursor = jsStringLiteral(mark.rawCursor)
         let status = jsStringLiteral(mark.status.rawValue)
         let payload = mark.payload.map(jsStringLiteral) ?? "null"
         let error = mark.error.map(jsStringLiteral) ?? "null"
+        let nextCursor = mark.nextCursor.map(jsStringLiteral) ?? "null"
         return #"""
     (() => {
       'use strict';
       const id = \#(id);
       const params = \#(params);
+      const cursor = \#(cursor);
       const status = \#(status);
       const payload = \#(payload);
       const error = \#(error);
+      const nextCursor = \#(nextCursor);
       for (const node of document.querySelectorAll('[data-hermes-query]')) {
         if ((node.getAttribute('data-hermes-query') || '').trim() !== id) continue;
         if ((node.getAttribute('data-hermes-params') || '') !== params) continue;
+        // A result answers the exact cursor it was fetched for; a node that has
+        // since advanced its cursor must not be overwritten by the older page.
+        if ((node.getAttribute('data-hermes-cursor') || '') !== cursor) continue;
         node.setAttribute('data-hermes-query-status', status);
         if (error === null) {
           node.removeAttribute('data-hermes-query-error');
         } else {
           node.setAttribute('data-hermes-query-error', error);
+        }
+        if (nextCursor === null) {
+          node.removeAttribute('data-hermes-query-next-cursor');
+        } else {
+          node.setAttribute('data-hermes-query-next-cursor', nextCursor);
         }
         if (payload !== null) {
           let sink = node.querySelector(':scope > script[type="application/json"][data-hermes-sink]');

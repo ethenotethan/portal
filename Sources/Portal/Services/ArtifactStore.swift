@@ -186,12 +186,18 @@ final class ArtifactStore: ObservableObject {
         internal let artifactID: String
         internal let queryID: String
         internal let rawParams: String
+        /// The page's `data-hermes-cursor` (empty = first page). Part of the key
+        /// so each page is its own slot with its own result, and advancing the
+        /// cursor never clobbers the page the element currently shows.
+        internal let rawCursor: String
     }
 
     internal enum QueryState: Equatable {
         case loading
-        /// `payload` is the JSON text the page reads out of its sink.
-        case ok(payload: String, etag: String)
+        /// `payload` is the JSON text the page reads out of its sink;
+        /// `nextCursor` is the handler's paging token for the following page,
+        /// nil when there are no more pages.
+        case ok(payload: String, etag: String, nextCursor: String?)
         case failed(reason: String)
         case unsupported(reason: String)
     }
@@ -209,8 +215,8 @@ final class ArtifactStore: ObservableObject {
     /// without a round trip; the gateway checks again and is authoritative. A
     /// live query subscribes on first run, after which re-runs use the cheaper
     /// invoke and the gateway's `artifact.query.changed` drives them.
-    internal func runQuery(artifactID: String, queryID: String, rawParams: String) {
-        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams)
+    internal func runQuery(artifactID: String, queryID: String, rawParams: String, rawCursor: String = "") {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
         queryTasks[slot]?.cancel()
         queryTasks[slot] = Task { [weak self] in
             await self?.performQuery(slot)
@@ -220,16 +226,16 @@ final class ArtifactStore: ObservableObject {
 
     /// Record that a slot can't run at all on this client (no gateway surface),
     /// so the page hears `unsupported` instead of waiting.
-    internal func markQueryUnsupported(artifactID: String, queryID: String, rawParams: String, reason: String) {
-        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams)
+    internal func markQueryUnsupported(
+        artifactID: String, queryID: String, rawParams: String, rawCursor: String = "", reason: String
+    ) {
+        let slot = QuerySlot(artifactID: artifactID, queryID: queryID, rawParams: rawParams, rawCursor: rawCursor)
         queryStates[slot] = .unsupported(reason: reason)
     }
 
     /// Every slot for one artifact, for the host to project onto its page.
     internal func querySlots(artifactID: String) -> [(slot: QuerySlot, state: QueryState)] {
-        queryStates.compactMap { slot, state in
-            slot.artifactID == artifactID ? (slot, state) : nil
-        }
+        queryStates.compactMap { $0.key.artifactID == artifactID ? ($0.key, $0.value) : nil }
     }
 
     /// The page went away: stop following its queries and forget their results.
@@ -280,9 +286,15 @@ final class ArtifactStore: ObservableObject {
         // flashed empty on every poll would be worse than one that never moved.
         if case .ok = queryStates[slot] {} else { queryStates[slot] = .loading }
 
+        let cursor = slot.rawCursor.isEmpty ? nil : slot.rawCursor
         do {
             let result: ArtifactQueryResult?
-            if declaration.isLive, querySubscriptions[slot] == nil {
+            // A cursored request is a point-in-time page read, so it always
+            // invokes — subscribing per page would pin one subscription for
+            // every page the reader scrolls through, and a "page N" slot has no
+            // meaningful live identity. Only the uncursored base query (the
+            // first page) follows the live-subscribe path.
+            if declaration.isLive, cursor == nil, querySubscriptions[slot] == nil {
                 result = try await client.artifactQuerySubscribe(
                     artifactID: slot.artifactID, artifactRev: artifact.rev,
                     queryID: slot.queryID, params: params
@@ -290,7 +302,7 @@ final class ArtifactStore: ObservableObject {
             } else {
                 result = try await client.artifactQueryInvoke(
                     artifactID: slot.artifactID, artifactRev: artifact.rev,
-                    queryID: slot.queryID, params: params, cursor: nil
+                    queryID: slot.queryID, params: params, cursor: cursor
                 )
             }
             guard !Task.isCancelled else { return }
@@ -302,12 +314,11 @@ final class ArtifactStore: ObservableObject {
             }
             if let handle = result.subscription { querySubscriptions[slot] = handle }
             switch result.outcome {
-            case .ok(let data, let etag, _):
-                queryStates[slot] = .ok(payload: HTMLArtifactQueryBridge.payloadText(data), etag: etag)
-            case .failed(let reason):
-                queryStates[slot] = .failed(reason: reason)
-            case .unsupported(let reason):
-                queryStates[slot] = .unsupported(reason: reason)
+            case .ok(let data, let etag, let nextCursor):
+                queryStates[slot] = .ok(
+                    payload: HTMLArtifactQueryBridge.payloadText(data), etag: etag, nextCursor: nextCursor)
+            case .failed(let reason): queryStates[slot] = .failed(reason: reason)
+            case .unsupported(let reason): queryStates[slot] = .unsupported(reason: reason)
             case .conflict:
                 // The page rendered against a revision that has since moved on.
                 // Pull the current artifact and go once more with its rev — one

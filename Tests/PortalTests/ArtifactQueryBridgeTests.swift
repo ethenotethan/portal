@@ -50,6 +50,25 @@ internal struct ArtifactQueryBridgeTests {
         #expect(HTMLArtifactQueryRequest(url: url, expectedNonce: "n1") == nil)
     }
 
+    @Test("a cursor rides the request URL verbatim, bounded to 512 bytes")
+    internal func decodesRequestCursor() throws {
+        let raw = "hermes-artifact-query://request?query_id=rows&cursor=eyJvIjoxMH0&nonce=n1"
+        let url = try #require(URL(string: raw))
+        let request = try #require(HTMLArtifactQueryRequest(url: url, expectedNonce: "n1"))
+        #expect(request.rawCursor == "eyJvIjoxMH0")
+        // Empty cursor is the first page — the common case, and the default.
+        let firstPage = "hermes-artifact-query://request?query_id=rows&nonce=n1"
+        #expect(HTMLArtifactQueryRequest(url: try #require(URL(string: firstPage)), expectedNonce: "n1")?
+            .rawCursor.isEmpty == true)
+    }
+
+    @Test("an over-long or control-laden cursor is refused before any round trip")
+    internal func rejectsBadCursor() throws {
+        let tooLong = String(repeating: "a", count: HTMLArtifactQueryRequest.maxCursorBytes + 1)
+        let overLong = "hermes-artifact-query://request?query_id=rows&cursor=\(tooLong)&nonce=n1"
+        #expect(HTMLArtifactQueryRequest(url: try #require(URL(string: overLong)), expectedNonce: "n1") == nil)
+    }
+
     @Test("parameters must be a JSON object; empty means none")
     internal func parametersMustBeAnObject() throws {
         #expect(try HTMLArtifactQueryRequest(queryID: "q", rawParams: "  ").parameters().isEmpty)
@@ -184,6 +203,9 @@ internal struct ArtifactQueryBridgeTests {
         #expect(js.contains("data-hermes-query"))
         #expect(js.contains("data-hermes-params"))
         #expect(js.contains("hermes-artifact-query://request?"))
+        // Paging state travels as its own attribute, watched and forwarded.
+        #expect(js.contains("data-hermes-cursor"))
+        #expect(js.contains("query.set('cursor', cursor)"))
         #expect(js.contains("\"n\\\"1\""))            // nonce JSON-encoded
         #expect(!js.contains("fetch("))
         #expect(!js.contains("webkit.messageHandlers"))
@@ -207,6 +229,33 @@ internal struct ArtifactQueryBridgeTests {
         #expect(!js.contains("innerHTML"))
         #expect(!js.contains("eval("))
         #expect(!js.contains("fetch("))
+    }
+
+    @Test("a next_cursor is stamped for paging and matched to the cursor it answers")
+    internal func resultScriptStampsNextCursor() {
+        let mark = HTMLArtifactQueryBridge.ResultMark(
+            queryID: "rows", rawParams: "", rawCursor: "eyJvIjoxMH0", status: .ok,
+            payload: "{\"rows\":[]}", nextCursor: "eyJvIjoyMH0")
+        let js = HTMLArtifactQueryBridge.resultScript(mark)
+        // Only the node still on this cursor is written — an advanced page is left alone.
+        #expect(js.contains("data-hermes-cursor"))
+        #expect(js.contains("\"eyJvIjoxMH0\""))            // matched cursor, JSON-encoded
+        #expect(js.contains("data-hermes-query-next-cursor"))
+        #expect(js.contains("\"eyJvIjoyMH0\""))            // the next_cursor to advance to
+        // The last page clears the attribute rather than leaving a stale cursor.
+        let last = HTMLArtifactQueryBridge.resultScript(HTMLArtifactQueryBridge.ResultMark(
+            queryID: "rows", rawParams: "", status: .ok, payload: "{\"rows\":[]}"))
+        #expect(last.contains("const nextCursor = null"))
+        #expect(last.contains("removeAttribute('data-hermes-query-next-cursor')"))
+    }
+
+    @Test("a next_cursor is bounded and control-free before it reaches the page")
+    internal func nextCursorIsBounded() {
+        let noisy = String(repeating: "c", count: 600) + "\u{0007}tail"
+        let mark = HTMLArtifactQueryBridge.ResultMark(
+            queryID: "q", rawParams: "", status: .ok, payload: "{}", nextCursor: noisy)
+        #expect(mark.nextCursor?.count == HTMLArtifactQueryRequest.maxCursorBytes)
+        #expect(mark.nextCursor?.contains("\u{0007}") == false)
     }
 
     @Test("errors are stamped bounded and control-free; a failure leaves the sink alone")
