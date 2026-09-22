@@ -31,99 +31,47 @@
   </header>
 
   <nav class="section-nav" aria-label="Architecture views">
-    <button class="nav-item active" data-view="graph" type="button">System map</button>
-    <button class="nav-item" data-view="interplay" type="button">Interplay</button>
-    <button class="nav-item" data-view="execution" type="button">Execution &amp; tasks</button>
+    <button class="nav-item active" data-view="systemmap" type="button">System map</button>
     <button class="nav-item" data-view="connections" type="button">Connections &amp; streams</button>
-    <button class="nav-item" data-view="scenarios" type="button">Scenarios</button>
-    <button class="nav-item" data-view="specifications" type="button">Specifications</button>
+    <button class="nav-item" data-view="externals" type="button">External systems</button>
+    <button class="nav-item" data-view="stores" type="button">Data stores</button>
     <button class="nav-item" data-view="inventory" type="button">Source inventory</button>
   </nav>
 
   <main id="main">
-    <section class="view active" id="graph-view" aria-labelledby="graph-title">
+    <section class="view active" id="systemmap-view" aria-labelledby="interplay-title">
       <div class="intro-row">
         <div>
-          <p class="eyebrow">LIVE ARCHITECTURE MODEL</p>
-          <h2 id="graph-title">The shape of Portal</h2>
-          <p class="lede">A hierarchical view of product surfaces, state orchestration, backend seams, foundations, and external systems. Select any component to trace its evidence.</p>
+          <p class="eyebrow">DETERMINISTIC SYSTEM MAP</p>
+          <h2 id="interplay-title">System map</h2>
+          <p class="lede">The application boundary with its navigation pages inside, the one transport core that owns the pool, lock and socket every page competes for, the client extensions that route through it, the namespaces it dispatches at the gateway, the on-device engines, the event bus and its subscribers, and the external systems orbiting the application. Every node deep-links to its source; the constructions the map assumes are declared as invariants and checked on every build.</p>
         </div>
-        <div class="stats" id="stats" aria-label="Repository statistics"></div>
       </div>
-
-      <div class="graph-toolbar" aria-label="Graph controls">
+      <div class="authority-banner" role="note">Extracted by static source rules, explained by <code>architecture/interplay/overlay.json</code>, and gated by <code>architecture/interplay/invariants.json</code>. Edges are ownership, lifecycle, and wiring—not runtime topology or live connection counts.</div>
+      <div class="graph-toolbar" aria-label="System map controls">
         <label class="search-control">
-          <span class="sr-only">Search components</span>
-          <input id="graph-search" type="search" placeholder="Search components or declarations…" autocomplete="off">
+          <span class="sr-only">Search system map nodes</span>
+          <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
         </label>
         <label class="select-control">
-          <span>Edges</span>
-          <select id="edge-mode">
-            <option value="specified">Architectural</option>
-            <option value="all">Architectural + code references</option>
-          </select>
-        </label>
-        <button id="reset-graph" class="quiet-button" type="button">Reset selection</button>
-      </div>
-
-      <div class="graph-workspace">
-        <div class="graph-scroll" id="graph-scroll">
-          <svg id="architecture-graph" role="img" aria-label="Portal architecture component graph"></svg>
-        </div>
-        <aside class="inspector" id="inspector" aria-live="polite">
-          <div class="inspector-empty">
-            <span class="inspector-index">01</span>
-            <h3>Select a component</h3>
-            <p>Inspect responsibility, source ownership, declarations, relationships, and evidence.</p>
-          </div>
-        </aside>
-      </div>
-      <div class="legend" id="legend" aria-label="Architecture layers"></div>
-    </section>
-
-    <section class="view" id="interplay-view" aria-labelledby="interplay-title">
-      <div class="intro-row">
-        <div>
-          <p class="eyebrow">DETERMINISTIC INTERPLAY GRAPH</p>
-          <h2 id="interplay-title">Connection pools &amp; on-device models</h2>
-          <p class="lede">A verbose, source-extracted graph of the connection-pool resources, the queried RPC and REST endpoints, the product surfaces that invoke each namespace, the on-device language and speech engines, and the event bus, seam, and hub constructions that fan a transport's push events out to their subscribers and make a network transport and an on-device model interplay. Every node deep-links to its source; the load-bearing pools and engines are gated by a curated overlay.</p>
-        </div>
-      </div>
-      <div class="authority-banner" role="note">Extracted by static source rules and checked against <code>architecture/interplay/overlay.json</code>. Edges are ownership, lifecycle, and cross-domain wiring—not runtime topology or live connection counts.</div>
-      <div class="graph-toolbar" aria-label="Interplay controls">
-        <label class="search-control">
-          <span class="sr-only">Search interplay nodes</span>
-          <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
+          <span>Invariants</span>
+          <select id="invariant-select"></select>
         </label>
         <button id="interplay-fullscreen" class="quiet-button" type="button">Full screen</button>
         <button id="reset-interplay" class="quiet-button" type="button">Reset view</button>
       </div>
+      <div class="invariant-detail" id="invariant-detail" hidden></div>
       <p class="graph-hint" aria-hidden="true">Drag the canvas to pan · scroll to zoom · drag a node to reposition it · click a node for its metadata</p>
       <div class="graph-workspace" id="interplay-workspace">
         <div class="graph-scroll" id="interplay-scroll">
           <svg id="interplay-graph" role="img" aria-label="Portal connection-pool and on-device-model interplay graph"></svg>
-        </div>
-        <aside class="inspector" id="interplay-inspector" aria-live="polite">
-          <div class="inspector-empty">
-            <span class="inspector-index">◇</span>
-            <h3>Select a node</h3>
-            <p>Inspect a connection pool, a queried RPC or REST endpoint, an on-device engine, the event bus and its subscribers, the AgentBackend seam, or the hub that wires them—with its curated prose and exact source line.</p>
+          <div class="legend-overlay" id="interplay-legend" aria-label="Interplay legend">
+            <button type="button" class="legend-toggle" id="interplay-legend-toggle" aria-expanded="true" aria-controls="interplay-legend-items">Legend</button>
+            <div class="legend legend-items" id="interplay-legend-items"></div>
           </div>
-        </aside>
-      </div>
-      <div class="legend" id="interplay-legend" aria-label="Interplay node roles"></div>
-    </section>
-
-    <section class="view" id="execution-view" aria-labelledby="execution-title">
-      <div class="intro-row compact">
-        <div>
-          <p class="eyebrow">DETERMINISTIC EXECUTION EVIDENCE</p>
-          <h2 id="execution-title">Execution &amp; tasks</h2>
-          <p class="lede">Lexically observed execution domains, task creation sites, stored handles, and cancellation calls grouped by source-owned component. Each item carries its extraction rule and exact source line.</p>
         </div>
+        <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
-      <div class="authority-banner" role="note">Observed by static source rules—not agent-authored and not proof of runtime scheduling or overlap.</div>
-      <div class="behavior-content" id="execution-content"></div>
     </section>
 
     <section class="view" id="connections-view" aria-labelledby="connections-title">
@@ -138,30 +86,28 @@
       <div class="behavior-content" id="connections-content"></div>
     </section>
 
-    <section class="view" id="scenarios-view" aria-labelledby="scenarios-title">
+    <section class="view" id="externals-view" aria-labelledby="externals-title">
       <div class="intro-row compact">
         <div>
-          <p class="eyebrow">SOURCE-ORDERED OPERATIONS</p>
-          <h2 id="scenarios-title">Scenarios</h2>
-          <p class="lede">Operation sequences are assembled only from deterministic lifecycle evidence within one static pocket.</p>
+          <p class="eyebrow">DETERMINISTIC BOUNDARY EVIDENCE</p>
+          <h2 id="externals-title">External systems</h2>
+          <p class="lede">Systems outside the Swift source that Portal talks to or runs on, declared in <code>architecture/config.json</code> and attributed to components by source signatures. Descriptions are specified; usage counts and evidence lines are observed.</p>
         </div>
       </div>
-      <div class="authority-banner warning" role="alert"><strong>Source order is not runtime order.</strong> These sequences do not assert causality, timing, concurrency, or execution order.</div>
-      <div class="behavior-content" id="scenarios-content"></div>
+      <div class="authority-banner" role="note">A signature match proves a supported source form is present at the cited line—not that the system is reached at runtime, and not how often.</div>
+      <div class="behavior-content" id="externals-content"></div>
     </section>
 
-    <section class="view" id="specifications-view" aria-labelledby="specifications-title">
+    <section class="view" id="stores-view" aria-labelledby="stores-title">
       <div class="intro-row compact">
         <div>
-          <p class="eyebrow">HUMAN-CONTROLLED AUTHORITY</p>
-          <h2 id="specifications-title">Specifications</h2>
-          <p class="lede">Normative architecture remains reviewable prose. Generated observations may inform it, but cannot silently redefine it.</p>
+          <p class="eyebrow">DETERMINISTIC PERSISTENCE EVIDENCE</p>
+          <h2 id="stores-title">Data stores</h2>
+          <p class="lede">Store, cache, inventory, and ledger types recognised by name, with the persistence mechanism and on-disk artifact names observed in the type body, its same-file extensions, and namesake helper types.</p>
         </div>
       </div>
-      <div class="document-workspace">
-        <nav class="document-list" id="spec-list" aria-label="Specifications"></nav>
-        <article class="document" id="spec-document"></article>
-      </div>
+      <div class="authority-banner" role="note">“Unobserved” means no supported persistence API appears in those bodies—the store is in-memory or delegates elsewhere. It is not a claim that nothing is persisted.</div>
+      <div class="behavior-content" id="stores-content"></div>
     </section>
 
     <section class="view" id="inventory-view" aria-labelledby="inventory-title">
