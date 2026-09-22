@@ -64,16 +64,38 @@ internal struct DiagramExplorerView: View {
 
 // MARK: - Shared interactive explorer
 
+/// Selection adapter shared by interactive graph hosts and exercised without
+/// constructing a SwiftUI hierarchy. Projected model node ids equal page paths.
+@MainActor
+internal enum InteractiveGraphSelection {
+    internal static func apply(_ nodeID: String?, to viewModel: WikiGraphViewModel) {
+        guard let nodeID else {
+            viewModel.deactivateSelection()
+            return
+        }
+        viewModel.syncNodeSelection(toPath: nodeID)
+    }
+
+    internal static func selectedID(in viewModel: WikiGraphViewModel) -> String? {
+        guard let index = viewModel.selectedNodeIndex,
+              viewModel.simNodes.indices.contains(index) else { return nil }
+        return viewModel.simNodes[index].id
+    }
+}
+
 /// The interactive graph surface shared by the diagram explorer sheet and
 /// graph-kind artifacts: the wiki's live force simulation with pan, zoom,
-/// node drag, tap-to-select with click-through neighbors, and an optional 3D
-/// SceneKit rendering of the same graph. Owns its WikiGraphViewModel and
+/// node drag, tap-to-select with click-through neighbors, and optional 3D
+/// SceneKit rendering. Owns its WikiGraphViewModel and
 /// re-runs the layout when `graph` changes (living artifacts update in place).
 ///
 /// The host MUST give this view a bounded height — the GeometryReader inside
 /// collapses under an unbounded (ScrollView) height proposal.
 internal struct InteractiveGraphView: View {
     internal let graph: WikiGraph
+    /// Optional host selection bus. Model artifacts use entity refs as graph
+    /// node ids, so table and graph selection can stay synchronized.
+    internal var externalSelection: Binding<String?>?
 
     @StateObject private var viewModel = WikiGraphViewModel()
     @State private var mouseState = MouseState.idle
@@ -88,6 +110,8 @@ internal struct InteractiveGraphView: View {
     }
 
     private let timer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
+    private var externalSelectionValue: String? { externalSelection?.wrappedValue }
 
     internal var body: some View {
         HStack(spacing: 0) {
@@ -114,6 +138,13 @@ internal struct InteractiveGraphView: View {
         .onChange(of: graph) { _, newGraph in
             viewModel.graph = newGraph
             viewModel.setupSimulation()
+            InteractiveGraphSelection.apply(externalSelectionValue, to: viewModel)
+        }
+        .onChange(of: externalSelectionValue) { _, nodeID in
+            InteractiveGraphSelection.apply(nodeID, to: viewModel)
+        }
+        .onChange(of: viewModel.selectedNodeIndex) { _, _ in
+            externalSelection?.wrappedValue = InteractiveGraphSelection.selectedID(in: viewModel)
         }
     }
 
@@ -208,6 +239,7 @@ internal struct InteractiveGraphView: View {
                 viewModel.canvasSize = geo.size
                 if geo.size != .zero {
                     viewModel.setupSimulation()
+                    InteractiveGraphSelection.apply(externalSelectionValue, to: viewModel)
                 }
             }
             .onChange(of: geo.size) { _, newSize in
