@@ -69,16 +69,16 @@ internal struct GatewayTransportLeakTests {
         // Rebuild the transport several times, the way a flaky link plus macOS
         // window focus does over a long session. Each rebuild must leave exactly
         // one live WebSocket behind, not accumulate one per attempt.
-        // Each redial must be allowed to land before the next one starts.
-        // `forceReconnectAndWait` returns as soon as `connectionState` reads
-        // `.connected`, which after the first socket opens is *already* true —
-        // the delegate hasn't been told the old transport died yet — so firing
-        // them back to back had each teardown killing the previous dial while it
-        // was still handshaking, and only 2 of 5 ever reached the server. A
-        // reconnect the user actually experiences completes; wait for that.
+        // Each redial must be allowed to land before the next one starts. Drive
+        // the reconnect synchronously, but do not also wait on the client's
+        // delegate callback: under a loaded test runner that callback can lag the
+        // server's completed upgrade and needlessly consume a second timeout.
+        // The fixture's server-side count is the direct completion signal this
+        // assertion needs, and waiting for it prevents the next teardown from
+        // killing a transport that is still handshaking.
         let dials = 5
         for dial in 1..<dials {
-            await client.forceReconnectAndWait(timeout: 3)
+            await client.forceReconnectAndWait(timeout: 0)
             try await waitFor { server.upgradeCount > dial }
         }
         try await waitFor { server.upgradeCount >= dials }
