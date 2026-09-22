@@ -74,6 +74,23 @@ internal struct DashboardLayoutTests {
         #expect(layout.panels.map(\.id) == [a.id, b.id])  // order intact
     }
 
+    @Test("kind removal and collapse mutation affect only matching panels")
+    internal func kindRemovalAndCollapseMutation() {
+        let files = DashboardPanel(kind: .files, frame: .zero)
+        let skills = DashboardPanel(kind: .skills, frame: .zero)
+        let otherFiles = DashboardPanel(kind: .files, frame: .zero)
+        var layout = DashboardLayout(panels: [files, skills, otherFiles])
+
+        layout.toggleCollapsed(skills.id)
+        #expect(layout.panels.first { $0.id == skills.id }?.isCollapsed == true)
+        layout.toggleCollapsed(UUID())
+        #expect(layout.panels.count == 3)
+
+        layout.remove(.files)
+        #expect(layout.panels.map(\.id) == [skills.id])
+        #expect(layout.panels[0].isCollapsed)
+    }
+
     // MARK: - Codable round-trip (persistence)
 
     @Test("A layout survives an encode/decode round-trip")
@@ -85,6 +102,26 @@ internal struct DashboardLayoutTests {
         let data = try JSONEncoder().encode(layout)
         let decoded = try JSONDecoder().decode(DashboardLayout.self, from: data)
         #expect(decoded == layout)
+    }
+
+    @Test("stored layouts round-trip while empty and corrupt values reseed")
+    internal func storedLayoutOutcomes() throws {
+        let key = "DashboardLayoutTests.\(UUID().uuidString)"
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        let layout = DashboardLayout(panels: [
+            DashboardPanel(kind: .conversation, frame: CGRect(x: 1, y: 2, width: 300, height: 200))
+        ])
+
+        #expect(DashboardLayout.loadStored(key: key) == nil)
+        layout.store(key: key)
+        #expect(DashboardLayout.loadStored(key: key) == layout)
+
+        let empty = try JSONEncoder().encode(DashboardLayout())
+        UserDefaults.standard.set(empty, forKey: key)
+        #expect(DashboardLayout.loadStored(key: key) == nil)
+
+        UserDefaults.standard.set(Data("not json".utf8), forKey: key)
+        #expect(DashboardLayout.loadStored(key: key) == nil)
     }
 
     @Test("An unknown panel kind decodes without loss (forward-compatible)")
@@ -291,6 +328,22 @@ internal struct DashboardLayoutTests {
         // The flamechart is present and is the widest (dominant) panel.
         let flame = layout.panels.first { $0.kind == .flamechart }
         #expect(flame != nil)
+    }
+
+    @Test("seeded sessions dashboard contains every panel in bounds")
+    internal func seededSessionsDashboardFitsBounds() {
+        let bounds = CGSize(width: 1200, height: 800)
+        let layout = DashboardLayout.seededSessionsDashboard(for: bounds)
+
+        #expect(Set(layout.panels.map(\.kind)) == [
+            .sessionsList, .sessionsStats, .sessionsSourceBreakdown, .sessionsTimeline,
+        ])
+        for panel in layout.panels {
+            #expect(panel.frame.minX >= 0)
+            #expect(panel.frame.minY >= 0)
+            #expect(panel.frame.maxX <= bounds.width)
+            #expect(panel.frame.maxY <= bounds.height)
+        }
     }
 
     @Test("Seeded cron dashboard is summary over volume; dataflow lives in Graphs")
