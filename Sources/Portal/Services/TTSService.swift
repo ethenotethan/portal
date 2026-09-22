@@ -68,7 +68,7 @@ internal protocol ConversationSpeaking: ConversationSpeechStatus {
 /// the voice/rate/code-block preferences that shape every utterance.
 @MainActor
 internal final class TTSService: ObservableObject, ConversationSpeaking {
-    static let shared = TTSService()
+    internal static let shared = TTSService()
 
     // MARK: Settings
 
