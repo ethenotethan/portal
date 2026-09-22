@@ -782,6 +782,7 @@ def validate_external_systems(config: dict[str, Any]) -> None:
         raise ArchitectureError("config external_systems must be an array")
     components = {str(item["id"]): item for item in config["components"]}
     seen: set[str] = set()
+    persistence_seen: set[str] = set()
     for system in systems:
         if not isinstance(system, dict):
             raise ArchitectureError("external system entries must be objects")
@@ -796,6 +797,13 @@ def validate_external_systems(config: dict[str, Any]) -> None:
         component = system.get("component")
         if component is not None and not components.get(component, {}).get("external"):
             raise ArchitectureError(f"external system {system['id']} maps to a non-external component {component!r}")
+        persistence = system.get("persistence")
+        if persistence is not None:
+            if persistence not in {"file", "defaults", "keychain"}:
+                raise ArchitectureError(f"external system {system['id']} has unknown persistence {persistence!r}")
+            if persistence in persistence_seen:
+                raise ArchitectureError(f"persistence {persistence!r} is claimed by more than one external system")
+            persistence_seen.add(persistence)
         signatures = system.get("signatures")
         if not isinstance(signatures, list) or not signatures:
             raise ArchitectureError(f"external system {system['id']} needs at least one signature")
@@ -910,6 +918,8 @@ def build_externals_model(files: list[dict[str, Any]], config: dict[str, Any]) -
             "description_authority": "specified",
             "protocol": entry.get("protocol"),
             "component": entry.get("component"),
+            "persistence": entry.get("persistence"),
+            "paths": sorted({hit["evidence"]["path"] for hit in hits}),
             "signatures": [
                 {"pattern": pattern, "scope": scope}
                 for pattern, scope in (normalize_signature(item) for item in entry["signatures"])
@@ -1631,10 +1641,15 @@ def build_interplay_graph(
                     wrapper_method_ns.setdefault(enclosing_fn, set()).add(namespace)
                 line = code.count("\n", 0, match.start()) + 1
                 key = (component, owner_type, protocol, namespace)
-                group = endpoint_groups.setdefault(key, {"methods": {}, "path": source["path"], "line": line})
-                if method not in group["methods"] or line < group["methods"][method]:
-                    group["methods"][method] = line
-                if (source["path"], line) < (group["path"], group["line"]):
+                group = endpoint_groups.setdefault(
+                    key, {"methods": {}, "files": {}, "path": source["path"], "line": line}
+                )
+                site = (source["path"], line)
+                if method not in group["methods"] or site < group["methods"][method]:
+                    group["methods"][method] = site
+                if source["path"] not in group["files"] or line < group["files"][source["path"]]:
+                    group["files"][source["path"]] = line
+                if site < (group["path"], group["line"]):
                     group["path"], group["line"] = source["path"], line
     for (component, owner_type, protocol, namespace), group in sorted(endpoint_groups.items()):
         digest = hashlib.sha256("\0".join([owner_type, protocol, namespace]).encode("utf-8")).hexdigest()[:12]
@@ -1645,10 +1660,35 @@ def build_interplay_graph(
             "sub_kind": "rpc_namespace" if protocol == "jsonrpc" else "http_endpoint",
             "label": namespace, "component": component, "owner_type": owner_type,
             "protocol": protocol, "method_count": len(group["methods"]),
-            "methods": [{"method": method, "line": line} for method, line in sorted(group["methods"].items())],
+            "methods": [
+                {"method": method, "path": path, "line": line}
+                for method, (path, line) in sorted(group["methods"].items())
+            ],
+            "files": sorted(group["files"]),
             "path": group["path"], "line": group["line"],
         }
-        edges.add((owner_node_id(component, owner_type), ep_id, "structure", "calls"))
+        # Namespace → client extension file → core transport. A namespace whose
+        # methods live in the transport's own file is called by the core directly;
+        # one implemented in `GatewayClient+Wiki.swift` goes through a `client`
+        # node for that file, which the core transport `extends`.
+        core_path = file_by_type[owner_type]["path"] if owner_type in file_by_type else None
+        for path, line in sorted(group["files"].items()):
+            if path == core_path:
+                edges.add((owner_node_id(component, owner_type), ep_id, "structure", "calls"))
+                continue
+            stem = Path(path).stem
+            client_id = f"client:{component or 'unassigned'}:{stem}"
+            client = nodes.get(client_id)
+            if client is None:
+                client = nodes[client_id] = {
+                    "id": client_id, "kind": "client", "sub_kind": "client_extension",
+                    "label": stem, "component": component, "owner_type": owner_type,
+                    "namespaces": set(), "path": path, "line": line,
+                }
+            client["line"] = min(client["line"], line)
+            client["namespaces"].add(namespace)
+            edges.add((owner_node_id(component, owner_type), client_id, "structure", "extends"))
+            edges.add((client_id, ep_id, "structure", "implements"))
         for pool in resources:
             if pool["kind"] == "rpc_pool" and pool["owner_type"] == owner_type and pool["component"] == component:
                 edges.add((ep_id, resource_node_by_id[pool["id"]], "lifecycle", "correlates"))
@@ -1768,6 +1808,8 @@ def build_interplay_graph(
             component, grouping = node["component"], f"{node['owner_type']} · endpoints"
         elif node["kind"] == "caller":
             component, grouping = node["component"], "callers"
+        elif node["kind"] == "client":
+            component, grouping = node["component"], f"{node['owner_type']} · client files"
         else:
             component, grouping = node["component"], node.get("owner_type") or node["label"]
         digest = hashlib.sha256(
@@ -1788,6 +1830,8 @@ def build_interplay_graph(
     for node in nodes.values():
         if node["kind"] == "owner":
             node["roles"] = sorted(node["roles"])
+        if node["kind"] == "client":
+            node["namespaces"] = sorted(node["namespaces"])
     for cluster in clusters.values():
         cluster["node_ids"] = sorted(set(cluster["node_ids"]))
 
@@ -1801,6 +1845,118 @@ def build_interplay_graph(
     ]
     cluster_list = sorted(clusters.values(), key=lambda item: item["id"])
     return {"nodes": node_list, "edges": edge_list, "clusters": cluster_list}
+
+
+BOUNDARY_RELATION_BY_CATEGORY = {
+    "backend": "reaches",
+    "network": "traverses",
+    "ml-runtime": "runs-on",
+    "on-device-engine": "runs-on",
+    "platform-service": "uses",
+    "platform-storage": "persists-to",
+    "platform-framework": "renders-with",
+    "third-party-api": "reaches",
+}
+
+
+def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str, Any],
+                                  stores: dict[str, Any]) -> None:
+    """Fold the declared external systems into the interplay graph as boundary nodes.
+
+    Every declared system that some interplay node links to becomes an `external`
+    node in an "External systems" cluster. Links are same-file evidence, never
+    inference: an owner, hub, seam,
+    or subscriber node links to a system that has a signature hit in the file
+    declaring that type; an endpoint links (`served-by`) to every backend system
+    its transport owner reaches; a subscriber/owner that is a recognised store
+    links (`persists-to`) to the storage system claiming its observed mechanism.
+    """
+    nodes = interplay["nodes"]
+    systems = externals["systems"]
+    if not systems:
+        return
+    existing = {(edge["source"], edge["target"], edge["class"], edge["relation"]) for edge in interplay["edges"]}
+    new_edges: set[tuple[str, str, str, str]] = set()
+    system_by_id = {system["id"]: system for system in systems}
+    external_node_id = {system["id"]: f"external:{system['id']}" for system in systems}
+
+    linkable = [node for node in nodes if node["kind"] in {"owner", "hub", "seam", "subscriber"} and node.get("path")]
+    for system in systems:
+        paths = set(system["paths"])
+        relation = BOUNDARY_RELATION_BY_CATEGORY.get(system["category"], "uses")
+        for node in linkable:
+            if node["path"] in paths:
+                new_edges.add((node["id"], external_node_id[system["id"]], "boundary", relation))
+
+    owner_backends: dict[str, set[str]] = defaultdict(set)
+    for source, target, _, relation in new_edges:
+        system = system_by_id[target.split(":", 1)[1]]
+        if source.startswith("owner:") and system["category"] == "backend":
+            owner_backends[source].add(target)
+    owner_id_by_key = {(node["component"], node["label"]): node["id"] for node in nodes if node["kind"] == "owner"}
+    for node in nodes:
+        if node["kind"] != "endpoint":
+            continue
+        owner_id = owner_id_by_key.get((node["component"], node["owner_type"]))
+        for target in sorted(owner_backends.get(owner_id or "", ())):
+            new_edges.add((node["id"], target, "boundary", "served-by"))
+
+    storage_system = {system["persistence"]: system["id"] for system in systems if system.get("persistence")}
+    store_by_type = {item["type_name"]: item for item in stores["items"]}
+    for node in nodes:
+        if node["kind"] not in {"subscriber", "owner", "hub"}:
+            continue
+        store = store_by_type.get(node["label"])
+        if store is None:
+            continue
+        for mechanism in store["persistence"]:
+            system_id = storage_system.get(mechanism)
+            if system_id:
+                new_edges.add((node["id"], external_node_id[system_id], "boundary", "persists-to"))
+
+    linked_targets = {target for _, target, _, _ in new_edges}
+    for system in systems:
+        # Only systems some interplay node actually touches enter this graph; the
+        # rest stay in the External systems view so no box floats unconnected.
+        if external_node_id[system["id"]] not in linked_targets:
+            continue
+        evidence = sorted(
+            (item for usage in system["usage"] for item in usage["evidence"]),
+            key=lambda item: (item["path"], item["line"]),
+        )
+        first = evidence[0] if evidence else {"path": None, "line": 0}
+        digest = hashlib.sha256("\0".join(["external", system["id"]]).encode("utf-8")).hexdigest()[:12]
+        cluster_id = f"interplay-cluster-{digest}"
+        nodes.append({
+            "id": external_node_id[system["id"]],
+            "kind": "external",
+            "sub_kind": system["category"],
+            "label": system["label"],
+            "system_id": system["id"],
+            "component": system.get("component"),
+            "owner_type": "External systems",
+            "protocol": system.get("protocol"),
+            "description": system["description"],
+            "description_authority": "specified",
+            "hit_count": system["hit_count"],
+            "file_count": system["file_count"],
+            "usage": [{"component": usage["component"], "hit_count": usage["hit_count"]} for usage in system["usage"]],
+            "path": first["path"],
+            "line": first["line"],
+            "cluster": cluster_id,
+        })
+        interplay["clusters"].append({
+            "id": cluster_id,
+            "component": system.get("component"),
+            "owner_type": "External systems",
+            "node_ids": [external_node_id[system["id"]]],
+        })
+
+    for source, target, edge_class, relation in sorted(new_edges - existing):
+        interplay["edges"].append({"source": source, "target": target, "class": edge_class, "relation": relation})
+    interplay["edges"].sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+    interplay["clusters"].sort(key=lambda item: item["id"])
 
 
 def interplay_overlay_key(kind: str, owner_type: str | None, label: str) -> str:
@@ -1917,6 +2073,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     validate_interplay(interplay, load_json(INTERPLAY_OVERLAY_PATH))
     externals = build_externals_model(files, config)
     stores = build_stores_model(files)
+    attach_externals_to_interplay(interplay, externals, stores)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",

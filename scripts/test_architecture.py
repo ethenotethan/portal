@@ -413,6 +413,58 @@ actor MessagePump {}
             self.assertTrue((ROOT / item["evidence"]["path"]).is_file())
             self.assertEqual("swift.store.declaration", item["rule_id"])
 
+    def test_interplay_carries_external_boundary_nodes_and_edges(self) -> None:
+        interplay = self.model["interplay"]
+        node_ids = {node["id"] for node in interplay["nodes"]}
+        externals = {node["id"]: node for node in interplay["nodes"] if node["kind"] == "external"}
+        declared = {f"external:{system['id']}" for system in self.model["externals"]["systems"]}
+        self.assertTrue(set(externals) <= declared)
+        self.assertIn("external:harness-gateway", externals)
+        self.assertIn("external:apple-mlx", externals)
+        boundary = [edge for edge in interplay["edges"] if edge["class"] == "boundary"]
+        self.assertTrue(boundary)
+        # No external node floats: each one is the target of at least one boundary edge.
+        self.assertEqual(set(externals), {edge["target"] for edge in boundary})
+        for edge in boundary:
+            self.assertIn(edge["source"], node_ids)
+            self.assertIn(edge["target"], externals)
+        # Every JSON-RPC / REST endpoint box hangs off the gateway it is served by.
+        endpoint_ids = {node["id"] for node in interplay["nodes"] if node["kind"] == "endpoint"}
+        served = {
+            edge["source"] for edge in boundary
+            if edge["relation"] == "served-by" and edge["target"] == "external:harness-gateway"
+        }
+        self.assertTrue(endpoint_ids)
+        self.assertEqual(endpoint_ids, served)
+        runs_on = {edge["source"] for edge in boundary if edge["relation"] == "runs-on" and edge["target"] == "external:apple-mlx"}
+        self.assertTrue(any("MLX" in source for source in runs_on), runs_on)
+        self.assertTrue(any(edge["relation"] == "persists-to" for edge in boundary))
+        clusters = {cluster["id"]: cluster for cluster in interplay["clusters"]}
+        for node in externals.values():
+            self.assertEqual("External systems", clusters[node["cluster"]]["owner_type"])
+            self.assertEqual("specified", node["description_authority"])
+
+    def test_interplay_routes_namespaces_through_client_extension_files(self) -> None:
+        interplay = self.model["interplay"]
+        clients = [node for node in interplay["nodes"] if node["kind"] == "client"]
+        self.assertTrue(clients)
+        for client in clients:
+            self.assertTrue(client["path"].endswith(".swift"), client["path"])
+            self.assertEqual(Path(client["path"]).stem, client["label"])
+            self.assertTrue(client["namespaces"], client["id"])
+            self.assertTrue((ROOT / client["path"]).is_file())
+        endpoint_ids = {node["id"] for node in interplay["nodes"] if node["kind"] == "endpoint"}
+        implements = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "implements"}
+        calls = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "calls"}
+        # Every namespace box reaches the core transport: directly, or through the file that implements it.
+        self.assertEqual(endpoint_ids, implements | calls)
+        extends = {edge["target"] for edge in interplay["edges"] if edge["relation"] == "extends"}
+        self.assertEqual({client["id"] for client in clients}, extends)
+        for node in interplay["nodes"]:
+            if node["kind"] == "endpoint":
+                for entry in node["methods"]:
+                    self.assertIn(entry["path"], node["files"])
+
     def test_boundary_site_views_and_renderers_exist(self) -> None:
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
         for view in ("externals", "stores"):
@@ -424,6 +476,15 @@ actor MessagePump {}
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         self.assertIn("External systems used", app)
         self.assertIn("Data stores owned", app)
+        self.assertIn("INTERPLAY_EXTERNAL_GROUP", app)
+        self.assertIn('["boundary", "#e0704f"', app)
+        self.assertRegex(app, r"function\s+isInterplayBar\s*\(")
+        # The legend lives in the empty inspector; the strip and the placeholder prose are gone.
+        self.assertIn('class="legend legend-overlay" id="interplay-legend"', index)
+        self.assertNotIn("Select a node", index)
+        self.assertNotIn("Select a node", app)
+        self.assertIn("interplay-container-rect", app)
+        self.assertIn('drawn as containment', app)
 
 
 if __name__ == "__main__":

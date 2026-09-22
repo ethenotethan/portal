@@ -252,6 +252,7 @@
     },
     {
       "id": "keychain",
+      "persistence": "keychain",
       "label": "Keychain",
       "category": "platform-storage",
       "component": "device-services",
@@ -263,6 +264,7 @@
     },
     {
       "id": "file-system",
+      "persistence": "file",
       "label": "Application Support files",
       "category": "platform-storage",
       "component": "device-services",
@@ -274,6 +276,7 @@
     },
     {
       "id": "user-defaults",
+      "persistence": "defaults",
       "label": "UserDefaults",
       "category": "platform-storage",
       "component": "device-services",

@@ -39,6 +39,8 @@
     engine: "#70b98d",
     subscriber: "#d16f86",
     caller: "#7ec8b0",
+    client: "#8fb3d9",
+    external: "#e0704f",
     other: "#6d6a68"
   };
   const INTERPLAY_ROLE_LABELS = {
@@ -49,9 +51,11 @@
     endpoint: "Queried endpoints",
     engine: "On-device engine",
     subscriber: "Event subscribers",
+    client: "Client extension file",
+    external: "External system",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, caller: 3, endpoint: 4, engine: 5, subscriber: 6, other: 7 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, caller: 3, endpoint: 4, client: 5, engine: 6, external: 7, subscriber: 8, other: 9 };
   // Friendly module names for the well-known product namespaces, and the label of
   // the factored-out shared region. Declared in this top const block (like the
   // role maps) so renderInterplay(), called during init, reads them without
@@ -64,7 +68,10 @@
     gateway: "Gateway", activity: "Activity", workflows: "Workflows"
   };
   const INTERPLAY_SHARED_GROUP = "Shared core";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
+  // Declared external systems (config-specified, source-attributed) sit in their
+  // own hull beneath the shared core; endpoint boxes hang off the gateway there.
+  const INTERPLAY_EXTERNAL_GROUP = "External systems";
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, resource: 1, endpoint: 1, subscriber: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const EXTERNAL_CATEGORY_LABELS = {
@@ -406,8 +413,17 @@
     if (node.kind === "endpoint") return "endpoint";
     if (node.kind === "subscriber") return "subscriber";
     if (node.kind === "caller") return "caller";
+    if (node.kind === "external") return "external";
+    if (node.kind === "client") return "client";
     if (node.kind === "owner") return interplayRoleByOwnerType.get(node.label) || "other";
     return interplayRoleByOwnerType.get(node.owner_type) || "other";
+  }
+
+  // A backend external that endpoint boxes are served by is drawn as a bus bar
+  // spanning the shared core, directly beneath the endpoints that sit on it.
+  function isInterplayBar(node) {
+    return node.kind === "external" && node.sub_kind === "backend" &&
+      interplay.edges.some((edge) => edge.target === node.id && edge.relation === "served-by");
   }
 
   function interplayNodeSize(node) {
@@ -458,13 +474,22 @@
       candidates.sort((a, b) => a.count - b.count || a.label.localeCompare(b.label));
       callerFeature.set(node.id, candidates.length ? interplayFeatureName(candidates[0].label) : INTERPLAY_SHARED_GROUP);
     });
+    const barIds = new Set(nodes.filter(isInterplayBar).map((node) => node.id));
+    const servedByBar = new Set(
+      edges.filter((edge) => edge.relation === "served-by" && barIds.has(edge.target)).map((edge) => edge.source)
+    );
     const group = new Map();
     nodes.forEach((node) => {
       const role = interplayNodeRole(node);
       if (role === "caller") { group.set(node.id, callerFeature.get(node.id) || INTERPLAY_SHARED_GROUP); return; }
       if (role === "endpoint") {
+        if (servedByBar.has(node.id)) { group.set(node.id, INTERPLAY_SHARED_GROUP); return; }
         const features = new Set(Array.from(invokedBy.get(node.id) || []).map((id) => callerFeature.get(id)).filter(Boolean));
         group.set(node.id, features.size === 1 ? Array.from(features)[0] : INTERPLAY_SHARED_GROUP);
+        return;
+      }
+      if (role === "external") {
+        group.set(node.id, isInterplayBar(node) ? INTERPLAY_SHARED_GROUP : INTERPLAY_EXTERNAL_GROUP);
         return;
       }
       group.set(node.id, INTERPLAY_SHARED_GROUP);
@@ -479,10 +504,12 @@
       const role = interplayNodeRole(node);
       if (role === "caller") return 0;
       if (role === "endpoint") return 1;
-      if (role === "transport") return 2;
-      if (role === "seam") return 3;
-      if (role === "engine") return 4;
-      return 5;
+      if (role === "client") return 2;
+      if (role === "transport") return 3;
+      if (role === "seam") return 4;
+      if (role === "engine") return 5;
+      if (role === "external") return 7;
+      return 6;
     };
     const byGroup = new Map();
     nodes.forEach((node) => {
@@ -498,30 +525,76 @@
     const GAP = 14;
     function layoutGroup(list, cols) {
       const place = new Map();
-      let x = PAD;
+      const containers = [];
+      const bars = list.filter(isInterplayBar);
+      const barIds = new Set(bars.map((bar) => bar.id));
+      const containedBy = new Map(); // endpoint id -> gateway bar id
+      if (barIds.size) {
+        edges.forEach((edge) => {
+          if (edge.relation === "served-by" && barIds.has(edge.target)) containedBy.set(edge.source, edge.target);
+        });
+      }
+      const rest = list.filter((node) => !barIds.has(node.id) && !containedBy.has(node.id));
+      const INSET = 16;
+      const HEADER_H = 40;
       let y = PAD + HEADER;
-      let rowH = 0;
       let maxRight = PAD;
-      let col = 0;
-      let prevRank = null;
-      list.forEach((node) => {
-        const s = size.get(node.id);
-        const rank = kindRank(node);
-        const wrap = col >= cols || (prevRank === 0 && rank !== 0); // callers get their own top row
-        if (wrap) { col = 0; x = PAD; y += rowH + GAP; rowH = 0; }
-        place.set(node.id, { x: x + s.width / 2, y: y + s.height / 2 });
-        x += s.width + GAP;
-        maxRight = Math.max(maxRight, x - GAP);
-        rowH = Math.max(rowH, s.height);
-        col += 1;
-        prevRank = rank;
+
+      function grid(items, startX, startY, columns) {
+        let x = startX;
+        let gy = startY;
+        let rowH = 0;
+        let right = startX;
+        let col = 0;
+        let prevRank = null;
+        items.forEach((node) => {
+          const s = size.get(node.id);
+          const rank = kindRank(node);
+          const wrap = col >= columns || (prevRank === 0 && rank !== 0); // callers get their own top row
+          if (wrap) { col = 0; x = startX; gy += rowH + GAP; rowH = 0; }
+          place.set(node.id, { x: x + s.width / 2, y: gy + s.height / 2 });
+          x += s.width + GAP;
+          right = Math.max(right, x - GAP);
+          rowH = Math.max(rowH, s.height);
+          col += 1;
+          prevRank = rank;
+        });
+        return { bottom: items.length ? gy + rowH : startY - GAP, right };
+      }
+
+      // A gateway is a container: its header bar on top, and every namespace box
+      // it serves gridded inside it, so the endpoints visibly belong to the gateway.
+      bars.forEach((bar) => {
+        const top = y;
+        const members = list
+          .filter((node) => containedBy.get(node.id) === bar.id)
+          .sort((a, b) => (a.label || "").localeCompare(b.label || "") || a.id.localeCompare(b.id));
+        const inner = grid(members, PAD + INSET, top + HEADER_H + GAP, cols);
+        const bottom = inner.bottom + INSET;
+        containers.push({ nodeId: bar.id, top, bottom });
+        maxRight = Math.max(maxRight, inner.right + INSET);
+        y = bottom + GAP;
       });
-      return { w: maxRight + PAD, h: y + rowH + PAD, place };
+      const restBox = grid(rest, PAD, y, cols);
+      maxRight = Math.max(maxRight, restBox.right);
+      y = Math.max(y - GAP, restBox.bottom);
+
+      // With the group's width known, stretch each container and its header bar across it.
+      const width = maxRight - PAD;
+      containers.forEach((container) => {
+        place.set(container.nodeId, { x: PAD + width / 2, y: container.top + HEADER_H / 2, width, height: HEADER_H });
+        container.x = PAD;
+        container.y = container.top;
+        container.w = width;
+        container.h = container.bottom - container.top;
+      });
+      return { w: maxRight + PAD, h: y + PAD, place, containers };
     }
 
     const laid = new Map();
     byGroup.forEach((list, g) => {
-      const cols = g === INTERPLAY_SHARED_GROUP ? 6 : Math.max(2, Math.min(4, Math.ceil(Math.sqrt(list.length))));
+      const cols = (g === INTERPLAY_SHARED_GROUP || g === INTERPLAY_EXTERNAL_GROUP)
+        ? 6 : Math.max(2, Math.min(4, Math.ceil(Math.sqrt(list.length))));
       laid.set(g, layoutGroup(list, cols));
     });
 
@@ -529,9 +602,10 @@
     // shelf of its own beneath them.
     const BOX_GAP = 40;
     const shared = laid.get(INTERPLAY_SHARED_GROUP);
-    const targetWidth = Math.max(shared ? shared.w : 0, 1280);
+    const external = laid.get(INTERPLAY_EXTERNAL_GROUP);
+    const targetWidth = Math.max(shared ? shared.w : 0, external ? external.w : 0, 1280);
     const featureOrder = Array.from(byGroup.keys())
-      .filter((g) => g !== INTERPLAY_SHARED_GROUP)
+      .filter((g) => g !== INTERPLAY_SHARED_GROUP && g !== INTERPLAY_EXTERNAL_GROUP)
       .sort((a, b) => laid.get(b).h - laid.get(a).h || a.localeCompare(b));
     const groupBoxes = [];
     let cx = 0;
@@ -540,20 +614,30 @@
     featureOrder.forEach((g) => {
       const box = laid.get(g);
       if (cx > 0 && cx + box.w > targetWidth) { cx = 0; cy += shelfH + BOX_GAP; shelfH = 0; }
-      groupBoxes.push({ label: g, x: cx, y: cy, w: box.w, h: box.h, place: box.place });
+      groupBoxes.push({ label: g, x: cx, y: cy, w: box.w, h: box.h, place: box.place, containers: box.containers });
       cx += box.w + BOX_GAP;
       shelfH = Math.max(shelfH, box.h);
     });
     if (shared) {
       cy += shelfH + BOX_GAP;
-      groupBoxes.push({ label: INTERPLAY_SHARED_GROUP, x: 0, y: cy, w: shared.w, h: shared.h, place: shared.place });
+      groupBoxes.push({ label: INTERPLAY_SHARED_GROUP, x: 0, y: cy, w: shared.w, h: shared.h, place: shared.place, containers: shared.containers });
+      shelfH = shared.h;
+    }
+    if (external) {
+      cy += shelfH + BOX_GAP;
+      groupBoxes.push({ label: INTERPLAY_EXTERNAL_GROUP, x: 0, y: cy, w: external.w, h: external.h, place: external.place, containers: external.containers });
     }
 
     const positions = new Map();
     groupBoxes.forEach((box) => {
       box.place.forEach((rel, id) => positions.set(id, { x: box.x + rel.x, y: box.y + rel.y }));
     });
-    positions.groupBoxes = groupBoxes.map((box) => ({ label: box.label, x: box.x, y: box.y, w: box.w, h: box.h }));
+    positions.groupBoxes = groupBoxes.map((box) => ({
+      label: box.label, x: box.x, y: box.y, w: box.w, h: box.h,
+      containers: (box.containers || []).map((container) => ({
+        nodeId: container.nodeId, x: box.x + container.x, y: box.y + container.y, w: container.w, h: container.h
+      }))
+    }));
     return positions;
   }
 
@@ -585,13 +669,15 @@
     interplay.nodes.forEach((node) => {
       const size = interplayNodeSize(node);
       const center = layout.get(node.id);
-      const x = center.x - size.width / 2;
-      const y = center.y - size.height / 2;
-      interplayPositions.set(node.id, { x, y, width: size.width, height: size.height });
+      const width = center.width || size.width;
+      const height = center.height || size.height;
+      const x = center.x - width / 2;
+      const y = center.y - height / 2;
+      interplayPositions.set(node.id, { x, y, width, height });
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + size.width);
-      maxY = Math.max(maxY, y + size.height);
+      maxX = Math.max(maxX, x + width);
+      maxY = Math.max(maxY, y + height);
     });
     // The module hulls extend past the node centres, so fold their extents into the
     // bounds too before centring the whole diagram.
@@ -608,7 +694,11 @@
       position.x += shiftX;
       position.y += shiftY;
     });
-    groupBoxes.forEach((box) => { box.x += shiftX; box.y += shiftY; });
+    groupBoxes.forEach((box) => {
+      box.x += shiftX;
+      box.y += shiftY;
+      (box.containers || []).forEach((container) => { container.x += shiftX; container.y += shiftY; });
+    });
     const width = Math.ceil(maxX - minX + margin * 2);
     const height = Math.ceil(maxY - minY + margin * 2);
     // The SVG fills its frame; a viewBox window pans/zooms over the content. Start
@@ -628,8 +718,9 @@
     const groupLayer = svgElement("g", { class: "interplay-groups" });
     groupBoxes.forEach((box) => {
       const shared = box.label === INTERPLAY_SHARED_GROUP;
+      const externalHull = box.label === INTERPLAY_EXTERNAL_GROUP;
       const hull = svgElement("g", {
-        class: `interplay-group${shared ? " shared" : ""}`,
+        class: `interplay-group${shared ? " shared" : ""}${externalHull ? " external" : ""}`,
         "data-group": box.label
       });
       const rect = svgElement("rect", {
@@ -649,6 +740,14 @@
       label.textContent = box.label;
       hull.append(rect, label);
       groupLayer.append(hull);
+      // Gateway containers: the namespace boxes a gateway serves sit inside this
+      // rectangle, under the gateway's own header bar.
+      (box.containers || []).forEach((container) => {
+        groupLayer.append(svgElement("rect", {
+          x: container.x, y: container.y, width: container.w, height: container.h,
+          rx: 10, ry: 10, class: "interplay-container-rect", "data-container": container.nodeId
+        }));
+      });
     });
     svg.append(groupLayer);
 
@@ -657,6 +756,8 @@
       const source = interplayPositions.get(edge.source);
       const target = interplayPositions.get(edge.target);
       if (!source || !target) return;
+      const targetNode = interplayNodeById.get(edge.target);
+      if (edge.relation === "served-by" && targetNode && isInterplayBar(targetNode)) return; // drawn as containment
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
         class: `interplay-edge ${edge.class}`,
@@ -682,6 +783,7 @@
         "aria-label": `${node.label}, ${INTERPLAY_ROLE_LABELS[role]}`,
         "data-node": node.id,
         "data-kind": node.kind,
+        "data-pipe": isInterplayBar(node) ? "true" : "false",
         transform: `translate(${position.x} ${position.y})`
       });
       group.style.setProperty("--node-color", INTERPLAY_ROLE_COLORS[role]);
@@ -689,6 +791,8 @@
       if (node.kind === "operation") rect.setAttribute("class", "operation");
       else if (node.kind === "endpoint") rect.setAttribute("class", "endpoint");
       else if (node.kind === "caller") rect.setAttribute("class", "caller");
+      else if (node.kind === "external") rect.setAttribute("class", isInterplayBar(node) ? "external pipe" : "external");
+      else if (node.kind === "client") rect.setAttribute("class", "client");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
       group.append(svgElement("line", { x1: 0, x2: 0, y1: 6, y2: position.height - 6, class: "node-rule" }));
@@ -902,6 +1006,8 @@
     if (node.kind === "endpoint") return node.protocol === "jsonrpc" ? "JSON-RPC" : "REST";
     if (node.kind === "subscriber") return "SUBSCRIBER";
     if (node.kind === "caller") return (componentLabel(node.component) || "CALLER").toUpperCase();
+    if (node.kind === "external") return `EXTERNAL · ${String(node.sub_kind || "system").replace(/-/g, " ").toUpperCase()}`;
+    if (node.kind === "client") return "CLIENT FILE";
     if (node.kind === "owner") return (node.roles || []).join(" · ").toUpperCase() || "OWNER";
     return String(node.sub_kind || node.kind).replace(/_/g, " ").toUpperCase();
   }
@@ -919,6 +1025,15 @@
       return `${node.method_count} ${noun}${node.method_count === 1 ? "" : "s"}`;
     }
     if (node.kind === "subscriber") return "binds eventStream";
+    if (node.kind === "external") {
+      return isInterplayBar(node) && node.protocol
+        ? `${node.protocol} · ${node.file_count} file(s) · ${node.hit_count} hit(s)`
+        : `${node.file_count} file(s) · ${node.hit_count} hit(s)`;
+    }
+    if (node.kind === "client") {
+      const count = (node.namespaces || []).length;
+      return `${count} namespace${count === 1 ? "" : "s"}`;
+    }
     if (node.kind === "caller") {
       const count = (node.namespaces || []).length;
       return `queries ${count} namespace${count === 1 ? "" : "s"}`;
@@ -946,6 +1061,7 @@
     const edgeClasses = [
       ["interplay", "var(--accent)", "Interplay wiring"],
       ["usage", "#7ec8b0", "Page invokes namespace"],
+      ["boundary", "#e0704f", "Crosses an external boundary"],
       ["lifecycle", "#55545a", "Lifecycle"],
       ["structure", "var(--line-strong)", "Structure"]
     ];
@@ -967,6 +1083,8 @@
   }
 
   function applyInterplayState() {
+    const inspectorPanel = document.getElementById("interplay-inspector");
+    if (inspectorPanel) inspectorPanel.hidden = !selectedInterplayId;
     const input = document.getElementById("interplay-search");
     const query = input ? input.value.trim().toLowerCase() : "";
     const connected = new Set();
@@ -980,7 +1098,7 @@
     document.querySelectorAll(".interplay-node").forEach((element) => {
       const node = interplayNodeById.get(element.dataset.node);
       if (!node) return;
-      const searchable = [node.label, node.kind, node.sub_kind, node.owner_type, node.component, node.overlay_prose]
+      const searchable = [node.label, node.kind, node.sub_kind, node.owner_type, node.component, node.overlay_prose, node.description, node.protocol]
         .concat((node.methods || []).map((entry) => entry.method))
         .concat(node.namespaces || [])
         .filter(Boolean).join(" ").toLowerCase();
@@ -1040,8 +1158,9 @@
         .sort((left, right) => (left.line - right.line) || left.method.localeCompare(right.method))
         .forEach((entry) => {
           const li = document.createElement("li");
-          const link = sourceLink({ path: node.path, line: entry.line });
-          link.textContent = `${entry.method}  ·  :${entry.line}`;
+          const link = sourceLink({ path: entry.path || node.path, line: entry.line });
+          const stem = (entry.path || node.path || "").split("/").pop().replace(/\.swift$/, "");
+          link.textContent = `${entry.method}  ·  ${stem}:${entry.line}`;
           li.append(link);
           list.append(li);
         });
@@ -1073,9 +1192,19 @@
       }
     }
 
-    if (node.kind === "caller" && Array.isArray(node.namespaces) && node.namespaces.length) {
+    if (node.kind === "external" && Array.isArray(node.usage) && node.usage.length) {
       const section = element("section", "inspector-section");
-      section.append(element("h4", "", `Invokes (${node.namespaces.length})`));
+      section.append(element("h4", "", `Used by components (${node.usage.length})`));
+      const chips = element("div", "chip-list");
+      node.usage.forEach((usage) => chips.append(element("span", "chip", `${componentLabel(usage.component)} · ${usage.hit_count}`)));
+      section.append(chips);
+      container.append(section);
+    }
+
+    if ((node.kind === "caller" || node.kind === "client") && Array.isArray(node.namespaces) && node.namespaces.length) {
+      const section = element("section", "inspector-section");
+      const verb = node.kind === "client" ? "Implements" : "Invokes";
+      section.append(element("h4", "", `${verb} (${node.namespaces.length})`));
       const chips = element("div", "chip-list");
       node.namespaces.forEach((namespace) => chips.append(element("span", "chip", namespace)));
       section.append(chips);
@@ -1117,6 +1246,10 @@
 
   // Compact headline numbers for the inspector metrics grid, per node kind.
   function interplayInspectorMetrics(node) {
+    if (node.kind === "external") {
+      const links = interplay.edges.filter((edge) => edge.target === node.id && edge.class === "boundary").length;
+      return [[node.hit_count, "Hits"], [node.file_count, "Files"], [links, "Links"]];
+    }
     if (node.kind === "endpoint") {
       const callers = interplay.edges.filter((edge) => edge.target === node.id && edge.relation === "invokes").length;
       const noun = node.protocol === "jsonrpc" ? "Methods" : "Routes";
@@ -1125,12 +1258,23 @@
     if (node.kind === "caller") {
       return [[(node.namespaces || []).length, "Namespaces"], [componentLabel(node.component), "Surface"]];
     }
+    if (node.kind === "client") {
+      const endpoints = interplay.edges.filter((edge) => edge.source === node.id && edge.relation === "implements").length;
+      return [[(node.namespaces || []).length, "Namespaces"], [endpoints, "Endpoints"], [node.owner_type, "Extends"]];
+    }
     if (node.sub_kind === "event_bus") return [[interplayBusSubscriberCount(node), "Subscribers"]];
     if (node.kind === "owner") return [[(node.roles || []).length, "Roles"]];
     return [];
   }
 
   function interplayInspectorSummary(node) {
+    if (node.kind === "external") {
+      const protocol = node.protocol ? ` Protocol: ${node.protocol}.` : "";
+      return `${node.description}${protocol} The description is specified in architecture/config.json; the links, files and hit counts are observed from source signatures.`;
+    }
+    if (node.kind === "client") {
+      return `The ${node.label}.swift extension of ${node.owner_type}: the file that implements the ${(node.namespaces || []).join(", ")} namespace call sites. Namespace boxes reach the core transport through it.`;
+    }
     if (node.kind === "seam") return "The protocol both network transports conform to—the seam a hub binds to reach either backend.";
     if (node.kind === "hub") return `A construction that wires a network transport and an on-device engine together, owned by ${componentLabel(node.component)}.`;
     if (node.kind === "owner") return `A source owner type in ${componentLabel(node.component)} holding ${(node.roles || []).join(" and ")} resources.`;
@@ -1535,14 +1679,6 @@
       resetInterplay.addEventListener("click", () => {
         selectedInterplayId = null;
         if (interplaySearch) interplaySearch.value = "";
-        const inspector = document.getElementById("interplay-inspector");
-        if (inspector) {
-          const empty = element("div", "inspector-empty");
-          empty.append(element("span", "inspector-index", "◇"));
-          empty.append(element("h3", "", "Select a node"));
-          empty.append(element("p", "", "Inspect a connection pool, an on-device engine, the AgentBackend seam, or the hub that wires them—with its curated prose and exact source line."));
-          inspector.replaceChildren(empty);
-        }
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too
         applyInterplayState();
       });

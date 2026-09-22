@@ -16449,6 +16449,14 @@
         "hit_count": 15,
         "id": "harness-gateway",
         "label": "Harness gateway",
+        "paths": [
+          "Sources/Portal/Services/GatewayClient.swift",
+          "Sources/Portal/Services/GatewayClientWrapper.swift",
+          "Sources/Portal/Utilities/Constants.swift",
+          "Sources/Portal/Utilities/GatewayURL.swift",
+          "Sources/Portal/Views/OnboardingView.swift"
+        ],
+        "persistence": null,
         "protocol": "WebSocket JSON-RPC over URLSession (/v1/ws)",
         "signatures": [
           {
@@ -16622,6 +16630,10 @@
         "hit_count": 1,
         "id": "cloudflare-access",
         "label": "Cloudflare Access",
+        "paths": [
+          "Sources/Portal/Views/CFAuthView.swift"
+        ],
+        "persistence": null,
         "protocol": "CF_Authorization cookie on the gateway origin",
         "signatures": [
           {
@@ -16663,6 +16675,13 @@
         "hit_count": 7,
         "id": "apple-mlx",
         "label": "Apple MLX",
+        "paths": [
+          "Sources/Portal/Services/LocalChatEngine.swift",
+          "Sources/Portal/Services/MLXMemoryConfig.swift",
+          "Sources/Portal/Services/ReasoningSummarizer.swift",
+          "Sources/Portal/Services/SkillSummaryService.swift"
+        ],
+        "persistence": null,
         "protocol": "In-process Swift framework (MLX, MLXLLM, MLXLMCommon)",
         "signatures": [
           {
@@ -16763,6 +16782,11 @@
         "hit_count": 8,
         "id": "hugging-face-hub",
         "label": "Hugging Face Hub",
+        "paths": [
+          "Sources/Portal/Services/LocalChatService.swift",
+          "Sources/Portal/Services/LocalModelInventory.swift"
+        ],
+        "persistence": null,
         "protocol": "HTTPS model downloads through the MLX model factory",
         "signatures": [
           {
@@ -16861,6 +16885,10 @@
         "hit_count": 4,
         "id": "apns",
         "label": "Apple Push Notification service",
+        "paths": [
+          "Sources/Portal/Services/PushRegistrationService.swift"
+        ],
+        "persistence": null,
         "protocol": "Remote-notification registration; device token forwarded to the gateway",
         "signatures": [
           {
@@ -16934,6 +16962,10 @@
         "hit_count": 6,
         "id": "user-notifications",
         "label": "User Notifications",
+        "paths": [
+          "Sources/Portal/Services/NotificationService.swift"
+        ],
+        "persistence": null,
         "protocol": "UNUserNotificationCenter",
         "signatures": [
           {
@@ -17015,6 +17047,11 @@
         "hit_count": 7,
         "id": "keychain",
         "label": "Keychain",
+        "paths": [
+          "Sources/Portal/Services/KeychainStore.swift",
+          "Sources/Portal/Services/XAuthService.swift"
+        ],
+        "persistence": "keychain",
         "protocol": "Security framework SecItem* calls",
         "signatures": [
           {
@@ -17109,6 +17146,28 @@
         "hit_count": 19,
         "id": "file-system",
         "label": "Application Support files",
+        "paths": [
+          "Sources/Portal/Models/ActivityStore.swift",
+          "Sources/Portal/Models/ChatMessage.swift",
+          "Sources/Portal/Models/CronGraphRevisionStore.swift",
+          "Sources/Portal/Models/CronRunHistory.swift",
+          "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+          "Sources/Portal/Models/PortalBootstrapConfiguration.swift",
+          "Sources/Portal/Models/SessionRunEvent.swift",
+          "Sources/Portal/Services/ArtifactStore.swift",
+          "Sources/Portal/Services/ChatHistoryStore.swift",
+          "Sources/Portal/Services/CurriculumStore.swift",
+          "Sources/Portal/Services/LocalModelInventory.swift",
+          "Sources/Portal/Services/QuizStore.swift",
+          "Sources/Portal/Services/SRSStore.swift",
+          "Sources/Portal/Services/SkillStore.swift",
+          "Sources/Portal/Services/SkillSummaryService.swift",
+          "Sources/Portal/Services/VideoCache.swift",
+          "Sources/Portal/Services/WikiGraphCache.swift",
+          "Sources/Portal/Utilities/PerfInstrumentation.swift",
+          "Sources/Portal/ViewModels/ChatViewModel.swift"
+        ],
+        "persistence": "file",
         "protocol": "FileManager JSON documents and directories",
         "signatures": [
           {
@@ -17346,6 +17405,41 @@
         "hit_count": 108,
         "id": "user-defaults",
         "label": "UserDefaults",
+        "paths": [
+          "Sources/Portal/Models/ActivityStore.swift",
+          "Sources/Portal/Models/AgentModel.swift",
+          "Sources/Portal/Models/CronRunHistory.swift",
+          "Sources/Portal/Models/DashboardLayout.swift",
+          "Sources/Portal/Models/DelegationBatchHistoryStore.swift",
+          "Sources/Portal/Models/ResponseStyle.swift",
+          "Sources/Portal/Models/SessionRunEvent.swift",
+          "Sources/Portal/Services/LocalVoiceService.swift",
+          "Sources/Portal/Services/NotificationService.swift",
+          "Sources/Portal/Services/SessionMetaSyncService.swift",
+          "Sources/Portal/Services/SkillCache.swift",
+          "Sources/Portal/Services/SkillStore.swift",
+          "Sources/Portal/Services/XAuthService.swift",
+          "Sources/Portal/Utilities/MainThreadWatchdog.swift",
+          "Sources/Portal/ViewModels/ChatViewModel.swift",
+          "Sources/Portal/ViewModels/SessionListViewModel.swift",
+          "Sources/Portal/ViewModels/SettingsViewModel.swift",
+          "Sources/Portal/Views/ArtifactCanvasView.swift",
+          "Sources/Portal/Views/ArtifactExpandedOverlay.swift",
+          "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+          "Sources/Portal/Views/ChatView.swift",
+          "Sources/Portal/Views/ContentView.swift",
+          "Sources/Portal/Views/CronInterflowGraphView.swift",
+          "Sources/Portal/Views/GraphsView.swift",
+          "Sources/Portal/Views/MissionControl/CronDashboardCanvas.swift",
+          "Sources/Portal/Views/MissionControl/SessionsDashboardCanvas.swift",
+          "Sources/Portal/Views/MissionControl/SessionsFilterState.swift",
+          "Sources/Portal/Views/SessionListView.swift",
+          "Sources/Portal/Views/Skills/SkillsCanvasView.swift",
+          "Sources/Portal/Views/Theme.swift",
+          "Sources/Portal/Views/ThoughtGraph/SessionChatCanvas.swift",
+          "Sources/Portal/Views/ThoughtGraph/ThoughtGraphView.swift"
+        ],
+        "persistence": "defaults",
         "protocol": "UserDefaults.standard and @AppStorage",
         "signatures": [
           {
@@ -17918,6 +18012,11 @@
         "hit_count": 3,
         "id": "x-api",
         "label": "X API",
+        "paths": [
+          "Sources/Portal/Services/XAPIClient.swift",
+          "Sources/Portal/Services/XAuthService.swift"
+        ],
+        "persistence": null,
         "protocol": "HTTPS REST v2 with OAuth 2.0 PKCE",
         "signatures": [
           {
@@ -17979,6 +18078,17 @@
         "hit_count": 63,
         "id": "webkit",
         "label": "WebKit",
+        "paths": [
+          "Sources/Portal/Views/ActivityInboxView.swift",
+          "Sources/Portal/Views/ArtifactFullscreenWindow.swift",
+          "Sources/Portal/Views/AttachmentChipView.swift",
+          "Sources/Portal/Views/Blocks/Model3DBlockView.swift",
+          "Sources/Portal/Views/CFAuthView.swift",
+          "Sources/Portal/Views/InAppBrowserView.swift",
+          "Sources/Portal/Views/MarkdownContentView.swift",
+          "Sources/Portal/Views/MermaidDiagramView.swift"
+        ],
+        "persistence": null,
         "protocol": "WKWebView with an isolated content world",
         "signatures": [
           {
@@ -18284,6 +18394,12 @@
         "hit_count": 23,
         "id": "scenekit",
         "label": "SceneKit",
+        "paths": [
+          "Sources/Portal/Views/MonkeyCelebrationView.swift",
+          "Sources/Portal/Views/MonkeyScene.swift",
+          "Sources/Portal/Views/Wiki/WikiGraph3DView.swift"
+        ],
+        "persistence": null,
         "protocol": "SCNView (macOS)",
         "signatures": [
           {
@@ -18459,6 +18575,13 @@
         "hit_count": 13,
         "id": "speech-synthesis",
         "label": "On-device speech",
+        "paths": [
+          "Sources/Portal/Services/LocalVoiceEngine.swift",
+          "Sources/Portal/Services/LocalVoiceService.swift",
+          "Sources/Portal/Services/NeuralSpeechEngine.swift",
+          "Sources/Portal/Services/TTSService.swift"
+        ],
+        "persistence": null,
         "protocol": "AVSpeechSynthesizer and FluidAudio / PocketTTS neural voices",
         "signatures": [
           {
@@ -18589,6 +18712,14 @@
         "owner_type": "ChatViewModel"
       },
       {
+        "component": "device-services",
+        "id": "interplay-cluster-1c9f05a6df6f",
+        "node_ids": [
+          "external:speech-synthesis"
+        ],
+        "owner_type": "External systems"
+      },
+      {
         "component": "backend-contract",
         "id": "interplay-cluster-1f63bb30e98d",
         "node_ids": [
@@ -18596,6 +18727,14 @@
           "seam:AgentBackend"
         ],
         "owner_type": "AgentBackend"
+      },
+      {
+        "component": "device-services",
+        "id": "interplay-cluster-3185448f7114",
+        "node_ids": [
+          "external:user-defaults"
+        ],
+        "owner_type": "External systems"
       },
       {
         "component": "local-services",
@@ -18715,6 +18854,14 @@
         "owner_type": "MLXReasoningSummarizer"
       },
       {
+        "component": "device-services",
+        "id": "interplay-cluster-8988b46acf1a",
+        "node_ids": [
+          "external:apple-mlx"
+        ],
+        "owner_type": "External systems"
+      },
+      {
         "component": "chat-state",
         "id": "interplay-cluster-8f7f061bfcff",
         "node_ids": [
@@ -18722,6 +18869,38 @@
           "caller:chat-state:PersonaManager"
         ],
         "owner_type": "callers"
+      },
+      {
+        "component": "device-services",
+        "id": "interplay-cluster-a1b9b166a7fc",
+        "node_ids": [
+          "external:file-system"
+        ],
+        "owner_type": "External systems"
+      },
+      {
+        "component": "hermes-gateway",
+        "id": "interplay-cluster-ac86e3dcdf5d",
+        "node_ids": [
+          "external:harness-gateway"
+        ],
+        "owner_type": "External systems"
+      },
+      {
+        "component": "hermes-services",
+        "id": "interplay-cluster-cc716b1d97de",
+        "node_ids": [
+          "client:hermes-services:GatewayClient+CodeGraph",
+          "client:hermes-services:GatewayClient+Cron",
+          "client:hermes-services:GatewayClient+CronChangesets",
+          "client:hermes-services:GatewayClient+Feed",
+          "client:hermes-services:GatewayClient+Files",
+          "client:hermes-services:GatewayClient+Learning",
+          "client:hermes-services:GatewayClient+Push",
+          "client:hermes-services:GatewayClient+Restart",
+          "client:hermes-services:GatewayClient+Wiki"
+        ],
+        "owner_type": "GatewayClient · client files"
       },
       {
         "component": "local-services",
@@ -18963,10 +19142,76 @@
         "target": "endpoint:7e90ead53b58"
       },
       {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+CodeGraph",
+        "target": "endpoint:8abbe841a1a5"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Cron",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+CronChangesets",
+        "target": "endpoint:38507a0dce8b"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Feed",
+        "target": "endpoint:6612d53de6e6"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Files",
+        "target": "endpoint:2e6276e9cf3e"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Learning",
+        "target": "endpoint:a22445ecbadb"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Push",
+        "target": "endpoint:cef1ba05dfc0"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Restart",
+        "target": "endpoint:24738b20b0b3"
+      },
+      {
+        "class": "structure",
+        "relation": "implements",
+        "source": "client:hermes-services:GatewayClient+Wiki",
+        "target": "endpoint:7e90ead53b58"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:00d6875c0625",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:00d6875c0625",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:162f92a74671",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -18975,10 +19220,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:1f147016b905",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:1f147016b905",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:24738b20b0b3",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -18987,10 +19244,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:275a028db300",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:275a028db300",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:2e6276e9cf3e",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -18999,10 +19268,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:38507a0dce8b",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:38507a0dce8b",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:5ce832f6c2c8",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19011,10 +19292,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:5e7781ff3cfe",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:5e7781ff3cfe",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:61ef561083b5",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19023,10 +19316,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:6612d53de6e6",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:6612d53de6e6",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:68a64556d661",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19035,10 +19340,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:7e90ead53b58",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:7e90ead53b58",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:82a5f3049740",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19047,10 +19364,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:8abbe841a1a5",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:8abbe841a1a5",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:8fd4309be78f",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19059,10 +19388,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:91804a259979",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:91804a259979",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:9f4e70554834",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19071,10 +19412,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:a22445ecbadb",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:a22445ecbadb",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:a6fe64944ae6",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19083,10 +19436,22 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:b2ab5444930d",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:b2ab5444930d",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:cef1ba05dfc0",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19095,16 +19460,40 @@
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:d01b8fa18b67",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:d01b8fa18b67",
         "target": "resource:resource-f4c4baad5555"
       },
       {
+        "class": "boundary",
+        "relation": "served-by",
+        "source": "endpoint:efb9148cebbd",
+        "target": "external:harness-gateway"
+      },
+      {
         "class": "lifecycle",
         "relation": "correlates",
         "source": "endpoint:efb9148cebbd",
         "target": "resource:resource-f4c4baad5555"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "hub:ChatViewModel",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "hub:ChatViewModel",
+        "target": "external:user-defaults"
       },
       {
         "class": "interplay",
@@ -19192,6 +19581,60 @@
       },
       {
         "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+CodeGraph"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Cron"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+CronChangesets"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Feed"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Files"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Learning"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Push"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Restart"
+      },
+      {
+        "class": "structure",
+        "relation": "extends",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "client:hermes-services:GatewayClient+Wiki"
+      },
+      {
+        "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:00d6875c0625"
@@ -19212,19 +19655,7 @@
         "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:24738b20b0b3"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:275a028db300"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:2e6276e9cf3e"
       },
       {
         "class": "structure",
@@ -19254,31 +19685,13 @@
         "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:6612d53de6e6"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:68a64556d661"
       },
       {
         "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:7e90ead53b58"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:82a5f3049740"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:8abbe841a1a5"
       },
       {
         "class": "structure",
@@ -19302,12 +19715,6 @@
         "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:a22445ecbadb"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:a6fe64944ae6"
       },
       {
@@ -19320,12 +19727,6 @@
         "class": "structure",
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
-        "target": "endpoint:cef1ba05dfc0"
-      },
-      {
-        "class": "structure",
-        "relation": "calls",
-        "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:d01b8fa18b67"
       },
       {
@@ -19333,6 +19734,12 @@
         "relation": "calls",
         "source": "owner:hermes-services:GatewayClient",
         "target": "endpoint:efb9148cebbd"
+      },
+      {
+        "class": "boundary",
+        "relation": "reaches",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "external:harness-gateway"
       },
       {
         "class": "lifecycle",
@@ -19389,6 +19796,12 @@
         "target": "seam:AgentBackend"
       },
       {
+        "class": "boundary",
+        "relation": "runs-on",
+        "source": "owner:local-services:MLXLocalChatEngine",
+        "target": "external:apple-mlx"
+      },
+      {
         "class": "lifecycle",
         "relation": "operates",
         "source": "owner:local-services:MLXLocalChatEngine",
@@ -19405,6 +19818,12 @@
         "relation": "owns",
         "source": "owner:local-services:MLXLocalChatEngine",
         "target": "resource:resource-2e11c0c460ca"
+      },
+      {
+        "class": "boundary",
+        "relation": "runs-on",
+        "source": "owner:local-services:MLXReasoningSummarizer",
+        "target": "external:apple-mlx"
       },
       {
         "class": "lifecycle",
@@ -19425,6 +19844,18 @@
         "target": "resource:resource-aceeaa78d7fa"
       },
       {
+        "class": "boundary",
+        "relation": "runs-on",
+        "source": "owner:local-services:SkillSummaryService",
+        "target": "external:apple-mlx"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "owner:local-services:SkillSummaryService",
+        "target": "external:file-system"
+      },
+      {
         "class": "lifecycle",
         "relation": "operates",
         "source": "owner:local-services:SkillSummaryService",
@@ -19443,6 +19874,12 @@
         "target": "resource:resource-6a0c8ae84943"
       },
       {
+        "class": "boundary",
+        "relation": "runs-on",
+        "source": "owner:local-services:TTSService",
+        "target": "external:speech-synthesis"
+      },
+      {
         "class": "structure",
         "relation": "owns",
         "source": "owner:local-services:TTSService",
@@ -19453,9 +19890,123 @@
         "relation": "declares",
         "source": "seam:AgentBackend",
         "target": "bus:AgentBackend.eventStream"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "subscriber:ArtifactStore",
+        "target": "external:file-system"
+      },
+      {
+        "class": "boundary",
+        "relation": "persists-to",
+        "source": "subscriber:SessionListViewModel",
+        "target": "external:user-defaults"
       }
     ],
     "nodes": [
+      {
+        "cluster": "interplay-cluster-3185448f7114",
+        "component": "device-services",
+        "description": "Preferences, small state flags, and migration markers.",
+        "description_authority": "specified",
+        "file_count": 32,
+        "hit_count": 108,
+        "id": "external:user-defaults",
+        "kind": "external",
+        "label": "UserDefaults",
+        "line": 10,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/ActivityStore.swift",
+        "protocol": "UserDefaults.standard and @AppStorage",
+        "sub_kind": "platform-storage",
+        "system_id": "user-defaults",
+        "usage": [
+          {
+            "component": "app-shell",
+            "hit_count": 14
+          },
+          {
+            "component": "artifact-ui",
+            "hit_count": 5
+          },
+          {
+            "component": "chat-state",
+            "hit_count": 1
+          },
+          {
+            "component": "chat-ui",
+            "hit_count": 2
+          },
+          {
+            "component": "domain-models",
+            "hit_count": 23
+          },
+          {
+            "component": "local-services",
+            "hit_count": 27
+          },
+          {
+            "component": "operations-state",
+            "hit_count": 23
+          },
+          {
+            "component": "operations-ui",
+            "hit_count": 7
+          },
+          {
+            "component": "shared-ui",
+            "hit_count": 1
+          },
+          {
+            "component": "thought-graph-ui",
+            "hit_count": 4
+          },
+          {
+            "component": "utilities",
+            "hit_count": 1
+          }
+        ]
+      },
+      {
+        "cluster": "interplay-cluster-a1b9b166a7fc",
+        "component": "device-services",
+        "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
+        "description_authority": "specified",
+        "file_count": 19,
+        "hit_count": 19,
+        "id": "external:file-system",
+        "kind": "external",
+        "label": "Application Support files",
+        "line": 19,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Models/ActivityStore.swift",
+        "protocol": "FileManager JSON documents and directories",
+        "sub_kind": "platform-storage",
+        "system_id": "file-system",
+        "usage": [
+          {
+            "component": "artifact-intents",
+            "hit_count": 1
+          },
+          {
+            "component": "chat-state",
+            "hit_count": 1
+          },
+          {
+            "component": "domain-models",
+            "hit_count": 7
+          },
+          {
+            "component": "local-services",
+            "hit_count": 9
+          },
+          {
+            "component": "utilities",
+            "hit_count": 1
+          }
+        ]
+      },
       {
         "cluster": "interplay-cluster-1f63bb30e98d",
         "component": "backend-contract",
@@ -19500,8 +20051,25 @@
         "sub_kind": "page"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+CodeGraph",
+        "kind": "client",
+        "label": "GatewayClient+CodeGraph",
+        "line": 18,
+        "namespaces": [
+          "code"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+CodeGraph.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+CodeGraph.swift"
+        ],
         "id": "endpoint:8abbe841a1a5",
         "kind": "endpoint",
         "label": "code",
@@ -19510,7 +20078,8 @@
         "methods": [
           {
             "line": 18,
-            "method": "code.graph"
+            "method": "code.graph",
+            "path": "Sources/Portal/Services/GatewayClient+CodeGraph.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19519,8 +20088,27 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Cron",
+        "kind": "client",
+        "label": "GatewayClient+Cron",
+        "line": 20,
+        "namespaces": [
+          "cron"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Cron.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Cron.swift",
+          "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:38507a0dce8b",
         "kind": "endpoint",
         "label": "cron",
@@ -19529,19 +20117,23 @@
         "methods": [
           {
             "line": 38,
-            "method": "cron.changeset_diff"
+            "method": "cron.changeset_diff",
+            "path": "Sources/Portal/Services/GatewayClient+CronChangesets.swift"
           },
           {
             "line": 27,
-            "method": "cron.changesets"
+            "method": "cron.changesets",
+            "path": "Sources/Portal/Services/GatewayClient+CronChangesets.swift"
           },
           {
             "line": 20,
-            "method": "cron.graph"
+            "method": "cron.graph",
+            "path": "Sources/Portal/Services/GatewayClient+Cron.swift"
           },
           {
             "line": 1202,
-            "method": "cron.manage"
+            "method": "cron.manage",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19550,8 +20142,39 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+CronChangesets",
+        "kind": "client",
+        "label": "GatewayClient+CronChangesets",
+        "line": 27,
+        "namespaces": [
+          "cron"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
+        "sub_kind": "client_extension"
+      },
+      {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Feed",
+        "kind": "client",
+        "label": "GatewayClient+Feed",
+        "line": 13,
+        "namespaces": [
+          "feed"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Feed.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Feed.swift"
+        ],
         "id": "endpoint:6612d53de6e6",
         "kind": "endpoint",
         "label": "feed",
@@ -19560,15 +20183,18 @@
         "methods": [
           {
             "line": 13,
-            "method": "feed.get"
+            "method": "feed.get",
+            "path": "Sources/Portal/Services/GatewayClient+Feed.swift"
           },
           {
             "line": 97,
-            "method": "feed.sources"
+            "method": "feed.sources",
+            "path": "Sources/Portal/Services/GatewayClient+Feed.swift"
           },
           {
             "line": 78,
-            "method": "feed.tweet_detail"
+            "method": "feed.tweet_detail",
+            "path": "Sources/Portal/Services/GatewayClient+Feed.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19577,8 +20203,25 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Files",
+        "kind": "client",
+        "label": "GatewayClient+Files",
+        "line": 12,
+        "namespaces": [
+          "files"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Files.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Files.swift"
+        ],
         "id": "endpoint:2e6276e9cf3e",
         "kind": "endpoint",
         "label": "files",
@@ -19587,11 +20230,13 @@
         "methods": [
           {
             "line": 12,
-            "method": "files.list"
+            "method": "files.list",
+            "path": "Sources/Portal/Services/GatewayClient+Files.swift"
           },
           {
             "line": 40,
-            "method": "files.read"
+            "method": "files.read",
+            "path": "Sources/Portal/Services/GatewayClient+Files.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19600,8 +20245,25 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Learning",
+        "kind": "client",
+        "label": "GatewayClient+Learning",
+        "line": 119,
+        "namespaces": [
+          "learning"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Learning.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Learning.swift"
+        ],
         "id": "endpoint:a22445ecbadb",
         "kind": "endpoint",
         "label": "learning",
@@ -19610,11 +20272,13 @@
         "methods": [
           {
             "line": 119,
-            "method": "learning.course.get"
+            "method": "learning.course.get",
+            "path": "Sources/Portal/Services/GatewayClient+Learning.swift"
           },
           {
             "line": 201,
-            "method": "learning.deck.get"
+            "method": "learning.deck.get",
+            "path": "Sources/Portal/Services/GatewayClient+Learning.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19623,8 +20287,25 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Push",
+        "kind": "client",
+        "label": "GatewayClient+Push",
+        "line": 32,
+        "namespaces": [
+          "push"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Push.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Push.swift"
+        ],
         "id": "endpoint:cef1ba05dfc0",
         "kind": "endpoint",
         "label": "push",
@@ -19633,11 +20314,13 @@
         "methods": [
           {
             "line": 32,
-            "method": "push.register"
+            "method": "push.register",
+            "path": "Sources/Portal/Services/GatewayClient+Push.swift"
           },
           {
             "line": 45,
-            "method": "push.unregister"
+            "method": "push.unregister",
+            "path": "Sources/Portal/Services/GatewayClient+Push.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19646,8 +20329,25 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Restart",
+        "kind": "client",
+        "label": "GatewayClient+Restart",
+        "line": 37,
+        "namespaces": [
+          "gateway"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Restart.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Restart.swift"
+        ],
         "id": "endpoint:24738b20b0b3",
         "kind": "endpoint",
         "label": "gateway",
@@ -19656,7 +20356,8 @@
         "methods": [
           {
             "line": 37,
-            "method": "gateway.restart"
+            "method": "gateway.restart",
+            "path": "Sources/Portal/Services/GatewayClient+Restart.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19665,8 +20366,25 @@
         "sub_kind": "rpc_namespace"
       },
       {
+        "cluster": "interplay-cluster-cc716b1d97de",
+        "component": "hermes-services",
+        "id": "client:hermes-services:GatewayClient+Wiki",
+        "kind": "client",
+        "label": "GatewayClient+Wiki",
+        "line": 177,
+        "namespaces": [
+          "wiki"
+        ],
+        "owner_type": "GatewayClient",
+        "path": "Sources/Portal/Services/GatewayClient+Wiki.swift",
+        "sub_kind": "client_extension"
+      },
+      {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient+Wiki.swift"
+        ],
         "id": "endpoint:7e90ead53b58",
         "kind": "endpoint",
         "label": "wiki",
@@ -19675,47 +20393,58 @@
         "methods": [
           {
             "line": 658,
-            "method": "wiki.changeset_diff"
+            "method": "wiki.changeset_diff",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 503,
-            "method": "wiki.changesets"
+            "method": "wiki.changesets",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 583,
-            "method": "wiki.events"
+            "method": "wiki.events",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 431,
-            "method": "wiki.expand_links"
+            "method": "wiki.expand_links",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 177,
-            "method": "wiki.glossary"
+            "method": "wiki.glossary",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 195,
-            "method": "wiki.glossary.update"
+            "method": "wiki.glossary.update",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 454,
-            "method": "wiki.list"
+            "method": "wiki.list",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 331,
-            "method": "wiki.page"
+            "method": "wiki.page",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 264,
-            "method": "wiki.scan"
+            "method": "wiki.scan",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 410,
-            "method": "wiki.taxonomy"
+            "method": "wiki.taxonomy",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           },
           {
             "line": 377,
-            "method": "wiki.update"
+            "method": "wiki.update",
+            "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19739,6 +20468,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:00d6875c0625",
         "kind": "endpoint",
         "label": "delegation",
@@ -19747,7 +20479,8 @@
         "methods": [
           {
             "line": 84,
-            "method": "delegation.status"
+            "method": "delegation.status",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19758,6 +20491,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:b2ab5444930d",
         "kind": "endpoint",
         "label": "subagent",
@@ -19766,7 +20502,8 @@
         "methods": [
           {
             "line": 97,
-            "method": "subagent.interrupt"
+            "method": "subagent.interrupt",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19777,6 +20514,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:efb9148cebbd",
         "kind": "endpoint",
         "label": "spawn_tree",
@@ -19785,11 +20525,13 @@
         "methods": [
           {
             "line": 114,
-            "method": "spawn_tree.list"
+            "method": "spawn_tree.list",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 137,
-            "method": "spawn_tree.load"
+            "method": "spawn_tree.load",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19800,6 +20542,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:275a028db300",
         "kind": "endpoint",
         "label": "session",
@@ -19808,53 +20553,95 @@
         "methods": [
           {
             "line": 1869,
-            "method": "session.close"
+            "method": "session.close",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1108,
-            "method": "session.create"
+            "method": "session.create",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1948,
-            "method": "session.history"
+            "method": "session.history",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1836,
-            "method": "session.interrupt"
+            "method": "session.interrupt",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1144,
-            "method": "session.list"
+            "method": "session.list",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 177,
-            "method": "session.prompt_breakdown"
+            "method": "session.prompt_breakdown",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1881,
-            "method": "session.resume"
+            "method": "session.resume",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1132,
-            "method": "session.set_prompt"
+            "method": "session.set_prompt",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 159,
-            "method": "session.timeline"
+            "method": "session.timeline",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1964,
-            "method": "session.title"
+            "method": "session.title",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 147,
-            "method": "session.usage"
+            "method": "session.usage",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
         "path": "Sources/Portal/Services/GatewayClient.swift",
         "protocol": "jsonrpc",
         "sub_kind": "rpc_namespace"
+      },
+      {
+        "cluster": "interplay-cluster-ac86e3dcdf5d",
+        "component": "hermes-gateway",
+        "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
+        "description_authority": "specified",
+        "file_count": 5,
+        "hit_count": 15,
+        "id": "external:harness-gateway",
+        "kind": "external",
+        "label": "Harness gateway",
+        "line": 219,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "protocol": "WebSocket JSON-RPC over URLSession (/v1/ws)",
+        "sub_kind": "backend",
+        "system_id": "harness-gateway",
+        "usage": [
+          {
+            "component": "app-shell",
+            "hit_count": 2
+          },
+          {
+            "component": "hermes-services",
+            "hit_count": 9
+          },
+          {
+            "component": "utilities",
+            "hit_count": 4
+          }
+        ]
       },
       {
         "cluster": "interplay-cluster-6854b24de35d",
@@ -19930,6 +20717,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:d01b8fa18b67",
         "kind": "endpoint",
         "label": "skills",
@@ -19938,11 +20728,13 @@
         "methods": [
           {
             "line": 1352,
-            "method": "skills.manage"
+            "method": "skills.manage",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1561,
-            "method": "skills.reload"
+            "method": "skills.reload",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19953,6 +20745,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:9f4e70554834",
         "kind": "endpoint",
         "label": "commands",
@@ -19961,7 +20756,8 @@
         "methods": [
           {
             "line": 1415,
-            "method": "commands.catalog"
+            "method": "commands.catalog",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19972,6 +20768,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:5e7781ff3cfe",
         "kind": "endpoint",
         "label": "slash",
@@ -19980,7 +20779,8 @@
         "methods": [
           {
             "line": 1550,
-            "method": "slash.exec"
+            "method": "slash.exec",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -19991,6 +20791,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:82a5f3049740",
         "kind": "endpoint",
         "label": "activity",
@@ -19999,19 +20802,23 @@
         "methods": [
           {
             "line": 1650,
-            "method": "activity.artifacts.get"
+            "method": "activity.artifacts.get",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1637,
-            "method": "activity.dismiss"
+            "method": "activity.dismiss",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1599,
-            "method": "activity.list"
+            "method": "activity.list",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 1623,
-            "method": "activity.mark_read"
+            "method": "activity.mark_read",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20022,6 +20829,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:162f92a74671",
         "kind": "endpoint",
         "label": "prompt",
@@ -20030,7 +20840,8 @@
         "methods": [
           {
             "line": 1684,
-            "method": "prompt.submit"
+            "method": "prompt.submit",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20041,6 +20852,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:a6fe64944ae6",
         "kind": "endpoint",
         "label": "image",
@@ -20049,7 +20863,8 @@
         "methods": [
           {
             "line": 1829,
-            "method": "image.attach"
+            "method": "image.attach",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20060,6 +20875,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:8fd4309be78f",
         "kind": "endpoint",
         "label": "approval",
@@ -20068,7 +20886,8 @@
         "methods": [
           {
             "line": 1845,
-            "method": "approval.respond"
+            "method": "approval.respond",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20079,6 +20898,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:61ef561083b5",
         "kind": "endpoint",
         "label": "clarify",
@@ -20087,7 +20909,8 @@
         "methods": [
           {
             "line": 1859,
-            "method": "clarify.respond"
+            "method": "clarify.respond",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20098,6 +20921,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:68a64556d661",
         "kind": "endpoint",
         "label": "config",
@@ -20106,11 +20932,13 @@
         "methods": [
           {
             "line": 2314,
-            "method": "config.get"
+            "method": "config.get",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2035,
-            "method": "config.set"
+            "method": "config.set",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20121,6 +20949,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:91804a259979",
         "kind": "endpoint",
         "label": "model",
@@ -20129,7 +20960,8 @@
         "methods": [
           {
             "line": 2078,
-            "method": "model.options"
+            "method": "model.options",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20140,6 +20972,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:1f147016b905",
         "kind": "endpoint",
         "label": "artifact",
@@ -20148,51 +20983,63 @@
         "methods": [
           {
             "line": 2270,
-            "method": "artifact.action.confirm"
+            "method": "artifact.action.confirm",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2168,
-            "method": "artifact.action.invoke"
+            "method": "artifact.action.invoke",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2189,
-            "method": "artifact.action.log"
+            "method": "artifact.action.log",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2133,
-            "method": "artifact.delete"
+            "method": "artifact.delete",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2112,
-            "method": "artifact.get"
+            "method": "artifact.get",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2123,
-            "method": "artifact.list"
+            "method": "artifact.list",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2217,
-            "method": "artifact.query.invoke"
+            "method": "artifact.query.invoke",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2240,
-            "method": "artifact.query.subscribe"
+            "method": "artifact.query.subscribe",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2249,
-            "method": "artifact.query.unsubscribe"
+            "method": "artifact.query.unsubscribe",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2280,
-            "method": "artifact.revision"
+            "method": "artifact.revision",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2141,
-            "method": "artifact.revisions"
+            "method": "artifact.revisions",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2103,
-            "method": "artifact.set"
+            "method": "artifact.set",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20203,6 +21050,9 @@
       {
         "cluster": "interplay-cluster-50d529a93091",
         "component": "hermes-services",
+        "files": [
+          "Sources/Portal/Services/GatewayClient.swift"
+        ],
         "id": "endpoint:5ce832f6c2c8",
         "kind": "endpoint",
         "label": "voice",
@@ -20211,11 +21061,13 @@
         "methods": [
           {
             "line": 2304,
-            "method": "voice.record"
+            "method": "voice.record",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           },
           {
             "line": 2294,
-            "method": "voice.toggle"
+            "method": "voice.toggle",
+            "path": "Sources/Portal/Services/GatewayClient.swift"
           }
         ],
         "owner_type": "GatewayClient",
@@ -20271,6 +21123,29 @@
         ]
       },
       {
+        "cluster": "interplay-cluster-8988b46acf1a",
+        "component": "device-services",
+        "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
+        "description_authority": "specified",
+        "file_count": 4,
+        "hit_count": 7,
+        "id": "external:apple-mlx",
+        "kind": "external",
+        "label": "Apple MLX",
+        "line": 29,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/LocalChatEngine.swift",
+        "protocol": "In-process Swift framework (MLX, MLXLLM, MLXLMCommon)",
+        "sub_kind": "ml-runtime",
+        "system_id": "apple-mlx",
+        "usage": [
+          {
+            "component": "local-services",
+            "hit_count": 7
+          }
+        ]
+      },
+      {
         "cluster": "interplay-cluster-0103cc466a26",
         "component": "local-services",
         "id": "resource:resource-2e11c0c460ca",
@@ -20307,6 +21182,29 @@
         "path": "Sources/Portal/Services/LocalChatEngine.swift",
         "resource_id": "resource-2e11c0c460ca",
         "sub_kind": "model_load"
+      },
+      {
+        "cluster": "interplay-cluster-1c9f05a6df6f",
+        "component": "device-services",
+        "description": "Speaks assistant replies locally; no audio leaves the device.",
+        "description_authority": "specified",
+        "file_count": 4,
+        "hit_count": 13,
+        "id": "external:speech-synthesis",
+        "kind": "external",
+        "label": "On-device speech",
+        "line": 1,
+        "owner_type": "External systems",
+        "path": "Sources/Portal/Services/LocalVoiceEngine.swift",
+        "protocol": "AVSpeechSynthesizer and FluidAudio / PocketTTS neural voices",
+        "sub_kind": "on-device-engine",
+        "system_id": "speech-synthesis",
+        "usage": [
+          {
+            "component": "local-services",
+            "hit_count": 13
+          }
+        ]
       },
       {
         "cluster": "interplay-cluster-7b136d3c2c60",
