@@ -80,6 +80,33 @@ internal struct CronChangesetDecodingTests {
         #expect(changeset.action.isEmpty)
     }
 
+    @Test("action aliases select the provisional row polarity")
+    internal func actionAliasesSelectPolarity() {
+        let expected: [(String, CronGraphChange.Polarity)] = [
+            ("create", .added), ("CREATED", .added), ("add", .added), ("Added", .added),
+            ("delete", .removed), ("DELETED", .removed), ("remove", .removed), ("Removed", .removed),
+            ("update", .modified), ("", .modified),
+        ]
+
+        for (action, polarity) in expected {
+            let changeset = CronChangeset(
+                id: "cs-1", timestamp: "", action: action, job: "", digest: "",
+                parentDigest: nil, actor: .unknown, summary: "",
+                provenance: .unknown, gitCommit: ""
+            )
+            #expect(changeset.polarity == polarity)
+        }
+    }
+
+    @Test("provenance exposes its recorded turn references without parsing their keys")
+    internal func provenanceExposesTurnReferences() {
+        let references = [CronTurnRef(key: "session/abc/turn-1"), CronTurnRef(key: "opaque:turn-2")]
+
+        #expect(CronChangesetProvenance.unknown.turns.isEmpty)
+        #expect(CronChangesetProvenance.turns(references).turns == references)
+        #expect(references.map(\.id) == references.map(\.key))
+    }
+
     @Test("a row with no id is dropped rather than invented")
     internal func rowsWithoutIdentityAreDropped() {
         #expect(GatewayClient.cronChangeset(from: .dictionary(["action": AnyCodable("update")])) == nil)
