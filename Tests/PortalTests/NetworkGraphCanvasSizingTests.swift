@@ -167,4 +167,30 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).isDashed)
         #expect(!NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).showsArrow)
     }
+
+    @Test("Interactive graph adapter preserves typed directed semantics")
+    internal func interactiveGraphSemantics() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {"directed": true,
+         "nodes": [
+           {"id": "worker", "kind": "service", "type": "agent"},
+           {"id": "file", "kind": "artifact", "type": "report"}
+         ],
+         "edges": [
+           {"from": "worker", "to": "file", "label": "daily report",
+            "type": "writes", "class": "dataflow"}
+         ]}
+        """))
+        let semantics = NetworkGraphInteractiveSemantics(spec: spec)
+
+        #expect(semantics.directed)
+        #expect(semantics.node(id: "worker")?.kind == "service")
+        #expect(semantics.node(id: "worker")?.type == "agent")
+        let edge = try #require(semantics.edge(at: 0))
+        #expect(edge.type == "writes")
+        #expect(edge.edgeClass == "dataflow")
+        #expect(semantics.appearance(at: 0) == .dataflow)
+        #expect(semantics.nodeLegend.count == 2)
+        #expect(semantics.edgeLegend.count == 1)
+    }
 }

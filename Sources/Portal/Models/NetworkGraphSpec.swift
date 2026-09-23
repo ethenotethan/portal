@@ -174,6 +174,34 @@ internal enum NetworkGraphVisualSemantics {
     }
 }
 
+/// Typed graph metadata consumed by the interactive artifact renderer. Keeping
+/// this adapter separate from `WikiGraph` prevents that generic model from
+/// erasing direction, node roles, and edge classes on the model-artifact path.
+internal struct NetworkGraphInteractiveSemantics {
+    private let spec: NetworkGraphSpec
+
+    internal init(spec: NetworkGraphSpec) {
+        self.spec = spec
+    }
+
+    internal var directed: Bool { spec.directed }
+    internal var nodeLegend: [NetworkGraphSpec.NodeLegendEntry] { spec.nodeLegend }
+    internal var edgeLegend: [NetworkGraphSpec.EdgeLegendEntry] { spec.edgeLegend }
+
+    internal func node(id: String) -> NetworkGraphSpec.Node? {
+        spec.nodes.first { $0.id == id }
+    }
+
+    internal func edge(at index: Int) -> NetworkGraphSpec.Edge? {
+        guard spec.edges.indices.contains(index) else { return nil }
+        return spec.edges[index]
+    }
+
+    internal func appearance(at index: Int) -> NetworkGraphVisualSemantics.EdgeAppearance? {
+        edge(at: index).map(NetworkGraphVisualSemantics.appearance(for:))
+    }
+}
+
 // MARK: - Static force layout
 
 /// One-shot force-directed layout: runs the same charge/spring/center

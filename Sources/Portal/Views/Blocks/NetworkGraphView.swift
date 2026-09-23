@@ -80,7 +80,7 @@ private struct GraphCard: View {
                 fillsHeight: fitHeight != nil
             )
             if !spec.nodeLegend.isEmpty || !spec.edgeLegend.isEmpty {
-                typedLegend
+                NetworkGraphTypedLegend(spec: spec)
             }
             if !spec.groups.isEmpty {
                 legendChips
@@ -120,8 +120,14 @@ private struct GraphCard: View {
             }
         }
     }
+}
 
-    private var typedLegend: some View {
+/// Data-derived legend shared by static chat graphs and the interactive graph
+/// renderer used inside model artifacts.
+internal struct NetworkGraphTypedLegend: View {
+    internal let spec: NetworkGraphSpec
+
+    internal var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(Array(spec.nodeLegend.enumerated()), id: \.offset) { _, entry in
@@ -328,8 +334,8 @@ private struct GraphCanvas: View {
     }
 }
 
-private enum GraphVisualStyle {
-    static func nodeColor(forKind kind: String) -> Color {
+internal enum GraphVisualStyle {
+    internal static func nodeColor(forKind kind: String) -> Color {
         switch kind.lowercased() {
         case "actor", "job", "cron": return Color(hex: "7c9cff") ?? .blue
         case "source": return Color(hex: "5cb85c") ?? .green
@@ -340,7 +346,7 @@ private enum GraphVisualStyle {
         }
     }
 
-    static func symbol(forKind kind: String) -> String {
+    internal static func symbol(forKind kind: String) -> String {
         switch kind.lowercased() {
         case "actor": return "person.fill"
         case "job", "cron": return "clock.fill"
@@ -352,7 +358,7 @@ private enum GraphVisualStyle {
         }
     }
 
-    static func edgeColor(
+    internal static func edgeColor(
         type: String?,
         appearance: NetworkGraphVisualSemantics.EdgeAppearance
     ) -> Color {
@@ -407,13 +413,18 @@ internal struct GraphExplorerBlockView: View {
 
     internal var body: some View {
         if let spec = NetworkGraphSpec.parse(json) {
+            let semantics = NetworkGraphInteractiveSemantics(spec: spec)
             VStack(alignment: .leading, spacing: 8) {
                 if let title = spec.title {
                     Text(title)
                         .font(.headline)
                         .foregroundStyle(Theme.primary)
                 }
-                InteractiveGraphView(graph: spec.wikiGraph, externalSelection: externalSelection)
+                InteractiveGraphView(
+                    graph: spec.wikiGraph,
+                    externalSelection: externalSelection,
+                    networkGraphSemantics: semantics
+                )
                     .frame(minHeight: externalSelection == nil ? 340 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -421,6 +432,9 @@ internal struct GraphExplorerBlockView: View {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(Theme.border, lineWidth: 0.5)
                     )
+                if !spec.nodeLegend.isEmpty || !spec.edgeLegend.isEmpty {
+                    NetworkGraphTypedLegend(spec: spec)
+                }
             }
         } else if NetworkGraphView.looksLikeMermaid(json) {
             // Same fallback as chat: mermaid `graph TD` syntax in a graph
