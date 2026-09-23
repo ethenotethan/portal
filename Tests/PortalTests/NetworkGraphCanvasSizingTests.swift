@@ -138,6 +138,31 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(edge.label == "PR state")
     }
 
+    @Test("typed entities opt legacy model graphs into relation semantics")
+    internal func typedEntitiesEnableRelationSemantics() throws {
+        let model = try #require(ModelSpec.parse("""
+        {"entities": {
+           "services": {"key": "id", "items": [
+             {"id": "worker", "kind": "service"},
+             {"id": "index", "kind": "artifact"}]}
+         },
+         "relations": [
+           {"from": "services/worker", "to": "services/index", "type": "writes",
+            "note": "search index"}
+         ],
+         "views": [{"type": "graph"}]}
+        """))
+        let view = try #require(model.views.first)
+        let graphJSON = try #require(ModelProjections.graphJSON(spec: model, view: view))
+        let graph = try #require(NetworkGraphSpec.parse(graphJSON))
+        let edge = try #require(graph.edges.first)
+
+        #expect(!view.hasExplicitDirection)
+        #expect(!graph.directed)
+        #expect(edge.type == "writes")
+        #expect(edge.label == "search index")
+    }
+
     @Test("typed graph derives runtime-style node and edge legend semantics")
     internal func typedLegendSemantics() throws {
         let spec = try #require(NetworkGraphSpec.parse("""
