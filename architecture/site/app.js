@@ -156,6 +156,7 @@
     subscriber: "#d16f86",
     caller: "#7ec8b0",
     provider: "#d0b36b",
+    machine: "#b48ad6",
     client: "#8fb3d9",
     section: "#d3a83a",
     store: "#c9a3d9",
@@ -169,6 +170,7 @@
     transport: "Connection-pool transport",
     caller: "Calling surface",
     provider: "Config provider (constructed at launch)",
+    machine: "State machine (enum-typed lifecycle state)",
     endpoint: "Queried endpoints",
     engine: "On-device engine",
     subscriber: "Event subscribers",
@@ -179,7 +181,7 @@
     external: "External system",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, machine: 5.7, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
   // Zones inside the application hull are the app's navigation pages, declared
   // in architecture/config.json with their root views; the compiler tags each
   // type-labelled node with the page whose view tree reaches it.
@@ -201,7 +203,8 @@
     stores_mapped: "Every store the extractor recognises appears on the map, so the Data stores view and the System map cannot disagree.",
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
     launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
-    flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated."
+    flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated.",
+    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared."
   };
 
   const INTERPLAY_SHARED_GROUP = "Shared core";
@@ -215,7 +218,7 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const EXTERNAL_CATEGORY_LABELS = {
@@ -284,6 +287,7 @@
     if (node.kind === "subscriber") return "subscriber";
     if (node.kind === "caller") return "caller";
     if (node.kind === "provider") return "provider";
+    if (node.kind === "machine") return "machine";
     if (node.kind === "external") return "external";
     if (node.kind === "transport") return "transport";
     if (node.kind === "client") return "client";
@@ -311,7 +315,7 @@
   }
   function ownerMemberIds(owner) {
     return new Set(drawNodes
-      .filter((node) => ["resource", "section", "operation"].includes(node.kind) &&
+      .filter((node) => ["resource", "section", "operation", "machine"].includes(node.kind) &&
         node.owner_type === owner.label && node.component === owner.component && node.sub_kind !== "event_bus")
       .map((node) => node.id));
   }
@@ -341,6 +345,7 @@
     if (node.kind === "section") return { width: Math.max(150, Math.min(220, (node.label || "").length * 7.6 + 60)), height: 48 };
     if (node.kind === "endpoint") return { width: 150, height: 46 };
     if (node.kind === "provider") return { width: 206, height: 48 }; // room for the init/configures meta line
+    if (node.kind === "machine") return { width: Math.max(170, Math.min(230, (node.label || "").length * 6.4 + 40)), height: 48 };
     const label = node.label || "";
     return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
   }
@@ -922,6 +927,7 @@
       else if (node.kind === "section") rect.setAttribute("class", "section");
       else if (node.kind === "store") rect.setAttribute("class", "store");
       else if (node.kind === "provider") rect.setAttribute("class", "provider");
+      else if (node.kind === "machine") rect.setAttribute("class", "machine");
       else if (isBusSpine(node)) rect.setAttribute("class", "bus");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
@@ -1212,6 +1218,7 @@
     if (node.kind === "external") return String(node.sub_kind || "system").replace(/-/g, " ").toUpperCase();
     if (node.kind === "client") return "CLIENT FILE";
     if (node.kind === "provider") return "PROVIDER · LAUNCH";
+    if (node.kind === "machine") return "STATE MACHINE";
     if (node.kind === "section") return "CRITICAL SECTION";
     if (node.kind === "transport") return "IN-MEMORY · TRANSPORT";
     if (isTransportCore(node)) return "REQUEST LEG · TRANSPORT CORE";
@@ -1349,6 +1356,10 @@
       const loads = (node.loads || []).length;
       return `init reads ${loads} store${loads === 1 ? "" : "s"}${(node.configures || []).length ? " · configures core" : ""}`;
     }
+    if (node.kind === "machine") {
+      const machine = node.machine || { states: [], transitions: [] };
+      return `${machine.states.length} states · ${machine.transitions.length} transitions`;
+    }
     if (node.kind === "section") {
       const guarded = (node.steps || []).filter((step) => step.guarded).length;
       return `${(node.lock_labels || []).join(", ")} · ${(node.steps || []).length} steps · ${guarded} under lock`;
@@ -1450,6 +1461,73 @@
     (semantic.evidence || []).forEach((site) => { const li = document.createElement("li"); li.append(sourceLink(site)); evidence.append(li); });
     section.append(evidence);
     section.append(element("p", "described-meta", `Written by ${semantic.model} at ${String(semantic.source_revision).slice(0, 9)}; validated against the map on every build.`));
+    return section;
+  }
+  // A state machine as a Mermaid state diagram generated from its extracted
+  // transitions, plus the transitions as a table with source links. A transition
+  // whose origin the code does not test first starts from "any state".
+  function machineMermaid(node) {
+    const machine = node.machine || { states: [], transitions: [] };
+    const lines = ["stateDiagram-v2"];
+    const seenAny = machine.transitions.some((t) => !t.from);
+    if (seenAny) lines.push('  state "any state" as anyState');
+    if (machine.initial) lines.push(`  [*] --> ${machine.initial}`);
+    const seen = new Set();
+    machine.transitions.forEach((t) => {
+      const froms = t.from && t.from.length ? t.from : ["anyState"];
+      froms.forEach((from) => {
+        const key = `${from}|${t.to}|${t.function}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push(`  ${from} --> ${t.to}: ${mermaidLabel(t.function)}()`);
+      });
+    });
+    return lines.join("\n");
+  }
+  function machineSection(node) {
+    const machine = node.machine || { states: [], transitions: [], dead_states: [] };
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `States (${machine.states.length}) and transitions (${machine.transitions.length})`));
+    const diagram = element("div", "flow-diagram");
+    diagram.dataset.source = machineMermaid(node);
+    diagram.dataset.state = "pending";
+    diagram.textContent = diagram.dataset.source;
+    section.append(diagram);
+    const states = element("p", "described-meta", machine.states.map((s) => s.name + (s.payload ? "(…)" : "")).join(" · "));
+    section.append(states);
+    if ((machine.dead_states || []).length) section.append(element("p", "described-meta", `Never entered by any transition: ${machine.dead_states.join(", ")}`));
+    const list = element("ul", "evidence-list");
+    machine.transitions.forEach((t) => {
+      const li = document.createElement("li");
+      const link = sourceLink({ path: t.path, line: t.line });
+      link.textContent = `${(t.from && t.from.length) ? t.from.join(" | ") : "any"} → ${t.to}  ·  ${t.function}()  ·  ${t.path.split("/").pop()}:${t.line}`;
+      li.append(link);
+      list.append(li);
+    });
+    section.append(list);
+    if (machine.enum_path) {
+      const decl = element("p", "described-meta");
+      decl.append(document.createTextNode("Enum declared at "), sourceLink({ path: machine.enum_path, line: machine.enum_line || 1 }));
+      section.append(decl);
+    }
+    setTimeout(renderMermaidDiagrams, 0);
+    return section;
+  }
+  function machineLinksSection(ids) {
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `State machine${ids.length === 1 ? "" : "s"}`));
+    const list = element("div", "chip-list");
+    ids.forEach((id) => {
+      const machine = interplayNodeById.get(id);
+      if (!machine) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-chip selectable";
+      button.textContent = `${machine.label} · ${(machine.machine || {}).states.length} states`;
+      button.addEventListener("click", () => selectInterplayNode(id));
+      list.append(button);
+    });
+    section.append(list);
     return section;
   }
   function flowLinksSection(ids) {
@@ -1992,6 +2070,8 @@
     }
 
     if (node.semantic) container.append(describedSection(node.semantic));
+    if (node.kind === "machine") container.append(machineSection(node));
+    if ((node.machines || []).length) container.append(machineLinksSection(node.machines));
     if ((node.flows || []).length) container.append(flowLinksSection(node.flows));
 
     if (node.overlay_prose) {
@@ -2244,6 +2324,10 @@
     if (node.kind === "provider") {
       return [[(node.loads || []).length, "Loads in init"], [(node.configures || []).length, "Configures"], [componentLabel(node.component), "Owner"]];
     }
+    if (node.kind === "machine") {
+      const machine = node.machine || { states: [], transitions: [], dead_states: [] };
+      return [[machine.states.length, "States"], [machine.transitions.length, "Transitions"], [machine.dead_states.length, "Never entered"]];
+    }
     if (node.kind === "client") {
       const endpoints = interplay.edges.filter((edge) => edge.source === node.id && edge.relation === "implements").length;
       return [[(node.namespaces || []).length, "Namespaces"], [endpoints, "Endpoints"], [node.owner_type, "Extends"]];
@@ -2278,6 +2362,11 @@
     }
     if (node.kind === "client") {
       return `The ${node.label}.swift extension of ${node.owner_type}: the file that implements the ${(node.namespaces || []).join(", ")} namespace call sites. Namespace boxes reach the core transport through it.`;
+    }
+    if (node.kind === "machine") {
+      const machine = node.machine || {};
+      const unknown = machine.unknown_from || 0;
+      return `${node.owner_type}'s lifecycle state: the stored property ${machine.property} typed as the ${machine.enum} enum${machine.initial ? `, starting as ${machine.initial}` : ""}. Every transition below is an assignment of a case in the source, attributed to the function that performs it; ${unknown ? `${unknown} of them leave a state the code does not test first, so their origin is drawn as "any state"` : "each leaves a state the code tests first"}.`;
     }
     if (node.kind === "provider") {
       const via = (node.configures || [])[0];

@@ -70,6 +70,8 @@ BEHAVIOR_RULES = {
     "swift.trigger.launch_construction": "A @StateObject property of an App entry-point struct initialised with a type on the map: the object is constructed at launch, before any page exists",
     "swift.lifecycle.init_loads": "A recognised store type referenced inside a type's init body: the store is read while the object is constructed",
     "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
+    "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
+    "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -2422,7 +2424,7 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
 INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
-    "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable",
+    "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
 }
 
 
@@ -2589,6 +2591,27 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
                 provider = next((n for n in nodes if n["label"] == entry_name and n.get("page") == LAUNCH_PAGE_ID), None)
                 if provider is None or not any(e["source"] == provider["id"] and e["relation"] == "configures" for e in edges):
                     problems.append(f"{entry_name} does not configure the transport core")
+
+        elif kind == "machines_complete":
+            machines = [n for n in nodes if n["kind"] == "machine"]
+            checked = len(machines)
+            if checked < int(entry.get("min", 0)):
+                problems.append(f"only {checked} state machine(s) extracted, need ≥ {entry.get('min', 0)}")
+            declared = entry.get("declared", {})
+            by_label = {m["label"]: m for m in machines}
+            for label, states in declared.items():
+                machine = by_label.get(label)
+                if machine is None:
+                    problems.append(f"declared machine {label} was not extracted")
+                    continue
+                actual = sorted(case["name"] for case in machine["machine"]["states"])
+                if actual != sorted(states):
+                    problems.append(f"{label} has states {actual}, declared {sorted(states)}")
+            allow_dead = entry.get("allow_dead", {})
+            for machine in machines:
+                dead = [s for s in machine["machine"]["dead_states"] if s not in set(allow_dead.get(machine["label"], []))]
+                if dead:
+                    problems.append(f"{machine['label']}: state(s) never entered by any transition: {dead}")
 
         elif kind == "flows_traceable":
             flows = interplay.get("flows", [])
@@ -2950,6 +2973,212 @@ def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[di
     interplay["launch"] = {"constructions": summaries, "unmapped": unmapped}
     edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
     nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+
+
+# ---------------------------------------------------------------------------
+# State machines: an object's lifecycle as the source declares it.
+#
+# A machine is a stored property typed as an enum with two or more cases that the
+# owning type assigns a case to somewhere. Each assignment is a transition into
+# the case it names, attributed to the enclosing function; the state it leaves is
+# read from an enclosing `switch property { case .x: … }` or `if/guard case .x =
+# property` when there is one, and left unknown otherwise rather than guessed.
+# A derived state (a computed property switching on other fields) is not a
+# machine and is not drawn as one.
+# ---------------------------------------------------------------------------
+MACHINE_KINDS = {"owner", "caller", "subscriber", "hub", "provider"}
+MACHINE_PROPERTY_RE = re.compile(
+    r"(?m)^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)\n]*\))?\s+)*(?:(?:public|internal|private|fileprivate|open|final|nonisolated|static|weak)\s*(?:\(set\))?\s+)*"
+    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*:\s*(?P<type>[A-Z][A-Za-z0-9_.]*)\??[ \t]*(?:=[ \t]*\.(?P<init>[a-z_][A-Za-z0-9_]*))?"
+)
+ENUM_BLOCK_RE = re.compile(r"\b(?:indirect\s+)?enum\s+([A-Z][A-Za-z0-9_]*)\b[^{\n]*\{")
+ENUM_CASE_LINE_RE = re.compile(r"(?m)^[ \t]*case\s+([a-z_][^\n]*)$")
+
+
+def enum_cases(code: str, enum_name: str) -> tuple[list[dict[str, Any]], int] | None:
+    """The cases of ``enum_name`` declared in ``code`` (first declaration), and its line."""
+    for match in ENUM_BLOCK_RE.finditer(code):
+        if match.group(1) != enum_name:
+            continue
+        open_brace = code.index("{", match.start())
+        body = code[open_brace + 1:balanced_block_end(code, open_brace + 1) - 1]
+        # Only this enum's own members: drop nested blocks (computed properties, nested types).
+        flat: list[str] = []
+        depth = 0
+        for char in body:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+            elif depth == 0:
+                flat.append(char)
+        cases: list[dict[str, Any]] = []
+        for line in ENUM_CASE_LINE_RE.finditer("".join(flat)):
+            text = line.group(1)
+            depth = 0
+            item = ""
+            items: list[str] = []
+            for char in text:
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                if char == "," and depth == 0:
+                    items.append(item)
+                    item = ""
+                else:
+                    item += char
+            items.append(item)
+            for raw in items:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                name = re.match(r"([a-z_][A-Za-z0-9_]*)", raw)
+                if name:
+                    cases.append({"name": name.group(1), "payload": "(" in raw})
+        return cases, code.count("\n", 0, match.start()) + 1
+    return None
+
+
+def type_block_ranges(code: str, type_name: str) -> list[tuple[int, int]]:
+    """The body ranges of ``type_name``'s declaration and its same-file extensions."""
+    ranges: list[tuple[int, int]] = []
+    for match in TYPE_BLOCK_RE.finditer(code):
+        if match.group(2) != type_name:
+            continue
+        open_brace = code.index("{", match.start())
+        ranges.append((open_brace + 1, balanced_block_end(code, open_brace + 1) - 1))
+    return ranges
+
+
+def transition_from_states(code: str, property_name: str, offset: int, function_range: tuple[int, int] | None,
+                           known: set[str]) -> list[str] | None:
+    """The state(s) an assignment at ``offset`` leaves, from an enclosing switch or
+    if/guard case on the same property inside the same function; None when unknown."""
+    if function_range is None:
+        return None
+    start, end = function_range
+    body = code[start:end]
+    local = offset - start
+    prop = re.escape(property_name)
+    # switch property { case .a, .b: … }
+    for match in re.finditer(rf"\bswitch\s+(?:self\.)?{prop}\s*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        if not (open_brace < local < close):
+            continue
+        labels = list(re.finditer(r"(?m)^[ \t]*(case\s+[^:\n]+|default)\s*:", body[open_brace:local]))
+        if not labels:
+            return None
+        label = labels[-1].group(1)
+        if label == "default":
+            return None
+        states = [name for name in re.findall(r"\.([a-z_][A-Za-z0-9_]*)", label) if name in known]
+        return states or None
+    # if case .a = property { … } / if property == .a { … }
+    for match in re.finditer(rf"\bif\s+(?:case\s+\.([a-z_][A-Za-z0-9_]*)(?:\([^)]*\))?\s*=\s*(?:self\.)?{prop}|(?:self\.)?{prop}\s*==\s*\.([a-z_][A-Za-z0-9_]*))\b[^{{\n]*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        state = match.group(1) or match.group(2)
+        if open_brace < local < close and state in known:
+            return [state]
+    # guard case .a = property else { … } — the rest of the function is in state a.
+    for match in re.finditer(rf"\bguard\s+case\s+\.([a-z_][A-Za-z0-9_]*)(?:\([^)]*\))?\s*=\s*(?:self\.)?{prop}\b[^{{\n]*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        if local > close and match.group(1) in known:
+            return [match.group(1)]
+    return None
+
+
+def extract_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every machine owned by a type on the map, with its states and transitions."""
+    file_by_type: dict[str, dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        for name in source["declarations"]:
+            file_by_type.setdefault(name, source)
+    machines: list[dict[str, Any]] = []
+    seen_owner_props: set[tuple[str, str]] = set()
+    for node in interplay["nodes"]:
+        if node["kind"] not in MACHINE_KINDS:
+            continue
+        owner = node["label"]
+        source = file_by_type.get(owner)
+        if source is None or (owner, node.get("component")) in seen_owner_props:
+            continue
+        code = masked_code(source)
+        ranges = type_block_ranges(code, owner)
+        if not ranges:
+            continue
+        for start, end in ranges:
+            for prop in MACHINE_PROPERTY_RE.finditer(code, start, end):
+                enclosing_type, enclosing_function = enclosing_context(code, prop.start())
+                if enclosing_function is not None or enclosing_type != owner:
+                    continue
+                enum_name = prop.group("type").split(".")[-1]
+                declared = enum_cases(code, enum_name)
+                enum_path = source["path"]
+                if declared is None:
+                    other = file_by_type.get(enum_name)
+                    if other is None:
+                        continue
+                    declared = enum_cases(masked_code(other), enum_name)
+                    enum_path = other["path"]
+                if declared is None or len(declared[0]) < 2:
+                    continue
+                cases, enum_line = declared
+                known = {case["name"] for case in cases}
+                name = prop.group("name")
+                transitions: list[dict[str, Any]] = []
+                assign_re = re.compile(rf"(?<![A-Za-z0-9_.])(?:self\.)?{re.escape(name)}\s*=(?!=)\s*([^\n]+)")
+                for r_start, r_end in ranges:
+                    for match in assign_re.finditer(code, r_start, r_end):
+                        targets = [state for state in re.findall(r"\.([a-z_][A-Za-z0-9_]*)", match.group(1)) if state in known]
+                        if not targets:
+                            continue
+                        _type, function = enclosing_context(code, match.start())
+                        function_range = enclosing_function_range(code, match.start())
+                        from_states = transition_from_states(code, name, match.start(), function_range, known)
+                        line = code.count("\n", 0, match.start()) + 1
+                        for target in dict.fromkeys(targets):
+                            transitions.append({"from": from_states, "to": target, "function": function or "init",
+                                                "path": source["path"], "line": line, "rule_id": "swift.state.transition"})
+                if not transitions:
+                    continue
+                entered = {t["to"] for t in transitions}
+                initial = prop.group("init") if prop.group("init") in known else None
+                component = node.get("component") or source.get("component")
+                machine_id = f"machine:{component or 'unassigned'}:{owner}.{name}"
+                machines.append({
+                    "id": machine_id, "kind": "machine", "sub_kind": "state_machine", "label": f"{owner}.{name}",
+                    "component": component, "owner_type": owner, "owner_id": node["id"], "page": node.get("page"),
+                    "path": source["path"], "line": code.count("\n", 0, prop.start()) + 1,
+                    "machine": {
+                        "property": name, "enum": enum_name, "enum_path": enum_path, "enum_line": enum_line, "initial": initial,
+                        "states": cases, "transitions": transitions,
+                        "dead_states": sorted(case["name"] for case in cases if case["name"] not in entered and case["name"] != initial),
+                        "unknown_from": sum(1 for t in transitions if t["from"] is None),
+                    },
+                    "rule_id": "swift.state.machine", "authority": "observed", "evidence_class": "static_source",
+                })
+                seen_owner_props.add((owner, node.get("component")))
+    machines.sort(key=lambda item: item["id"])
+    return machines
+
+
+def attach_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]) -> None:
+    machines = extract_state_machines(interplay, files)
+    existing = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}
+    for machine in machines:
+        owner_id = machine.pop("owner_id")
+        interplay["nodes"].append(machine)
+        owner = next(n for n in interplay["nodes"] if n["id"] == owner_id)
+        owner.setdefault("machines", []).append(machine["id"])
+        if (owner_id, machine["id"], "drives") not in existing:
+            interplay["edges"].append({"source": owner_id, "target": machine["id"], "class": "structure", "relation": "drives"})
+    interplay["machines"] = {"count": len(machines), "transitions": sum(len(m["machine"]["transitions"]) for m in machines)}
+    interplay["edges"].sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    interplay["nodes"].sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
 
 
 # ---------------------------------------------------------------------------
@@ -3642,6 +3871,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
     attach_launch_to_interplay(interplay, extract_launch_constructions(launch_files), files, config)
+    attach_state_machines(interplay, files)
     assign_history_keys(interplay)
     # Records may cite the launch roots too: they are part of the analysed tree.
     load_constructs(interplay, files + launch_files, externals)

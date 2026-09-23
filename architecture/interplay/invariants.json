@@ -62,6 +62,19 @@
       "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
     },
     {
+      "id": "machines-complete",
+      "kind": "machines_complete",
+      "min": 4,
+      "declared": {
+        "GatewayClient.connectionState": ["disconnected", "connecting", "connected", "reconnecting", "error"],
+        "GatewayRestartController.phase": ["idle", "requesting", "waitingForGateway", "succeeded", "failed", "unsupported"],
+        "ChatViewModel.avatarState": ["idle", "thinking", "speaking", "toolUse", "error"],
+        "LearningStore.sync": ["unknown", "available", "unsupported"]
+      },
+      "allow_dead": {},
+      "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
+    },
+    {
       "id": "flows-traceable",
       "kind": "flows_traceable",
       "min": 6,

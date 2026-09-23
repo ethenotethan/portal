@@ -827,6 +827,70 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn(".interplay-node rect.provider", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
         self.assertIn("App launch", (ROOT / "architecture/README.md").read_text(encoding="utf-8"))
 
+    # ---- State machines ---------------------------------------------------------
+
+    def test_state_machines_are_extracted_with_states_transitions_and_origins(self) -> None:
+        interplay = self.model["interplay"]
+        machines = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "machine"}
+        self.assertIn("GatewayClient.connectionState", machines)
+        transport = machines["GatewayClient.connectionState"]["machine"]
+        self.assertEqual(["disconnected", "connecting", "connected", "reconnecting", "error"], [c["name"] for c in transport["states"]])
+        self.assertEqual("disconnected", transport["initial"])
+        self.assertTrue(any(c["payload"] for c in transport["states"] if c["name"] == "reconnecting"))
+        self.assertGreaterEqual(len(transport["transitions"]), 10)
+        self.assertEqual([], transport["dead_states"])
+        for t in transport["transitions"]:
+            self.assertTrue((ROOT / t["path"]).is_file())
+            self.assertEqual("swift.state.transition", t["rule_id"])
+        # The owner drives its machine; the machine sits in the owner's zone.
+        core = next(n for n in interplay["nodes"] if n["id"] == "owner:hermes-services:GatewayClient")
+        self.assertIn(machines["GatewayClient.connectionState"]["id"], core["machines"])
+        self.assertIn(("owner:hermes-services:GatewayClient", "drives", machines["GatewayClient.connectionState"]["id"]),
+                      {(e["source"], e["relation"], e["target"]) for e in interplay["edges"]})
+        self.assertEqual(core.get("page"), machines["GatewayClient.connectionState"].get("page"))
+        # A derived state (a computed property switching on other fields) is not a machine.
+        self.assertNotIn("ChatViewModel.conversationPhase", machines)
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "machines-complete"))
+        # Synthetic: from-states from switch / if case / guard case, ternary targets, no false machines.
+        code = (
+            "enum Mode { case idle, busy(Int), done }\n"
+            "enum Flavour { case only }\n"
+            "final class Worker {\n"
+            "    @Published private(set) var mode: Mode = .idle\n"
+            "    var flavour: Flavour = .only\n"
+            "    var derived: Mode { mode }\n"
+            "    func start() {\n"
+            "        switch mode {\n"
+            "        case .idle, .done:\n"
+            "            mode = .busy(1)\n"
+            "        case .busy:\n"
+            "            return\n"
+            "        }\n"
+            "    }\n"
+            "    func finish(ok: Bool) {\n"
+            "        if case .busy = mode { mode = ok ? .done : .idle }\n"
+            "    }\n"
+            "    func reset() {\n"
+            "        guard case .done = mode else { return }\n"
+            "        mode = .idle\n"
+            "    }\n"
+            "}\n"
+        )
+        files = [{"path": "Sources/Portal/Demo/Worker.swift", "_text": code, "declarations": ["Mode", "Flavour", "Worker"], "component": "demo", "identifiers": [], "line_count": code.count("\n")}]
+        fake = {"nodes": [{"id": "caller:demo:Worker", "kind": "caller", "label": "Worker", "component": "demo", "page": "chat"}], "edges": []}
+        found = architecture.extract_state_machines(fake, files)
+        self.assertEqual(["Worker.mode"], [m["label"] for m in found])
+        machine = found[0]["machine"]
+        self.assertEqual("idle", machine["initial"])
+        self.assertEqual([("idle", "busy"), ("done", "busy"), ("busy", "done"), ("busy", "idle"), ("done", "idle")],
+                         [(f, t["to"]) for t in machine["transitions"] for f in (t["from"] or [None])])
+        self.assertEqual(["start", "finish", "finish", "reset"], [t["function"] for t in machine["transitions"]])
+        self.assertEqual([], machine["dead_states"])
+        self.assertEqual(0, machine["unknown_from"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ('if (node.kind === "machine") return "machine";', "function machineMermaid(", "stateDiagram-v2", 'rect.setAttribute("class", "machine")', "machines_complete:"):
+            self.assertIn(needle, app)
+
     # ---- Semantic enrichment: described constructs and system flows ------------
 
     def _files(self):

@@ -14328,6 +14328,8 @@
       "swift.resource.timer.stored": "Stored property declared as Timer",
       "swift.resource.url_session.stored": "Stored property declared as URLSession",
       "swift.resource.websocket.stored": "Stored property declared as URLSessionWebSocketTask",
+      "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
+      "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
       "swift.task.cancel": "cancel() invoked on a named stored Task handle",
       "swift.task.detached": "Task.detached closure",
       "swift.task.stored_handle": "Stored property whose declared type is Task",
@@ -17518,6 +17520,12 @@
         "target": "endpoint:a6fe64944ae6"
       },
       {
+        "class": "structure",
+        "relation": "drives",
+        "source": "caller:chat-state:ChatViewModel",
+        "target": "machine:chat-state:ChatViewModel.avatarState"
+      },
+      {
         "class": "usage",
         "relation": "holds",
         "source": "caller:chat-state:ChatViewModel",
@@ -17876,6 +17884,12 @@
         "relation": "invokes",
         "source": "caller:operations-state:GatewayRestartController",
         "target": "endpoint:24738b20b0b3"
+      },
+      {
+        "class": "structure",
+        "relation": "drives",
+        "source": "caller:operations-state:GatewayRestartController",
+        "target": "machine:operations-state:GatewayRestartController.phase"
       },
       {
         "class": "usage",
@@ -18760,6 +18774,12 @@
         "target": "external:harness-gateway"
       },
       {
+        "class": "structure",
+        "relation": "drives",
+        "source": "owner:hermes-services:GatewayClient",
+        "target": "machine:hermes-services:GatewayClient.connectionState"
+      },
+      {
         "class": "lifecycle",
         "relation": "operates",
         "source": "owner:hermes-services:GatewayClient",
@@ -19184,6 +19204,12 @@
         "relation": "persists-to",
         "source": "subscriber:ArtifactStore",
         "target": "external:file-system"
+      },
+      {
+        "class": "structure",
+        "relation": "drives",
+        "source": "subscriber:LearningStore",
+        "target": "machine:local-services:LearningStore.sync"
       },
       {
         "class": "usage",
@@ -22813,6 +22839,13 @@
         "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
       },
       {
+        "checked": 4,
+        "id": "machines-complete",
+        "kind": "machines_complete",
+        "status": "holds",
+        "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
+      },
+      {
         "checked": 369,
         "id": "flows-traceable",
         "kind": "flows_traceable",
@@ -22990,6 +23023,10 @@
           "type": "XAuthService"
         }
       ]
+    },
+    "machines": {
+      "count": 4,
+      "transitions": 37
     },
     "nodes": [
       {
@@ -25208,6 +25245,9 @@
         "kind": "owner",
         "label": "GatewayClient",
         "line": 40,
+        "machines": [
+          "machine:hermes-services:GatewayClient.connectionState"
+        ],
         "page": "shared",
         "page_resolution": "shared",
         "path": "Sources/Portal/Services/GatewayClient.swift",
@@ -25275,6 +25315,144 @@
           "lifecycle": 0,
           "user_action": 0
         }
+      },
+      {
+        "authority": "observed",
+        "component": "hermes-services",
+        "evidence_class": "static_source",
+        "history_key": "machine:hermes-services:GatewayClient.connectionState",
+        "id": "machine:hermes-services:GatewayClient.connectionState",
+        "kind": "machine",
+        "label": "GatewayClient.connectionState",
+        "line": 44,
+        "machine": {
+          "dead_states": [],
+          "enum": "ConnectionState",
+          "enum_line": 71,
+          "enum_path": "Sources/Portal/Services/GatewayClient.swift",
+          "initial": "disconnected",
+          "property": "connectionState",
+          "states": [
+            {
+              "name": "disconnected",
+              "payload": false
+            },
+            {
+              "name": "connecting",
+              "payload": false
+            },
+            {
+              "name": "connected",
+              "payload": false
+            },
+            {
+              "name": "reconnecting",
+              "payload": true
+            },
+            {
+              "name": "error",
+              "payload": true
+            }
+          ],
+          "transitions": [
+            {
+              "from": null,
+              "function": "connect",
+              "line": 422,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "connecting"
+            },
+            {
+              "from": null,
+              "function": "beginConnectingForTesting",
+              "line": 483,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "connecting"
+            },
+            {
+              "from": null,
+              "function": "verifyCFCookieThenConnect",
+              "line": 578,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            },
+            {
+              "from": null,
+              "function": "stopConnection",
+              "line": 730,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "disconnected"
+            },
+            {
+              "from": null,
+              "function": "handleDisconnect",
+              "line": 878,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            },
+            {
+              "from": null,
+              "function": "handleDisconnect",
+              "line": 888,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "reconnecting"
+            },
+            {
+              "from": null,
+              "function": "forceReconnectAndWait",
+              "line": 1023,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "connecting"
+            },
+            {
+              "from": null,
+              "function": "urlSession",
+              "line": 2533,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            },
+            {
+              "from": null,
+              "function": "urlSession",
+              "line": 2565,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "connected"
+            },
+            {
+              "from": [
+                "connecting"
+              ],
+              "function": "urlSession",
+              "line": 2595,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            },
+            {
+              "from": null,
+              "function": "urlSession",
+              "line": 2597,
+              "path": "Sources/Portal/Services/GatewayClient.swift",
+              "rule_id": "swift.state.transition",
+              "to": "disconnected"
+            }
+          ],
+          "unknown_from": 10
+        },
+        "owner_type": "GatewayClient",
+        "page": "shared",
+        "path": "Sources/Portal/Services/GatewayClient.swift",
+        "rule_id": "swift.state.machine",
+        "sub_kind": "state_machine"
       },
       {
         "cluster": "interplay-cluster-50d529a93091",
@@ -26963,6 +27141,9 @@
         "kind": "subscriber",
         "label": "LearningStore",
         "line": 30,
+        "machines": [
+          "machine:local-services:LearningStore.sync"
+        ],
         "owner_type": "Event subscribers",
         "page": "learning",
         "page_resolution": "reachability",
@@ -27041,6 +27222,78 @@
           "lifecycle": 2,
           "user_action": 3
         }
+      },
+      {
+        "authority": "observed",
+        "component": "local-services",
+        "evidence_class": "static_source",
+        "history_key": "machine:local-services:LearningStore.sync",
+        "id": "machine:local-services:LearningStore.sync",
+        "kind": "machine",
+        "label": "LearningStore.sync",
+        "line": 45,
+        "machine": {
+          "dead_states": [],
+          "enum": "SyncAvailability",
+          "enum_line": 42,
+          "enum_path": "Sources/Portal/Services/LearningStore.swift",
+          "initial": "unknown",
+          "property": "sync",
+          "states": [
+            {
+              "name": "unknown",
+              "payload": false
+            },
+            {
+              "name": "available",
+              "payload": false
+            },
+            {
+              "name": "unsupported",
+              "payload": false
+            }
+          ],
+          "transitions": [
+            {
+              "from": null,
+              "function": "injectClientForTesting",
+              "line": 238,
+              "path": "Sources/Portal/Services/LearningStore.swift",
+              "rule_id": "swift.state.transition",
+              "to": "available"
+            },
+            {
+              "from": null,
+              "function": "setClient",
+              "line": 244,
+              "path": "Sources/Portal/Services/LearningStore.swift",
+              "rule_id": "swift.state.transition",
+              "to": "unknown"
+            },
+            {
+              "from": null,
+              "function": "pull",
+              "line": 325,
+              "path": "Sources/Portal/Services/LearningStore.swift",
+              "rule_id": "swift.state.transition",
+              "to": "unsupported"
+            },
+            {
+              "from": null,
+              "function": "pull",
+              "line": 329,
+              "path": "Sources/Portal/Services/LearningStore.swift",
+              "rule_id": "swift.state.transition",
+              "to": "available"
+            }
+          ],
+          "unknown_from": 4
+        },
+        "owner_type": "LearningStore",
+        "page": "learning",
+        "path": "Sources/Portal/Services/LearningStore.swift",
+        "rule_id": "swift.state.machine",
+        "sub_kind": "state_machine"
       },
       {
         "cluster": "interplay-cluster-0103cc466a26",
@@ -28477,6 +28730,9 @@
         "kind": "caller",
         "label": "ChatViewModel",
         "line": 38,
+        "machines": [
+          "machine:chat-state:ChatViewModel.avatarState"
+        ],
         "methods": {
           "applyDefaultModel": [
             "config"
@@ -28636,6 +28892,174 @@
           "lifecycle": 15,
           "user_action": 27
         }
+      },
+      {
+        "authority": "observed",
+        "component": "chat-state",
+        "evidence_class": "static_source",
+        "history_key": "machine:chat-state:ChatViewModel.avatarState",
+        "id": "machine:chat-state:ChatViewModel.avatarState",
+        "kind": "machine",
+        "label": "ChatViewModel.avatarState",
+        "line": 310,
+        "machine": {
+          "dead_states": [],
+          "enum": "AvatarState",
+          "enum_line": 4,
+          "enum_path": "Sources/Portal/Models/Persona.swift",
+          "initial": "idle",
+          "property": "avatarState",
+          "states": [
+            {
+              "name": "idle",
+              "payload": false
+            },
+            {
+              "name": "thinking",
+              "payload": false
+            },
+            {
+              "name": "speaking",
+              "payload": false
+            },
+            {
+              "name": "toolUse",
+              "payload": false
+            },
+            {
+              "name": "error",
+              "payload": false
+            }
+          ],
+          "transitions": [
+            {
+              "from": null,
+              "function": "handleConnectionState",
+              "line": 802,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "thinking"
+            },
+            {
+              "from": null,
+              "function": "handleConnectionState",
+              "line": 825,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            },
+            {
+              "from": null,
+              "function": "resetForGatewaySwitch",
+              "line": 912,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "createSession",
+              "line": 1256,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "beginSwitchToSession",
+              "line": 1340,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "resumeSession",
+              "line": 1522,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "finishStreaming",
+              "line": 2858,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "createLocalTestSession",
+              "line": 3195,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4289,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "speaking"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4316,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4353,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4403,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "toolUse"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4456,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "thinking"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4462,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "thinking"
+            },
+            {
+              "from": null,
+              "function": "handleEvent",
+              "line": 4503,
+              "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+              "rule_id": "swift.state.transition",
+              "to": "error"
+            }
+          ],
+          "unknown_from": 15
+        },
+        "owner_type": "ChatViewModel",
+        "page": "chat",
+        "path": "Sources/Portal/ViewModels/ChatViewModel.swift",
+        "rule_id": "swift.state.machine",
+        "sub_kind": "state_machine"
       },
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
@@ -29119,6 +29543,9 @@
         "kind": "caller",
         "label": "GatewayRestartController",
         "line": 13,
+        "machines": [
+          "machine:operations-state:GatewayRestartController.phase"
+        ],
         "methods": {
           "run": [
             "gateway"
@@ -29170,6 +29597,114 @@
           "lifecycle": 1,
           "user_action": 1
         }
+      },
+      {
+        "authority": "observed",
+        "component": "operations-state",
+        "evidence_class": "static_source",
+        "history_key": "machine:operations-state:GatewayRestartController.phase",
+        "id": "machine:operations-state:GatewayRestartController.phase",
+        "kind": "machine",
+        "label": "GatewayRestartController.phase",
+        "line": 14,
+        "machine": {
+          "dead_states": [],
+          "enum": "GatewayRestartPhase",
+          "enum_line": 53,
+          "enum_path": "Sources/Portal/Models/GatewayRestartOutcome.swift",
+          "initial": "idle",
+          "property": "phase",
+          "states": [
+            {
+              "name": "idle",
+              "payload": false
+            },
+            {
+              "name": "requesting",
+              "payload": false
+            },
+            {
+              "name": "waitingForGateway",
+              "payload": false
+            },
+            {
+              "name": "succeeded",
+              "payload": false
+            },
+            {
+              "name": "failed",
+              "payload": true
+            },
+            {
+              "name": "unsupported",
+              "payload": false
+            }
+          ],
+          "transitions": [
+            {
+              "from": null,
+              "function": "restart",
+              "line": 29,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "requesting"
+            },
+            {
+              "from": null,
+              "function": "run",
+              "line": 43,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "unsupported"
+            },
+            {
+              "from": null,
+              "function": "run",
+              "line": 46,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "failed"
+            },
+            {
+              "from": null,
+              "function": "run",
+              "line": 52,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "waitingForGateway"
+            },
+            {
+              "from": null,
+              "function": "run",
+              "line": 54,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "failed"
+            },
+            {
+              "from": null,
+              "function": "run",
+              "line": 63,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "succeeded"
+            },
+            {
+              "from": null,
+              "function": "reset",
+              "line": 72,
+              "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+              "rule_id": "swift.state.transition",
+              "to": "idle"
+            }
+          ],
+          "unknown_from": 7
+        },
+        "owner_type": "GatewayRestartController",
+        "page": "settings",
+        "path": "Sources/Portal/ViewModels/GatewayRestartController.swift",
+        "rule_id": "swift.state.machine",
+        "sub_kind": "state_machine"
       },
       {
         "cluster": "interplay-cluster-8f7f061bfcff",
