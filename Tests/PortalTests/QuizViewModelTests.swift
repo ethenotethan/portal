@@ -87,6 +87,28 @@ internal struct QuizViewModelTests {
         #expect(subject.reviewPrompt.contains("Explanation: Because B is correct."))
     }
 
+    @Test("a flashcard deck survives closing and can be reopened")
+    internal func flashcardDeckSurvivesClose() {
+        let deck = FlashcardDeck(
+            topic: "Greek letters",
+            cards: [Flashcard(front: "Alpha", back: "Α", explanation: "The first letter.")]
+        )
+        let subject = QuizViewModel()
+
+        subject.load(deck: deck)
+        #expect(subject.quizMode == .flashcards)
+        #expect(subject.flashcardDeck?.id == deck.id)
+        #expect(subject.hasFlashcardDeck)
+
+        subject.switchMode(to: .quiz)
+        #expect(subject.quizMode == .quiz)
+
+        subject.close()
+        #expect(subject.quizMode == .quiz)
+        #expect(subject.flashcardDeck?.id == deck.id)
+        #expect(subject.hasFlashcardDeck)
+    }
+
     @Test("study modes expose stable labels and symbols")
     internal func modePresentation() {
         #expect(QuizMode.allCases.map(\.rawValue) == ["Quiz", "Flashcards"])
