@@ -62,6 +62,10 @@ The site loads `history.js` as an opt-in artifact and draws a **History** slider
 
 Every rendering above assumes a construction: one transport shared by every page, pool mutations under one lock with resumes and socket writes outside it, every namespace dispatched by the core, every page owning something. Those assumptions are written down in `architecture/interplay/invariants.json`, each with a `why`, and `scripts/build_architecture.py` checks them against the extracted model on every build. A violation fails `make architecture` and `--check` with the invariant id, the offending source site, and the declared reason. Changing the construction is allowed; it requires changing the declaration in the same change, so the graph can never quietly describe code that no longer has that shape. Results are published under `interplay.invariants` and listed as plain text at the foot of the System map page, each with its status, what it pins and why; reading them never touches the graph.
 
+## Semantic enrichment (planned)
+
+`architecture/SEMANTIC_ENRICHMENT_PLAN.md` lays out the next layer: LLM-written, schema-constrained records per construct (what a store holds, in what shape, keyed by what, written when) and named system flows whose steps must be edges that exist on the map, both validated by the compiler and traced on the System map. Nothing in it changes the mechanical model.
+
 ## Local development
 
 ```bash
