@@ -51,6 +51,7 @@ internal struct PromptBreakdownTests {
     internal func sectionColor() {
         #expect(makeSection(id: "valid", contentLength: 0, colorHex: "#4ecdc4").color == Color(hex: "#4ecdc4"))
         #expect(makeSection(id: "invalid", contentLength: 0, colorHex: "not-a-color").color == .accentColor)
+        #expect(makeSection(id: "invalid-six", contentLength: 0, colorHex: "12zzzz").color == .accentColor)
     }
 
     @Test("Mock fallback preserves the requested session and stable accounting")

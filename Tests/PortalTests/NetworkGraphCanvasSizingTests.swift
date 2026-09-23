@@ -25,6 +25,33 @@ internal struct NetworkGraphCanvasSizingTests {
     }
     """
 
+    @Test("graph groups keep their first-seen order without duplicates")
+    internal func groupsPreserveFirstAppearance() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {
+          "nodes": [
+            {"id":"api","group":"services"},
+            {"id":"worker","group":"compute"},
+            {"id":"database","group":"services"},
+            {"id":"ungrouped"}
+          ]
+        }
+        """))
+
+        #expect(spec.groups == ["services", "compute"])
+    }
+
+    @Test("a single node is centered in the requested layout box")
+    internal func singleNodeIsCentered() throws {
+        let spec = try #require(NetworkGraphSpec.parse(#"{"nodes":[{"id":"solo"}]}"#))
+        let result = NetworkGraphLayout.layout(spec, width: 360, fitHeight: 140)
+        let node = try #require(result.placed.first)
+
+        #expect(result.size == CGSize(width: 360, height: 140))
+        #expect(node.position == CGPoint(x: 180, y: 70))
+        #expect(result.positions["solo"] == node.position)
+    }
+
     @Test("canvas reports the height of the layout at its actual width")
     internal func heightUsesActualWidth() throws {
         let spec = try #require(NetworkGraphSpec.parse(fixture))

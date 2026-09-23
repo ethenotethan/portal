@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Portal
 
-@Suite("Activity Inbox ViewModel")
+@Suite("Activity Inbox ViewModel", .serialized)
 @MainActor
 struct ActivityInboxViewModelTests {
 
@@ -144,6 +144,37 @@ struct ActivityInboxViewModelTests {
         #expect(vm.unreadCount == 0)
     }
 
+    @Test("activity store unread count follows read state")
+    internal func storeUnreadCountTracksReadState() {
+        let store = ActivityStore.shared
+        let unread = ActivityItem(
+            id: "store-unread",
+            createdAt: Date(timeIntervalSince1970: 20),
+            kind: "activity",
+            severity: .info,
+            source: "test",
+            title: "Unread",
+            summary: "",
+            isRead: false,
+            isDismissed: false,
+            actions: [],
+            artifacts: [],
+            externalRefs: []
+        )
+        var read = unread
+        read.id = "store-read"
+        read.isRead = true
+
+        store.upsert(unread)
+        store.upsert(read)
+        #expect(store.unreadCount == 1)
+
+        store.markRead(id: unread.id)
+        #expect(store.unreadCount == 0)
+        store.markRead(id: "missing")
+        #expect(store.unreadCount == 0)
+    }
+
     @Test("clearAll removes all items from VM")
     func clearAll() {
         let vm = ActivityInboxViewModel()
@@ -198,5 +229,31 @@ struct ActivityInboxViewModelTests {
         updated.title = "Updated"
         vm.handle(.activityUpdated(updated), eventSessionID: nil)
         #expect(vm.items.contains { $0.id == "act-updated-test" && $0.title == "Updated" })
+    }
+
+    @Test("a dismissed activity update removes the existing inbox item")
+    internal func handleDismissedActivityUpdate() {
+        let vm = ActivityInboxViewModel()
+        var item = ActivityItem(
+            id: "act-dismissed-test",
+            createdAt: Date(timeIntervalSince1970: 10),
+            kind: "activity",
+            severity: .info,
+            source: "gateway",
+            title: "Dismiss me",
+            summary: "test",
+            isRead: false,
+            isDismissed: false,
+            actions: [],
+            artifacts: [],
+            externalRefs: []
+        )
+        vm.handle(.activityCreated(item), eventSessionID: nil)
+        #expect(vm.items.contains { $0.id == item.id })
+
+        item.isDismissed = true
+        vm.handle(.activityUpdated(item), eventSessionID: nil)
+
+        #expect(!vm.items.contains { $0.id == item.id })
     }
 }

@@ -18,6 +18,11 @@ internal struct ArtifactEnhancementPresentationTests {
         #expect(KanbanDisplayPolicy.hiddenCount(cardCount: cards.count, expanded: true) == 0)
     }
 
+    @Test("Kanban ticket detail uses a readable bounded default size")
+    internal func kanbanTicketDetailHasStableSize() {
+        #expect(KanbanDisplayPolicy.ticketDetailSize == CGSize(width: 360, height: 420))
+    }
+
     @Test("Model table columns use stable widths and center scalar values")
     internal func modelTableColumnsStayAligned() {
         let items = [

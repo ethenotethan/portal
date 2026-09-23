@@ -9589,7 +9589,7 @@
       "id": "artifact-ui",
       "label": "Artifacts",
       "layer": "experience",
-      "line_count": 11862,
+      "line_count": 11909,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -10643,7 +10643,7 @@
       "id": "domain-models",
       "label": "Domain models",
       "layer": "foundation",
-      "line_count": 16054,
+      "line_count": 16053,
       "semantic": {
         "authority": "synthesized",
         "evidence": [
@@ -35352,7 +35352,7 @@
     "assigned_files": 367,
     "declarations": 1085,
     "swift_files": 367,
-    "swift_lines": 107579,
+    "swift_lines": 107625,
     "unassigned_files": []
   },
   "layers": [
@@ -35384,7 +35384,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "05eb7d7e5a0d629538d74ad2c07bc97997e596c9ffaf1c743d498a1558b86a5a",
+  "source_tree_sha256": "e51edecdb0c4f806f4d4e5040a637835f0fdaa104f403cbd950bd812a5c9b302",
   "stores": {
     "by_persistence": {
       "defaults": 6,
