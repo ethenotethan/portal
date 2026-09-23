@@ -79,6 +79,9 @@ private struct GraphCard: View {
                 selectedNodeID: selectionBinding,
                 fillsHeight: fitHeight != nil
             )
+            if !spec.nodeLegend.isEmpty || !spec.edgeLegend.isEmpty {
+                typedLegend
+            }
             if !spec.groups.isEmpty {
                 legendChips
             }
@@ -92,28 +95,64 @@ private struct GraphCard: View {
     }
 
     private var legendChips: some View {
-        HStack(spacing: 6) {
-            ForEach(spec.groups, id: \.self) { group in
-                let hidden = hiddenGroups.contains(group)
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(groupColors[group] ?? Theme.accent)
-                        .frame(width: 8, height: 8)
-                    Text(group)
-                        .font(.caption2)
-                        .foregroundStyle(hidden ? Theme.tertiary : Theme.secondary)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(spec.groups, id: \.self) { group in
+                    let hidden = hiddenGroups.contains(group)
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(groupColors[group] ?? Theme.accent)
+                            .frame(width: 8, height: 8)
+                        Text(group)
+                            .font(.caption2)
+                            .foregroundStyle(hidden ? Theme.tertiary : Theme.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Theme.surfaceHover.opacity(hidden ? 0.3 : 0.6), in: Capsule())
+                    .opacity(hidden ? 0.5 : 1)
+                    .contentShape(Capsule())
+                    .onTapGesture {
+                        if hidden { hiddenGroups.remove(group) } else { hiddenGroups.insert(group) }
+                    }
+                    .help(hidden ? "Show \(group)" : "Hide \(group)")
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Theme.surfaceHover.opacity(hidden ? 0.3 : 0.6), in: Capsule())
-                .opacity(hidden ? 0.5 : 1)
-                .contentShape(Capsule())
-                .onTapGesture {
-                    if hidden { hiddenGroups.remove(group) } else { hiddenGroups.insert(group) }
-                }
-                .help(hidden ? "Show \(group)" : "Hide \(group)")
             }
         }
+    }
+
+    private var typedLegend: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(spec.nodeLegend.enumerated()), id: \.offset) { _, entry in
+                    HStack(spacing: 4) {
+                        Image(systemName: GraphVisualStyle.symbol(forKind: entry.kind))
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(GraphVisualStyle.nodeColor(forKind: entry.kind))
+                        Text("\(entry.kind) · \(entry.type)")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.secondary)
+                    }
+                }
+                if !spec.nodeLegend.isEmpty && !spec.edgeLegend.isEmpty {
+                    Divider().frame(height: 12)
+                }
+                ForEach(Array(spec.edgeLegend.enumerated()), id: \.offset) { _, entry in
+                    let appearance = NetworkGraphVisualSemantics.appearance(
+                        for: .init(from: "", to: "", label: nil, type: entry.type, edgeClass: entry.edgeClass)
+                    )
+                    HStack(spacing: 4) {
+                        Image(systemName: appearance.showsArrow ? "arrow.right" : "minus")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(GraphVisualStyle.edgeColor(type: entry.type, appearance: appearance))
+                        Text(entry.edgeClass.map { "\(entry.type) · \($0)" } ?? entry.type)
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.secondary)
+                    }
+                }
+            }
+        }
+        .accessibilityLabel("Graph legend")
     }
 }
 
@@ -203,14 +242,20 @@ private struct GraphCanvas: View {
                       let from = layout.positions[edge.from],
                       let to = layout.positions[edge.to] else { continue }
                 let isLit = lit == nil || (lit!.contains(edge.from) && lit!.contains(edge.to))
-                let color = Theme.tertiary.opacity(isLit ? 0.75 : 0.18)
+                let appearance = NetworkGraphVisualSemantics.appearance(for: edge)
+                let color = GraphVisualStyle.edgeColor(type: edge.type, appearance: appearance)
+                    .opacity(isLit ? 0.8 : 0.18)
 
                 var path = Path()
                 path.move(to: from)
                 path.addLine(to: to)
-                context.stroke(path, with: .color(color), lineWidth: 1.2)
+                context.stroke(
+                    path,
+                    with: .color(color),
+                    style: StrokeStyle(lineWidth: 1.4, dash: appearance.isDashed ? [5, 4] : [])
+                )
 
-                if spec.directed {
+                if spec.directed && appearance.showsArrow {
                     drawArrowhead(context: context, from: from, to: to, color: color)
                 }
                 if let label = edge.label, isLit {
@@ -245,14 +290,23 @@ private struct GraphCanvas: View {
 
     private func nodeView(_ placed: NetworkGraphLayout.PlacedNode, lit: Set<String>?) -> some View {
         let node = placed.node
-        let color = node.group.flatMap { groupColors[$0] } ?? Theme.accent
+        let color = node.kind.map(GraphVisualStyle.nodeColor(forKind:))
+            ?? node.group.flatMap { groupColors[$0] }
+            ?? Theme.accent
         let isLit = lit == nil || lit!.contains(node.id)
         let isSelected = selectedNodeID == node.id
         let radius = 11 * node.size
 
         return VStack(spacing: 3) {
-            Circle()
-                .fill(color.opacity(isLit ? 1 : 0.25))
+            ZStack {
+                Circle()
+                    .fill(color.opacity(isLit ? 1 : 0.25))
+                if let kind = node.kind {
+                    Image(systemName: GraphVisualStyle.symbol(forKind: kind))
+                        .font(.system(size: max(7, radius * 0.72), weight: .bold))
+                        .foregroundStyle(Theme.surface.opacity(isLit ? 1 : 0.6))
+                }
+            }
                 .frame(width: radius * 2, height: radius * 2)
                 .overlay(
                     Circle().stroke(
@@ -270,7 +324,49 @@ private struct GraphCanvas: View {
         .onTapGesture {
             selectedNodeID = isSelected ? nil : node.id
         }
-        .help(node.group.map { "\(node.label) — \($0)" } ?? node.label)
+        .help([node.label, node.kind, node.type, node.group].compactMap { $0 }.joined(separator: " — "))
+    }
+}
+
+private enum GraphVisualStyle {
+    static func nodeColor(forKind kind: String) -> Color {
+        switch kind.lowercased() {
+        case "actor", "job", "cron": return Color(hex: "7c9cff") ?? .blue
+        case "source": return Color(hex: "5cb85c") ?? .green
+        case "resource", "artifact", "data": return Color(hex: "e8a838") ?? .orange
+        case "sink": return Color(hex: "ff6b9d") ?? .pink
+        case "service": return Color(hex: "2fc4b6") ?? .teal
+        default: return Color(hex: "9085e9") ?? .purple
+        }
+    }
+
+    static func symbol(forKind kind: String) -> String {
+        switch kind.lowercased() {
+        case "actor": return "person.fill"
+        case "job", "cron": return "clock.fill"
+        case "source": return "arrow.down"
+        case "resource", "artifact", "data": return "cylinder.fill"
+        case "sink": return "arrow.up.right"
+        case "service": return "server.rack"
+        default: return "circle.fill"
+        }
+    }
+
+    static func edgeColor(
+        type: String?,
+        appearance: NetworkGraphVisualSemantics.EdgeAppearance
+    ) -> Color {
+        switch (appearance, type?.lowercased()) {
+        case (.dataflow, "reads"): return Color(hex: "3987e5") ?? .blue
+        case (.dataflow, "writes"): return Color(hex: "9085e9") ?? .purple
+        case (.dataflow, "feeds"): return Color(hex: "199e70") ?? .green
+        case (.dataflow, _): return Color(hex: "8a8aff") ?? .accentColor
+        case (.delivery, _): return Color(hex: "ff6b9d") ?? .pink
+        case (.containment, _): return Color(hex: "2fc4b6") ?? .teal
+        case (.authority, _): return Color(hex: "e8a838") ?? .orange
+        case (.control, _): return Color(hex: "e66767") ?? .red
+        case (.generic, _): return Theme.tertiary
+        }
     }
 }
 

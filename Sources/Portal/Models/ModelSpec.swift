@@ -65,6 +65,7 @@ struct ModelSpec {
         let from: EntityRef
         let to: EntityRef
         let type: String
+        internal let edgeClass: String?
         let note: String?
 
         var id: String { "\(from.set)/\(from.key)→\(to.set)/\(to.key):\(type)" }
@@ -90,6 +91,10 @@ struct ModelSpec {
         let yField: String
         /// stats: fields to tile (empty = numeric fields).
         let fields: [String]
+        /// graph direction, defaulting to the legacy undirected model behavior.
+        internal let directed: Bool
+        /// Distinguishes an explicit graph contract from the legacy default.
+        internal let hasExplicitDirection: Bool
         /// kanban: entity field whose values define lanes. `columns` supplies
         /// the optional explicit lane order.
         internal let columnField: String
@@ -169,6 +174,7 @@ struct ModelSpec {
             return Relation(
                 from: from, to: to,
                 type: (raw["type"] as? String) ?? "related",
+                edgeClass: nonEmptyString(raw["class"]),
                 note: raw["note"] as? String
             )
         }
@@ -187,6 +193,8 @@ struct ModelSpec {
                 xField: (raw["x"] as? String) ?? "",
                 yField: (raw["y"] as? String) ?? "",
                 fields: (raw["fields"] as? [String]) ?? [],
+                directed: (raw["directed"] as? Bool) ?? false,
+                hasExplicitDirection: raw["directed"] is Bool,
                 columnField: nonEmptyString(raw["column"]) ?? "column",
                 text: text
             )
@@ -200,6 +208,7 @@ struct ModelSpec {
             func defaultView(_ kind: View.Kind, index: Int) -> View {
                 View(kind: kind, index: index, entitySets: [], columns: [],
                      chartType: "bar", xField: "", yField: "", fields: [],
+                     directed: false, hasExplicitDirection: false,
                      columnField: "column", text: "")
             }
             if hasCoords { views.append(defaultView(.map, index: 0)) }

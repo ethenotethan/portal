@@ -252,6 +252,7 @@ struct NetworkGraphSpecTests {
         #expect(spec?.edges.count == 2)
     }
 
+
     @Test("Duplicate nodes dedupe; dangling edges drop instead of failing")
     func sanitizes() {
         let spec = NetworkGraphSpec.parse("""
@@ -710,7 +711,13 @@ struct EnsembleModelTests {
         let graph = NetworkGraphSpec.parse(json)!
         #expect(graph.nodes.count == 3)
         #expect(graph.edges.count == 1)                      // ghost + broken edges dropped
+        #expect(!graph.directed)                             // legacy model graphs stay undirected
+        #expect(graph.nodes.allSatisfy { $0.kind == nil && $0.type == nil })
+        #expect(graph.edges[0].label == "walkable")
+        #expect(graph.edges[0].type == nil)
+        #expect(graph.edges[0].edgeClass == nil)
     }
+
 
     @Test("Chart projection: one series per set, y from field")
     func chartProjection() {

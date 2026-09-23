@@ -33,17 +33,25 @@ enum ModelProjections {
     static func graphJSON(spec: ModelSpec, view: ModelSpec.View) -> String? {
         let sets = spec.sets(for: view)
         let included = Set(sets.map(\.name))
+        let usesTypedSemantics = view.hasExplicitDirection
+            || sets.contains { set in
+                set.items.contains { $0["kind"] != nil || $0["type"] != nil }
+            }
+            || spec.relations.contains { $0.edgeClass != nil }
         var nodes: [[String: Any]] = []
         for set in sets {
             for item in set.items {
                 let keyValue = item[set.key] ?? ""
                 guard !keyValue.isEmpty else { continue }
                 let ref = ModelSpec.EntityRef(set: set.name, key: keyValue)
-                nodes.append([
+                var node: [String: Any] = [
                     "id": "\(ref.set)/\(ref.key)",
                     "label": keyValue,
                     "group": set.name,
-                ])
+                ]
+                if let kind = nonEmpty(item["kind"]) { node["kind"] = kind }
+                if let type = nonEmpty(item["type"]) { node["type"] = type }
+                nodes.append(node)
             }
         }
         guard !nodes.isEmpty else { return nil }
@@ -55,11 +63,17 @@ enum ModelProjections {
             // Drop edges whose endpoint item is tombstoned/absent — the graph
             // renderer treats unknown node ids as an error, not a ghost.
             guard nodeIDs.contains(from), nodeIDs.contains(to) else { return nil }
-            var edge: [String: Any] = ["from": from, "to": to, "label": relation.type]
+            var edge: [String: Any] = [
+                "from": from,
+                "to": to,
+                "label": usesTypedSemantics ? (relation.note ?? relation.type) : relation.type,
+            ]
+            if usesTypedSemantics { edge["type"] = relation.type }
+            if let edgeClass = relation.edgeClass { edge["class"] = edgeClass }
             if let note = relation.note { edge["note"] = note }
             return edge
         }
-        return encode(["directed": false, "nodes": nodes, "edges": edges])
+        return encode(["directed": view.directed, "nodes": nodes, "edges": edges])
     }
 
     /// Chart view: one series per entity set, points (x: xField, y: yField).
@@ -162,6 +176,12 @@ enum ModelProjections {
         if let s = value as? String { return s }
         if let n = value as? NSNumber { return "\(n)" }
         return "\(value)"
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func scalarJSONValue(_ value: Any) -> Any? {

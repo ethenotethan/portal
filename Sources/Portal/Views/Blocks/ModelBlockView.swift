@@ -280,6 +280,12 @@ private struct ModelCard: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1.5)
                     .background(Theme.accent.opacity(0.12), in: Capsule())
+                if let kind = item?["kind"] {
+                    metadataBadge(kind, color: Theme.accent)
+                }
+                if let type = item?["type"] {
+                    metadataBadge(type, color: Theme.secondary)
+                }
                 Spacer()
                 Button {
                     selectedRef = nil
@@ -292,7 +298,9 @@ private struct ModelCard: View {
             }
             if let item {
                 let setKey = spec.entitySet(named: ref.set)?.key ?? "id"
-                let fields = item.keys.sorted().filter { $0 != setKey && $0 != "lat" && $0 != "lon" }
+                let fields = item.keys.sorted().filter {
+                    $0 != setKey && $0 != "lat" && $0 != "lon" && $0 != "kind" && $0 != "type"
+                }
                 if !fields.isEmpty {
                     Text(fields.map { "\($0): \(item[$0] ?? "")" }.joined(separator: "  ·  "))
                         .font(.caption2)
@@ -309,17 +317,33 @@ private struct ModelCard: View {
         .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// "—walkable→ FelixMuayThai (8 min)" — tap the far end to jump the bus.
+    private func metadataBadge(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(color.opacity(0.10), in: Capsule())
+    }
+
+    /// "outgoing · walkable → FelixMuayThai (8 min)" — tap the far end to jump the bus.
     private func relationRow(_ relation: ModelSpec.Relation, from ref: ModelSpec.EntityRef) -> some View {
-        let other = relation.from == ref ? relation.to : relation.from
-        let arrow = relation.from == ref ? "→" : "←"
+        let outgoing = relation.from == ref
+        let other = outgoing ? relation.to : relation.from
+        let arrow = outgoing ? "→" : "←"
         return Button {
             selectedRef = other
         } label: {
             HStack(spacing: 5) {
-                Text("\(arrow) \(relation.type)")
+                Text(outgoing ? "outgoing" : "incoming")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.tertiary)
+                Text("\(relation.type) \(arrow)")
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
+                if let edgeClass = relation.edgeClass {
+                    metadataBadge(edgeClass, color: Theme.secondary)
+                }
                 Text(labelFor(other) ?? other.key)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.accent)
