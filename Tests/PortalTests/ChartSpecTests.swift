@@ -25,6 +25,34 @@ struct ChartSpecTests {
         #expect(spec.series[0].points.count == 2)
     }
 
+    @Test("Malformed chart shapes fail with actionable messages")
+    internal func malformedShapesFailClearly() {
+        func failureMessage(_ json: String) -> String {
+            switch parse(json) {
+            case .failure(let error):
+                return error.message
+            case .success:
+                Issue.record("expected chart parsing to fail")
+                return ""
+            }
+        }
+
+        #expect(failureMessage(#"{"type":"radar","series":[{"points":[{"x":1,"y":2}]}]}"#)
+            .contains("Unknown chart type 'radar'"))
+        #expect(failureMessage(#"{"type":"line","series":[]}"#)
+            .contains("Chart has no series"))
+        #expect(failureMessage(#"{"type":"line","series":[{"name":"Empty"}]}"#)
+            .contains("Series 'Empty' has no points"))
+    }
+
+    @Test("Chart JSON sniff requires an object with type and series keys")
+    internal func chartJSONSniff() {
+        #expect(ChartSpec.looksLikeChartJSON(#" {"type":"line","series":[]} "#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"[{"type":"line","series":[]}]"#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"{"type":"line"}"#))
+        #expect(!ChartSpec.looksLikeChartJSON(#"{"series":[]}"#))
+    }
+
     @Test("Heatmap points carry row category and magnitude")
     func heatmapParses() {
         let result = parse("""
