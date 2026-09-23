@@ -1781,7 +1781,7 @@
         "task_handle_ids": [
           "task-site-1ab50b60f1e8",
           "task-site-319c81b96851",
-          "task-site-986f752a83a8",
+          "task-site-68cc06f557ef",
           "task-site-bf3516964939",
           "task-site-de51cf72924f"
         ]
@@ -5289,15 +5289,15 @@
       {
         "authority": "observed",
         "component": "chat-state",
-        "enclosing_function": "setGatewayClient",
+        "enclosing_function": "handleGatewayReconnected",
         "enclosing_type": "ChatViewModel",
         "evidence": {
-          "excerpt": "Task {",
-          "line": 818,
+          "excerpt": "Task { await reconcileTurnAfterReconnect(displayID: displaySessionID(for: sid)) }",
+          "line": 859,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d09e687ce023",
+        "id": "task-site-4ae76aa8bac6",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5309,11 +5309,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 841,
+          "line": 890,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-eb8a3d127114",
+        "id": "task-site-a5b9902ad627",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -5325,11 +5325,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1073,
+          "line": 1148,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7151a604a61f",
+        "id": "task-site-bccc887cdea8",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5341,11 +5341,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1278,
+          "line": 1353,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5967fdb02c2c",
+        "id": "task-site-d5583ddeb548",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5357,11 +5357,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let parsedMessages: [ChatMessage] = await Task.detached(priority: .userInitiated) {",
-          "line": 1340,
+          "line": 1419,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-9f3c24137684",
+        "id": "task-site-891e38d0f3c9",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -5373,11 +5373,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1473,
+          "line": 1565,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-a16e8af55cb5",
+        "id": "task-site-70333538f71f",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5389,11 +5389,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1553,
+          "line": 1645,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-540b71d65c70",
+        "id": "task-site-c87df9307687",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5405,11 +5405,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 1569,
+          "line": 1661,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-68a68e25b7b3",
+        "id": "task-site-2b7605a7a161",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5421,11 +5421,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await autoGenerateQuiz(topic: topic, questionCount: 5) }",
-          "line": 1671,
+          "line": 1763,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-20061672eec0",
+        "id": "task-site-466a2facfc19",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5437,11 +5437,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { @MainActor in await self?.submitLocalVoiceTranscript(text) }",
-          "line": 2213,
+          "line": 2305,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-6095dcb9efa0",
+        "id": "task-site-316eaf6dcc5b",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5453,11 +5453,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { @MainActor in self?.handleLocalVoicePartial(text) }",
-          "line": 2216,
+          "line": 2308,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-d2c15520f3ac",
+        "id": "task-site-c37d50cd17a9",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5469,11 +5469,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await interrupt() }",
-          "line": 2250,
+          "line": 2342,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2637310dd3cc",
+        "id": "task-site-4e7f00d142f5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5485,11 +5485,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let task = Task { [weak self] in",
-          "line": 2445,
+          "line": 2537,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c8444387596f",
+        "id": "task-site-4e3539c3e30c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5501,11 +5501,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "localReplyTask?.cancel()",
-          "line": 2498,
+          "line": 2590,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cbccdbca616c",
+        "id": "task-site-432ff5156f34",
         "kind": "task_cancellation",
         "label": "localReplyTask",
         "rule_id": "swift.task.cancel"
@@ -5517,11 +5517,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let drafting = Task { [weak self] () -> String? in",
-          "line": 2531,
+          "line": 2623,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cbfdf4374292",
+        "id": "task-site-e3655e2699fc",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5533,11 +5533,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let fileData = await Task.detached(priority: .userInitiated) { () -> Data? in",
-          "line": 2665,
+          "line": 2757,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-53d66e823d4d",
+        "id": "task-site-8d093949e190",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -5549,11 +5549,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "let extracted = await Task.detached(priority: .userInitiated) { () -> String? in",
-          "line": 2692,
+          "line": 2784,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-82830f95fd1c",
+        "id": "task-site-1e7ce9ba06b6",
         "kind": "task_detached",
         "label": "Task.detached",
         "rule_id": "swift.task.detached"
@@ -5565,11 +5565,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { [weak self] in",
-          "line": 2813,
+          "line": 2955,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6e86e9cbdf8",
+        "id": "task-site-162c78aeb4b4",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5581,11 +5581,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await refreshModelCatalog() }",
-          "line": 2986,
+          "line": 3128,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-39eb179aede8",
+        "id": "task-site-9a3e907a8af5",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5597,11 +5597,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "private var saveHistoryTask: Task<Void, Never>?",
-          "line": 2991,
+          "line": 3133,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-986f752a83a8",
+        "id": "task-site-68cc06f557ef",
         "kind": "stored_task_handle",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.stored_handle"
@@ -5613,11 +5613,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask?.cancel()",
-          "line": 3005,
+          "line": 3147,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c6cad024b220",
+        "id": "task-site-b6f561bda8f4",
         "kind": "task_cancellation",
         "label": "saveHistoryTask",
         "rule_id": "swift.task.cancel"
@@ -5629,11 +5629,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "saveHistoryTask = Task { [weak self] in",
-          "line": 3006,
+          "line": 3148,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-f22420c3b533",
+        "id": "task-site-1e5ebda8729a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5645,11 +5645,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask?.cancel()",
-          "line": 3118,
+          "line": 3260,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-83662c474dbc",
+        "id": "task-site-9885f1f19dab",
         "kind": "task_cancellation",
         "label": "transientStatusClearTask",
         "rule_id": "swift.task.cancel"
@@ -5661,11 +5661,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "transientStatusClearTask = Task { [weak self] in",
-          "line": 3119,
+          "line": 3261,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-db95b0f0a976",
+        "id": "task-site-6cc69d547955",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5677,11 +5677,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush?.cancel()",
-          "line": 3355,
+          "line": 3497,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-2d471e28d6ff",
+        "id": "task-site-650899e779db",
         "kind": "task_cancellation",
         "label": "pendingVisibleEventFlush",
         "rule_id": "swift.task.cancel"
@@ -5693,11 +5693,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "pendingVisibleEventFlush = Task {",
-          "line": 3365,
+          "line": 3507,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-4071ccdd2e44",
+        "id": "task-site-1a76a52a88e0",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5709,11 +5709,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await loadSessionHistoryPreservingStream() }",
-          "line": 3655,
+          "line": 3797,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-8d6b34037d11",
+        "id": "task-site-85a5d0b10965",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5725,11 +5725,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 3704,
+          "line": 3846,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-cb2005782604",
+        "id": "task-site-103ca1378482",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5741,11 +5741,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task {",
-          "line": 3925,
+          "line": 4067,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-c1b60e3457bb",
+        "id": "task-site-716afdb3b46c",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5757,11 +5757,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4176,
+          "line": 4318,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-5522c2711dfd",
+        "id": "task-site-7c46c83c2d1a",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -5773,11 +5773,11 @@
         "enclosing_type": "ChatViewModel",
         "evidence": {
           "excerpt": "Task { await reasoningGraph.finalize() }",
-          "line": 4241,
+          "line": 4383,
           "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
         },
         "evidence_class": "static_source",
-        "id": "task-site-7e514541f786",
+        "id": "task-site-cbf9d82ae921",
         "kind": "task",
         "label": "Task",
         "rule_id": "swift.task.structured"
@@ -9772,7 +9772,7 @@
       "id": "chat-state",
       "label": "Chat state",
       "layer": "orchestration",
-      "line_count": 5136
+      "line_count": 5278
     },
     {
       "declaration_count": 32,
@@ -11797,7 +11797,7 @@
     },
     {
       "authority": "observed",
-      "description": "References 1 declaration(s) owned by hermes-services.",
+      "description": "References 2 declaration(s) owned by hermes-services.",
       "evidence": [
         "Sources/Portal/ViewModels/ChatViewModel.swift",
         "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift",
@@ -11806,11 +11806,12 @@
       ],
       "source": "chat-state",
       "symbols": [
+        "ConnectionState",
         "GatewayClient"
       ],
       "target": "hermes-services",
       "type": "references",
-      "weight": 5
+      "weight": 6
     },
     {
       "authority": "observed",
@@ -11849,6 +11850,21 @@
         "SessionListViewModel"
       ],
       "target": "operations-state",
+      "type": "references",
+      "weight": 3
+    },
+    {
+      "authority": "observed",
+      "description": "References 2 declaration(s) owned by operations-ui.",
+      "evidence": [
+        "Sources/Portal/ViewModels/ChatViewModel.swift"
+      ],
+      "source": "chat-state",
+      "symbols": [
+        "QuizSheet",
+        "SessionUsageBadge"
+      ],
+      "target": "operations-ui",
       "type": "references",
       "weight": 3
     },
@@ -18407,6 +18423,12 @@
         "target": "external:user-defaults"
       },
       {
+        "class": "interplay",
+        "relation": "drives-transport",
+        "source": "hub:ChatViewModel",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
         "class": "usage",
         "relation": "uses",
         "source": "hub:ChatViewModel",
@@ -22443,7 +22465,7 @@
         "roots": [
           "SettingsView"
         ],
-        "type_count": 51
+        "type_count": 50
       },
       {
         "components": [],
@@ -26199,7 +26221,7 @@
     "assigned_files": 367,
     "declarations": 1085,
     "swift_files": 367,
-    "swift_lines": 107437,
+    "swift_lines": 107579,
     "unassigned_files": []
   },
   "layers": [
@@ -26231,7 +26253,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "75139e16664d05c245e1dddea7e289b209bb8ef6e7ab686d7fc997879460a21b",
+  "source_tree_sha256": "06c086c19c502323e75d9155287ee212e674e98d07d45fd94c495f1193bd317b",
   "stores": {
     "by_persistence": {
       "defaults": 6,
