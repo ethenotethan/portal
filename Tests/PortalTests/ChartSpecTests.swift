@@ -45,6 +45,35 @@ struct ChartSpecTests {
             .contains("Series 'Empty' has no points"))
     }
 
+    @Test("Decoder failures identify the nested field that is invalid")
+    internal func decoderFailuresIncludeCodingPath() {
+        func failureMessage(_ json: String) -> String {
+            switch parse(json) {
+            case .failure(let error):
+                return error.message
+            case .success:
+                Issue.record("expected chart parsing to fail")
+                return ""
+            }
+        }
+
+        let missing = failureMessage(
+            #"{"type":"line","series":[{"points":[{"y":1}]}]}"#
+        )
+        #expect(missing.contains("Missing key 'x'"))
+        #expect(missing.contains("series[0].points[0]"))
+
+        let null = failureMessage(#"{"type":null,"series":[{"points":[{"x":1,"y":2}]}]}"#)
+        #expect(null.contains("Missing value"))
+        #expect(null.contains("type"))
+
+        let wrongType = failureMessage(
+            #"{"type":"line","series":[{"points":[{"x":1,"y":"many"}]}]}"#
+        )
+        #expect(wrongType.contains("Expected to decode Double"))
+        #expect(wrongType.contains("series[0].points[0].y"))
+    }
+
     @Test("Chart JSON sniff requires an object with type and series keys")
     internal func chartJSONSniff() {
         #expect(ChartSpec.looksLikeChartJSON(#" {"type":"line","series":[]} "#))
