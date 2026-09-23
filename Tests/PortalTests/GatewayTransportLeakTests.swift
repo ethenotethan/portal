@@ -69,17 +69,24 @@ internal struct GatewayTransportLeakTests {
         // Rebuild the transport several times, the way a flaky link plus macOS
         // window focus does over a long session. Each rebuild must leave exactly
         // one live WebSocket behind, not accumulate one per attempt.
-        // Each redial must be allowed to land before the next one starts. Drive
-        // the reconnect synchronously, but do not also wait on the client's
-        // delegate callback: under a loaded test runner that callback can lag the
-        // server's completed upgrade and needlessly consume a second timeout.
-        // The fixture's server-side count is the direct completion signal this
-        // assertion needs, and waiting for it prevents the next teardown from
-        // killing a transport that is still handshaking.
+        // Each successful redial must land before the next one starts. Drive the
+        // reconnect synchronously, but do not also wait on the client's delegate
+        // callback: under a loaded test runner that callback can lag the server's
+        // completed upgrade and needlessly consume a second timeout.
+        //
+        // CFNetwork can abandon an upgrade before it reaches this loopback fixture
+        // when the full suite saturates the runner (the failure reports fewer
+        // upgrades, not leaked live sockets). Retry that unobserved handshake a
+        // bounded number of times. The test still requires five completed upgrades
+        // and at most one survivor, so a retry cannot make the leak assertion
+        // vacuous or turn a leaked transport green.
         let dials = 5
+        let attemptsPerDial = 3
         for dial in 1..<dials {
-            await client.forceReconnectAndWait(timeout: 0)
-            try await waitFor { server.upgradeCount > dial }
+            for _ in 0..<attemptsPerDial where server.upgradeCount <= dial {
+                await client.forceReconnectAndWait(timeout: 0)
+                try await waitFor(timeout: 3) { server.upgradeCount > dial }
+            }
         }
         try await waitFor { server.upgradeCount >= dials }
         // Then let the closes land. The task cancel is synchronous, but the
