@@ -187,10 +187,9 @@
   const PAGE_LABEL = new Map(interplayPages.map((page) => [page.id, page.label]));
   const PAGE_RANK = new Map(interplayPages.map((page, index) => [page.label, index]));
   const triggers = interplay.triggers || []; // read during init by drawTriggerEdges
-  // Invariant tables live up here, beside the page tables, so renderInvariantSelect()
+  // Invariant tables live up here, beside the page tables, so renderInvariants()
   // (called during init) reads them outside the temporal dead zone.
   const invariants = interplay.invariants || [];
-  const invariantById = new Map(invariants.map((item) => [item.id, item]));
   const INVARIANT_KIND_TEXT = {
     single_transport: "Exactly the declared transport owners conform to the backend seam.",
     surfaces_hold_transport: "Every calling surface holds a reference to the core (or the seam), so all pages compete for the same pool and socket.",
@@ -248,7 +247,7 @@
 
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderInterplay();
-  renderInvariantSelect();
+  renderInvariants();
   renderTimeline();
   renderConnections();
   renderExternals();
@@ -1397,40 +1396,26 @@
     legend.replaceChildren(...items);
   }
 
-  function renderInvariantSelect() {
-    const select = document.getElementById("invariant-select");
-    if (!select) return;
+  // The invariants, as text at the foot of the System map: what each pins, why it
+  // is declared, its status and how much the last build checked. Reading them
+  // never touches the graph.
+  function renderInvariants() {
+    const list = document.getElementById("invariants-list");
+    const lede = document.getElementById("invariants-lede");
+    if (!list || !lede) return;
     const holding = invariants.filter((item) => item.status === "holds").length;
-    const summary = document.createElement("option");
-    summary.value = "";
-    summary.textContent = `All (${holding} of ${invariants.length} hold)`;
-    select.replaceChildren(summary);
-    invariants.forEach((item) => {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = `${item.status === "holds" ? "✓" : "✗"} ${item.id} · ${item.checked} checked`;
-      select.append(option);
-    });
-  }
-
-  // A plain description panel for the chosen invariant: what it pins, why, and how
-  // many things the last build checked. It does not touch the graph.
-  function renderInvariantDetail(item) {
-    const panel = document.getElementById("invariant-detail");
-    if (!panel) return;
-    if (!item) { panel.hidden = true; panel.replaceChildren(); return; }
-    const head = element("div", "invariant-head");
-    head.append(
-      element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
-      element("strong", "", item.id),
-      element("span", "invariant-meta", `${item.kind.replace(/_/g, " ")} · ${item.checked} checked on the last build`)
-    );
-    panel.replaceChildren(
-      head,
-      element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind),
-      element("p", "invariant-why", item.why)
-    );
-    panel.hidden = false;
+    lede.textContent = `${holding} of ${invariants.length} declared constructions hold on this build. Each is declared in architecture/interplay/invariants.json with a reason and checked by scripts/build_architecture.py; a violation fails the build rather than redrawing the map.`;
+    list.replaceChildren(...invariants.map((item) => {
+      const li = element("li", "invariant");
+      const head = element("div", "invariant-head");
+      head.append(
+        element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
+        element("strong", "", item.id),
+        element("span", "invariant-meta", `${item.kind.replace(/_/g, " ")} · ${item.checked} checked`)
+      );
+      li.append(head, element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind), element("p", "invariant-why", item.why));
+      return li;
+    }));
   }
 
   function selectInterplayNode(nodeId) {
@@ -2288,12 +2273,6 @@
   }
 
   function wireControls() {
-    const invariantSelect = document.getElementById("invariant-select");
-    if (invariantSelect) {
-      invariantSelect.addEventListener("change", () => {
-        renderInvariantDetail(invariantById.get(invariantSelect.value) || null);
-      });
-    }
     document.getElementById("inventory-search").addEventListener("input", (event) => renderInventory(event.target.value));
     const interplaySearch = document.getElementById("interplay-search");
     if (interplaySearch) interplaySearch.addEventListener("input", applyInterplayState);

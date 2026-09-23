@@ -53,14 +53,9 @@
           <span class="sr-only">Search system map nodes</span>
           <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
         </label>
-        <label class="select-control">
-          <span>Invariants</span>
-          <select id="invariant-select"></select>
-        </label>
         <button id="interplay-fullscreen" class="quiet-button" type="button">Full screen</button>
         <button id="reset-interplay" class="quiet-button" type="button">Reset view</button>
       </div>
-      <div class="invariant-detail" id="invariant-detail" hidden></div>
       <p class="graph-hint" aria-hidden="true">Drag the canvas to pan · scroll to zoom · drag a node to reposition it · click a node for its metadata</p>
       <div class="graph-workspace" id="interplay-workspace">
         <div class="graph-scroll" id="interplay-scroll">
@@ -102,6 +97,13 @@
         </div>
         <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
+      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
+           and checked on every build. Plain text: reading them never touches the graph. -->
+      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
+        <h3 id="invariants-title">Invariants</h3>
+        <p class="invariants-lede" id="invariants-lede"></p>
+        <ol class="invariants-list" id="invariants-list"></ol>
+      </section>
     </section>
 
     <section class="view" id="connections-view" aria-labelledby="connections-title">

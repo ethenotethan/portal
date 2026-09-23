@@ -288,13 +288,13 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn('replace(/^(graph|interplay)$/, "systemmap")', app)
         for removed in ("renderGraph", "selectComponent", "applyGraphState", "codeGraphReference", "renderStats"):
             self.assertNotRegex(app, rf"function\s+{removed}\s*\(")
-        # Invariants are selectable from a dropdown that opens a plain description
-        # panel; the selection never touches the graph.
-        self.assertIn('id="invariant-select"', index)
-        self.assertIn('id="invariant-detail"', index)
-        for renderer in ("renderInvariantSelect", "renderInvariantDetail"):
-            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
-        self.assertNotIn("invariantFocus", app)
+        # Invariants are plain text at the foot of the page: no control, no graph effect.
+        self.assertIn('id="invariants-list"', index)
+        self.assertNotIn('id="invariant-select"', index)
+        self.assertNotIn('id="invariant-detail"', index)
+        self.assertRegex(app, r"function\s+renderInvariants\s*\(")
+        for removed in ("renderInvariantSelect", "renderInvariantDetail", "invariantFocus", "invariant-select"):
+            self.assertNotIn(removed, app)
         kinds = {item["kind"] for item in self.model["interplay"]["invariants"]}
         for kind in kinds:
             self.assertIn(f"{kind}:", app)

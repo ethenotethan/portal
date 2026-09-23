@@ -348,8 +348,12 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node rect.core.expanded { stroke-dasharray: none; fill: rgba(92, 168, 216, .14); }
 .interplay-node rect.bus { fill: rgba(209, 111, 134, .08); stroke: #d16f86; stroke-width: 1.5; }
 .interplay-group.memory .interplay-group-rect { fill: rgba(92, 168, 216, .035); stroke-dasharray: 6 4; }
-.invariant-detail { margin: 0 0 10px; padding: 12px 16px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 13px; line-height: 1.5; }
-.invariant-detail p { margin: 6px 0 0; }
+.invariants { margin: 28px 0 0; padding: 20px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
+.invariants h3 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.02em; color: var(--ink); }
+.invariants-lede { margin: 0 0 14px; max-width: 900px; color: var(--faint); }
+.invariants-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+.invariant { padding: 12px 16px; border: 1px solid var(--line); background: var(--surface); }
+.invariant p { margin: 6px 0 0; }
 .invariant-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
 .invariant-head strong { color: var(--ink); font: 600 14px var(--mono); }
 .invariant-status { padding: 2px 8px; border-radius: 999px; font: 700 9px var(--mono); letter-spacing: .12em; }
