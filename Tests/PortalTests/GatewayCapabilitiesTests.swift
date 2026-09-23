@@ -212,4 +212,22 @@ internal struct GatewayCapabilitiesTests {
         #expect(store.lastRefreshError == nil)
         #expect(!store.isRefreshing)
     }
+
+    @MainActor
+    @Test("capability refresh preserves a readable fallback when disconnected")
+    internal func storeRefreshFallsBackWhenDisconnected() async {
+        let store = GatewayCapabilitiesStore()
+
+        await store.refresh(using: GatewayClient())
+
+        guard case .fallback(let reason) = store.capabilities.source else {
+            Issue.record("Expected disconnected capability refresh to use fallback")
+            return
+        }
+        #expect(reason.contains("portal.version"))
+        #expect(store.lastRefreshError == reason)
+        #expect(!store.hasImageInput)
+        #expect(!store.hasACPImagePrompts)
+        #expect(!store.isRefreshing)
+    }
 }
