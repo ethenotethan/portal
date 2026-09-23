@@ -199,4 +199,30 @@ struct ActivityInboxViewModelTests {
         vm.handle(.activityUpdated(updated), eventSessionID: nil)
         #expect(vm.items.contains { $0.id == "act-updated-test" && $0.title == "Updated" })
     }
+
+    @Test("a dismissed activity update removes the existing inbox item")
+    internal func handleDismissedActivityUpdate() {
+        let vm = ActivityInboxViewModel()
+        var item = ActivityItem(
+            id: "act-dismissed-test",
+            createdAt: Date(timeIntervalSince1970: 10),
+            kind: "activity",
+            severity: .info,
+            source: "gateway",
+            title: "Dismiss me",
+            summary: "test",
+            isRead: false,
+            isDismissed: false,
+            actions: [],
+            artifacts: [],
+            externalRefs: []
+        )
+        vm.handle(.activityCreated(item), eventSessionID: nil)
+        #expect(vm.items.contains { $0.id == item.id })
+
+        item.isDismissed = true
+        vm.handle(.activityUpdated(item), eventSessionID: nil)
+
+        #expect(!vm.items.contains { $0.id == item.id })
+    }
 }
