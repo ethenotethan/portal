@@ -29,7 +29,109 @@
       });
     }
   })();
-  const interplayNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
+  // ---- History: the same map at every commit (opt-in artifact) -------------
+  // history.js is written by scripts/build_architecture_history.py: today's
+  // extractor run at every first-parent commit that touched the app source, delta-
+  // encoded. Without it (or with fewer than two points) this page is the map of one
+  // revision. With it, nodes and edges some past commit had and the head does not
+  // are folded into the drawn set flagged `hist`, so one layout serves every slider
+  // position and nothing reshuffles mid-slide. Until the reader touches the slider
+  // those historical-only entities are drawn absent: the page a reader lands on is
+  // identical whether or not a history was built beside it.
+  const HISTORY = (() => {
+    const raw = window.PORTAL_ARCHITECTURE_HISTORY;
+    const usable = raw && Array.isArray(raw.snapshots) && raw.snapshots.length >= 2 &&
+      Array.isArray(raw.nodes) && Array.isArray(raw.edges);
+    return usable ? raw : null;
+  })();
+  // The compiler keys every node for diffing across commits (ids hash the declaring
+  // line for resources; the key does not). Trigger edges key by page id.
+  const historyKeyOf = (node) => (node && (node.history_key || node.id)) || "";
+  const headNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
+  const edgeHistoryKey = (edge, byId) => `${historyKeyOf(byId.get(edge.source))}|${historyKeyOf(byId.get(edge.target))}|${edge.relation}`;
+  const headEdgeKeys = new Set(interplay.edges.map((edge) => edgeHistoryKey(edge, headNodeById)));
+  const drawNodes = interplay.nodes.slice();
+  const drawEdges = interplay.edges.slice();
+  const idByHistoryKey = new Map(interplay.nodes.map((node) => [historyKeyOf(node), node.id]));
+  if (HISTORY) {
+    HISTORY.nodes.forEach((meta) => {
+      if (meta.kind === "page" || idByHistoryKey.has(meta.k)) return;
+      const node = { ...meta, id: meta.k, history_key: meta.k, hist: true, path: null, line: 0 };
+      delete node.k;
+      drawNodes.push(node);
+      idByHistoryKey.set(meta.k, node.id);
+    });
+    HISTORY.edges.forEach(([sourceIndex, targetIndex, relation, klass]) => {
+      const source = HISTORY.nodes[sourceIndex];
+      const target = HISTORY.nodes[targetIndex];
+      if (!source || !target || relation === "triggers") return; // trigger edges are aggregated at draw time
+      if (headEdgeKeys.has(`${source.k}|${target.k}|${relation}`)) return;
+      if (!idByHistoryKey.has(source.k) || !idByHistoryKey.has(target.k)) return;
+      drawEdges.push({ source: idByHistoryKey.get(source.k), target: idByHistoryKey.get(target.k), relation, class: klass, hist: true });
+    });
+  }
+  const interplayNodeById = new Map(drawNodes.map((node) => [node.id, node]));
+  // The reader's position, replayed rather than looked up: one mutable set of live
+  // node keys and edge keys, stepped forward by a point's additions and removals or
+  // backward by undoing them. Removals apply before additions in both directions.
+  // Inert until touched: loading the page draws the head revision; the first drag or
+  // play engages it, and from then on the point governs the picture.
+  const TL = (() => {
+    if (!HISTORY) return null;
+    const P = HISTORY.snapshots;
+    const N = HISTORY.nodes;
+    const E = HISTORY.edges;
+    const ekey = (index) => { const e = E[index]; return `${N[e[0]].k}|${N[e[1]].k}|${e[2]}`; };
+    const nodes = new Set();
+    const edges = new Set();
+    let i = -1;
+    let engaged = false;
+    const fwd = (p) => {
+      (p.nd || []).forEach((x) => nodes.delete(N[x].k)); (p.ed || []).forEach((x) => edges.delete(ekey(x)));
+      (p.na || []).forEach((x) => nodes.add(N[x].k)); (p.ea || []).forEach((x) => edges.add(ekey(x)));
+    };
+    const back = (p) => {
+      (p.na || []).forEach((x) => nodes.delete(N[x].k)); (p.ea || []).forEach((x) => edges.delete(ekey(x)));
+      (p.nd || []).forEach((x) => nodes.add(N[x].k)); (p.ed || []).forEach((x) => edges.add(ekey(x)));
+    };
+    // What this commit took away, kept apart: the picture ghosts it, which is the
+    // difference between "this is not here" and "this commit removed this".
+    let goneAt = -1;
+    let goneNodes = new Set();
+    let goneEdges = new Set();
+    const ghosts = () => {
+      if (goneAt === i) return;
+      goneAt = i;
+      const p = P[i];
+      goneNodes = new Set((p.nd || []).map((x) => N[x].k));
+      goneEdges = new Set((p.ed || []).map(ekey));
+    };
+    return {
+      count: P.length,
+      last: P.length - 1,
+      failed: (HISTORY.failed || []).length,
+      get i() { return i; },
+      get engaged() { return engaged; },
+      point: () => P[i] || P[P.length - 1],
+      prev: () => P[i - 1] || null,
+      live: (key) => nodes.has(key),
+      liveEdge: (key) => edges.has(key),
+      gone: (key) => (ghosts(), goneNodes.has(key)),
+      goneEdge: (key) => (ghosts(), goneEdges.has(key)),
+      added: () => (P[i].na || []).map((x) => N[x]),
+      removed: () => (P[i].nd || []).map((x) => N[x]),
+      edgeDelta: () => ({ added: (P[i].ea || []).length, removed: (P[i].ed || []).length }),
+      go(n, byReader) {
+        if (byReader) engaged = true;
+        n = Math.max(0, Math.min(P.length - 1, n | 0));
+        while (i < n) fwd(P[++i]);
+        while (i > n) back(P[i--]);
+        return i;
+      },
+      disengage() { engaged = false; this.go(P.length - 1); }
+    };
+  })();
+  if (TL) TL.go(TL.last);
   const expandedOwners = new Set(); // owners whose pool/lock/socket/sections are shown
   // A resource/operation inherits its colour from the owning type's role, so the
   // free-form graph still reads as "this pool belongs to a transport" without any
@@ -144,6 +246,7 @@
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderInterplay();
   renderInvariantSelect();
+  renderTimeline();
   renderConnections();
   renderExternals();
   renderStores();
@@ -195,7 +298,7 @@
     return node.kind === "owner" && ((node.roles || []).includes("transport") || (node.roles || []).includes("pool"));
   }
   function ownerMemberIds(owner) {
-    return new Set(interplay.nodes
+    return new Set(drawNodes
       .filter((node) => ["resource", "section", "operation"].includes(node.kind) &&
         node.owner_type === owner.label && node.component === owner.component && node.sub_kind !== "event_bus")
       .map((node) => node.id));
@@ -604,19 +707,21 @@
     }
 
     const nodeRole = new Map();
-    interplay.nodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
+    drawNodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
 
     // Lifecycle operations are actions, not constructions: they are not drawn as
     // boxes. They stay in the model and are listed on their owner's inspector.
     const hidden = new Set();
-    interplay.nodes.forEach((node) => {
+    drawNodes.forEach((node) => {
       if (isTransportContainer(node) && !expandedOwners.has(node.id)) ownerMemberIds(node).forEach((id) => hidden.add(id));
     });
-    const drawable = interplay.nodes.filter((node) => node.kind !== "operation" && !hidden.has(node.id));
+    // The union of the head revision and every historical point: one layout for
+    // the whole walk. Historical-only nodes are drawn absent until the slider moves.
+    const drawable = drawNodes.filter((node) => node.kind !== "operation" && !hidden.has(node.id));
 
     // Position every drawn node with the deterministic page layout, then
     // translate the whole graph so its top-left corner sits at the margin.
-    const layout = layoutInterplayGrouped(drawable, interplay.edges);
+    const layout = layoutInterplayGrouped(drawable, drawEdges);
     const groupBoxes = layout.groupBoxes || [];
     let minX = Infinity;
     let minY = Infinity;
@@ -721,7 +826,7 @@
     const defs = svgElement("defs", {});
     const MARKER_COLORS = {
       structure: "#8a8a92", lifecycle: "#55545a", interplay: "#8b83ff", usage: "#7ec8b0",
-      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4"
+      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4", ghost: "#d9a441"
     };
     Object.entries(MARKER_COLORS).forEach(([name, color]) => {
       const marker = svgElement("marker", {
@@ -735,11 +840,12 @@
     const edgeGroup = svgElement("g", { class: "edges" });
     const labelGroup = svgElement("g", { class: "edge-labels" });
     drawTriggerEdges(edgeGroup, groupBoxes);
-    interplay.edges.forEach((edge) => {
+    drawEdges.forEach((edge) => {
       const source = interplayPositions.get(edge.source);
       const target = interplayPositions.get(edge.target);
       if (!source || !target) return;
       const targetNode = interplayNodeById.get(edge.target);
+      const hkey = edgeHistoryKey(edge, interplayNodeById);
       if (edge.relation === "served-by" && targetNode && isInterplayBar(targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
@@ -750,13 +856,16 @@
         "marker-end": `url(#arrow-${edgeClass})`,
         "data-source": edge.source,
         "data-target": edge.target,
-        "data-relation": edge.relation
+        "data-relation": edge.relation,
+        "data-hkey": hkey,
+        "data-hist": edge.hist ? "true" : "false"
       });
       // The relation name, shown only while the edge is highlighted.
       const mid = interplayLinkMidpoint(source, target);
       const label = svgElement("text", {
         x: mid.x.toFixed(1), y: mid.y.toFixed(1), class: "interplay-edge-label",
-        "data-source": edge.source, "data-target": edge.target, "data-relation": edge.relation
+        "data-source": edge.source, "data-target": edge.target, "data-relation": edge.relation,
+        "data-hkey": hkey, "data-hist": edge.hist ? "true" : "false"
       });
       label.textContent = edge.relation.replace(/-/g, " ");
       labelGroup.append(label);
@@ -779,8 +888,8 @@
       if (!position) return;
       const role = nodeRole.get(node.id) || "other";
       const group = svgElement("g", {
-        class: "interplay-node",
-        tabindex: "0",
+        class: `interplay-node${node.hist ? " hist" : ""}`,
+        tabindex: node.hist ? "-1" : "0",
         role: "button",
         "aria-label": `${node.label}, ${INTERPLAY_ROLE_LABELS[role]}`,
         "data-node": node.id,
@@ -816,7 +925,13 @@
         group.append(meta);
       }
       const isContainer = isInterplayBar(node);
-      if (isContainer) {
+      if (node.hist) {
+        // Present at some earlier commit, not in the head revision: the inspector
+        // and the inventory have nothing to say about it, so it is not selectable.
+        const note = svgElement("title", {});
+        note.textContent = `${node.label} · present at an earlier commit, not in the head revision`;
+        group.append(note);
+      } else if (isContainer) {
         group.addEventListener("click", (event) => {
           event.stopPropagation();
           selectInterplayNode(node.id);
@@ -833,12 +948,14 @@
       } else {
         wireInterplayNodeDrag(svg, group, node.id);
       }
-      group.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          selectInterplayNode(node.id);
-        }
-      });
+      if (!node.hist) {
+        group.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectInterplayNode(node.id);
+          }
+        });
+      }
       (isContainer ? containerGroup : nodeGroup).append(group);
     });
     svg.append(nodeGroup);
@@ -1117,29 +1234,52 @@
       if (!grouped.has(key)) grouped.set(key, { page: PAGE_LABEL.get(trigger.page), targetId: target.id, list: [] });
       grouped.get(key).list.push(trigger);
     });
+    // Page → surface pairs some earlier commit had and the head does not: drawn
+    // absent, so the slider can bring them back.
+    const pageIdByLabel = new Map(interplayPages.map((page) => [page.label, page.id]));
+    const headTriggerKeys = new Set(Array.from(grouped.values()).map((entry) =>
+      `page:${pageIdByLabel.get(entry.page)}|${historyKeyOf(interplayNodeById.get(entry.targetId))}|triggers`));
+    if (HISTORY) {
+      HISTORY.edges.forEach(([sourceIndex, targetIndex, relation]) => {
+        const source = HISTORY.nodes[sourceIndex];
+        const target = HISTORY.nodes[targetIndex];
+        if (relation !== "triggers" || !source || !target || source.kind !== "page") return;
+        const key = `${source.k}|${target.k}|triggers`;
+        const pageLabel = PAGE_LABEL.get(source.page);
+        const targetId = idByHistoryKey.get(target.k);
+        if (headTriggerKeys.has(key) || !pageLabel || !targetId) return;
+        grouped.set(key, { page: pageLabel, targetId, list: [], hist: true });
+      });
+    }
     grouped.forEach((entry) => {
       const box = boxByLabel.get(entry.page);
       const target = interplayPositions.get(entry.targetId);
       if (!box || !target) return;
       const source = { x: box.x + 18, y: box.y + 22, width: 1, height: 1 };
+      const hkey = `page:${pageIdByLabel.get(entry.page)}|${historyKeyOf(interplayNodeById.get(entry.targetId))}|triggers`;
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
         class: "interplay-edge trigger",
         "marker-end": "url(#arrow-trigger)",
         "data-source": `page:${entry.page}`,
         "data-target": entry.targetId,
-        "data-relation": "triggers"
+        "data-relation": "triggers",
+        "data-hkey": hkey,
+        "data-hist": entry.hist ? "true" : "false"
       });
       const title = svgElement("title", {});
-      title.textContent = `${entry.page} triggers ${interplayNodeById.get(entry.targetId).label}: ${triggerSummary(entry.list)}`;
+      title.textContent = entry.hist
+        ? `${entry.page} triggered ${interplayNodeById.get(entry.targetId).label} at an earlier commit`
+        : `${entry.page} triggers ${interplayNodeById.get(entry.targetId).label}: ${triggerSummary(entry.list)}`;
       path.append(title);
       edgeGroup.append(path);
       const mid = interplayLinkMidpoint(source, target);
       const label = svgElement("text", {
         x: mid.x.toFixed(1), y: mid.y.toFixed(1), class: "interplay-edge-label",
-        "data-source": `page:${entry.page}`, "data-target": entry.targetId, "data-relation": "triggers"
+        "data-source": `page:${entry.page}`, "data-target": entry.targetId, "data-relation": "triggers",
+        "data-hkey": hkey, "data-hist": entry.hist ? "true" : "false"
       });
-      label.textContent = `triggers · ${triggerSummary(entry.list)}`;
+      label.textContent = entry.hist ? "triggered · earlier commit" : `triggers · ${triggerSummary(entry.list)}`;
       const labels = edgeGroup.parentNode ? edgeGroup.parentNode.querySelector(".edge-labels") : null;
       (labels || edgeGroup).append(label);
     });
@@ -1293,6 +1433,13 @@
     if (workspace) workspace.classList.toggle("has-inspector", Boolean(selectedInterplayId));
     const input = document.getElementById("interplay-search");
     const query = input ? input.value.trim().toLowerCase() : "";
+    // A selection is a claim about a node the reader can see; sliding past the
+    // commit it was added in would leave the claim pointing at nothing.
+    if (selectedInterplayId && !timelineNodeState(interplayNodeById.get(selectedInterplayId)).live) {
+      selectedInterplayId = null;
+      if (inspectorPanel) inspectorPanel.hidden = true;
+      if (workspace) workspace.classList.remove("has-inspector");
+    }
     const connected = new Set();
     const activeKeys = selectedInterplayId ? flowEdgeKeys(selectedInterplayId) : new Set();
     if (selectedInterplayId) {
@@ -1312,14 +1459,220 @@
       const selectionMismatch = selectedInterplayId && !connected.has(node.id);
       element.classList.toggle("selected", node.id === selectedInterplayId);
       element.classList.toggle("dimmed", Boolean(queryMismatch || selectionMismatch));
+      // What the reader's position lacks is absent; what this commit removed is ghosted.
+      const when = timelineNodeState(node);
+      element.classList.toggle("absent", !when.live && !when.gone);
+      element.classList.toggle("ghost", when.gone);
     });
     document.querySelectorAll(".interplay-edge, .interplay-edge-label").forEach((edge) => {
       const direct = selectedInterplayId && (edge.dataset.source === selectedInterplayId || edge.dataset.target === selectedInterplayId);
       const active = Boolean(selectedInterplayId) && (direct || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`));
       edge.classList.toggle("active", active);
+      const when = timelineEdgeState(edge);
+      edge.classList.toggle("absent", !when.live && !when.gone);
+      edge.classList.toggle("ghost", when.gone && !edge.classList.contains("interplay-edge-label"));
       edge.classList.toggle("dimmed", Boolean(selectedInterplayId && !active));
     });
   }
+
+  // ---- The history slider ----------------------------------------------------
+  // Whether a drawn thing is part of the picture at the reader's position. Untouched,
+  // that is the head revision: historical-only entities are absent. The transport
+  // container is virtual (built here, never in a snapshot) and follows its members.
+  function travelling() {
+    return Boolean(TL && TL.engaged);
+  }
+  function timelineNodeState(node) {
+    if (!node || node.kind === "transport") return { live: true, gone: false };
+    if (!travelling()) return { live: !node.hist, gone: false };
+    const key = historyKeyOf(node);
+    return { live: TL.live(key), gone: TL.gone(key) };
+  }
+  function timelineEdgeState(element) {
+    const key = element.dataset.hkey;
+    if (!key) return { live: true, gone: false };
+    if (!travelling()) return { live: element.dataset.hist !== "true", gone: false };
+    return { live: TL.liveEdge(key), gone: TL.goneEdge(key) };
+  }
+  const TIMELINE_PLAY_MS = 140; // ~7 points a second: fast enough to read a shape moving, slow enough to see a commit
+  let timelineTimer = null;
+  function renderTimeline() {
+    const bar = document.getElementById("timeline");
+    if (!bar) return;
+    if (!TL) { bar.hidden = true; return; }
+    bar.hidden = false;
+    const range = document.getElementById("timeline-range");
+    range.max = String(TL.last);
+    range.value = String(TL.i);
+    // The sparkline is the node count at every point, so the reader sees where the
+    // shape grew before dragging there.
+    const spark = document.getElementById("timeline-spark");
+    if (spark) {
+      spark.textContent = "";
+      const counts = HISTORY.snapshots.map((point) => point.counts.nodes);
+      const peak = Math.max(1, ...counts);
+      const points = counts.map((count, index) => `${((index / Math.max(1, counts.length - 1)) * 100).toFixed(2)},${(100 - (count / peak) * 100).toFixed(2)}`);
+      spark.setAttribute("viewBox", "0 0 100 100");
+      spark.setAttribute("preserveAspectRatio", "none");
+      spark.append(svgElement("polyline", { points: points.join(" ") }));
+    }
+    timelineSync();
+  }
+  function timelineGo(n) {
+    TL.go(n, true);
+    applyInterplayState();
+    timelineSync();
+  }
+  function timelinePlay(on) {
+    if (timelineTimer) { clearInterval(timelineTimer); timelineTimer = null; }
+    if (on) {
+      if (TL.i >= TL.last) TL.go(0, true);
+      timelineTimer = setInterval(() => {
+        if (TL.i >= TL.last) { timelinePlay(false); timelineSync(); return; }
+        timelineGo(TL.i + 1);
+      }, TIMELINE_PLAY_MS);
+    }
+    const button = document.getElementById("timeline-play");
+    if (button) {
+      button.textContent = on ? "❙❙" : "▶";
+      button.title = on ? "Pause" : "Play the history forward";
+      button.setAttribute("aria-pressed", String(on));
+    }
+  }
+  function timelineSync() {
+    if (!TL) return;
+    const point = TL.point();
+    const previous = TL.prev();
+    const range = document.getElementById("timeline-range");
+    if (range) range.value = String(TL.i);
+    const scroll = document.getElementById("interplay-scroll");
+    if (scroll) scroll.classList.toggle("travelling", TL.engaged && TL.i < TL.last);
+    const set = (id, text) => { const node = document.getElementById(id); if (node) node.textContent = text; };
+    set("timeline-date", point.date);
+    set("timeline-pos", `commit ${TL.i + 1} of ${TL.count}`);
+    const rev = document.getElementById("timeline-rev");
+    if (rev) {
+      rev.textContent = point.rev.slice(0, 9);
+      rev.href = `https://github.com/${model.repository}/commit/${point.rev}`;
+    }
+    set("timeline-counts", `${point.counts.nodes} nodes · ${point.counts.edges} edges`);
+    const delta = document.getElementById("timeline-delta");
+    if (delta) {
+      delta.textContent = "";
+      if (previous) {
+        const diff = (now, was, noun) => {
+          const n = now - was;
+          if (!n) return;
+          delta.append(element("span", n > 0 ? "up" : "down", `${n > 0 ? "+" : "−"}${Math.abs(n)} ${noun}`));
+        };
+        diff(point.counts.nodes, previous.counts.nodes, "nodes");
+        diff(point.counts.edges, previous.counts.edges, "edges");
+      }
+    }
+    set("timeline-subject", point.subject);
+    timelineDiff();
+    timelineNote(point);
+  }
+  // The commit's own diff as chips. A node that survived to the head revision is
+  // selectable; one that did not says so rather than pretending to be.
+  const TIMELINE_CHIPS = 14;
+  function timelineDiff() {
+    const host = document.getElementById("timeline-diff");
+    if (!host) return;
+    host.textContent = "";
+    if (!TL.engaged) return;
+    const added = TL.added();
+    const removed = TL.removed();
+    const edges = TL.edgeDelta();
+    if (!added.length && !removed.length && !edges.added && !edges.removed) {
+      host.append(element("span", "timeline-quiet", "This commit changed the app without changing the shape of the map."));
+      return;
+    }
+    let room = TIMELINE_CHIPS;
+    const put = (meta, sign) => {
+      if (room-- <= 0 || meta.kind === "page") return;
+      const chip = element("span", `timeline-chip ${sign === "+" ? "add" : "del"}`, `${sign} ${meta.label || meta.k}`);
+      const headId = idByHistoryKey.get(meta.k);
+      const headNode = headId ? headNodeById.get(headId) : null;
+      if (headNode) {
+        chip.classList.add("selectable");
+        chip.title = `${sign === "+" ? "Added" : "Removed"} by this commit. Click to select it on the map.`;
+        chip.addEventListener("click", () => { TL.disengage(); timelinePlay(false); selectInterplayNode(headNode.id); timelineSync(); });
+      } else {
+        chip.classList.add("dead");
+        chip.title = `${sign === "+" ? "Added" : "Removed"} by this commit. Not part of the head revision.`;
+      }
+      host.append(chip);
+    };
+    removed.forEach((meta) => put(meta, "−"));
+    added.forEach((meta) => put(meta, "+"));
+    const over = added.length + removed.length - TIMELINE_CHIPS;
+    if (over > 0) host.append(element("span", "timeline-quiet", `+${over} more`));
+    if (edges.added || edges.removed) {
+      host.append(element("span", "timeline-quiet", `${edges.removed ? `−${edges.removed} ` : ""}${edges.added ? `+${edges.added} ` : ""}edges`));
+    }
+  }
+  // What a reader has to be told rather than shown: the point is drawn with today's
+  // config and overlay, the inspector describes the head, and where the axis has holes.
+  function timelineNote(point) {
+    const note = document.getElementById("timeline-note");
+    if (!note) return;
+    const parts = [];
+    const first = HISTORY.snapshots[0];
+    const last = HISTORY.snapshots[TL.last];
+    if (!TL.engaged) {
+      parts.push(`Drag to walk ${TL.count} commits of history (${first.date} → ${last.date}). The graph moves; the inspector and the other views always describe the head revision.`);
+    } else {
+      parts.push("Derived by running today's extractor at this commit with today's config and overlay.");
+      const fidelity = point.fidelity || {};
+      const violated = (point.invariants && point.invariants.violated) || [];
+      if (fidelity.externals_unmatched) parts.push(`${fidelity.externals_unmatched} declared external system${fidelity.externals_unmatched === 1 ? "" : "s"} matched nothing here.`);
+      if (fidelity.page_roots_missing) parts.push(`${fidelity.page_roots_missing} page root view${fidelity.page_roots_missing === 1 ? " did" : "s did"} not exist yet.`);
+      if (violated.length) parts.push(`${violated.length} invariant${violated.length === 1 ? "" : "s"} did not hold: ${violated.join(", ")}.`);
+      if (TL.i < TL.last) parts.push("Dashed amber is what this commit removed.");
+    }
+    if (TL.failed) {
+      parts.push(`${TL.failed} commit${TL.failed === 1 ? "" : "s"} in this range could not be processed by today's extractor and ${TL.failed === 1 ? "is" : "are"} not on the axis; what ${TL.failed === 1 ? "it" : "they"} changed shows up on the next point.`);
+    }
+    if (last.tree !== model.source_tree_sha256) {
+      parts.push("The newest point was derived from a different source tree than this map, so the last point and the map may differ.");
+    }
+    note.textContent = parts.join(" ");
+  }
+  function wireTimeline() {
+    const bar = document.getElementById("timeline");
+    if (!bar || !TL) return;
+    const range = document.getElementById("timeline-range");
+    if (range) range.addEventListener("input", () => { timelinePlay(false); timelineGo(Number(range.value)); });
+    const play = document.getElementById("timeline-play");
+    if (play) play.addEventListener("click", () => timelinePlay(!timelineTimer));
+    const now = document.getElementById("timeline-now");
+    if (now) {
+      now.addEventListener("click", () => {
+        timelinePlay(false);
+        TL.disengage();
+        applyInterplayState();
+        timelineSync();
+      });
+    }
+    const toggle = document.getElementById("timeline-toggle");
+    if (toggle) {
+      const key = "portal.architecture.timelineCollapsed";
+      const apply = (collapsed) => {
+        bar.classList.toggle("collapsed", collapsed);
+        toggle.setAttribute("aria-expanded", String(!collapsed));
+      };
+      let collapsed = false;
+      try { collapsed = window.localStorage.getItem(key) === "1"; } catch (_error) { collapsed = false; }
+      apply(collapsed);
+      toggle.addEventListener("click", () => {
+        collapsed = !bar.classList.contains("collapsed");
+        apply(collapsed);
+        try { window.localStorage.setItem(key, collapsed ? "1" : "0"); } catch (_error) { /* storage unavailable */ }
+      });
+    }
+  }
+
 
   function renderInterplayInspector(node) {
     const inspector = document.getElementById("interplay-inspector");
@@ -1914,6 +2267,7 @@
       resetInterplay.addEventListener("click", () => {
         selectedInterplayId = null;
         if (interplaySearch) interplaySearch.value = "";
+        if (TL) { timelinePlay(false); TL.disengage(); timelineSync(); } // back to the head revision
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too
         applyInterplayState();
       });
@@ -1937,6 +2291,7 @@
     }
     const interplayFullscreen = document.getElementById("interplay-fullscreen");
     if (interplayFullscreen) interplayFullscreen.addEventListener("click", toggleInterplayFullscreen);
+    wireTimeline();
     // Re-fit when entering/leaving fullscreen so the graph fills the new frame.
     document.addEventListener("fullscreenchange", () => {
       const workspace = document.getElementById("interplay-workspace");

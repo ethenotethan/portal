@@ -13,3 +13,6 @@ Signing.local.xcconfig
 # Assembled by `make site-serve` — mirrors the Pages deploy tree.
 .site-preview/
 .ddata/
+
+# Derived from git history by `make architecture-history`; the Pages deploy builds it.
+architecture/site/history.js

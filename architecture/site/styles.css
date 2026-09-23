@@ -367,6 +367,51 @@ h2 { margin: 0 0 12px; font-size: clamp(32px, 5vw, 64px); line-height: .96; lett
 .interplay-node[data-kind="endpoint"] .node-title { fill: var(--ink); font: 600 11px var(--mono); }
 .interplay-node[data-kind="endpoint"] .node-meta { font-size: 8px; }
 .interplay-node rect[data-explained="true"] { stroke: var(--node-color); }
+/* History. What the reader's position lacks is absent; what the current commit
+   removed is ghosted in dashed amber; historical-only nodes are inert. */
+.interplay-node.absent, .interplay-edge.absent, .interplay-edge-label.absent { display: none; }
+.interplay-node.hist { cursor: default; }
+.interplay-node.ghost { opacity: .8; }
+.interplay-node.ghost rect { stroke: #d9a441; stroke-dasharray: 4 4; }
+.interplay-edge.ghost { stroke: #d9a441; stroke-dasharray: 4 4; opacity: .85; marker-end: url(#arrow-ghost); }
+.graph-scroll.travelling .interplay-group.app .interplay-group-rect { stroke: #d9a441; }
+.timeline-overlay {
+  position: absolute; left: 14px; bottom: 14px; z-index: 2;
+  width: min(760px, calc(100% - 440px)); min-width: 340px; padding: 8px 12px 10px;
+  color: var(--muted); font: 10px var(--mono);
+  background: rgba(17, 17, 18, .9); border: 1px solid var(--line); border-radius: 8px;
+}
+.timeline-head { display: flex; align-items: center; gap: 14px; }
+.timeline-overlay.collapsed .timeline-body { display: none; }
+.timeline-overlay.collapsed .legend-toggle::after { content: "▸"; }
+.timeline-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.timeline-play {
+  flex: 0 0 auto; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); color: var(--ink); font-size: 11px; cursor: pointer;
+}
+.timeline-play:hover { background: var(--surface-hover); }
+.timeline-track { position: relative; flex: 1; height: 30px; }
+.timeline-spark { position: absolute; inset: 4px 6px; width: calc(100% - 12px); height: calc(100% - 8px); pointer-events: none; }
+.timeline-spark polyline { fill: none; stroke: var(--accent); stroke-width: 1; opacity: .45; vector-effect: non-scaling-stroke; }
+.timeline-track input[type="range"] { position: absolute; left: 0; right: 0; top: 50%; width: 100%; margin: 0; transform: translateY(-50%); accent-color: var(--accent); cursor: pointer; }
+.timeline-now { padding: 4px 10px; }
+.timeline-readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 6px; color: var(--faint); letter-spacing: .04em; }
+.timeline-readout strong { color: var(--ink); font-weight: 600; }
+.timeline-readout a { color: var(--accent); text-decoration: none; }
+.timeline-readout a:hover { text-decoration: underline; }
+.timeline-delta { display: inline-flex; gap: 8px; }
+.timeline-delta .up { color: #70b98d; }
+.timeline-delta .down { color: #d16f86; }
+.timeline-subject { margin-top: 4px; color: var(--ink); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timeline-diff { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.timeline-chip { padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: 9px var(--mono); }
+.timeline-chip.add { border-color: rgba(112, 185, 141, .55); }
+.timeline-chip.del { border-color: rgba(217, 164, 65, .6); }
+.timeline-chip.selectable { cursor: pointer; color: var(--ink); }
+.timeline-chip.selectable:hover { background: var(--surface-hover); }
+.timeline-chip.dead { opacity: .6; }
+.timeline-quiet { color: var(--faint); font: 9px var(--mono); align-self: center; }
+.timeline-note { margin: 6px 0 0; color: var(--faint); font-size: 10px; line-height: 1.45; }
 .interplay-node:hover rect, .interplay-node:focus rect { fill: var(--surface-hover); stroke: var(--node-color); }
 .interplay-node.selected rect { stroke: var(--node-color); stroke-width: 2; }
 .interplay-node.dimmed { opacity: .16; }

@@ -7,6 +7,8 @@ import hashlib
 import importlib.util
 import json
 import re
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -16,6 +18,12 @@ SPEC = importlib.util.spec_from_file_location("build_architecture", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 architecture = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(architecture)
+HISTORY_MODULE_PATH = ROOT / "scripts/build_architecture_history.py"
+HISTORY_SPEC = importlib.util.spec_from_file_location("build_architecture_history", HISTORY_MODULE_PATH)
+assert HISTORY_SPEC is not None and HISTORY_SPEC.loader is not None
+history = importlib.util.module_from_spec(HISTORY_SPEC)
+sys.modules[HISTORY_SPEC.name] = history  # dataclasses resolve deferred annotations through sys.modules
+HISTORY_SPEC.loader.exec_module(history)
 
 
 class ArchitectureCompilerTests(unittest.TestCase):
@@ -757,6 +765,163 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertNotIn("Select a node", app)
         self.assertIn('"data-pipe"', app)
         self.assertIn("drawn as containment", app)
+
+    # ---- History: the same map at every commit ---------------------------------
+
+    def test_history_keys_are_stable_and_unique_for_drawn_nodes(self) -> None:
+        nodes = self.model["interplay"]["nodes"]
+        drawn = [node for node in nodes if node["kind"] != "operation"]
+        keys = [node["history_key"] for node in drawn]
+        self.assertTrue(all(keys))
+        self.assertEqual(len(keys), len(set(keys)), "history keys must be unique among drawn nodes")
+        for node in drawn:
+            if node["kind"] == "resource":
+                # Re-keyed by what it is, never by the line-hashed id.
+                self.assertNotIn(node["id"].split(":", 1)[1], node["history_key"])
+                self.assertEqual(
+                    node["history_key"],
+                    f"resource:{node['component'] or 'unassigned'}:{node['owner_type'] or ''}:{node['sub_kind'] or ''}:{node['label']}",
+                )
+            elif node["kind"] == "endpoint":
+                # A namespace survives its transport being renamed.
+                self.assertEqual(node["history_key"], f"endpoint:{node['protocol']}:{node['label']}")
+            elif node["kind"] == "endpoint":
+                # A namespace survives its transport being renamed.
+                self.assertEqual(node["history_key"], f"endpoint:{node['protocol']}:{node['label']}")
+            else:
+                self.assertEqual(node["history_key"], node["id"])
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.assign_history_keys({"nodes": [
+                {"id": "resource:a", "kind": "resource", "component": "c", "owner_type": "O", "sub_kind": "lock", "label": "x"},
+                {"id": "resource:b", "kind": "resource", "component": "c", "owner_type": "O", "sub_kind": "lock", "label": "x"},
+            ]})
+
+    def test_shape_of_carries_drawn_nodes_edges_and_aggregated_triggers(self) -> None:
+        shape = architecture.shape_of(self.model)
+        self.assertEqual(shape["tree"], self.model["source_tree_sha256"])
+        keys = {meta["k"] for meta in shape["nodes"]}
+        kinds = {meta["kind"] for meta in shape["nodes"]}
+        self.assertNotIn("operation", kinds)
+        self.assertIn("page", kinds)
+        for source, target, relation, klass in shape["edges"]:
+            self.assertIn(source, keys)
+            self.assertIn(target, keys)
+            self.assertTrue(relation and klass)
+        triggers = [edge for edge in shape["edges"] if edge[2] == "triggers"]
+        self.assertTrue(triggers)
+        self.assertTrue(all(edge[0].startswith("page:") and edge[3] == "trigger" for edge in triggers))
+        # Every drawn interplay edge between drawn nodes survives, re-keyed.
+        key_of = {node["id"]: node["history_key"] for node in self.model["interplay"]["nodes"]}
+        expected = {
+            (key_of[e["source"]], key_of[e["target"]], e["relation"], e["class"])
+            for e in self.model["interplay"]["edges"] if key_of[e["source"]] in keys and key_of[e["target"]] in keys
+        }
+        self.assertEqual(expected, {tuple(edge) for edge in shape["edges"] if edge[2] != "triggers"})
+        # At the head, strict and lenient agree: nothing for fidelity to record.
+        self.assertEqual({}, shape["fidelity"])
+        self.assertEqual([], shape["invariants"]["violated"])
+
+    def test_snapshot_mode_records_gaps_instead_of_failing(self) -> None:
+        previous = architecture.LENIENT
+        architecture.FIDELITY.clear()
+        try:
+            architecture.LENIENT = False
+            with self.assertRaises(architecture.ArchitectureError):
+                architecture.gate("externals_unmatched", "system x matched nothing")
+            architecture.LENIENT = True
+            architecture.gate("externals_unmatched", "system x matched nothing")
+            architecture.gate("externals_unmatched", "system y matched nothing")
+            architecture.gate("invariants_violated", "single-transport: two transports")
+            self.assertEqual({"externals_unmatched": 2, "invariants_violated": 1},
+                             {kind: len(items) for kind, items in architecture.FIDELITY.items()})
+        finally:
+            architecture.LENIENT = previous
+            architecture.FIDELITY.clear()
+        # The compiler's `--snapshot` at the head prints the same shape the model yields.
+        run = subprocess.run([sys.executable, str(MODULE_PATH), "--snapshot"], capture_output=True, text=True, check=False, cwd=ROOT)
+        self.assertEqual(0, run.returncode, run.stderr)
+        printed = json.loads(run.stdout)
+        self.assertEqual(architecture.shape_of(self.model), printed)
+
+    def test_history_timeline_delta_encoding_round_trips(self) -> None:
+        commits = [history.Commit(f"{index:040x}", f"2026-05-0{index + 1}", f"commit {index}") for index in range(3)]
+        node = lambda key, **meta: {"k": key, "kind": "caller", "label": key.split(":")[-1], **meta}  # noqa: E731
+        shapes = [
+            {"tree": "t0", "nodes": [node("caller:a:A"), node("hub:H")], "edges": [["caller:a:A", "hub:H", "holds", "interplay"]],
+             "fidelity": {"externals_unmatched": 2}, "invariants": {"holds": 1, "violated": ["x"]}},
+            # A adds a page; B appears; the edge is unchanged.
+            {"tree": "t1", "nodes": [node("caller:a:A", page="chat"), node("hub:H"), node("caller:b:B")],
+             "edges": [["caller:a:A", "hub:H", "holds", "interplay"], ["caller:b:B", "hub:H", "holds", "interplay"]],
+             "fidelity": {}, "invariants": {"holds": 2, "violated": []}},
+            # A is deleted along with its edge.
+            {"tree": "t2", "nodes": [node("hub:H"), node("caller:b:B")], "edges": [["caller:b:B", "hub:H", "holds", "interplay"]],
+             "fidelity": {}, "invariants": {"holds": 2, "violated": []}},
+        ]
+        failed = [{"rev": "f" * 40, "date": "2026-05-02", "reason": "boom"}]
+        timeline = history.encode_timeline("main", commits[-1].rev, "fp", list(zip(commits, shapes)), failed)
+        self.assertEqual(3, len(timeline["snapshots"]))
+        self.assertEqual({"nodes": 2, "edges": 1}, timeline["snapshots"][0]["counts"])
+        self.assertEqual([2], timeline["snapshots"][1]["na"])       # B
+        self.assertEqual([0], timeline["snapshots"][2]["nd"])       # A
+        self.assertEqual([0], timeline["snapshots"][2]["ed"])       # A → H
+        self.assertNotIn("ea", timeline["snapshots"][2])
+        # The union describes a node as the newest snapshot saw it: A carries its page.
+        self.assertEqual("chat", timeline["nodes"][0]["page"])
+        self.assertEqual(failed, timeline["failed"])
+        replayed = history.replay(timeline)
+        self.assertEqual([commit.rev for commit in commits], [commit.rev for commit, _shape in replayed])
+        for (_commit, original), (_again, restored) in zip(zip(commits, shapes), replayed):
+            self.assertEqual({meta["k"] for meta in original["nodes"]}, {meta["k"] for meta in restored["nodes"]})
+            self.assertEqual(sorted(original["edges"]), restored["edges"])
+            self.assertEqual(original["tree"], restored["tree"])
+            self.assertEqual(original["fidelity"], restored["fidelity"])
+        # The artifact format the site reads is one assignment the walker can read back.
+        text = history.serialize(timeline)
+        self.assertTrue(text.startswith("window.PORTAL_ARCHITECTURE_HISTORY={"))
+        self.assertTrue(text.endswith("};\n"))
+        self.assertEqual(3, len(history.sample(commits, 1, 0)))
+        self.assertEqual([commits[0].rev, commits[2].rev], [c.rev for c in history.sample(commits, 2, 0)])
+        self.assertEqual([commits[2].rev], [c.rev for c in history.sample(commits, 1, 1)])
+
+    def test_history_walk_derives_the_head_commit_exactly(self) -> None:
+        # One real snapshot through the walker (git archive → scratch tree → --snapshot)
+        # of the newest commit that touched the sources must reproduce the head shape
+        # whenever the working tree's sources equal that commit's.
+        commits = history.list_commits("HEAD")
+        self.assertTrue(commits)
+        with __import__("tempfile").TemporaryDirectory() as scratch:
+            history.prepare_skeleton(Path(scratch))
+            shape = history.snapshot(commits[-1], Path(scratch))
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "Sources/Portal"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+        if not dirty and subprocess.run(["git", "diff", "--quiet", commits[-1].rev, "HEAD", "--", "Sources/Portal"], cwd=ROOT).returncode == 0:
+            self.assertEqual(architecture.shape_of(self.model), shape)
+        else:
+            self.assertTrue(shape["nodes"])
+
+    def test_system_map_has_the_history_slider(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8")
+        self.assertIn('<script src="history.js"></script>', index)
+        self.assertLess(index.index('src="history.js"'), index.index('src="app.js"'))
+        for element_id in ("timeline", "timeline-range", "timeline-play", "timeline-now", "timeline-diff", "timeline-note", "timeline-spark"):
+            self.assertIn(f'id="{element_id}"', index)
+        self.assertIn("window.PORTAL_ARCHITECTURE_HISTORY", app)
+        for renderer in ("renderTimeline", "timelineSync", "timelineDiff", "timelineNote", "wireTimeline", "timelineNodeState", "timelineEdgeState"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        # Inert until touched; the union layout; keys on every drawn edge and trunk.
+        self.assertIn("if (TL) TL.go(TL.last);", app)
+        self.assertIn("const drawNodes = interplay.nodes.slice();", app)
+        self.assertIn('"data-hkey": hkey', app)
+        self.assertIn("hist: true", app)
+        for rule in (".interplay-node.absent", ".interplay-edge.ghost", ".timeline-overlay"):
+            self.assertIn(rule, styles)
+        # The artifact is derived, never committed.
+        self.assertIn("architecture/site/history.js", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        self.assertIn("architecture-history:", (ROOT / "Makefile").read_text(encoding="utf-8"))
+        workflow = (ROOT / ".github/workflows/architecture-pages.yml").read_text(encoding="utf-8")
+        self.assertIn("build_architecture_history.py", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
 
 
 if __name__ == "__main__":

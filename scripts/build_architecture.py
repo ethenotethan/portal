@@ -22,6 +22,21 @@ SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
 INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
 INTERPLAY_INVARIANTS_PATH = ROOT / "architecture/interplay/invariants.json"
 
+# Snapshot mode (`--snapshot`, used by scripts/build_architecture_history.py):
+# today's extractor runs over an older checkout with today's curated files, so
+# the curation gates record what they could not account for instead of failing.
+# Strict is the default and the only mode `make architecture` and `--check` use.
+LENIENT = False
+FIDELITY: dict[str, list[str]] = defaultdict(list)
+
+
+def gate(kind: str, message: str) -> None:
+    """Fail in strict mode; in snapshot mode record the gap under ``kind``."""
+    if LENIENT:
+        FIDELITY[kind].append(message)
+        return
+    raise ArchitectureError(message)
+
 DECLARATION_RE = re.compile(
     r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
     r"(?:class|struct|enum|protocol|actor)\s+([A-Z][A-Za-z0-9_]*)\b"
@@ -907,8 +922,8 @@ def assign_pages(files: list[dict[str, Any]], config: dict[str, Any]
                 declared[name] = source
     all_roots = {root for page in items for root in page["roots"]}
     missing = sorted(root for root in all_roots if root not in declared)
-    if missing:
-        raise ArchitectureError(f"page roots are not declared types: {', '.join(missing)}")
+    for root in missing:
+        gate("page_roots_missing", f"page root is not a declared type: {root}")
 
     depth_by_type: dict[str, dict[str, int]] = defaultdict(dict)
     for page in items:
@@ -1233,9 +1248,9 @@ def build_externals_model(files: list[dict[str, Any]], config: dict[str, Any]) -
         system_id = str(entry["id"])
         hits = by_system.get(system_id, [])
         if not hits:
-            raise ArchitectureError(
-                f"external system {system_id} matched no source signature; fix its signatures or remove it"
-            )
+            gate("externals_unmatched",
+                 f"external system {system_id} matched no source signature; fix its signatures or remove it")
+            continue
         per_component: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for hit in hits:
             per_component[hit["component"] or "unassigned"].append(hit)
@@ -1418,7 +1433,7 @@ def validate_evidence(evidence: Any, owner: str) -> list[str]:
         if not isinstance(item, str) or item.startswith("/") or ".." in Path(item).parts:
             raise ArchitectureError(f"{owner} has an invalid evidence path: {item!r}")
         if not (ROOT / item).is_file():
-            raise ArchitectureError(f"{owner} cites missing file: {item}")
+            gate("evidence_missing", f"{owner} cites missing file: {item}")
         normalized.append(item)
     return sorted(set(normalized))
 
@@ -2565,8 +2580,10 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
         for problem in problems:
             violations.append(f"{entry['id']}: {problem} (why: {entry['why']})")
 
-    if violations:
+    if violations and not LENIENT:
         raise ArchitectureError("interplay invariants violated:\n - " + "\n - ".join(violations))
+    for violation in violations:
+        gate("invariants_violated", violation)
     return results
 
 
@@ -2664,21 +2681,131 @@ def validate_interplay(interplay: dict[str, Any], overlay: dict[str, Any]) -> No
     unexplained = sorted(key for key in gated_nodes if key not in entries)
     if unexplained:
         details = "; ".join(f"{key} at {gated_nodes[key]['path']}:{gated_nodes[key]['line']}" for key in unexplained)
-        raise ArchitectureError(
+        gate(
+            "overlay_unexplained",
             "interplay overlay does not explain extracted resource(s): "
             + details
-            + "; add matching entries to architecture/interplay/overlay.json"
+            + "; add matching entries to architecture/interplay/overlay.json",
         )
     stale = sorted(key for key in entries if key not in gated_nodes)
     if stale:
-        raise ArchitectureError(
+        gate(
+            "overlay_stale",
             "interplay overlay has stale entr(ies) with no matching source: "
             + ", ".join(stale)
-            + "; remove them from architecture/interplay/overlay.json"
+            + "; remove them from architecture/interplay/overlay.json",
         )
 
     for key, node in gated_nodes.items():
-        node["overlay_prose"] = entries[key]["prose"]
+        if key in entries:
+            node["overlay_prose"] = entries[key]["prose"]
+
+
+# ---------------------------------------------------------------------------
+# History keys and the snapshot shape.
+#
+# The history walk (scripts/build_architecture_history.py) derives the System
+# map at many commits and diffs consecutive points, so every drawn node needs a
+# key that survives unrelated edits. Interplay ids are stable for everything
+# except resources and operations, whose ids hash the declaring line. A resource
+# is re-keyed by what it is (component, owning type, kind, field name); an
+# operation keeps its id because operations are actions, never drawn as boxes,
+# and stay out of the shape.
+# ---------------------------------------------------------------------------
+SHAPE_NODE_FIELDS = (
+    "kind", "label", "page", "component", "owner_type", "sub_kind", "roles", "protocol",
+    "namespaces", "system_id", "method_count", "file_count", "hit_count", "lock_labels",
+)
+SURFACE_KIND_ORDER = ("caller", "subscriber", "hub", "store", "owner")
+
+
+def history_key(node: dict[str, Any]) -> str:
+    if node["kind"] == "resource":
+        return ":".join([
+            "resource", str(node.get("component") or "unassigned"), str(node.get("owner_type") or ""),
+            str(node.get("sub_kind") or ""), str(node["label"]),
+        ])
+    if node["kind"] == "endpoint":
+        # An endpoint id hashes the owning transport's type name; the namespace a
+        # renamed transport serves is the same namespace, so the key names only
+        # the protocol and the namespace.
+        return f"endpoint:{node.get('protocol') or ''}:{node['label']}"
+    return str(node["id"])
+
+
+def assign_history_keys(interplay: dict[str, Any]) -> None:
+    """Key every node for diffing across commits. Two drawn nodes sharing a key is a
+    build error today (the map would be ambiguous) and a recorded gap in snapshot
+    mode, where an older tree may have had, say, two transports serving one namespace."""
+    seen: dict[str, str] = {}
+    for node in interplay["nodes"]:
+        key = history_key(node)
+        node["history_key"] = key
+        if node["kind"] == "operation":
+            continue
+        if key in seen and seen[key] != node["id"]:
+            gate("history_key_collision", f"history key {key!r} is shared by {seen[key]} and {node['id']}")
+        seen[key] = node["id"]
+
+
+def surface_node_for(nodes: list[dict[str, Any]], label: str) -> dict[str, Any] | None:
+    """The drawn node a trigger lands on: the same choice the site makes."""
+    candidates = [node for node in nodes if node.get("label") == label and node["kind"] in SURFACE_KIND_ORDER]
+    candidates.sort(key=lambda node: SURFACE_KIND_ORDER.index(node["kind"]))
+    return candidates[0] if candidates else None
+
+
+def shape_of(model: dict[str, Any]) -> dict[str, Any]:
+    """One point on the timeline: the drawn nodes and edges, keyed for diffing.
+
+    Trigger edges are aggregated the way the map draws them (one page → surface
+    edge per pair); their page sources are carried as ``page`` pseudo-nodes so
+    the union table can index them. Fidelity carries what today's curation could
+    not account for at this commit, as counts, so the page can say so.
+    """
+    interplay = model["interplay"]
+    keyed: dict[str, dict[str, Any]] = {}
+    for node in interplay["nodes"]:
+        if node["kind"] == "operation":
+            continue
+        meta: dict[str, Any] = {"k": node["history_key"]}
+        for field in SHAPE_NODE_FIELDS:
+            value = node.get(field)
+            if value not in (None, [], {}, ""):
+                meta[field] = sorted(value) if isinstance(value, set) else value
+        store = node.get("store")
+        if isinstance(store, dict):
+            meta["store"] = {"persistence": store.get("persistence", []), "artifacts": store.get("artifacts", [])}
+        keyed[meta["k"]] = meta
+    key_of = {node["id"]: node["history_key"] for node in interplay["nodes"]}
+    edges: set[tuple[str, str, str, str]] = set()
+    for edge in interplay["edges"]:
+        source = key_of.get(edge["source"])
+        target = key_of.get(edge["target"])
+        if source in keyed and target in keyed:
+            edges.add((source, target, str(edge["relation"]), str(edge.get("class") or "")))
+    page_labels = {page["id"]: page["label"] for page in interplay.get("pages", [])}
+    for trigger in interplay.get("triggers", []):
+        page = trigger.get("page")
+        if page not in page_labels:
+            continue
+        surface = surface_node_for(interplay["nodes"], str(trigger.get("surface") or ""))
+        if surface is None:
+            continue
+        page_key = f"page:{page}"
+        keyed.setdefault(page_key, {"k": page_key, "kind": "page", "label": page_labels[page], "page": page})
+        edges.add((page_key, surface["history_key"], "triggers", "trigger"))
+    invariants = interplay.get("invariants", [])
+    return {
+        "tree": model["source_tree_sha256"],
+        "nodes": sorted(keyed.values(), key=lambda meta: meta["k"]),
+        "edges": [list(edge) for edge in sorted(edges)],
+        "fidelity": {kind: len(messages) for kind, messages in sorted(FIDELITY.items())},
+        "invariants": {
+            "holds": sum(1 for item in invariants if item.get("status") == "holds"),
+            "violated": sorted(item["id"] for item in invariants if item.get("status") != "holds"),
+        },
+    }
 
 
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
@@ -2740,6 +2867,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
+    assign_history_keys(interplay)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
         "schema_version": "1.0.0",
@@ -2810,8 +2938,18 @@ def write_outputs(outputs: dict[Path, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="fail if checked-in outputs are stale")
+    parser.add_argument(
+        "--snapshot", action="store_true",
+        help="compile leniently and print the System map's shape as JSON (used by the history walk)",
+    )
     args = parser.parse_args()
     try:
+        if args.snapshot:
+            global LENIENT
+            LENIENT = True
+            model, _site_data = compile_architecture()
+            print(json.dumps(shape_of(model), sort_keys=True, separators=(",", ":")))
+            return 0
         outputs = expected_outputs()
         if args.check:
             check_outputs(outputs)

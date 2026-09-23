@@ -69,6 +69,36 @@
             <button type="button" class="legend-toggle" id="interplay-legend-toggle" aria-expanded="true" aria-controls="interplay-legend-items">Legend</button>
             <div class="legend legend-items" id="interplay-legend-items"></div>
           </div>
+          <!-- The history slider: the same map at every commit, from the opt-in
+               history.js artifact (make architecture-history). Hidden without it;
+               inert until touched, so the landing page is the head revision. -->
+          <div class="timeline-overlay" id="timeline" aria-label="System map history" hidden>
+            <div class="timeline-head">
+              <button type="button" class="legend-toggle" id="timeline-toggle" aria-expanded="true" aria-controls="timeline-body">History</button>
+              <span class="timeline-readout">
+                <strong id="timeline-date"></strong>
+                <a id="timeline-rev" target="_blank" rel="noreferrer"></a>
+                <span id="timeline-pos"></span>
+              </span>
+            </div>
+            <div class="timeline-body" id="timeline-body">
+              <div class="timeline-row">
+                <button type="button" class="timeline-play" id="timeline-play" title="Play the history forward" aria-pressed="false">▶</button>
+                <div class="timeline-track">
+                  <svg class="timeline-spark" id="timeline-spark" aria-hidden="true"></svg>
+                  <input type="range" id="timeline-range" min="0" max="0" value="0" step="1" aria-label="Commit position in the app's history">
+                </div>
+                <button type="button" class="quiet-button timeline-now" id="timeline-now" title="Back to the head revision">Now</button>
+              </div>
+              <div class="timeline-readout">
+                <span id="timeline-counts"></span>
+                <span class="timeline-delta" id="timeline-delta"></span>
+              </div>
+              <div class="timeline-subject" id="timeline-subject"></div>
+              <div class="timeline-diff" id="timeline-diff"></div>
+              <p class="timeline-note" id="timeline-note"></p>
+            </div>
+          </div>
         </div>
         <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
@@ -136,6 +166,8 @@
   </footer>
 
   <script src="data.js"></script>
+  <!-- Optional: written by `make architecture-history`, absent otherwise. -->
+  <script src="history.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

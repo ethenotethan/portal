@@ -19278,6 +19278,7 @@
       {
         "cluster": "interplay-cluster-3f357e4b3664",
         "component": "domain-models",
+        "history_key": "store:domain-models:ActivityStore",
         "id": "store:domain-models:ActivityStore",
         "kind": "store",
         "label": "ActivityStore",
@@ -19311,6 +19312,7 @@
         "description": "Preferences, small state flags, and migration markers.",
         "description_authority": "specified",
         "file_count": 32,
+        "history_key": "external:user-defaults",
         "hit_count": 108,
         "id": "external:user-defaults",
         "kind": "external",
@@ -19374,6 +19376,7 @@
         "description": "Per-user persistence for sessions, artifacts, skills, curricula, run history, and caches.",
         "description_authority": "specified",
         "file_count": 19,
+        "history_key": "external:file-system",
         "hit_count": 19,
         "id": "external:file-system",
         "kind": "external",
@@ -19410,6 +19413,7 @@
       {
         "cluster": "interplay-cluster-161e96e44ccd",
         "component": "domain-models",
+        "history_key": "store:domain-models:CronGraphRevisionStore",
         "id": "store:domain-models:CronGraphRevisionStore",
         "kind": "store",
         "label": "CronGraphRevisionStore",
@@ -19439,6 +19443,7 @@
       {
         "cluster": "interplay-cluster-58dc2c03c93f",
         "component": "domain-models",
+        "history_key": "store:domain-models:CronRunHistoryStore",
         "id": "store:domain-models:CronRunHistoryStore",
         "kind": "store",
         "label": "CronRunHistoryStore",
@@ -19469,6 +19474,7 @@
       {
         "cluster": "interplay-cluster-54ff7b5a4929",
         "component": "domain-models",
+        "history_key": "store:domain-models:DelegationBatchHistoryStore",
         "id": "store:domain-models:DelegationBatchHistoryStore",
         "kind": "store",
         "label": "DelegationBatchHistoryStore",
@@ -19499,6 +19505,7 @@
       {
         "cluster": "interplay-cluster-cd563db7be44",
         "component": "domain-models",
+        "history_key": "store:domain-models:SessionRunHistoryStore",
         "id": "store:domain-models:SessionRunHistoryStore",
         "kind": "store",
         "label": "SessionRunHistoryStore",
@@ -19529,6 +19536,7 @@
       {
         "cluster": "interplay-cluster-1f63bb30e98d",
         "component": "backend-contract",
+        "history_key": "seam:AgentBackend",
         "id": "seam:AgentBackend",
         "kind": "seam",
         "label": "AgentBackend",
@@ -19540,6 +19548,7 @@
       {
         "cluster": "interplay-cluster-1f63bb30e98d",
         "component": "backend-contract",
+        "history_key": "resource:backend-contract:AgentBackend:event_bus:eventStream",
         "id": "bus:AgentBackend.eventStream",
         "kind": "resource",
         "label": "eventStream",
@@ -19551,6 +19560,7 @@
       {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
+        "history_key": "subscriber:ArtifactStore",
         "id": "subscriber:ArtifactStore",
         "kind": "subscriber",
         "label": "ArtifactStore",
@@ -19586,6 +19596,7 @@
       {
         "cluster": "interplay-cluster-f988c7b8947c",
         "component": "local-services",
+        "history_key": "store:local-services:ChatHistoryStore",
         "id": "store:local-services:ChatHistoryStore",
         "kind": "store",
         "label": "ChatHistoryStore",
@@ -19612,6 +19623,7 @@
       {
         "cluster": "interplay-cluster-6d7f034d539c",
         "component": "hermes-services",
+        "history_key": "caller:hermes-services:CronPoller",
         "id": "caller:hermes-services:CronPoller",
         "kind": "caller",
         "label": "CronPoller",
@@ -19636,6 +19648,7 @@
       {
         "cluster": "interplay-cluster-adda41d799a8",
         "component": "local-services",
+        "history_key": "store:local-services:CurriculumStore",
         "id": "store:local-services:CurriculumStore",
         "kind": "store",
         "label": "CurriculumStore",
@@ -19662,6 +19675,7 @@
       {
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
+        "history_key": "owner:local-services:FileDownloadManager",
         "id": "owner:local-services:FileDownloadManager",
         "kind": "owner",
         "label": "FileDownloadManager",
@@ -19680,6 +19694,7 @@
       {
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
+        "history_key": "resource:local-services:FileDownloadManager:rpc_pool:continuations",
         "id": "resource:resource-7f2c102d125c",
         "kind": "resource",
         "label": "continuations",
@@ -19693,6 +19708,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-6da53606e331",
         "id": "operation:lifecycle-operation-6da53606e331",
         "kind": "operation",
         "label": "continuations[…] =",
@@ -19706,6 +19722,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-5b282dbd0fc0",
         "id": "operation:lifecycle-operation-5b282dbd0fc0",
         "kind": "operation",
         "label": "resume",
@@ -19719,6 +19736,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-754585e57774",
         "id": "operation:lifecycle-operation-754585e57774",
         "kind": "operation",
         "label": "continuations.removeValue",
@@ -19732,6 +19750,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-ebbfe694ba61",
         "id": "operation:lifecycle-operation-ebbfe694ba61",
         "kind": "operation",
         "label": "resume",
@@ -19745,6 +19764,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-5fe14a25d10e",
         "id": "operation:lifecycle-operation-5fe14a25d10e",
         "kind": "operation",
         "label": "continuations.removeValue",
@@ -19758,6 +19778,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-fedcaf64d11f",
         "id": "operation:lifecycle-operation-fedcaf64d11f",
         "kind": "operation",
         "label": "resume",
@@ -19771,6 +19792,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-7c2b43c20e07",
         "id": "operation:lifecycle-operation-7c2b43c20e07",
         "kind": "operation",
         "label": "continuations.removeValue",
@@ -19784,6 +19806,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-d5bec8fcd80b",
         "id": "operation:lifecycle-operation-d5bec8fcd80b",
         "kind": "operation",
         "label": "resume",
@@ -19797,6 +19820,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-596d5fcb45e5",
         "id": "operation:lifecycle-operation-596d5fcb45e5",
         "kind": "operation",
         "label": "continuations.removeValue",
@@ -19810,6 +19834,7 @@
         "cluster": "interplay-cluster-25f686f6e338",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-87512f5ed99d",
         "id": "operation:lifecycle-operation-87512f5ed99d",
         "kind": "operation",
         "label": "resume",
@@ -19825,6 +19850,7 @@
         "endpoint_ids": [
           "endpoint:8abbe841a1a5"
         ],
+        "history_key": "client:hermes-services:GatewayClient+CodeGraph",
         "id": "client:hermes-services:GatewayClient+CodeGraph",
         "kind": "client",
         "label": "GatewayClient+CodeGraph",
@@ -19842,6 +19868,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+CodeGraph.swift"
         ],
+        "history_key": "endpoint:jsonrpc:code",
         "id": "endpoint:8abbe841a1a5",
         "kind": "endpoint",
         "label": "code",
@@ -19865,6 +19892,7 @@
         "endpoint_ids": [
           "endpoint:38507a0dce8b"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Cron",
         "id": "client:hermes-services:GatewayClient+Cron",
         "kind": "client",
         "label": "GatewayClient+Cron",
@@ -19884,6 +19912,7 @@
           "Sources/Portal/Services/GatewayClient+CronChangesets.swift",
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:cron",
         "id": "endpoint:38507a0dce8b",
         "kind": "endpoint",
         "label": "cron",
@@ -19922,6 +19951,7 @@
         "endpoint_ids": [
           "endpoint:38507a0dce8b"
         ],
+        "history_key": "client:hermes-services:GatewayClient+CronChangesets",
         "id": "client:hermes-services:GatewayClient+CronChangesets",
         "kind": "client",
         "label": "GatewayClient+CronChangesets",
@@ -19939,6 +19969,7 @@
         "endpoint_ids": [
           "endpoint:6612d53de6e6"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Feed",
         "id": "client:hermes-services:GatewayClient+Feed",
         "kind": "client",
         "label": "GatewayClient+Feed",
@@ -19956,6 +19987,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Feed.swift"
         ],
+        "history_key": "endpoint:jsonrpc:feed",
         "id": "endpoint:6612d53de6e6",
         "kind": "endpoint",
         "label": "feed",
@@ -19989,6 +20021,7 @@
         "endpoint_ids": [
           "endpoint:2e6276e9cf3e"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Files",
         "id": "client:hermes-services:GatewayClient+Files",
         "kind": "client",
         "label": "GatewayClient+Files",
@@ -20006,6 +20039,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Files.swift"
         ],
+        "history_key": "endpoint:jsonrpc:files",
         "id": "endpoint:2e6276e9cf3e",
         "kind": "endpoint",
         "label": "files",
@@ -20034,6 +20068,7 @@
         "endpoint_ids": [
           "endpoint:a22445ecbadb"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Learning",
         "id": "client:hermes-services:GatewayClient+Learning",
         "kind": "client",
         "label": "GatewayClient+Learning",
@@ -20051,6 +20086,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Learning.swift"
         ],
+        "history_key": "endpoint:jsonrpc:learning",
         "id": "endpoint:a22445ecbadb",
         "kind": "endpoint",
         "label": "learning",
@@ -20079,6 +20115,7 @@
         "endpoint_ids": [
           "endpoint:cef1ba05dfc0"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Push",
         "id": "client:hermes-services:GatewayClient+Push",
         "kind": "client",
         "label": "GatewayClient+Push",
@@ -20096,6 +20133,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Push.swift"
         ],
+        "history_key": "endpoint:jsonrpc:push",
         "id": "endpoint:cef1ba05dfc0",
         "kind": "endpoint",
         "label": "push",
@@ -20124,6 +20162,7 @@
         "endpoint_ids": [
           "endpoint:24738b20b0b3"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Restart",
         "id": "client:hermes-services:GatewayClient+Restart",
         "kind": "client",
         "label": "GatewayClient+Restart",
@@ -20141,6 +20180,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Restart.swift"
         ],
+        "history_key": "endpoint:jsonrpc:gateway",
         "id": "endpoint:24738b20b0b3",
         "kind": "endpoint",
         "label": "gateway",
@@ -20164,6 +20204,7 @@
         "endpoint_ids": [
           "endpoint:7e90ead53b58"
         ],
+        "history_key": "client:hermes-services:GatewayClient+Wiki",
         "id": "client:hermes-services:GatewayClient+Wiki",
         "kind": "client",
         "label": "GatewayClient+Wiki",
@@ -20181,6 +20222,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient+Wiki.swift"
         ],
+        "history_key": "endpoint:jsonrpc:wiki",
         "id": "endpoint:7e90ead53b58",
         "kind": "endpoint",
         "label": "wiki",
@@ -20251,6 +20293,7 @@
       {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
+        "history_key": "owner:hermes-services:GatewayClient",
         "id": "owner:hermes-services:GatewayClient",
         "kind": "owner",
         "label": "GatewayClient",
@@ -20273,6 +20316,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:delegation",
         "id": "endpoint:00d6875c0625",
         "kind": "endpoint",
         "label": "delegation",
@@ -20296,6 +20340,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:subagent",
         "id": "endpoint:b2ab5444930d",
         "kind": "endpoint",
         "label": "subagent",
@@ -20319,6 +20364,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:spawn_tree",
         "id": "endpoint:efb9148cebbd",
         "kind": "endpoint",
         "label": "spawn_tree",
@@ -20347,6 +20393,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:session",
         "id": "endpoint:275a028db300",
         "kind": "endpoint",
         "label": "session",
@@ -20420,6 +20467,7 @@
         "description": "The Hermes fork's gateway: every chat, session, wiki, skills, cron, learning, and artifact RPC crosses this boundary.",
         "description_authority": "specified",
         "file_count": 5,
+        "history_key": "external:harness-gateway",
         "hit_count": 15,
         "id": "external:harness-gateway",
         "kind": "external",
@@ -20448,6 +20496,7 @@
       {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
+        "history_key": "resource:hermes-services:GatewayClient:websocket:webSocketTask",
         "id": "resource:resource-7f83bf85f35b",
         "kind": "resource",
         "label": "webSocketTask",
@@ -20459,6 +20508,7 @@
       {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
+        "history_key": "resource:hermes-services:GatewayClient:url_session:urlSession",
         "id": "resource:resource-1659d3a8cd64",
         "kind": "resource",
         "label": "urlSession",
@@ -20470,6 +20520,7 @@
       {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
+        "history_key": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests",
         "id": "resource:resource-f4c4baad5555",
         "kind": "resource",
         "label": "pendingRequests",
@@ -20482,6 +20533,7 @@
       {
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
+        "history_key": "resource:hermes-services:GatewayClient:lock:pendingRequestsLock",
         "id": "resource:resource-4560e4558b76",
         "kind": "resource",
         "label": "pendingRequestsLock",
@@ -20494,6 +20546,7 @@
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
         "guarded_resources": [],
+        "history_key": "section:hermes-services:GatewayClient:refreshDebugSnapshot",
         "id": "section:hermes-services:GatewayClient:refreshDebugSnapshot",
         "kind": "section",
         "label": "refreshDebugSnapshot",
@@ -20527,6 +20580,7 @@
         "guarded_resources": [
           "pendingRequests"
         ],
+        "history_key": "section:hermes-services:GatewayClient:failAllPendingRequests",
         "id": "section:hermes-services:GatewayClient:failAllPendingRequests",
         "kind": "section",
         "label": "failAllPendingRequests",
@@ -20574,6 +20628,7 @@
         "guarded_resources": [
           "pendingRequests"
         ],
+        "history_key": "section:hermes-services:GatewayClient:call",
         "id": "section:hermes-services:GatewayClient:call",
         "kind": "section",
         "label": "call",
@@ -20642,6 +20697,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:skills",
         "id": "endpoint:d01b8fa18b67",
         "kind": "endpoint",
         "label": "skills",
@@ -20670,6 +20726,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:commands",
         "id": "endpoint:9f4e70554834",
         "kind": "endpoint",
         "label": "commands",
@@ -20693,6 +20750,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:slash",
         "id": "endpoint:5e7781ff3cfe",
         "kind": "endpoint",
         "label": "slash",
@@ -20716,6 +20774,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:activity",
         "id": "endpoint:82a5f3049740",
         "kind": "endpoint",
         "label": "activity",
@@ -20754,6 +20813,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:prompt",
         "id": "endpoint:162f92a74671",
         "kind": "endpoint",
         "label": "prompt",
@@ -20777,6 +20837,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:image",
         "id": "endpoint:a6fe64944ae6",
         "kind": "endpoint",
         "label": "image",
@@ -20800,6 +20861,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:approval",
         "id": "endpoint:8fd4309be78f",
         "kind": "endpoint",
         "label": "approval",
@@ -20823,6 +20885,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:clarify",
         "id": "endpoint:61ef561083b5",
         "kind": "endpoint",
         "label": "clarify",
@@ -20846,6 +20909,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:config",
         "id": "endpoint:68a64556d661",
         "kind": "endpoint",
         "label": "config",
@@ -20874,6 +20938,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:model",
         "id": "endpoint:91804a259979",
         "kind": "endpoint",
         "label": "model",
@@ -20897,6 +20962,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:artifact",
         "id": "endpoint:1f147016b905",
         "kind": "endpoint",
         "label": "artifact",
@@ -20975,6 +21041,7 @@
         "files": [
           "Sources/Portal/Services/GatewayClient.swift"
         ],
+        "history_key": "endpoint:jsonrpc:voice",
         "id": "endpoint:5ce832f6c2c8",
         "kind": "endpoint",
         "label": "voice",
@@ -21001,6 +21068,7 @@
         "cluster": "interplay-cluster-6854b24de35d",
         "component": "hermes-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-beafd885da5a",
         "id": "operation:lifecycle-operation-beafd885da5a",
         "kind": "operation",
         "label": "eventStream.send",
@@ -21015,6 +21083,7 @@
         "guarded_resources": [
           "pendingRequests"
         ],
+        "history_key": "section:hermes-services:GatewayClient:fulfillRequest",
         "id": "section:hermes-services:GatewayClient:fulfillRequest",
         "kind": "section",
         "label": "fulfillRequest",
@@ -21062,6 +21131,7 @@
         "guarded_resources": [
           "pendingRequests"
         ],
+        "history_key": "section:hermes-services:GatewayClient:removePendingRequest",
         "id": "section:hermes-services:GatewayClient:removePendingRequest",
         "kind": "section",
         "label": "removePendingRequest",
@@ -21099,6 +21169,7 @@
       {
         "cluster": "interplay-cluster-2c2ba71e983d",
         "component": "local-services",
+        "history_key": "store:local-services:KeychainStore",
         "id": "store:local-services:KeychainStore",
         "kind": "store",
         "label": "KeychainStore",
@@ -21128,6 +21199,7 @@
         "description": "Secure storage for gateway API keys, OAuth tokens, and Access cookies.",
         "description_authority": "specified",
         "file_count": 2,
+        "history_key": "external:keychain",
         "hit_count": 7,
         "id": "external:keychain",
         "kind": "external",
@@ -21148,6 +21220,7 @@
       {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
+        "history_key": "subscriber:LearningStore",
         "id": "subscriber:LearningStore",
         "kind": "subscriber",
         "label": "LearningStore",
@@ -21180,6 +21253,7 @@
       {
         "cluster": "interplay-cluster-0103cc466a26",
         "component": "local-services",
+        "history_key": "owner:local-services:MLXLocalChatEngine",
         "id": "owner:local-services:MLXLocalChatEngine",
         "kind": "owner",
         "label": "MLXLocalChatEngine",
@@ -21201,6 +21275,7 @@
         "description": "On-device language-model inference on Apple silicon for local chat, reasoning summaries, and skill summaries.",
         "description_authority": "specified",
         "file_count": 4,
+        "history_key": "external:apple-mlx",
         "hit_count": 7,
         "id": "external:apple-mlx",
         "kind": "external",
@@ -21221,6 +21296,7 @@
       {
         "cluster": "interplay-cluster-0103cc466a26",
         "component": "local-services",
+        "history_key": "resource:local-services:MLXLocalChatEngine:on_device_model:container",
         "id": "resource:resource-2e11c0c460ca",
         "kind": "resource",
         "label": "container",
@@ -21234,6 +21310,7 @@
         "cluster": "interplay-cluster-0103cc466a26",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-f71e5ee0f11d",
         "id": "operation:lifecycle-operation-f71e5ee0f11d",
         "kind": "operation",
         "label": "ChatSession.respond",
@@ -21247,6 +21324,7 @@
         "cluster": "interplay-cluster-0103cc466a26",
         "component": "local-services",
         "detached_off_main": false,
+        "history_key": "operation:lifecycle-operation-2b6dc74bc7ea",
         "id": "operation:lifecycle-operation-2b6dc74bc7ea",
         "kind": "operation",
         "label": "LLMModelFactory.loadContainer",
@@ -21259,6 +21337,7 @@
       {
         "cluster": "interplay-cluster-2681d21ce1e4",
         "component": "local-services",
+        "history_key": "store:local-services:LocalModelInventory",
         "id": "store:local-services:LocalModelInventory",
         "kind": "store",
         "label": "LocalModelInventory",
@@ -21288,6 +21367,7 @@
         "description": "Speaks assistant replies locally; no audio leaves the device.",
         "description_authority": "specified",
         "file_count": 4,
+        "history_key": "external:speech-synthesis",
         "hit_count": 13,
         "id": "external:speech-synthesis",
         "kind": "external",
@@ -21308,6 +21388,7 @@
       {
         "cluster": "interplay-cluster-6d7f034d539c",
         "component": "hermes-services",
+        "history_key": "caller:hermes-services:PushRegistrationService",
         "id": "caller:hermes-services:PushRegistrationService",
         "kind": "caller",
         "label": "PushRegistrationService",
@@ -21332,6 +21413,7 @@
       {
         "cluster": "interplay-cluster-03136c52bb01",
         "component": "local-services",
+        "history_key": "store:local-services:QuizStore",
         "id": "store:local-services:QuizStore",
         "kind": "store",
         "label": "QuizStore",
@@ -21358,6 +21440,7 @@
       {
         "cluster": "interplay-cluster-7b136d3c2c60",
         "component": "local-services",
+        "history_key": "owner:local-services:MLXReasoningSummarizer",
         "id": "owner:local-services:MLXReasoningSummarizer",
         "kind": "owner",
         "label": "MLXReasoningSummarizer",
@@ -21376,6 +21459,7 @@
       {
         "cluster": "interplay-cluster-7b136d3c2c60",
         "component": "local-services",
+        "history_key": "resource:local-services:MLXReasoningSummarizer:on_device_model:container",
         "id": "resource:resource-aceeaa78d7fa",
         "kind": "resource",
         "label": "container",
@@ -21389,6 +21473,7 @@
         "cluster": "interplay-cluster-7b136d3c2c60",
         "component": "local-services",
         "detached_off_main": true,
+        "history_key": "operation:lifecycle-operation-250a3dd578d6",
         "id": "operation:lifecycle-operation-250a3dd578d6",
         "kind": "operation",
         "label": "ChatSession.respond",
@@ -21402,6 +21487,7 @@
         "cluster": "interplay-cluster-7b136d3c2c60",
         "component": "local-services",
         "detached_off_main": true,
+        "history_key": "operation:lifecycle-operation-bc2afc6b8f01",
         "id": "operation:lifecycle-operation-bc2afc6b8f01",
         "kind": "operation",
         "label": "LLMModelFactory.loadContainer",
@@ -21414,6 +21500,7 @@
       {
         "cluster": "interplay-cluster-f753d3f4d437",
         "component": "local-services",
+        "history_key": "store:local-services:SRSStore",
         "id": "store:local-services:SRSStore",
         "kind": "store",
         "label": "SRSStore",
@@ -21440,6 +21527,7 @@
       {
         "cluster": "interplay-cluster-ef88c482cacc",
         "component": "local-services",
+        "history_key": "caller:local-services:SessionMetaSyncService",
         "id": "caller:local-services:SessionMetaSyncService",
         "kind": "caller",
         "label": "SessionMetaSyncService",
@@ -21467,6 +21555,7 @@
       {
         "cluster": "interplay-cluster-ef88c482cacc",
         "component": "local-services",
+        "history_key": "caller:local-services:SkillCache",
         "id": "caller:local-services:SkillCache",
         "kind": "caller",
         "label": "SkillCache",
@@ -21505,6 +21594,7 @@
       {
         "cluster": "interplay-cluster-ef88c482cacc",
         "component": "local-services",
+        "history_key": "caller:local-services:SkillStore",
         "id": "caller:local-services:SkillStore",
         "kind": "caller",
         "label": "SkillStore",
@@ -21562,6 +21652,7 @@
       {
         "cluster": "interplay-cluster-e84f95c18c86",
         "component": "local-services",
+        "history_key": "owner:local-services:SkillSummaryService",
         "id": "owner:local-services:SkillSummaryService",
         "kind": "owner",
         "label": "SkillSummaryService",
@@ -21580,6 +21671,7 @@
       {
         "cluster": "interplay-cluster-e84f95c18c86",
         "component": "local-services",
+        "history_key": "resource:local-services:SkillSummaryService:on_device_model:container",
         "id": "resource:resource-6a0c8ae84943",
         "kind": "resource",
         "label": "container",
@@ -21593,6 +21685,7 @@
         "cluster": "interplay-cluster-e84f95c18c86",
         "component": "local-services",
         "detached_off_main": true,
+        "history_key": "operation:lifecycle-operation-ac9557913f45",
         "id": "operation:lifecycle-operation-ac9557913f45",
         "kind": "operation",
         "label": "ChatSession.respond",
@@ -21606,6 +21699,7 @@
         "cluster": "interplay-cluster-e84f95c18c86",
         "component": "local-services",
         "detached_off_main": true,
+        "history_key": "operation:lifecycle-operation-c0f0ba49aa5f",
         "id": "operation:lifecycle-operation-c0f0ba49aa5f",
         "kind": "operation",
         "label": "LLMModelFactory.loadContainer",
@@ -21618,6 +21712,7 @@
       {
         "cluster": "interplay-cluster-389b719244e7",
         "component": "local-services",
+        "history_key": "owner:local-services:TTSService",
         "id": "owner:local-services:TTSService",
         "kind": "owner",
         "label": "TTSService",
@@ -21636,6 +21731,7 @@
       {
         "cluster": "interplay-cluster-389b719244e7",
         "component": "local-services",
+        "history_key": "resource:local-services:TTSService:speech_synth:AVSpeechSynthesizer",
         "id": "resource:resource-8717c13bad08",
         "kind": "resource",
         "label": "AVSpeechSynthesizer",
@@ -21648,6 +21744,7 @@
       {
         "cluster": "interplay-cluster-ed19df567024",
         "component": "local-services",
+        "history_key": "store:local-services:VideoCache",
         "id": "store:local-services:VideoCache",
         "kind": "store",
         "label": "VideoCache",
@@ -21676,6 +21773,7 @@
       {
         "cluster": "interplay-cluster-38515aafcabe",
         "component": "local-services",
+        "history_key": "store:local-services:WikiGraphCache",
         "id": "store:local-services:WikiGraphCache",
         "kind": "store",
         "label": "WikiGraphCache",
@@ -21705,6 +21803,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:ActivityInboxViewModel",
         "id": "caller:operations-state:ActivityInboxViewModel",
         "kind": "caller",
         "label": "ActivityInboxViewModel",
@@ -21738,6 +21837,7 @@
       {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
+        "history_key": "subscriber:ActivityInboxViewModel",
         "id": "subscriber:ActivityInboxViewModel",
         "kind": "subscriber",
         "label": "ActivityInboxViewModel",
@@ -21761,6 +21861,7 @@
       {
         "cluster": "interplay-cluster-8f7f061bfcff",
         "component": "chat-state",
+        "history_key": "caller:chat-state:ChatViewModel",
         "id": "caller:chat-state:ChatViewModel",
         "kind": "caller",
         "label": "ChatViewModel",
@@ -21840,6 +21941,7 @@
       {
         "cluster": "interplay-cluster-01c7fd30284b",
         "component": "chat-state",
+        "history_key": "hub:ChatViewModel",
         "id": "hub:ChatViewModel",
         "kind": "hub",
         "label": "ChatViewModel",
@@ -21864,6 +21966,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:CodeGraphSource",
         "id": "caller:operations-state:CodeGraphSource",
         "kind": "caller",
         "label": "CodeGraphSource",
@@ -21892,6 +21995,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:CronGraphViewModel",
         "id": "caller:operations-state:CronGraphViewModel",
         "kind": "caller",
         "label": "CronGraphViewModel",
@@ -21919,6 +22023,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:CronListViewModel",
         "id": "caller:operations-state:CronListViewModel",
         "kind": "caller",
         "label": "CronListViewModel",
@@ -21967,6 +22072,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:FeedViewModel",
         "id": "caller:operations-state:FeedViewModel",
         "kind": "caller",
         "label": "FeedViewModel",
@@ -21997,6 +22103,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:FilesBrowserViewModel",
         "id": "caller:operations-state:FilesBrowserViewModel",
         "kind": "caller",
         "label": "FilesBrowserViewModel",
@@ -22027,6 +22134,7 @@
       {
         "cluster": "interplay-cluster-8ba1fb23fa75",
         "component": "chat-state",
+        "history_key": "store:chat-state:GatewayCapabilitiesStore",
         "id": "store:chat-state:GatewayCapabilitiesStore",
         "kind": "store",
         "label": "GatewayCapabilitiesStore",
@@ -22053,6 +22161,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:GatewayRestartController",
         "id": "caller:operations-state:GatewayRestartController",
         "kind": "caller",
         "label": "GatewayRestartController",
@@ -22077,6 +22186,7 @@
       {
         "cluster": "interplay-cluster-8f7f061bfcff",
         "component": "chat-state",
+        "history_key": "caller:chat-state:PersonaManager",
         "id": "caller:chat-state:PersonaManager",
         "kind": "caller",
         "label": "PersonaManager",
@@ -22101,6 +22211,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:SessionListViewModel",
         "id": "caller:operations-state:SessionListViewModel",
         "kind": "caller",
         "label": "SessionListViewModel",
@@ -22137,6 +22248,7 @@
       {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
+        "history_key": "subscriber:SessionListViewModel",
         "id": "subscriber:SessionListViewModel",
         "kind": "subscriber",
         "label": "SessionListViewModel",
@@ -22160,6 +22272,7 @@
       {
         "cluster": "interplay-cluster-6fd58b8bb108",
         "component": "operations-state",
+        "history_key": "caller:operations-state:SkillsViewModel",
         "id": "caller:operations-state:SkillsViewModel",
         "kind": "caller",
         "label": "SkillsViewModel",
@@ -22204,6 +22317,7 @@
       {
         "cluster": "interplay-cluster-00216ece3da1",
         "component": null,
+        "history_key": "subscriber:SpawnTreeStore",
         "id": "subscriber:SpawnTreeStore",
         "kind": "subscriber",
         "label": "SpawnTreeStore",
@@ -22238,6 +22352,7 @@
       {
         "cluster": "interplay-cluster-60874459817e",
         "component": "wiki-state",
+        "history_key": "caller:wiki-state:WikiGraphViewModel",
         "id": "caller:wiki-state:WikiGraphViewModel",
         "kind": "caller",
         "label": "WikiGraphViewModel",
@@ -22271,6 +22386,7 @@
       {
         "cluster": "interplay-cluster-60874459817e",
         "component": "wiki-state",
+        "history_key": "caller:wiki-state:WikiTimelineViewModel",
         "id": "caller:wiki-state:WikiTimelineViewModel",
         "kind": "caller",
         "label": "WikiTimelineViewModel",
@@ -22301,6 +22417,7 @@
       {
         "cluster": "interplay-cluster-6543060b403f",
         "component": "operations-ui",
+        "history_key": "caller:operations-ui:CodeGraphSurfaceView",
         "id": "caller:operations-ui:CodeGraphSurfaceView",
         "kind": "caller",
         "label": "CodeGraphSurfaceView",
@@ -22321,6 +22438,7 @@
       {
         "cluster": "interplay-cluster-06e6ce739661",
         "component": "chat-ui",
+        "history_key": "store:chat-ui:LongResponseDocumentCache",
         "id": "store:chat-ui:LongResponseDocumentCache",
         "kind": "store",
         "label": "LongResponseDocumentCache",
@@ -22347,6 +22465,7 @@
       {
         "cluster": "interplay-cluster-db243c14bf85",
         "component": "chat-ui",
+        "history_key": "store:chat-ui:MarkdownParseCache",
         "id": "store:chat-ui:MarkdownParseCache",
         "kind": "store",
         "label": "MarkdownParseCache",
@@ -22373,6 +22492,7 @@
       {
         "cluster": "interplay-cluster-6543060b403f",
         "component": "operations-ui",
+        "history_key": "caller:operations-ui:SessionUsageBadge",
         "id": "caller:operations-ui:SessionUsageBadge",
         "kind": "caller",
         "label": "SessionUsageBadge",
@@ -22397,6 +22517,7 @@
       {
         "cluster": "interplay-cluster-6ef5cf6ba37d",
         "component": "app-shell",
+        "history_key": "caller:app-shell:SystemPromptSection",
         "id": "caller:app-shell:SystemPromptSection",
         "kind": "caller",
         "label": "SystemPromptSection",

@@ -126,6 +126,13 @@ architecture-check:
 	python3 -m unittest scripts/test_architecture.py
 	node --check architecture/site/app.js
 
+# The System map at every commit that touched the app source: today's extractor
+# re-run over first-parent history into architecture/site/history.js, which the
+# site loads as an opt-in slider. Not committed (it depends on git history, not
+# the working tree); extends an existing artifact when the extractor is unchanged.
+architecture-history:
+	python3 scripts/build_architecture_history.py
+
 # Local preview at http://127.0.0.1:4173/. The production copy is deployed by
 # .github/workflows/architecture-pages.yml after merge to main.
 architecture-serve: architecture
