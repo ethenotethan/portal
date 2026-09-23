@@ -155,6 +155,7 @@
     engine: "#70b98d",
     subscriber: "#d16f86",
     caller: "#7ec8b0",
+    provider: "#d0b36b",
     client: "#8fb3d9",
     section: "#d3a83a",
     store: "#c9a3d9",
@@ -167,6 +168,7 @@
     seam: "Backend seam",
     transport: "Connection-pool transport",
     caller: "Calling surface",
+    provider: "Config provider (constructed at launch)",
     endpoint: "Queried endpoints",
     engine: "On-device engine",
     subscriber: "Event subscribers",
@@ -177,7 +179,7 @@
     external: "External system",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
   // Zones inside the application hull are the app's navigation pages, declared
   // in architecture/config.json with their root views; the compiler tags each
   // type-labelled node with the page whose view tree reaches it.
@@ -198,7 +200,8 @@
     endpoints_dispatched_by_transport: "Every namespace box is dispatched by a transport core.",
     pages_populated: "Every declared navigation page owns at least one construct.",
     stores_mapped: "Every store the extractor recognises appears on the map, so the Data stores view and the System map cannot disagree.",
-    triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted."
+    triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
+    launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core."
   };
 
   const INTERPLAY_SHARED_GROUP = "Shared core";
@@ -212,7 +215,7 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const EXTERNAL_CATEGORY_LABELS = {
@@ -272,6 +275,7 @@
     if (node.kind === "endpoint") return "endpoint";
     if (node.kind === "subscriber") return "subscriber";
     if (node.kind === "caller") return "caller";
+    if (node.kind === "provider") return "provider";
     if (node.kind === "external") return "external";
     if (node.kind === "transport") return "transport";
     if (node.kind === "client") return "client";
@@ -328,6 +332,7 @@
     if (isTransportContainer(node) || isBusSpine(node)) return { width: 236, height: 48 };
     if (node.kind === "section") return { width: Math.max(150, Math.min(220, (node.label || "").length * 7.6 + 60)), height: 48 };
     if (node.kind === "endpoint") return { width: 150, height: 46 };
+    if (node.kind === "provider") return { width: 206, height: 48 }; // room for the init/configures meta line
     const label = node.label || "";
     return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
   }
@@ -405,7 +410,7 @@
     // owner hides its resources from the canvas but still holds them.
     const holdsResources = new Set(interplay.nodes.filter((n) => n.kind === "resource" && n.owner_type && n.sub_kind !== "event_bus").map((n) => `${n.component}|${n.owner_type}`));
     nodes.forEach((node) => {
-      if (!["hub", "subscriber", "owner", "seam", "store"].includes(node.kind)) return;
+      if (!["hub", "subscriber", "owner", "seam", "store", "provider"].includes(node.kind)) return;
       const inMemoryStore = Boolean(node.store) && ((node.store.persistence || ["unobserved"])[0] === "unobserved");
       if (node.kind === "owner") {
         // An owner holding stored resources (transport, pool owner, on-device engine)
@@ -908,6 +913,7 @@
       else if (node.kind === "client") rect.setAttribute("class", "client");
       else if (node.kind === "section") rect.setAttribute("class", "section");
       else if (node.kind === "store") rect.setAttribute("class", "store");
+      else if (node.kind === "provider") rect.setAttribute("class", "provider");
       else if (isBusSpine(node)) rect.setAttribute("class", "bus");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
@@ -1197,6 +1203,7 @@
     if (node.kind === "caller") return (componentLabel(node.component) || "CALLER").toUpperCase();
     if (node.kind === "external") return String(node.sub_kind || "system").replace(/-/g, " ").toUpperCase();
     if (node.kind === "client") return "CLIENT FILE";
+    if (node.kind === "provider") return "PROVIDER · LAUNCH";
     if (node.kind === "section") return "CRITICAL SECTION";
     if (node.kind === "transport") return "IN-MEMORY · TRANSPORT";
     if (isTransportCore(node)) return "REQUEST LEG · TRANSPORT CORE";
@@ -1213,7 +1220,7 @@
   // Triggers: page → surface. Aggregated per pair, labelled with counts; the
   // individual actions live on the surface's inspector.
   function surfaceNodeFor(label) {
-    const order = ["caller", "subscriber", "hub", "store", "owner"];
+    const order = ["caller", "subscriber", "hub", "store", "owner", "provider"];
     const candidates = interplay.nodes.filter((node) => node.label === label && order.includes(node.kind));
     candidates.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     return candidates[0] || null;
@@ -1221,7 +1228,8 @@
   function triggerSummary(list) {
     const ua = list.filter((t) => t.kind === "user_action").length;
     const lc = list.filter((t) => t.kind === "lifecycle").length;
-    return [ua && `${ua} user action${ua === 1 ? "" : "s"}`, lc && `${lc} lifecycle hook${lc === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "no observed trigger";
+    const la = list.filter((t) => t.kind === "launch").length;
+    return [ua && `${ua} user action${ua === 1 ? "" : "s"}`, lc && `${lc} lifecycle hook${lc === 1 ? "" : "s"}`, la && `constructed at launch by ${la} entry point${la === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "no observed trigger";
   }
   function drawTriggerEdges(edgeGroup, groupBoxes) {
     const boxByLabel = new Map(groupBoxes.map((box) => [box.label, box]));
@@ -1279,7 +1287,8 @@
         "data-source": `page:${entry.page}`, "data-target": entry.targetId, "data-relation": "triggers",
         "data-hkey": hkey, "data-hist": entry.hist ? "true" : "false"
       });
-      label.textContent = entry.hist ? "triggered · earlier commit" : `triggers · ${triggerSummary(entry.list)}`;
+      const allLaunch = entry.list.length && entry.list.every((t) => t.kind === "launch");
+      label.textContent = entry.hist ? "triggered · earlier commit" : allLaunch ? `constructs · ${entry.list.length} entry point${entry.list.length === 1 ? "" : "s"}` : `triggers · ${triggerSummary(entry.list)}`;
       const labels = edgeGroup.parentNode ? edgeGroup.parentNode.querySelector(".edge-labels") : null;
       (labels || edgeGroup).append(label);
     });
@@ -1327,6 +1336,10 @@
     if (node.kind === "client") {
       const count = (node.namespaces || []).length;
       return `${count} namespace${count === 1 ? "" : "s"}`;
+    }
+    if (node.kind === "provider") {
+      const loads = (node.loads || []).length;
+      return `init reads ${loads} store${loads === 1 ? "" : "s"}${(node.configures || []).length ? " · configures core" : ""}`;
     }
     if (node.kind === "section") {
       const guarded = (node.steps || []).filter((step) => step.guarded).length;
@@ -1762,7 +1775,7 @@
     }
 
     const mine = triggersFor(node);
-    if (mine.length && ["caller", "subscriber", "hub", "owner", "store"].includes(node.kind)) {
+    if (mine.length && ["caller", "subscriber", "hub", "owner", "store", "provider"].includes(node.kind)) {
       const section = element("section", "inspector-section");
       section.append(element("h4", "", `Triggers (${mine.length}) · ${triggerSummary(mine)}`));
       const list = element("ul", "evidence-list");
@@ -1771,6 +1784,21 @@
         const link = sourceLink({ path: trigger.path, line: trigger.line });
         const reaches = trigger.namespaces.length ? `  →  ${trigger.namespaces.join(", ")}` : "";
         link.textContent = `${trigger.api} in ${trigger.view || "?"}  ·  ${trigger.method}()${reaches}  ·  ${PAGE_LABEL.get(trigger.page) || "unplaced"}:${trigger.line}`;
+        li.append(link);
+        list.append(li);
+      });
+      section.append(list);
+      container.append(section);
+    }
+
+    if ((node.configures || []).length) {
+      const section = element("section", "inspector-section");
+      section.append(element("h4", "", "Configures the transport"));
+      const list = element("ul", "evidence-list");
+      node.configures.slice(0, 12).forEach((entry) => {
+        const li = document.createElement("li");
+        const link = sourceLink({ path: entry.path, line: entry.line });
+        link.textContent = `${entry.via || "?"}.${entry.method}(…: ${node.label})  ·  ${entry.path}:${entry.line}`;
         li.append(link);
         list.append(li);
       });
@@ -1942,6 +1970,9 @@
     if (node.kind === "caller") {
       return [[(node.namespaces || []).length, "Namespaces"], [componentLabel(node.component), "Surface"]];
     }
+    if (node.kind === "provider") {
+      return [[(node.loads || []).length, "Loads in init"], [(node.configures || []).length, "Configures"], [componentLabel(node.component), "Owner"]];
+    }
     if (node.kind === "client") {
       const endpoints = interplay.edges.filter((edge) => edge.source === node.id && edge.relation === "implements").length;
       return [[(node.namespaces || []).length, "Namespaces"], [endpoints, "Endpoints"], [node.owner_type, "Extends"]];
@@ -1976,6 +2007,10 @@
     }
     if (node.kind === "client") {
       return `The ${node.label}.swift extension of ${node.owner_type}: the file that implements the ${(node.namespaces || []).join(", ")} namespace call sites. Namespace boxes reach the core transport through it.`;
+    }
+    if (node.kind === "provider") {
+      const via = (node.configures || [])[0];
+      return `Constructed by the App entry points at launch, before any page exists. Its initialiser reads ${(node.loads || []).join(", ") || "no store"}${via ? `, and it is handed to ${via.via}.${via.method}() to configure what the transport connects with` : ""}. It is not a page surface: it holds no transport and invokes no namespace.`;
     }
     if (node.kind === "seam") return "The protocol both network transports conform to—the seam a hub binds to reach either backend.";
     if (node.kind === "hub") return `A construction that wires a network transport and an on-device engine together, owned by ${componentLabel(node.component)}.`;

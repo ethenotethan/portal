@@ -14303,6 +14303,7 @@
       "swift.lifecycle.continuation_publish": "yield() invoked on a named stored continuation",
       "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
       "swift.lifecycle.hop": "Combine receive(on:) scheduler boundary in a subject pipeline",
+      "swift.lifecycle.init_loads": "A recognised store type referenced inside a type's init body: the store is read while the object is constructed",
       "swift.lifecycle.invalidate": "invalidate() invoked on a named stored timer",
       "swift.lifecycle.model_infer": "A ChatSession built over an on-device model container to run inference",
       "swift.lifecycle.model_load": "loadContainer(...) invoked on an MLX model factory to load an on-device model",
@@ -14331,7 +14332,9 @@
       "swift.task.detached": "Task.detached closure",
       "swift.task.stored_handle": "Stored property whose declared type is Task",
       "swift.task.structured": "Task initializer with closure",
-      "swift.trigger.surface_call": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface"
+      "swift.trigger.launch_construction": "A @StateObject property of an App entry-point struct initialised with a type on the map: the object is constructed at launch, before any page exists",
+      "swift.trigger.surface_call": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
+      "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with"
     }
   },
   "externals": {
@@ -18975,6 +18978,18 @@
         "target": "resource:resource-8717c13bad08"
       },
       {
+        "class": "usage",
+        "relation": "configures",
+        "source": "provider:operations-state:SettingsViewModel",
+        "target": "owner:hermes-services:GatewayClient"
+      },
+      {
+        "class": "lifecycle",
+        "relation": "loads",
+        "source": "provider:operations-state:SettingsViewModel",
+        "target": "store:local-services:KeychainStore"
+      },
+      {
         "class": "structure",
         "relation": "declares",
         "source": "seam:AgentBackend",
@@ -19203,6 +19218,12 @@
         "target": "store:local-services:ChatHistoryStore"
       },
       {
+        "class": "lifecycle",
+        "relation": "loads",
+        "source": "subscriber:SpawnTreeStore",
+        "target": "store:domain-models:DelegationBatchHistoryStore"
+      },
+      {
         "class": "usage",
         "relation": "uses",
         "source": "subscriber:SpawnTreeStore",
@@ -19260,20 +19281,191 @@
         "why": "Every store the extractor recognises is a construction on the map, so the Data stores view and the System map can never disagree about what holds state."
       },
       {
-        "checked": 230,
+        "checked": 242,
         "id": "triggers-observed",
         "kind": "triggers_observed",
         "status": "holds",
         "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
       },
       {
-        "checked": 11,
+        "checked": 12,
+        "id": "launch-zoned",
+        "kind": "launch_zoned",
+        "status": "holds",
+        "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
+      },
+      {
+        "checked": 12,
         "id": "pages-populated",
         "kind": "pages_populated",
         "status": "holds",
         "why": "Every declared page owns at least one construct. An empty page means its roots or ownership declarations have drifted from the source."
       }
     ],
+    "launch": {
+      "constructions": [
+        {
+          "app": "PortalAppIOS",
+          "line": 7,
+          "loads": [
+            "KeychainStore"
+          ],
+          "node": "provider:operations-state:SettingsViewModel",
+          "path": "App/IOSApp.swift",
+          "property": "settings",
+          "type": "SettingsViewModel"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 8,
+          "loads": [],
+          "node": "caller:operations-state:SessionListViewModel",
+          "path": "App/IOSApp.swift",
+          "property": "sessionList",
+          "type": "SessionListViewModel"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 9,
+          "loads": [],
+          "node": "caller:chat-state:PersonaManager",
+          "path": "App/IOSApp.swift",
+          "property": "personaManager",
+          "type": "PersonaManager"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 10,
+          "loads": [
+            "DelegationBatchHistoryStore"
+          ],
+          "node": "subscriber:SpawnTreeStore",
+          "path": "App/IOSApp.swift",
+          "property": "spawnTreeStore",
+          "type": "SpawnTreeStore"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 12,
+          "loads": [],
+          "node": "store:chat-state:GatewayCapabilitiesStore",
+          "path": "App/IOSApp.swift",
+          "property": "capabilitiesStore",
+          "type": "GatewayCapabilitiesStore"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 14,
+          "loads": [],
+          "node": "owner:local-services:TTSService",
+          "path": "App/IOSApp.swift",
+          "property": "ttsService",
+          "type": "TTSService"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 7,
+          "loads": [
+            "KeychainStore"
+          ],
+          "node": "provider:operations-state:SettingsViewModel",
+          "path": "App/MacApp.swift",
+          "property": "settings",
+          "type": "SettingsViewModel"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 8,
+          "loads": [],
+          "node": "caller:operations-state:SessionListViewModel",
+          "path": "App/MacApp.swift",
+          "property": "sessionList",
+          "type": "SessionListViewModel"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 9,
+          "loads": [],
+          "node": "caller:chat-state:PersonaManager",
+          "path": "App/MacApp.swift",
+          "property": "personaManager",
+          "type": "PersonaManager"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 10,
+          "loads": [
+            "DelegationBatchHistoryStore"
+          ],
+          "node": "subscriber:SpawnTreeStore",
+          "path": "App/MacApp.swift",
+          "property": "spawnTreeStore",
+          "type": "SpawnTreeStore"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 12,
+          "loads": [],
+          "node": "store:chat-state:GatewayCapabilitiesStore",
+          "path": "App/MacApp.swift",
+          "property": "capabilitiesStore",
+          "type": "GatewayCapabilitiesStore"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 14,
+          "loads": [],
+          "node": "owner:local-services:TTSService",
+          "path": "App/MacApp.swift",
+          "property": "ttsService",
+          "type": "TTSService"
+        }
+      ],
+      "unmapped": [
+        {
+          "app": "PortalAppIOS",
+          "line": 11,
+          "path": "App/IOSApp.swift",
+          "property": "gatewayClientWrapper",
+          "type": "GatewayClientWrapper"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 13,
+          "path": "App/IOSApp.swift",
+          "property": "celebrationManager",
+          "type": "CelebrationManager"
+        },
+        {
+          "app": "PortalAppIOS",
+          "line": 15,
+          "path": "App/IOSApp.swift",
+          "property": "xAuth",
+          "type": "XAuthService"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 11,
+          "path": "App/MacApp.swift",
+          "property": "gatewayClientWrapper",
+          "type": "GatewayClientWrapper"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 13,
+          "path": "App/MacApp.swift",
+          "property": "celebrationManager",
+          "type": "CelebrationManager"
+        },
+        {
+          "app": "PortalAppMac",
+          "line": 15,
+          "path": "App/MacApp.swift",
+          "property": "xAuth",
+          "type": "XAuthService"
+        }
+      ]
+    },
     "nodes": [
       {
         "cluster": "interplay-cluster-3f357e4b3664",
@@ -21175,8 +21367,8 @@
         "label": "KeychainStore",
         "line": 10,
         "owner_type": null,
-        "page": "shared",
-        "page_resolution": "shared",
+        "page": "launch",
+        "page_resolution": "launch",
         "path": "Sources/Portal/Services/KeychainStore.swift",
         "store": {
           "artifacts": [],
@@ -21724,6 +21916,7 @@
           "engine"
         ],
         "triggers": {
+          "launch": 2,
           "lifecycle": 0,
           "user_action": 0
         }
@@ -22154,6 +22347,7 @@
         },
         "sub_kind": "class",
         "triggers": {
+          "launch": 2,
           "lifecycle": 5,
           "user_action": 0
         }
@@ -22204,6 +22398,7 @@
         "path": "Sources/Portal/ViewModels/PersonaManager.swift",
         "sub_kind": "page",
         "triggers": {
+          "launch": 2,
           "lifecycle": 1,
           "user_action": 0
         }
@@ -22241,6 +22436,7 @@
         "path": "Sources/Portal/ViewModels/SessionListViewModel.swift",
         "sub_kind": "page",
         "triggers": {
+          "launch": 2,
           "lifecycle": 17,
           "user_action": 19
         }
@@ -22265,8 +22461,79 @@
           "scheduler": "RunLoop.main"
         },
         "triggers": {
+          "launch": 2,
           "lifecycle": 17,
           "user_action": 19
+        }
+      },
+      {
+        "component": "operations-state",
+        "configures": [
+          {
+            "line": 98,
+            "method": "connectIfNeeded",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 224,
+            "method": "connectWithRetry",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 249,
+            "method": "connectedClient",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 259,
+            "method": "connect",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 98,
+            "method": "connectIfNeeded",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 224,
+            "method": "connectWithRetry",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 249,
+            "method": "connectedClient",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          },
+          {
+            "line": 259,
+            "method": "connect",
+            "path": "Sources/Portal/Services/GatewayClientWrapper.swift",
+            "via": "GatewayClientWrapper"
+          }
+        ],
+        "history_key": "provider:operations-state:SettingsViewModel",
+        "id": "provider:operations-state:SettingsViewModel",
+        "kind": "provider",
+        "label": "SettingsViewModel",
+        "line": 9,
+        "loads": [
+          "KeychainStore"
+        ],
+        "owner_type": null,
+        "page": "launch",
+        "page_resolution": "launch",
+        "path": "Sources/Portal/ViewModels/SettingsViewModel.swift",
+        "triggers": {
+          "launch": 2,
+          "lifecycle": 0,
+          "user_action": 0
         }
       },
       {
@@ -22322,6 +22589,9 @@
         "kind": "subscriber",
         "label": "SpawnTreeStore",
         "line": 7,
+        "loads": [
+          "DelegationBatchHistoryStore"
+        ],
         "owner_type": "Event subscribers",
         "page": "chat",
         "page_resolution": "component",
@@ -22345,6 +22615,7 @@
           "scheduler": "DispatchQueue.main"
         },
         "triggers": {
+          "launch": 2,
           "lifecycle": 2,
           "user_action": 7
         }
@@ -22548,6 +22819,17 @@
     ],
     "pages": [
       {
+        "components": [],
+        "id": "launch",
+        "label": "App launch",
+        "namespaces": [],
+        "roots": [
+          "PortalAppIOS",
+          "PortalAppMac"
+        ],
+        "type_count": 2
+      },
+      {
         "components": [
           "chat-state",
           "chat-ui",
@@ -22709,6 +22991,186 @@
       }
     ],
     "triggers": [
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-234d5f472e13",
+        "kind": "launch",
+        "line": 7,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SettingsViewModel",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-d878b827d86a",
+        "kind": "launch",
+        "line": 8,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SessionListViewModel",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-1f4627f82e7b",
+        "kind": "launch",
+        "line": 9,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "PersonaManager",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-d50b34a29844",
+        "kind": "launch",
+        "line": 10,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SpawnTreeStore",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-f3d7fa425e81",
+        "kind": "launch",
+        "line": 12,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "GatewayCapabilitiesStore",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-426d1b7d8a17",
+        "kind": "launch",
+        "line": 14,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/IOSApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "TTSService",
+        "view": "PortalAppIOS"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-972dbeae47ef",
+        "kind": "launch",
+        "line": 7,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SettingsViewModel",
+        "view": "PortalAppMac"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-628c2b4ea944",
+        "kind": "launch",
+        "line": 8,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SessionListViewModel",
+        "view": "PortalAppMac"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-4e156514f47e",
+        "kind": "launch",
+        "line": 9,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "PersonaManager",
+        "view": "PortalAppMac"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-11919ddc6419",
+        "kind": "launch",
+        "line": 10,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "SpawnTreeStore",
+        "view": "PortalAppMac"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-a1dcd100972b",
+        "kind": "launch",
+        "line": 12,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "GatewayCapabilitiesStore",
+        "view": "PortalAppMac"
+      },
+      {
+        "api": "StateObject",
+        "authority": "observed",
+        "evidence_class": "static_source",
+        "id": "trigger-2edd0725ad58",
+        "kind": "launch",
+        "line": 14,
+        "method": "init",
+        "namespaces": [],
+        "page": "launch",
+        "path": "App/MacApp.swift",
+        "rule_id": "swift.trigger.launch_construction",
+        "surface": "TTSService",
+        "view": "PortalAppMac"
+      },
       {
         "api": "Button",
         "authority": "observed",
@@ -26374,7 +26836,7 @@
   ],
   "repository": "ethenotethan/portal",
   "schema_version": "1.0.0",
-  "source_tree_sha256": "06c086c19c502323e75d9155287ee212e674e98d07d45fd94c495f1193bd317b",
+  "source_tree_sha256": "05eb7d7e5a0d629538d74ad2c07bc97997e596c9ffaf1c743d498a1558b86a5a",
   "stores": {
     "by_persistence": {
       "defaults": 6,

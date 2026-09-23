@@ -461,7 +461,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_interplay_tags_nodes_with_the_navigation_page_that_reaches_them(self) -> None:
         interplay = self.model["interplay"]
         config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
-        self.assertEqual([p["id"] for p in config["pages"]["items"]], [p["id"] for p in interplay["pages"]])
+        # The launch zone is drawn first; the navigation pages follow in declared order.
+        self.assertEqual(["launch"] + [p["id"] for p in config["pages"]["items"]], [p["id"] for p in interplay["pages"]])
         page_by_label = {n["label"]: n.get("page") for n in interplay["nodes"] if n["kind"] in {"caller", "hub", "owner", "subscriber"}}
         self.assertEqual("chat", page_by_label["ChatViewModel"])
         self.assertEqual("graphs", page_by_label["CronGraphViewModel"])
@@ -666,9 +667,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertGreaterEqual(len(triggers), 20)
         self.assertGreater(interplay["unattributed_triggers"], 0)  # local-state-only actions are counted, not attributed
         for trigger in triggers:
-            self.assertIn(trigger["kind"], {"user_action", "lifecycle"})
+            self.assertIn(trigger["kind"], {"user_action", "lifecycle", "launch"})
             self.assertTrue((ROOT / trigger["path"]).is_file())
-            self.assertEqual("swift.trigger.surface_call", trigger["rule_id"])
+            self.assertEqual(
+                "swift.trigger.launch_construction" if trigger["kind"] == "launch" else "swift.trigger.surface_call",
+                trigger["rule_id"],
+            )
         refresh = [t for t in triggers if t["surface"] == "ActivityInboxViewModel" and t["method"] == "refresh"]
         self.assertTrue(refresh)
         self.assertEqual(["activity"], refresh[0]["namespaces"])
@@ -765,6 +769,59 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertNotIn("Select a node", app)
         self.assertIn('"data-pipe"', app)
         self.assertIn("drawn as containment", app)
+
+    # ---- Launch: what exists before any page -----------------------------------
+
+    def test_launch_zone_admits_the_settings_provider_and_rezones_the_keychain(self) -> None:
+        interplay = self.model["interplay"]
+        pages = interplay["pages"]
+        self.assertEqual("launch", pages[0]["id"], "the launch zone is drawn first")
+        self.assertEqual({"PortalAppIOS", "PortalAppMac"}, set(pages[0]["roots"]))
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        provider = by_id["provider:operations-state:SettingsViewModel"]
+        self.assertEqual("launch", provider["page"])
+        self.assertEqual(["KeychainStore"], provider["loads"])
+        self.assertTrue(any(entry["via"] == "GatewayClientWrapper" and entry["method"].startswith("connect") for entry in provider["configures"]))
+        keychain = by_id["store:local-services:KeychainStore"]
+        self.assertEqual("launch", keychain["page"])
+        self.assertEqual("launch", keychain["page_resolution"])
+        relations = {(e["source"], e["relation"], e["target"]) for e in interplay["edges"]}
+        self.assertIn((provider["id"], "loads", keychain["id"]), relations)
+        self.assertIn((provider["id"], "configures", "owner:hermes-services:GatewayClient"), relations)
+        # An object already on the map keeps its page and still records what its init loads.
+        self.assertIn(("subscriber:SpawnTreeStore", "loads", "store:domain-models:DelegationBatchHistoryStore"), relations)
+        self.assertNotEqual("launch", by_id["subscriber:SpawnTreeStore"]["page"])
+        # One launch trigger per (entry point, constructed object); both platforms are entry points.
+        launch = [t for t in interplay["triggers"] if t["kind"] == "launch"]
+        self.assertTrue(launch)
+        self.assertTrue(all(t["page"] == "launch" and t["api"] == "StateObject" and t["method"] == "init" for t in launch))
+        self.assertEqual({"PortalAppIOS", "PortalAppMac"}, {t["view"] for t in launch})
+        self.assertIn("SettingsViewModel", {t["surface"] for t in launch})
+        self.assertEqual(2, provider["triggers"]["launch"])
+        # Objects constructed at launch that are not constructions on the map are stated, not hidden.
+        self.assertIn("unmapped", interplay["launch"])
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "launch-zoned"))
+        # The extraction is bracket-aware: an App struct body yields exactly its @StateObject initialisers.
+        code = (
+            "struct DemoApp: App {\n    @StateObject private var settings = SettingsViewModel()\n"
+            "    @StateObject var tts = TTSService.shared\n    @StateObject var noInit: Foo\n    var body: some Scene { WindowGroup { ContentView() } }\n}\n"
+            "struct Other { @StateObject var x = Bar() }\n"
+        )
+        found = architecture.extract_launch_constructions([{"path": "App/Demo.swift", "_text": code}])
+        self.assertEqual([("DemoApp", "settings", "SettingsViewModel", 2), ("DemoApp", "tts", "TTSService", 3)],
+                         [(c["app"], c["property"], c["type"], c["line"]) for c in found])
+        bodies = architecture.init_bodies("final class S { init() { let k = KeychainStore.shared } func f() { Other() } }\nextension S { convenience init(x: Int) { self.init(); OtherStore.shared } }", "S")
+        self.assertEqual(2, len(bodies))
+        self.assertIn("KeychainStore", bodies[0])
+        self.assertIn("OtherStore", bodies[1])
+
+    def test_launch_zone_is_rendered_by_the_site(self) -> None:
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ('if (node.kind === "provider") return "provider";', 'launch_zoned:', "PROVIDER · LAUNCH",
+                       'rect.setAttribute("class", "provider")', '"Configures the transport"', "constructed at launch by"):
+            self.assertIn(needle, app)
+        self.assertIn(".interplay-node rect.provider", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
+        self.assertIn("App launch", (ROOT / "architecture/README.md").read_text(encoding="utf-8"))
 
     # ---- History: the same map at every commit ---------------------------------
 

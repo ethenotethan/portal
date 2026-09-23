@@ -347,5 +347,9 @@
       {"id": "files", "label": "Files", "roots": ["FilesBrowserView"], "namespaces": ["files"]},
       {"id": "artifacts", "label": "Artifacts", "roots": ["ArtifactCanvasView"], "namespaces": ["artifact"], "components": ["artifact-intents", "artifact-ui"]}
     ]
+  },
+  "launch": {
+    "label": "App launch",
+    "roots": ["App"]
   }
 }

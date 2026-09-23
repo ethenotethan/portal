@@ -65,6 +65,9 @@ BEHAVIOR_RULES = {
     "swift.lifecycle.pool_remove": "removeValue(forKey:) or removeAll() invoked on a CheckedContinuation pool",
     "swift.resource.bus_subscription": "A binding to the seam's event bus, recording its collect(.byTimeOrCount) batching window or receive(on:) scheduler when present",
     "swift.trigger.surface_call": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
+    "swift.trigger.launch_construction": "A @StateObject property of an App entry-point struct initialised with a type on the map: the object is constructed at launch, before any page exists",
+    "swift.lifecycle.init_loads": "A recognised store type referenced inside a type's init body: the store is read while the object is constructed",
+    "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -2417,7 +2420,7 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
 INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
-    "stores_mapped", "triggers_observed",
+    "stores_mapped", "triggers_observed", "launch_zoned",
 }
 
 
@@ -2563,6 +2566,28 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
             if checked < int(entry.get("min", 1)):
                 problems.append(f"only {checked} attributed trigger(s) observed, need ≥ {entry.get('min', 1)}")
 
+        elif kind == "launch_zoned":
+            launch_triggers = [t for t in interplay.get("triggers", []) if t.get("kind") == "launch"]
+            checked = len(launch_triggers)
+            if checked < int(entry.get("min", 1)):
+                problems.append(f"only {checked} launch construction(s) observed in the App entry points, need ≥ {entry.get('min', 1)}")
+            if not any(p["id"] == LAUNCH_PAGE_ID for p in interplay.get("pages", [])):
+                problems.append("no App launch zone on the map")
+            launch_ids = {n["id"] for n in nodes if n.get("page") == LAUNCH_PAGE_ID}
+            used = {e["target"] for e in edges if e["relation"] == "uses"}
+            for e in edges:
+                if e["relation"] == "loads" and e["source"] in launch_ids and e["target"] not in used:
+                    target = by_id[e["target"]]
+                    if target["kind"] == "store" and target.get("page") != LAUNCH_PAGE_ID:
+                        problems.append(f"{target['label']} is read only at launch but sits in {target.get('page')}")
+            for n in nodes:
+                if n["kind"] == "provider" and not any(e["source"] == n["id"] and e["relation"] == "loads" for e in edges):
+                    problems.append(f"provider {n['label']} loads nothing; it should not be on the map")
+            for entry_name in entry.get("configures", []):
+                provider = next((n for n in nodes if n["label"] == entry_name and n.get("page") == LAUNCH_PAGE_ID), None)
+                if provider is None or not any(e["source"] == provider["id"] and e["relation"] == "configures" for e in edges):
+                    problems.append(f"{entry_name} does not configure the transport core")
+
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
             owned: dict[str, int] = defaultdict(int)
@@ -2609,6 +2634,15 @@ TRIGGER_PATTERNS = [
 TRIGGER_CALL_RE = re.compile(r"\b([a-z_][A-Za-z0-9_]*)\s*[?!]?\s*\.\s*([a-z_][A-Za-z0-9_]*)\s*\(")
 # A bare call to a same-file function from inside an action body: `refresh()`, `await confirmDelete()`.
 TRIGGER_HELPER_CALL_RE = re.compile(r"(?<![.\w])([a-z_][A-Za-z0-9_]*)\s*\(")
+
+# Launch: the App entry points (`struct PortalAppMac: App`) own the objects that
+# exist before any page does, as @StateObject properties initialised in place.
+APP_STRUCT_RE = re.compile(r"\bstruct\s+([A-Z][A-Za-z0-9_]*)\s*:\s*[^{\n]*\bApp\b[^{\n]*\{")
+LAUNCH_PROPERTY_RE = re.compile(
+    r"@StateObject\s+(?:(?:private|internal|fileprivate)\s+)?var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*"
+    r"(?::\s*[A-Z][A-Za-z0-9_]*)?\s*=\s*(?P<type>[A-Z][A-Za-z0-9_]*)\s*(?:\(|\.shared\b)"
+)
+INIT_HEADER_RE = re.compile(r"\binit\s*\(")
 
 BUS_BATCH_RE = re.compile(
     r"\.\s*collect\s*\(\s*\.byTimeOrCount\s*\(\s*([A-Za-z_.]+)\s*,\s*\.milliseconds\s*\(\s*(\d+)\s*\)\s*,\s*(\d+)\s*\)"
@@ -2699,6 +2733,212 @@ def validate_interplay(interplay: dict[str, Any], overlay: dict[str, Any]) -> No
     for key, node in gated_nodes.items():
         if key in entries:
             node["overlay_prose"] = entries[key]["prose"]
+
+
+# ---------------------------------------------------------------------------
+# Launch: what exists before any page.
+#
+# The pages are zones because the app is navigated; the shared core is what more
+# than one page reaches. Neither describes the objects the App entry points
+# construct at launch, before ContentView appears: the settings object that reads
+# the keychain in its initialiser and later supplies the gateway's URL and key,
+# the client wrapper, the stores that are loaded on construction. Those get one
+# more zone, "App launch", fed by the same mechanics as the pages: a launch
+# trigger per @StateObject construction (the first hop, like a Button), a
+# `loads` edge per store read in an initialiser, and a `configures` edge from a
+# launch-constructed type to the transport core it is handed to.
+# ---------------------------------------------------------------------------
+LAUNCH_PAGE_ID = "launch"
+
+
+def validate_launch(config: dict[str, Any]) -> dict[str, Any] | None:
+    launch = config.get("launch")
+    if launch is None:
+        return None
+    if not isinstance(launch, dict) or not isinstance(launch.get("label"), str) or not launch["label"]:
+        raise ArchitectureError("config launch must be an object with a label")
+    roots = launch.get("roots")
+    if not isinstance(roots, list) or not roots or not all(isinstance(root, str) and root for root in roots):
+        raise ArchitectureError("config launch.roots must be a non-empty array of directories")
+    for root in roots:
+        if root.startswith("/") or ".." in Path(root).parts:
+            raise ArchitectureError(f"config launch root is not a repository-relative directory: {root!r}")
+    return launch
+
+
+def read_launch_sources(config: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+    """Swift files under the launch roots (the App entry points), outside the
+    component tree, hashed into the source tree so `--check` sees them drift."""
+    launch = validate_launch(config)
+    files: list[dict[str, Any]] = []
+    digest = hashlib.sha256()
+    if launch is None:
+        return files, digest.hexdigest()
+    for root in launch["roots"]:
+        directory = ROOT / root
+        if not directory.is_dir():
+            gate("launch_roots_missing", f"config launch root {root!r} is not a directory")
+            continue
+        for path in sorted(directory.rglob("*.swift")):
+            text = path.read_text(encoding="utf-8")
+            repo_path = relative(path)
+            digest.update(repo_path.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(text.encode("utf-8"))
+            digest.update(b"\0")
+            files.append({"path": repo_path, "source_path": path.relative_to(directory).as_posix(), "component": None,
+                          "declarations": sorted(set(DECLARATION_RE.findall(text))), "line_count": len(text.splitlines()),
+                          "identifiers": sorted(set(IDENTIFIER_RE.findall(text))), "_text": text})
+    return files, digest.hexdigest()
+
+
+def extract_launch_constructions(launch_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every @StateObject an App struct initialises in place: (app, property, type)."""
+    constructions: list[dict[str, Any]] = []
+    for source in sorted(launch_files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in APP_STRUCT_RE.finditer(code):
+            open_brace = code.index("{", match.start())
+            body_end = balanced_block_end(code, open_brace + 1)
+            body = code[open_brace + 1:body_end - 1]
+            for prop in LAUNCH_PROPERTY_RE.finditer(body):
+                line = code.count("\n", 0, open_brace + 1 + prop.start()) + 1
+                constructions.append({
+                    "app": match.group(1), "property": prop.group("name"), "type": prop.group("type"),
+                    "path": source["path"], "line": line,
+                })
+    constructions.sort(key=lambda item: (item["path"], item["line"]))
+    return constructions
+
+
+def init_bodies(code: str, type_name: str) -> list[str]:
+    """The bodies of every `init(` declared inside ``type_name``'s blocks (type and same-file extensions)."""
+    bodies: list[str] = []
+    for match in TYPE_BLOCK_RE.finditer(code):
+        if match.group(2) != type_name:
+            continue
+        open_brace = code.index("{", match.start())
+        end = balanced_block_end(code, open_brace + 1)
+        block = code[open_brace + 1:end - 1]
+        for header in INIT_HEADER_RE.finditer(block):
+            init_brace = header_open_brace(block, header.end() - 1)
+            if init_brace is None:
+                continue
+            bodies.append(block[init_brace + 1:balanced_block_end(block, init_brace + 1) - 1])
+    return bodies
+
+
+def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[dict[str, Any]],
+                               files: list[dict[str, Any]], config: dict[str, Any]) -> None:
+    """The App launch zone: launch triggers, init-time `loads` edges, admitted
+    providers, `configures` edges to the transport core, and the re-zoning of
+    stores that are only ever read at launch."""
+    launch = validate_launch(config)
+    if launch is None:
+        interplay["launch"] = {"constructions": [], "unmapped": []}
+        return
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    file_by_type: dict[str, dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        for name in source["declarations"]:
+            file_by_type.setdefault(name, source)
+    surface_kinds = {"caller", "subscriber", "hub", "owner", "store", "provider"}
+    node_by_label: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        if node["kind"] in surface_kinds:
+            node_by_label.setdefault(node["label"], node)
+    store_by_label = {node["label"]: node for node in nodes if node.get("store")}
+    core = next((node for node in nodes if node["kind"] == "owner" and "transport" in node.get("roles", [])), None)
+    existing = {(edge["source"], edge["target"], edge["relation"]) for edge in edges}
+
+    def add_edge(source: str, target: str, edge_class: str, relation: str) -> None:
+        if (source, target, relation) not in existing:
+            existing.add((source, target, relation))
+            edges.append({"source": source, "target": target, "class": edge_class, "relation": relation})
+
+    triggers: list[dict[str, Any]] = []
+    unmapped: list[dict[str, Any]] = []
+    summaries: list[dict[str, Any]] = []
+    for construction in constructions:
+        type_name = construction["type"]
+        source = file_by_type.get(type_name)
+        loaded: set[str] = set()
+        if source is not None:
+            code = masked_code(source)
+            for body in init_bodies(code, type_name):
+                for label in store_by_label:
+                    if label != type_name and re.search(rf"\b{re.escape(label)}\b", body):
+                        loaded.add(label)
+        node = node_by_label.get(type_name)
+        if node is None and loaded and source is not None:
+            decl_line = next((code.count("\n", 0, m.start()) + 1 for m in TYPE_BLOCK_RE.finditer(code) if m.group(2) == type_name), 0)
+            node = {
+                "id": f"provider:{source['component'] or 'unassigned'}:{type_name}", "kind": "provider", "label": type_name,
+                "component": source["component"], "owner_type": None, "path": source["path"], "line": decl_line,
+                "page": LAUNCH_PAGE_ID, "page_resolution": "launch", "loads": sorted(loaded), "configures": [],
+            }
+            nodes.append(node)
+            node_by_label[type_name] = node
+        if node is None:
+            unmapped.append(dict(construction))
+            continue
+        triggers.append({
+            "id": stable_behavior_id("trigger", construction["path"], construction["line"], f"StateObject:{type_name}.init"),
+            "kind": "launch", "api": "StateObject", "view": construction["app"], "surface": type_name, "method": "init",
+            "namespaces": [], "page": LAUNCH_PAGE_ID, "path": construction["path"], "line": construction["line"],
+            "authority": "observed", "evidence_class": "static_source", "rule_id": "swift.trigger.launch_construction",
+        })
+        for label in sorted(loaded):
+            add_edge(node["id"], store_by_label[label]["id"], "lifecycle", "loads")
+        if node["kind"] != "provider" and loaded:
+            node["loads"] = sorted(set(node.get("loads", [])) | loaded)
+        # configures: the type is handed to a method of a type that holds the core.
+        if core is not None:
+            holder_re = re.compile(rf"\bvar\s+[a-z_][A-Za-z0-9_]*\s*:\s*{re.escape(core['label'])}\b")
+            param_re = re.compile(rf"\bfunc\s+([a-z_][A-Za-z0-9_]*)\s*\([^)]*:\s*{re.escape(type_name)}\b")
+            for other in sorted(files, key=lambda item: item["path"]):
+                other_code = masked_code(other)
+                if not holder_re.search(other_code):
+                    continue
+                for match in param_re.finditer(other_code):
+                    holder_type, _ = enclosing_context(other_code, match.start())
+                    add_edge(node["id"], core["id"], "usage", "configures")
+                    node.setdefault("configures", []).append({
+                        "via": holder_type, "method": match.group(1), "path": other["path"],
+                        "line": other_code.count("\n", 0, match.start()) + 1,
+                    })
+        summaries.append({**construction, "node": node["id"], "loads": sorted(loaded)})
+    # Stores that are only ever read at launch belong to the launch zone.
+    launch_ids = {node["id"] for node in nodes if node.get("page") == LAUNCH_PAGE_ID}
+    used = {edge["target"] for edge in edges if edge["relation"] == "uses"}
+    for edge in edges:
+        if edge["relation"] != "loads" or edge["source"] not in launch_ids or edge["target"] in used:
+            continue
+        store = next(node for node in nodes if node["id"] == edge["target"])
+        if store["kind"] == "store":
+            store["page"] = LAUNCH_PAGE_ID
+            store["page_resolution"] = "launch"
+    if triggers:
+        page = {
+            "id": LAUNCH_PAGE_ID, "label": launch["label"], "roots": sorted({c["app"] for c in constructions}),
+            "namespaces": [], "components": [],
+            "type_count": sum(1 for node in nodes if node.get("page") == LAUNCH_PAGE_ID),
+        }
+        interplay["pages"] = [page] + [p for p in interplay.get("pages", []) if p["id"] != LAUNCH_PAGE_ID]
+        interplay["triggers"] = sorted(interplay.get("triggers", []) + triggers,
+                                       key=lambda item: (item["path"], item["line"], item["surface"], item["method"]))
+        launch_counts: dict[str, int] = defaultdict(int)
+        for trigger in triggers:
+            launch_counts[trigger["surface"]] += 1
+        for node in nodes:
+            if node["label"] in launch_counts and node["kind"] in surface_kinds:
+                counts = dict(node.get("triggers") or {"user_action": 0, "lifecycle": 0})
+                counts["launch"] = launch_counts[node["label"]]
+                node["triggers"] = counts
+    interplay["launch"] = {"constructions": summaries, "unmapped": unmapped}
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
 
 
 # ---------------------------------------------------------------------------
@@ -2812,6 +3052,9 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
     files, source_hash = read_sources(config)
+    launch_files, launch_hash = read_launch_sources(config)
+    if launch_files:
+        source_hash = hashlib.sha256(f"{source_hash}\0{launch_hash}".encode("utf-8")).hexdigest()
     component_ids = {str(item["id"]) for item in config["components"]}
     semantic = load_semantic(component_ids)
 
@@ -2866,6 +3109,7 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     attach_triggers_to_interplay(interplay, files)
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
+    attach_launch_to_interplay(interplay, extract_launch_constructions(launch_files), files, config)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     assign_history_keys(interplay)
     unassigned = [item["path"] for item in files if item["component"] is None]

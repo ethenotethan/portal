@@ -93,7 +93,7 @@ def list_commits(ref: str) -> list[Commit]:
     First-parent because main is squash-merged: one commit per change, and the
     points are the changes people made rather than the branches they made them on.
     """
-    paths = sorted({legacy for legacy, _current in SOURCE_ROOTS})
+    paths = sorted({legacy for legacy, _current in SOURCE_ROOTS} | set(launch_roots(ROOT)))
     out = git("log", "--reverse", "--first-parent", "--format=%H%x00%ad%x00%s", "--date=short", ref, "--", *paths)
     commits: list[Commit] = []
     for line in out.splitlines():
@@ -147,6 +147,17 @@ def prepare_skeleton(scratch: Path) -> None:
         shutil.copy2(ROOT / relative, target)
 
 
+def launch_roots(scratch: Path) -> list[str]:
+    """Directories the config names as App entry points, read from the copied config."""
+    try:
+        config = json.loads((scratch / "architecture/config.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    launch = config.get("launch") or {}
+    roots = launch.get("roots") if isinstance(launch, dict) else None
+    return [root for root in roots or [] if isinstance(root, str) and root and not root.startswith("/") and ".." not in root]
+
+
 def snapshot(commit: Commit, scratch: Path) -> dict[str, Any]:
     """Derive one point from ``commit`` into ``scratch``. Raises HistoryError when the
     commit has no source root or the compiler cannot process it."""
@@ -162,6 +173,15 @@ def snapshot(commit: Commit, scratch: Path) -> dict[str, Any]:
     if legacy != current:
         (scratch / current).parent.mkdir(parents=True, exist_ok=True)
         (scratch / legacy).rename(scratch / current)
+    # The launch roots (App entry points) live outside the source root; extract
+    # them too when the commit has them, so the launch zone has history as well.
+    for root in launch_roots(scratch):
+        shutil.rmtree(scratch / root, ignore_errors=True)
+        probe = subprocess.run(["git", "cat-file", "-e", f"{commit.rev}:{root}"], cwd=ROOT, capture_output=True, check=False)
+        if probe.returncode != 0:
+            continue
+        with tarfile.open(fileobj=io.BytesIO(git("archive", "--format=tar", commit.rev, "--", root, binary=True)), mode="r:") as tar:
+            tar.extractall(scratch, filter="data")
     run = subprocess.run(
         [sys.executable, str(scratch / "scripts/build_architecture.py"), "--snapshot"],
         cwd=scratch, capture_output=True, text=True, check=False,

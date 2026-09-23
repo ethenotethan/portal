@@ -55,6 +55,13 @@
       "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
     },
     {
+      "id": "launch-zoned",
+      "kind": "launch_zoned",
+      "min": 8,
+      "configures": ["SettingsViewModel"],
+      "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
+    },
+    {
       "id": "pages-populated",
       "kind": "pages_populated",
       "allow_empty": [],
