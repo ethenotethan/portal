@@ -165,7 +165,7 @@ internal struct WikiGraphView: View {
     /// handler), so opening the panel usually finds it loaded and paints
     /// instantly instead of re-fetching. Only cold cases (prefetch still in
     /// flight, or it failed) fall through to a load.
-    private var needsGraphLoad: Bool { isOverride || viewModel.graph.pages.isEmpty }
+    internal var needsGraphLoad: Bool { isOverride || viewModel.graph.pages.isEmpty }
 
     /// Whether the picker still needs `wiki.list`. Tracked separately from the
     /// graph because ContentView's connect-time prefetch warms the *graph*
@@ -173,7 +173,7 @@ internal struct WikiGraphView: View {
     /// ran wiki.list, so the picker offered "Default wiki" alone and every
     /// named space was unreachable (macOS hit this every time, since the Graphs
     /// door usually opens well after connect). Override sources have no list.
-    private var needsWikiDiscovery: Bool { !isOverride && viewModel.availableWikis.isEmpty }
+    internal var needsWikiDiscovery: Bool { !isOverride && viewModel.availableWikis.isEmpty }
 
     /// Discover wikis and load the selected graph — each only if it's still
     /// missing. Safe to call more than once: the view model drops stale

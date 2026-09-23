@@ -260,6 +260,18 @@ struct WikiGraphViewModelTests {
         #expect(vm.selectedNodeIndex == nil)
     }
 
+    @Test("A warmed home graph still discovers named wikis")
+    internal func warmedGraphStillNeedsWikiDiscovery() {
+        let vm = makeVM()
+        let view = WikiGraphView(viewModel: vm)
+
+        #expect(!view.needsGraphLoad)
+        #expect(view.needsWikiDiscovery)
+
+        vm.availableWikis = ["default", "research"]
+        #expect(!view.needsWikiDiscovery)
+    }
+
     @Test("Reveal in file tree opens the sidebar with the page selected")
     func revealInFileTree() {
         let vm = makeVM()
