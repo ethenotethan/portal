@@ -7,6 +7,8 @@ import hashlib
 import importlib.util
 import json
 import re
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -16,6 +18,12 @@ SPEC = importlib.util.spec_from_file_location("build_architecture", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 architecture = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(architecture)
+HISTORY_MODULE_PATH = ROOT / "scripts/build_architecture_history.py"
+HISTORY_SPEC = importlib.util.spec_from_file_location("build_architecture_history", HISTORY_MODULE_PATH)
+assert HISTORY_SPEC is not None and HISTORY_SPEC.loader is not None
+history = importlib.util.module_from_spec(HISTORY_SPEC)
+sys.modules[HISTORY_SPEC.name] = history  # dataclasses resolve deferred annotations through sys.modules
+HISTORY_SPEC.loader.exec_module(history)
 
 
 class ArchitectureCompilerTests(unittest.TestCase):
@@ -262,12 +270,16 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_architecture_agent_write_path_is_semantic_only(self) -> None:
         agent = (ROOT / "scripts/architecture_agent.py").read_text(encoding="utf-8")
         write_receivers = set(re.findall(r"\b([A-Z][A-Z0-9_]*)\.write_text\(", agent))
-        self.assertEqual({"SEMANTIC_PATH"}, write_receivers)
-        semantic_assignment = re.search(r'^SEMANTIC_PATH\s*=\s*(.+)$', agent, re.MULTILINE)
-        self.assertIsNotNone(semantic_assignment)
-        assert semantic_assignment is not None
-        self.assertIn('"architecture/semantic/components.json"', semantic_assignment.group(1))
+        self.assertEqual({"SEMANTIC_PATH", "CONSTRUCTS_PATH", "FLOWS_PATH"}, write_receivers)
+        for name, expected in (("SEMANTIC_PATH", "components.json"), ("CONSTRUCTS_PATH", "constructs.json"), ("FLOWS_PATH", "flows.json")):
+            assignment = re.search(rf'^{name}\s*=\s*(.+)$', agent, re.MULTILINE)
+            self.assertIsNotNone(assignment)
+            assert assignment is not None
+            self.assertIn(f'"architecture/semantic/{expected}"', assignment.group(1))
         self.assertNotIn("model.behavior", agent)
+        # Records are validated by the compiler's own validators, never the agent's.
+        self.assertIn("compiler.validate_construct_record(", agent)
+        self.assertIn("compiler.validate_flow(", agent)
 
     def test_system_map_is_the_interplay_graph_with_an_invariants_dropdown(self) -> None:
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
@@ -280,13 +292,13 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertIn('replace(/^(graph|interplay)$/, "systemmap")', app)
         for removed in ("renderGraph", "selectComponent", "applyGraphState", "codeGraphReference", "renderStats"):
             self.assertNotRegex(app, rf"function\s+{removed}\s*\(")
-        # Invariants are selectable from a dropdown that opens a plain description
-        # panel; the selection never touches the graph.
-        self.assertIn('id="invariant-select"', index)
-        self.assertIn('id="invariant-detail"', index)
-        for renderer in ("renderInvariantSelect", "renderInvariantDetail"):
-            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
-        self.assertNotIn("invariantFocus", app)
+        # Invariants are plain text at the foot of the page: no control, no graph effect.
+        self.assertIn('id="invariants-list"', index)
+        self.assertNotIn('id="invariant-select"', index)
+        self.assertNotIn('id="invariant-detail"', index)
+        self.assertRegex(app, r"function\s+renderInvariants\s*\(")
+        for removed in ("renderInvariantSelect", "renderInvariantDetail", "invariantFocus", "invariant-select"):
+            self.assertNotIn(removed, app)
         kinds = {item["kind"] for item in self.model["interplay"]["invariants"]}
         for kind in kinds:
             self.assertIn(f"{kind}:", app)
@@ -453,7 +465,8 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_interplay_tags_nodes_with_the_navigation_page_that_reaches_them(self) -> None:
         interplay = self.model["interplay"]
         config = json.loads((ROOT / "architecture/config.json").read_text(encoding="utf-8"))
-        self.assertEqual([p["id"] for p in config["pages"]["items"]], [p["id"] for p in interplay["pages"]])
+        # The launch zone is drawn first; the navigation pages follow in declared order.
+        self.assertEqual(["launch"] + [p["id"] for p in config["pages"]["items"]], [p["id"] for p in interplay["pages"]])
         page_by_label = {n["label"]: n.get("page") for n in interplay["nodes"] if n["kind"] in {"caller", "hub", "owner", "subscriber"}}
         self.assertEqual("chat", page_by_label["ChatViewModel"])
         self.assertEqual("graphs", page_by_label["CronGraphViewModel"])
@@ -658,9 +671,12 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertGreaterEqual(len(triggers), 20)
         self.assertGreater(interplay["unattributed_triggers"], 0)  # local-state-only actions are counted, not attributed
         for trigger in triggers:
-            self.assertIn(trigger["kind"], {"user_action", "lifecycle"})
+            self.assertIn(trigger["kind"], {"user_action", "lifecycle", "launch"})
             self.assertTrue((ROOT / trigger["path"]).is_file())
-            self.assertEqual("swift.trigger.surface_call", trigger["rule_id"])
+            self.assertEqual(
+                "swift.trigger.launch_construction" if trigger["kind"] == "launch" else "swift.trigger.surface_call",
+                trigger["rule_id"],
+            )
         refresh = [t for t in triggers if t["surface"] == "ActivityInboxViewModel" and t["method"] == "refresh"]
         self.assertTrue(refresh)
         self.assertEqual(["activity"], refresh[0]["namespaces"])
@@ -757,6 +773,404 @@ class ArchitectureCompilerTests(unittest.TestCase):
         self.assertNotIn("Select a node", app)
         self.assertIn('"data-pipe"', app)
         self.assertIn("drawn as containment", app)
+
+    # ---- Launch: what exists before any page -----------------------------------
+
+    def test_launch_zone_admits_the_settings_provider_and_rezones_the_keychain(self) -> None:
+        interplay = self.model["interplay"]
+        pages = interplay["pages"]
+        self.assertEqual("launch", pages[0]["id"], "the launch zone is drawn first")
+        self.assertEqual({"PortalAppIOS", "PortalAppMac"}, set(pages[0]["roots"]))
+        by_id = {node["id"]: node for node in interplay["nodes"]}
+        provider = by_id["provider:operations-state:SettingsViewModel"]
+        self.assertEqual("launch", provider["page"])
+        self.assertEqual(["KeychainStore"], provider["loads"])
+        self.assertTrue(any(entry["via"] == "GatewayClientWrapper" and entry["method"].startswith("connect") for entry in provider["configures"]))
+        keychain = by_id["store:local-services:KeychainStore"]
+        self.assertEqual("launch", keychain["page"])
+        self.assertEqual("launch", keychain["page_resolution"])
+        relations = {(e["source"], e["relation"], e["target"]) for e in interplay["edges"]}
+        self.assertIn((provider["id"], "loads", keychain["id"]), relations)
+        self.assertIn((provider["id"], "configures", "owner:hermes-services:GatewayClient"), relations)
+        # An object already on the map keeps its page and still records what its init loads.
+        self.assertIn(("subscriber:SpawnTreeStore", "loads", "store:domain-models:DelegationBatchHistoryStore"), relations)
+        self.assertNotEqual("launch", by_id["subscriber:SpawnTreeStore"]["page"])
+        # One launch trigger per (entry point, constructed object); both platforms are entry points.
+        launch = [t for t in interplay["triggers"] if t["kind"] == "launch"]
+        self.assertTrue(launch)
+        self.assertTrue(all(t["page"] == "launch" and t["api"] == "StateObject" and t["method"] == "init" for t in launch))
+        self.assertEqual({"PortalAppIOS", "PortalAppMac"}, {t["view"] for t in launch})
+        self.assertIn("SettingsViewModel", {t["surface"] for t in launch})
+        self.assertEqual(2, provider["triggers"]["launch"])
+        # Objects constructed at launch that are not constructions on the map are stated, not hidden.
+        self.assertIn("unmapped", interplay["launch"])
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "launch-zoned"))
+        # The extraction is bracket-aware: an App struct body yields exactly its @StateObject initialisers.
+        code = (
+            "struct DemoApp: App {\n    @StateObject private var settings = SettingsViewModel()\n"
+            "    @StateObject var tts = TTSService.shared\n    @StateObject var noInit: Foo\n    var body: some Scene { WindowGroup { ContentView() } }\n}\n"
+            "struct Other { @StateObject var x = Bar() }\n"
+        )
+        found = architecture.extract_launch_constructions([{"path": "App/Demo.swift", "_text": code}])
+        self.assertEqual([("DemoApp", "settings", "SettingsViewModel", 2), ("DemoApp", "tts", "TTSService", 3)],
+                         [(c["app"], c["property"], c["type"], c["line"]) for c in found])
+        bodies = architecture.init_bodies("final class S { init() { let k = KeychainStore.shared } func f() { Other() } }\nextension S { convenience init(x: Int) { self.init(); OtherStore.shared } }", "S")
+        self.assertEqual(2, len(bodies))
+        self.assertIn("KeychainStore", bodies[0])
+        self.assertIn("OtherStore", bodies[1])
+
+    def test_launch_zone_is_rendered_by_the_site(self) -> None:
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ('if (node.kind === "provider") return "provider";', 'launch_zoned:', "PROVIDER · LAUNCH",
+                       'rect.setAttribute("class", "provider")', '"Configures the transport"', "constructed at launch by"):
+            self.assertIn(needle, app)
+        self.assertIn(".interplay-node rect.provider", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
+        self.assertIn("App launch", (ROOT / "architecture/README.md").read_text(encoding="utf-8"))
+
+    # ---- State machines ---------------------------------------------------------
+
+    def test_state_machines_are_extracted_with_states_transitions_and_origins(self) -> None:
+        interplay = self.model["interplay"]
+        machines = {n["label"]: n for n in interplay["nodes"] if n["kind"] == "machine"}
+        self.assertIn("GatewayClient.connectionState", machines)
+        transport = machines["GatewayClient.connectionState"]["machine"]
+        self.assertEqual(["disconnected", "connecting", "connected", "reconnecting", "error"], [c["name"] for c in transport["states"]])
+        self.assertEqual("disconnected", transport["initial"])
+        self.assertTrue(any(c["payload"] for c in transport["states"] if c["name"] == "reconnecting"))
+        self.assertGreaterEqual(len(transport["transitions"]), 10)
+        self.assertEqual([], transport["dead_states"])
+        for t in transport["transitions"]:
+            self.assertTrue((ROOT / t["path"]).is_file())
+            self.assertEqual("swift.state.transition", t["rule_id"])
+        # The owner drives its machine; the machine sits in the owner's zone.
+        core = next(n for n in interplay["nodes"] if n["id"] == "owner:hermes-services:GatewayClient")
+        self.assertIn(machines["GatewayClient.connectionState"]["id"], core["machines"])
+        self.assertIn(("owner:hermes-services:GatewayClient", "drives", machines["GatewayClient.connectionState"]["id"]),
+                      {(e["source"], e["relation"], e["target"]) for e in interplay["edges"]})
+        self.assertEqual(core.get("page"), machines["GatewayClient.connectionState"].get("page"))
+        # A derived state (a computed property switching on other fields) is not a machine.
+        self.assertNotIn("ChatViewModel.conversationPhase", machines)
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "machines-complete"))
+        # Synthetic: from-states from switch / if case / guard case, ternary targets, no false machines.
+        code = (
+            "enum Mode { case idle, busy(Int), done }\n"
+            "enum Flavour { case only }\n"
+            "final class Worker {\n"
+            "    @Published private(set) var mode: Mode = .idle\n"
+            "    var flavour: Flavour = .only\n"
+            "    var derived: Mode { mode }\n"
+            "    func start() {\n"
+            "        switch mode {\n"
+            "        case .idle, .done:\n"
+            "            mode = .busy(1)\n"
+            "        case .busy:\n"
+            "            return\n"
+            "        }\n"
+            "    }\n"
+            "    func finish(ok: Bool) {\n"
+            "        if case .busy = mode { mode = ok ? .done : .idle }\n"
+            "    }\n"
+            "    func reset() {\n"
+            "        guard case .done = mode else { return }\n"
+            "        mode = .idle\n"
+            "    }\n"
+            "}\n"
+        )
+        files = [{"path": "Sources/Portal/Demo/Worker.swift", "_text": code, "declarations": ["Mode", "Flavour", "Worker"], "component": "demo", "identifiers": [], "line_count": code.count("\n")}]
+        fake = {"nodes": [{"id": "caller:demo:Worker", "kind": "caller", "label": "Worker", "component": "demo", "page": "chat"}], "edges": []}
+        found = architecture.extract_state_machines(fake, files)
+        self.assertEqual(["Worker.mode"], [m["label"] for m in found])
+        machine = found[0]["machine"]
+        self.assertEqual("idle", machine["initial"])
+        self.assertEqual([("idle", "busy"), ("done", "busy"), ("busy", "done"), ("busy", "idle"), ("done", "idle")],
+                         [(f, t["to"]) for t in machine["transitions"] for f in (t["from"] or [None])])
+        self.assertEqual(["start", "finish", "finish", "reset"], [t["function"] for t in machine["transitions"]])
+        self.assertEqual([], machine["dead_states"])
+        self.assertEqual(0, machine["unknown_from"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        for needle in ('if (node.kind === "machine") return "machine";', "function machineMermaid(", "stateDiagram-v2", 'rect.setAttribute("class", "machine")', "machines_complete:"):
+            self.assertIn(needle, app)
+
+    # ---- Semantic enrichment: described constructs and system flows ------------
+
+    def _files(self):
+        config = architecture.load_json(architecture.CONFIG_PATH)
+        files, _digest = architecture.read_sources(config)
+        launch, _launch_digest = architecture.read_launch_sources(config)
+        return files + launch
+
+    def test_construct_records_are_validated_against_the_map(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
+        good = {
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.",
+            "fields": {"medium": "keychain", "sensitive": True, "readers": ["provider:operations-state:SettingsViewModel"], "record_type": ["SavedGateway"], "written_when": ["on_change"]},
+            "evidence": [{"path": keychain["path"], "line": 10}], "open_questions": [],
+        }
+        record = architecture.validate_construct_record(good, interplay, files, externals)
+        self.assertEqual("store", record["kind"])
+        self.assertFalse(record["stale"])
+        self.assertEqual(["SavedGateway"], record["fields"]["record_type"])
+        # A recorded hash that no longer matches the cited files marks the record stale.
+        stale = architecture.validate_construct_record({**good, "cited_hash": "0" * 64}, interplay, files, externals)
+        self.assertTrue(stale["stale"])
+        bad_cases = [
+            ({**good, "kind": "external"}, "kind"),
+            ({**good, "key": "store:nowhere:Ghost"}, "not a construct"),
+            ({**good, "fields": {"medium": "user_defaults"}}, "medium"),
+            ({**good, "fields": {"sensitive": False}}, "sensitive"),
+            ({**good, "fields": {"readers": ["hub:ChatViewModel"]}}, "edge"),
+            ({**good, "fields": {"record_type": ["NoSuchType"]}}, "declared"),
+            ({**good, "fields": {"retention": "eternal"}}, "must be one of"),
+            ({**good, "fields": {"colour": "blue"}}, "schema does not define"),
+            ({**good, "evidence": [{"path": "Sources/Portal/Views/ChatView.swift", "line": 1}]}, "bounded"),
+            ({**good, "evidence": [{"path": keychain["path"], "line": 100000}]}, "not a line"),
+            ({**good, "summary": "x" * 401}, "exceeds"),
+        ]
+        for raw, needle in bad_cases:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
+        # Pages are constructs too; members must belong to the page.
+        page = architecture.validate_construct_record(
+            {"key": "page:launch", "kind": "page", "summary": "Launch.", "fields": {"owns_state_in": [keychain["history_key"]]},
+             "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
+        self.assertEqual("page", page["kind"])
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.validate_construct_record(
+                {"key": "page:chat", "kind": "page", "summary": "Chat.", "fields": {"owns_state_in": [keychain["history_key"]]},
+                 "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
+
+    def test_flows_are_paths_over_edges_the_map_draws(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        core = "owner:hermes-services:GatewayClient"
+        bus = "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        good = {
+            "id": "prompt-to-stream", "title": "Prompt to streamed reply", "summary": "A prompt rides the transport and returns on the stream.",
+            "journey": "chat_turn", "interaction": "Send button",
+            "steps": [
+                {"from": "caller:chat-state:ChatViewModel", "to": core, "relation": "holds"},
+                {"from": "caller:chat-state:ChatViewModel", "to": "endpoint:jsonrpc:prompt", "relation": "invokes"},
+                {"from": core, "to": "endpoint:jsonrpc:prompt", "relation": "dispatches", "note": "correlated through the pool"},
+                {"from": core, "to": bus, "relation": "provides"},
+                {"from": bus, "to": "hub:ChatViewModel", "relation": "notifies"},
+            ],
+            "evidence": [{"path": "Sources/Portal/ViewModels/ChatViewModel.swift", "line": 1}],
+        }
+        flow = architecture.validate_flow(good, interplay, files)
+        self.assertEqual("traceable", flow["status"])
+        self.assertEqual([], flow["problems"])
+        # A step over an edge the map does not draw is a recorded problem, not a schema error.
+        broken = architecture.validate_flow({**good, "steps": good["steps"] + [{"from": "hub:ChatViewModel", "to": core, "relation": "teleports"}]}, interplay, files)
+        self.assertEqual("broken", broken["status"])
+        self.assertIn("teleports", broken["problems"][0])
+        # Schema errors: disconnected steps, unknown nodes, bad ids, too few steps, evidence outside the path.
+        for raw, needle in [
+            ({**good, "journey": "sideways"}, "journey"),
+            ({**good, "journey": "page", "page": "chat"}, "navigation page"),
+            ({**good, "steps": [good["steps"][0], {"from": "hub:ChatViewModel", "to": core, "relation": "holds"}, good["steps"][2]]}, "no earlier step reached"),
+            ({**good, "steps": [{"from": "caller:x:Y", "to": core, "relation": "holds"}] + good["steps"][1:]}, "not on the map"),
+            ({**good, "id": "Bad Id"}, "kebab-case"),
+            ({**good, "steps": good["steps"][:2]}, "between"),
+            ({**good, "evidence": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, "bounded"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_flow(raw, interplay, files)
+            self.assertIn(needle, str(caught.exception))
+        # A trigger must fire the surface the flow starts from.
+        trigger = next(t for t in interplay["triggers"] if t["surface"] == "ChatViewModel")
+        with_trigger = architecture.validate_flow({**good, "trigger": trigger["id"]}, interplay, files)
+        self.assertEqual(trigger["id"], with_trigger["trigger"])
+        other = next(t for t in interplay["triggers"] if t["surface"] != "ChatViewModel" and t["kind"] != "launch")
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.validate_flow({**good, "trigger": other["id"]}, interplay, files)
+        # Whatever is declared in the repository must trace today.
+        for declared in interplay.get("flows", []):
+            self.assertEqual("traceable", declared["status"], declared)
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "flows-traceable"))
+
+    def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
+        interplay = self.model["interplay"]
+        described = [n for n in interplay["nodes"] if n.get("semantic")]
+        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")))
+        for node in described:
+            self.assertEqual(architecture.construct_kind(node), node["semantic"]["kind"])
+            self.assertTrue(node["semantic"]["evidence"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        for needle in ("function describedSection(", "function renderFlows(", "function traceFlow(", "function renderFlowInspector(", "flowSteps.get(edge.dataset.hkey)", "let selectedFlowId = null",
+                       "function flowMermaid(", "sequenceDiagram", 'JOURNEY_TITLES = { launch:', "mermaid-ready", 'element("ol", "flow-procedure")'):
+            self.assertIn(needle, app)
+        self.assertIn('id="flows-list"', index)
+        self.assertIn("mermaid.esm.min.mjs", index)
+        # Flows are user journeys: launch, a chat turn, then each page, in that order.
+        journeys = [flow["journey"] for flow in interplay.get("flows", [])]
+        order = {"launch": 0, "chat_turn": 1, "page": 2}
+        self.assertEqual(journeys, sorted(journeys, key=order.__getitem__))
+        for flow in interplay.get("flows", []):
+            self.assertIn(flow["journey"], order)
+            self.assertTrue(flow["page"])
+        self.assertIn(".described-table", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
+
+    # ---- History: the same map at every commit ---------------------------------
+
+    def test_history_keys_are_stable_and_unique_for_drawn_nodes(self) -> None:
+        nodes = self.model["interplay"]["nodes"]
+        drawn = [node for node in nodes if node["kind"] != "operation"]
+        keys = [node["history_key"] for node in drawn]
+        self.assertTrue(all(keys))
+        self.assertEqual(len(keys), len(set(keys)), "history keys must be unique among drawn nodes")
+        for node in drawn:
+            if node["kind"] == "resource":
+                # Re-keyed by what it is, never by the line-hashed id.
+                self.assertNotIn(node["id"].split(":", 1)[1], node["history_key"])
+                self.assertEqual(
+                    node["history_key"],
+                    f"resource:{node['component'] or 'unassigned'}:{node['owner_type'] or ''}:{node['sub_kind'] or ''}:{node['label']}",
+                )
+            elif node["kind"] == "endpoint":
+                # A namespace survives its transport being renamed.
+                self.assertEqual(node["history_key"], f"endpoint:{node['protocol']}:{node['label']}")
+            elif node["kind"] == "endpoint":
+                # A namespace survives its transport being renamed.
+                self.assertEqual(node["history_key"], f"endpoint:{node['protocol']}:{node['label']}")
+            else:
+                self.assertEqual(node["history_key"], node["id"])
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.assign_history_keys({"nodes": [
+                {"id": "resource:a", "kind": "resource", "component": "c", "owner_type": "O", "sub_kind": "lock", "label": "x"},
+                {"id": "resource:b", "kind": "resource", "component": "c", "owner_type": "O", "sub_kind": "lock", "label": "x"},
+            ]})
+
+    def test_shape_of_carries_drawn_nodes_edges_and_aggregated_triggers(self) -> None:
+        shape = architecture.shape_of(self.model)
+        self.assertEqual(shape["tree"], self.model["source_tree_sha256"])
+        keys = {meta["k"] for meta in shape["nodes"]}
+        kinds = {meta["kind"] for meta in shape["nodes"]}
+        self.assertNotIn("operation", kinds)
+        self.assertIn("page", kinds)
+        for source, target, relation, klass in shape["edges"]:
+            self.assertIn(source, keys)
+            self.assertIn(target, keys)
+            self.assertTrue(relation and klass)
+        triggers = [edge for edge in shape["edges"] if edge[2] == "triggers"]
+        self.assertTrue(triggers)
+        self.assertTrue(all(edge[0].startswith("page:") and edge[3] == "trigger" for edge in triggers))
+        # Every drawn interplay edge between drawn nodes survives, re-keyed.
+        key_of = {node["id"]: node["history_key"] for node in self.model["interplay"]["nodes"]}
+        expected = {
+            (key_of[e["source"]], key_of[e["target"]], e["relation"], e["class"])
+            for e in self.model["interplay"]["edges"] if key_of[e["source"]] in keys and key_of[e["target"]] in keys
+        }
+        self.assertEqual(expected, {tuple(edge) for edge in shape["edges"] if edge[2] != "triggers"})
+        # At the head, strict and lenient agree: nothing for fidelity to record.
+        self.assertEqual({}, shape["fidelity"])
+        self.assertEqual([], shape["invariants"]["violated"])
+
+    def test_snapshot_mode_records_gaps_instead_of_failing(self) -> None:
+        previous = architecture.LENIENT
+        architecture.FIDELITY.clear()
+        try:
+            architecture.LENIENT = False
+            with self.assertRaises(architecture.ArchitectureError):
+                architecture.gate("externals_unmatched", "system x matched nothing")
+            architecture.LENIENT = True
+            architecture.gate("externals_unmatched", "system x matched nothing")
+            architecture.gate("externals_unmatched", "system y matched nothing")
+            architecture.gate("invariants_violated", "single-transport: two transports")
+            self.assertEqual({"externals_unmatched": 2, "invariants_violated": 1},
+                             {kind: len(items) for kind, items in architecture.FIDELITY.items()})
+        finally:
+            architecture.LENIENT = previous
+            architecture.FIDELITY.clear()
+        # The compiler's `--snapshot` at the head prints the same shape the model yields.
+        run = subprocess.run([sys.executable, str(MODULE_PATH), "--snapshot"], capture_output=True, text=True, check=False, cwd=ROOT)
+        self.assertEqual(0, run.returncode, run.stderr)
+        printed = json.loads(run.stdout)
+        self.assertEqual(architecture.shape_of(self.model), printed)
+
+    def test_history_timeline_delta_encoding_round_trips(self) -> None:
+        commits = [history.Commit(f"{index:040x}", f"2026-05-0{index + 1}", f"commit {index}") for index in range(3)]
+        node = lambda key, **meta: {"k": key, "kind": "caller", "label": key.split(":")[-1], **meta}  # noqa: E731
+        shapes = [
+            {"tree": "t0", "nodes": [node("caller:a:A"), node("hub:H")], "edges": [["caller:a:A", "hub:H", "holds", "interplay"]],
+             "fidelity": {"externals_unmatched": 2}, "invariants": {"holds": 1, "violated": ["x"]}},
+            # A adds a page; B appears; the edge is unchanged.
+            {"tree": "t1", "nodes": [node("caller:a:A", page="chat"), node("hub:H"), node("caller:b:B")],
+             "edges": [["caller:a:A", "hub:H", "holds", "interplay"], ["caller:b:B", "hub:H", "holds", "interplay"]],
+             "fidelity": {}, "invariants": {"holds": 2, "violated": []}},
+            # A is deleted along with its edge.
+            {"tree": "t2", "nodes": [node("hub:H"), node("caller:b:B")], "edges": [["caller:b:B", "hub:H", "holds", "interplay"]],
+             "fidelity": {}, "invariants": {"holds": 2, "violated": []}},
+        ]
+        failed = [{"rev": "f" * 40, "date": "2026-05-02", "reason": "boom"}]
+        timeline = history.encode_timeline("main", commits[-1].rev, "fp", list(zip(commits, shapes)), failed)
+        self.assertEqual(3, len(timeline["snapshots"]))
+        self.assertEqual({"nodes": 2, "edges": 1}, timeline["snapshots"][0]["counts"])
+        self.assertEqual([2], timeline["snapshots"][1]["na"])       # B
+        self.assertEqual([0], timeline["snapshots"][2]["nd"])       # A
+        self.assertEqual([0], timeline["snapshots"][2]["ed"])       # A → H
+        self.assertNotIn("ea", timeline["snapshots"][2])
+        # The union describes a node as the newest snapshot saw it: A carries its page.
+        self.assertEqual("chat", timeline["nodes"][0]["page"])
+        self.assertEqual(failed, timeline["failed"])
+        replayed = history.replay(timeline)
+        self.assertEqual([commit.rev for commit in commits], [commit.rev for commit, _shape in replayed])
+        for (_commit, original), (_again, restored) in zip(zip(commits, shapes), replayed):
+            self.assertEqual({meta["k"] for meta in original["nodes"]}, {meta["k"] for meta in restored["nodes"]})
+            self.assertEqual(sorted(original["edges"]), restored["edges"])
+            self.assertEqual(original["tree"], restored["tree"])
+            self.assertEqual(original["fidelity"], restored["fidelity"])
+        # The artifact format the site reads is one assignment the walker can read back.
+        text = history.serialize(timeline)
+        self.assertTrue(text.startswith("window.PORTAL_ARCHITECTURE_HISTORY={"))
+        self.assertTrue(text.endswith("};\n"))
+        self.assertEqual(3, len(history.sample(commits, 1, 0)))
+        self.assertEqual([commits[0].rev, commits[2].rev], [c.rev for c in history.sample(commits, 2, 0)])
+        self.assertEqual([commits[2].rev], [c.rev for c in history.sample(commits, 1, 1)])
+
+    def test_history_walk_derives_the_head_commit_exactly(self) -> None:
+        # One real snapshot through the walker (git archive → scratch tree → --snapshot)
+        # of the newest commit that touched the sources must reproduce the head shape
+        # whenever the working tree's sources equal that commit's.
+        commits = history.list_commits("HEAD")
+        self.assertTrue(commits)
+        with __import__("tempfile").TemporaryDirectory() as scratch:
+            history.prepare_skeleton(Path(scratch))
+            shape = history.snapshot(commits[-1], Path(scratch))
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "Sources/Portal"], capture_output=True, text=True, cwd=ROOT).stdout.strip()
+        if not dirty and subprocess.run(["git", "diff", "--quiet", commits[-1].rev, "HEAD", "--", "Sources/Portal"], cwd=ROOT).returncode == 0:
+            self.assertEqual(architecture.shape_of(self.model), shape)
+        else:
+            self.assertTrue(shape["nodes"])
+
+    def test_system_map_has_the_history_slider(self) -> None:
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8")
+        self.assertIn('<script src="history.js"></script>', index)
+        self.assertLess(index.index('src="history.js"'), index.index('src="app.js"'))
+        for element_id in ("timeline", "timeline-range", "timeline-play", "timeline-now", "timeline-diff", "timeline-note", "timeline-spark"):
+            self.assertIn(f'id="{element_id}"', index)
+        self.assertIn("window.PORTAL_ARCHITECTURE_HISTORY", app)
+        for renderer in ("renderTimeline", "timelineSync", "timelineDiff", "timelineNote", "wireTimeline", "timelineNodeState", "timelineEdgeState"):
+            self.assertRegex(app, rf"function\s+{renderer}\s*\(")
+        # Inert until touched; the union layout; keys on every drawn edge and trunk.
+        self.assertIn("if (TL) TL.go(TL.last);", app)
+        self.assertIn("const drawNodes = interplay.nodes.slice();", app)
+        self.assertIn('"data-hkey": hkey', app)
+        self.assertIn("hist: true", app)
+        for rule in (".interplay-node.absent", ".interplay-edge.ghost", ".timeline-overlay"):
+            self.assertIn(rule, styles)
+        # The artifact is derived, never committed.
+        self.assertIn("architecture/site/history.js", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        self.assertIn("architecture-history:", (ROOT / "Makefile").read_text(encoding="utf-8"))
+        workflow = (ROOT / ".github/workflows/architecture-pages.yml").read_text(encoding="utf-8")
+        self.assertIn("build_architecture_history.py", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
 
 
 if __name__ == "__main__":

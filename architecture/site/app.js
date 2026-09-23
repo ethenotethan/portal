@@ -29,7 +29,109 @@
       });
     }
   })();
-  const interplayNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
+  // ---- History: the same map at every commit (opt-in artifact) -------------
+  // history.js is written by scripts/build_architecture_history.py: today's
+  // extractor run at every first-parent commit that touched the app source, delta-
+  // encoded. Without it (or with fewer than two points) this page is the map of one
+  // revision. With it, nodes and edges some past commit had and the head does not
+  // are folded into the drawn set flagged `hist`, so one layout serves every slider
+  // position and nothing reshuffles mid-slide. Until the reader touches the slider
+  // those historical-only entities are drawn absent: the page a reader lands on is
+  // identical whether or not a history was built beside it.
+  const HISTORY = (() => {
+    const raw = window.PORTAL_ARCHITECTURE_HISTORY;
+    const usable = raw && Array.isArray(raw.snapshots) && raw.snapshots.length >= 2 &&
+      Array.isArray(raw.nodes) && Array.isArray(raw.edges);
+    return usable ? raw : null;
+  })();
+  // The compiler keys every node for diffing across commits (ids hash the declaring
+  // line for resources; the key does not). Trigger edges key by page id.
+  const historyKeyOf = (node) => (node && (node.history_key || node.id)) || "";
+  const headNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
+  const edgeHistoryKey = (edge, byId) => `${historyKeyOf(byId.get(edge.source))}|${historyKeyOf(byId.get(edge.target))}|${edge.relation}`;
+  const headEdgeKeys = new Set(interplay.edges.map((edge) => edgeHistoryKey(edge, headNodeById)));
+  const drawNodes = interplay.nodes.slice();
+  const drawEdges = interplay.edges.slice();
+  const idByHistoryKey = new Map(interplay.nodes.map((node) => [historyKeyOf(node), node.id]));
+  if (HISTORY) {
+    HISTORY.nodes.forEach((meta) => {
+      if (meta.kind === "page" || idByHistoryKey.has(meta.k)) return;
+      const node = { ...meta, id: meta.k, history_key: meta.k, hist: true, path: null, line: 0 };
+      delete node.k;
+      drawNodes.push(node);
+      idByHistoryKey.set(meta.k, node.id);
+    });
+    HISTORY.edges.forEach(([sourceIndex, targetIndex, relation, klass]) => {
+      const source = HISTORY.nodes[sourceIndex];
+      const target = HISTORY.nodes[targetIndex];
+      if (!source || !target || relation === "triggers") return; // trigger edges are aggregated at draw time
+      if (headEdgeKeys.has(`${source.k}|${target.k}|${relation}`)) return;
+      if (!idByHistoryKey.has(source.k) || !idByHistoryKey.has(target.k)) return;
+      drawEdges.push({ source: idByHistoryKey.get(source.k), target: idByHistoryKey.get(target.k), relation, class: klass, hist: true });
+    });
+  }
+  const interplayNodeById = new Map(drawNodes.map((node) => [node.id, node]));
+  // The reader's position, replayed rather than looked up: one mutable set of live
+  // node keys and edge keys, stepped forward by a point's additions and removals or
+  // backward by undoing them. Removals apply before additions in both directions.
+  // Inert until touched: loading the page draws the head revision; the first drag or
+  // play engages it, and from then on the point governs the picture.
+  const TL = (() => {
+    if (!HISTORY) return null;
+    const P = HISTORY.snapshots;
+    const N = HISTORY.nodes;
+    const E = HISTORY.edges;
+    const ekey = (index) => { const e = E[index]; return `${N[e[0]].k}|${N[e[1]].k}|${e[2]}`; };
+    const nodes = new Set();
+    const edges = new Set();
+    let i = -1;
+    let engaged = false;
+    const fwd = (p) => {
+      (p.nd || []).forEach((x) => nodes.delete(N[x].k)); (p.ed || []).forEach((x) => edges.delete(ekey(x)));
+      (p.na || []).forEach((x) => nodes.add(N[x].k)); (p.ea || []).forEach((x) => edges.add(ekey(x)));
+    };
+    const back = (p) => {
+      (p.na || []).forEach((x) => nodes.delete(N[x].k)); (p.ea || []).forEach((x) => edges.delete(ekey(x)));
+      (p.nd || []).forEach((x) => nodes.add(N[x].k)); (p.ed || []).forEach((x) => edges.add(ekey(x)));
+    };
+    // What this commit took away, kept apart: the picture ghosts it, which is the
+    // difference between "this is not here" and "this commit removed this".
+    let goneAt = -1;
+    let goneNodes = new Set();
+    let goneEdges = new Set();
+    const ghosts = () => {
+      if (goneAt === i) return;
+      goneAt = i;
+      const p = P[i];
+      goneNodes = new Set((p.nd || []).map((x) => N[x].k));
+      goneEdges = new Set((p.ed || []).map(ekey));
+    };
+    return {
+      count: P.length,
+      last: P.length - 1,
+      failed: (HISTORY.failed || []).length,
+      get i() { return i; },
+      get engaged() { return engaged; },
+      point: () => P[i] || P[P.length - 1],
+      prev: () => P[i - 1] || null,
+      live: (key) => nodes.has(key),
+      liveEdge: (key) => edges.has(key),
+      gone: (key) => (ghosts(), goneNodes.has(key)),
+      goneEdge: (key) => (ghosts(), goneEdges.has(key)),
+      added: () => (P[i].na || []).map((x) => N[x]),
+      removed: () => (P[i].nd || []).map((x) => N[x]),
+      edgeDelta: () => ({ added: (P[i].ea || []).length, removed: (P[i].ed || []).length }),
+      go(n, byReader) {
+        if (byReader) engaged = true;
+        n = Math.max(0, Math.min(P.length - 1, n | 0));
+        while (i < n) fwd(P[++i]);
+        while (i > n) back(P[i--]);
+        return i;
+      },
+      disengage() { engaged = false; this.go(P.length - 1); }
+    };
+  })();
+  if (TL) TL.go(TL.last);
   const expandedOwners = new Set(); // owners whose pool/lock/socket/sections are shown
   // A resource/operation inherits its colour from the owning type's role, so the
   // free-form graph still reads as "this pool belongs to a transport" without any
@@ -53,6 +155,8 @@
     engine: "#70b98d",
     subscriber: "#d16f86",
     caller: "#7ec8b0",
+    provider: "#d0b36b",
+    machine: "#b48ad6",
     client: "#8fb3d9",
     section: "#d3a83a",
     store: "#c9a3d9",
@@ -65,6 +169,8 @@
     seam: "Backend seam",
     transport: "Connection-pool transport",
     caller: "Calling surface",
+    provider: "Config provider (constructed at launch)",
+    machine: "State machine (enum-typed lifecycle state)",
     endpoint: "Queried endpoints",
     engine: "On-device engine",
     subscriber: "Event subscribers",
@@ -75,7 +181,7 @@
     external: "External system",
     other: "Supporting owner"
   };
-  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
+  const INTERPLAY_ROLE_RANK = { hub: 0, seam: 1, transport: 2, pool: 3, section: 4, caller: 5, provider: 5.5, machine: 5.7, endpoint: 6, client: 7, engine: 8, store: 9, external: 10, subscriber: 11, other: 12 };
   // Zones inside the application hull are the app's navigation pages, declared
   // in architecture/config.json with their root views; the compiler tags each
   // type-labelled node with the page whose view tree reaches it.
@@ -83,10 +189,9 @@
   const PAGE_LABEL = new Map(interplayPages.map((page) => [page.id, page.label]));
   const PAGE_RANK = new Map(interplayPages.map((page, index) => [page.label, index]));
   const triggers = interplay.triggers || []; // read during init by drawTriggerEdges
-  // Invariant tables live up here, beside the page tables, so renderInvariantSelect()
+  // Invariant tables live up here, beside the page tables, so renderInvariants()
   // (called during init) reads them outside the temporal dead zone.
   const invariants = interplay.invariants || [];
-  const invariantById = new Map(invariants.map((item) => [item.id, item]));
   const INVARIANT_KIND_TEXT = {
     single_transport: "Exactly the declared transport owners conform to the backend seam.",
     surfaces_hold_transport: "Every calling surface holds a reference to the core (or the seam), so all pages compete for the same pool and socket.",
@@ -96,7 +201,10 @@
     endpoints_dispatched_by_transport: "Every namespace box is dispatched by a transport core.",
     pages_populated: "Every declared navigation page owns at least one construct.",
     stores_mapped: "Every store the extractor recognises appears on the map, so the Data stores view and the System map cannot disagree.",
-    triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted."
+    triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
+    launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
+    flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated.",
+    machines_complete: "Every state machine's states match what is declared and every state is entered by some transition; a new, renamed or orphaned state changes the construction and must be declared."
   };
 
   const INTERPLAY_SHARED_GROUP = "Shared core";
@@ -110,7 +218,7 @@
   // lock and socket; engines no single page owns) are in-memory constructions,
   // not shared code. They get their own hull inside the application boundary.
   const INTERPLAY_MEMORY_GROUP = "In-memory constructions";
-  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
+  const INTERPLAY_KIND_RANK = { hub: 0, seam: 0, owner: 0, external: 0, client: 0, store: 0, provider: 0, machine: 1, resource: 1, endpoint: 1, subscriber: 1, section: 1, operation: 2 };
   const externals = model.externals || { systems: [], edges: [] };
   const stores = model.stores || { items: [] };
   const EXTERNAL_CATEGORY_LABELS = {
@@ -134,6 +242,13 @@
   };
   const repositoryBase = `https://github.com/${model.repository}/blob/main/`;
   let selectedInterplayId = null;
+  let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
+  const flows = interplay.flows || [];
+  const flowById = new Map(flows.map((flow) => [flow.id, flow]));
+  // Journey tables live up here because renderFlows() runs during init.
+  const JOURNEY_TITLES = { launch: "1 · Starting the app", chat_turn: "2 · A chat turn", page: "3 · Entering and using a page" };
+  const MERMAID_ASYNC = new Set(["notifies", "provides", "publish", "declares", "replays-into", "persists-to"]);
+  let mermaidRenderSeq = 0;
   let interplayPositions = new Map();
   // Pan/zoom state for the free-form graph: the SVG fills its frame and we move a
   // viewBox window over the content, so click-drag pans, the wheel zooms, and a
@@ -143,7 +258,9 @@
 
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderInterplay();
-  renderInvariantSelect();
+  renderInvariants();
+  renderFlows();
+  renderTimeline();
   renderConnections();
   renderExternals();
   renderStores();
@@ -169,6 +286,8 @@
     if (node.kind === "endpoint") return "endpoint";
     if (node.kind === "subscriber") return "subscriber";
     if (node.kind === "caller") return "caller";
+    if (node.kind === "provider") return "provider";
+    if (node.kind === "machine") return "machine";
     if (node.kind === "external") return "external";
     if (node.kind === "transport") return "transport";
     if (node.kind === "client") return "client";
@@ -195,8 +314,8 @@
     return node.kind === "owner" && ((node.roles || []).includes("transport") || (node.roles || []).includes("pool"));
   }
   function ownerMemberIds(owner) {
-    return new Set(interplay.nodes
-      .filter((node) => ["resource", "section", "operation"].includes(node.kind) &&
+    return new Set(drawNodes
+      .filter((node) => ["resource", "section", "operation", "machine"].includes(node.kind) &&
         node.owner_type === owner.label && node.component === owner.component && node.sub_kind !== "event_bus")
       .map((node) => node.id));
   }
@@ -225,6 +344,8 @@
     if (isTransportContainer(node) || isBusSpine(node)) return { width: 236, height: 48 };
     if (node.kind === "section") return { width: Math.max(150, Math.min(220, (node.label || "").length * 7.6 + 60)), height: 48 };
     if (node.kind === "endpoint") return { width: 150, height: 46 };
+    if (node.kind === "provider") return { width: 206, height: 48 }; // room for the init/configures meta line
+    if (node.kind === "machine") return { width: Math.max(170, Math.min(230, (node.label || "").length * 6.4 + 40)), height: 48 };
     const label = node.label || "";
     return { width: Math.max(132, Math.min(206, label.length * 7.6 + 34)), height: 48 };
   }
@@ -302,7 +423,7 @@
     // owner hides its resources from the canvas but still holds them.
     const holdsResources = new Set(interplay.nodes.filter((n) => n.kind === "resource" && n.owner_type && n.sub_kind !== "event_bus").map((n) => `${n.component}|${n.owner_type}`));
     nodes.forEach((node) => {
-      if (!["hub", "subscriber", "owner", "seam", "store"].includes(node.kind)) return;
+      if (!["hub", "subscriber", "owner", "seam", "store", "provider"].includes(node.kind)) return;
       const inMemoryStore = Boolean(node.store) && ((node.store.persistence || ["unobserved"])[0] === "unobserved");
       if (node.kind === "owner") {
         // An owner holding stored resources (transport, pool owner, on-device engine)
@@ -604,19 +725,21 @@
     }
 
     const nodeRole = new Map();
-    interplay.nodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
+    drawNodes.forEach((node) => nodeRole.set(node.id, interplayNodeRole(node)));
 
     // Lifecycle operations are actions, not constructions: they are not drawn as
     // boxes. They stay in the model and are listed on their owner's inspector.
     const hidden = new Set();
-    interplay.nodes.forEach((node) => {
+    drawNodes.forEach((node) => {
       if (isTransportContainer(node) && !expandedOwners.has(node.id)) ownerMemberIds(node).forEach((id) => hidden.add(id));
     });
-    const drawable = interplay.nodes.filter((node) => node.kind !== "operation" && !hidden.has(node.id));
+    // The union of the head revision and every historical point: one layout for
+    // the whole walk. Historical-only nodes are drawn absent until the slider moves.
+    const drawable = drawNodes.filter((node) => node.kind !== "operation" && !hidden.has(node.id));
 
     // Position every drawn node with the deterministic page layout, then
     // translate the whole graph so its top-left corner sits at the margin.
-    const layout = layoutInterplayGrouped(drawable, interplay.edges);
+    const layout = layoutInterplayGrouped(drawable, drawEdges);
     const groupBoxes = layout.groupBoxes || [];
     let minX = Infinity;
     let minY = Infinity;
@@ -721,7 +844,7 @@
     const defs = svgElement("defs", {});
     const MARKER_COLORS = {
       structure: "#8a8a92", lifecycle: "#55545a", interplay: "#8b83ff", usage: "#7ec8b0",
-      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4"
+      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4", ghost: "#d9a441"
     };
     Object.entries(MARKER_COLORS).forEach(([name, color]) => {
       const marker = svgElement("marker", {
@@ -735,11 +858,12 @@
     const edgeGroup = svgElement("g", { class: "edges" });
     const labelGroup = svgElement("g", { class: "edge-labels" });
     drawTriggerEdges(edgeGroup, groupBoxes);
-    interplay.edges.forEach((edge) => {
+    drawEdges.forEach((edge) => {
       const source = interplayPositions.get(edge.source);
       const target = interplayPositions.get(edge.target);
       if (!source || !target) return;
       const targetNode = interplayNodeById.get(edge.target);
+      const hkey = edgeHistoryKey(edge, interplayNodeById);
       if (edge.relation === "served-by" && targetNode && isInterplayBar(targetNode)) return; // drawn as containment
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
@@ -750,13 +874,16 @@
         "marker-end": `url(#arrow-${edgeClass})`,
         "data-source": edge.source,
         "data-target": edge.target,
-        "data-relation": edge.relation
+        "data-relation": edge.relation,
+        "data-hkey": hkey,
+        "data-hist": edge.hist ? "true" : "false"
       });
       // The relation name, shown only while the edge is highlighted.
       const mid = interplayLinkMidpoint(source, target);
       const label = svgElement("text", {
         x: mid.x.toFixed(1), y: mid.y.toFixed(1), class: "interplay-edge-label",
-        "data-source": edge.source, "data-target": edge.target, "data-relation": edge.relation
+        "data-source": edge.source, "data-target": edge.target, "data-relation": edge.relation,
+        "data-hkey": hkey, "data-hist": edge.hist ? "true" : "false"
       });
       label.textContent = edge.relation.replace(/-/g, " ");
       labelGroup.append(label);
@@ -779,8 +906,8 @@
       if (!position) return;
       const role = nodeRole.get(node.id) || "other";
       const group = svgElement("g", {
-        class: "interplay-node",
-        tabindex: "0",
+        class: `interplay-node${node.hist ? " hist" : ""}`,
+        tabindex: node.hist ? "-1" : "0",
         role: "button",
         "aria-label": `${node.label}, ${INTERPLAY_ROLE_LABELS[role]}`,
         "data-node": node.id,
@@ -799,6 +926,8 @@
       else if (node.kind === "client") rect.setAttribute("class", "client");
       else if (node.kind === "section") rect.setAttribute("class", "section");
       else if (node.kind === "store") rect.setAttribute("class", "store");
+      else if (node.kind === "provider") rect.setAttribute("class", "provider");
+      else if (node.kind === "machine") rect.setAttribute("class", "machine");
       else if (isBusSpine(node)) rect.setAttribute("class", "bus");
       if (node.overlay_prose) rect.setAttribute("data-explained", "true");
       group.append(rect);
@@ -816,7 +945,13 @@
         group.append(meta);
       }
       const isContainer = isInterplayBar(node);
-      if (isContainer) {
+      if (node.hist) {
+        // Present at some earlier commit, not in the head revision: the inspector
+        // and the inventory have nothing to say about it, so it is not selectable.
+        const note = svgElement("title", {});
+        note.textContent = `${node.label} · present at an earlier commit, not in the head revision`;
+        group.append(note);
+      } else if (isContainer) {
         group.addEventListener("click", (event) => {
           event.stopPropagation();
           selectInterplayNode(node.id);
@@ -833,12 +968,14 @@
       } else {
         wireInterplayNodeDrag(svg, group, node.id);
       }
-      group.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          selectInterplayNode(node.id);
-        }
-      });
+      if (!node.hist) {
+        group.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectInterplayNode(node.id);
+          }
+        });
+      }
       (isContainer ? containerGroup : nodeGroup).append(group);
     });
     svg.append(nodeGroup);
@@ -1080,6 +1217,8 @@
     if (node.kind === "caller") return (componentLabel(node.component) || "CALLER").toUpperCase();
     if (node.kind === "external") return String(node.sub_kind || "system").replace(/-/g, " ").toUpperCase();
     if (node.kind === "client") return "CLIENT FILE";
+    if (node.kind === "provider") return "PROVIDER · LAUNCH";
+    if (node.kind === "machine") return "STATE MACHINE";
     if (node.kind === "section") return "CRITICAL SECTION";
     if (node.kind === "transport") return "IN-MEMORY · TRANSPORT";
     if (isTransportCore(node)) return "REQUEST LEG · TRANSPORT CORE";
@@ -1096,7 +1235,7 @@
   // Triggers: page → surface. Aggregated per pair, labelled with counts; the
   // individual actions live on the surface's inspector.
   function surfaceNodeFor(label) {
-    const order = ["caller", "subscriber", "hub", "store", "owner"];
+    const order = ["caller", "subscriber", "hub", "store", "owner", "provider"];
     const candidates = interplay.nodes.filter((node) => node.label === label && order.includes(node.kind));
     candidates.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     return candidates[0] || null;
@@ -1104,7 +1243,8 @@
   function triggerSummary(list) {
     const ua = list.filter((t) => t.kind === "user_action").length;
     const lc = list.filter((t) => t.kind === "lifecycle").length;
-    return [ua && `${ua} user action${ua === 1 ? "" : "s"}`, lc && `${lc} lifecycle hook${lc === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "no observed trigger";
+    const la = list.filter((t) => t.kind === "launch").length;
+    return [ua && `${ua} user action${ua === 1 ? "" : "s"}`, lc && `${lc} lifecycle hook${lc === 1 ? "" : "s"}`, la && `constructed at launch by ${la} entry point${la === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "no observed trigger";
   }
   function drawTriggerEdges(edgeGroup, groupBoxes) {
     const boxByLabel = new Map(groupBoxes.map((box) => [box.label, box]));
@@ -1117,29 +1257,53 @@
       if (!grouped.has(key)) grouped.set(key, { page: PAGE_LABEL.get(trigger.page), targetId: target.id, list: [] });
       grouped.get(key).list.push(trigger);
     });
+    // Page → surface pairs some earlier commit had and the head does not: drawn
+    // absent, so the slider can bring them back.
+    const pageIdByLabel = new Map(interplayPages.map((page) => [page.label, page.id]));
+    const headTriggerKeys = new Set(Array.from(grouped.values()).map((entry) =>
+      `page:${pageIdByLabel.get(entry.page)}|${historyKeyOf(interplayNodeById.get(entry.targetId))}|triggers`));
+    if (HISTORY) {
+      HISTORY.edges.forEach(([sourceIndex, targetIndex, relation]) => {
+        const source = HISTORY.nodes[sourceIndex];
+        const target = HISTORY.nodes[targetIndex];
+        if (relation !== "triggers" || !source || !target || source.kind !== "page") return;
+        const key = `${source.k}|${target.k}|triggers`;
+        const pageLabel = PAGE_LABEL.get(source.page);
+        const targetId = idByHistoryKey.get(target.k);
+        if (headTriggerKeys.has(key) || !pageLabel || !targetId) return;
+        grouped.set(key, { page: pageLabel, targetId, list: [], hist: true });
+      });
+    }
     grouped.forEach((entry) => {
       const box = boxByLabel.get(entry.page);
       const target = interplayPositions.get(entry.targetId);
       if (!box || !target) return;
       const source = { x: box.x + 18, y: box.y + 22, width: 1, height: 1 };
+      const hkey = `page:${pageIdByLabel.get(entry.page)}|${historyKeyOf(interplayNodeById.get(entry.targetId))}|triggers`;
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
         class: "interplay-edge trigger",
         "marker-end": "url(#arrow-trigger)",
         "data-source": `page:${entry.page}`,
         "data-target": entry.targetId,
-        "data-relation": "triggers"
+        "data-relation": "triggers",
+        "data-hkey": hkey,
+        "data-hist": entry.hist ? "true" : "false"
       });
       const title = svgElement("title", {});
-      title.textContent = `${entry.page} triggers ${interplayNodeById.get(entry.targetId).label}: ${triggerSummary(entry.list)}`;
+      title.textContent = entry.hist
+        ? `${entry.page} triggered ${interplayNodeById.get(entry.targetId).label} at an earlier commit`
+        : `${entry.page} triggers ${interplayNodeById.get(entry.targetId).label}: ${triggerSummary(entry.list)}`;
       path.append(title);
       edgeGroup.append(path);
       const mid = interplayLinkMidpoint(source, target);
       const label = svgElement("text", {
         x: mid.x.toFixed(1), y: mid.y.toFixed(1), class: "interplay-edge-label",
-        "data-source": `page:${entry.page}`, "data-target": entry.targetId, "data-relation": "triggers"
+        "data-source": `page:${entry.page}`, "data-target": entry.targetId, "data-relation": "triggers",
+        "data-hkey": hkey, "data-hist": entry.hist ? "true" : "false"
       });
-      label.textContent = `triggers · ${triggerSummary(entry.list)}`;
+      const allLaunch = entry.list.length && entry.list.every((t) => t.kind === "launch");
+      label.textContent = entry.hist ? "triggered · earlier commit" : allLaunch ? `constructs · ${entry.list.length} entry point${entry.list.length === 1 ? "" : "s"}` : `triggers · ${triggerSummary(entry.list)}`;
       const labels = edgeGroup.parentNode ? edgeGroup.parentNode.querySelector(".edge-labels") : null;
       (labels || edgeGroup).append(label);
     });
@@ -1187,6 +1351,14 @@
     if (node.kind === "client") {
       const count = (node.namespaces || []).length;
       return `${count} namespace${count === 1 ? "" : "s"}`;
+    }
+    if (node.kind === "provider") {
+      const loads = (node.loads || []).length;
+      return `init reads ${loads} store${loads === 1 ? "" : "s"}${(node.configures || []).length ? " · configures core" : ""}`;
+    }
+    if (node.kind === "machine") {
+      const machine = node.machine || { states: [], transitions: [] };
+      return `${machine.states.length} states · ${machine.transitions.length} transitions`;
     }
     if (node.kind === "section") {
       const guarded = (node.steps || []).filter((step) => step.guarded).length;
@@ -1244,61 +1416,390 @@
     legend.replaceChildren(...items);
   }
 
-  function renderInvariantSelect() {
-    const select = document.getElementById("invariant-select");
-    if (!select) return;
-    const holding = invariants.filter((item) => item.status === "holds").length;
-    const summary = document.createElement("option");
-    summary.value = "";
-    summary.textContent = `All (${holding} of ${invariants.length} hold)`;
-    select.replaceChildren(summary);
-    invariants.forEach((item) => {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = `${item.status === "holds" ? "✓" : "✗"} ${item.id} · ${item.checked} checked`;
-      select.append(option);
+  // ---- Semantic enrichment: described constructs and system flows ---------------
+  // Both are LLM-written and compiler-validated (architecture/semantic/*.json); the
+  // site only displays them. A record is drawn as a labelled table; a flow is a
+  // path over drawn edges that the reader can trace on the map.
+  const SEMANTIC_FIELD_LABELS = {
+    medium: "Medium", location: "Location", record_type: "Record types", keyed_by: "Keyed by", written_when: "Written",
+    read_when: "Read", readers: "Readers", writers: "Writers", retention: "Retention", failure_mode: "On failure", sensitive: "Sensitive",
+    protocol: "Protocol", auth: "Auth", direction: "Direction", failure_visible_as: "Failure visible as", namespaces_or_apis: "Namespaces / APIs",
+    concurrency_model: "Concurrency", reconnect_policy: "Reconnect", backpressure: "Backpressure", shared_by: "Shared by",
+    settles_by: "Settles by", cancellation: "Cancellation", runtime: "Runtime", model_ids: "Models", memory_floor_gb: "Memory floor (GB)",
+    loaded_when: "Loaded", unloaded_when: "Unloaded", supplies: "Supplies", configures: "Configures", loads: "Loads",
+    wraps: "Wraps", error_mapping: "Errors", purpose: "Purpose", request_shape: "Request", response_shape: "Response",
+    idempotent: "Idempotent", streams: "Streams", entry_triggers: "Entry triggers", owns_state_in: "Owns state in",
+    state: "State", reacts_to: "Reacts to", conformers: "Conformers"
+  };
+  function semanticValue(value) {
+    const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (PAGE_LABEL.get(key) || key); };
+    if (Array.isArray(value)) return value.map((item) => (typeof item === "string" && item.includes(":") ? nameOf(item) : String(item).replace(/_/g, " "))).join(", ") || "—";
+    if (typeof value === "boolean") return value ? "yes" : "no";
+    if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
+    return String(value);
+  }
+  function describedSection(semantic) {
+    const section = element("section", "inspector-section described");
+    const head = element("h4", "", "Described");
+    if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
+    section.append(head, element("p", "", semantic.summary));
+    const fields = Object.entries(semantic.fields || {});
+    if (fields.length) {
+      const table = element("dl", "described-table");
+      fields.forEach(([name, value]) => {
+        table.append(element("dt", "", SEMANTIC_FIELD_LABELS[name] || name.replace(/_/g, " ")));
+        table.append(element("dd", "", semanticValue(value)));
+      });
+      section.append(table);
+    }
+    if ((semantic.open_questions || []).length) {
+      const questions = element("ul", "evidence-list");
+      semantic.open_questions.forEach((question) => questions.append(element("li", "", `? ${question}`)));
+      section.append(element("p", "described-meta", "Open questions"), questions);
+    }
+    const evidence = element("ul", "evidence-list");
+    (semantic.evidence || []).forEach((site) => { const li = document.createElement("li"); li.append(sourceLink(site)); evidence.append(li); });
+    section.append(evidence);
+    section.append(element("p", "described-meta", `Written by ${semantic.model} at ${String(semantic.source_revision).slice(0, 9)}; validated against the map on every build.`));
+    return section;
+  }
+  // A state machine as a Mermaid state diagram generated from its extracted
+  // transitions, plus the transitions as a table with source links. A transition
+  // whose origin the code does not test first starts from "any state".
+  function machineMermaid(node) {
+    const machine = node.machine || { states: [], transitions: [] };
+    const lines = ["stateDiagram-v2"];
+    const seenAny = machine.transitions.some((t) => !t.from);
+    if (seenAny) lines.push('  state "any state" as anyState');
+    if (machine.initial) lines.push(`  [*] --> ${machine.initial}`);
+    const seen = new Set();
+    machine.transitions.forEach((t) => {
+      const froms = t.from && t.from.length ? t.from : ["anyState"];
+      froms.forEach((from) => {
+        const key = `${from}|${t.to}|${t.function}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push(`  ${from} --> ${t.to}: ${mermaidLabel(t.function)}()`);
+      });
     });
+    return lines.join("\n");
+  }
+  function machineSection(node) {
+    const machine = node.machine || { states: [], transitions: [], dead_states: [] };
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `States (${machine.states.length}) and transitions (${machine.transitions.length})`));
+    const diagram = element("div", "flow-diagram");
+    diagram.dataset.source = machineMermaid(node);
+    diagram.dataset.state = "pending";
+    diagram.textContent = diagram.dataset.source;
+    section.append(diagram);
+    const states = element("p", "described-meta", machine.states.map((s) => s.name + (s.payload ? "(…)" : "")).join(" · "));
+    section.append(states);
+    if ((machine.dead_states || []).length) section.append(element("p", "described-meta", `Never entered by any transition: ${machine.dead_states.join(", ")}`));
+    const list = element("ul", "evidence-list");
+    machine.transitions.forEach((t) => {
+      const li = document.createElement("li");
+      const link = sourceLink({ path: t.path, line: t.line });
+      link.textContent = `${(t.from && t.from.length) ? t.from.join(" | ") : "any"} → ${t.to}  ·  ${t.function}()  ·  ${t.path.split("/").pop()}:${t.line}`;
+      li.append(link);
+      list.append(li);
+    });
+    section.append(list);
+    if (machine.enum_path) {
+      const decl = element("p", "described-meta");
+      decl.append(document.createTextNode("Enum declared at "), sourceLink({ path: machine.enum_path, line: machine.enum_line || 1 }));
+      section.append(decl);
+    }
+    setTimeout(renderMermaidDiagrams, 0);
+    return section;
+  }
+  function machineLinksSection(ids) {
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `State machine${ids.length === 1 ? "" : "s"}`));
+    const list = element("div", "chip-list");
+    ids.forEach((id) => {
+      const machine = interplayNodeById.get(id);
+      if (!machine) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-chip selectable";
+      button.textContent = `${machine.label} · ${(machine.machine || {}).states.length} states`;
+      button.addEventListener("click", () => selectInterplayNode(id));
+      list.append(button);
+    });
+    section.append(list);
+    return section;
+  }
+  function flowLinksSection(ids) {
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `Appears in ${ids.length} system flow${ids.length === 1 ? "" : "s"}`));
+    const list = element("div", "chip-list");
+    ids.forEach((id) => {
+      const flow = flowById.get(id);
+      if (!flow) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-chip selectable";
+      button.textContent = flow.title;
+      button.addEventListener("click", () => traceFlow(id));
+      list.append(button);
+    });
+    section.append(list);
+    return section;
+  }
+  function traceFlow(id) {
+    const flow = flowById.get(id);
+    if (!flow) return;
+    selectedFlowId = id;
+    selectedInterplayId = null;
+    renderFlowInspector(flow);
+    applyInterplayState();
+    renderFlows();
+    const workspace = document.getElementById("interplay-workspace");
+    if (workspace && workspace.scrollIntoView) workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function clearFlow() {
+    selectedFlowId = null;
+    applyInterplayState();
+    renderFlows();
+  }
+  function renderFlowInspector(flow) {
+    const inspector = document.getElementById("interplay-inspector");
+    if (!inspector) return;
+    const container = element("div");
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "inspector-close";
+    close.setAttribute("aria-label", "Stop tracing");
+    close.textContent = "×";
+    close.addEventListener("click", clearFlow);
+    container.append(close);
+    container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
+    const steps = element("ol", "inspector-steps");
+    flow.steps.forEach((step) => {
+      const li = document.createElement("li");
+      li.append(element("span", "step-path", `${nameOf(step.from)} → ${step.relation.replace(/-/g, " ")} → ${nameOf(step.to)}`));
+      if (step.note) li.append(element("span", "step-note", step.note));
+      steps.append(li);
+    });
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `Steps (${flow.steps.length})`), steps);
+    container.append(section);
+    if (flow.trigger) {
+      const trigger = triggers.find((t) => t.id === flow.trigger);
+      if (trigger) container.append(element("p", "described-meta", `Starts from ${trigger.api} in ${trigger.view || "?"} · ${trigger.method}() · ${PAGE_LABEL.get(trigger.page) || trigger.page}`));
+    }
+    if (flow.outcome) container.append(element("p", "", flow.outcome));
+    if ((flow.problems || []).length) {
+      const problems = element("ul", "evidence-list");
+      flow.problems.forEach((problem) => problems.append(element("li", "", problem)));
+      container.append(element("p", "described-meta", "Broken: the map no longer has these edges"), problems);
+    }
+    const evidence = element("ul", "evidence-list");
+    (flow.evidence || []).forEach((site) => { const li = document.createElement("li"); li.append(sourceLink(site)); evidence.append(li); });
+    container.append(evidence, element("p", "described-meta", `Written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)}; every step is checked against the map on every build.`));
+    inspector.replaceChildren(container);
+  }
+  // The flows: the user's journeys, rendered inline as Mermaid sequence diagrams
+  // beneath the invariants. Participants are the nodes a flow's steps touch;
+  // messages are the steps; the user (or the App at launch) is the first
+  // participant when a flow starts from a trigger. Each diagram is generated from
+  // the validated steps, so it can only show wiring the map has. Mermaid itself
+  // is loaded by index.html; until it arrives (or if it never does) the diagram's
+  // source is shown as text.
+  function mermaidLabel(text) {
+    return String(text).replace(/[;:#<>"`]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function flowMermaid(flow) {
+    const participants = new Map();
+    const alias = (key) => {
+      if (!participants.has(key)) {
+        let label;
+        if (key.startsWith("page:")) {
+          const pageId = key.slice(5);
+          label = pageId === "launch" ? "App entry points" : `User on ${PAGE_LABEL.get(pageId) || pageId}`;
+        } else {
+          const id = idByHistoryKey.get(key);
+          const node = id ? interplayNodeById.get(id) : null;
+          label = node ? node.label : key.split(":").pop();
+        }
+        participants.set(key, { alias: `p${participants.size}`, label });
+      }
+      return participants.get(key).alias;
+    };
+    const lines = ["sequenceDiagram", "  autonumber"];
+    const messages = [];
+    const trigger = flow.trigger ? triggers.find((t) => t.id === flow.trigger) : null;
+    flow.steps.forEach((step) => {
+      const from = alias(step.from);
+      const to = alias(step.to);
+      const arrow = MERMAID_ASYNC.has(step.relation) ? "-->>" : "->>";
+      let text = step.relation.replace(/-/g, " ");
+      if (step.relation === "triggers" && trigger) text = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
+      if (step.note) text += ` · ${step.note}`;
+      messages.push(`  ${from}${arrow}${to}: ${mermaidLabel(text)}`);
+    });
+    participants.forEach(({ alias: name, label }) => lines.push(`  participant ${name} as ${mermaidLabel(label)}`));
+    return lines.concat(messages).join("\n");
+  }
+  async function renderMermaidDiagrams() {
+    const mermaid = window.__mermaid;
+    if (!mermaid) return;
+    const blocks = Array.from(document.querySelectorAll(".flow-diagram[data-state='pending']"));
+    for (const block of blocks) {
+      block.dataset.state = "rendering";
+      try {
+        const { svg } = await mermaid.render(`flow-svg-${mermaidRenderSeq += 1}`, block.dataset.source);
+        block.innerHTML = svg; // Mermaid's own SVG output; the source was generated here from validated steps
+        block.dataset.state = "rendered";
+      } catch (_error) {
+        block.dataset.state = "failed";
+        block.textContent = block.dataset.source;
+      }
+    }
+  }
+  window.addEventListener("mermaid-ready", renderMermaidDiagrams);
+  function renderFlows() {
+    const host = document.getElementById("flows-list");
+    const lede = document.getElementById("flows-lede");
+    if (!host || !lede) return;
+    if (!flows.length) {
+      lede.textContent = "No system flows are declared yet. They are written by scripts/architecture_agent.py --flows, one journey at a time, and validated step by step against this map.";
+      host.replaceChildren();
+      return;
+    }
+    const traceable = flows.filter((flow) => flow.status === "traceable").length;
+    lede.textContent = `${flows.length} flows across three journeys, ${traceable} tracing fully over edges on this map. Each is written by a model from the graph and validated step by step on every build; the diagrams are generated from those steps, so they can only show wiring the map has.`;
+    const groups = new Map();
+    flows.forEach((flow) => {
+      const groupKey = flow.journey === "page" ? `page:${flow.page}` : (flow.journey || "other");
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey).push(flow);
+    });
+    const sections = [];
+    let pageIndex = 0;
+    groups.forEach((list, groupKey) => {
+      const section = element("section", "journey");
+      let title;
+      if (groupKey.startsWith("page:")) {
+        pageIndex += 1;
+        title = `${JOURNEY_TITLES.page}${pageIndex === 1 ? "" : ""} · ${PAGE_LABEL.get(groupKey.slice(5)) || groupKey.slice(5)}`;
+      } else {
+        title = JOURNEY_TITLES[groupKey] || groupKey;
+      }
+      section.append(element("h4", "journey-title", title));
+      list.forEach((flow) => {
+        const article = element("article", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
+        article.id = `flow-${flow.id}`;
+        const head = element("div", "flow-head");
+        head.append(element("h5", "", flow.title));
+        if (flow.interaction) head.append(element("span", "flow-interaction", flow.interaction));
+        if (flow.status !== "traceable") head.append(element("span", "invariant-status violated", "BROKEN"));
+        article.append(head, element("p", "flow-summary", flow.summary));
+        const diagram = element("div", "flow-diagram");
+        diagram.dataset.source = flowMermaid(flow);
+        diagram.dataset.state = "pending";
+        diagram.textContent = diagram.dataset.source;
+        article.append(diagram);
+        // The same steps as a numbered procedure: who does what to whom, and what it
+        // means for the user. Numbers match the diagram's.
+        const trigger = flow.trigger ? triggers.find((t) => t.id === flow.trigger) : null;
+        const nameOf = (key) => {
+          if (key.startsWith("page:")) return key === "page:launch" ? "App entry points" : `User on ${PAGE_LABEL.get(key.slice(5)) || key.slice(5)}`;
+          const id = idByHistoryKey.get(key);
+          const node = id ? interplayNodeById.get(id) : null;
+          return node ? node.label : key.split(":").pop();
+        };
+        const procedure = element("ol", "flow-procedure");
+        flow.steps.forEach((step) => {
+          const li = document.createElement("li");
+          let verb = step.relation.replace(/-/g, " ");
+          if (step.relation === "triggers" && trigger) verb = `${trigger.api} · ${trigger.method}()${trigger.view ? ` in ${trigger.view}` : ""}`;
+          li.append(element("strong", "", nameOf(step.from)), document.createTextNode(` ${verb} `), element("strong", "", nameOf(step.to)));
+          if (step.note) li.append(element("span", "step-note", step.note));
+          procedure.append(li);
+        });
+        article.append(procedure);
+        if (flow.outcome) article.append(element("p", "flow-outcome", `Outcome: ${flow.outcome}`));
+        const meta = element("p", "flow-meta");
+        meta.append(document.createTextNode(`${flow.steps.length} steps · written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)} · `));
+        const trace = document.createElement("a");
+        trace.href = "#systemmap";
+        trace.className = "flow-trace";
+        trace.textContent = flow.id === selectedFlowId ? "stop tracing on the map" : "trace on the map";
+        trace.addEventListener("click", (event) => { event.preventDefault(); if (flow.id === selectedFlowId) clearFlow(); else traceFlow(flow.id); });
+        meta.append(trace);
+        article.append(meta);
+        section.append(article);
+      });
+      sections.push(section);
+    });
+    host.replaceChildren(...sections);
+    renderMermaidDiagrams();
   }
 
-  // A plain description panel for the chosen invariant: what it pins, why, and how
-  // many things the last build checked. It does not touch the graph.
-  function renderInvariantDetail(item) {
-    const panel = document.getElementById("invariant-detail");
-    if (!panel) return;
-    if (!item) { panel.hidden = true; panel.replaceChildren(); return; }
-    const head = element("div", "invariant-head");
-    head.append(
-      element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
-      element("strong", "", item.id),
-      element("span", "invariant-meta", `${item.kind.replace(/_/g, " ")} · ${item.checked} checked on the last build`)
-    );
-    panel.replaceChildren(
-      head,
-      element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind),
-      element("p", "invariant-why", item.why)
-    );
-    panel.hidden = false;
+  // The invariants, as text at the foot of the System map: what each pins, why it
+  // is declared, its status and how much the last build checked. Reading them
+  // never touches the graph.
+  function renderInvariants() {
+    const list = document.getElementById("invariants-list");
+    const lede = document.getElementById("invariants-lede");
+    if (!list || !lede) return;
+    const holding = invariants.filter((item) => item.status === "holds").length;
+    lede.textContent = `${holding} of ${invariants.length} declared constructions hold on this build. Each is declared in architecture/interplay/invariants.json with a reason and checked by scripts/build_architecture.py; a violation fails the build rather than redrawing the map.`;
+    list.replaceChildren(...invariants.map((item) => {
+      const li = element("li", "invariant");
+      const head = element("div", "invariant-head");
+      head.append(
+        element("span", `invariant-status ${item.status}`, item.status === "holds" ? "HOLDS" : "VIOLATED"),
+        element("strong", "", item.id),
+        element("span", "invariant-meta", `${item.kind.replace(/_/g, " ")} · ${item.checked} checked`)
+      );
+      li.append(head, element("p", "", INVARIANT_KIND_TEXT[item.kind] || item.kind), element("p", "invariant-why", item.why));
+      return li;
+    }));
   }
 
   function selectInterplayNode(nodeId) {
     selectedInterplayId = nodeId;
+    selectedFlowId = null;
     renderInterplayInspector(interplayNodeById.get(nodeId));
     applyInterplayState();
   }
 
   function applyInterplayState() {
+    const flow = selectedFlowId ? flowById.get(selectedFlowId) : null;
+    const focusing = Boolean(selectedInterplayId || flow);
     const inspectorPanel = document.getElementById("interplay-inspector");
-    if (inspectorPanel) inspectorPanel.hidden = !selectedInterplayId;
+    if (inspectorPanel) inspectorPanel.hidden = !focusing;
     const workspace = document.getElementById("interplay-workspace");
-    if (workspace) workspace.classList.toggle("has-inspector", Boolean(selectedInterplayId));
+    if (workspace) workspace.classList.toggle("has-inspector", focusing);
     const input = document.getElementById("interplay-search");
     const query = input ? input.value.trim().toLowerCase() : "";
+    // A selection is a claim about a node the reader can see; sliding past the
+    // commit it was added in would leave the claim pointing at nothing.
+    if (selectedInterplayId && !timelineNodeState(interplayNodeById.get(selectedInterplayId)).live) {
+      selectedInterplayId = null;
+      if (inspectorPanel) inspectorPanel.hidden = true;
+      if (workspace) workspace.classList.remove("has-inspector");
+    }
     const connected = new Set();
     const activeKeys = selectedInterplayId ? flowEdgeKeys(selectedInterplayId) : new Set();
     if (selectedInterplayId) {
       connected.add(selectedInterplayId);
       interplay.edges.forEach((edge) => {
         if (activeKeys.has(`${edge.source}|${edge.target}|${edge.relation}`)) { connected.add(edge.source); connected.add(edge.target); }
+      });
+    }
+    // A flow's steps are edges named by history key, which is exactly what every
+    // drawn edge carries in data-hkey; the step number replaces the relation label.
+    const flowSteps = new Map();
+    if (flow) {
+      flow.steps.forEach((step, index) => {
+        flowSteps.set(`${step.from}|${step.to}|${step.relation}`, index + 1);
+        [step.from, step.to].forEach((key) => { const id = idByHistoryKey.get(key); if (id) connected.add(id); });
       });
     }
     document.querySelectorAll(".interplay-node").forEach((element) => {
@@ -1309,17 +1810,228 @@
         .concat(node.namespaces || [])
         .filter(Boolean).join(" ").toLowerCase();
       const queryMismatch = query && !searchable.includes(query);
-      const selectionMismatch = selectedInterplayId && !connected.has(node.id);
+      const selectionMismatch = focusing && !connected.has(node.id);
       element.classList.toggle("selected", node.id === selectedInterplayId);
       element.classList.toggle("dimmed", Boolean(queryMismatch || selectionMismatch));
+      // What the reader's position lacks is absent; what this commit removed is ghosted.
+      const when = timelineNodeState(node);
+      element.classList.toggle("absent", !when.live && !when.gone);
+      element.classList.toggle("ghost", when.gone);
     });
     document.querySelectorAll(".interplay-edge, .interplay-edge-label").forEach((edge) => {
       const direct = selectedInterplayId && (edge.dataset.source === selectedInterplayId || edge.dataset.target === selectedInterplayId);
-      const active = Boolean(selectedInterplayId) && (direct || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`));
+      const step = flowSteps.get(edge.dataset.hkey);
+      const active = focusing && (Boolean(direct) || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`) || Boolean(step));
       edge.classList.toggle("active", active);
-      edge.classList.toggle("dimmed", Boolean(selectedInterplayId && !active));
+      if (edge.classList.contains("interplay-edge-label")) {
+        if (!edge.dataset.label) edge.dataset.label = edge.textContent;
+        edge.textContent = step ? `${step}. ${edge.dataset.relation.replace(/-/g, " ")}` : edge.dataset.label;
+      }
+      const when = timelineEdgeState(edge);
+      edge.classList.toggle("absent", !when.live && !when.gone);
+      edge.classList.toggle("ghost", when.gone && !edge.classList.contains("interplay-edge-label"));
+      edge.classList.toggle("dimmed", Boolean(focusing && !active));
     });
   }
+
+  // ---- The history slider ----------------------------------------------------
+  // Whether a drawn thing is part of the picture at the reader's position. Untouched,
+  // that is the head revision: historical-only entities are absent. The transport
+  // container is virtual (built here, never in a snapshot) and follows its members.
+  function travelling() {
+    return Boolean(TL && TL.engaged);
+  }
+  function timelineNodeState(node) {
+    if (!node || node.kind === "transport") return { live: true, gone: false };
+    if (!travelling()) return { live: !node.hist, gone: false };
+    const key = historyKeyOf(node);
+    return { live: TL.live(key), gone: TL.gone(key) };
+  }
+  function timelineEdgeState(element) {
+    const key = element.dataset.hkey;
+    if (!key) return { live: true, gone: false };
+    if (!travelling()) return { live: element.dataset.hist !== "true", gone: false };
+    return { live: TL.liveEdge(key), gone: TL.goneEdge(key) };
+  }
+  const TIMELINE_PLAY_MS = 140; // ~7 points a second: fast enough to read a shape moving, slow enough to see a commit
+  let timelineTimer = null;
+  function renderTimeline() {
+    const bar = document.getElementById("timeline");
+    if (!bar) return;
+    if (!TL) { bar.hidden = true; return; }
+    bar.hidden = false;
+    const range = document.getElementById("timeline-range");
+    range.max = String(TL.last);
+    range.value = String(TL.i);
+    // The sparkline is the node count at every point, so the reader sees where the
+    // shape grew before dragging there.
+    const spark = document.getElementById("timeline-spark");
+    if (spark) {
+      spark.textContent = "";
+      const counts = HISTORY.snapshots.map((point) => point.counts.nodes);
+      const peak = Math.max(1, ...counts);
+      const points = counts.map((count, index) => `${((index / Math.max(1, counts.length - 1)) * 100).toFixed(2)},${(100 - (count / peak) * 100).toFixed(2)}`);
+      spark.setAttribute("viewBox", "0 0 100 100");
+      spark.setAttribute("preserveAspectRatio", "none");
+      spark.append(svgElement("polyline", { points: points.join(" ") }));
+    }
+    timelineSync();
+  }
+  function timelineGo(n) {
+    TL.go(n, true);
+    applyInterplayState();
+    timelineSync();
+  }
+  function timelinePlay(on) {
+    if (timelineTimer) { clearInterval(timelineTimer); timelineTimer = null; }
+    if (on) {
+      if (TL.i >= TL.last) TL.go(0, true);
+      timelineTimer = setInterval(() => {
+        if (TL.i >= TL.last) { timelinePlay(false); timelineSync(); return; }
+        timelineGo(TL.i + 1);
+      }, TIMELINE_PLAY_MS);
+    }
+    const button = document.getElementById("timeline-play");
+    if (button) {
+      button.textContent = on ? "❙❙" : "▶";
+      button.title = on ? "Pause" : "Play the history forward";
+      button.setAttribute("aria-pressed", String(on));
+    }
+  }
+  function timelineSync() {
+    if (!TL) return;
+    const point = TL.point();
+    const previous = TL.prev();
+    const range = document.getElementById("timeline-range");
+    if (range) range.value = String(TL.i);
+    const scroll = document.getElementById("interplay-scroll");
+    if (scroll) scroll.classList.toggle("travelling", TL.engaged && TL.i < TL.last);
+    const set = (id, text) => { const node = document.getElementById(id); if (node) node.textContent = text; };
+    set("timeline-date", point.date);
+    set("timeline-pos", `commit ${TL.i + 1} of ${TL.count}`);
+    const rev = document.getElementById("timeline-rev");
+    if (rev) {
+      rev.textContent = point.rev.slice(0, 9);
+      rev.href = `https://github.com/${model.repository}/commit/${point.rev}`;
+    }
+    set("timeline-counts", `${point.counts.nodes} nodes · ${point.counts.edges} edges`);
+    const delta = document.getElementById("timeline-delta");
+    if (delta) {
+      delta.textContent = "";
+      if (previous) {
+        const diff = (now, was, noun) => {
+          const n = now - was;
+          if (!n) return;
+          delta.append(element("span", n > 0 ? "up" : "down", `${n > 0 ? "+" : "−"}${Math.abs(n)} ${noun}`));
+        };
+        diff(point.counts.nodes, previous.counts.nodes, "nodes");
+        diff(point.counts.edges, previous.counts.edges, "edges");
+      }
+    }
+    set("timeline-subject", point.subject);
+    timelineDiff();
+    timelineNote(point);
+  }
+  // The commit's own diff as chips. A node that survived to the head revision is
+  // selectable; one that did not says so rather than pretending to be.
+  const TIMELINE_CHIPS = 14;
+  function timelineDiff() {
+    const host = document.getElementById("timeline-diff");
+    if (!host) return;
+    host.textContent = "";
+    if (!TL.engaged) return;
+    const added = TL.added();
+    const removed = TL.removed();
+    const edges = TL.edgeDelta();
+    if (!added.length && !removed.length && !edges.added && !edges.removed) {
+      host.append(element("span", "timeline-quiet", "This commit changed the app without changing the shape of the map."));
+      return;
+    }
+    let room = TIMELINE_CHIPS;
+    const put = (meta, sign) => {
+      if (room-- <= 0 || meta.kind === "page") return;
+      const chip = element("span", `timeline-chip ${sign === "+" ? "add" : "del"}`, `${sign} ${meta.label || meta.k}`);
+      const headId = idByHistoryKey.get(meta.k);
+      const headNode = headId ? headNodeById.get(headId) : null;
+      if (headNode) {
+        chip.classList.add("selectable");
+        chip.title = `${sign === "+" ? "Added" : "Removed"} by this commit. Click to select it on the map.`;
+        chip.addEventListener("click", () => { TL.disengage(); timelinePlay(false); selectInterplayNode(headNode.id); timelineSync(); });
+      } else {
+        chip.classList.add("dead");
+        chip.title = `${sign === "+" ? "Added" : "Removed"} by this commit. Not part of the head revision.`;
+      }
+      host.append(chip);
+    };
+    removed.forEach((meta) => put(meta, "−"));
+    added.forEach((meta) => put(meta, "+"));
+    const over = added.length + removed.length - TIMELINE_CHIPS;
+    if (over > 0) host.append(element("span", "timeline-quiet", `+${over} more`));
+    if (edges.added || edges.removed) {
+      host.append(element("span", "timeline-quiet", `${edges.removed ? `−${edges.removed} ` : ""}${edges.added ? `+${edges.added} ` : ""}edges`));
+    }
+  }
+  // What a reader has to be told rather than shown: the point is drawn with today's
+  // config and overlay, the inspector describes the head, and where the axis has holes.
+  function timelineNote(point) {
+    const note = document.getElementById("timeline-note");
+    if (!note) return;
+    const parts = [];
+    const first = HISTORY.snapshots[0];
+    const last = HISTORY.snapshots[TL.last];
+    if (!TL.engaged) {
+      parts.push(`Drag to walk ${TL.count} commits of history (${first.date} → ${last.date}). The graph moves; the inspector and the other views always describe the head revision.`);
+    } else {
+      parts.push("Derived by running today's extractor at this commit with today's config and overlay.");
+      const fidelity = point.fidelity || {};
+      const violated = (point.invariants && point.invariants.violated) || [];
+      if (fidelity.externals_unmatched) parts.push(`${fidelity.externals_unmatched} declared external system${fidelity.externals_unmatched === 1 ? "" : "s"} matched nothing here.`);
+      if (fidelity.page_roots_missing) parts.push(`${fidelity.page_roots_missing} page root view${fidelity.page_roots_missing === 1 ? " did" : "s did"} not exist yet.`);
+      if (violated.length) parts.push(`${violated.length} invariant${violated.length === 1 ? "" : "s"} did not hold: ${violated.join(", ")}.`);
+      if (TL.i < TL.last) parts.push("Dashed amber is what this commit removed.");
+    }
+    if (TL.failed) {
+      parts.push(`${TL.failed} commit${TL.failed === 1 ? "" : "s"} in this range could not be processed by today's extractor and ${TL.failed === 1 ? "is" : "are"} not on the axis; what ${TL.failed === 1 ? "it" : "they"} changed shows up on the next point.`);
+    }
+    if (last.tree !== model.source_tree_sha256) {
+      parts.push("The newest point was derived from a different source tree than this map, so the last point and the map may differ.");
+    }
+    note.textContent = parts.join(" ");
+  }
+  function wireTimeline() {
+    const bar = document.getElementById("timeline");
+    if (!bar || !TL) return;
+    const range = document.getElementById("timeline-range");
+    if (range) range.addEventListener("input", () => { timelinePlay(false); timelineGo(Number(range.value)); });
+    const play = document.getElementById("timeline-play");
+    if (play) play.addEventListener("click", () => timelinePlay(!timelineTimer));
+    const now = document.getElementById("timeline-now");
+    if (now) {
+      now.addEventListener("click", () => {
+        timelinePlay(false);
+        TL.disengage();
+        applyInterplayState();
+        timelineSync();
+      });
+    }
+    const toggle = document.getElementById("timeline-toggle");
+    if (toggle) {
+      const key = "portal.architecture.timelineCollapsed";
+      const apply = (collapsed) => {
+        bar.classList.toggle("collapsed", collapsed);
+        toggle.setAttribute("aria-expanded", String(!collapsed));
+      };
+      let collapsed = false;
+      try { collapsed = window.localStorage.getItem(key) === "1"; } catch (_error) { collapsed = false; }
+      apply(collapsed);
+      toggle.addEventListener("click", () => {
+        collapsed = !bar.classList.contains("collapsed");
+        apply(collapsed);
+        try { window.localStorage.setItem(key, collapsed ? "1" : "0"); } catch (_error) { /* storage unavailable */ }
+      });
+    }
+  }
+
 
   function renderInterplayInspector(node) {
     const inspector = document.getElementById("interplay-inspector");
@@ -1356,6 +2068,11 @@
       });
       container.append(grid);
     }
+
+    if (node.semantic) container.append(describedSection(node.semantic));
+    if (node.kind === "machine") container.append(machineSection(node));
+    if ((node.machines || []).length) container.append(machineLinksSection(node.machines));
+    if ((node.flows || []).length) container.append(flowLinksSection(node.flows));
 
     if (node.overlay_prose) {
       const proseSection = element("section", "inspector-section");
@@ -1409,7 +2126,7 @@
     }
 
     const mine = triggersFor(node);
-    if (mine.length && ["caller", "subscriber", "hub", "owner", "store"].includes(node.kind)) {
+    if (mine.length && ["caller", "subscriber", "hub", "owner", "store", "provider"].includes(node.kind)) {
       const section = element("section", "inspector-section");
       section.append(element("h4", "", `Triggers (${mine.length}) · ${triggerSummary(mine)}`));
       const list = element("ul", "evidence-list");
@@ -1418,6 +2135,21 @@
         const link = sourceLink({ path: trigger.path, line: trigger.line });
         const reaches = trigger.namespaces.length ? `  →  ${trigger.namespaces.join(", ")}` : "";
         link.textContent = `${trigger.api} in ${trigger.view || "?"}  ·  ${trigger.method}()${reaches}  ·  ${PAGE_LABEL.get(trigger.page) || "unplaced"}:${trigger.line}`;
+        li.append(link);
+        list.append(li);
+      });
+      section.append(list);
+      container.append(section);
+    }
+
+    if ((node.configures || []).length) {
+      const section = element("section", "inspector-section");
+      section.append(element("h4", "", "Configures the transport"));
+      const list = element("ul", "evidence-list");
+      node.configures.slice(0, 12).forEach((entry) => {
+        const li = document.createElement("li");
+        const link = sourceLink({ path: entry.path, line: entry.line });
+        link.textContent = `${entry.via || "?"}.${entry.method}(…: ${node.label})  ·  ${entry.path}:${entry.line}`;
         li.append(link);
         list.append(li);
       });
@@ -1589,6 +2321,13 @@
     if (node.kind === "caller") {
       return [[(node.namespaces || []).length, "Namespaces"], [componentLabel(node.component), "Surface"]];
     }
+    if (node.kind === "provider") {
+      return [[(node.loads || []).length, "Loads in init"], [(node.configures || []).length, "Configures"], [componentLabel(node.component), "Owner"]];
+    }
+    if (node.kind === "machine") {
+      const machine = node.machine || { states: [], transitions: [], dead_states: [] };
+      return [[machine.states.length, "States"], [machine.transitions.length, "Transitions"], [machine.dead_states.length, "Never entered"]];
+    }
     if (node.kind === "client") {
       const endpoints = interplay.edges.filter((edge) => edge.source === node.id && edge.relation === "implements").length;
       return [[(node.namespaces || []).length, "Namespaces"], [endpoints, "Endpoints"], [node.owner_type, "Extends"]];
@@ -1623,6 +2362,15 @@
     }
     if (node.kind === "client") {
       return `The ${node.label}.swift extension of ${node.owner_type}: the file that implements the ${(node.namespaces || []).join(", ")} namespace call sites. Namespace boxes reach the core transport through it.`;
+    }
+    if (node.kind === "machine") {
+      const machine = node.machine || {};
+      const unknown = machine.unknown_from || 0;
+      return `${node.owner_type}'s lifecycle state: the stored property ${machine.property} typed as the ${machine.enum} enum${machine.initial ? `, starting as ${machine.initial}` : ""}. Every transition below is an assignment of a case in the source, attributed to the function that performs it; ${unknown ? `${unknown} of them leave a state the code does not test first, so their origin is drawn as "any state"` : "each leaves a state the code tests first"}.`;
+    }
+    if (node.kind === "provider") {
+      const via = (node.configures || [])[0];
+      return `Constructed by the App entry points at launch, before any page exists. Its initialiser reads ${(node.loads || []).join(", ") || "no store"}${via ? `, and it is handed to ${via.via}.${via.method}() to configure what the transport connects with` : ""}. It is not a page surface: it holds no transport and invokes no namespace.`;
     }
     if (node.kind === "seam") return "The protocol both network transports conform to—the seam a hub binds to reach either backend.";
     if (node.kind === "hub") return `A construction that wires a network transport and an on-device engine together, owned by ${componentLabel(node.component)}.`;
@@ -1809,10 +2557,23 @@
       const list = element("div", "behavior-list");
       records.forEach((record) => {
         const artifacts = (record.artifacts || []).map((artifact) => artifact.label);
+        const storeNode = interplay.nodes.find((node) => node.label === record.type_name && node.store);
+        const described = storeNode && storeNode.semantic ? storeNode.semantic : null;
+        const fields = (described && described.fields) || {};
         const row = recordRow(record, [
           `persistence ${(record.persistence || []).join(", ")}`,
-          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null
+          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null,
+          fields.medium ? `medium ${semanticValue(fields.medium)}` : null,
+          (fields.record_type || []).length ? `records ${fields.record_type.join(", ")}` : null,
+          fields.keyed_by ? `keyed by ${fields.keyed_by}` : null,
+          (fields.written_when || []).length ? `written ${semanticValue(fields.written_when)}` : null,
+          (fields.read_when || []).length ? `read ${semanticValue(fields.read_when)}` : null
         ].filter(Boolean));
+        if (described) {
+          const summary = element("p", "derivation described-summary", described.summary);
+          if (described.stale) summary.prepend(element("span", "stale-badge", "stale"));
+          row.append(summary);
+        }
         const mechanisms = record.mechanisms || [];
         if (mechanisms.length) {
           const block = element("ul", "evidence-list");
@@ -1900,12 +2661,6 @@
   }
 
   function wireControls() {
-    const invariantSelect = document.getElementById("invariant-select");
-    if (invariantSelect) {
-      invariantSelect.addEventListener("change", () => {
-        renderInvariantDetail(invariantById.get(invariantSelect.value) || null);
-      });
-    }
     document.getElementById("inventory-search").addEventListener("input", (event) => renderInventory(event.target.value));
     const interplaySearch = document.getElementById("interplay-search");
     if (interplaySearch) interplaySearch.addEventListener("input", applyInterplayState);
@@ -1913,7 +2668,10 @@
     if (resetInterplay) {
       resetInterplay.addEventListener("click", () => {
         selectedInterplayId = null;
+        selectedFlowId = null;
+        renderFlows();
         if (interplaySearch) interplaySearch.value = "";
+        if (TL) { timelinePlay(false); TL.disengage(); timelineSync(); } // back to the head revision
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too
         applyInterplayState();
       });
@@ -1937,6 +2695,7 @@
     }
     const interplayFullscreen = document.getElementById("interplay-fullscreen");
     if (interplayFullscreen) interplayFullscreen.addEventListener("click", toggleInterplayFullscreen);
+    wireTimeline();
     // Re-fit when entering/leaving fullscreen so the graph fills the new frame.
     document.addEventListener("fullscreenchange", () => {
       const workspace = document.getElementById("interplay-workspace");

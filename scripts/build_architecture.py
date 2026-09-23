@@ -21,6 +21,23 @@ SITE_DATA_PATH = ROOT / "architecture/site/data.js"
 SEMANTIC_PATH = ROOT / "architecture/semantic/components.json"
 INTERPLAY_OVERLAY_PATH = ROOT / "architecture/interplay/overlay.json"
 INTERPLAY_INVARIANTS_PATH = ROOT / "architecture/interplay/invariants.json"
+CONSTRUCTS_PATH = ROOT / "architecture/semantic/constructs.json"
+FLOWS_PATH = ROOT / "architecture/semantic/flows.json"
+
+# Snapshot mode (`--snapshot`, used by scripts/build_architecture_history.py):
+# today's extractor runs over an older checkout with today's curated files, so
+# the curation gates record what they could not account for instead of failing.
+# Strict is the default and the only mode `make architecture` and `--check` use.
+LENIENT = False
+FIDELITY: dict[str, list[str]] = defaultdict(list)
+
+
+def gate(kind: str, message: str) -> None:
+    """Fail in strict mode; in snapshot mode record the gap under ``kind``."""
+    if LENIENT:
+        FIDELITY[kind].append(message)
+        return
+    raise ArchitectureError(message)
 
 DECLARATION_RE = re.compile(
     r"(?m)^[ \t]*(?:(?:public|package|internal|private|fileprivate|open|final|indirect|nonisolated)\s+)*"
@@ -50,6 +67,11 @@ BEHAVIOR_RULES = {
     "swift.lifecycle.pool_remove": "removeValue(forKey:) or removeAll() invoked on a CheckedContinuation pool",
     "swift.resource.bus_subscription": "A binding to the seam's event bus, recording its collect(.byTimeOrCount) batching window or receive(on:) scheduler when present",
     "swift.trigger.surface_call": "A SwiftUI action (Button, onTapGesture, keyboardShortcut, onSubmit, swipeActions, refreshable, Toggle, Picker) or lifecycle hook (onAppear, task, onChange, onReceive, onDisappear) whose closure calls a method on a same-file property typed as a calling surface",
+    "swift.trigger.launch_construction": "A @StateObject property of an App entry-point struct initialised with a type on the map: the object is constructed at launch, before any page exists",
+    "swift.lifecycle.init_loads": "A recognised store type referenced inside a type's init body: the store is read while the object is constructed",
+    "swift.usage.configures": "A launch-constructed type passed as a parameter to a method of a type that holds the transport core: it supplies what the transport connects with",
+    "swift.state.machine": "A stored property of a type on the map whose type is an enum with two or more cases and which is assigned a case somewhere in the type: the object's lifecycle state",
+    "swift.state.transition": "An assignment of an enum case to a machine property, attributed to the enclosing function; the from-state is read from an enclosing switch or if-case on the same property when there is one",
     "swift.lifecycle.create": "Named stored resource assigned from a mechanically recognized factory",
     "swift.lifecycle.acquire": "lock() invoked on a named stored lock",
     "swift.lifecycle.release": "unlock() invoked on a named stored lock",
@@ -907,8 +929,8 @@ def assign_pages(files: list[dict[str, Any]], config: dict[str, Any]
                 declared[name] = source
     all_roots = {root for page in items for root in page["roots"]}
     missing = sorted(root for root in all_roots if root not in declared)
-    if missing:
-        raise ArchitectureError(f"page roots are not declared types: {', '.join(missing)}")
+    for root in missing:
+        gate("page_roots_missing", f"page root is not a declared type: {root}")
 
     depth_by_type: dict[str, dict[str, int]] = defaultdict(dict)
     for page in items:
@@ -1233,9 +1255,9 @@ def build_externals_model(files: list[dict[str, Any]], config: dict[str, Any]) -
         system_id = str(entry["id"])
         hits = by_system.get(system_id, [])
         if not hits:
-            raise ArchitectureError(
-                f"external system {system_id} matched no source signature; fix its signatures or remove it"
-            )
+            gate("externals_unmatched",
+                 f"external system {system_id} matched no source signature; fix its signatures or remove it")
+            continue
         per_component: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for hit in hits:
             per_component[hit["component"] or "unassigned"].append(hit)
@@ -1418,7 +1440,7 @@ def validate_evidence(evidence: Any, owner: str) -> list[str]:
         if not isinstance(item, str) or item.startswith("/") or ".." in Path(item).parts:
             raise ArchitectureError(f"{owner} has an invalid evidence path: {item!r}")
         if not (ROOT / item).is_file():
-            raise ArchitectureError(f"{owner} cites missing file: {item}")
+            gate("evidence_missing", f"{owner} cites missing file: {item}")
         normalized.append(item)
     return sorted(set(normalized))
 
@@ -2402,7 +2424,7 @@ def attach_externals_to_interplay(interplay: dict[str, Any], externals: dict[str
 INVARIANT_KINDS = {
     "single_transport", "surfaces_hold_transport", "pool_guarded_by_lock", "pool_lifecycle_observed",
     "operations_resolve_scope", "endpoints_dispatched_by_transport", "pages_populated",
-    "stores_mapped", "triggers_observed",
+    "stores_mapped", "triggers_observed", "launch_zoned", "flows_traceable", "machines_complete",
 }
 
 
@@ -2548,6 +2570,58 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
             if checked < int(entry.get("min", 1)):
                 problems.append(f"only {checked} attributed trigger(s) observed, need ≥ {entry.get('min', 1)}")
 
+        elif kind == "launch_zoned":
+            launch_triggers = [t for t in interplay.get("triggers", []) if t.get("kind") == "launch"]
+            checked = len(launch_triggers)
+            if checked < int(entry.get("min", 1)):
+                problems.append(f"only {checked} launch construction(s) observed in the App entry points, need ≥ {entry.get('min', 1)}")
+            if not any(p["id"] == LAUNCH_PAGE_ID for p in interplay.get("pages", [])):
+                problems.append("no App launch zone on the map")
+            launch_ids = {n["id"] for n in nodes if n.get("page") == LAUNCH_PAGE_ID}
+            used = {e["target"] for e in edges if e["relation"] == "uses"}
+            for e in edges:
+                if e["relation"] == "loads" and e["source"] in launch_ids and e["target"] not in used:
+                    target = by_id[e["target"]]
+                    if target["kind"] == "store" and target.get("page") != LAUNCH_PAGE_ID:
+                        problems.append(f"{target['label']} is read only at launch but sits in {target.get('page')}")
+            for n in nodes:
+                if n["kind"] == "provider" and not any(e["source"] == n["id"] and e["relation"] == "loads" for e in edges):
+                    problems.append(f"provider {n['label']} loads nothing; it should not be on the map")
+            for entry_name in entry.get("configures", []):
+                provider = next((n for n in nodes if n["label"] == entry_name and n.get("page") == LAUNCH_PAGE_ID), None)
+                if provider is None or not any(e["source"] == provider["id"] and e["relation"] == "configures" for e in edges):
+                    problems.append(f"{entry_name} does not configure the transport core")
+
+        elif kind == "machines_complete":
+            machines = [n for n in nodes if n["kind"] == "machine"]
+            checked = len(machines)
+            if checked < int(entry.get("min", 0)):
+                problems.append(f"only {checked} state machine(s) extracted, need ≥ {entry.get('min', 0)}")
+            declared = entry.get("declared", {})
+            by_label = {m["label"]: m for m in machines}
+            for label, states in declared.items():
+                machine = by_label.get(label)
+                if machine is None:
+                    problems.append(f"declared machine {label} was not extracted")
+                    continue
+                actual = sorted(case["name"] for case in machine["machine"]["states"])
+                if actual != sorted(states):
+                    problems.append(f"{label} has states {actual}, declared {sorted(states)}")
+            allow_dead = entry.get("allow_dead", {})
+            for machine in machines:
+                dead = [s for s in machine["machine"]["dead_states"] if s not in set(allow_dead.get(machine["label"], []))]
+                if dead:
+                    problems.append(f"{machine['label']}: state(s) never entered by any transition: {dead}")
+
+        elif kind == "flows_traceable":
+            flows = interplay.get("flows", [])
+            checked = sum(len(flow["steps"]) for flow in flows)
+            for flow in flows:
+                for problem in flow.get("problems", []):
+                    problems.append(f"flow {flow['id']}: {problem}")
+            if len(flows) < int(entry.get("min", 0)):
+                problems.append(f"only {len(flows)} flow(s) declared, need ≥ {entry.get('min', 0)}")
+
         elif kind == "pages_populated":
             allow_empty = set(entry.get("allow_empty", []))
             owned: dict[str, int] = defaultdict(int)
@@ -2565,8 +2639,10 @@ def validate_interplay_invariants(interplay: dict[str, Any], behavior: dict[str,
         for problem in problems:
             violations.append(f"{entry['id']}: {problem} (why: {entry['why']})")
 
-    if violations:
+    if violations and not LENIENT:
         raise ArchitectureError("interplay invariants violated:\n - " + "\n - ".join(violations))
+    for violation in violations:
+        gate("invariants_violated", violation)
     return results
 
 
@@ -2592,6 +2668,15 @@ TRIGGER_PATTERNS = [
 TRIGGER_CALL_RE = re.compile(r"\b([a-z_][A-Za-z0-9_]*)\s*[?!]?\s*\.\s*([a-z_][A-Za-z0-9_]*)\s*\(")
 # A bare call to a same-file function from inside an action body: `refresh()`, `await confirmDelete()`.
 TRIGGER_HELPER_CALL_RE = re.compile(r"(?<![.\w])([a-z_][A-Za-z0-9_]*)\s*\(")
+
+# Launch: the App entry points (`struct PortalAppMac: App`) own the objects that
+# exist before any page does, as @StateObject properties initialised in place.
+APP_STRUCT_RE = re.compile(r"\bstruct\s+([A-Z][A-Za-z0-9_]*)\s*:\s*[^{\n]*\bApp\b[^{\n]*\{")
+LAUNCH_PROPERTY_RE = re.compile(
+    r"@StateObject\s+(?:(?:private|internal|fileprivate)\s+)?var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*"
+    r"(?::\s*[A-Z][A-Za-z0-9_]*)?\s*=\s*(?P<type>[A-Z][A-Za-z0-9_]*)\s*(?:\(|\.shared\b)"
+)
+INIT_HEADER_RE = re.compile(r"\binit\s*\(")
 
 BUS_BATCH_RE = re.compile(
     r"\.\s*collect\s*\(\s*\.byTimeOrCount\s*\(\s*([A-Za-z_.]+)\s*,\s*\.milliseconds\s*\(\s*(\d+)\s*\)\s*,\s*(\d+)\s*\)"
@@ -2664,27 +2749,1073 @@ def validate_interplay(interplay: dict[str, Any], overlay: dict[str, Any]) -> No
     unexplained = sorted(key for key in gated_nodes if key not in entries)
     if unexplained:
         details = "; ".join(f"{key} at {gated_nodes[key]['path']}:{gated_nodes[key]['line']}" for key in unexplained)
-        raise ArchitectureError(
+        gate(
+            "overlay_unexplained",
             "interplay overlay does not explain extracted resource(s): "
             + details
-            + "; add matching entries to architecture/interplay/overlay.json"
+            + "; add matching entries to architecture/interplay/overlay.json",
         )
     stale = sorted(key for key in entries if key not in gated_nodes)
     if stale:
-        raise ArchitectureError(
+        gate(
+            "overlay_stale",
             "interplay overlay has stale entr(ies) with no matching source: "
             + ", ".join(stale)
-            + "; remove them from architecture/interplay/overlay.json"
+            + "; remove them from architecture/interplay/overlay.json",
         )
 
     for key, node in gated_nodes.items():
-        node["overlay_prose"] = entries[key]["prose"]
+        if key in entries:
+            node["overlay_prose"] = entries[key]["prose"]
+
+
+# ---------------------------------------------------------------------------
+# Launch: what exists before any page.
+#
+# The pages are zones because the app is navigated; the shared core is what more
+# than one page reaches. Neither describes the objects the App entry points
+# construct at launch, before ContentView appears: the settings object that reads
+# the keychain in its initialiser and later supplies the gateway's URL and key,
+# the client wrapper, the stores that are loaded on construction. Those get one
+# more zone, "App launch", fed by the same mechanics as the pages: a launch
+# trigger per @StateObject construction (the first hop, like a Button), a
+# `loads` edge per store read in an initialiser, and a `configures` edge from a
+# launch-constructed type to the transport core it is handed to.
+# ---------------------------------------------------------------------------
+LAUNCH_PAGE_ID = "launch"
+
+
+def validate_launch(config: dict[str, Any]) -> dict[str, Any] | None:
+    launch = config.get("launch")
+    if launch is None:
+        return None
+    if not isinstance(launch, dict) or not isinstance(launch.get("label"), str) or not launch["label"]:
+        raise ArchitectureError("config launch must be an object with a label")
+    roots = launch.get("roots")
+    if not isinstance(roots, list) or not roots or not all(isinstance(root, str) and root for root in roots):
+        raise ArchitectureError("config launch.roots must be a non-empty array of directories")
+    for root in roots:
+        if root.startswith("/") or ".." in Path(root).parts:
+            raise ArchitectureError(f"config launch root is not a repository-relative directory: {root!r}")
+    return launch
+
+
+def read_launch_sources(config: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+    """Swift files under the launch roots (the App entry points), outside the
+    component tree, hashed into the source tree so `--check` sees them drift."""
+    launch = validate_launch(config)
+    files: list[dict[str, Any]] = []
+    digest = hashlib.sha256()
+    if launch is None:
+        return files, digest.hexdigest()
+    for root in launch["roots"]:
+        directory = ROOT / root
+        if not directory.is_dir():
+            gate("launch_roots_missing", f"config launch root {root!r} is not a directory")
+            continue
+        for path in sorted(directory.rglob("*.swift")):
+            text = path.read_text(encoding="utf-8")
+            repo_path = relative(path)
+            digest.update(repo_path.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(text.encode("utf-8"))
+            digest.update(b"\0")
+            files.append({"path": repo_path, "source_path": path.relative_to(directory).as_posix(), "component": None,
+                          "declarations": sorted(set(DECLARATION_RE.findall(text))), "line_count": len(text.splitlines()),
+                          "identifiers": sorted(set(IDENTIFIER_RE.findall(text))), "_text": text})
+    return files, digest.hexdigest()
+
+
+def extract_launch_constructions(launch_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every @StateObject an App struct initialises in place: (app, property, type)."""
+    constructions: list[dict[str, Any]] = []
+    for source in sorted(launch_files, key=lambda item: item["path"]):
+        code = masked_code(source)
+        for match in APP_STRUCT_RE.finditer(code):
+            open_brace = code.index("{", match.start())
+            body_end = balanced_block_end(code, open_brace + 1)
+            body = code[open_brace + 1:body_end - 1]
+            for prop in LAUNCH_PROPERTY_RE.finditer(body):
+                line = code.count("\n", 0, open_brace + 1 + prop.start()) + 1
+                constructions.append({
+                    "app": match.group(1), "property": prop.group("name"), "type": prop.group("type"),
+                    "path": source["path"], "line": line,
+                })
+    constructions.sort(key=lambda item: (item["path"], item["line"]))
+    return constructions
+
+
+def init_bodies(code: str, type_name: str) -> list[str]:
+    """The bodies of every `init(` declared inside ``type_name``'s blocks (type and same-file extensions)."""
+    bodies: list[str] = []
+    for match in TYPE_BLOCK_RE.finditer(code):
+        if match.group(2) != type_name:
+            continue
+        open_brace = code.index("{", match.start())
+        end = balanced_block_end(code, open_brace + 1)
+        block = code[open_brace + 1:end - 1]
+        for header in INIT_HEADER_RE.finditer(block):
+            init_brace = header_open_brace(block, header.end() - 1)
+            if init_brace is None:
+                continue
+            bodies.append(block[init_brace + 1:balanced_block_end(block, init_brace + 1) - 1])
+    return bodies
+
+
+def attach_launch_to_interplay(interplay: dict[str, Any], constructions: list[dict[str, Any]],
+                               files: list[dict[str, Any]], config: dict[str, Any]) -> None:
+    """The App launch zone: launch triggers, init-time `loads` edges, admitted
+    providers, `configures` edges to the transport core, and the re-zoning of
+    stores that are only ever read at launch."""
+    launch = validate_launch(config)
+    if launch is None:
+        interplay["launch"] = {"constructions": [], "unmapped": []}
+        return
+    nodes = interplay["nodes"]
+    edges = interplay["edges"]
+    file_by_type: dict[str, dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        for name in source["declarations"]:
+            file_by_type.setdefault(name, source)
+    surface_kinds = {"caller", "subscriber", "hub", "owner", "store", "provider"}
+    node_by_label: dict[str, dict[str, Any]] = {}
+    for node in nodes:
+        if node["kind"] in surface_kinds:
+            node_by_label.setdefault(node["label"], node)
+    store_by_label = {node["label"]: node for node in nodes if node.get("store")}
+    core = next((node for node in nodes if node["kind"] == "owner" and "transport" in node.get("roles", [])), None)
+    existing = {(edge["source"], edge["target"], edge["relation"]) for edge in edges}
+
+    def add_edge(source: str, target: str, edge_class: str, relation: str) -> None:
+        if (source, target, relation) not in existing:
+            existing.add((source, target, relation))
+            edges.append({"source": source, "target": target, "class": edge_class, "relation": relation})
+
+    triggers: list[dict[str, Any]] = []
+    unmapped: list[dict[str, Any]] = []
+    summaries: list[dict[str, Any]] = []
+    for construction in constructions:
+        type_name = construction["type"]
+        source = file_by_type.get(type_name)
+        loaded: set[str] = set()
+        if source is not None:
+            code = masked_code(source)
+            for body in init_bodies(code, type_name):
+                for label in store_by_label:
+                    if label != type_name and re.search(rf"\b{re.escape(label)}\b", body):
+                        loaded.add(label)
+        node = node_by_label.get(type_name)
+        if node is None and loaded and source is not None:
+            decl_line = next((code.count("\n", 0, m.start()) + 1 for m in TYPE_BLOCK_RE.finditer(code) if m.group(2) == type_name), 0)
+            node = {
+                "id": f"provider:{source['component'] or 'unassigned'}:{type_name}", "kind": "provider", "label": type_name,
+                "component": source["component"], "owner_type": None, "path": source["path"], "line": decl_line,
+                "page": LAUNCH_PAGE_ID, "page_resolution": "launch", "loads": sorted(loaded), "configures": [],
+            }
+            nodes.append(node)
+            node_by_label[type_name] = node
+        if node is None:
+            unmapped.append(dict(construction))
+            continue
+        triggers.append({
+            "id": stable_behavior_id("trigger", construction["path"], construction["line"], f"StateObject:{type_name}.init"),
+            "kind": "launch", "api": "StateObject", "view": construction["app"], "surface": type_name, "method": "init",
+            "namespaces": [], "page": LAUNCH_PAGE_ID, "path": construction["path"], "line": construction["line"],
+            "authority": "observed", "evidence_class": "static_source", "rule_id": "swift.trigger.launch_construction",
+        })
+        for label in sorted(loaded):
+            add_edge(node["id"], store_by_label[label]["id"], "lifecycle", "loads")
+        if node["kind"] != "provider" and loaded:
+            node["loads"] = sorted(set(node.get("loads", [])) | loaded)
+        # configures: the type is handed to a method of a type that holds the core.
+        if core is not None:
+            holder_re = re.compile(rf"\bvar\s+[a-z_][A-Za-z0-9_]*\s*:\s*{re.escape(core['label'])}\b")
+            param_re = re.compile(rf"\bfunc\s+([a-z_][A-Za-z0-9_]*)\s*\([^)]*:\s*{re.escape(type_name)}\b")
+            for other in sorted(files, key=lambda item: item["path"]):
+                other_code = masked_code(other)
+                if not holder_re.search(other_code):
+                    continue
+                for match in param_re.finditer(other_code):
+                    holder_type, _ = enclosing_context(other_code, match.start())
+                    add_edge(node["id"], core["id"], "usage", "configures")
+                    node.setdefault("configures", []).append({
+                        "via": holder_type, "method": match.group(1), "path": other["path"],
+                        "line": other_code.count("\n", 0, match.start()) + 1,
+                    })
+        summaries.append({**construction, "node": node["id"], "loads": sorted(loaded)})
+    # Stores that are only ever read at launch belong to the launch zone.
+    launch_ids = {node["id"] for node in nodes if node.get("page") == LAUNCH_PAGE_ID}
+    used = {edge["target"] for edge in edges if edge["relation"] == "uses"}
+    for edge in edges:
+        if edge["relation"] != "loads" or edge["source"] not in launch_ids or edge["target"] in used:
+            continue
+        store = next(node for node in nodes if node["id"] == edge["target"])
+        if store["kind"] == "store":
+            store["page"] = LAUNCH_PAGE_ID
+            store["page_resolution"] = "launch"
+    if triggers:
+        page = {
+            "id": LAUNCH_PAGE_ID, "label": launch["label"], "roots": sorted({c["app"] for c in constructions}),
+            "namespaces": [], "components": [],
+            "type_count": sum(1 for node in nodes if node.get("page") == LAUNCH_PAGE_ID),
+        }
+        interplay["pages"] = [page] + [p for p in interplay.get("pages", []) if p["id"] != LAUNCH_PAGE_ID]
+        interplay["triggers"] = sorted(interplay.get("triggers", []) + triggers,
+                                       key=lambda item: (item["path"], item["line"], item["surface"], item["method"]))
+        launch_counts: dict[str, int] = defaultdict(int)
+        for trigger in triggers:
+            launch_counts[trigger["surface"]] += 1
+        for node in nodes:
+            if node["label"] in launch_counts and node["kind"] in surface_kinds:
+                counts = dict(node.get("triggers") or {"user_action": 0, "lifecycle": 0})
+                counts["launch"] = launch_counts[node["label"]]
+                node["triggers"] = counts
+    interplay["launch"] = {"constructions": summaries, "unmapped": unmapped}
+    edges.sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    nodes.sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+
+
+# ---------------------------------------------------------------------------
+# State machines: an object's lifecycle as the source declares it.
+#
+# A machine is a stored property typed as an enum with two or more cases that the
+# owning type assigns a case to somewhere. Each assignment is a transition into
+# the case it names, attributed to the enclosing function; the state it leaves is
+# read from an enclosing `switch property { case .x: … }` or `if/guard case .x =
+# property` when there is one, and left unknown otherwise rather than guessed.
+# A derived state (a computed property switching on other fields) is not a
+# machine and is not drawn as one.
+# ---------------------------------------------------------------------------
+MACHINE_KINDS = {"owner", "caller", "subscriber", "hub", "provider"}
+MACHINE_PROPERTY_RE = re.compile(
+    r"(?m)^[ \t]*(?:@[A-Za-z_][A-Za-z0-9_]*(?:\([^)\n]*\))?\s+)*(?:(?:public|internal|private|fileprivate|open|final|nonisolated|static|weak)\s*(?:\(set\))?\s+)*"
+    r"var\s+(?P<name>[a-z_][A-Za-z0-9_]*)\s*:\s*(?P<type>[A-Z][A-Za-z0-9_.]*)\??[ \t]*(?:=[ \t]*\.(?P<init>[a-z_][A-Za-z0-9_]*))?"
+)
+ENUM_BLOCK_RE = re.compile(r"\b(?:indirect\s+)?enum\s+([A-Z][A-Za-z0-9_]*)\b[^{\n]*\{")
+ENUM_CASE_LINE_RE = re.compile(r"(?m)^[ \t]*case\s+([a-z_][^\n]*)$")
+
+
+def enum_cases(code: str, enum_name: str) -> tuple[list[dict[str, Any]], int] | None:
+    """The cases of ``enum_name`` declared in ``code`` (first declaration), and its line."""
+    for match in ENUM_BLOCK_RE.finditer(code):
+        if match.group(1) != enum_name:
+            continue
+        open_brace = code.index("{", match.start())
+        body = code[open_brace + 1:balanced_block_end(code, open_brace + 1) - 1]
+        # Only this enum's own members: drop nested blocks (computed properties, nested types).
+        flat: list[str] = []
+        depth = 0
+        for char in body:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+            elif depth == 0:
+                flat.append(char)
+        cases: list[dict[str, Any]] = []
+        for line in ENUM_CASE_LINE_RE.finditer("".join(flat)):
+            text = line.group(1)
+            depth = 0
+            item = ""
+            items: list[str] = []
+            for char in text:
+                if char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                if char == "," and depth == 0:
+                    items.append(item)
+                    item = ""
+                else:
+                    item += char
+            items.append(item)
+            for raw in items:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                name = re.match(r"([a-z_][A-Za-z0-9_]*)", raw)
+                if name:
+                    cases.append({"name": name.group(1), "payload": "(" in raw})
+        return cases, code.count("\n", 0, match.start()) + 1
+    return None
+
+
+def type_block_ranges(code: str, type_name: str) -> list[tuple[int, int]]:
+    """The body ranges of ``type_name``'s declaration and its same-file extensions."""
+    ranges: list[tuple[int, int]] = []
+    for match in TYPE_BLOCK_RE.finditer(code):
+        if match.group(2) != type_name:
+            continue
+        open_brace = code.index("{", match.start())
+        ranges.append((open_brace + 1, balanced_block_end(code, open_brace + 1) - 1))
+    return ranges
+
+
+def transition_from_states(code: str, property_name: str, offset: int, function_range: tuple[int, int] | None,
+                           known: set[str]) -> list[str] | None:
+    """The state(s) an assignment at ``offset`` leaves, from an enclosing switch or
+    if/guard case on the same property inside the same function; None when unknown."""
+    if function_range is None:
+        return None
+    start, end = function_range
+    body = code[start:end]
+    local = offset - start
+    prop = re.escape(property_name)
+    # switch property { case .a, .b: … }
+    for match in re.finditer(rf"\bswitch\s+(?:self\.)?{prop}\s*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        if not (open_brace < local < close):
+            continue
+        labels = list(re.finditer(r"(?m)^[ \t]*(case\s+[^:\n]+|default)\s*:", body[open_brace:local]))
+        if not labels:
+            return None
+        label = labels[-1].group(1)
+        if label == "default":
+            return None
+        states = [name for name in re.findall(r"\.([a-z_][A-Za-z0-9_]*)", label) if name in known]
+        return states or None
+    # if case .a = property { … } / if property == .a { … }
+    for match in re.finditer(rf"\bif\s+(?:case\s+\.([a-z_][A-Za-z0-9_]*)(?:\([^)]*\))?\s*=\s*(?:self\.)?{prop}|(?:self\.)?{prop}\s*==\s*\.([a-z_][A-Za-z0-9_]*))\b[^{{\n]*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        state = match.group(1) or match.group(2)
+        if open_brace < local < close and state in known:
+            return [state]
+    # guard case .a = property else { … } — the rest of the function is in state a.
+    for match in re.finditer(rf"\bguard\s+case\s+\.([a-z_][A-Za-z0-9_]*)(?:\([^)]*\))?\s*=\s*(?:self\.)?{prop}\b[^{{\n]*\{{", body):
+        open_brace = body.index("{", match.start())
+        close = balanced_block_end(body, open_brace + 1)
+        if local > close and match.group(1) in known:
+            return [match.group(1)]
+    return None
+
+
+def extract_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every machine owned by a type on the map, with its states and transitions."""
+    file_by_type: dict[str, dict[str, Any]] = {}
+    for source in sorted(files, key=lambda item: item["path"]):
+        for name in source["declarations"]:
+            file_by_type.setdefault(name, source)
+    machines: list[dict[str, Any]] = []
+    seen_owner_props: set[tuple[str, str]] = set()
+    for node in interplay["nodes"]:
+        if node["kind"] not in MACHINE_KINDS:
+            continue
+        owner = node["label"]
+        source = file_by_type.get(owner)
+        if source is None or (owner, node.get("component")) in seen_owner_props:
+            continue
+        code = masked_code(source)
+        ranges = type_block_ranges(code, owner)
+        if not ranges:
+            continue
+        for start, end in ranges:
+            for prop in MACHINE_PROPERTY_RE.finditer(code, start, end):
+                enclosing_type, enclosing_function = enclosing_context(code, prop.start())
+                if enclosing_function is not None or enclosing_type != owner:
+                    continue
+                enum_name = prop.group("type").split(".")[-1]
+                declared = enum_cases(code, enum_name)
+                enum_path = source["path"]
+                if declared is None:
+                    other = file_by_type.get(enum_name)
+                    if other is None:
+                        continue
+                    declared = enum_cases(masked_code(other), enum_name)
+                    enum_path = other["path"]
+                if declared is None or len(declared[0]) < 2:
+                    continue
+                cases, enum_line = declared
+                known = {case["name"] for case in cases}
+                name = prop.group("name")
+                transitions: list[dict[str, Any]] = []
+                assign_re = re.compile(rf"(?<![A-Za-z0-9_.])(?:self\.)?{re.escape(name)}\s*=(?!=)\s*([^\n]+)")
+                for r_start, r_end in ranges:
+                    for match in assign_re.finditer(code, r_start, r_end):
+                        targets = [state for state in re.findall(r"\.([a-z_][A-Za-z0-9_]*)", match.group(1)) if state in known]
+                        if not targets:
+                            continue
+                        _type, function = enclosing_context(code, match.start())
+                        function_range = enclosing_function_range(code, match.start())
+                        from_states = transition_from_states(code, name, match.start(), function_range, known)
+                        line = code.count("\n", 0, match.start()) + 1
+                        for target in dict.fromkeys(targets):
+                            transitions.append({"from": from_states, "to": target, "function": function or "init",
+                                                "path": source["path"], "line": line, "rule_id": "swift.state.transition"})
+                if not transitions:
+                    continue
+                entered = {t["to"] for t in transitions}
+                initial = prop.group("init") if prop.group("init") in known else None
+                component = node.get("component") or source.get("component")
+                machine_id = f"machine:{component or 'unassigned'}:{owner}.{name}"
+                machines.append({
+                    "id": machine_id, "kind": "machine", "sub_kind": "state_machine", "label": f"{owner}.{name}",
+                    "component": component, "owner_type": owner, "owner_id": node["id"], "page": node.get("page"),
+                    "path": source["path"], "line": code.count("\n", 0, prop.start()) + 1,
+                    "machine": {
+                        "property": name, "enum": enum_name, "enum_path": enum_path, "enum_line": enum_line, "initial": initial,
+                        "states": cases, "transitions": transitions,
+                        "dead_states": sorted(case["name"] for case in cases if case["name"] not in entered and case["name"] != initial),
+                        "unknown_from": sum(1 for t in transitions if t["from"] is None),
+                    },
+                    "rule_id": "swift.state.machine", "authority": "observed", "evidence_class": "static_source",
+                })
+                seen_owner_props.add((owner, node.get("component")))
+    machines.sort(key=lambda item: item["id"])
+    return machines
+
+
+def attach_state_machines(interplay: dict[str, Any], files: list[dict[str, Any]]) -> None:
+    machines = extract_state_machines(interplay, files)
+    existing = {(e["source"], e["target"], e["relation"]) for e in interplay["edges"]}
+    for machine in machines:
+        owner_id = machine.pop("owner_id")
+        interplay["nodes"].append(machine)
+        owner = next(n for n in interplay["nodes"] if n["id"] == owner_id)
+        owner.setdefault("machines", []).append(machine["id"])
+        if (owner_id, machine["id"], "drives") not in existing:
+            interplay["edges"].append({"source": owner_id, "target": machine["id"], "class": "structure", "relation": "drives"})
+    interplay["machines"] = {"count": len(machines), "transitions": sum(len(m["machine"]["transitions"]) for m in machines)}
+    interplay["edges"].sort(key=lambda edge: (edge["source"], edge["target"], edge["class"], edge["relation"]))
+    interplay["nodes"].sort(key=lambda item: (item.get("path") or "", item.get("line") or 0, item["id"]))
+
+
+# ---------------------------------------------------------------------------
+# Semantic enrichment: constrained text on the mechanical map.
+#
+# Two LLM-written layers, both validated here so the compiler can reject them
+# (see architecture/SEMANTIC_ENRICHMENT_PLAN.md). Construct records describe one
+# construction each in a kind-specific schema whose identifiers must exist in the
+# model; flows are paths whose every step is an edge the map already draws.
+# Enrichment never adds a node or an edge: it is folded onto nodes as `semantic`
+# and onto the interplay as `flows`, and nothing below is read by placement,
+# edge or invariant logic except the `flows_traceable` invariant, which only
+# reports what load_flows found.
+# ---------------------------------------------------------------------------
+SEMANTIC_SUMMARY_MAX = 400
+SEMANTIC_NOTE_MAX = 120
+STORE_MEDIA = ("json_file", "plist_file", "sqlite", "user_defaults", "keychain", "in_memory", "mixed")
+# The mechanical persistence a medium must be compatible with.
+STORE_MEDIUM_OF_PERSISTENCE = {
+    "file": {"json_file", "plist_file", "sqlite", "mixed"},
+    "defaults": {"user_defaults", "mixed"},
+    "keychain": {"keychain", "mixed"},
+    "unobserved": {"in_memory", "mixed"},
+}
+# Field specs: ("enum", values) | ("list_enum", values) | ("str", max) | ("list_str", max)
+# | ("bool",) | ("int",) | ("keys", {relations}, direction) — node keys that must share an
+# edge of one of those relations with the record's node ("in": edge.target is the node,
+# "out": edge.source is the node, "any") | ("types",) declared Swift type names
+# | ("endpoints",) endpoint labels on the map | ("triggers",) trigger ids | ("pages",) page ids.
+CONSTRUCT_SCHEMAS: dict[str, dict[str, tuple[Any, ...]]] = {
+    "store": {
+        "medium": ("enum", STORE_MEDIA),
+        "location": ("str", 120),
+        "record_type": ("types",),
+        "keyed_by": ("str", 80),
+        "written_when": ("list_enum", ("on_change", "debounced", "on_background", "on_launch", "explicit_save", "never")),
+        "read_when": ("list_enum", ("on_launch", "on_page_appear", "on_demand", "on_event")),
+        "readers": ("keys", {"uses", "loads"}, "in"),
+        "writers": ("keys", {"uses", "loads"}, "in"),
+        "retention": ("enum", ("forever", "bounded_count", "bounded_age", "session")),
+        "failure_mode": ("enum", ("throws", "logs_and_continues", "silent", "resets_store")),
+        "sensitive": ("bool",),
+    },
+    "external": {
+        "protocol": ("enum", ("websocket_jsonrpc", "https_rest", "https_sse", "framework_api", "os_service", "on_device_library", "file_system")),
+        "auth": ("enum", ("none", "api_key", "oauth", "device_token", "entitlement", "user_consent")),
+        "direction": ("enum", ("outbound", "inbound", "both")),
+        "failure_visible_as": ("str", 120),
+        "namespaces_or_apis": ("list_str", 60),
+    },
+    "transport": {
+        "concurrency_model": ("enum", ("main_actor", "actor", "lock_guarded", "queue_confined", "mixed")),
+        "reconnect_policy": ("str", 160),
+        "backpressure": ("enum", ("none", "batched_delivery", "bounded_queue", "drop_oldest", "await_ack")),
+        "shared_by": ("pages",),
+    },
+    "pool": {
+        "concurrency_model": ("enum", ("main_actor", "actor", "lock_guarded", "queue_confined", "mixed")),
+        "settles_by": ("str", 120),
+        "cancellation": ("str", 120),
+    },
+    "engine": {
+        "runtime": ("keys", {"runs-on"}, "out"),
+        "model_ids": ("list_str", 80),
+        "memory_floor_gb": ("int",),
+        "loaded_when": ("enum", ("on_launch", "on_first_use", "on_setting_change", "on_page_appear")),
+        "unloaded_when": ("enum", ("never", "on_memory_pressure", "on_setting_change", "on_page_disappear", "explicit")),
+    },
+    "provider": {
+        "supplies": ("list_str", 60),
+        "configures": ("keys", {"configures"}, "out"),
+        "loads": ("keys", {"loads"}, "out"),
+    },
+    "client": {
+        "wraps": ("keys", {"implements"}, "out"),
+        "error_mapping": ("str", 160),
+    },
+    "endpoint": {
+        "purpose": ("str", 200),
+        "request_shape": ("str", 120),
+        "response_shape": ("str", 120),
+        "idempotent": ("bool",),
+        "streams": ("bool",),
+    },
+    "page": {
+        "purpose": ("str", 200),
+        "entry_triggers": ("triggers",),
+        "owns_state_in": ("page_nodes",),
+    },
+    "surface": {
+        "purpose": ("str", 200),
+        "state": ("list_str", 80),
+        "reacts_to": ("list_str", 60),
+    },
+    "seam": {
+        "purpose": ("str", 200),
+        "conformers": ("keys", {"conforms", "implements"}, "in"),
+    },
+}
+SURFACE_KINDS = {"caller", "subscriber", "hub"}
+
+
+def construct_kind(node: dict[str, Any]) -> str | None:
+    """The schema a node is described with, or None for kinds that carry no record."""
+    kind = node["kind"]
+    if kind == "owner":
+        roles = set(node.get("roles") or [])
+        if "transport" in roles:
+            return "transport"
+        if "engine" in roles:
+            return "engine"
+        if "pool" in roles:
+            return "pool"
+        return "surface"
+    if kind in SURFACE_KINDS:
+        return "surface"
+    if kind in CONSTRUCT_SCHEMAS:
+        return kind
+    return None
+
+
+def bounded_files(node: dict[str, Any], interplay: dict[str, Any], by_id: dict[str, dict[str, Any]],
+                  externals: dict[str, Any] | None = None) -> set[str]:
+    """The files a record about ``node`` may cite: its own, its neighbours', and for an
+    external system the files its signatures matched."""
+    paths: set[str] = set()
+    if node.get("path"):
+        paths.add(node["path"])
+    for edge in interplay["edges"]:
+        other = None
+        if edge["source"] == node["id"]:
+            other = by_id.get(edge["target"])
+        elif edge["target"] == node["id"]:
+            other = by_id.get(edge["source"])
+        if other and other.get("path"):
+            paths.add(other["path"])
+    if node["kind"] == "external" and externals:
+        for system in externals.get("systems", []):
+            if system["id"] == node.get("system_id"):
+                for path in system.get("paths", []) or []:
+                    if isinstance(path, str):
+                        paths.add(path)
+                for hit in system.get("usage", []) or []:
+                    for path in (hit.get("files") or []) if isinstance(hit, dict) else []:
+                        if isinstance(path, str):
+                            paths.add(path)
+    return paths
+
+
+def page_files(page_id: str, interplay: dict[str, Any], files: list[dict[str, Any]] | None = None) -> set[str]:
+    """A page record may cite the files of the page's constructs and of its root views."""
+    paths = {node["path"] for node in interplay["nodes"] if node.get("page") == page_id and node.get("path")}
+    page = next((p for p in interplay.get("pages", []) if p["id"] == page_id), None)
+    if page and files:
+        roots = set(page.get("roots", []))
+        for item in files:
+            if roots & set(item["declarations"]):
+                paths.add(item["path"])
+    return paths
+
+
+def validate_evidence_sites(raw: Any, allowed: set[str], line_counts: dict[str, int], owner: str) -> list[dict[str, Any]]:
+    if not isinstance(raw, list) or not raw:
+        raise ArchitectureError(f"{owner} needs at least one evidence site")
+    sites: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            raise ArchitectureError(f"{owner} evidence entries must be objects with a path")
+        path = item["path"]
+        if path not in allowed:
+            raise ArchitectureError(f"{owner} cites {path}, outside its bounded file set")
+        line = item.get("line", 1)
+        if not isinstance(line, int) or line < 1 or (path in line_counts and line > line_counts[path]):
+            raise ArchitectureError(f"{owner} cites {path}:{line}, which is not a line of that file")
+        sites.append({"path": path, "line": line})
+    return sorted({(site["path"], site["line"]): site for site in sites}.values(), key=lambda s: (s["path"], s["line"]))
+
+
+def cited_hash(paths: set[str], text_by_path: dict[str, str]) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(paths):
+        digest.update(path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(text_by_path.get(path, "").encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def validate_construct_record(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]],
+                              externals: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Validate one record against the model; returns the normalised record.
+
+    Raises ArchitectureError naming the field, so the agent can report exactly why
+    a model response was rejected and the build can refuse a hand edit that drifts.
+    """
+    by_id = {node["id"]: node for node in interplay["nodes"]}
+    by_key = {node["history_key"]: node for node in interplay["nodes"] if node["kind"] != "operation"}
+    page_labels = {page["id"] for page in interplay.get("pages", [])}
+    text_by_path = {item["path"]: item["_text"] for item in files if "_text" in item}
+    line_counts = {item["path"]: item["line_count"] for item in files}
+    declared_types = {name for item in files for name in item["declarations"]}
+    key = raw.get("key")
+    if not isinstance(key, str) or not key:
+        raise ArchitectureError("construct record needs a key")
+    owner = f"construct {key}"
+    if key.startswith("page:"):
+        page_id = key.split(":", 1)[1]
+        if page_id not in page_labels:
+            raise ArchitectureError(f"{owner} names a page that is not on the map")
+        node = None
+        expected_kind = "page"
+        allowed = page_files(page_id, interplay, files)
+    else:
+        node = by_key.get(key)
+        if node is None:
+            raise ArchitectureError(f"{owner} is not a construct on the map; remove or re-key it")
+        expected_kind = construct_kind(node)
+        if expected_kind is None:
+            raise ArchitectureError(f"{owner} is a {node['kind']}, which carries no record")
+        allowed = bounded_files(node, interplay, by_id, externals)
+    if raw.get("kind") != expected_kind:
+        raise ArchitectureError(f"{owner} must have kind {expected_kind!r}, not {raw.get('kind')!r}")
+    summary = raw.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        raise ArchitectureError(f"{owner} needs a summary")
+    if len(summary) > SEMANTIC_SUMMARY_MAX:
+        raise ArchitectureError(f"{owner} summary exceeds {SEMANTIC_SUMMARY_MAX} characters")
+    schema = CONSTRUCT_SCHEMAS[expected_kind]
+    body: dict[str, Any] = {}
+    fields = raw.get("fields")
+    if fields is None:
+        fields = {}
+    if not isinstance(fields, dict):
+        raise ArchitectureError(f"{owner} fields must be an object")
+    for name, value in fields.items():
+        spec = schema.get(name)
+        if spec is None:
+            raise ArchitectureError(f"{owner} has a field {name!r} that the {expected_kind} schema does not define")
+        body[name] = validate_construct_field(name, value, spec, node, interplay, by_key, declared_types, page_labels, owner)
+    # Cross-field mechanics the model may refine but not contradict.
+    if expected_kind == "store" and node is not None:
+        persistence = (node.get("store") or {}).get("persistence") or ["unobserved"]
+        medium = body.get("medium")
+        if medium:
+            compatible = set().union(*(STORE_MEDIUM_OF_PERSISTENCE.get(p, set()) for p in persistence))
+            if medium not in compatible and medium != "mixed":
+                raise ArchitectureError(f"{owner} claims medium {medium!r} but the source shows {', '.join(persistence)}")
+        if "keychain" in persistence and body.get("sensitive") is False:
+            raise ArchitectureError(f"{owner} is keychain-backed; sensitive cannot be false")
+    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    open_questions = normalized_strings(raw.get("open_questions", []))
+    for question in open_questions:
+        if len(question) > 200:
+            raise ArchitectureError(f"{owner} has an open question over 200 characters")
+    cited = {site["path"] for site in evidence}
+    current_hash = cited_hash(cited, text_by_path)
+    recorded_hash = raw.get("cited_hash")
+    return {
+        "key": key, "kind": expected_kind, "summary": summary.strip(), "fields": body,
+        "open_questions": open_questions, "evidence": evidence,
+        "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
+        "cited_hash": current_hash if recorded_hash is None else str(recorded_hash),
+        "stale": bool(recorded_hash is not None and recorded_hash != current_hash),
+        "authority": "synthesized",
+    }
+
+
+def validate_construct_field(name: str, value: Any, spec: tuple[Any, ...], node: dict[str, Any] | None,
+                             interplay: dict[str, Any], by_key: dict[str, dict[str, Any]], declared_types: set[str],
+                             page_labels: set[str], owner: str) -> Any:
+    kind = spec[0]
+    if kind == "enum":
+        if value not in spec[1]:
+            raise ArchitectureError(f"{owner}.{name} must be one of {', '.join(spec[1])}; got {value!r}")
+        return value
+    if kind == "list_enum":
+        if not isinstance(value, list) or not all(item in spec[1] for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list drawn from {', '.join(spec[1])}")
+        return sorted(set(value))
+    if kind == "str":
+        if not isinstance(value, str) or len(value) > spec[1]:
+            raise ArchitectureError(f"{owner}.{name} must be a string of at most {spec[1]} characters")
+        return value.strip()
+    if kind == "list_str":
+        if not isinstance(value, list) or not all(isinstance(item, str) and len(item) <= spec[1] for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of strings of at most {spec[1]} characters")
+        return sorted({item.strip() for item in value if item.strip()})
+    if kind == "bool":
+        if not isinstance(value, bool):
+            raise ArchitectureError(f"{owner}.{name} must be true or false")
+        return value
+    if kind == "int":
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ArchitectureError(f"{owner}.{name} must be a non-negative integer")
+        return value
+    if kind == "types":
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of type names")
+        unknown = sorted(item for item in value if item not in declared_types)
+        if unknown:
+            raise ArchitectureError(f"{owner}.{name} names types not declared in the source tree: {', '.join(unknown)}")
+        return sorted(set(value))
+    if kind == "keys":
+        relations, direction = spec[1], spec[2]
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of construct keys")
+        if node is None:
+            raise ArchitectureError(f"{owner}.{name} cannot be validated without a node")
+        for item in value:
+            other = by_key.get(item)
+            if other is None:
+                raise ArchitectureError(f"{owner}.{name} names {item!r}, which is not on the map")
+            linked = any(
+                edge["relation"] in relations and (
+                    (direction in ("in", "any") and edge["source"] == other["id"] and edge["target"] == node["id"]) or
+                    (direction in ("out", "any") and edge["source"] == node["id"] and edge["target"] == other["id"])
+                )
+                for edge in interplay["edges"]
+            )
+            if not linked:
+                raise ArchitectureError(f"{owner}.{name} names {item!r} but no {'/'.join(sorted(relations))} edge links them")
+        return sorted(set(value))
+    if kind == "endpoints":
+        labels = {n["label"] for n in interplay["nodes"] if n["kind"] == "endpoint"}
+        if not isinstance(value, list) or not all(item in labels for item in value):
+            raise ArchitectureError(f"{owner}.{name} must name endpoint namespaces on the map")
+        return sorted(set(value))
+    if kind == "triggers":
+        ids = {t["id"] for t in interplay.get("triggers", [])}
+        if not isinstance(value, list) or not all(item in ids for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be trigger ids from the map")
+        return sorted(set(value))
+    if kind == "pages":
+        if not isinstance(value, list) or not all(item in page_labels for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be page ids from the map")
+        return sorted(set(value))
+    if kind == "page_nodes":
+        page_id = owner.split("page:", 1)[1] if "page:" in owner else None
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ArchitectureError(f"{owner}.{name} must be a list of construct keys")
+        for item in value:
+            other = by_key.get(item)
+            if other is None or other.get("page") != page_id:
+                raise ArchitectureError(f"{owner}.{name} names {item!r}, which is not a construct of that page")
+        return sorted(set(value))
+    raise ArchitectureError(f"unknown field spec {kind!r}")
+
+
+def load_constructs(interplay: dict[str, Any], files: list[dict[str, Any]], externals: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Read, validate and fold the construct records onto their nodes as `semantic`."""
+    if not CONSTRUCTS_PATH.is_file():
+        interplay["constructs"] = {"described": 0, "stale": 0}
+        return []
+    raw = load_json(CONSTRUCTS_PATH)
+    if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("records"), list):
+        raise ArchitectureError("architecture/semantic/constructs.json has an unsupported schema")
+    records: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in raw["records"]:
+        if not isinstance(entry, dict):
+            raise ArchitectureError("construct records must be objects")
+        try:
+            record = validate_construct_record(entry, interplay, files, externals)
+        except ArchitectureError as exc:
+            gate("constructs_invalid", str(exc))
+            continue
+        if record["key"] in seen:
+            gate("constructs_invalid", f"duplicate construct record {record['key']}")
+            continue
+        seen.add(record["key"])
+        records.append(record)
+    by_key = {node["history_key"]: node for node in interplay["nodes"]}
+    for record in records:
+        node = by_key.get(record["key"])
+        if node is not None:
+            node["semantic"] = {k: v for k, v in record.items() if k != "key"}
+    for page in interplay.get("pages", []):
+        record = next((r for r in records if r["key"] == f"page:{page['id']}"), None)
+        if record is not None:
+            page["semantic"] = {k: v for k, v in record.items() if k != "key"}
+    interplay["constructs"] = {"described": len(records), "stale": sum(1 for r in records if r["stale"])}
+    return records
+
+
+FLOW_ID_RE = re.compile(r"^[a-z][a-z0-9-]{2,60}$")
+FLOW_MIN_STEPS, FLOW_MAX_STEPS = 3, 12
+# A flow belongs to one user journey: starting the app, doing a chat turn, or
+# entering and using one navigation page. The site orders and groups by this.
+FLOW_JOURNEYS = ("launch", "chat_turn", "page")
+
+
+def validate_flow(raw: dict[str, Any], interplay: dict[str, Any], files: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate one flow: a path over edges the map draws. Returns the flow with
+    ``status`` traceable and no problems, or raises for schema errors. A step over
+    an edge that no longer exists is not a schema error: it is recorded as a problem
+    so the `flows_traceable` invariant can fail the build with the step named."""
+    by_key = {node["history_key"]: node for node in interplay["nodes"] if node["kind"] != "operation"}
+    key_of = {node["id"]: node["history_key"] for node in interplay["nodes"]}
+    page_labels = {page["id"]: page["label"] for page in interplay.get("pages", [])}
+    edges = {(key_of[e["source"]], key_of[e["target"]], e["relation"]) for e in interplay["edges"] if e["source"] in key_of and e["target"] in key_of}
+    triggers = {t["id"]: t for t in interplay.get("triggers", [])}
+    for trigger in triggers.values():
+        surface = surface_node_for(interplay["nodes"], trigger["surface"])
+        if surface is not None and trigger.get("page"):
+            edges.add((f"page:{trigger['page']}", surface["history_key"], "triggers"))
+    flow_id = raw.get("id")
+    if not isinstance(flow_id, str) or not FLOW_ID_RE.match(flow_id):
+        raise ArchitectureError(f"flow id {flow_id!r} must be a kebab-case slug")
+    owner = f"flow {flow_id}"
+    title = raw.get("title")
+    if not isinstance(title, str) or not title.strip() or len(title) > 80:
+        raise ArchitectureError(f"{owner} needs a title of at most 80 characters")
+    summary = raw.get("summary")
+    if not isinstance(summary, str) or not summary.strip() or len(summary) > SEMANTIC_SUMMARY_MAX:
+        raise ArchitectureError(f"{owner} needs a summary of at most {SEMANTIC_SUMMARY_MAX} characters")
+    steps = raw.get("steps")
+    if not isinstance(steps, list) or not (FLOW_MIN_STEPS <= len(steps) <= FLOW_MAX_STEPS):
+        raise ArchitectureError(f"{owner} needs between {FLOW_MIN_STEPS} and {FLOW_MAX_STEPS} steps")
+    problems: list[str] = []
+    visited: set[str] = set()
+    normalized_steps: list[dict[str, Any]] = []
+    for index, step in enumerate(steps, start=1):
+        if not isinstance(step, dict) or not all(isinstance(step.get(k), str) for k in ("from", "to", "relation")):
+            raise ArchitectureError(f"{owner} step {index} needs from, to and relation strings")
+        source, target, relation = step["from"], step["to"], step["relation"]
+        for key in (source, target):
+            if not (key in by_key or (key.startswith("page:") and key.split(":", 1)[1] in page_labels)):
+                raise ArchitectureError(f"{owner} step {index} names {key!r}, which is not on the map")
+        note = step.get("note", "")
+        if not isinstance(note, str) or len(note) > SEMANTIC_NOTE_MAX:
+            raise ArchitectureError(f"{owner} step {index} note must be a string of at most {SEMANTIC_NOTE_MAX} characters")
+        if index > 1 and source not in visited:
+            raise ArchitectureError(f"{owner} step {index} starts at {source!r}, which no earlier step reached")
+        if (source, target, relation) not in edges:
+            problems.append(f"step {index}: no {relation} edge from {source} to {target} on the map")
+        visited.update({source, target})
+        normalized_steps.append({"from": source, "to": target, "relation": relation, "note": note.strip()})
+    trigger_id = raw.get("trigger")
+    if trigger_id is not None:
+        trigger = triggers.get(trigger_id)
+        if trigger is None:
+            problems.append(f"trigger {trigger_id} is not on the map")
+        else:
+            first = normalized_steps[0]["from"]
+            first_label = by_key[first]["label"] if first in by_key else first
+            if first_label != trigger["surface"] and first != f"page:{trigger.get('page')}":
+                raise ArchitectureError(f"{owner} starts at {first!r} but its trigger fires {trigger['surface']}")
+    outcome = raw.get("outcome", "")
+    if not isinstance(outcome, str) or len(outcome) > 200:
+        raise ArchitectureError(f"{owner} outcome must be a string of at most 200 characters")
+    journey = raw.get("journey")
+    if journey not in FLOW_JOURNEYS:
+        raise ArchitectureError(f"{owner} journey must be one of {', '.join(FLOW_JOURNEYS)}")
+    page_id = raw.get("page")
+    if journey == "page":
+        if page_id not in page_labels or page_id in (LAUNCH_PAGE_ID, "chat"):
+            raise ArchitectureError(f"{owner} is a page journey and must name a navigation page other than launch or chat")
+    else:
+        page_id = LAUNCH_PAGE_ID if journey == "launch" else "chat"
+    if trigger_id is not None and trigger_id in triggers and triggers[trigger_id].get("page") != page_id:
+        raise ArchitectureError(f"{owner} is on {page_id} but its trigger fires on {triggers[trigger_id].get('page')}")
+    interaction = raw.get("interaction", "")
+    if not isinstance(interaction, str) or len(interaction) > 80:
+        raise ArchitectureError(f"{owner} interaction must be a string of at most 80 characters")
+    allowed: set[str] = set()
+    for step in normalized_steps:
+        for key in (step["from"], step["to"]):
+            node = by_key.get(key)
+            if node and node.get("path"):
+                allowed.add(node["path"])
+            if key.startswith("page:"):
+                allowed |= page_files(key.split(":", 1)[1], interplay, files)
+    # The views that hold the journey's triggers are where a flow starts; they may be cited too.
+    allowed |= {t["path"] for t in triggers.values() if t.get("page") == page_id and t.get("path")}
+    line_counts = {item["path"]: item["line_count"] for item in files}
+    evidence = validate_evidence_sites(raw.get("evidence"), allowed, line_counts, owner)
+    return {
+        "id": flow_id, "title": title.strip(), "summary": summary.strip(), "trigger": trigger_id,
+        "journey": journey, "page": page_id, "interaction": interaction.strip(),
+        "steps": normalized_steps, "outcome": outcome.strip(), "evidence": evidence,
+        "source_revision": str(raw.get("source_revision", "unknown")), "model": str(raw.get("model", "unknown")),
+        "status": "broken" if problems else "traceable", "problems": problems, "authority": "synthesized",
+    }
+
+
+def load_flows(interplay: dict[str, Any], files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Read and validate the flows; fold them onto the interplay and cross-link nodes."""
+    interplay["flows"] = []
+    if not FLOWS_PATH.is_file():
+        return []
+    raw = load_json(FLOWS_PATH)
+    if raw.get("schema_version") != "1.0.0" or not isinstance(raw.get("flows"), list):
+        raise ArchitectureError("architecture/semantic/flows.json has an unsupported schema")
+    flows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in raw["flows"]:
+        if not isinstance(entry, dict):
+            raise ArchitectureError("flows must be objects")
+        try:
+            flow = validate_flow(entry, interplay, files)
+        except ArchitectureError as exc:
+            gate("flows_invalid", str(exc))
+            continue
+        if flow["id"] in seen:
+            gate("flows_invalid", f"duplicate flow id {flow['id']}")
+            continue
+        seen.add(flow["id"])
+        flows.append(flow)
+    page_order = {page["id"]: index for index, page in enumerate(interplay.get("pages", []))}
+    flows.sort(key=lambda item: (FLOW_JOURNEYS.index(item["journey"]), page_order.get(item["page"], 99), item["id"]))
+    by_key = {node["history_key"]: node for node in interplay["nodes"]}
+    for flow in flows:
+        for step in flow["steps"]:
+            for key in (step["from"], step["to"]):
+                node = by_key.get(key)
+                if node is not None:
+                    node.setdefault("flows", [])
+                    if flow["id"] not in node["flows"]:
+                        node["flows"].append(flow["id"])
+    interplay["flows"] = flows
+    return flows
+
+
+# ---------------------------------------------------------------------------
+# History keys and the snapshot shape.
+#
+# The history walk (scripts/build_architecture_history.py) derives the System
+# map at many commits and diffs consecutive points, so every drawn node needs a
+# key that survives unrelated edits. Interplay ids are stable for everything
+# except resources and operations, whose ids hash the declaring line. A resource
+# is re-keyed by what it is (component, owning type, kind, field name); an
+# operation keeps its id because operations are actions, never drawn as boxes,
+# and stay out of the shape.
+# ---------------------------------------------------------------------------
+SHAPE_NODE_FIELDS = (
+    "kind", "label", "page", "component", "owner_type", "sub_kind", "roles", "protocol",
+    "namespaces", "system_id", "method_count", "file_count", "hit_count", "lock_labels",
+)
+SURFACE_KIND_ORDER = ("caller", "subscriber", "hub", "store", "owner")
+
+
+def history_key(node: dict[str, Any]) -> str:
+    if node["kind"] == "resource":
+        return ":".join([
+            "resource", str(node.get("component") or "unassigned"), str(node.get("owner_type") or ""),
+            str(node.get("sub_kind") or ""), str(node["label"]),
+        ])
+    if node["kind"] == "endpoint":
+        # An endpoint id hashes the owning transport's type name; the namespace a
+        # renamed transport serves is the same namespace, so the key names only
+        # the protocol and the namespace.
+        return f"endpoint:{node.get('protocol') or ''}:{node['label']}"
+    return str(node["id"])
+
+
+def assign_history_keys(interplay: dict[str, Any]) -> None:
+    """Key every node for diffing across commits. Two drawn nodes sharing a key is a
+    build error today (the map would be ambiguous) and a recorded gap in snapshot
+    mode, where an older tree may have had, say, two transports serving one namespace."""
+    seen: dict[str, str] = {}
+    for node in interplay["nodes"]:
+        key = history_key(node)
+        node["history_key"] = key
+        if node["kind"] == "operation":
+            continue
+        if key in seen and seen[key] != node["id"]:
+            gate("history_key_collision", f"history key {key!r} is shared by {seen[key]} and {node['id']}")
+        seen[key] = node["id"]
+
+
+def surface_node_for(nodes: list[dict[str, Any]], label: str) -> dict[str, Any] | None:
+    """The drawn node a trigger lands on: the same choice the site makes."""
+    candidates = [node for node in nodes if node.get("label") == label and node["kind"] in SURFACE_KIND_ORDER]
+    candidates.sort(key=lambda node: SURFACE_KIND_ORDER.index(node["kind"]))
+    return candidates[0] if candidates else None
+
+
+def shape_of(model: dict[str, Any]) -> dict[str, Any]:
+    """One point on the timeline: the drawn nodes and edges, keyed for diffing.
+
+    Trigger edges are aggregated the way the map draws them (one page → surface
+    edge per pair); their page sources are carried as ``page`` pseudo-nodes so
+    the union table can index them. Fidelity carries what today's curation could
+    not account for at this commit, as counts, so the page can say so.
+    """
+    interplay = model["interplay"]
+    keyed: dict[str, dict[str, Any]] = {}
+    for node in interplay["nodes"]:
+        if node["kind"] == "operation":
+            continue
+        meta: dict[str, Any] = {"k": node["history_key"]}
+        for field in SHAPE_NODE_FIELDS:
+            value = node.get(field)
+            if value not in (None, [], {}, ""):
+                meta[field] = sorted(value) if isinstance(value, set) else value
+        store = node.get("store")
+        if isinstance(store, dict):
+            meta["store"] = {"persistence": store.get("persistence", []), "artifacts": store.get("artifacts", [])}
+        keyed[meta["k"]] = meta
+    key_of = {node["id"]: node["history_key"] for node in interplay["nodes"]}
+    edges: set[tuple[str, str, str, str]] = set()
+    for edge in interplay["edges"]:
+        source = key_of.get(edge["source"])
+        target = key_of.get(edge["target"])
+        if source in keyed and target in keyed:
+            edges.add((source, target, str(edge["relation"]), str(edge.get("class") or "")))
+    page_labels = {page["id"]: page["label"] for page in interplay.get("pages", [])}
+    for trigger in interplay.get("triggers", []):
+        page = trigger.get("page")
+        if page not in page_labels:
+            continue
+        surface = surface_node_for(interplay["nodes"], str(trigger.get("surface") or ""))
+        if surface is None:
+            continue
+        page_key = f"page:{page}"
+        keyed.setdefault(page_key, {"k": page_key, "kind": "page", "label": page_labels[page], "page": page})
+        edges.add((page_key, surface["history_key"], "triggers", "trigger"))
+    invariants = interplay.get("invariants", [])
+    return {
+        "tree": model["source_tree_sha256"],
+        "nodes": sorted(keyed.values(), key=lambda meta: meta["k"]),
+        "edges": [list(edge) for edge in sorted(edges)],
+        "fidelity": {kind: len(messages) for kind, messages in sorted(FIDELITY.items())},
+        "invariants": {
+            "holds": sum(1 for item in invariants if item.get("status") == "holds"),
+            "violated": sorted(item["id"] for item in invariants if item.get("status") != "holds"),
+        },
+    }
 
 
 def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     config = load_json(CONFIG_PATH)
     validate_config(config)
     files, source_hash = read_sources(config)
+    launch_files, launch_hash = read_launch_sources(config)
+    if launch_files:
+        source_hash = hashlib.sha256(f"{source_hash}\0{launch_hash}".encode("utf-8")).hexdigest()
     component_ids = {str(item["id"]) for item in config["components"]}
     semantic = load_semantic(component_ids)
 
@@ -2739,6 +3870,12 @@ def compile_architecture() -> tuple[dict[str, Any], dict[str, Any]]:
     attach_triggers_to_interplay(interplay, files)
     page_of_type, pages, page_ties = assign_pages(files, config)
     attach_pages_to_interplay(interplay, page_of_type, pages, page_ties, config, files)
+    attach_launch_to_interplay(interplay, extract_launch_constructions(launch_files), files, config)
+    attach_state_machines(interplay, files)
+    assign_history_keys(interplay)
+    # Records may cite the launch roots too: they are part of the analysed tree.
+    load_constructs(interplay, files + launch_files, externals)
+    load_flows(interplay, files + launch_files)
     interplay["invariants"] = validate_interplay_invariants(interplay, behavior, load_json(INTERPLAY_INVARIANTS_PATH), stores)
     unassigned = [item["path"] for item in files if item["component"] is None]
     model = {
@@ -2810,8 +3947,18 @@ def write_outputs(outputs: dict[Path, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="fail if checked-in outputs are stale")
+    parser.add_argument(
+        "--snapshot", action="store_true",
+        help="compile leniently and print the System map's shape as JSON (used by the history walk)",
+    )
     args = parser.parse_args()
     try:
+        if args.snapshot:
+            global LENIENT
+            LENIENT = True
+            model, _site_data = compile_architecture()
+            print(json.dumps(shape_of(model), sort_keys=True, separators=(",", ":")))
+            return 0
         outputs = expected_outputs()
         if args.check:
             check_outputs(outputs)

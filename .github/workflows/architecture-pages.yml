@@ -7,6 +7,7 @@ on:
       - site/**
       - architecture/**
       - scripts/build_architecture.py
+      - scripts/build_architecture_history.py
       - scripts/test_architecture.py
       - scripts/build_metrics_page.py
       - metrics-baseline.json
@@ -20,6 +21,7 @@ on:
       - site/**
       - architecture/**
       - scripts/build_architecture.py
+      - scripts/build_architecture_history.py
       - scripts/architecture_agent.py
       - scripts/test_architecture.py
       - scripts/build_metrics_page.py
@@ -94,6 +96,31 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the history walk reads every first-parent commit
+
+      # The System map at every commit (architecture/site/history.js, not in git).
+      # Restored from the cache when a previous deploy built it with the same
+      # extractor, so a merge derives only its new commits; an extractor change
+      # falls through to a full walk.
+      - name: Restore architecture history
+        id: history-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: architecture/site/history.js
+          key: architecture-history-${{ hashFiles('scripts/build_architecture.py', 'scripts/build_architecture_history.py', 'architecture/config.json', 'architecture/semantic/components.json', 'architecture/interplay/overlay.json', 'architecture/interplay/invariants.json') }}-${{ github.sha }}
+          restore-keys: |
+            architecture-history-${{ hashFiles('scripts/build_architecture.py', 'scripts/build_architecture_history.py', 'architecture/config.json', 'architecture/semantic/components.json', 'architecture/interplay/overlay.json', 'architecture/interplay/invariants.json') }}-
+
+      - name: Derive architecture history
+        run: python3 scripts/build_architecture_history.py --ref "$GITHUB_SHA" --jobs 4 --quiet
+
+      - name: Save architecture history
+        if: steps.history-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: architecture/site/history.js
+          key: ${{ steps.history-cache.outputs.cache-primary-key }}
 
       - name: Assemble Pages tree
         run: |

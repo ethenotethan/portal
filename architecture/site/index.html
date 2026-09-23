@@ -53,14 +53,9 @@
           <span class="sr-only">Search system map nodes</span>
           <input id="interplay-search" type="search" placeholder="Search pages, owners, endpoints, resources, or engines…" autocomplete="off">
         </label>
-        <label class="select-control">
-          <span>Invariants</span>
-          <select id="invariant-select"></select>
-        </label>
         <button id="interplay-fullscreen" class="quiet-button" type="button">Full screen</button>
         <button id="reset-interplay" class="quiet-button" type="button">Reset view</button>
       </div>
-      <div class="invariant-detail" id="invariant-detail" hidden></div>
       <p class="graph-hint" aria-hidden="true">Drag the canvas to pan · scroll to zoom · drag a node to reposition it · click a node for its metadata</p>
       <div class="graph-workspace" id="interplay-workspace">
         <div class="graph-scroll" id="interplay-scroll">
@@ -69,9 +64,53 @@
             <button type="button" class="legend-toggle" id="interplay-legend-toggle" aria-expanded="true" aria-controls="interplay-legend-items">Legend</button>
             <div class="legend legend-items" id="interplay-legend-items"></div>
           </div>
+          <!-- The history slider: the same map at every commit, from the opt-in
+               history.js artifact (make architecture-history). Hidden without it;
+               inert until touched, so the landing page is the head revision. -->
+          <div class="timeline-overlay" id="timeline" aria-label="System map history" hidden>
+            <div class="timeline-head">
+              <button type="button" class="legend-toggle" id="timeline-toggle" aria-expanded="true" aria-controls="timeline-body">History</button>
+              <span class="timeline-readout">
+                <strong id="timeline-date"></strong>
+                <a id="timeline-rev" target="_blank" rel="noreferrer"></a>
+                <span id="timeline-pos"></span>
+              </span>
+            </div>
+            <div class="timeline-body" id="timeline-body">
+              <div class="timeline-row">
+                <button type="button" class="timeline-play" id="timeline-play" title="Play the history forward" aria-pressed="false">▶</button>
+                <div class="timeline-track">
+                  <svg class="timeline-spark" id="timeline-spark" aria-hidden="true"></svg>
+                  <input type="range" id="timeline-range" min="0" max="0" value="0" step="1" aria-label="Commit position in the app's history">
+                </div>
+                <button type="button" class="quiet-button timeline-now" id="timeline-now" title="Back to the head revision">Now</button>
+              </div>
+              <div class="timeline-readout">
+                <span id="timeline-counts"></span>
+                <span class="timeline-delta" id="timeline-delta"></span>
+              </div>
+              <div class="timeline-subject" id="timeline-subject"></div>
+              <div class="timeline-diff" id="timeline-diff"></div>
+              <p class="timeline-note" id="timeline-note"></p>
+            </div>
+          </div>
         </div>
         <aside class="inspector" id="interplay-inspector" aria-live="polite" hidden></aside>
       </div>
+      <!-- The constructions the map assumes, declared in architecture/interplay/invariants.json
+           and checked on every build. Plain text: reading them never touches the graph. -->
+      <section class="invariants" id="invariants" aria-labelledby="invariants-title">
+        <h3 id="invariants-title">Invariants</h3>
+        <p class="invariants-lede" id="invariants-lede"></p>
+        <ol class="invariants-list" id="invariants-list"></ol>
+      </section>
+      <!-- System flows: LLM-identified, compiler-validated paths over edges the map
+           draws (architecture/semantic/flows.json). Trace on map lights the path. -->
+      <section class="invariants flows" id="flows" aria-labelledby="flows-title">
+        <h3 id="flows-title">System flows</h3>
+        <p class="invariants-lede" id="flows-lede"></p>
+        <div class="flows-list" id="flows-list"></div>
+      </section>
     </section>
 
     <section class="view" id="connections-view" aria-labelledby="connections-title">
@@ -136,6 +175,17 @@
   </footer>
 
   <script src="data.js"></script>
+  <!-- Optional: written by `make architecture-history`, absent otherwise. -->
+  <script src="history.js"></script>
   <script src="app.js"></script>
+  <!-- Mermaid renders the system-flow sequence diagrams generated in app.js from
+       compiler-validated steps. Loaded after the page works without it: if the
+       CDN is unreachable the diagrams stay as their text source. -->
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict", sequence: { showSequenceNumbers: true, mirrorActors: false, actorMargin: 24, messageMargin: 28 } });
+    window.__mermaid = mermaid;
+    window.dispatchEvent(new Event("mermaid-ready"));
+  </script>
 </body>
 </html>

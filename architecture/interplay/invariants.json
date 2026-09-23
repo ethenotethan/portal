@@ -55,6 +55,32 @@
       "why": "Every page's views drive at least one surface through an observed action or lifecycle hook. SwiftUI has many ways to attach an action; if a refactor hides them from the rules, the first hop must fail loudly rather than vanish."
     },
     {
+      "id": "launch-zoned",
+      "kind": "launch_zoned",
+      "min": 8,
+      "configures": ["SettingsViewModel"],
+      "why": "The App entry points construct the objects that exist before any page: the settings object reads the keychain in its initialiser and is what the transport connects with. A store read only at launch belongs to the launch zone, not to the shared core; if the @StateObject or init rules stop matching, launch must fail loudly rather than dissolve into shared."
+    },
+    {
+      "id": "machines-complete",
+      "kind": "machines_complete",
+      "min": 4,
+      "declared": {
+        "GatewayClient.connectionState": ["disconnected", "connecting", "connected", "reconnecting", "error"],
+        "GatewayRestartController.phase": ["idle", "requesting", "waitingForGateway", "succeeded", "failed", "unsupported"],
+        "ChatViewModel.avatarState": ["idle", "thinking", "speaking", "toolUse", "error"],
+        "LearningStore.sync": ["unknown", "available", "unsupported"]
+      },
+      "allow_dead": {},
+      "why": "An object's lifecycle is the enum its stored state property is typed with, and every state must be reachable by an assignment somewhere in the type. Adding, renaming or orphaning a state changes the construction and must be declared here in the same change; a state nothing ever enters is dead code the map would otherwise draw as live."
+    },
+    {
+      "id": "flows-traceable",
+      "kind": "flows_traceable",
+      "min": 6,
+      "why": "A system flow is a path over edges the map draws, never a diagram beside it. When the construction changes under a flow, the flow must be updated in the same change rather than quietly describing wiring that no longer exists."
+    },
+    {
       "id": "pages-populated",
       "kind": "pages_populated",
       "allow_empty": [],
