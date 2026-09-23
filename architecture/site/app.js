@@ -31,6 +31,10 @@
   })();
   const interplayNodeById = new Map(interplay.nodes.map((node) => [node.id, node]));
   const expandedOwners = new Set(); // owners whose pool/lock/socket/sections are shown
+  // Edge density. "quiet" (default) draws only neutral aggregated trunks at rest and
+  // the full coloured detail for the selected node's path; "all" draws every edge.
+  let edgeMode = "quiet";
+  try { edgeMode = window.localStorage.getItem("portal.architecture.edgeMode") === "all" ? "all" : "quiet"; } catch (_error) { edgeMode = "quiet"; }
   // A resource/operation inherits its colour from the owning type's role, so the
   // free-form graph still reads as "this pool belongs to a transport" without any
   // column to say so.
@@ -721,7 +725,7 @@
     const defs = svgElement("defs", {});
     const MARKER_COLORS = {
       structure: "#8a8a92", lifecycle: "#55545a", interplay: "#8b83ff", usage: "#7ec8b0",
-      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4"
+      push: "#d16f86", boundary: "#e0704f", trigger: "#9fd18b", active: "#f2f2f4", trunk: "#6d6a68"
     };
     Object.entries(MARKER_COLORS).forEach(([name, color]) => {
       const marker = svgElement("marker", {
@@ -744,13 +748,17 @@
       if ((edge.relation === "owns" || edge.relation === "operates") && isTransportContainer(interplayNodeById.get(edge.source) || {})) return; // containment
       if (["implements", "invokes", "extends"].includes(edge.relation)) return; // data for the inspector; the drawn flow is surface → client file → core → namespace
       const edgeClass = isPushEdge(edge) ? "push" : edge.class;
+      // Boundary crossings and the core→stream feed are few and load-bearing: they
+      // stay visible in quiet mode. Everything else waits for a selection.
+      const quietVisible = edge.relation === "provides";
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
-        class: `interplay-edge ${edgeClass}${edge.relation === "provides" ? " feed" : ""}`,
+        class: `interplay-edge individual ${edgeClass}${edge.relation === "provides" ? " feed" : ""}`,
         "marker-end": `url(#arrow-${edgeClass})`,
         "data-source": edge.source,
         "data-target": edge.target,
-        "data-relation": edge.relation
+        "data-relation": edge.relation,
+        "data-quiet": quietVisible ? "true" : "false"
       });
       // The relation name, shown only while the edge is highlighted.
       const mid = interplayLinkMidpoint(source, target);
@@ -770,6 +778,11 @@
       path.append(title);
       edgeGroup.append(path);
     });
+    // Aggregated trunks for the quiet view: one neutral edge per relationship
+    // family and page, so the resting map shows shape rather than wiring.
+    const trunkGroup = svgElement("g", { class: "edges trunks" });
+    drawTrunkEdges(trunkGroup, groupBoxes);
+    svg.append(trunkGroup);
     svg.append(edgeGroup);
     svg.append(labelGroup);
 
@@ -1124,11 +1137,12 @@
       const source = { x: box.x + 18, y: box.y + 22, width: 1, height: 1 };
       const path = svgElement("path", {
         d: interplayLinkPath(source, target),
-        class: "interplay-edge trigger",
+        class: "interplay-edge individual trigger",
         "marker-end": "url(#arrow-trigger)",
         "data-source": `page:${entry.page}`,
         "data-target": entry.targetId,
-        "data-relation": "triggers"
+        "data-relation": "triggers",
+        "data-quiet": "false"
       });
       const title = svgElement("title", {});
       title.textContent = `${entry.page} triggers ${interplayNodeById.get(entry.targetId).label}: ${triggerSummary(entry.list)}`;
@@ -1144,6 +1158,86 @@
       (labels || edgeGroup).append(label);
     });
   }
+  // Quiet-mode trunks: page → core (surfaces holding it), core → gateway (namespaces
+  // dispatched), event stream → page (subscribers notified). Counts in the tooltip.
+  function drawTrunkEdges(trunkGroup, groupBoxes) {
+    const core = interplay.nodes.find((n) => n.kind === "owner" && (n.roles || []).includes("transport"));
+    const gateway = interplay.nodes.find(isGatewayContainer);
+    const bus = interplay.nodes.find(isBusSpine);
+    const boxByLabel = new Map(groupBoxes.map((box) => [box.label, box]));
+    const anchor = (box) => ({ x: box.x + 18, y: box.y + 22, width: 1, height: 1 });
+    const pageOf = (id) => { const n = interplayNodeById.get(id); return n && n.page ? PAGE_LABEL.get(n.page) : null; };
+    const trunk = (source, target, title, sourceKey, targetKey) => {
+      if (!source || !target) return;
+      const path = svgElement("path", {
+        d: interplayLinkPath(source, target), class: "interplay-edge trunk", "marker-end": "url(#arrow-trunk)",
+        "data-source": sourceKey, "data-target": targetKey, "data-relation": "trunk"
+      });
+      const label = svgElement("title", {});
+      label.textContent = title;
+      path.append(label);
+      trunkGroup.append(path);
+    };
+    if (core && interplayPositions.get(core.id)) {
+      const holds = new Map();
+      interplay.edges.forEach((edge) => {
+        if (edge.relation !== "holds" || edge.target !== core.id) return;
+        const page = pageOf(edge.source);
+        if (page) holds.set(page, (holds.get(page) || 0) + 1);
+      });
+      holds.forEach((count, page) => {
+        const box = boxByLabel.get(page);
+        if (box) trunk(anchor(box), interplayPositions.get(core.id), `${page}: ${count} surface${count === 1 ? "" : "s"} hold the transport core`, `page:${page}`, core.id);
+      });
+      if (gateway && interplayPositions.get(gateway.id)) {
+        const dispatched = interplay.edges.filter((edge) => edge.relation === "dispatches" && edge.source === core.id).length;
+        trunk(interplayPositions.get(core.id), interplayPositions.get(gateway.id), `${core.label} dispatches ${dispatched} namespaces at the gateway`, core.id, gateway.id);
+      }
+    }
+    // External systems: one trunk per (external, hull) with the number of constructs
+    // inside that hull crossing to it, instead of a fan of orange edges.
+    // The smallest hull whose rectangle contains a node's centre (pages, the
+    // in-memory hull, the shared core), never the application boundary itself.
+    const boxOf = (id) => {
+      const pos = interplayPositions.get(id);
+      if (!pos) return null;
+      const cx = pos.x + pos.width / 2;
+      const cy = pos.y + pos.height / 2;
+      return groupBoxes
+        .filter((b) => b.kind !== "app" && b.label && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h)
+        .sort((a, b) => a.w * a.h - b.w * b.h)[0] || null;
+    };
+    const crossings = new Map();
+    interplay.edges.forEach((edge) => {
+      if (edge.class !== "boundary") return;
+      const external = interplayNodeById.get(edge.target);
+      const box = boxOf(edge.source);
+      if (!external || !box || !interplayPositions.get(external.id) || isGatewayContainer(external)) return;
+      const key = `${external.id}|${box.label}`;
+      if (!crossings.has(key)) crossings.set(key, { external, box, count: 0, relations: new Set() });
+      const entry = crossings.get(key);
+      entry.count += 1;
+      entry.relations.add(edge.relation.replace(/-/g, " "));
+    });
+    crossings.forEach(({ external, box, count, relations }) => {
+      trunk(anchor(box), interplayPositions.get(external.id),
+        `${box.label || "constructs"}: ${count} construct${count === 1 ? "" : "s"} ${Array.from(relations).join(" / ")} ${external.label}`,
+        `page:${box.label}`, external.id);
+    });
+    if (bus && interplayPositions.get(bus.id)) {
+      const notified = new Map();
+      interplay.edges.forEach((edge) => {
+        if (edge.relation !== "notifies" || edge.source !== bus.id) return;
+        const page = pageOf(edge.target);
+        if (page) notified.set(page, (notified.get(page) || 0) + 1);
+      });
+      notified.forEach((count, page) => {
+        const box = boxByLabel.get(page);
+        if (box) trunk(interplayPositions.get(bus.id), anchor(box), `event stream notifies ${count} subscriber${count === 1 ? "" : "s"} in ${page}`, bus.id, `page:${page}`);
+      });
+    }
+  }
+
   function triggersFor(node) {
     return triggers.filter((t) => t.surface === node.label);
   }
@@ -1229,6 +1323,7 @@
       ["usage", "#7ec8b0", "Surface calls a client file · holds the core"],
       ["push", "#d16f86", "Push leg: event fan-out"],
       ["trigger", "#9fd18b", "Page triggers a surface (user action / lifecycle)"],
+      ["trunk", "#6d6a68", "Aggregated trunk (quiet view)"],
       ["boundary", "#e0704f", "Crosses an external boundary"],
       ["lifecycle", "#55545a", "Lifecycle"],
       ["structure", "var(--line-strong)", "Structure"]
@@ -1313,11 +1408,21 @@
       element.classList.toggle("selected", node.id === selectedInterplayId);
       element.classList.toggle("dimmed", Boolean(queryMismatch || selectionMismatch));
     });
-    document.querySelectorAll(".interplay-edge, .interplay-edge-label").forEach((edge) => {
+    document.querySelectorAll(".interplay-edge.individual, .interplay-edge-label").forEach((edge) => {
       const direct = selectedInterplayId && (edge.dataset.source === selectedInterplayId || edge.dataset.target === selectedInterplayId);
       const active = Boolean(selectedInterplayId) && (direct || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`));
       edge.classList.toggle("active", active);
-      edge.classList.toggle("dimmed", Boolean(selectedInterplayId && !active));
+      // Quiet: at rest only boundary/feed edges show; with a selection only its path
+      // shows. All: everything shows, the selection's path lit and the rest dimmed.
+      const quiet = edgeMode === "quiet";
+      const shown = quiet
+        ? (selectedInterplayId ? active : edge.dataset.quiet === "true")
+        : true;
+      edge.classList.toggle("hidden", !shown && !edge.classList.contains("interplay-edge-label"));
+      edge.classList.toggle("dimmed", Boolean(selectedInterplayId && !active && shown));
+    });
+    document.querySelectorAll(".interplay-edge.trunk").forEach((edge) => {
+      edge.classList.toggle("hidden", edgeMode !== "quiet" || Boolean(selectedInterplayId));
     });
   }
 
@@ -1915,6 +2020,15 @@
         selectedInterplayId = null;
         if (interplaySearch) interplaySearch.value = "";
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too
+        applyInterplayState();
+      });
+    }
+    const edgeModeSelect = document.getElementById("edge-mode");
+    if (edgeModeSelect) {
+      edgeModeSelect.value = edgeMode;
+      edgeModeSelect.addEventListener("change", () => {
+        edgeMode = edgeModeSelect.value === "all" ? "all" : "quiet";
+        try { window.localStorage.setItem("portal.architecture.edgeMode", edgeMode); } catch (_error) { /* storage unavailable */ }
         applyInterplayState();
       });
     }

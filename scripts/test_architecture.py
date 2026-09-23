@@ -304,6 +304,11 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertRegex(app, rf"function\s+{renderer}\s*\(")
         self.assertIn('close.className = "inspector-close"', app)
         self.assertIn('workspace.classList.toggle("has-inspector"', app)
+        # Quiet edge view: neutral trunks at rest, coloured detail only on selection; a mode switch.
+        self.assertIn('id="edge-mode"', index)
+        self.assertRegex(app, r"function\s+drawTrunkEdges\s*\(")
+        self.assertIn('"data-quiet"', app)
+        self.assertIn('let edgeMode = "quiet"', app)
         # Radial layout: in-memory constructions in the centre, pages ringed around them.
         self.assertIn('const sideOrder = ["top", "right", "bottom", "left"];', app)
         self.assertIn("INTERPLAY_MEMORY_GROUP, kind: \"memory\"", app)
