@@ -212,10 +212,6 @@ final class CronRunHistoryStore: ObservableObject {
         UserDefaults.standard.set(true, forKey: Self.fileMigratedKey)
     }
 
-    private func save() {
-        performSave()
-    }
-
     private func load() {
         if UserDefaults.standard.bool(forKey: Self.fileMigratedKey) {
             loadFromFile()
