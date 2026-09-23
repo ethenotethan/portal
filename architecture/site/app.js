@@ -200,7 +200,8 @@
     pages_populated: "Every declared navigation page owns at least one construct.",
     stores_mapped: "Every store the extractor recognises appears on the map, so the Data stores view and the System map cannot disagree.",
     triggers_observed: "Every page's views drive at least one surface through an observed action or lifecycle hook, and enough triggers are attributed for the first hop to be trusted.",
-    launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core."
+    launch_zoned: "The App entry points construct the objects that exist before any page; a store read only at launch sits in the App launch zone, and the declared provider configures the transport core.",
+    flows_traceable: "Every declared system flow is a path over edges the map draws; a step whose edge disappeared, or fewer flows than declared, fails the build until the flow is updated."
   };
 
   const INTERPLAY_SHARED_GROUP = "Shared core";
@@ -238,6 +239,9 @@
   };
   const repositoryBase = `https://github.com/${model.repository}/blob/main/`;
   let selectedInterplayId = null;
+  let selectedFlowId = null; // a traced system flow: its steps light up like a selection's path
+  const flows = interplay.flows || [];
+  const flowById = new Map(flows.map((flow) => [flow.id, flow]));
   let interplayPositions = new Map();
   // Pan/zoom state for the free-form graph: the SVG fills its frame and we move a
   // viewBox window over the content, so click-drag pans, the wheel zooms, and a
@@ -248,6 +252,7 @@
   document.getElementById("source-hash").textContent = model.source_tree_sha256.slice(0, 9);
   renderInterplay();
   renderInvariants();
+  renderFlows();
   renderTimeline();
   renderConnections();
   renderExternals();
@@ -1396,6 +1401,158 @@
     legend.replaceChildren(...items);
   }
 
+  // ---- Semantic enrichment: described constructs and system flows ---------------
+  // Both are LLM-written and compiler-validated (architecture/semantic/*.json); the
+  // site only displays them. A record is drawn as a labelled table; a flow is a
+  // path over drawn edges that the reader can trace on the map.
+  const SEMANTIC_FIELD_LABELS = {
+    medium: "Medium", location: "Location", record_type: "Record types", keyed_by: "Keyed by", written_when: "Written",
+    read_when: "Read", readers: "Readers", writers: "Writers", retention: "Retention", failure_mode: "On failure", sensitive: "Sensitive",
+    protocol: "Protocol", auth: "Auth", direction: "Direction", failure_visible_as: "Failure visible as", namespaces_or_apis: "Namespaces / APIs",
+    concurrency_model: "Concurrency", reconnect_policy: "Reconnect", backpressure: "Backpressure", shared_by: "Shared by",
+    settles_by: "Settles by", cancellation: "Cancellation", runtime: "Runtime", model_ids: "Models", memory_floor_gb: "Memory floor (GB)",
+    loaded_when: "Loaded", unloaded_when: "Unloaded", supplies: "Supplies", configures: "Configures", loads: "Loads",
+    wraps: "Wraps", error_mapping: "Errors", purpose: "Purpose", request_shape: "Request", response_shape: "Response",
+    idempotent: "Idempotent", streams: "Streams", entry_triggers: "Entry triggers", owns_state_in: "Owns state in",
+    state: "State", reacts_to: "Reacts to", conformers: "Conformers"
+  };
+  function semanticValue(value) {
+    const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (PAGE_LABEL.get(key) || key); };
+    if (Array.isArray(value)) return value.map((item) => (typeof item === "string" && item.includes(":") ? nameOf(item) : String(item).replace(/_/g, " "))).join(", ") || "—";
+    if (typeof value === "boolean") return value ? "yes" : "no";
+    if (typeof value === "string") return value.includes(":") && idByHistoryKey.has(value) ? nameOf(value) : value.replace(/_/g, " ");
+    return String(value);
+  }
+  function describedSection(semantic) {
+    const section = element("section", "inspector-section described");
+    const head = element("h4", "", "Described");
+    if (semantic.stale) head.append(element("span", "stale-badge", `stale · files changed since ${String(semantic.source_revision).slice(0, 9)}`));
+    section.append(head, element("p", "", semantic.summary));
+    const fields = Object.entries(semantic.fields || {});
+    if (fields.length) {
+      const table = element("dl", "described-table");
+      fields.forEach(([name, value]) => {
+        table.append(element("dt", "", SEMANTIC_FIELD_LABELS[name] || name.replace(/_/g, " ")));
+        table.append(element("dd", "", semanticValue(value)));
+      });
+      section.append(table);
+    }
+    if ((semantic.open_questions || []).length) {
+      const questions = element("ul", "evidence-list");
+      semantic.open_questions.forEach((question) => questions.append(element("li", "", `? ${question}`)));
+      section.append(element("p", "described-meta", "Open questions"), questions);
+    }
+    const evidence = element("ul", "evidence-list");
+    (semantic.evidence || []).forEach((site) => { const li = document.createElement("li"); li.append(sourceLink(site)); evidence.append(li); });
+    section.append(evidence);
+    section.append(element("p", "described-meta", `Written by ${semantic.model} at ${String(semantic.source_revision).slice(0, 9)}; validated against the map on every build.`));
+    return section;
+  }
+  function flowLinksSection(ids) {
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `Appears in ${ids.length} system flow${ids.length === 1 ? "" : "s"}`));
+    const list = element("div", "chip-list");
+    ids.forEach((id) => {
+      const flow = flowById.get(id);
+      if (!flow) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "timeline-chip selectable";
+      button.textContent = flow.title;
+      button.addEventListener("click", () => traceFlow(id));
+      list.append(button);
+    });
+    section.append(list);
+    return section;
+  }
+  function traceFlow(id) {
+    const flow = flowById.get(id);
+    if (!flow) return;
+    selectedFlowId = id;
+    selectedInterplayId = null;
+    renderFlowInspector(flow);
+    applyInterplayState();
+    renderFlows();
+    const workspace = document.getElementById("interplay-workspace");
+    if (workspace && workspace.scrollIntoView) workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function clearFlow() {
+    selectedFlowId = null;
+    applyInterplayState();
+    renderFlows();
+  }
+  function renderFlowInspector(flow) {
+    const inspector = document.getElementById("interplay-inspector");
+    if (!inspector) return;
+    const container = element("div");
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "inspector-close";
+    close.setAttribute("aria-label", "Stop tracing");
+    close.textContent = "×";
+    close.addEventListener("click", clearFlow);
+    container.append(close);
+    container.style.setProperty("--component-color", INTERPLAY_ROLE_COLORS.interplay || INTERPLAY_ROLE_COLORS.hub);
+    container.append(element("span", "inspector-badge", `SYSTEM FLOW · ${flow.status.toUpperCase()}`), element("h3", "", flow.title), element("p", "", flow.summary));
+    const nameOf = (key) => { const id = idByHistoryKey.get(key); const node = id ? interplayNodeById.get(id) : null; return node ? node.label : (key.startsWith("page:") ? `${PAGE_LABEL.get(key.slice(5)) || key.slice(5)} (page)` : key); };
+    const steps = element("ol", "inspector-steps");
+    flow.steps.forEach((step) => {
+      const li = document.createElement("li");
+      li.append(element("span", "step-path", `${nameOf(step.from)} → ${step.relation.replace(/-/g, " ")} → ${nameOf(step.to)}`));
+      if (step.note) li.append(element("span", "step-note", step.note));
+      steps.append(li);
+    });
+    const section = element("section", "inspector-section");
+    section.append(element("h4", "", `Steps (${flow.steps.length})`), steps);
+    container.append(section);
+    if (flow.trigger) {
+      const trigger = triggers.find((t) => t.id === flow.trigger);
+      if (trigger) container.append(element("p", "described-meta", `Starts from ${trigger.api} in ${trigger.view || "?"} · ${trigger.method}() · ${PAGE_LABEL.get(trigger.page) || trigger.page}`));
+    }
+    if (flow.outcome) container.append(element("p", "", flow.outcome));
+    if ((flow.problems || []).length) {
+      const problems = element("ul", "evidence-list");
+      flow.problems.forEach((problem) => problems.append(element("li", "", problem)));
+      container.append(element("p", "described-meta", "Broken: the map no longer has these edges"), problems);
+    }
+    const evidence = element("ul", "evidence-list");
+    (flow.evidence || []).forEach((site) => { const li = document.createElement("li"); li.append(sourceLink(site)); evidence.append(li); });
+    container.append(evidence, element("p", "described-meta", `Written by ${flow.model} at ${String(flow.source_revision).slice(0, 9)}; every step is checked against the map on every build.`));
+    inspector.replaceChildren(container);
+  }
+  // The flows, as text at the foot of the System map beneath the invariants, each
+  // with one action: trace it on the map.
+  function renderFlows() {
+    const list = document.getElementById("flows-list");
+    const lede = document.getElementById("flows-lede");
+    const section = document.getElementById("flows");
+    if (!list || !lede || !section) return;
+    if (!flows.length) {
+      lede.textContent = "No system flows are declared yet. They are written by scripts/architecture_agent.py --flows and validated step by step against this map.";
+      list.replaceChildren();
+      return;
+    }
+    const traceable = flows.filter((flow) => flow.status === "traceable").length;
+    lede.textContent = `${traceable} of ${flows.length} declared flows trace fully over edges on this map. Each is written by a model from the graph and validated step by step on every build; a step whose edge disappears fails the build.`;
+    list.replaceChildren(...flows.map((flow) => {
+      const li = element("li", `flow${flow.id === selectedFlowId ? " tracing" : ""}`);
+      const head = element("div", "invariant-head");
+      head.append(
+        element("span", `invariant-status ${flow.status === "traceable" ? "holds" : "violated"}`, flow.status.toUpperCase()),
+        element("strong", "", flow.title),
+        element("span", "invariant-meta", `${flow.steps.length} steps${flow.trigger ? " · from a trigger" : ""}`)
+      );
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "quiet-button trace-button";
+      button.textContent = flow.id === selectedFlowId ? "Stop tracing" : "Trace on map";
+      button.addEventListener("click", () => (flow.id === selectedFlowId ? clearFlow() : traceFlow(flow.id)));
+      head.append(button);
+      li.append(head, element("p", "", flow.summary));
+      return li;
+    }));
+  }
+
   // The invariants, as text at the foot of the System map: what each pins, why it
   // is declared, its status and how much the last build checked. Reading them
   // never touches the graph.
@@ -1420,15 +1577,18 @@
 
   function selectInterplayNode(nodeId) {
     selectedInterplayId = nodeId;
+    selectedFlowId = null;
     renderInterplayInspector(interplayNodeById.get(nodeId));
     applyInterplayState();
   }
 
   function applyInterplayState() {
+    const flow = selectedFlowId ? flowById.get(selectedFlowId) : null;
+    const focusing = Boolean(selectedInterplayId || flow);
     const inspectorPanel = document.getElementById("interplay-inspector");
-    if (inspectorPanel) inspectorPanel.hidden = !selectedInterplayId;
+    if (inspectorPanel) inspectorPanel.hidden = !focusing;
     const workspace = document.getElementById("interplay-workspace");
-    if (workspace) workspace.classList.toggle("has-inspector", Boolean(selectedInterplayId));
+    if (workspace) workspace.classList.toggle("has-inspector", focusing);
     const input = document.getElementById("interplay-search");
     const query = input ? input.value.trim().toLowerCase() : "";
     // A selection is a claim about a node the reader can see; sliding past the
@@ -1446,6 +1606,15 @@
         if (activeKeys.has(`${edge.source}|${edge.target}|${edge.relation}`)) { connected.add(edge.source); connected.add(edge.target); }
       });
     }
+    // A flow's steps are edges named by history key, which is exactly what every
+    // drawn edge carries in data-hkey; the step number replaces the relation label.
+    const flowSteps = new Map();
+    if (flow) {
+      flow.steps.forEach((step, index) => {
+        flowSteps.set(`${step.from}|${step.to}|${step.relation}`, index + 1);
+        [step.from, step.to].forEach((key) => { const id = idByHistoryKey.get(key); if (id) connected.add(id); });
+      });
+    }
     document.querySelectorAll(".interplay-node").forEach((element) => {
       const node = interplayNodeById.get(element.dataset.node);
       if (!node) return;
@@ -1454,7 +1623,7 @@
         .concat(node.namespaces || [])
         .filter(Boolean).join(" ").toLowerCase();
       const queryMismatch = query && !searchable.includes(query);
-      const selectionMismatch = selectedInterplayId && !connected.has(node.id);
+      const selectionMismatch = focusing && !connected.has(node.id);
       element.classList.toggle("selected", node.id === selectedInterplayId);
       element.classList.toggle("dimmed", Boolean(queryMismatch || selectionMismatch));
       // What the reader's position lacks is absent; what this commit removed is ghosted.
@@ -1464,12 +1633,17 @@
     });
     document.querySelectorAll(".interplay-edge, .interplay-edge-label").forEach((edge) => {
       const direct = selectedInterplayId && (edge.dataset.source === selectedInterplayId || edge.dataset.target === selectedInterplayId);
-      const active = Boolean(selectedInterplayId) && (direct || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`));
+      const step = flowSteps.get(edge.dataset.hkey);
+      const active = focusing && (Boolean(direct) || activeKeys.has(`${edge.dataset.source}|${edge.dataset.target}|${edge.dataset.relation}`) || Boolean(step));
       edge.classList.toggle("active", active);
+      if (edge.classList.contains("interplay-edge-label")) {
+        if (!edge.dataset.label) edge.dataset.label = edge.textContent;
+        edge.textContent = step ? `${step}. ${edge.dataset.relation.replace(/-/g, " ")}` : edge.dataset.label;
+      }
       const when = timelineEdgeState(edge);
       edge.classList.toggle("absent", !when.live && !when.gone);
       edge.classList.toggle("ghost", when.gone && !edge.classList.contains("interplay-edge-label"));
-      edge.classList.toggle("dimmed", Boolean(selectedInterplayId && !active));
+      edge.classList.toggle("dimmed", Boolean(focusing && !active));
     });
   }
 
@@ -1707,6 +1881,9 @@
       });
       container.append(grid);
     }
+
+    if (node.semantic) container.append(describedSection(node.semantic));
+    if ((node.flows || []).length) container.append(flowLinksSection(node.flows));
 
     if (node.overlay_prose) {
       const proseSection = element("section", "inspector-section");
@@ -2182,10 +2359,23 @@
       const list = element("div", "behavior-list");
       records.forEach((record) => {
         const artifacts = (record.artifacts || []).map((artifact) => artifact.label);
+        const storeNode = interplay.nodes.find((node) => node.label === record.type_name && node.store);
+        const described = storeNode && storeNode.semantic ? storeNode.semantic : null;
+        const fields = (described && described.fields) || {};
         const row = recordRow(record, [
           `persistence ${(record.persistence || []).join(", ")}`,
-          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null
+          artifacts.length ? `artifacts ${artifacts.join(", ")}` : null,
+          fields.medium ? `medium ${semanticValue(fields.medium)}` : null,
+          (fields.record_type || []).length ? `records ${fields.record_type.join(", ")}` : null,
+          fields.keyed_by ? `keyed by ${fields.keyed_by}` : null,
+          (fields.written_when || []).length ? `written ${semanticValue(fields.written_when)}` : null,
+          (fields.read_when || []).length ? `read ${semanticValue(fields.read_when)}` : null
         ].filter(Boolean));
+        if (described) {
+          const summary = element("p", "derivation described-summary", described.summary);
+          if (described.stale) summary.prepend(element("span", "stale-badge", "stale"));
+          row.append(summary);
+        }
         const mechanisms = record.mechanisms || [];
         if (mechanisms.length) {
           const block = element("ul", "evidence-list");
@@ -2280,6 +2470,8 @@
     if (resetInterplay) {
       resetInterplay.addEventListener("click", () => {
         selectedInterplayId = null;
+        selectedFlowId = null;
+        renderFlows();
         if (interplaySearch) interplaySearch.value = "";
         if (TL) { timelinePlay(false); TL.disengage(); timelineSync(); } // back to the head revision
         fitInterplayView(); // reset the pan/zoom window back to the whole graph too

@@ -1,0 +1,875 @@
+{
+  "flows": [
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Models/ActivityStore.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/ActivityInboxViewModel.swift"
+        }
+      ],
+      "id": "activity-inbox-refresh-and-live-updates",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The inbox shows current approvals and clarifications and keeps updating as the gateway pushes new ones.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:activity",
+          "note": "Refresh button in ActivityInboxView",
+          "relation": "triggers",
+          "to": "caller:operations-state:ActivityInboxViewModel"
+        },
+        {
+          "from": "caller:operations-state:ActivityInboxViewModel",
+          "note": "Shared transport reference",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:operations-state:ActivityInboxViewModel",
+          "note": "Requests the activity list",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:activity"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Routes the activity method",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:activity"
+        },
+        {
+          "from": "endpoint:jsonrpc:activity",
+          "note": "Reply matched by request id",
+          "relation": "correlates",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "endpoint:jsonrpc:activity",
+          "note": "Gateway returns inbox items",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "caller:operations-state:ActivityInboxViewModel",
+          "note": "Items merged into the store; read and dismiss state kept here",
+          "relation": "uses",
+          "to": "store:domain-models:ActivityStore"
+        },
+        {
+          "from": "store:domain-models:ActivityStore",
+          "note": "Inbox survives relaunch",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Live channel for new activity",
+          "relation": "provides",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "New approvals and clarifications pushed in",
+          "relation": "notifies",
+          "to": "subscriber:ActivityInboxViewModel"
+        },
+        {
+          "from": "subscriber:ActivityInboxViewModel",
+          "note": "Pushed items appended to the same store",
+          "relation": "uses",
+          "to": "store:domain-models:ActivityStore"
+        }
+      ],
+      "summary": "Refreshing the activity inbox makes ActivityInboxViewModel invoke the activity endpoint through GatewayClient; the request correlates in the pending pool and is served by the harness gateway. Results land in ActivityStore, which persists to disk. The same view model also subscribes to the event stream so new approvals and clarifications arrive without another refresh.",
+      "title": "Activity inbox refresh pulls items over RPC and stays live via the event stream",
+      "trigger": "trigger-dc08ba9a8bde"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/AgentBackend.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        }
+      ],
+      "id": "chat-prompt-roundtrip",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The assistant reply streams into the chat transcript while the pending request resolves when the gateway's final response arrives.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:chat",
+          "note": "ChatInputBar onSubmit calls submitPrompt",
+          "relation": "triggers",
+          "to": "caller:chat-state:ChatViewModel"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "View model owns a reference to the shared transport",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "Prompt text and attachments become a JSON-RPC prompt request",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:prompt"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "GatewayClient serialises and routes the prompt method",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:prompt"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Generic call path used for every RPC",
+          "relation": "operates",
+          "to": "section:hermes-services:GatewayClient:call"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:call",
+          "note": "Request id parked in the pending pool awaiting a reply",
+          "relation": "pool_register",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:call",
+          "note": "Frame written to the WebSocket task",
+          "relation": "send",
+          "to": "resource:hermes-services:GatewayClient:websocket:webSocketTask"
+        },
+        {
+          "from": "endpoint:jsonrpc:prompt",
+          "note": "Harness gateway runs the agent turn",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Inbound notifications are published on the event stream",
+          "relation": "provides",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Text deltas and tool events append to the transcript",
+          "relation": "notifies",
+          "to": "hub:ChatViewModel"
+        }
+      ],
+      "summary": "The user submits a prompt in the chat input bar. ChatViewModel invokes the prompt endpoint through GatewayClient, whose call section registers a pending request and sends the frame over the WebSocket to the harness gateway. Streamed deltas come back on the AgentBackend event stream, which notifies the ChatViewModel hub.",
+      "title": "Typed prompt rides the WebSocket as a JSON-RPC call and returns as event deltas",
+      "trigger": "trigger-82504040d98d"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        }
+      ],
+      "id": "clarify-and-approval-responses",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The blocked agent turn resumes on the gateway and its continuation streams into the chat.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:chat",
+          "note": "ClarifyBanner button calls respondClarify",
+          "relation": "triggers",
+          "to": "caller:chat-state:ChatViewModel"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "Shared transport reference",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "User's answer to the agent's question",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:clarify"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "Same path used for tool approval decisions",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:approval"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Routes the clarify method",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:clarify"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Routes the approval method",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:approval"
+        },
+        {
+          "from": "endpoint:jsonrpc:clarify",
+          "note": "Acknowledgement matched by request id",
+          "relation": "correlates",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "endpoint:jsonrpc:clarify",
+          "note": "Gateway unblocks the waiting agent",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Resumed turn streams back",
+          "relation": "provides",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Banner clears and the transcript continues",
+          "relation": "notifies",
+          "to": "hub:ChatViewModel"
+        }
+      ],
+      "summary": "When the user responds to a clarify banner in chat, ChatViewModel invokes the clarify or approval endpoint through GatewayClient. The request correlates in the pending pool and is served by the harness gateway, which resumes the agent turn. Continuation events return on the event stream to the ChatViewModel hub.",
+      "title": "Answering a clarify banner or approval sends the decision back to the gateway",
+      "trigger": "trigger-ba34e2c9dffb"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Models/CronRunHistory.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient+Cron.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/CronListViewModel.swift"
+        }
+      ],
+      "id": "cron-dashboard-load-via-client-extension",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The cron dashboard shows current jobs and the run history store records any newly detected runs on disk.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:cron",
+          "note": "CronDashboardView task calls refreshJobs",
+          "relation": "triggers",
+          "to": "caller:operations-state:CronListViewModel"
+        },
+        {
+          "from": "caller:operations-state:CronListViewModel",
+          "note": "Shared transport reference set via setGatewayClient",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:operations-state:CronListViewModel",
+          "note": "Typed helper for listing, pausing and resuming jobs",
+          "relation": "calls",
+          "to": "client:hermes-services:GatewayClient+Cron"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Cron",
+          "note": "Extension file owns the cron method names",
+          "relation": "implements",
+          "to": "endpoint:jsonrpc:cron"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Cron",
+          "note": "Delegates to the generic transport",
+          "relation": "routes-through",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Serialises the cron request",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:cron"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Generic call path shared by every RPC",
+          "relation": "operates",
+          "to": "section:hermes-services:GatewayClient:call"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:call",
+          "note": "Request id parked awaiting the reply",
+          "relation": "pool_register",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:call",
+          "note": "Frame written to the WebSocket",
+          "relation": "send",
+          "to": "resource:hermes-services:GatewayClient:websocket:webSocketTask"
+        },
+        {
+          "from": "endpoint:jsonrpc:cron",
+          "note": "Gateway returns the job list",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "caller:operations-state:CronListViewModel",
+          "note": "seedFromJobs and detectNewRuns update run history",
+          "relation": "uses",
+          "to": "store:domain-models:CronRunHistoryStore"
+        },
+        {
+          "from": "store:domain-models:CronRunHistoryStore",
+          "note": "Run history survives relaunch",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        }
+      ],
+      "summary": "When the cron dashboard appears, CronListViewModel calls the GatewayClient+Cron extension, which implements the cron endpoint and routes through the shared GatewayClient. The call section registers a pending request and sends the frame over the WebSocket to the harness gateway. Returned jobs seed CronRunHistoryStore, which persists to disk.",
+      "title": "Cron dashboard loads jobs via the Cron client extension and records run history",
+      "trigger": "trigger-def30f5246bf"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/AgentBackend.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/ArtifactStore.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        }
+      ],
+      "id": "gateway-push-fanout",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "Every open page reflects the gateway-side change without polling, and the affected stores persist it locally.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Persistent connection to the gateway",
+          "relation": "reaches",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Receive loop reads server-pushed frames",
+          "relation": "owns",
+          "to": "resource:hermes-services:GatewayClient:websocket:webSocketTask"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Transport implements the backend contract",
+          "relation": "conforms",
+          "to": "seam:AgentBackend"
+        },
+        {
+          "from": "seam:AgentBackend",
+          "note": "Contract exposes a single event bus",
+          "relation": "declares",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Pushed notifications are published here",
+          "relation": "provides",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Artifact created or updated events",
+          "relation": "notifies",
+          "to": "subscriber:ArtifactStore"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Curriculum, quiz and SRS events",
+          "relation": "notifies",
+          "to": "subscriber:LearningStore"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Subagent spawn and delegation events",
+          "relation": "notifies",
+          "to": "subscriber:SpawnTreeStore"
+        },
+        {
+          "from": "resource:backend-contract:AgentBackend:event_bus:eventStream",
+          "note": "Session metadata changes",
+          "relation": "notifies",
+          "to": "subscriber:SessionListViewModel"
+        },
+        {
+          "from": "subscriber:ArtifactStore",
+          "note": "Artifacts cached on disk",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        },
+        {
+          "from": "subscriber:SpawnTreeStore",
+          "note": "Delegation batches recorded",
+          "relation": "uses",
+          "to": "store:domain-models:DelegationBatchHistoryStore"
+        }
+      ],
+      "summary": "GatewayClient keeps a WebSocket open to the harness gateway and conforms to AgentBackend, which declares the shared event stream. Unsolicited events arriving on the socket are published on that stream and fan out to ArtifactStore, LearningStore, SpawnTreeStore and SessionListViewModel, which update their local persistence.",
+      "title": "Server-initiated gateway event fans out to page subscribers via the event stream",
+      "trigger": null
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient+Restart.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/GatewayCapabilitiesStore.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/GatewayRestartController.swift"
+        }
+      ],
+      "id": "gateway-restart-from-settings",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The gateway restarts, waiting callers receive errors instead of hanging, and capabilities reflect the restarted gateway.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:settings",
+          "note": "GatewayRestartSection restart button",
+          "relation": "triggers",
+          "to": "caller:operations-state:GatewayRestartController"
+        },
+        {
+          "from": "caller:operations-state:GatewayRestartController",
+          "note": "Shared transport reference",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:operations-state:GatewayRestartController",
+          "note": "Typed helper for the restart request",
+          "relation": "calls",
+          "to": "client:hermes-services:GatewayClient+Restart"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Restart",
+          "note": "Extension owns the gateway method name",
+          "relation": "implements",
+          "to": "endpoint:jsonrpc:gateway"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Restart",
+          "note": "Delegates to the generic transport",
+          "relation": "routes-through",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Serialises the restart request",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:gateway"
+        },
+        {
+          "from": "endpoint:jsonrpc:gateway",
+          "note": "Gateway process restarts and the socket closes",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Runs when the connection drops",
+          "relation": "operates",
+          "to": "section:hermes-services:GatewayClient:failAllPendingRequests"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:failAllPendingRequests",
+          "note": "Guards the pending pool",
+          "relation": "locks",
+          "to": "resource:hermes-services:GatewayClient:lock:pendingRequestsLock"
+        },
+        {
+          "from": "section:hermes-services:GatewayClient:failAllPendingRequests",
+          "note": "Every parked continuation resumed with an error",
+          "relation": "pool_resolve",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "caller:operations-state:GatewayRestartController",
+          "note": "Capabilities refreshed once the gateway is back",
+          "relation": "uses",
+          "to": "store:chat-state:GatewayCapabilitiesStore"
+        }
+      ],
+      "summary": "Pressing restart in settings makes GatewayRestartController call the GatewayClient+Restart extension, which implements the gateway endpoint and routes through GatewayClient to the harness gateway. As the connection drops, GatewayClient runs failAllPendingRequests to resolve every parked request with an error, and the controller refreshes GatewayCapabilitiesStore afterwards.",
+      "title": "Settings restart button restarts the gateway and fails in-flight requests",
+      "trigger": "trigger-ff601d0302f2"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/AgentBackend.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/KeychainStore.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/SettingsViewModel.swift"
+        }
+      ],
+      "id": "launch-settings-configure-transport",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The app has a configured, connected GatewayClient and a live event stream before any page issues its first RPC.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "provider:operations-state:SettingsViewModel",
+          "note": "Gateway URL and auth token read at startup",
+          "relation": "loads",
+          "to": "store:local-services:KeychainStore"
+        },
+        {
+          "from": "store:local-services:KeychainStore",
+          "note": "Secrets stored in the system keychain",
+          "relation": "persists-to",
+          "to": "external:keychain"
+        },
+        {
+          "from": "provider:operations-state:SettingsViewModel",
+          "note": "Transport receives endpoint and credentials",
+          "relation": "configures",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "URLSession created for the socket",
+          "relation": "owns",
+          "to": "resource:hermes-services:GatewayClient:url_session:urlSession"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "WebSocket task opened and receive loop started",
+          "relation": "owns",
+          "to": "resource:hermes-services:GatewayClient:websocket:webSocketTask"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Persistent connection established",
+          "relation": "reaches",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Transport satisfies the backend contract",
+          "relation": "conforms",
+          "to": "seam:AgentBackend"
+        },
+        {
+          "from": "seam:AgentBackend",
+          "note": "Contract exposes the shared event bus",
+          "relation": "declares",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Stream ready for page subscribers",
+          "relation": "provides",
+          "to": "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        }
+      ],
+      "summary": "At launch the SettingsViewModel provider loads credentials from KeychainStore, which reads the system keychain, and configures GatewayClient with the gateway URL and token. GatewayClient owns its URLSession and WebSocket task, reaches the harness gateway, and conforms to AgentBackend, providing the event stream that every page subscribes to.",
+      "title": "Launch: SettingsViewModel reads the keychain and configures GatewayClient",
+      "trigger": null
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/ReasoningSummarizer.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/TTSService.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/ChatViewModel.swift"
+        }
+      ],
+      "id": "local-discussion-mlx-and-speech",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The user hears the on-device answer spoken aloud without any network round trip.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:chat",
+          "note": "ChatInputBar tap gesture calls startLocalDiscussion",
+          "relation": "triggers",
+          "to": "caller:chat-state:ChatViewModel"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "Local engine chosen instead of the gateway",
+          "relation": "uses",
+          "to": "owner:local-services:MLXReasoningSummarizer"
+        },
+        {
+          "from": "owner:local-services:MLXReasoningSummarizer",
+          "note": "Model container loaded lazily and reused",
+          "relation": "owns",
+          "to": "resource:local-services:MLXReasoningSummarizer:on_device_model:container"
+        },
+        {
+          "from": "owner:local-services:MLXReasoningSummarizer",
+          "note": "Inference executes on Apple MLX",
+          "relation": "runs-on",
+          "to": "external:apple-mlx"
+        },
+        {
+          "from": "caller:chat-state:ChatViewModel",
+          "note": "Generated text handed to speech",
+          "relation": "uses",
+          "to": "owner:local-services:TTSService"
+        },
+        {
+          "from": "owner:local-services:TTSService",
+          "note": "Single synthesizer instance",
+          "relation": "owns",
+          "to": "resource:local-services:TTSService:speech_synth:AVSpeechSynthesizer"
+        },
+        {
+          "from": "owner:local-services:TTSService",
+          "note": "On-device speech output",
+          "relation": "runs-on",
+          "to": "external:speech-synthesis"
+        }
+      ],
+      "summary": "Tapping the local discussion control in the chat input bar starts an on-device turn. ChatViewModel drives the MLX reasoning summarizer, which loads its model container on Apple MLX, and hands the result to TTSService, which speaks it through AVSpeechSynthesizer. No gateway call is made.",
+      "title": "Local discussion answered by the on-device MLX engine and read back by speech",
+      "trigger": "trigger-9ab811c96d1c"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/SkillStore.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/SkillSummaryService.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/SkillsViewModel.swift"
+        }
+      ],
+      "id": "skills-page-load-and-local-summaries",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The skills page shows the gateway's catalogue with on-device summaries, all cached locally for the next launch.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:skills",
+          "note": "SkillsCanvasView task calls refreshIfNeeded",
+          "relation": "triggers",
+          "to": "caller:operations-state:SkillsViewModel"
+        },
+        {
+          "from": "caller:operations-state:SkillsViewModel",
+          "note": "Shared transport reference",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:operations-state:SkillsViewModel",
+          "note": "Requests the skill catalogue",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:skills"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Routes the skills method",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:skills"
+        },
+        {
+          "from": "endpoint:jsonrpc:skills",
+          "note": "Gateway returns skill metadata",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "caller:operations-state:SkillsViewModel",
+          "note": "Catalogue handed to the local store",
+          "relation": "uses",
+          "to": "caller:local-services:SkillStore"
+        },
+        {
+          "from": "caller:local-services:SkillStore",
+          "note": "Slash commands fetched alongside skills",
+          "relation": "invokes",
+          "to": "endpoint:jsonrpc:commands"
+        },
+        {
+          "from": "caller:local-services:SkillStore",
+          "note": "Each skill summarised locally",
+          "relation": "uses",
+          "to": "owner:local-services:SkillSummaryService"
+        },
+        {
+          "from": "owner:local-services:SkillSummaryService",
+          "note": "Summaries generated on-device",
+          "relation": "runs-on",
+          "to": "external:apple-mlx"
+        },
+        {
+          "from": "owner:local-services:SkillSummaryService",
+          "note": "Summary cache written to disk",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        },
+        {
+          "from": "caller:local-services:SkillStore",
+          "note": "Skill catalogue cached for offline use",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        }
+      ],
+      "summary": "When the skills canvas appears, SkillsViewModel fetches the skill list over the skills endpoint via GatewayClient. It then hands the list to SkillStore, which pulls slash commands, asks SkillSummaryService to summarise each skill on Apple MLX, and persists both skills and summaries to disk.",
+      "title": "Skills page loads from the gateway, then summarises skills on-device",
+      "trigger": "trigger-1520338082c7"
+    },
+    {
+      "evidence": [
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/GatewayClient+Wiki.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/Services/WikiGraphCache.swift"
+        },
+        {
+          "line": 1,
+          "path": "Sources/Portal/ViewModels/WikiGraphViewModel.swift"
+        }
+      ],
+      "id": "wiki-graph-load-and-cache",
+      "model": "us.anthropic.claude-fable-5-1",
+      "outcome": "The wiki graph renders on the graphs page and its cached copy lets the next visit display before the gateway responds.",
+      "source_revision": "01a21a5c88c5b381755a1967f7d16755ef32e21e",
+      "steps": [
+        {
+          "from": "page:graphs",
+          "note": "WikiGraphView load button",
+          "relation": "triggers",
+          "to": "caller:wiki-state:WikiGraphViewModel"
+        },
+        {
+          "from": "caller:wiki-state:WikiGraphViewModel",
+          "note": "Shared transport reference",
+          "relation": "holds",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "caller:wiki-state:WikiGraphViewModel",
+          "note": "Typed helper for wiki discovery and graph fetch",
+          "relation": "calls",
+          "to": "client:hermes-services:GatewayClient+Wiki"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Wiki",
+          "note": "Extension owns the wiki method names",
+          "relation": "implements",
+          "to": "endpoint:jsonrpc:wiki"
+        },
+        {
+          "from": "client:hermes-services:GatewayClient+Wiki",
+          "note": "Delegates to the generic transport",
+          "relation": "routes-through",
+          "to": "owner:hermes-services:GatewayClient"
+        },
+        {
+          "from": "owner:hermes-services:GatewayClient",
+          "note": "Serialises the wiki request",
+          "relation": "dispatches",
+          "to": "endpoint:jsonrpc:wiki"
+        },
+        {
+          "from": "endpoint:jsonrpc:wiki",
+          "note": "Reply matched by request id",
+          "relation": "correlates",
+          "to": "resource:hermes-services:GatewayClient:rpc_pool:pendingRequests"
+        },
+        {
+          "from": "endpoint:jsonrpc:wiki",
+          "note": "Gateway returns pages and links",
+          "relation": "served-by",
+          "to": "external:harness-gateway"
+        },
+        {
+          "from": "caller:wiki-state:WikiGraphViewModel",
+          "note": "Graph stored for next display",
+          "relation": "uses",
+          "to": "store:local-services:WikiGraphCache"
+        },
+        {
+          "from": "store:local-services:WikiGraphCache",
+          "note": "Cache written to Application Support",
+          "relation": "persists-to",
+          "to": "external:file-system"
+        }
+      ],
+      "summary": "Pressing load in the wiki graph view makes WikiGraphViewModel call the GatewayClient+Wiki extension, which implements the wiki endpoint and routes through GatewayClient. The reply correlates in the pending pool and is served by the harness gateway. The resulting graph is written to WikiGraphCache on disk for fast redisplay.",
+      "title": "Graphs page loads a wiki graph via the Wiki client extension and caches it",
+      "trigger": "trigger-e728c9c6595f"
+    }
+  ],
+  "schema_version": "1.0.0"
+}

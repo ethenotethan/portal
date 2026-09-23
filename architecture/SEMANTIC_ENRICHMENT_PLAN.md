@@ -1,6 +1,6 @@
 # Semantic enrichment plan: constrained text on a mechanical map
 
-Status: plan, 2026-09-23. Nothing below is built yet except where marked *exists*.
+Status: phases 1 to 3 built on 2026-09-23 (`CONSTRUCT_SCHEMAS`, `validate_construct_record`, `validate_flow` and the `flows-traceable` invariant in `scripts/build_architecture.py`; `--constructs` and `--flows` in `scripts/architecture_agent.py`; the Described inspector table, Data stores columns and the System flows section with *Trace on map* in the site). Phase 4 (flows under the history slider) and the staleness tolerance gate in CI remain open. The text below is the design as written before building; where the build differs, the README and the code are authoritative.
 
 ## The problem
 

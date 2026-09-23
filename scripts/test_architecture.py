@@ -270,12 +270,16 @@ class ArchitectureCompilerTests(unittest.TestCase):
     def test_architecture_agent_write_path_is_semantic_only(self) -> None:
         agent = (ROOT / "scripts/architecture_agent.py").read_text(encoding="utf-8")
         write_receivers = set(re.findall(r"\b([A-Z][A-Z0-9_]*)\.write_text\(", agent))
-        self.assertEqual({"SEMANTIC_PATH"}, write_receivers)
-        semantic_assignment = re.search(r'^SEMANTIC_PATH\s*=\s*(.+)$', agent, re.MULTILINE)
-        self.assertIsNotNone(semantic_assignment)
-        assert semantic_assignment is not None
-        self.assertIn('"architecture/semantic/components.json"', semantic_assignment.group(1))
+        self.assertEqual({"SEMANTIC_PATH", "CONSTRUCTS_PATH", "FLOWS_PATH"}, write_receivers)
+        for name, expected in (("SEMANTIC_PATH", "components.json"), ("CONSTRUCTS_PATH", "constructs.json"), ("FLOWS_PATH", "flows.json")):
+            assignment = re.search(rf'^{name}\s*=\s*(.+)$', agent, re.MULTILINE)
+            self.assertIsNotNone(assignment)
+            assert assignment is not None
+            self.assertIn(f'"architecture/semantic/{expected}"', assignment.group(1))
         self.assertNotIn("model.behavior", agent)
+        # Records are validated by the compiler's own validators, never the agent's.
+        self.assertIn("compiler.validate_construct_record(", agent)
+        self.assertIn("compiler.validate_flow(", agent)
 
     def test_system_map_is_the_interplay_graph_with_an_invariants_dropdown(self) -> None:
         index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
@@ -822,6 +826,118 @@ class ArchitectureCompilerTests(unittest.TestCase):
             self.assertIn(needle, app)
         self.assertIn(".interplay-node rect.provider", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
         self.assertIn("App launch", (ROOT / "architecture/README.md").read_text(encoding="utf-8"))
+
+    # ---- Semantic enrichment: described constructs and system flows ------------
+
+    def _files(self):
+        config = architecture.load_json(architecture.CONFIG_PATH)
+        files, _digest = architecture.read_sources(config)
+        launch, _launch_digest = architecture.read_launch_sources(config)
+        return files + launch
+
+    def test_construct_records_are_validated_against_the_map(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        externals = self.model["externals"]
+        keychain = next(n for n in interplay["nodes"] if n["label"] == "KeychainStore")
+        good = {
+            "key": keychain["history_key"], "kind": "store", "summary": "Wraps the Keychain.",
+            "fields": {"medium": "keychain", "sensitive": True, "readers": ["provider:operations-state:SettingsViewModel"], "record_type": ["SavedGateway"], "written_when": ["on_change"]},
+            "evidence": [{"path": keychain["path"], "line": 10}], "open_questions": [],
+        }
+        record = architecture.validate_construct_record(good, interplay, files, externals)
+        self.assertEqual("store", record["kind"])
+        self.assertFalse(record["stale"])
+        self.assertEqual(["SavedGateway"], record["fields"]["record_type"])
+        # A recorded hash that no longer matches the cited files marks the record stale.
+        stale = architecture.validate_construct_record({**good, "cited_hash": "0" * 64}, interplay, files, externals)
+        self.assertTrue(stale["stale"])
+        bad_cases = [
+            ({**good, "kind": "external"}, "kind"),
+            ({**good, "key": "store:nowhere:Ghost"}, "not a construct"),
+            ({**good, "fields": {"medium": "user_defaults"}}, "medium"),
+            ({**good, "fields": {"sensitive": False}}, "sensitive"),
+            ({**good, "fields": {"readers": ["hub:ChatViewModel"]}}, "edge"),
+            ({**good, "fields": {"record_type": ["NoSuchType"]}}, "declared"),
+            ({**good, "fields": {"retention": "eternal"}}, "must be one of"),
+            ({**good, "fields": {"colour": "blue"}}, "schema does not define"),
+            ({**good, "evidence": [{"path": "Sources/Portal/Views/ChatView.swift", "line": 1}]}, "bounded"),
+            ({**good, "evidence": [{"path": keychain["path"], "line": 100000}]}, "not a line"),
+            ({**good, "summary": "x" * 401}, "exceeds"),
+        ]
+        for raw, needle in bad_cases:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_construct_record(raw, interplay, files, externals)
+            self.assertIn(needle, str(caught.exception))
+        # Pages are constructs too; members must belong to the page.
+        page = architecture.validate_construct_record(
+            {"key": "page:launch", "kind": "page", "summary": "Launch.", "fields": {"owns_state_in": [keychain["history_key"]]},
+             "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
+        self.assertEqual("page", page["kind"])
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.validate_construct_record(
+                {"key": "page:chat", "kind": "page", "summary": "Chat.", "fields": {"owns_state_in": [keychain["history_key"]]},
+                 "evidence": [{"path": keychain["path"], "line": 1}]}, interplay, files, externals)
+
+    def test_flows_are_paths_over_edges_the_map_draws(self) -> None:
+        interplay = self.model["interplay"]
+        files = self._files()
+        core = "owner:hermes-services:GatewayClient"
+        bus = "resource:backend-contract:AgentBackend:event_bus:eventStream"
+        good = {
+            "id": "prompt-to-stream", "title": "Prompt to streamed reply", "summary": "A prompt rides the transport and returns on the stream.",
+            "steps": [
+                {"from": "caller:chat-state:ChatViewModel", "to": core, "relation": "holds"},
+                {"from": "caller:chat-state:ChatViewModel", "to": "endpoint:jsonrpc:prompt", "relation": "invokes"},
+                {"from": core, "to": "endpoint:jsonrpc:prompt", "relation": "dispatches", "note": "correlated through the pool"},
+                {"from": core, "to": bus, "relation": "provides"},
+                {"from": bus, "to": "hub:ChatViewModel", "relation": "notifies"},
+            ],
+            "evidence": [{"path": "Sources/Portal/ViewModels/ChatViewModel.swift", "line": 1}],
+        }
+        flow = architecture.validate_flow(good, interplay, files)
+        self.assertEqual("traceable", flow["status"])
+        self.assertEqual([], flow["problems"])
+        # A step over an edge the map does not draw is a recorded problem, not a schema error.
+        broken = architecture.validate_flow({**good, "steps": good["steps"] + [{"from": "hub:ChatViewModel", "to": core, "relation": "teleports"}]}, interplay, files)
+        self.assertEqual("broken", broken["status"])
+        self.assertIn("teleports", broken["problems"][0])
+        # Schema errors: disconnected steps, unknown nodes, bad ids, too few steps, evidence outside the path.
+        for raw, needle in [
+            ({**good, "steps": [good["steps"][0], {"from": "hub:ChatViewModel", "to": core, "relation": "holds"}, good["steps"][2]]}, "no earlier step reached"),
+            ({**good, "steps": [{"from": "caller:x:Y", "to": core, "relation": "holds"}] + good["steps"][1:]}, "not on the map"),
+            ({**good, "id": "Bad Id"}, "kebab-case"),
+            ({**good, "steps": good["steps"][:2]}, "between"),
+            ({**good, "evidence": [{"path": "Sources/Portal/Services/KeychainStore.swift", "line": 1}]}, "bounded"),
+        ]:
+            with self.assertRaises(architecture.ArchitectureError, msg=needle) as caught:
+                architecture.validate_flow(raw, interplay, files)
+            self.assertIn(needle, str(caught.exception))
+        # A trigger must fire the surface the flow starts from.
+        trigger = next(t for t in interplay["triggers"] if t["surface"] == "ChatViewModel")
+        with_trigger = architecture.validate_flow({**good, "trigger": trigger["id"]}, interplay, files)
+        self.assertEqual(trigger["id"], with_trigger["trigger"])
+        other = next(t for t in interplay["triggers"] if t["surface"] != "ChatViewModel" and t["kind"] != "launch")
+        with self.assertRaises(architecture.ArchitectureError):
+            architecture.validate_flow({**good, "trigger": other["id"]}, interplay, files)
+        # Whatever is declared in the repository must trace today.
+        for declared in interplay.get("flows", []):
+            self.assertEqual("traceable", declared["status"], declared)
+        self.assertEqual("holds", next(i["status"] for i in interplay["invariants"] if i["id"] == "flows-traceable"))
+
+    def test_described_constructs_fold_onto_nodes_and_the_site_renders_them(self) -> None:
+        interplay = self.model["interplay"]
+        described = [n for n in interplay["nodes"] if n.get("semantic")]
+        self.assertEqual(interplay["constructs"]["described"], len(described) + sum(1 for p in interplay["pages"] if p.get("semantic")))
+        for node in described:
+            self.assertEqual(architecture.construct_kind(node), node["semantic"]["kind"])
+            self.assertTrue(node["semantic"]["evidence"])
+        app = (ROOT / "architecture/site/app.js").read_text(encoding="utf-8")
+        index = (ROOT / "architecture/site/index.html").read_text(encoding="utf-8")
+        for needle in ("function describedSection(", "function renderFlows(", "function traceFlow(", "function renderFlowInspector(", "flowSteps.get(edge.dataset.hkey)", "let selectedFlowId = null"):
+            self.assertIn(needle, app)
+        self.assertIn('id="flows-list"', index)
+        self.assertIn(".described-table", (ROOT / "architecture/site/styles.css").read_text(encoding="utf-8"))
 
     # ---- History: the same map at every commit ---------------------------------
 

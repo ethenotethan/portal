@@ -47,6 +47,8 @@ COMPILER = ROOT / "scripts/build_architecture.py"
 CURATED = (
     "architecture/config.json",
     "architecture/semantic/components.json",
+    "architecture/semantic/constructs.json",
+    "architecture/semantic/flows.json",
     "architecture/interplay/overlay.json",
     "architecture/interplay/invariants.json",
 )
