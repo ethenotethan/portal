@@ -7,24 +7,37 @@ import Foundation
 ///   "title": "optional",
 ///   "directed": true,
 ///   "nodes": [
-///     {"id": "api", "label": "API Server", "group": "backend", "size": 2}
+///     {"id": "api", "label": "API Server", "group": "backend",
+///      "kind": "service", "type": "http", "size": 2}
 ///   ],
 ///   "edges": [
-///     {"from": "api", "to": "db", "label": "reads"}
+///     {"from": "api", "to": "db", "label": "users", "type": "reads", "class": "dataflow"}
 ///   ]
 /// }
 /// ```
 /// `label` defaults to the id; `group` colors nodes categorically; `size`
 /// (0.5–3) scales a node's radius; `directed` defaults to true (arrowheads).
 struct NetworkGraphSpec: Decodable {
+    internal struct NodeLegendEntry: Equatable {
+        internal let kind: String
+        internal let type: String
+    }
+
+    internal struct EdgeLegendEntry: Equatable {
+        internal let type: String
+        internal let edgeClass: String?
+    }
+
     struct Node: Decodable, Identifiable {
         let id: String
         let label: String
         let group: String?
+        internal let kind: String?
+        internal let type: String?
         let size: Double
 
         private enum CodingKeys: String, CodingKey {
-            case id, label, group, size
+            case id, label, group, kind, type, size
         }
 
         init(from decoder: Decoder) throws {
@@ -32,6 +45,8 @@ struct NetworkGraphSpec: Decodable {
             id = try c.decode(String.self, forKey: .id)
             label = try c.decodeIfPresent(String.self, forKey: .label) ?? id
             group = try c.decodeIfPresent(String.self, forKey: .group)
+            kind = try c.decodeIfPresent(String.self, forKey: .kind)
+            type = try c.decodeIfPresent(String.self, forKey: .type)
             let raw = try c.decodeIfPresent(Double.self, forKey: .size) ?? 1
             size = min(3, max(0.5, raw))
         }
@@ -41,6 +56,13 @@ struct NetworkGraphSpec: Decodable {
         let from: String
         let to: String
         let label: String?
+        internal let type: String?
+        internal let edgeClass: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case from, to, label, type
+            case edgeClass = "class"
+        }
     }
 
     let title: String?
@@ -73,6 +95,28 @@ struct NetworkGraphSpec: Decodable {
         return nodes.compactMap(\.group).filter { seen.insert($0).inserted }
     }
 
+    /// Runtime-style legend rows for the typed node roles actually present.
+    internal var nodeLegend: [NodeLegendEntry] {
+        var seen = Set<String>()
+        return nodes.compactMap { node in
+            guard let kind = node.kind, let type = node.type else { return nil }
+            let key = "\(kind)\u{0}\(type)"
+            guard seen.insert(key).inserted else { return nil }
+            return NodeLegendEntry(kind: kind, type: type)
+        }
+    }
+
+    /// Typed edge rows actually present, preserving first appearance order.
+    internal var edgeLegend: [EdgeLegendEntry] {
+        var seen = Set<String>()
+        return edges.compactMap { edge in
+            guard let type = edge.type else { return nil }
+            let key = "\(type)\u{0}\(edge.edgeClass ?? "")"
+            guard seen.insert(key).inserted else { return nil }
+            return EdgeLegendEntry(type: type, edgeClass: edge.edgeClass)
+        }
+    }
+
     /// Identity for layout memoization: node ids + edge endpoints are the
     /// only inputs the force sim reads (labels/groups only affect drawing).
     var cacheKey: String {
@@ -95,6 +139,66 @@ struct NetworkGraphSpec: Decodable {
                   !spec.nodes.isEmpty else { return nil }
             return spec
         }
+    }
+}
+
+/// Pure runtime-graph semantic classification shared by drawing and tests.
+internal enum NetworkGraphVisualSemantics {
+    internal enum EdgeAppearance: Equatable {
+        case dataflow, delivery, containment, authority, control, generic
+
+        internal var isDashed: Bool {
+            self == .containment || self == .authority || self == .control
+        }
+
+        internal var showsArrow: Bool { self != .containment }
+    }
+
+    internal static func appearance(for edge: NetworkGraphSpec.Edge) -> EdgeAppearance {
+        switch edge.edgeClass?.lowercased() {
+        case "dataflow": return .dataflow
+        case "delivery": return .delivery
+        case "containment": return .containment
+        case "authority": return .authority
+        case "control": return .control
+        default: break
+        }
+        switch edge.type?.lowercased() {
+        case "reads", "writes", "feeds": return .dataflow
+        case "delivers", "delivery": return .delivery
+        case "hosts", "contains", "containment": return .containment
+        case "authorizes", "authority", "owns", "governs": return .authority
+        case "controls", "control": return .control
+        default: return .generic
+        }
+    }
+}
+
+/// Typed graph metadata consumed by the interactive artifact renderer. Keeping
+/// this adapter separate from `WikiGraph` prevents that generic model from
+/// erasing direction, node roles, and edge classes on the model-artifact path.
+internal struct NetworkGraphInteractiveSemantics {
+    private let spec: NetworkGraphSpec
+
+    internal init(spec: NetworkGraphSpec) {
+        self.spec = spec
+    }
+
+    internal var directed: Bool { spec.directed }
+    internal var nodeLegend: [NetworkGraphSpec.NodeLegendEntry] { spec.nodeLegend }
+    internal var edgeLegend: [NetworkGraphSpec.EdgeLegendEntry] { spec.edgeLegend }
+
+    internal func node(id: String) -> NetworkGraphSpec.Node? {
+        spec.nodes.first { $0.id == id }
+    }
+
+    internal func edge(at index: Int) -> NetworkGraphSpec.Edge? {
+        guard spec.edges.indices.contains(index) else { return nil }
+        return spec.edges[index]
+    }
+
+    internal func appearance(at index: Int) -> NetworkGraphVisualSemantics.EdgeAppearance? {
+        edge(at: index).map(NetworkGraphVisualSemantics.appearance(for:))
     }
 }
 

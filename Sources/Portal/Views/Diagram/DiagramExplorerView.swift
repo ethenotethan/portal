@@ -96,6 +96,9 @@ internal struct InteractiveGraphView: View {
     /// Optional host selection bus. Model artifacts use entity refs as graph
     /// node ids, so table and graph selection can stay synchronized.
     internal var externalSelection: Binding<String?>?
+    /// Optional typed graph metadata for model artifacts. Generic wiki and
+    /// diagram callers leave this nil and retain their existing rendering.
+    internal var networkGraphSemantics: NetworkGraphInteractiveSemantics?
 
     @StateObject private var viewModel = WikiGraphViewModel()
     @State private var mouseState = MouseState.idle
@@ -261,15 +264,21 @@ internal struct InteractiveGraphView: View {
             context.scaleBy(x: viewModel.zoom, y: viewModel.zoom)
 
             // Curved edges
-            for (si, ti) in viewModel.simLinks {
+            for (linkIndex, link) in viewModel.simLinks.enumerated() {
+                let (si, ti) = link
                 guard viewModel.simNodes.indices.contains(si),
                       viewModel.simNodes.indices.contains(ti) else { continue }
 
                 let isConnected = !hasSelection || viewModel.linkIsConnectedToSelection(si, ti)
                 let opacity: CGFloat = isConnected ? 0.55 : 0.06
                 let lineWidth: CGFloat = isConnected ? 1.6 : 0.5
+                let semanticEdge = networkGraphSemantics?.edge(at: linkIndex)
+                let appearance = semanticEdge.map(NetworkGraphVisualSemantics.appearance(for:))
+                let semanticColor = appearance.map {
+                    GraphVisualStyle.edgeColor(type: semanticEdge?.type, appearance: $0)
+                }
                 let color = isConnected
-                    ? (Color(hex: "8a8aff") ?? Theme.accent).opacity(opacity)
+                    ? (semanticColor ?? Color(hex: "8a8aff") ?? Theme.accent).opacity(opacity)
                     : Theme.secondary.opacity(opacity)
 
                 let sp = viewModel.simNodes[si].position
@@ -285,7 +294,25 @@ internal struct InteractiveGraphView: View {
                 var path = Path()
                 path.move(to: sp)
                 path.addQuadCurve(to: tp, control: ctrl)
-                context.stroke(path, with: .color(color), lineWidth: lineWidth)
+                context.stroke(
+                    path,
+                    with: .color(color),
+                    style: StrokeStyle(
+                        lineWidth: lineWidth,
+                        dash: appearance?.isDashed == true ? [5, 4] : []
+                    )
+                )
+
+                if networkGraphSemantics?.directed == true,
+                   appearance?.showsArrow != false {
+                    drawArrowhead(
+                        context: context,
+                        from: ctrl,
+                        to: tp,
+                        targetRadius: viewModel.nodeRadius(at: ti),
+                        color: color
+                    )
+                }
 
                 if isConnected, hasSelection,
                    let selIdx = viewModel.selectedNodeIndex,
@@ -322,7 +349,9 @@ internal struct InteractiveGraphView: View {
                 let isConnected = !hasSelection || viewModel.isNodeConnectedToSelection(index)
                 let baseOpacity: CGFloat = isConnected ? 1.0 : 0.18
                 let r = viewModel.nodeRadius(at: index)
-                let base = Self.typeColor(node.type)
+                let semanticNode = networkGraphSemantics?.node(id: node.id)
+                let base = semanticNode?.kind.map(GraphVisualStyle.nodeColor(forKind:))
+                    ?? Self.typeColor(node.type)
                 let pos = node.position
 
                 if isConnected {
@@ -365,6 +394,15 @@ internal struct InteractiveGraphView: View {
                     with: .color(.white.opacity(isConnected ? 0.45 : 0.15)),
                     lineWidth: 0.8
                 )
+                if let kind = semanticNode?.kind {
+                    context.draw(
+                        Text(Image(systemName: GraphVisualStyle.symbol(forKind: kind)))
+                            .font(.system(size: max(7, r * 0.85), weight: .bold))
+                            .foregroundColor(Theme.surface.opacity(baseOpacity)),
+                        at: pos,
+                        anchor: .center
+                    )
+                }
             }
 
             // Labels (screen space, unscaled; culled at low zoom)
@@ -392,6 +430,29 @@ internal struct InteractiveGraphView: View {
                 )
             }
         }
+    }
+
+    private func drawArrowhead(
+        context: GraphicsContext,
+        from: CGPoint,
+        to: CGPoint,
+        targetRadius: CGFloat,
+        color: Color
+    ) {
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let distance = max(0.01, hypot(dx, dy))
+        let ux = dx / distance
+        let uy = dy / distance
+        let tip = CGPoint(x: to.x - ux * targetRadius, y: to.y - uy * targetRadius)
+        let back = CGPoint(x: tip.x - ux * 8, y: tip.y - uy * 8)
+        let perpendicular = CGPoint(x: -uy * 4, y: ux * 4)
+        var arrow = Path()
+        arrow.move(to: tip)
+        arrow.addLine(to: CGPoint(x: back.x + perpendicular.x, y: back.y + perpendicular.y))
+        arrow.addLine(to: CGPoint(x: back.x - perpendicular.x, y: back.y - perpendicular.y))
+        arrow.closeSubpath()
+        context.fill(arrow, with: .color(color))
     }
 
     // MARK: - Mouse handling (macOS)

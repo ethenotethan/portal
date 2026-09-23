@@ -106,4 +106,91 @@ internal struct NetworkGraphCanvasSizingTests {
         #expect(NetworkGraphCanvasSizing.height(for: spec, width: 0) == expected)
         #expect(NetworkGraphCanvasSizing.height(for: spec, width: .infinity) == expected)
     }
+
+    @Test("model projection preserves direction and runtime metadata")
+    internal func modelProjectionPreservesRuntimeMetadata() throws {
+        let model = try #require(ModelSpec.parse("""
+        {"entities": {
+           "jobs": {"key": "id", "items": [
+             {"id": "sync", "kind": "cron", "type": "product-sync"}]},
+           "resources": {"key": "id", "items": [
+             {"id": "github", "kind": "source", "type": "github"}]}
+         },
+         "relations": [
+           {"from": "jobs/sync", "to": "resources/github", "type": "reads",
+            "class": "dataflow", "note": "PR state"}
+         ],
+         "views": [{"type": "graph", "directed": true}]}
+        """))
+        let view = try #require(model.views.first)
+        let graphJSON = try #require(ModelProjections.graphJSON(spec: model, view: view))
+        let graph = try #require(NetworkGraphSpec.parse(graphJSON))
+
+        #expect(view.directed)
+        #expect(graph.directed)
+        #expect(graph.nodes.first { $0.id == "jobs/sync" }?.kind == "cron")
+        #expect(graph.nodes.first { $0.id == "jobs/sync" }?.type == "product-sync")
+        #expect(graph.nodes.first { $0.id == "resources/github" }?.kind == "source")
+        #expect(graph.nodes.first { $0.id == "resources/github" }?.type == "github")
+        let edge = try #require(graph.edges.first)
+        #expect(edge.type == "reads")
+        #expect(edge.edgeClass == "dataflow")
+        #expect(edge.label == "PR state")
+    }
+
+    @Test("typed graph derives runtime-style node and edge legend semantics")
+    internal func typedLegendSemantics() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {"nodes": [
+           {"id": "worker", "kind": "service", "type": "agent"},
+           {"id": "file", "kind": "artifact", "type": "file"},
+           {"id": "slack", "kind": "sink", "type": "slack"}
+         ],
+         "edges": [
+           {"from": "worker", "to": "file", "type": "writes", "class": "dataflow"},
+           {"from": "worker", "to": "slack", "type": "delivers", "class": "delivery"},
+           {"from": "worker", "to": "file", "type": "owns", "class": "authority"},
+           {"from": "file", "to": "worker", "type": "contains", "class": "containment"}
+         ]}
+        """))
+
+        #expect(spec.nodeLegend.map { "\($0.kind)/\($0.type)" } == [
+            "service/agent", "artifact/file", "sink/slack",
+        ])
+        #expect(spec.edgeLegend.map { "\($0.type)/\($0.edgeClass ?? "")" } == [
+            "writes/dataflow", "delivers/delivery", "owns/authority", "contains/containment",
+        ])
+        #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[0]) == .dataflow)
+        #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[1]) == .delivery)
+        #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[2]) == .authority)
+        #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[3]) == .containment)
+        #expect(NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).isDashed)
+        #expect(!NetworkGraphVisualSemantics.appearance(for: spec.edges[3]).showsArrow)
+    }
+
+    @Test("Interactive graph adapter preserves typed directed semantics")
+    internal func interactiveGraphSemantics() throws {
+        let spec = try #require(NetworkGraphSpec.parse("""
+        {"directed": true,
+         "nodes": [
+           {"id": "worker", "kind": "service", "type": "agent"},
+           {"id": "file", "kind": "artifact", "type": "report"}
+         ],
+         "edges": [
+           {"from": "worker", "to": "file", "label": "daily report",
+            "type": "writes", "class": "dataflow"}
+         ]}
+        """))
+        let semantics = NetworkGraphInteractiveSemantics(spec: spec)
+
+        #expect(semantics.directed)
+        #expect(semantics.node(id: "worker")?.kind == "service")
+        #expect(semantics.node(id: "worker")?.type == "agent")
+        let edge = try #require(semantics.edge(at: 0))
+        #expect(edge.type == "writes")
+        #expect(edge.edgeClass == "dataflow")
+        #expect(semantics.appearance(at: 0) == .dataflow)
+        #expect(semantics.nodeLegend.count == 2)
+        #expect(semantics.edgeLegend.count == 1)
+    }
 }
