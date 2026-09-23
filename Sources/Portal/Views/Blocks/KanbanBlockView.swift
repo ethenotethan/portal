@@ -4,9 +4,9 @@ import SwiftUI
 /// its cards. In artifact hosts (`actionableArtifactID` set) each card carries
 /// a live column picker — choosing another column moves the card through
 /// `ArtifactStore`, the same `choice` path dataset actions use. In chat
-/// transcripts it renders read-only. A card carrying a `detail`/`desc` body or
-/// extra scalar fields (assignee, due, points…) shows a disclosure chevron and
-/// expands inline on tap. PDF-safe: a fixed HStack of columns, no
+/// transcripts it renders read-only. Clicking a card opens its ticket content
+/// in a consistently sized popover, independent of the board's column widths.
+/// PDF-safe: a fixed HStack of columns, no
 /// ScrollView (a board with many columns clips rather than scrolls in export,
 /// acceptable for a snapshot).
 internal struct KanbanBlockView: View {
@@ -33,6 +33,9 @@ internal struct KanbanBlockView: View {
 /// state: the artifact content and card ordering are never mutated.
 internal enum KanbanDisplayPolicy {
     internal static let collapsedCardLimit = 8
+    /// A readable ticket surface that stays bounded rather than taking over the
+    /// artifact pane or inheriting a narrow board-column width.
+    internal static let ticketDetailSize = CGSize(width: 360, height: 420)
 
     internal static func cardsToRender(
         _ cards: [KanbanSpec.Card],
@@ -51,9 +54,9 @@ private struct KanbanCard: View {
     let artifactID: String?
     let movementField: String
 
-    /// Cards the user has expanded, by card id. Local view state — expansion is
-    /// a display concern, never written back to the artifact.
-    @State private var expanded: Set<String> = []
+    /// The ticket currently open in the fixed-size detail popover. Local view
+    /// state only — opening a ticket never mutates the artifact.
+    @State private var selectedCardID: String?
     /// Lanes whose full card inventory is visible. Large lanes start bounded
     /// so one board cannot make the entire artifact thousands of points tall.
     @State private var expandedColumns: Set<String> = []
@@ -158,14 +161,14 @@ private struct KanbanCard: View {
 
     @ViewBuilder
     private func cardView(_ card: KanbanSpec.Card) -> some View {
-        let isExpanded = expanded.contains(card.id)
+        let isExpanded = selectedCardID == card.id
         let body = VStack(alignment: .leading, spacing: 4) {
             // Header is a Button so the click reliably lands — a whole-card tap
             // gesture fights both the inner move Menu and the drag gesture on
             // macOS. Every card is expandable (the expanded view always shows at
             // least id + column) so a click always does something visible.
             Button {
-                if isExpanded { expanded.remove(card.id) } else { expanded.insert(card.id) }
+                selectedCardID = isExpanded ? nil : card.id
             } label: {
                 HStack(alignment: .top, spacing: 4) {
                     Image(systemName: "chevron.right")
@@ -187,9 +190,6 @@ private struct KanbanCard: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            if isExpanded {
-                expandedDetail(card)
             }
             HStack(spacing: 6) {
                 if let tag = card.tag {
@@ -220,8 +220,25 @@ private struct KanbanCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Theme.border, lineWidth: 0.5)
         )
+        .popover(isPresented: ticketDetailBinding(for: card.id), arrowEdge: .leading) {
+            ticketDetail(card)
+                .presentationCompactAdaptation(.popover)
+        }
 
         body
+    }
+
+    private func ticketDetailBinding(for cardID: String) -> Binding<Bool> {
+        Binding(
+            get: { selectedCardID == cardID },
+            set: { isPresented in
+                if isPresented {
+                    selectedCardID = cardID
+                } else if selectedCardID == cardID {
+                    selectedCardID = nil
+                }
+            }
+        )
     }
 
     /// Grip that carries the card id as a drag payload; columns match it in
@@ -243,34 +260,64 @@ private struct KanbanCard: View {
             .help("Drag to move")
     }
 
-    /// Ticket body revealed on tap: a divider, the long `detail` text, then the
-    /// card's fields as key/value rows. Always includes id + column as a
-    /// baseline so expanding a bare card still shows something.
-    private func expandedDetail(_ card: KanbanSpec.Card) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider().overlay(Theme.border.opacity(0.6))
-            if let detail = card.detail {
-                Text(detail)
-                    .font(.caption2)
-                    .foregroundStyle(Theme.secondary)
+    /// Ticket body revealed on tap. Its stable two-dimensional frame makes long
+    /// titles and descriptions readable without resizing the board around them.
+    private func ticketDetail(_ card: KanbanSpec.Card) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(card.title)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
                     .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Button {
+                    selectedCardID = nil
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close ticket")
             }
-            fieldRow(key: "id", value: card.id)
-            fieldRow(key: "column", value: card.column)
-            ForEach(card.extra, id: \.key) { field in
-                fieldRow(key: field.key, value: field.value)
+            Divider().overlay(Theme.border.opacity(0.6))
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let note = card.note {
+                        Text(note)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.tertiary)
+                    }
+                    if let detail = card.detail {
+                        Text(detail)
+                            .font(.body)
+                            .foregroundStyle(Theme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    fieldRow(key: "id", value: card.id)
+                    fieldRow(key: "column", value: card.column)
+                    ForEach(card.extra, id: \.key) { field in
+                        fieldRow(key: field.key, value: field.value)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.top, 1)
+        .padding(16)
+        .frame(
+            width: KanbanDisplayPolicy.ticketDetailSize.width,
+            height: KanbanDisplayPolicy.ticketDetailSize.height,
+            alignment: .topLeading
+        )
+        .background(Theme.surface)
     }
 
     private func fieldRow(key: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 4) {
             Text(key)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.tertiary)
             Text(value)
-                .font(.system(size: 9))
+                .font(.caption)
                 .foregroundStyle(Theme.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
