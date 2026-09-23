@@ -124,6 +124,34 @@ internal struct DashboardLayoutTests {
         #expect(DashboardLayout.loadStored(key: key) == nil)
     }
 
+    @Test("chat mode layout falls back to legacy storage until its own layout exists")
+    internal func chatModeLayoutMigrationFallback() {
+        let defaults = UserDefaults.standard
+        let modeKey = "DashboardLayoutTests.chatMode.\(UUID().uuidString)"
+        let legacyData = defaults.data(forKey: DashboardLayout.chatCanvasKey)
+        defer {
+            defaults.removeObject(forKey: modeKey)
+            if let legacyData {
+                defaults.set(legacyData, forKey: DashboardLayout.chatCanvasKey)
+            } else {
+                defaults.removeObject(forKey: DashboardLayout.chatCanvasKey)
+            }
+        }
+
+        let legacy = DashboardLayout(panels: [
+            DashboardPanel(kind: .conversation, frame: CGRect(x: 1, y: 2, width: 300, height: 200))
+        ])
+        let mode = DashboardLayout(panels: [
+            DashboardPanel(kind: .sessionGraph, frame: CGRect(x: 3, y: 4, width: 500, height: 400))
+        ])
+
+        legacy.store(key: DashboardLayout.chatCanvasKey)
+        #expect(DashboardLayout.loadStoredChatMode(modeKey) == legacy)
+
+        mode.store(key: modeKey)
+        #expect(DashboardLayout.loadStoredChatMode(modeKey) == mode)
+    }
+
     @Test("An unknown panel kind decodes without loss (forward-compatible)")
     internal func unknownKindDecodes() throws {
         // A custom kind registered by a plugin, persisted, then loaded by a build
