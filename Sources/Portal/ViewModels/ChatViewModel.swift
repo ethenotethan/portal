@@ -864,7 +864,11 @@ client.eventStream
     /// gap, its terminal frame lost with the dead socket). Split out of
     /// `handleGatewayReconnected` so the async reconcile is awaitable in tests.
     private func reconcileTurnAfterReconnect(displayID: String) async {
-        let resumed = await resumeSession(key: displayID)
+        // A reconnect recovers from a dead socket, so a turn the gateway no
+        // longer reports as in-flight lost its terminal frame with the socket
+        // and must be force-settled (settleOrphanedTurn) — unlike a switch-back.
+        let generation = beginSwitchToSession(key: displayID)
+        let resumed = await resumeSession(key: displayID, generation: generation, settleOrphanedTurn: true)
         if let resumedID = gatewayClient?.activeSessionID, sessionID != resumedID {
             sessionID = resumedID
         }
@@ -1364,8 +1368,13 @@ client.eventStream
         return await resumeSession(key: key, generation: generation)
     }
 
+    /// - Parameter settleOrphanedTurn: when true, a locally-streaming session
+    ///   the gateway no longer reports as in-flight is force-settled. Only the
+    ///   post-reconnect reconcile passes this — an ordinary switch-back must
+    ///   keep a mid-thought turn alive (its completion still travels the live
+    ///   socket), so it leaves this at the default.
     @discardableResult
-    func resumeSession(key: String, generation: Int) async -> Bool {
+    internal func resumeSession(key: String, generation: Int, settleOrphanedTurn: Bool = false) async -> Bool {
         guard let client = gatewayClient else {
             if generation == sessionSwitchGeneration {
                 self.error = "No harness client"
@@ -1485,13 +1494,19 @@ client.eventStream
             // opened session shows the row but nothing streaming in.
             if let inflight = result.inflight, inflight.isStreaming {
                 seedResumedLiveTurn(displayID: key, partial: inflight.assistantPartial)
-            } else if sessionStates[key]?.isStreaming == true {
-                // Resumed into a session local state still believes is
-                // streaming, but the gateway reports no in-flight turn: the turn
-                // finished or its live event stream was lost across a disconnect,
-                // and its terminal `message.complete` will never arrive. Settle
-                // it here so the spinner clears and the usage/model metadata can
-                // refresh — otherwise the turn hangs and blocks the session.
+            } else if settleOrphanedTurn, sessionStates[key]?.isStreaming == true {
+                // Reconnect only: local state still believes this session is
+                // streaming, but the gateway reports no in-flight turn. Because
+                // we are recovering from a dead socket, the turn's terminal
+                // `message.complete` was emitted into the socket that dropped
+                // and will never arrive — settle it here so the spinner clears
+                // and the usage/model metadata can refresh.
+                //
+                // This must NOT fire on an ordinary switch-back: a turn that has
+                // only been THINKING has empty `content`, the gateway cannot
+                // report a still-running turn as inflight, and the live socket
+                // is intact — a later frame WILL land, so the shell must survive
+                // (see LiveSessionSwitchBackTests.resumeMidThoughtKeepsTheLiveTurn).
                 finalizeStuckStreamingTurn(displayID: key, status: "interrupted")
             }
 

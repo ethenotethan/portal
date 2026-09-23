@@ -21,8 +21,11 @@ import Testing
 ///   1. A terminal connection `error` settles every wedged turn at once.
 ///   2. A reconnect re-resumes the visible session, settling it if the gateway
 ///      reports the turn already finished.
-///   3. A resume that finds no in-flight turn while local state still says
-///      streaming settles that session.
+///   3. That reconnect reconcile settles a session local state still believes is
+///      streaming when the gateway reports no in-flight turn. This is gated to
+///      the reconnect path (`settleOrphanedTurn`): an ordinary switch-back must
+///      keep such a (mid-thought, empty-content) turn live, since its socket is
+///      intact and a later frame will land (LiveSessionSwitchBackTests).
 /// Force-settling is safe: a genuinely-live turn re-opens its stream on the next
 /// live frame via `GatewayEvent.resumesLiveTurn`.
 @Suite("Stuck turn finalization")

@@ -316,6 +316,39 @@ internal struct LiveSessionSwitchBackTests {
         #expect(!vm.isStreaming)
     }
 
+    /// The mirror image of `resumeMidThoughtKeepsTheLiveTurn`: the SAME state —
+    /// local streaming, gateway reports no in-flight turn — but reached through
+    /// the reconnect reconcile rather than a switch-back. Here the socket died,
+    /// so the turn's terminal frame is lost and it must be force-settled, not
+    /// kept. This is the original stuck-turn bug (a turn wedged on `isStreaming`
+    /// after a mid-turn disconnect), and the reason the settle is gated behind
+    /// `settleOrphanedTurn` instead of firing on every resume.
+    @Test("a reconnect settles an orphaned turn the gateway no longer reports")
+    internal func reconnectSettlesOrphanedTurn() async {
+        let backend = LiveSwitchBackendSpy()
+        let vm = ChatViewModel()
+        vm.setGatewayClient(backend)
+        let sid = "orphan-\(UUID().uuidString)"
+        backend.historyBySession[sid] = [
+            ["role": AnyCodable("user"), "text": AnyCodable("earlier question")],
+            ["role": AnyCodable("assistant"), "text": AnyCodable("earlier answer")]
+        ]
+        // No inflight entry: after the reconnect the gateway reports nothing running.
+
+        // Local state believes the turn is still streaming — the socket dropped
+        // mid-turn and its message.complete went with it.
+        _ = vm.beginSwitchToSession(key: sid)
+        vm.receiveGatewayEventForTesting(.messageStart, sessionID: sid)
+        #expect(vm.isStreaming)
+
+        await vm.reconcileTurnAfterReconnectForTesting(displayID: sid)
+
+        // The wedge is cleared and the shell is stamped, unlike the switch-back.
+        #expect(!vm.isStreaming)
+        #expect(vm.streamingSessionIDsForTesting.contains(sid) == false)
+        #expect(vm.messages.last { $0.role == .assistant }?.status == "interrupted")
+    }
+
     @Test("resuming into a turn this client never saw start streams the rest live")
     internal func resumeIntoServerSpawnedRunningTurn() async {
         let backend = LiveSwitchBackendSpy()
